@@ -1,5 +1,5 @@
 ///Bit列を用いて時空間IDの各次元の階層構造を管理する
-#[derive(Debug, Clone, Eq, Hash, PartialEq)]
+#[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct BitVec(pub(crate) Vec<u8>);
 
 impl BitVec {
