@@ -64,8 +64,10 @@ impl SpaceTimeIdSet {
                 .min_by_key(|(_, v)| v.0)
                 .unwrap();
 
+            //全ての次元において最小のものを求める
             let min_under = f_under_min.1.0.min(x_under_min.1.0.min(y_under_min.1.0));
 
+            //代表次元を選定して、関数を実行する
             if min_under == f_under_min.1.0 {
                 //Fが代表次元
                 Self::tmp(&self.f, &[&self.x, &self.y], &min_under, &f_under_min.1.1);
