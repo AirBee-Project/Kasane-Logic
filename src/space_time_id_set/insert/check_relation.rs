@@ -15,7 +15,7 @@ pub enum Relation {
 
 impl SpaceTimeIdSet {
     ///mainの上位IDについて逆引き検索する関数
-    pub fn relation(me: &BitVec, target: &BitVec) -> Relation {
+    pub fn check_relation(me: &BitVec, target: &BitVec) -> Relation {
         if target == me {
             return Relation::Top;
         } else if (me < target) && (target < &me.under_prefix()) {

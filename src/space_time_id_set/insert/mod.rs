@@ -12,11 +12,11 @@ use crate::{
     },
     r#type::bit_vec::BitVec,
 };
+pub mod check_relation;
 pub mod collect_top;
 pub mod collect_under;
 pub mod generate_index;
 pub mod insert_main_dim;
-pub mod relation;
 pub mod search_under_count;
 pub mod select_dimensions;
 pub mod uncheck_insert;
