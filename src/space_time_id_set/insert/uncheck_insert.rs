@@ -25,6 +25,7 @@ impl SpaceTimeIdSet {
         );
     }
 
+    ///上位の階層のcountに+1
     fn update_layer(map: &mut BTreeMap<BitVec, LayerInfo>, key: &BitVec, index: usize) {
         map.entry(key.clone())
             .and_modify(|v| {
@@ -35,7 +36,7 @@ impl SpaceTimeIdSet {
                 count: 0,
             });
 
-        for top in key.top_prefix().pop() {
+        while let Some(top) = key.top_prefix().pop() {
             map.entry(top)
                 .and_modify(|v| v.count += 1)
                 .or_insert(LayerInfo {

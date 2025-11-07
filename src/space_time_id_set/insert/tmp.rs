@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::ops::Bound::{Excluded, Included};
 
 use crate::{
     space_time_id_set::{Index, LayerInfo, SpaceTimeIdSet},
@@ -82,19 +83,52 @@ impl SpaceTimeIdSet {
         other_encoded: &[&Vec<(usize, BitVec)>; 2],
         main_sel: MainDimensionSelect,
     ) {
-        let dims = self.select_dimensions(&main_sel);
+        let main_top;
+        {
+            let dims = self.select_dimensions(&main_sel);
 
-        // 上位を収集
-        let main_top = Self::collect_top_indices(dims.main, main);
+            // 上位を収集
+            main_top = Self::collect_top_indices(dims.main, main);
 
-        // 上位も下位も0の場合の処理
-        if main_top.is_empty() && *main_under_count == 0 {
-            if *main_index < main_encoded.len() {
-                let _removed = main_encoded.remove(*main_index);
-                self.insert_combinations(&main_sel, main, other_encoded);
+            // 上位も下位も0の場合の処理
+            if main_top.is_empty() && *main_under_count == 0 {
+                if *main_index < main_encoded.len() {
+                    let _removed = main_encoded.remove(*main_index);
+                    self.insert_combinations(&main_sel, main, other_encoded);
+                }
             }
         }
 
-        // 下位探索（今後拡張予定）
+        //下位の範囲を検索
+        let mut main_under = HashSet::new();
+        {
+            let dims = self.select_dimensions(&main_sel);
+            for (_, layerinfo) in dims
+                .main
+                .range((Included(main), Excluded(&main.under_prefix())))
+            {
+                main_under.extend(layerinfo.index.clone());
+            }
+        }
+
+        //逆引きをして範囲を照合
+
+        //main_topから検索
+
+        //全てが上位の場合→Return
+
+        //main_topのみが上位で、残りの2つが上位の場合
+
+        //main_topと1つが上位で、残りの1つが下位の場合
+
+        //------------------------------------------
+
+        //main_underを検索
+
+        //全てが下位の場合→そのIDをdelete
+
+        //main_underのみが下位で、残りの2つが上位の場合
+
+        //main_topと1つが下位で、残りの1つが上位の場合
     }
 }
