@@ -10,43 +10,67 @@ use crate::{
 
 impl SpaceTimeIdSet {
     pub fn scan_and_insert_top(
-        &self,
+        &mut self,
+        main_bit: &BitVec,
         main_top: &HashSet<Index>,
         other_encoded: &[&Vec<(usize, BitVec)>; 2],
         main_dim_select: MainDimensionSelect,
     ) {
         //徐々に削除していくので配列をコピーする必要がありそう
-        let other_encoded_copy = other_encoded.clone();
+        let mut other_encoded_copy = other_encoded.map(|v| (*v).clone());
 
         for index in main_top {
-            let dim = self.select_dimensions(&main_dim_select);
             let reverse = self.reverse.get(index).unwrap();
-            let target_x = &reverse.x;
-            let target_y = &reverse.y;
+            let target_x = &reverse.x.clone();
+            let target_y = &reverse.y.clone();
 
             match main_dim_select {
                 MainDimensionSelect::F => {
-                    let mut x_relations = vec![];
-                    let mut y_relations = vec![];
+                    let mut x_relations = Vec::new();
+                    let mut y_relations = Vec::new();
 
-                    //Xについて調べる
+                    // Xを処理
                     for (x_index, x_bit) in other_encoded[0] {
-                        let x_relation = Self::check_relation(x_bit, &target_x);
-                        match x_relation {
-                            check_relation::Relation::Disjoint => {
-                                //Xが無関係だったので強制的に挿入する
-                                let x_bit_removed = other_encoded_copy[0].remove(*x_index);
+                        let relation = Self::check_relation(x_bit, &target_x);
+
+                        // 無関係な場合の処理を早期continueで分離
+                        if relation == check_relation::Relation::Disjoint {
+                            let x_bit_removed = other_encoded_copy[0].remove(*x_index);
+
+                            // Y方向のすべてに uncheck_insert
+                            for (_, y_bit) in &other_encoded_copy[1] {
+                                self.uncheck_insert(main_bit, &x_bit_removed.1, y_bit);
                             }
-                            v => {
-                                //関係がある場合は、配列に追加する
-                                x_relations.push((x_index, v));
-                            }
+
+                            //無関係の場合はx_relationsにpushしない
+                            continue;
                         }
+
+                        // 関係あり → 後で使うため保存
+                        x_relations.push((x_index, relation));
                     }
 
-                    //Yについて調べる
+                    // Yを処理
                     for (y_index, y_bit) in other_encoded[1] {
                         y_relations.push((y_index, Self::check_relation(y_bit, &target_y)));
+
+                        let relation = Self::check_relation(y_bit, &target_y);
+
+                        // 無関係な場合の処理を早期continueで分離
+                        if relation == check_relation::Relation::Disjoint {
+                            let y_bit_removed = other_encoded_copy[1].remove(*y_index);
+
+                            // Y方向のすべてに uncheck_insert
+                            for (_, x_bit) in &other_encoded_copy[0] {
+                                self.uncheck_insert(main_bit, &y_bit_removed.1, x_bit);
+                            }
+
+                            //無関係の場合はx_relationsにpushしない
+                            continue;
+                        }
+
+                        // 関係あり → 後で使うため保存
+                        y_relations.push((y_index, relation));
                     }
                 }
                 MainDimensionSelect::X => todo!(),
