@@ -1,5 +1,6 @@
-use crate::r#type::bit_vec::BitVec;
 use std::collections::{BTreeMap, HashMap, HashSet};
+
+use crate::bit_vec::BitVec;
 pub mod single;
 
 type Index = usize;

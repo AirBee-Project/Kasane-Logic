@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 
 use crate::{
+    bit_vec::BitVec,
     space_time_id_set::{LayerInfo, ReverseInfo, SpaceTimeIdSet},
-    r#type::bit_vec::BitVec,
 };
 
 //Todo:ここら辺に隣と結合する処理を追加したい

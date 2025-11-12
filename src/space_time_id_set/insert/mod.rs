@@ -1,4 +1,5 @@
 use crate::{
+    bit_vec::BitVec,
     space_time_id::SpaceTimeId,
     space_time_id_set::{
         SpaceTimeIdSet,
@@ -8,7 +9,6 @@ use crate::{
             convert_single_f::convert_f, convert_single_xy::convert_xy,
         },
     },
-    r#type::bit_vec::BitVec,
 };
 pub mod check_relation;
 pub mod collect_top;

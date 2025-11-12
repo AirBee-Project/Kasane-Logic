@@ -1,4 +1,4 @@
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
 
 pub fn invert_bitmask_f(bitmask: &BitVec) -> (u8, i64) {
     let bytes = &bitmask.0;

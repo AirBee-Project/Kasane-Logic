@@ -1,4 +1,4 @@
-use crate::{space_time_id_set::SpaceTimeIdSet, r#type::bit_vec::BitVec};
+use crate::{bit_vec::BitVec, space_time_id_set::SpaceTimeIdSet};
 
 impl SpaceTimeIdSet {
     pub fn split_dimension(top: &BitVec, under: &mut BitVec) -> Vec<BitVec> {

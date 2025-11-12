@@ -1,6 +1,6 @@
 use crate::{
+    bit_vec::BitVec,
     space_time_id_set::{SpaceTimeIdSet, insert::insert_main_dim::MainDimensionSelect},
-    r#type::bit_vec::BitVec,
 };
 
 impl SpaceTimeIdSet {

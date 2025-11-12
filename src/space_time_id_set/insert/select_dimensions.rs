@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::{
+    bit_vec::BitVec,
     space_time_id_set::{LayerInfo, SpaceTimeIdSet, insert::insert_main_dim::MainDimensionSelect},
-    r#type::bit_vec::BitVec,
 };
 
 pub struct DimensionRefs<'a> {

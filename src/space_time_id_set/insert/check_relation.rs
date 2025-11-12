@@ -1,4 +1,4 @@
-use crate::{space_time_id_set::SpaceTimeIdSet, r#type::bit_vec::BitVec};
+use crate::{bit_vec::BitVec, space_time_id_set::SpaceTimeIdSet};
 
 ///Me（自身）から見た視点の結果
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

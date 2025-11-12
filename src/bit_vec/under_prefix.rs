@@ -1,4 +1,4 @@
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
 
 impl BitVec {
     ///下位範囲を検索するときに必要な右側の端点の値を出す

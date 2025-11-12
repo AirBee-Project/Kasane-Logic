@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
 
 impl fmt::Display for BitVec {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

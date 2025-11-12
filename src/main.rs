@@ -5,7 +5,15 @@ use kasane_logic::{
 
 fn main() {
     let mut set = SpaceTimeIdSet::new();
-    let id = SpaceTimeId::random_z_max(5);
+    let id = SpaceTimeId::new(
+        5,
+        [Some(-5), Some(5)],
+        [Some(3), Some(9)],
+        [Some(3), Some(2)],
+        0,
+        [None, None],
+    )
+    .unwrap();
     let id2 = SpaceTimeId::new(
         3,
         [Some(5), Some(5)],
@@ -16,19 +24,14 @@ fn main() {
     )
     .unwrap();
 
-    // set.insert(id1);
+    set.insert(id);
+    set.insert(id2);
 
-    // println!("{},", id1);
-    // // println!("{}", id2);
+    println!("{},", id);
+    println!("{}", id2);
+    println!("--------------");
 
-    // for ele in set.get_all() {
-    //     println!("{},", ele);
-    // }
-    println!("{}", id);
-
-    let f = convert_f(id.z, id.f);
-
-    for a in f {
-        println!("{}/{}/-/-,", { a.0 }, { a.1 });
+    for ele in set.get_all() {
+        println!("{},", ele);
     }
 }

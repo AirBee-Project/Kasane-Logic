@@ -1,4 +1,4 @@
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
 
 impl BitVec {
     ///あるBitVecが表す範囲より上位の範囲を表すBitVecを全て返す

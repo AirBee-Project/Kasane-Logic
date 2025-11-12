@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::{
+    bit_vec::BitVec,
     space_time_id_set::{LayerInfo, SpaceTimeIdSet},
-    r#type::bit_vec::BitVec,
 };
 impl SpaceTimeIdSet {
     ///与えられた次元において、下位の範囲の個数を読み取る

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use crate::{
+    bit_vec::BitVec,
     space_time_id_set::{
         Index, SpaceTimeIdSet,
         insert::{check_relation::Relation, insert_main_dim::MainDimensionSelect},
     },
-    r#type::bit_vec::BitVec,
 };
 
 pub enum ResultTop {

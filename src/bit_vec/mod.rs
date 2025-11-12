@@ -3,7 +3,6 @@ pub mod remove_bottom_layer;
 pub mod reverse_bottom_layer;
 pub mod top_prefix;
 pub mod under_prefix;
-
 ///Bit列を用いて時空間IDの各次元の階層構造を管理する
 #[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 

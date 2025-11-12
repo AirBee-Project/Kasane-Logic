@@ -1,4 +1,4 @@
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
 
 impl BitVec {
     /// 最下層の各2ビットペアを反転する:

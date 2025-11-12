@@ -1,4 +1,5 @@
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
+
 pub fn convert_bitmask_f(z: u8, f: i64) -> BitVec {
     let length = ((z * 2 / 8) + 1) as usize;
     let mut result = vec![0u8; length];

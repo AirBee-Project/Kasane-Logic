@@ -1,4 +1,4 @@
-use crate::{space_time_id_set::SpaceTimeIdSet, r#type::bit_vec::BitVec};
+use crate::{bit_vec::BitVec, space_time_id_set::SpaceTimeIdSet};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MainDimensionSelect {

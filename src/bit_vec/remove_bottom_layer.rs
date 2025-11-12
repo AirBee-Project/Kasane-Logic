@@ -1,4 +1,4 @@
-use crate::r#type::bit_vec::BitVec;
+use crate::bit_vec::BitVec;
 
 impl BitVec {
     /// 最下層（最後のバイト）にある有効な2ビット層を 00 にリセットする
