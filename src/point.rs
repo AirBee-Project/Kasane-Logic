@@ -146,7 +146,7 @@ impl Coordinate {
         let f_id = (factor * alt).floor() as i64;
 
         // ---- 経度 lon -> x ----
-        let n = 2u32.pow(z as u32) as f64;
+        let n = 2u64.pow(z as u32) as f64;
         let x_id = ((lon + 180.0) / 360.0 * n).floor() as u64;
 
         // ---- 緯度 lat -> y (Web Mercator) ----
