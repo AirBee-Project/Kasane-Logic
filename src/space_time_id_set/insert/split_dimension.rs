@@ -3,10 +3,10 @@ use crate::{bit_vec::BitVec, space_time_id_set::SpaceTimeIdSet};
 impl SpaceTimeIdSet {
     pub fn split_dimension(top: &BitVec, under: &mut BitVec) -> Vec<BitVec> {
         let mut result: Vec<BitVec> = vec![];
+        println!("{}", top);
+        println!("{}", under);
 
         while top != under {
-            println!("a{}", under);
-
             under.reverse_bottom_layer();
 
             result.push(under.clone());

@@ -37,10 +37,17 @@ impl SpaceTimeIdSet {
             _ => unreachable!(),
         };
 
+        println!("================");
+
+        println!("{}", main_bit);
+        println!("--------------");
+
         for index in main_top {
             let reverse = self.reverse.get(index).unwrap();
             let target_bits = [&reverse.f.clone(), &reverse.x.clone(), &reverse.y.clone()];
-            let mut target_main = target_bits[main_idx].clone();
+            let mut target_main: BitVec = target_bits[main_idx].clone();
+
+            println!("{}", target_main);
 
             // 他軸の参照を動的に取得
             let target_a = &target_bits[other_axes[0]];
@@ -54,6 +61,8 @@ impl SpaceTimeIdSet {
             for (i, (_, bit_a)) in other_encoded[0].iter().enumerate() {
                 if let Some(_a_v) = other_encoded_copy[0][i].as_mut() {
                     let relation = Self::check_relation(bit_a, target_a);
+
+                    println!("{:?}", relation);
 
                     if relation == Relation::Disjoint {
                         // 論理削除しつつ a_v を取り出す
@@ -75,6 +84,8 @@ impl SpaceTimeIdSet {
                 if let Some(_b_v) = other_encoded_copy[1][i].as_mut() {
                     let relation = Self::check_relation(bit_b, target_b);
 
+                    println!("{:?}", relation);
+
                     if relation == Relation::Disjoint {
                         let removed = other_encoded_copy[1][i].take().unwrap();
 
@@ -88,6 +99,9 @@ impl SpaceTimeIdSet {
                     }
                 }
             }
+
+            println!("{:?}", a_relations);
+            println!("{:?}", b_relations);
 
             // ---- メイン軸を含めた結合処理 ----
             for (ai, a_rel) in &a_relations {
@@ -142,6 +156,8 @@ impl SpaceTimeIdSet {
                 }
             }
         }
+        println!("================");
+
         return ResultTop::Continue;
     }
 }
