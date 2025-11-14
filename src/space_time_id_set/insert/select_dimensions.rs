@@ -10,6 +10,11 @@ pub struct DimensionRefs<'a> {
     pub others: [&'a BTreeMap<BitVec, LayerInfo>; 2],
 }
 
+pub struct DimensionReverseRefs<'a> {
+    pub main: &'a BTreeMap<BitVec, LayerInfo>,
+    pub others: [&'a BTreeMap<BitVec, LayerInfo>; 2],
+}
+
 impl SpaceTimeIdSet {
     /// メイン次元とその他の次元の参照を選択
     pub fn select_dimensions(&self, dim: &MainDimensionSelect) -> DimensionRefs<'_> {

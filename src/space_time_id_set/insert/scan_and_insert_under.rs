@@ -9,6 +9,7 @@ use crate::{
 };
 
 impl SpaceTimeIdSet {
+    ///ある代表次元の単体範囲に着目して、その範囲の下位範囲一覧を起点に挿入などを行う
     pub fn scan_and_insert_under(
         &mut self,
         main_bit: &BitVec,

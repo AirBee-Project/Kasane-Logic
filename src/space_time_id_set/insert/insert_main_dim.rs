@@ -1,4 +1,9 @@
-use crate::{bit_vec::BitVec, space_time_id_set::SpaceTimeIdSet};
+use itertools::iproduct;
+
+use crate::{
+    bit_vec::BitVec,
+    space_time_id_set::{ReverseInfo, SpaceTimeIdSet, insert::check_relation::Relation},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MainDimensionSelect {
@@ -29,53 +34,156 @@ impl SpaceTimeIdSet {
         main_dim_select: MainDimensionSelect,
     ) {
         //代表次元における上位範囲を収拾する
-
         let main_top = Self::collect_top(&self, main_bit, &main_dim_select);
 
-        println!("{:?}", main_dim_select);
-
-        println!("{:?}", main_top);
-
-        //代表次元において、上位も下位も存在しなかった場合
+        //代表次元において、上位も下位も存在しなかった場合は無条件に挿入
         if main_top.is_empty() && *main_under_count == 0 {
-            //代表次元をBitVecから削除
-            let _removed = main_encoded.remove(*main_index);
             //挿入
-            self.uncheck_insert_combinations(&main_dim_select, main_bit, other_encoded);
-            return;
-        }
+            for ((_, a_bit), (_, b_bit)) in iproduct!(other_encoded[0], other_encoded[1]) {
+                match main_dim_select {
+                    MainDimensionSelect::F => self.uncheck_insert(main_bit, a_bit, b_bit),
+                    MainDimensionSelect::X => self.uncheck_insert(a_bit, main_bit, b_bit),
+                    MainDimensionSelect::Y => self.uncheck_insert(a_bit, b_bit, main_bit),
+                };
 
-        //main_topから検索して処理していく
-        match self.scan_and_insert_top(
-            main_bit,
-            &main_top,
-            other_encoded,
-            main_dim_select,
-            main_under_count,
-        ) {
-            super::scan_and_insert_top::ResultTop::End => {
-                //この階層はここで終了でよい
-                main_encoded.remove(*main_index);
+                //代表次元を元の要素から削除
+                let _removed = main_encoded.remove(*main_index);
                 return;
             }
-            super::scan_and_insert_top::ResultTop::Continue => {
-                //処理を続行する
-            }
-        };
+        }
 
-        //代表次元における下位範囲を収拾する
+        //代表次元において下位の範囲を収拾
         let main_under = self.collect_under(main_bit, &main_dim_select);
 
-        if main_under.is_empty() {
-            let _removed = main_encoded.remove(*main_index);
-            //挿入
-            self.uncheck_insert_combinations(&main_dim_select, main_bit, other_encoded);
-            return;
-        } else {
-            self.scan_and_insert_under(main_bit, &main_under, other_encoded, main_dim_select);
-            main_encoded.remove(*main_index);
+        //逆引き
+        let mut top_reverse = vec![];
+        for top_index in &main_top {
+            top_reverse.push(self.reverse.get(&top_index).unwrap());
+        }
 
-            return;
+        //逆引き
+        let mut under_reverse = vec![];
+        for top_index in &main_under {
+            under_reverse.push(self.reverse.get(&top_index).unwrap());
+        }
+
+        let a_dim_select: MainDimensionSelect;
+        let b_dim_select: MainDimensionSelect;
+
+        match main_dim_select {
+            MainDimensionSelect::F => {
+                a_dim_select = MainDimensionSelect::X;
+                b_dim_select = MainDimensionSelect::Y;
+            }
+            MainDimensionSelect::X => {
+                a_dim_select = MainDimensionSelect::F;
+                b_dim_select = MainDimensionSelect::Y;
+            }
+            MainDimensionSelect::Y => {
+                a_dim_select = MainDimensionSelect::F;
+                b_dim_select = MainDimensionSelect::X;
+            }
+        }
+
+        //軸ごとに関係を見極める              MainTop         MainUnder
+        let mut a_relations: Vec<Option<(Vec<Relation>, Vec<Relation>)>> = Vec::new();
+        //軸ごとに関係を見極める              MainTop         MainUnder
+        let mut b_relations: Vec<Option<(Vec<Relation>, Vec<Relation>)>> = Vec::new();
+
+        //Aについて収拾する
+        for (_, a_dim) in other_encoded[0] {
+            a_relations.push(Self::collect_other_dimension(
+                a_dim,
+                a_dim_select,
+                &top_reverse,
+                &under_reverse,
+            ));
+        }
+
+        //Bについて収拾する
+        for (_, b_dim) in other_encoded[1] {
+            b_relations.push(Self::collect_other_dimension(
+                b_dim,
+                b_dim_select,
+                &top_reverse,
+                &under_reverse,
+            ));
+        }
+
+        for (a, b) in iproduct!(a_relations, b_relations) {
+            let a_relations = match a {
+                Some(v) => v,
+                None => {
+                    //無条件挿入
+                    continue;
+                }
+            };
+
+            let b_relations = match b {
+                Some(v) => v,
+                None => {
+                    //無条件挿入
+                    continue;
+                }
+            };
+
+            //まずTopについて考える
+        }
+    }
+
+    fn collect_other_dimension(
+        dim: &BitVec,
+        //ここを見て逆引きの参照先を見る
+        dim_select: MainDimensionSelect,
+        top_reverse: &Vec<&ReverseInfo>,
+        under_reverse: &Vec<&ReverseInfo>,
+    ) -> Option<(Vec<Relation>, Vec<Relation>)> {
+        let mut top_disjoint = true;
+        let mut under_disjoint = true;
+
+        let mut top_relation: Vec<Relation> = Vec::new();
+        let mut under_relation: Vec<Relation> = Vec::new();
+
+        //代表次元における上位範囲を調べる
+
+        for top in top_reverse {
+            let target = match dim_select {
+                MainDimensionSelect::F => &top.f,
+                MainDimensionSelect::X => &top.x,
+                MainDimensionSelect::Y => &top.y,
+            };
+
+            let relation = Self::check_relation(dim, target);
+
+            if relation != Relation::Disjoint {
+                top_disjoint = false;
+            }
+
+            top_relation.push(relation);
+        }
+
+        for under in under_reverse {
+            let target = match dim_select {
+                MainDimensionSelect::F => &under.f,
+                MainDimensionSelect::X => &under.x,
+                MainDimensionSelect::Y => &under.y,
+            };
+
+            let relation = Self::check_relation(dim, target);
+
+            if relation != Relation::Disjoint {
+                under_disjoint = false;
+            }
+
+            under_relation.push(relation);
+        }
+
+        if top_disjoint && under_disjoint {
+            return None;
+        } else {
+            return Some((top_relation, under_relation));
         }
     }
 }
+
+//各軸について処理させる

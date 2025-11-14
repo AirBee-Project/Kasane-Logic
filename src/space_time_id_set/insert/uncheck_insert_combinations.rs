@@ -11,11 +11,6 @@ impl SpaceTimeIdSet {
         main: &BitVec,
         others: &[&Vec<(usize, BitVec)>; 2],
     ) {
-        // 他次元が少なくとも2つの要素を持つかチェック
-        if others.len() != 2 {
-            return;
-        }
-
         // 組み合わせを生成して挿入
         for (_, b1) in &*others[0] {
             for (_, b2) in &*others[1] {

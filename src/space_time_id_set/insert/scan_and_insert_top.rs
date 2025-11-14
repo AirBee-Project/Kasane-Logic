@@ -16,6 +16,8 @@ pub enum ResultTop {
     Continue,
 }
 impl SpaceTimeIdSet {
+    ///ある代表次元の単体範囲に着目して、その範囲の上位範囲一覧を起点に挿入などを行う
+    /// 同位も含む
     pub fn scan_and_insert_top(
         &mut self,
         main_bit: &BitVec,

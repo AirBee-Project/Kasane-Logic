@@ -11,33 +11,18 @@ impl SpaceTimeIdSet {
         &self,
         main_bit: &BitVec,
         main_dim_select: &MainDimensionSelect,
-    ) -> HashSet<Index> {
-        //この関数が正しい範囲を返していない
-
-        println!("===========collect_top===========");
-
+    ) -> Vec<Index> {
         let dims = self.select_dimensions(&main_dim_select);
-
-        println!("INPUT : {}", main_bit);
-        for ele in dims.main {
-            print!("{}", ele.0);
-            println!("{:?}", ele.1);
-        }
 
         let mut result = HashSet::new();
 
-        println!("-----------");
-
         for top in main_bit.top_prefix() {
             if let Some(v) = dims.main.get(&top) {
-                print!("{}", top);
-                println!("{:?}", v);
                 result.extend(v.index.iter().copied());
             }
         }
 
-        println!("===========collect_top===========");
-
-        result
+        //順序を確定させて返す
+        Vec::from_iter(result)
     }
 }
