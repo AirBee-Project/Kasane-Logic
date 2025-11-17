@@ -110,7 +110,7 @@ impl SpaceTimeIdSet {
                     &min_under,
                     &mut x_encoded,
                     &[&f_encoded, &y_encoded],
-                    DimensionSelect::F,
+                    DimensionSelect::X,
                 );
             } else {
                 self.insert_main_dim(
@@ -119,7 +119,7 @@ impl SpaceTimeIdSet {
                     &min_under,
                     &mut y_encoded,
                     &[&f_encoded, &x_encoded],
-                    DimensionSelect::F,
+                    DimensionSelect::Y,
                 );
             }
         }
