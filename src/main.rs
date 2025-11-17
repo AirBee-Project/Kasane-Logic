@@ -1,14 +1,20 @@
-use kasane_logic::{space_time_id::SpaceTimeId, space_time_id_set::SpaceTimeIdSet};
+use kasane_logic::{
+    bit_vec::BitVec, space_time_id::SpaceTimeId, space_time_id_set::SpaceTimeIdSet,
+};
 
 fn main() {
-    // let all = BitVec::from_vec(vec![0b10000000]);
-    // let test1 = BitVec::from_vec(vec![0b10101011]);
-    // let test2 = BitVec::from_vec(vec![0b10111011]);
+    // let test1 = BitVec::from_vec(vec![0b10101011, 0b11000000]);
+    // let test2 = BitVec::from_vec(vec![0b10101011, 0b11100000]);
 
-    // let a = SpaceTimeIdSet::division(&all, &mut vec![test1, test2]);
+    // let (start, end) = test1.under_prefix();
+    // println!("START:{}", start);
+    // println!("END  :{}", end);
 
-    // for ele in a {
-    //     println!("{}", ele);
+    // if start < test2 {
+    //     println!("{}<{}", start, test2);
+    // }
+    // if test2 < end {
+    //     println!("{}<{}", test2, end);
     // }
 
     let mut set = SpaceTimeIdSet::new();
@@ -43,39 +49,3 @@ fn main() {
         println!("{},", ele);
     }
 }
-
-// for ele in convert_xy(id1.z, id1.x) {
-//         println!("{}/-/{}/-,", ele.0, ele.1);
-//         //println!("{}", convert_bitmask_f(ele.0, ele.1));
-//     }
-
-//     for ele in convert_xy(id2.z, id2.x) {
-//         println!("{}/-/{}/-,", ele.0, ele.1);
-//         //println!("{}", convert_bitmask_f(ele.0, ele.1));
-//     }
-
-//     println!("===========");
-
-//     for ele in convert_xy(id1.z, id1.x) {
-//         //println!("{}/{}/-/-,", ele.0, ele.1);
-//         println!("{}", convert_bitmask_xy(ele.0, ele.1));
-//     }
-
-//     for ele in convert_xy(id2.z, id2.x) {
-//         //println!("{}/{}/-/-,", ele.0, ele.1);
-//         println!("{}", convert_bitmask_xy(ele.0, ele.1));
-//     }
-
-//     println!("===========");
-
-//     for ele in convert_xy(id1.z, id1.x) {
-//         let a = invert_bitmask_xy(&convert_bitmask_xy(ele.0, ele.1));
-
-//         println!("{}/{}/-/-,", a.0, a.1);
-//     }
-
-//     for ele in convert_xy(id2.z, id2.x) {
-//         let a = invert_bitmask_xy(&convert_bitmask_xy(ele.0, ele.1));
-
-//         println!("{}/{}/-/-,", a.0, a.1);
-//     }

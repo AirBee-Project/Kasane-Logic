@@ -1,61 +1,49 @@
 use crate::bit_vec::BitVec;
 
 impl BitVec {
-    pub fn division(mut target: BitVec, mut division: Vec<BitVec>) -> Vec<BitVec> {
-        if division.is_empty() {
-            return vec![target];
-        }
+    /// target から division に含まれる部分を除いた残りの BitVec リストを返す
+    pub fn division(mut target: BitVec, division: Vec<BitVec>) -> Vec<BitVec> {
+        // 最初は target の範囲ひとつ
+        let mut ranges: Vec<(BitVec, BitVec)> = vec![target.range()];
 
-        let mut result = Vec::new();
+        // division それぞれを差し引く
+        for div in division {
+            let div_range = div.range();
+            let mut new_ranges = vec![];
 
-        // 最初の division を使って target を分割
-        if let Some(mut first) = division.pop() {
-            let splitted = BitVec::split_dimension(&target, &mut first);
-            result.extend(splitted);
-        }
-
-        // 残りの division について順番に分割
-        while let Some(mut div) = division.pop() {
-            let mut new_result = Vec::new();
-
-            for bit in result.into_iter() {
-                let (start, end) = bit.under_prefix();
-                let (d_start, d_end) = div.under_prefix();
-
-                // 範囲が重なれば分割
-                if d_start < end && start < d_end {
-                    let splitted = BitVec::split_dimension(&bit, &mut div);
-                    new_result.extend(splitted);
-                } else {
-                    // 重ならなければそのまま残す
-                    new_result.push(bit);
-                }
+            for t_range in ranges {
+                new_ranges.extend(BitVec::subtract_range(t_range, div_range.clone()));
             }
 
-            result = new_result;
+            ranges = new_ranges;
         }
 
-        result
+        // 残った範囲の start を BitVec として返す
+        ranges.into_iter().map(|(s, _)| s).collect()
     }
 
-    pub fn split_dimension(top: &BitVec, under: &mut BitVec) -> Vec<BitVec> {
-        let mut result = vec![];
+    /// BitVec を区間 [start, end) に変換
+    pub fn range(&self) -> (BitVec, BitVec) {
+        (self.clone(), self.next_prefix())
+    }
 
-        // 無限ループ防止
-        if under.0.len() < top.0.len() {
-            panic!("under が top より小さすぎます");
+    /// 区間の差 (t0, t1) - (d0, d1)
+    fn subtract_range(
+        (t0, t1): (BitVec, BitVec),
+        (d0, d1): (BitVec, BitVec),
+    ) -> Vec<(BitVec, BitVec)> {
+        let mut out = vec![];
+
+        // 左側の残り
+        if t0 < d0 {
+            out.push((t0.clone(), d0.clone()));
         }
 
-        while top != under {
-            under.reverse_bottom_layer();
-            result.push(under.clone());
-            under.remove_bottom_layer();
-
-            if under.0.is_empty() {
-                panic!("top に到達せず BitVec が空になりました");
-            }
+        // 右側の残り
+        if d1 < t1 {
+            out.push((d1.clone(), t1.clone()));
         }
 
-        result
+        out
     }
 }

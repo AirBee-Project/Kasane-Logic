@@ -1,4 +1,4 @@
-use std::ops::Div;
+use std::{collections::HashSet, ops::Div};
 
 use crate::{
     bit_vec::BitVec,
@@ -19,6 +19,7 @@ impl SpaceTimeIdSet {
         divison: &mut NeedDivison,
         target_bit_index: Index,
         target_dim: DimensionSelect,
+        need_delete: &mut HashSet<Index>,
     ) {
         let reverse = self.reverse.get(&target_bit_index).unwrap();
 
@@ -33,5 +34,7 @@ impl SpaceTimeIdSet {
                 divison.y.push(reverse.y.clone());
             }
         }
+
+        need_delete.insert(target_bit_index);
     }
 }

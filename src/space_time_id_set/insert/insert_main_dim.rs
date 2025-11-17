@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use itertools::iproduct;
 
 use crate::{
@@ -114,6 +116,9 @@ impl SpaceTimeIdSet {
             ));
         }
 
+        //既にあるIDから削除するための構造体を作成
+        let mut need_delete: HashSet<Index> = HashSet::new();
+
         'outer: for ((a_encode_index, a), (b_encode_index, b)) in iproduct!(
             a_relations.iter().enumerate(),
             b_relations.iter().enumerate()
@@ -122,6 +127,7 @@ impl SpaceTimeIdSet {
             let a_relation = match a {
                 Some(v) => v,
                 None => {
+                    println!("無条件挿入");
                     self.uncheck_insert_dim(
                         main_dim_select,
                         main_bit,
@@ -136,6 +142,8 @@ impl SpaceTimeIdSet {
             let b_relation = match b {
                 Some(v) => v,
                 None => {
+                    println!("無条件挿入");
+
                     self.uncheck_insert_dim(
                         main_dim_select,
                         main_bit,
@@ -162,27 +170,41 @@ impl SpaceTimeIdSet {
             ) {
                 match (a_rel, b_rel) {
                     (Relation::Top, Relation::Top) => {
+                        println!("TTT");
                         continue 'outer;
                     }
                     (Relation::Top, Relation::Under) => {
-                        //相手を切断
-                        self.top_top_under(
-                            main_top[reverse_top_index],
-                            other_encoded[1][b_encode_index].1.clone(),
-                            b_dim_select,
-                        );
-                    }
-                    (Relation::Under, Relation::Top) => {
+                        println!("TTU");
+
                         //相手を切断
                         self.top_top_under(
                             main_top[reverse_top_index],
                             other_encoded[0][a_encode_index].1.clone(),
+                            b_dim_select,
+                            &mut need_delete,
+                        );
+                    }
+                    (Relation::Under, Relation::Top) => {
+                        println!("TUT");
+
+                        //相手を切断
+                        self.top_top_under(
+                            main_top[reverse_top_index],
+                            other_encoded[1][b_encode_index].1.clone(),
                             a_dim_select,
+                            &mut need_delete,
                         );
                     }
                     (Relation::Under, Relation::Under) => {
+                        println!("TUU");
+
                         //自分を削る
-                        self.under_under_top(&mut need_divison, reverse_top_index, main_dim_select);
+                        self.under_under_top(
+                            &mut need_divison,
+                            main_top[reverse_top_index],
+                            main_dim_select,
+                            &mut need_delete,
+                        );
                     }
                     _ => panic!(),
                 }
@@ -195,28 +217,47 @@ impl SpaceTimeIdSet {
             ) {
                 match (a_rel, b_rel) {
                     (Relation::Top, Relation::Top) => {
+                        println!("UTT");
                         //相手を切断
                         self.top_top_under(
                             main_under[reverse_under_index],
                             main_bit.clone(),
                             main_dim_select,
+                            &mut need_delete,
                         );
                     }
                     (Relation::Top, Relation::Under) => {
+                        println!("UTU");
+
                         //自分を切断
-                        self.under_under_top(&mut need_divison, reverse_under_index, a_dim_select);
+                        self.under_under_top(
+                            &mut need_divison,
+                            main_under[reverse_under_index],
+                            a_dim_select,
+                            &mut need_delete,
+                        );
                     }
                     (Relation::Under, Relation::Top) => {
+                        println!("TUT");
+
                         //自分を切断
-                        self.under_under_top(&mut need_divison, reverse_under_index, b_dim_select);
+                        self.under_under_top(
+                            &mut need_divison,
+                            main_under[reverse_under_index],
+                            b_dim_select,
+                            &mut need_delete,
+                        );
                     }
                     (Relation::Under, Relation::Under) => {
+                        println!("TUU");
+
                         //下位のIDを削除
                         self.uncheck_delete(&main_under[reverse_under_index]);
                     }
                     _ => panic!(),
                 }
             }
+
             //自身を分割
             let f_splited;
             let x_splited;
@@ -262,8 +303,10 @@ impl SpaceTimeIdSet {
                 self.uncheck_insert(&f, &x, &y);
             }
         }
+        for need_delete_index in need_delete {
+            self.uncheck_delete(&need_delete_index);
+        }
+
         main_encoded.remove(*main_index);
     }
 }
-
-//各軸について処理させる

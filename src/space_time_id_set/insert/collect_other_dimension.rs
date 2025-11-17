@@ -28,6 +28,9 @@ impl SpaceTimeIdSet {
                 DimensionSelect::Y => &top.y,
             };
 
+            println!("Me           :{}", dim);
+            println!("Target       :{}", target);
+
             let relation = Self::check_relation(dim, target);
 
             if relation != Relation::Disjoint {
@@ -52,6 +55,9 @@ impl SpaceTimeIdSet {
 
             under_relation.push(relation);
         }
+
+        println!("Top  :{:?}", top_relation);
+        println!("Under:{:?}", under_relation);
 
         if top_disjoint && under_disjoint {
             return None;

@@ -13,14 +13,28 @@ impl SpaceTimeIdSet {
     pub fn check_relation(me: &BitVec, target: &BitVec) -> Relation {
         let me_range = me.under_prefix();
         let target_range = target.under_prefix();
+        println!("------------");
+
+        println!("ME RANGE     :{}", me_range.0);
+        println!("ME RANGE     :{}", me_range.1);
+
+        println!("TRAGET RANGE :{}", target_range.0);
+        println!("TRAGET RANGE :{}", target_range.1);
 
         if target == me {
+            println!("Equal");
+
             return Relation::Top;
         } else if (me_range.0 < *target) && (target < &me_range.1) {
+            println!("Top");
+
             return Relation::Top;
         } else if (target_range.0 < *me) && (me < &target_range.1) {
+            println!("Under");
+
             return Relation::Under;
         } else {
+            println!("無関係");
             return Relation::Disjoint;
         }
     }
