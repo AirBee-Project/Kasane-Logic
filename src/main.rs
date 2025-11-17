@@ -3,7 +3,6 @@ use kasane_logic::{
     space_time_id::SpaceTimeId,
     space_time_id_set::{
         SpaceTimeIdSet,
-        insert::divison,
         single::{
             convert_bitvec_f::convert_bitmask_f, convert_bitvec_xy::convert_bitmask_xy,
             convert_single_f::convert_f, convert_single_xy::convert_xy,

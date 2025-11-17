@@ -20,6 +20,7 @@ pub mod search_under_count;
 pub mod select_dimensions;
 pub mod uncheck_delete;
 pub mod uncheck_insert;
+pub mod uncheck_insert_dim;
 
 impl SpaceTimeIdSet {
     pub fn insert(&mut self, id: SpaceTimeId) {

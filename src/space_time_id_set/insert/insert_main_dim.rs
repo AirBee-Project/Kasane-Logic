@@ -51,9 +51,9 @@ impl SpaceTimeIdSet {
                 };
 
                 //代表次元を元の要素から削除
-                let _removed = main_encoded.remove(*main_index);
-                return;
             }
+            let _removed = main_encoded.remove(*main_index);
+            return;
         }
 
         //代表次元において下位の範囲を収拾
@@ -118,29 +118,37 @@ impl SpaceTimeIdSet {
             a_relations.iter().enumerate(),
             b_relations.iter().enumerate()
         ) {
+            //もしA軸が無関係ならば即時挿入する
             let a_relations = match a {
                 Some(v) => v,
                 None => {
-                    for (_, b_bit) in other_encoded[1] {
-                        self.uncheck_insert(main_bit, &other_encoded[0][a_index].1, b_bit);
-                    }
-
+                    self.uncheck_insert_dim(
+                        main_dim_select,
+                        main_bit,
+                        &other_encoded[0][a_index].1,
+                        &other_encoded[1][b_index].1,
+                    );
                     continue;
                 }
             };
 
+            //もしB軸が無関係ならば即時挿入する
             let b_relations = match b {
                 Some(v) => v,
                 None => {
-                    for (_, a_bit) in other_encoded[0] {
-                        self.uncheck_insert(main_bit, &other_encoded[1][b_index].1, a_bit);
-                    }
+                    self.uncheck_insert_dim(
+                        main_dim_select,
+                        main_bit,
+                        &other_encoded[0][a_index].1,
+                        &other_encoded[1][b_index].1,
+                    );
                     continue;
                 }
             };
 
-            main_encoded.remove(*main_index);
+            //ここに来るということはAもBも関係があるので順番に競合を解消してあげる
         }
+        main_encoded.remove(*main_index);
     }
 }
 
