@@ -11,16 +11,29 @@ pub enum Relation {
 impl SpaceTimeIdSet {
     ///mainの上位IDについて逆引き検索する関数
     pub fn check_relation(me: &BitVec, target: &BitVec) -> Relation {
+        println!("ME    :{}", me);
+        println!("TARGET:{}", target);
+
         let me_range = me.under_prefix();
         let target_range = target.under_prefix();
 
         if target == me {
+            println!("EQUAL");
+
             return Relation::Top;
         } else if (me_range.0 < *target) && (target < &me_range.1) {
-            return Relation::Under;
-        } else if (target_range.0 < *me) && (me < &target_range.1) {
+            println!("START :{}", me_range.0);
+            println!("END   :{}", me_range.1);
+
+            println!("TOP");
             return Relation::Top;
+        } else if (target_range.0 < *me) && (me < &target_range.1) {
+            println!("UNDER");
+
+            return Relation::Under;
         } else {
+            println!("DISJOINT");
+
             return Relation::Disjoint;
         }
     }

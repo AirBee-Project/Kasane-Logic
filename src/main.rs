@@ -32,7 +32,7 @@ fn main() {
     let id2 = SpaceTimeId::new(
         5,
         [Some(7), Some(7)],
-        [Some(8), Some(6)],
+        [Some(8), Some(5)],
         [Some(6), Some(6)],
         0,
         [None, None],

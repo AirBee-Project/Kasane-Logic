@@ -273,13 +273,18 @@ impl SpaceTimeIdSet {
             let x_splited;
             let y_splited;
 
+            println!("{:?}", main_dim_select);
             match main_dim_select {
                 DimensionSelect::F => {
                     f_splited = BitVec::division(main_bit.clone(), need_divison.f);
+
+                    println!("XXXXX");
                     x_splited = BitVec::division(
                         other_encoded[0][a_encode_index].1.clone(),
                         need_divison.x,
                     );
+                    println!("YYYYY");
+
                     y_splited = BitVec::division(
                         other_encoded[1][b_encode_index].1.clone(),
                         need_divison.y,
@@ -290,7 +295,11 @@ impl SpaceTimeIdSet {
                         other_encoded[0][a_encode_index].1.clone(),
                         need_divison.f,
                     );
+                    println!("XXXXX");
+
                     x_splited = BitVec::division(main_bit.clone(), need_divison.x);
+                    println!("YYYYY");
+
                     y_splited = BitVec::division(
                         other_encoded[1][b_encode_index].1.clone(),
                         need_divison.y,
@@ -301,10 +310,14 @@ impl SpaceTimeIdSet {
                         other_encoded[0][a_encode_index].1.clone(),
                         need_divison.f,
                     );
+                    println!("XXXXX");
+
                     x_splited = BitVec::division(
                         other_encoded[1][b_encode_index].1.clone(),
                         need_divison.x,
                     );
+                    println!("YYYYY");
+
                     y_splited = BitVec::division(main_bit.clone(), need_divison.y);
                 }
             }
