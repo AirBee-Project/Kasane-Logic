@@ -339,7 +339,7 @@ impl SpaceTimeIdSet {
                         //相手を分割する
                         let splited = Self::split_dimension(
                             &target_main,
-                            &mut other_encoded[1][a_index].1.clone(),
+                            &mut other_encoded[1][b_index].1.clone(),
                         );
 
                         //再挿入
