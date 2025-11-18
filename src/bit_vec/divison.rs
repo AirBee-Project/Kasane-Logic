@@ -14,10 +14,10 @@ impl BitVec {
     }
 
     /// 両閉区間の開始・終了値を返す
-    /// 仕様より、BitVec の prefix の最大値は「自分自身」
-    /// → range = [self, self]
+    /// BitVec は階層的な範囲を表すため、自分自身から next_prefix までの範囲となる
+    /// → range = [self, next_prefix)
     pub fn range(&self) -> (BitVec, BitVec) {
-        (self.clone(), self.clone())
+        self.under_prefix()
     }
 
     /// BitVec を1階層ぶん +1 した値を返す（辞書順で次の BitVec）
