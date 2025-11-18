@@ -12,6 +12,7 @@ pub fn convert_bitmask_f(z: u8, f: i64) -> BitVec {
         let masked: u8 = 0b11000000;
         converted.0[0] = converted.0[0] | masked;
 
+        println!("{}", converted);
         converted
     }
 }

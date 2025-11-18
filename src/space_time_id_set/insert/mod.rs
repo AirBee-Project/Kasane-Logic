@@ -56,9 +56,6 @@ impl SpaceTimeIdSet {
             })
             .collect();
 
-        println!("{}", f_encoded.first().unwrap().1);
-        println!("{:?}", invert_bitmask_f(&f_encoded.first().unwrap().1));
-
         //最も探索範囲が小さくなりそうな次元を代表次元として挿入を繰り返す
         //どこかの次元がなくなるまで繰り返す
         while !(f_encoded.is_empty() || x_encoded.is_empty() || y_encoded.is_empty()) {

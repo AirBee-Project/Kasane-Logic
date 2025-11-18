@@ -21,8 +21,8 @@ fn main() {
     let mut set = SpaceTimeIdSet::new();
 
     let id1 = SpaceTimeId::new(
-        2,
-        [Some(0), Some(1)],
+        4,
+        [Some(-1), Some(1)],
         [Some(3), Some(1)],
         [Some(3), Some(0)],
         0,
