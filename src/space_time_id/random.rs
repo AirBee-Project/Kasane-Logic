@@ -2,7 +2,7 @@ use rand::Rng;
 
 use crate::space_time_id::{
     SpaceTimeId,
-    z_range::{F_MAX, F_MIN, XY_MAX},
+    z_range::{F_MAX, XY_MAX},
 };
 
 impl SpaceTimeId {

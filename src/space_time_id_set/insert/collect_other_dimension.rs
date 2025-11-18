@@ -57,9 +57,9 @@ impl SpaceTimeIdSet {
         println!("Under:{:?}", under_relation);
 
         if top_disjoint && under_disjoint {
-            return None;
+            None
         } else {
-            return Some((top_relation, under_relation));
+            Some((top_relation, under_relation))
         }
     }
 }

@@ -8,7 +8,17 @@ use crate::{
 };
 
 impl SpaceTimeIdSet {
-    ///相手を切断する
+    /// 相手を切断する
+    ///
+    /// 既存のIDの特定の次元を分割して、指定されたBitVecを除外する。
+    /// 分割後の新しいIDは need_insert に追加され、元のIDは need_delete に追加される。
+    ///
+    /// # 引数
+    /// * `target_index` - 分割対象のIDのインデックス
+    /// * `target_bit` - 除外するBitVec
+    /// * `target_dim` - 分割する次元（F, X, Y のいずれか）
+    /// * `need_delete` - 削除が必要なインデックスを格納するセット
+    /// * `need_insert` - 挿入が必要なReverseInfoを格納するセット
     pub fn top_top_under(
         &mut self,
         target_index: Index,

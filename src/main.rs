@@ -1,6 +1,4 @@
-use kasane_logic::{
-    bit_vec::BitVec, space_time_id::SpaceTimeId, space_time_id_set::SpaceTimeIdSet,
-};
+use kasane_logic::{space_time_id::SpaceTimeId, space_time_id_set::SpaceTimeIdSet};
 
 fn main() {
     // let test1 = BitVec::from_vec(vec![0b10101011, 0b10110000]);

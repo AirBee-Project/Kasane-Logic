@@ -11,13 +11,13 @@ pub fn convert_xy(z: u8, dimension: [u64; 2]) -> Vec<(u8, u64)> {
         }
 
         // 左端が奇数なら個別に処理
-        if target[0] % 2 != 0 {
+        if !target[0].is_multiple_of(2) {
             result.push((now_z, target[0]));
             target[0] += 1;
         }
 
         // 右端が偶数なら個別に処理
-        if target[1] % 2 == 0 {
+        if target[1].is_multiple_of(2) {
             result.push((now_z, target[1]));
             target[1] -= 1;
         }

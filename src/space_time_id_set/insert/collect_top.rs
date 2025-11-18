@@ -7,8 +7,14 @@ use crate::{
 
 impl SpaceTimeIdSet {
     /// 与えられた次元において、上位の範囲を収集する
+    ///
+    /// 指定されたBitVecを包含する全ての上位範囲のインデックスを返す。
+    ///
+    /// # 引数
+    /// * `main_bit` - 対象のBitVec
+    /// * `main_dim_select` - 対象次元（F, X, Y のいずれか）
     pub fn collect_top(&self, main_bit: &BitVec, main_dim_select: &DimensionSelect) -> Vec<Index> {
-        let dims = self.select_dimensions(&main_dim_select);
+        let dims = self.select_dimensions(main_dim_select);
 
         let mut result = HashSet::new();
 

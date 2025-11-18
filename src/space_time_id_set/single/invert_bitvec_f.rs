@@ -7,8 +7,8 @@ pub fn invert_bitmask_f(bitmask: &BitVec) -> (u8, i64) {
 
     //仮に負の範囲の場合
     if *bitmask.0.first().unwrap() >= 0b11000000 {
-        return (z, -(f as i64) + 2_i64.pow(z.into()));
+        (z, -(f as i64) + 2_i64.pow(z.into()))
     } else {
-        return (z, f as i64);
+        (z, f as i64)
     }
 }

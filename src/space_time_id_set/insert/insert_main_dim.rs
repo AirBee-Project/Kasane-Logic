@@ -4,21 +4,30 @@ use itertools::iproduct;
 
 use crate::{
     bit_vec::BitVec,
-    space_time_id::SpaceTimeId,
     space_time_id_set::{
         Index, ReverseInfo, SpaceTimeIdSet,
-        insert::{check_relation::Relation, select_dimensions, under_under_top::NeedDivison},
+        insert::{check_relation::Relation, under_under_top::NeedDivison},
     },
 };
 
+/// 次元の選択を表す列挙型
+///
+/// 時空間IDの3次元（F: 高度、X: 経度、Y: 緯度）のいずれかを表す。
 #[derive(Clone, Copy, Debug)]
 pub enum DimensionSelect {
+    /// F次元（高度）
     F,
+    /// X次元（経度）
     X,
+    /// Y次元（緯度）
     Y,
 }
 
 impl DimensionSelect {
+    /// 次元をインデックス番号に変換する
+    ///
+    /// # 戻り値
+    /// F=0, X=1, Y=2
     pub fn as_index(&self) -> usize {
         match self {
             DimensionSelect::F => 0,
@@ -29,7 +38,18 @@ impl DimensionSelect {
 }
 
 impl SpaceTimeIdSet {
-    /// 代表次元×他の次元を挿入処理する
+    /// 代表次元を基準に他の次元との組み合わせを挿入処理する
+    ///
+    /// 指定された代表次元と他の2次元を組み合わせて、既存のIDとの包含関係を解決しながら挿入する。
+    /// 最も効率的な次元を代表として選択し、処理を行う。
+    ///
+    /// # 引数
+    /// * `main_bit` - 代表次元のBitVec
+    /// * `main_index` - main_encoded内でのインデックス
+    /// * `main_under_count` - 代表次元の下位IDの数
+    /// * `main_encoded` - 代表次元のエンコード済みリスト
+    /// * `other_encoded` - 他の2次元のエンコード済みリスト
+    /// * `main_dim_select` - 代表次元の選択
     pub fn insert_main_dim(
         &mut self,
         main_bit: &BitVec,
@@ -41,7 +61,7 @@ impl SpaceTimeIdSet {
     ) {
         println!("代表次元：{:?}", main_dim_select);
         //代表次元における上位範囲を収拾する
-        let main_top: Vec<Index> = Self::collect_top(&self, main_bit, &main_dim_select);
+        let main_top: Vec<Index> = Self::collect_top(self, main_bit, &main_dim_select);
 
         //代表次元において、上位も下位も存在しなかった場合は無条件に挿入
         if main_top.is_empty() && *main_under_count == 0 {
@@ -65,13 +85,13 @@ impl SpaceTimeIdSet {
         //逆引き
         let mut top_reverse = vec![];
         for top_index in &main_top {
-            top_reverse.push(self.reverse.get(&top_index).unwrap());
+            top_reverse.push(self.reverse.get(top_index).unwrap());
         }
 
         //逆引き
         let mut under_reverse = vec![];
         for under_index in &main_under {
-            under_reverse.push(self.reverse.get(&*under_index).unwrap());
+            under_reverse.push(self.reverse.get(under_index).unwrap());
         }
 
         let a_dim_select: DimensionSelect;

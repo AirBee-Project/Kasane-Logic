@@ -7,7 +7,6 @@ use crate::{
         single::{
             convert_bitvec_f::convert_bitmask_f, convert_bitvec_xy::convert_bitmask_xy,
             convert_single_f::convert_f, convert_single_xy::convert_xy,
-            invert_bitvec_f::invert_bitmask_f,
         },
     },
 };
@@ -26,6 +25,13 @@ pub mod uncheck_insert_dim;
 pub mod under_under_top;
 
 impl SpaceTimeIdSet {
+    /// 時空間IDをセットに挿入する
+    ///
+    /// IDを各次元ごとに最適な単体範囲に分解し、既存のIDとの包含関係を解決しながら挿入する。
+    /// 重複や包含を避けるため、必要に応じて既存のIDを分割または削除する。
+    ///
+    /// # 引数
+    /// * `id` - 挿入する時空間ID
     pub fn insert(&mut self, id: SpaceTimeId) {
         println!("Call Insert");
         //IDを各次元ごとに最適な単体範囲に分解する

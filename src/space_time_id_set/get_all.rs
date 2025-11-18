@@ -10,7 +10,7 @@ impl SpaceTimeIdSet {
     pub fn get_all(&self) -> Vec<SpaceTimeId> {
         let mut result = vec![];
 
-        for (_, reverse) in &self.reverse {
+        for reverse in self.reverse.values() {
             //最大のズームレベルで出てくるという前提に基づく
 
             let (f_z, f_v) = invert_bitmask_f(&reverse.f);

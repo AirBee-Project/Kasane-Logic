@@ -3,7 +3,7 @@ use crate::bit_vec::BitVec;
 pub fn invert_bitmask_xy(bitmask: &BitVec) -> (u8, u64) {
     let bytes = &bitmask.0;
     let total_bits = bytes.len() * 8;
-    let total_layers = (total_bits + 1) / 2;
+    let total_layers = total_bits.div_ceil(2);
 
     let mut uxy: u64 = 0;
     let mut max_z: i32 = -1; // 見つかった最大のz

@@ -1,9 +1,10 @@
-use std::{collections::HashSet, ops::Div};
-
 use crate::{
     bit_vec::BitVec,
     space_time_id_set::{Index, SpaceTimeIdSet, insert::insert_main_dim::DimensionSelect},
 };
+/// 分割が必要な次元の情報を保持する構造体
+///
+/// 各次元について、除外すべきBitVecのリストを保持する。
 #[derive(Debug)]
 pub struct NeedDivison {
     pub f: Vec<BitVec>,
@@ -12,8 +13,15 @@ pub struct NeedDivison {
 }
 
 impl SpaceTimeIdSet {
-    ///自分を切断する
-    /// あるIndexのIDから特定の次元の特定の部分を除く
+    /// 自身を切断する
+    ///
+    /// あるIndexのIDから特定の次元の特定の部分を除くための情報を記録する。
+    /// 後で分割処理を行うために、除外すべきBitVecをdivisionリストに追加する。
+    ///
+    /// # 引数
+    /// * `divison` - 分割情報を格納する構造体
+    /// * `target_bit_index` - 対象IDのインデックス
+    /// * `target_dim` - 対象次元（F, X, Y のいずれか）
     pub fn under_under_top(
         &self,
         divison: &mut NeedDivison,

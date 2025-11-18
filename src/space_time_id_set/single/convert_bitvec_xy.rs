@@ -26,6 +26,5 @@ pub fn convert_bitmask_xy(z: u8, xy: u64) -> BitVec {
         }
     }
 
-    let result = BitVec::from_vec(result);
-    result
+    BitVec::from_vec(result)
 }

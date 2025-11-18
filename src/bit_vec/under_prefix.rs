@@ -1,7 +1,13 @@
 use crate::bit_vec::BitVec;
 
 impl BitVec {
-    /// (self, next_prefix)
+    /// あるBitVecが表す範囲より下位の範囲の開始と終了を返す
+    ///
+    /// 階層構造において、この範囲に包含される全ての下位範囲の
+    /// 開始位置と終了位置を返す（両端を含む）。
+    ///
+    /// # 戻り値
+    /// (開始位置, 終了位置) のタプル
     pub fn under_prefix(&self) -> (BitVec, BitVec) {
         if self.clone() > self.next_prefix() {
             println!("SELF  :{}", self.clone());
@@ -11,6 +17,9 @@ impl BitVec {
         (self.clone(), self.next_prefix())
     }
 
+    /// 次の接頭辞（prefix）を計算する
+    ///
+    /// 階層構造において、現在の範囲の次に来る範囲を表すBitVecを返す。
     pub fn next_prefix(&self) -> BitVec {
         let mut copyed = self.clone();
         let len = copyed.0.len();
@@ -19,7 +28,7 @@ impl BitVec {
         let mut all_one = true;
 
         // まず "全ての分岐Bitが 11 かどうか" を判定
-        for (byte_index, byte) in self.0.iter().enumerate().rev() {
+        for (_byte_index, byte) in self.0.iter().enumerate().rev() {
             for i in 0..=3 {
                 let mask = 0b00000011 << (i * 2);
 

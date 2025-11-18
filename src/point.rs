@@ -1,11 +1,20 @@
 use crate::{error::Error, space_time_id::SpaceTimeId};
 
+/// 地球上の位置を表す列挙型
+///
+/// 座標系（緯度経度高度）またはECEF座標系で表現できる。
 pub enum Point {
+    /// 緯度経度高度の座標系
     Coordinate(Coordinate),
+    /// ECEF（Earth-Centered, Earth-Fixed）座標系
     ECEF(ECEF),
 }
 
 impl Point {
+    /// 座標系に変換する
+    ///
+    /// # 戻り値
+    /// Coordinate形式の座標
     pub fn to_coordinate(&self) -> Coordinate {
         match self {
             Point::Coordinate(coordinate) => *coordinate,
@@ -21,6 +30,9 @@ impl Point {
     }
 }
 
+/// 緯度経度高度で表される座標
+///
+/// WGS-84測地系を使用した地理座標系。
 #[derive(Debug, Clone, Copy)]
 pub struct Coordinate {
     pub latitude: f64,
@@ -28,6 +40,9 @@ pub struct Coordinate {
     pub altitude: f64,
 }
 
+/// ECEF（Earth-Centered, Earth-Fixed）座標系で表される座標
+///
+/// 地球中心を原点とした直交座標系。
 #[derive(Debug, Clone, Copy)]
 pub struct ECEF {
     pub x: f64,
@@ -36,10 +51,22 @@ pub struct ECEF {
 }
 
 impl ECEF {
+    /// ECEF座標を生成する
+    ///
+    /// # 引数
+    /// * `x` - X座標（メートル）
+    /// * `y` - Y座標（メートル）
+    /// * `z` - Z座標（メートル）
     pub fn new(x: f64, y: f64, z: f64) -> ECEF {
         ECEF { x, y, z }
     }
 
+    /// ECEF座標を緯度経度高度に変換する
+    ///
+    /// WGS-84測地系を使用してNewton-Raphson法で反復計算を行う。
+    ///
+    /// # 戻り値
+    /// 変換後のCoordinate
     pub fn to_coordinate(&self) -> Coordinate {
         let a = 6378137.0_f64; // 長半径
         let inv_f = 298.257223563_f64;
@@ -80,12 +107,27 @@ impl ECEF {
         }
     }
 
+    /// ECEF座標から時空間IDを生成する
+    ///
+    /// # 引数
+    /// * `z` - ズームレベル
     pub fn to_id(&self, z: u8) -> SpaceTimeId {
         self.to_coordinate().to_id(z)
     }
 }
 
 impl Coordinate {
+    /// 緯度経度高度から座標を生成する
+    ///
+    /// 各値が有効範囲内かを検証してから生成する。
+    ///
+    /// # 引数
+    /// * `latitude` - 緯度（度）-90.0..=90.0
+    /// * `longitude` - 経度（度）-180.0..=180.0
+    /// * `altitude` - 高度（メートル）-33,554,432.0..=33,554,432.0
+    ///
+    /// # エラー
+    /// 値が範囲外の場合にエラーを返す
     pub fn new(latitude: f64, longitude: f64, altitude: f64) -> Result<Self, Error> {
         if !(-90.0..=90.0).contains(&latitude) {
             return Err(Error::LatitudeOutOfRange { latitude });
@@ -106,6 +148,12 @@ impl Coordinate {
         })
     }
 
+    /// 緯度経度高度をECEF座標に変換する
+    ///
+    /// WGS-84測地系を使用して変換を行う。
+    ///
+    /// # 戻り値
+    /// 変換後のECEF座標
     pub fn to_ecef(&self) -> ECEF {
         // WGS-84 定数
         let a: f64 = 6_378_137.0;
@@ -136,6 +184,12 @@ impl Coordinate {
         }
     }
 
+    /// 座標から時空間IDを生成する
+    ///
+    /// 緯度経度高度を指定されたズームレベルで時空間IDに変換する。
+    ///
+    /// # 引数
+    /// * `z` - ズームレベル
     pub fn to_id(&self, z: u8) -> SpaceTimeId {
         let lat = self.latitude;
         let lon = self.longitude;

@@ -5,9 +5,9 @@ pub fn convert_bitmask_f(z: u8, f: i64) -> BitVec {
         //-1しなければならないのはおかしい気がするが、なぜがこれで動いてしまっている
         convert_bitmask_xy(z, f as u64)
     } else {
-        let mut converted = convert_bitmask_xy(z, (f.abs()) as u64);
+        let mut converted = convert_bitmask_xy(z, f.unsigned_abs());
         let masked: u8 = 0b11000000;
-        converted.0[0] = converted.0[0] | masked;
+        converted.0[0] |= masked;
 
         converted
     }
