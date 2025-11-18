@@ -3,20 +3,11 @@ use kasane_logic::{
 };
 
 fn main() {
-    // let test1 = BitVec::from_vec(vec![0b10101011, 0b10110000]);
-    // let test2 = BitVec::from_vec(vec![0b10101011, 0b11000000]);
-    // // println!("{}", test1 < test2);
+    // let test1 = BitVec::from_vec(vec![0b11101111]);
 
     // let (start, end) = test1.under_prefix();
     // println!("START:{}", start);
     // println!("END  :{}", end);
-
-    // if start < test2 {
-    //     print!("{}<{}", start, test2);
-    // }
-    // if test2 < end {
-    //     print!("<{}", end);
-    // }
 
     let mut set = SpaceTimeIdSet::new();
 

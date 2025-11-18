@@ -15,7 +15,6 @@ impl SpaceTimeIdSet {
         let target_range = target.under_prefix();
 
         if target == me {
-            println!("EQUAL");
             return Relation::Top;
         } else if (me_range.0 < *target) && (target < &me_range.1) {
             return Relation::Top;

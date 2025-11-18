@@ -3,7 +3,7 @@ use crate::{
     space_time_id_set::{Index, SpaceTimeIdSet, insert::insert_main_dim::DimensionSelect},
 };
 
-use std::ops::Bound::Excluded;
+use std::ops::Bound::{Excluded, Included};
 
 impl SpaceTimeIdSet {
     ///与えられた次元において、下位の範囲を収集する
@@ -18,10 +18,12 @@ impl SpaceTimeIdSet {
 
         let range = main_bit.under_prefix();
 
-        for (_, layerinfo) in dims.main.range((Excluded(range.0), Excluded(range.1))) {
+        println!("{}-{}", range.0, range.1);
+
+        for (_, layerinfo) in dims.main.range((Included(range.0), Excluded(range.1))) {
             main_under.extend(layerinfo.index.clone());
         }
 
-        Vec::from_iter(main_under)
+        main_under
     }
 }
