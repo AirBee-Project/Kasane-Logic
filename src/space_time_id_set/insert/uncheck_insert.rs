@@ -47,7 +47,7 @@ impl SpaceTimeIdSet {
                     })
                     .or_insert(LayerInfo {
                         index: HashSet::from([]),
-                        count: 0,
+                        count: 1,
                     });
             }
         }

@@ -12,10 +12,10 @@ fn main() {
     let mut set = SpaceTimeIdSet::new();
 
     let id1 = SpaceTimeId::new(
-        5,
-        [Some(31), Some(31)],
-        [Some(14), Some(25)],
-        [Some(0), Some(13)],
+        0,
+        [Some(0), Some(0)],
+        [Some(0), Some(0)],
+        [Some(0), Some(0)],
         0,
         [None, None],
     )
@@ -24,19 +24,23 @@ fn main() {
     let id2 = SpaceTimeId::new(
         3,
         [Some(7), Some(7)],
-        [Some(4), Some(6)],
-        [Some(1), Some(7)],
+        [Some(2), Some(7)],
+        [Some(3), Some(4)],
         0,
         [None, None],
     )
     .unwrap();
+
+    // let id1 = SpaceTimeId::random_z_max(5);
+    // let id2 = SpaceTimeId::random_z_max(5);
+
     println!("{}", id1);
     println!(",{}", id2);
     println!("-----------");
-    set.insert(id1);
     println!("-----------");
 
     set.insert(id2);
+    set.insert(id1);
 
     for ele in set.get_all() {
         println!("{},", ele);

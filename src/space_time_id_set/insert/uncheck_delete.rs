@@ -14,7 +14,7 @@ impl SpaceTimeIdSet {
         Self::update_layer_delete(&mut self.y, &removed.y, *index);
     }
 
-    ///上位の階層のcountに+1
+    ///上位の階層のcountから-1
     fn update_layer_delete(map: &mut BTreeMap<BitVec, LayerInfo>, key: &BitVec, index: usize) {
         for key_top in key.top_prefix() {
             if key_top == *key {
