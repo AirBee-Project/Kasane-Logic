@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
 use crate::{error::Error, space_time_id::SpaceTimeId};
 
-/// 3次元空間上の点を表現する型
-///
-/// 緯度経度高度形式(Coordinate)とECEF座標系(ECEF)の2つの表現をサポート
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, TS)]
 pub enum Point {
     Coordinate(Coordinate),
     ECEF(ECEF),
@@ -25,16 +26,15 @@ impl Point {
     }
 }
 
-/// 緯度経度高度による座標表現
-#[derive(Debug, Clone, Copy)]
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 pub struct Coordinate {
     pub latitude: f64,
     pub longitude: f64,
     pub altitude: f64,
 }
 
-/// ECEF（地球中心地球固定）座標系による座標表現
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 pub struct ECEF {
     pub x: f64,
     pub y: f64,
