@@ -20,7 +20,7 @@ impl SpaceTimeIdSet {
         let mut under_relation: Vec<Relation> = Vec::new();
 
         //代表次元における上位範囲を調べる
-        println!("{:?}について調べる", dim_select);
+        //println!("{:?}について調べる", dim_select);
 
         for top in top_reverse {
             let target = match dim_select {

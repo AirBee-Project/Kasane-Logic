@@ -8,7 +8,7 @@ use crate::{
 impl SpaceTimeIdSet {
     /// 与えられた次元において、上位の範囲を収集する
     pub fn collect_top(&self, main_bit: &BitVec, main_dim_select: &DimensionSelect) -> Vec<Index> {
-        println!("{:?}における自分が下位の収集", main_dim_select);
+        //println!("{:?}における自分が下位の収集", main_dim_select);
 
         let dims = self.select_dimensions(&main_dim_select);
 
@@ -21,7 +21,7 @@ impl SpaceTimeIdSet {
         }
 
         //順序を確定させて返す\
-        println!("発見たち{:?}", result);
+        // println!("発見たち{:?}", result);
         Vec::from_iter(result)
     }
 }

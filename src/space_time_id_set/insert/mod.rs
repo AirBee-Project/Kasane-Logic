@@ -7,7 +7,6 @@ use crate::{
         single::{
             convert_bitvec_f::convert_bitmask_f, convert_bitvec_xy::convert_bitmask_xy,
             convert_single_f::convert_f, convert_single_xy::convert_xy,
-            invert_bitvec_f::invert_bitmask_f,
         },
     },
 };
@@ -26,6 +25,8 @@ pub mod uncheck_insert_dim;
 pub mod under_under_top;
 
 impl SpaceTimeIdSet {
+    ///SpaceTimeIDSetに新規のIDを挿入する。
+    /// 既存の範囲と重複がある場合は挿入時に調整が行われ、重複が排除される。
     pub fn insert(&mut self, id: SpaceTimeId) {
         //IDを各次元ごとに最適な単体範囲に分解する
         let f_splited = convert_f(id.z, id.f);
@@ -55,13 +56,7 @@ impl SpaceTimeIdSet {
             })
             .collect();
 
-        //最も探索範囲が小さくなりそうな次元を代表次元として挿入を繰り返す
-        //どこかの次元がなくなるまで繰り返す
         while !(f_encoded.is_empty() || x_encoded.is_empty() || y_encoded.is_empty()) {
-            // println!("F:{:?}", f_encoded);
-            // println!("X:{:?}", x_encoded);
-            // println!("Y:{:?}", y_encoded);
-
             //各次元の代表の最小のやつを求める
             let (f_index, f_under_min_val) = {
                 let (i, v) = f_encoded
@@ -69,7 +64,7 @@ impl SpaceTimeIdSet {
                     .enumerate()
                     .min_by_key(|(_, v)| v.0)
                     .unwrap();
-                (i, (v.0, v.1.clone())) // cloneしておく
+                (i, (v.0, v.1.clone()))
             };
 
             let (x_index, x_under_min_val) = {

@@ -41,6 +41,8 @@ impl SpaceTimeId {
         let new_x = normalize_dimension(x, 0, xy_max, valid_range_x, z)?;
         let new_y = normalize_dimension(y, 0, xy_max, valid_range_y, z)?;
 
+        let nwe
+
         //時間軸の順番を入れ替え
         //Todo時間に関する処理を行う
         //いったん、3次元の処理を優先的に行う

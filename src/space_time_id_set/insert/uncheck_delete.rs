@@ -6,7 +6,7 @@ use crate::{
 
 impl SpaceTimeIdSet {
     pub fn uncheck_delete(&mut self, index: &Index) {
-        println!("DELETE:{}", index);
+        // println!("DELETE:{}", index);
         let removed = self.reverse.remove(index).unwrap();
 
         Self::update_layer_delete(&mut self.f, &removed.f, *index);

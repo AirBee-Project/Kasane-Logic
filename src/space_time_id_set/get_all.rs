@@ -7,14 +7,10 @@ use crate::{
 };
 
 impl SpaceTimeIdSet {
+    ///SpaceTimeIDSet内部の全てのIDを取得する
     pub fn get_all(&self) -> Vec<SpaceTimeId> {
         let mut result = vec![];
-
         for (index, reverse) in &self.reverse {
-            print!("{}番；", index);
-
-            //最大のズームレベルで出てくるという前提に基づく
-
             let (f_z, f_v) = invert_bitmask_f(&reverse.f);
             let (x_z, x_v) = invert_bitmask_xy(&reverse.x);
             let (y_z, y_v) = invert_bitmask_xy(&reverse.y);
@@ -42,18 +38,6 @@ impl SpaceTimeIdSet {
                 [y_v * k, (y_v + 1) * k - 1]
             };
 
-            println!(
-                "{}",
-                SpaceTimeId {
-                    z: max_z,
-                    f,
-                    x,
-                    y,
-                    i: 0,
-                    t: [0, u64::MAX],
-                }
-            );
-
             result.push(SpaceTimeId {
                 z: max_z,
                 f,
@@ -62,10 +46,6 @@ impl SpaceTimeIdSet {
                 i: 0,
                 t: [0, u64::MAX],
             });
-        }
-        for ele in &self.x {
-            println!("{}", ele.0);
-            println!("{:?}", ele.1);
         }
 
         result

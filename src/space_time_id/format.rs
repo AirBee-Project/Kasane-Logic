@@ -6,11 +6,13 @@ impl fmt::Display for SpaceTimeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{}/{}/{}/{}",
+            "{}/{}/{}/{}_{}/{}",
             self.z,
             format_dimension(self.f),
             format_dimension(self.x),
             format_dimension(self.y),
+            self.i,
+            format_dimension(self.t)
         )
     }
 }

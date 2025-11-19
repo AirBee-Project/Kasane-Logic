@@ -15,7 +15,7 @@ impl SpaceTimeIdSet {
         main_bit: &BitVec,
         main_dim_select: &DimensionSelect,
     ) -> Vec<Index> {
-        println!("{:?}における自分が上位の収集", main_dim_select);
+        // println!("{:?}における自分が上位の収集", main_dim_select);
         let mut main_under = Vec::new();
 
         let dims = self.select_dimensions(&main_dim_select);

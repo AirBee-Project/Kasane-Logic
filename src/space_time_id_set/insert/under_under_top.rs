@@ -19,8 +19,6 @@ impl SpaceTimeIdSet {
         target_bit_index: Index,
         target_dim: DimensionSelect,
     ) {
-        println!("under_under_top");
-
         let reverse = self.reverse.get(&target_bit_index).unwrap();
 
         match target_dim {
