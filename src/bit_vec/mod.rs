@@ -1,8 +1,8 @@
 pub mod ancestors;
-pub mod flip_leaf;
+pub mod flip_lowest_layer;
 pub mod format;
-pub mod pop_leaf;
 pub mod relation;
+pub mod remove_lowest_layer;
 pub mod subtract;
 pub mod upper_bound;
 

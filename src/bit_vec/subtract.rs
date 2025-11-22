@@ -28,13 +28,13 @@ impl BitVec {
     /// 単体範囲 BitVec から単体 sub を引いて残りの開始点を返す
     pub fn subtract_range(&self, sub: &BitVec) -> Vec<BitVec> {
         let mut result: Vec<BitVec> = vec![];
-        let mut sub_clone = sub.clone(); // ミューテート用にコピー
+        let mut sub_clone = sub.clone();
 
         // sub が self と一致するまで leaf を操作
         while self != &sub_clone {
-            sub_clone.flip_leaf();
-            result.push(sub_clone.clone()); // Vec に所有権として push
-            sub_clone.pop_leaf();
+            sub_clone.flip_lowest_layer();
+            result.push(sub_clone.clone());
+            sub_clone.remove_lowest_layer();
         }
 
         result

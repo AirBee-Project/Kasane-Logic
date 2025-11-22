@@ -5,7 +5,7 @@ impl BitVec {
     ///
     /// - 最下層の最初に見つかった有効階層（00以外）を 00 にリセット
     /// - もし最後のu8が空になった場合、Vecから削除
-    pub fn pop_leaf(&mut self) {
+    pub fn remove_lowest_layer(&mut self) {
         if let Some(last) = self.0.last_mut() {
             for i in 0..=3 {
                 let mask = 0b00000011 << (i * 2);
