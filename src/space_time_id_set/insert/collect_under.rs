@@ -16,9 +16,10 @@ impl SpaceTimeIdSet {
 
         let dims = self.select_dimensions(&main_dim_select);
 
-        let range = main_bit.under_prefix();
-
-        for (_, layerinfo) in dims.main.range((Excluded(range.0), Excluded(range.1))) {
+        for (_, layerinfo) in dims
+            .main
+            .range((Excluded(main_bit.clone()), Excluded(main_bit.upper_bound())))
+        {
             main_under.extend(layerinfo.index.clone());
         }
 

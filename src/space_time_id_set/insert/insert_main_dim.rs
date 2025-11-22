@@ -3,10 +3,9 @@ use std::collections::HashSet;
 use itertools::iproduct;
 
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::{BitVec, relation::BitVecRelation},
     space_time_id_set::{
-        Index, Interval, ReverseInfo, SpaceTimeIdSet,
-        insert::{check_relation::Relation, under_under_top::NeedDivison},
+        Index, Interval, ReverseInfo, SpaceTimeIdSet, insert::under_under_top::NeedDivison,
     },
 };
 
@@ -90,8 +89,8 @@ impl SpaceTimeIdSet {
             }
         }
 
-        let mut a_relations: Vec<Option<(Vec<Relation>, Vec<Relation>)>> = Vec::new();
-        let mut b_relations: Vec<Option<(Vec<Relation>, Vec<Relation>)>> = Vec::new();
+        let mut a_relations: Vec<Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)>> = Vec::new();
+        let mut b_relations: Vec<Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)>> = Vec::new();
 
         for (_, a_dim) in other_encoded[0] {
             a_relations.push(Self::collect_other_dimension(
@@ -155,10 +154,13 @@ impl SpaceTimeIdSet {
 
             for (i, (a_rel, b_rel)) in a_relation.0.iter().zip(b_relation.0.iter()).enumerate() {
                 match (a_rel, b_rel) {
-                    (Relation::Top, Relation::Top) => {
+                    (
+                        BitVecRelation::Greater | BitVecRelation::Equal,
+                        BitVecRelation::Greater | BitVecRelation::Equal,
+                    ) => {
                         need_delete_inside.insert(main_top[i]);
                     }
-                    (Relation::Top, Relation::Under) => {
+                    (BitVecRelation::Greater | BitVecRelation::Equal, BitVecRelation::Less) => {
                         self.top_top_under(
                             main_top[i],
                             other_encoded[1][b_encode_index].1.clone(),
@@ -167,7 +169,7 @@ impl SpaceTimeIdSet {
                             &mut need_insert_inside,
                         );
                     }
-                    (Relation::Under, Relation::Top) => {
+                    (BitVecRelation::Less, BitVecRelation::Greater | BitVecRelation::Equal) => {
                         self.top_top_under(
                             main_top[i],
                             other_encoded[0][a_encode_index].1.clone(),
@@ -176,7 +178,7 @@ impl SpaceTimeIdSet {
                             &mut need_insert_inside,
                         );
                     }
-                    (Relation::Under, Relation::Under) => {
+                    (BitVecRelation::Less, BitVecRelation::Less) => {
                         self.under_under_top(&mut need_divison, main_top[i], main_dim_select);
                     }
                     _ => {}
@@ -185,7 +187,10 @@ impl SpaceTimeIdSet {
 
             for (i, (a_rel, b_rel)) in a_relation.1.iter().zip(b_relation.1.iter()).enumerate() {
                 match (a_rel, b_rel) {
-                    (Relation::Top, Relation::Top) => {
+                    (
+                        BitVecRelation::Greater | BitVecRelation::Equal,
+                        BitVecRelation::Greater | BitVecRelation::Equal,
+                    ) => {
                         self.top_top_under(
                             main_under[i],
                             main_bit.clone(),
@@ -194,13 +199,13 @@ impl SpaceTimeIdSet {
                             &mut need_insert_inside,
                         );
                     }
-                    (Relation::Top, Relation::Under) => {
+                    (BitVecRelation::Greater | BitVecRelation::Equal, BitVecRelation::Less) => {
                         self.under_under_top(&mut need_divison, main_under[i], a_dim_select);
                     }
-                    (Relation::Under, Relation::Top) => {
+                    (BitVecRelation::Less, BitVecRelation::Greater | BitVecRelation::Equal) => {
                         self.under_under_top(&mut need_divison, main_under[i], b_dim_select);
                     }
-                    (Relation::Under, Relation::Under) => {
+                    (BitVecRelation::Less, BitVecRelation::Less) => {
                         continue 'outer;
                     }
                     _ => {}

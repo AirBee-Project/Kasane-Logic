@@ -12,7 +12,6 @@ use crate::{
         },
     },
 };
-pub mod check_relation;
 pub mod collect_other_dimension;
 pub mod collect_top;
 pub mod collect_under;
@@ -20,7 +19,6 @@ pub mod generate_index;
 pub mod insert_main_dim;
 pub mod search_under_count;
 pub mod select_dimensions;
-pub mod time_relation;
 pub mod top_top_under;
 pub mod uncheck_delete;
 pub mod uncheck_insert;

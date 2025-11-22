@@ -1,9 +1,6 @@
 use crate::{
-    bit_vec::BitVec,
-    space_time_id_set::{
-        ReverseInfo, SpaceTimeIdSet,
-        insert::{check_relation::Relation, insert_main_dim::DimensionSelect},
-    },
+    bit_vec::{BitVec, relation::BitVecRelation},
+    space_time_id_set::{ReverseInfo, SpaceTimeIdSet, insert::insert_main_dim::DimensionSelect},
 };
 
 impl SpaceTimeIdSet {
@@ -12,13 +9,12 @@ impl SpaceTimeIdSet {
         dim_select: DimensionSelect,
         top_reverse: &Vec<&ReverseInfo>,
         under_reverse: &Vec<&ReverseInfo>,
-    ) -> Option<(Vec<Relation>, Vec<Relation>)> {
-        let mut top_disjoint = true;
-        let mut under_disjoint = true;
+    ) -> Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)> {
+        let mut top_unrelated = true;
+        let mut under_unrelated = true;
 
-        let mut top_relation: Vec<Relation> = Vec::new();
-        let mut under_relation: Vec<Relation> = Vec::new();
-
+        let mut top_relation: Vec<BitVecRelation> = Vec::new();
+        let mut under_relation: Vec<BitVecRelation> = Vec::new();
 
         for top in top_reverse {
             let target = match dim_select {
@@ -27,10 +23,10 @@ impl SpaceTimeIdSet {
                 DimensionSelect::Y => &top.y,
             };
 
-            let relation = Self::check_relation(dim, target);
+            let relation = dim.relation(target);
 
-            if relation != Relation::Disjoint {
-                top_disjoint = false;
+            if relation != BitVecRelation::Unrelated {
+                top_unrelated = false;
             }
 
             top_relation.push(relation);
@@ -43,18 +39,16 @@ impl SpaceTimeIdSet {
                 DimensionSelect::Y => &under.y,
             };
 
-            let relation = Self::check_relation(dim, target);
+            let relation = dim.relation(target);
 
-            if relation != Relation::Disjoint {
-                under_disjoint = false;
+            if relation != BitVecRelation::Unrelated {
+                under_unrelated = false;
             }
 
             under_relation.push(relation);
         }
 
-
-
-        if top_disjoint && under_disjoint {
+        if top_unrelated && under_unrelated {
             return None;
         } else {
             return Some((top_relation, under_relation));

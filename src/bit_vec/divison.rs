@@ -10,10 +10,8 @@ impl BitVec {
             let mut next = vec![];
 
             for now in result.into_iter() {
-                let range = now.under_prefix();
-
                 // div が now の範囲に含まれる場合 → 分割
-                if div >= range.0 && div <= range.1 {
+                if div >= now && div <= now.upper_bound() {
                     let mut div_clone = div.clone();
                     next.extend(Self::sub(&now, &mut div_clone));
                 } else {

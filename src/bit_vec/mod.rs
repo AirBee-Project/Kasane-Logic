@@ -1,9 +1,10 @@
 pub mod divison;
 pub mod format;
+pub mod relation;
 pub mod remove_bottom_layer;
 pub mod reverse_bottom_layer;
 pub mod top_prefix;
-pub mod under_prefix;
+pub mod upper_bound;
 
 /// ビット列を用いて時空間IDの各次元の階層構造を管理する
 ///
