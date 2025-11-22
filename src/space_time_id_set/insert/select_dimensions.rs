@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::HierarchicalKey,
     space_time_id_set::{LayerInfo, SpaceTimeIdSet},
 };
 
@@ -31,21 +31,21 @@ impl DimensionSelect {
 
 // BTreeMap参照系（BTreeを型名に含める）
 pub struct DimensionBTreeRefs<'a> {
-    pub main: &'a BTreeMap<BitVec, LayerInfo>,
-    pub a: &'a BTreeMap<BitVec, LayerInfo>,
-    pub b: &'a BTreeMap<BitVec, LayerInfo>,
+    pub main: &'a BTreeMap<HierarchicalKey, LayerInfo>,
+    pub a: &'a BTreeMap<HierarchicalKey, LayerInfo>,
+    pub b: &'a BTreeMap<HierarchicalKey, LayerInfo>,
 }
 
 pub struct DimensionBTreeMutRefs<'a> {
-    pub main: &'a mut BTreeMap<BitVec, LayerInfo>,
-    pub a: &'a mut BTreeMap<BitVec, LayerInfo>,
-    pub b: &'a mut BTreeMap<BitVec, LayerInfo>,
+    pub main: &'a mut BTreeMap<HierarchicalKey, LayerInfo>,
+    pub a: &'a mut BTreeMap<HierarchicalKey, LayerInfo>,
+    pub b: &'a mut BTreeMap<HierarchicalKey, LayerInfo>,
 }
 
 pub struct DimensionBTreeRevRefs<'a> {
-    pub main: &'a BTreeMap<BitVec, LayerInfo>,
-    pub a: &'a BTreeMap<BitVec, LayerInfo>,
-    pub b: &'a BTreeMap<BitVec, LayerInfo>,
+    pub main: &'a BTreeMap<HierarchicalKey, LayerInfo>,
+    pub a: &'a BTreeMap<HierarchicalKey, LayerInfo>,
+    pub b: &'a BTreeMap<HierarchicalKey, LayerInfo>,
 }
 
 // 汎用型マッピング型

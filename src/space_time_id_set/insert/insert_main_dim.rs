@@ -3,7 +3,7 @@ use std::collections::{HashSet, btree_map::Range};
 use itertools::iproduct;
 
 use crate::{
-    bit_vec::{BitVec, relation::BitVecRelation},
+    bit_vec::{HierarchicalKey, relation::HierarchicalKeyRelation},
     space_time_id_set::{
         Index, Interval, ReverseInfo, SpaceTimeIdSet,
         insert::{select_dimensions::DimensionSelect, split_self::RangesCollect},
@@ -14,12 +14,12 @@ impl SpaceTimeIdSet {
     /// 代表次元×他の次元を挿入処理する
     pub(crate) fn insert_main_dim(
         &mut self,
-        main_bit: &BitVec,
+        main_bit: &HierarchicalKey,
         main_index: &Index,
         main_descendant_count: &usize,
-        main_encoded: &mut Vec<(Index, BitVec)>,
-        a_encoded: &Vec<(Index, BitVec)>,
-        b_encoded: &Vec<(Index, BitVec)>,
+        main_encoded: &mut Vec<(Index, HierarchicalKey)>,
+        a_encoded: &Vec<(Index, HierarchicalKey)>,
+        b_encoded: &Vec<(Index, HierarchicalKey)>,
         main_dim_select: DimensionSelect,
     ) {
         let main_ancestors: Vec<Index> = Self::collect_ancestors(&self, main_bit, &main_dim_select);
@@ -58,8 +58,8 @@ impl SpaceTimeIdSet {
             );
         }
 
-        let mut a_relations: Vec<Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)>> = Vec::new();
-        let mut b_relations: Vec<Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)>> = Vec::new();
+        let mut a_relations: Vec<Option<(Vec<HierarchicalKeyRelation>, Vec<HierarchicalKeyRelation>)>> = Vec::new();
+        let mut b_relations: Vec<Option<(Vec<HierarchicalKeyRelation>, Vec<HierarchicalKeyRelation>)>> = Vec::new();
 
         for (_, a_dim) in a_encoded {
             a_relations.push(Self::collect_other_dimension(
@@ -124,14 +124,14 @@ impl SpaceTimeIdSet {
             for (i, (a_rel, b_rel)) in a_relation.0.iter().zip(b_relation.0.iter()).enumerate() {
                 match (a_rel, b_rel) {
                     (
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
                     ) => {
                         need_delete_inside.insert(main_descendants[i]);
                     }
                     (
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
-                        BitVecRelation::Descendant,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
+                        HierarchicalKeyRelation::Descendant,
                     ) => {
                         self.split_other(
                             main_descendants[i],
@@ -142,8 +142,8 @@ impl SpaceTimeIdSet {
                         );
                     }
                     (
-                        BitVecRelation::Descendant,
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
+                        HierarchicalKeyRelation::Descendant,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
                     ) => {
                         self.split_other(
                             main_descendants[i],
@@ -153,7 +153,7 @@ impl SpaceTimeIdSet {
                             &mut need_insert_inside,
                         );
                     }
-                    (BitVecRelation::Descendant, BitVecRelation::Descendant) => {
+                    (HierarchicalKeyRelation::Descendant, HierarchicalKeyRelation::Descendant) => {
                         self.split_self(&mut need_divison, main_descendants[i], &main_dim_select);
                     }
                     _ => {}
@@ -163,8 +163,8 @@ impl SpaceTimeIdSet {
             for (i, (a_rel, b_rel)) in a_relation.1.iter().zip(b_relation.1.iter()).enumerate() {
                 match (a_rel, b_rel) {
                     (
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
                     ) => {
                         self.split_other(
                             main_ancestors[i],
@@ -175,18 +175,18 @@ impl SpaceTimeIdSet {
                         );
                     }
                     (
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
-                        BitVecRelation::Descendant,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
+                        HierarchicalKeyRelation::Descendant,
                     ) => {
                         self.split_self(&mut need_divison, main_ancestors[i], &main_dim_select.a());
                     }
                     (
-                        BitVecRelation::Descendant,
-                        BitVecRelation::Ancestor | BitVecRelation::Equal,
+                        HierarchicalKeyRelation::Descendant,
+                        HierarchicalKeyRelation::Ancestor | HierarchicalKeyRelation::Equal,
                     ) => {
                         self.split_self(&mut need_divison, main_ancestors[i], &main_dim_select.b());
                     }
-                    (BitVecRelation::Descendant, BitVecRelation::Descendant) => {
+                    (HierarchicalKeyRelation::Descendant, HierarchicalKeyRelation::Descendant) => {
                         continue 'outer;
                     }
                     _ => {}

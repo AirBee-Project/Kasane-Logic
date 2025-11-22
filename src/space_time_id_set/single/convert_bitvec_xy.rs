@@ -1,6 +1,6 @@
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 
-pub(crate) fn convert_bitmask_xy(z: u8, xy: u64) -> BitVec {
+pub(crate) fn convert_bitmask_xy(z: u8, xy: u64) -> HierarchicalKey {
     let length = ((z * 2 / 8) + 1).max(1) as usize;
     let mut result = vec![0u8; length];
 
@@ -26,6 +26,6 @@ pub(crate) fn convert_bitmask_xy(z: u8, xy: u64) -> BitVec {
         }
     }
 
-    let result = BitVec::from_vec(result);
+    let result = HierarchicalKey::from_vec(result);
     result
 }

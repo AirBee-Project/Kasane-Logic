@@ -1,4 +1,4 @@
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 
 /// - `Ancestor`  
 ///     - `self` が `other` を包含する上位世代である
@@ -12,7 +12,7 @@ use crate::bit_vec::BitVec;
 /// - `Unrelated`  
 ///     - `self` と `other` に世代的な包含関係がない
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BitVecRelation {
+pub enum HierarchicalKeyRelation {
     /// self が other を包含する上位世代
     Ancestor,
 
@@ -26,28 +26,28 @@ pub enum BitVecRelation {
     Unrelated,
 }
 
-impl BitVec {
+impl HierarchicalKey {
     /// self と other の世代（ancestor/descendant）関係を返す
-    pub fn relation(&self, other: &Self) -> BitVecRelation {
+    pub fn relation(&self, other: &Self) -> HierarchicalKeyRelation {
         let self_upper = self.upper_bound();
         let other_upper = other.upper_bound();
 
         // Same: 完全一致
         if self == other {
-            return BitVecRelation::Equal;
+            return HierarchicalKeyRelation::Equal;
         }
 
         // Ancestor: self が other を包含
         if self < other && other < &self_upper {
-            return BitVecRelation::Ancestor;
+            return HierarchicalKeyRelation::Ancestor;
         }
 
         // Descendant: self が other の下位
         if other < self && self < &other_upper {
-            return BitVecRelation::Descendant;
+            return HierarchicalKeyRelation::Descendant;
         }
 
         // それ以外は無関係
-        BitVecRelation::Unrelated
+        HierarchicalKeyRelation::Unrelated
     }
 }

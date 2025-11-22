@@ -1,5 +1,5 @@
 use crate::space_time_id_set::{BTreeMap, HashSet, Index, SpaceTimeIdSet};
-use crate::{bit_vec::BitVec, space_time_id_set::LayerInfo};
+use crate::{bit_vec::HierarchicalKey, space_time_id_set::LayerInfo};
 
 impl SpaceTimeIdSet {
     pub(crate) fn uncheck_delete(&mut self, index: &Index) {
@@ -14,7 +14,7 @@ impl SpaceTimeIdSet {
     }
 
     ///上位の階層のcountから-1
-    fn update_layer_delete(map: &mut BTreeMap<BitVec, LayerInfo>, key: &BitVec, index: usize) {
+    fn update_layer_delete(map: &mut BTreeMap<HierarchicalKey, LayerInfo>, key: &HierarchicalKey, index: usize) {
         for key_top in key.ancestors() {
             if key_top == *key {
                 map.entry(key_top)

@@ -1,14 +1,14 @@
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 
-impl BitVec {
+impl HierarchicalKey {
     /// # 概要
-    /// この関数は、`BitVec` が表す階層ID（2ビット単位の階層構造）について、
+    /// この関数は、`HierarchicalKey` が表す階層ID（2ビット単位の階層構造）について、
     /// 同一の prefix に属する範囲の **右側開区間上限（upper bound）** を計算して返します。
     ///
     /// # 動作例
     /// - 入力 `1010111011000000`→ 出力 `10101111`
     /// - 入力 `11101000`→ 出力 `11101100`
-    pub fn upper_bound(&self) -> BitVec {
+    pub fn upper_bound(&self) -> HierarchicalKey {
         let mut copyed = self.clone();
 
         // upper_bound 本体（2bit単位で後ろから走査）

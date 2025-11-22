@@ -1,6 +1,6 @@
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 
-impl BitVec {
+impl HierarchicalKey {
     /// 最下層の有効な2ビット階層を取り除く
     ///
     /// - 最下層の最初に見つかった有効階層（00以外）を 00 にリセット

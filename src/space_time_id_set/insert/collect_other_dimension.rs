@@ -1,20 +1,20 @@
 use crate::{
-    bit_vec::{BitVec, relation::BitVecRelation},
+    bit_vec::{HierarchicalKey, relation::HierarchicalKeyRelation},
     space_time_id_set::{ReverseInfo, SpaceTimeIdSet, insert::select_dimensions::DimensionSelect},
 };
 
 impl SpaceTimeIdSet {
     pub(crate) fn collect_other_dimension(
-        dim: &BitVec,
+        dim: &HierarchicalKey,
         dim_select: &DimensionSelect,
         top_reverse: &Vec<&ReverseInfo>,
         under_reverse: &Vec<&ReverseInfo>,
-    ) -> Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)> {
+    ) -> Option<(Vec<HierarchicalKeyRelation>, Vec<HierarchicalKeyRelation>)> {
         let mut top_unrelated = true;
         let mut under_unrelated = true;
 
-        let mut top_relation: Vec<BitVecRelation> = Vec::new();
-        let mut under_relation: Vec<BitVecRelation> = Vec::new();
+        let mut top_relation: Vec<HierarchicalKeyRelation> = Vec::new();
+        let mut under_relation: Vec<HierarchicalKeyRelation> = Vec::new();
 
         for top in top_reverse {
             let target = match dim_select {
@@ -25,7 +25,7 @@ impl SpaceTimeIdSet {
 
             let relation = dim.relation(target);
 
-            if relation != BitVecRelation::Unrelated {
+            if relation != HierarchicalKeyRelation::Unrelated {
                 top_unrelated = false;
             }
 
@@ -41,7 +41,7 @@ impl SpaceTimeIdSet {
 
             let relation = dim.relation(target);
 
-            if relation != BitVecRelation::Unrelated {
+            if relation != HierarchicalKeyRelation::Unrelated {
                 under_unrelated = false;
             }
 

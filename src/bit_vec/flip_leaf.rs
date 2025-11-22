@@ -1,6 +1,6 @@
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 
-impl BitVec {
+impl HierarchicalKey {
     /// 最下層の各2ビットペアを反転する:
     /// - `10` → `11`
     /// - `11` → `10`

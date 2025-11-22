@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::HierarchicalKey,
     space_time_id_set::{
         Index, ReverseInfo, SpaceTimeIdSet, insert::select_dimensions::DimensionSelect,
     },
@@ -12,7 +12,7 @@ impl SpaceTimeIdSet {
     pub(crate) fn split_other(
         &mut self,
         target_index: Index,
-        target_bit: BitVec,
+        target_bit: HierarchicalKey,
         target_dim: &DimensionSelect,
         need_delete: &mut HashSet<Index>,
         need_insert: &mut HashSet<ReverseInfo>,

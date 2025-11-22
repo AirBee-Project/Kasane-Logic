@@ -1,6 +1,6 @@
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 
-pub(crate) fn invert_bitmask_xy(bitmask: &BitVec) -> (u8, u64) {
+pub(crate) fn invert_bitmask_xy(bitmask: &HierarchicalKey) -> (u8, u64) {
     let bytes = &bitmask.0;
     let total_bits = bytes.len() * 8;
     let total_layers = (total_bits + 1) / 2;

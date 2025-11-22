@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::HierarchicalKey,
     space_time_id_set::{
         LayerInfo, ReverseInfo, SpaceTimeIdSet, insert::select_dimensions::DimensionSelect,
     },
@@ -10,9 +10,9 @@ use crate::{
 impl SpaceTimeIdSet {
     pub(crate) fn uncheck_insert(
         &mut self,
-        main: &BitVec,
-        a: &BitVec,
-        b: &BitVec,
+        main: &HierarchicalKey,
+        a: &HierarchicalKey,
+        b: &HierarchicalKey,
         main_dim_select: &DimensionSelect,
     ) {
         let index = self.generate_index();
@@ -34,7 +34,7 @@ impl SpaceTimeIdSet {
     }
 
     ///上位の階層のcountに+1
-    fn update_layer(map: &mut BTreeMap<BitVec, LayerInfo>, key: &BitVec, index: usize) {
+    fn update_layer(map: &mut BTreeMap<HierarchicalKey, LayerInfo>, key: &HierarchicalKey, index: usize) {
         for key_top in key.ancestors() {
             if key_top == *key {
                 map.entry(key_top)

@@ -1,7 +1,7 @@
 use std::process::id;
 
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::HierarchicalKey,
     space_time_id::SpaceTimeId,
     space_time_id_set::{
         Interval, SpaceTimeIdSet,
@@ -31,7 +31,7 @@ impl SpaceTimeIdSet {
         let x_splited = convert_xy(id.z, id.x);
         let y_splited = convert_xy(id.z, id.y);
 
-        let mut f_encoded: Vec<(usize, BitVec)> = f_splited
+        let mut f_encoded: Vec<(usize, HierarchicalKey)> = f_splited
             .iter()
             .map(|(z, f)| {
                 let bit_vec = convert_bitmask_f(*z, *f);
@@ -40,7 +40,7 @@ impl SpaceTimeIdSet {
             })
             .collect();
 
-        let mut x_encoded: Vec<(usize, BitVec)> = x_splited
+        let mut x_encoded: Vec<(usize, HierarchicalKey)> = x_splited
             .iter()
             .map(|(z, x)| {
                 let bit_vec = convert_bitmask_xy(*z, *x);
@@ -49,7 +49,7 @@ impl SpaceTimeIdSet {
             })
             .collect();
 
-        let mut y_encoded: Vec<(usize, BitVec)> = y_splited
+        let mut y_encoded: Vec<(usize, HierarchicalKey)> = y_splited
             .iter()
             .map(|(z, y)| {
                 let bit_vec = convert_bitmask_xy(*z, *y);

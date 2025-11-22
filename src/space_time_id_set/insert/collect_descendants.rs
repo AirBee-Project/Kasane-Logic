@@ -1,5 +1,5 @@
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::HierarchicalKey,
     space_time_id_set::{Index, SpaceTimeIdSet, insert::select_dimensions::DimensionSelect},
 };
 
@@ -9,7 +9,7 @@ impl SpaceTimeIdSet {
     /// 指定された次元において、自分が含む子孫のインデックスを収集する
     pub(crate) fn collect_descendants(
         &self,
-        main_bit: &BitVec,
+        main_bit: &HierarchicalKey,
         main_dim_select: &DimensionSelect,
     ) -> Vec<Index> {
         let mut main_under = Vec::new();

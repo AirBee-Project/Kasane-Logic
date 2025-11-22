@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::bit_vec::BitVec;
+use crate::bit_vec::HierarchicalKey;
 pub mod single;
 
 type Index = usize;
@@ -20,9 +20,9 @@ pub struct LayerInfo {
 /// インデックスから各次元の情報を逆引きするための構造体
 #[derive(Hash, Eq, PartialEq, Debug)]
 pub struct ReverseInfo {
-    pub f: BitVec,
-    pub x: BitVec,
-    pub y: BitVec,
+    pub f: HierarchicalKey,
+    pub x: HierarchicalKey,
+    pub y: HierarchicalKey,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -39,9 +39,9 @@ pub struct Interval {
 #[derive(Debug)]
 pub struct SpaceTimeIdSet {
     //各次元の範囲を保存するためのBTreeMap
-    f: BTreeMap<BitVec, LayerInfo>,
-    x: BTreeMap<BitVec, LayerInfo>,
-    y: BTreeMap<BitVec, LayerInfo>,
+    f: BTreeMap<HierarchicalKey, LayerInfo>,
+    x: BTreeMap<HierarchicalKey, LayerInfo>,
+    y: BTreeMap<HierarchicalKey, LayerInfo>,
     index: usize,
     reverse: HashMap<Index, ReverseInfo>,
 }

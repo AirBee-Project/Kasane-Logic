@@ -1,14 +1,14 @@
 use crate::{
-    bit_vec::BitVec,
+    bit_vec::HierarchicalKey,
     space_time_id_set::{
         Index, ReverseInfo, SpaceTimeIdSet, insert::select_dimensions::DimensionSelect,
     },
 };
 #[derive(Debug)]
 pub struct RangesCollect {
-    pub main: Vec<BitVec>,
-    pub a: Vec<BitVec>,
-    pub b: Vec<BitVec>,
+    pub main: Vec<HierarchicalKey>,
+    pub a: Vec<HierarchicalKey>,
+    pub b: Vec<HierarchicalKey>,
 }
 
 impl SpaceTimeIdSet {

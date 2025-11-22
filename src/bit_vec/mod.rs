@@ -10,21 +10,21 @@ pub mod upper_bound;
 ///
 /// 内部的にはバイト配列として保持し、階層ごとのビット操作を効率的に行う
 #[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub struct BitVec(pub Vec<u8>);
+pub struct HierarchicalKey(pub Vec<u8>);
 
-impl BitVec {
-    /// `Vec<u8>` から BitVec を生成
+impl HierarchicalKey {
+    /// `Vec<u8>` から HierarchicalKey を生成
     pub fn from_vec(v: Vec<u8>) -> Self {
-        BitVec(v)
+        HierarchicalKey(v)
     }
 
-    /// スライスから BitVec を生成
+    /// スライスから HierarchicalKey を生成
     pub fn from_slice(s: &[u8]) -> Self {
-        BitVec(s.to_vec())
+        HierarchicalKey(s.to_vec())
     }
 
-    /// 空の BitVec を生成
+    /// 空の HierarchicalKey を生成
     pub fn new() -> Self {
-        BitVec(Vec::new())
+        HierarchicalKey(Vec::new())
     }
 }
