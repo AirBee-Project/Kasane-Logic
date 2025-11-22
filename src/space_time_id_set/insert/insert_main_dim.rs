@@ -6,7 +6,7 @@ use crate::{
     bit_vec::{BitVec, relation::BitVecRelation},
     space_time_id_set::{
         Index, Interval, ReverseInfo, SpaceTimeIdSet,
-        insert::{select_dimensions::DimensionSelect, under_under_top::RangesCollect},
+        insert::{select_dimensions::DimensionSelect, split_self::RangesCollect},
     },
 };
 
@@ -133,7 +133,7 @@ impl SpaceTimeIdSet {
                         BitVecRelation::Ancestor | BitVecRelation::Equal,
                         BitVecRelation::Descendant,
                     ) => {
-                        self.top_top_under(
+                        self.split_other(
                             main_descendants[i],
                             b_encoded[b_encode_index].1.clone(),
                             &main_dim_select.b(),
@@ -145,7 +145,7 @@ impl SpaceTimeIdSet {
                         BitVecRelation::Descendant,
                         BitVecRelation::Ancestor | BitVecRelation::Equal,
                     ) => {
-                        self.top_top_under(
+                        self.split_other(
                             main_descendants[i],
                             a_encoded[a_encode_index].1.clone(),
                             &main_dim_select.a(),
@@ -154,11 +154,7 @@ impl SpaceTimeIdSet {
                         );
                     }
                     (BitVecRelation::Descendant, BitVecRelation::Descendant) => {
-                        self.under_under_top(
-                            &mut need_divison,
-                            main_descendants[i],
-                            &main_dim_select,
-                        );
+                        self.split_self(&mut need_divison, main_descendants[i], &main_dim_select);
                     }
                     _ => {}
                 }
@@ -170,7 +166,7 @@ impl SpaceTimeIdSet {
                         BitVecRelation::Ancestor | BitVecRelation::Equal,
                         BitVecRelation::Ancestor | BitVecRelation::Equal,
                     ) => {
-                        self.top_top_under(
+                        self.split_other(
                             main_ancestors[i],
                             main_bit.clone(),
                             &main_dim_select,
@@ -182,21 +178,13 @@ impl SpaceTimeIdSet {
                         BitVecRelation::Ancestor | BitVecRelation::Equal,
                         BitVecRelation::Descendant,
                     ) => {
-                        self.under_under_top(
-                            &mut need_divison,
-                            main_ancestors[i],
-                            &main_dim_select.a(),
-                        );
+                        self.split_self(&mut need_divison, main_ancestors[i], &main_dim_select.a());
                     }
                     (
                         BitVecRelation::Descendant,
                         BitVecRelation::Ancestor | BitVecRelation::Equal,
                     ) => {
-                        self.under_under_top(
-                            &mut need_divison,
-                            main_ancestors[i],
-                            &main_dim_select.b(),
-                        );
+                        self.split_self(&mut need_divison, main_ancestors[i], &main_dim_select.b());
                     }
                     (BitVecRelation::Descendant, BitVecRelation::Descendant) => {
                         continue 'outer;

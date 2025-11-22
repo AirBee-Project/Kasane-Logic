@@ -12,8 +12,8 @@ pub struct RangesCollect {
 }
 
 impl SpaceTimeIdSet {
-    ///自分を切断する
-    pub(crate) fn under_under_top(
+    ///下位,下位,上位の場合に自身を切断する
+    pub(crate) fn split_self(
         &self,
         divison: &mut RangesCollect,
         target_bit_index: Index,

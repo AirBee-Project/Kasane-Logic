@@ -9,7 +9,7 @@ use crate::{
 
 impl SpaceTimeIdSet {
     ///相手を切断する
-    pub(crate) fn top_top_under(
+    pub(crate) fn split_other(
         &mut self,
         target_index: Index,
         target_bit: BitVec,

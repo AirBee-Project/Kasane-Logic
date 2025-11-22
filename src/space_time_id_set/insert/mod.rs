@@ -17,12 +17,11 @@ pub mod collect_descendants;
 pub mod collect_other_dimension;
 pub mod generate_index;
 pub mod insert_main_dim;
-pub mod search_under_count;
 pub mod select_dimensions;
-pub mod top_top_under;
+pub mod split_other;
+pub mod split_self;
 pub mod uncheck_delete;
 pub mod uncheck_insert;
-pub mod under_under_top;
 
 impl SpaceTimeIdSet {
     ///SpaceTimeIDSetに新規のIDを挿入する。
@@ -36,21 +35,26 @@ impl SpaceTimeIdSet {
             .iter()
             .map(|(z, f)| {
                 let bit_vec = convert_bitmask_f(*z, *f);
-                (Self::search_under_count(&self.f, &bit_vec), bit_vec)
+                let count = self.f.get(&bit_vec).map_or(0, |v| v.count);
+                (count, bit_vec)
             })
             .collect();
+
         let mut x_encoded: Vec<(usize, BitVec)> = x_splited
             .iter()
             .map(|(z, x)| {
                 let bit_vec = convert_bitmask_xy(*z, *x);
-                (Self::search_under_count(&self.x, &bit_vec), bit_vec)
+                let count = self.x.get(&bit_vec).map_or(0, |v| v.count);
+                (count, bit_vec)
             })
             .collect();
+
         let mut y_encoded: Vec<(usize, BitVec)> = y_splited
             .iter()
             .map(|(z, y)| {
                 let bit_vec = convert_bitmask_xy(*z, *y);
-                (Self::search_under_count(&self.y, &bit_vec), bit_vec)
+                let count = self.y.get(&bit_vec).map_or(0, |v| v.count);
+                (count, bit_vec)
             })
             .collect();
 
