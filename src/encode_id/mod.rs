@@ -1,7 +1,7 @@
 use crate::bit_vec::BitVec;
 pub mod decode;
 pub struct EncodeID {
-    f: BitVec,
-    x: BitVec,
-    y: BitVec,
+    pub f: BitVec,
+    pub x: BitVec,
+    pub y: BitVec,
 }

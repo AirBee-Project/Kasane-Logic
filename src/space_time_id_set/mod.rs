@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::bit_vec::BitVec;
-pub mod single;
 
 ///Set内部におけるIDの一意な番号
 type Index = usize;

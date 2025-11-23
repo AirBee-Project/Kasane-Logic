@@ -3,8 +3,8 @@ use crate::{
     space_time_id::{
         SpaceTimeID,
         encode::{
-            into_bitvec::{into_bitvec_f, into_bitvec_xy},
             segment::{segment_f, segment_xy},
+            to_bitvec::{to_bitvec_f, to_bitvec_xy},
         },
     },
     space_time_id_set::{SpaceTimeIDSet, insert::select_dimensions::DimensionSelect},
@@ -31,7 +31,7 @@ impl SpaceTimeIDSet {
         let mut f_encoded: Vec<(usize, BitVec)> = f_splited
             .iter()
             .map(|(z, f)| {
-                let bit_vec = into_bitvec_f(*z, *f);
+                let bit_vec = to_bitvec_f(*z, *f);
                 let count = self.f.get(&bit_vec).map_or(0, |v| v.count);
                 (count, bit_vec)
             })
@@ -40,7 +40,7 @@ impl SpaceTimeIDSet {
         let mut x_encoded: Vec<(usize, BitVec)> = x_splited
             .iter()
             .map(|(z, x)| {
-                let bit_vec = into_bitvec_xy(*z, *x);
+                let bit_vec = to_bitvec_xy(*z, *x);
                 let count = self.x.get(&bit_vec).map_or(0, |v| v.count);
                 (count, bit_vec)
             })
@@ -49,7 +49,7 @@ impl SpaceTimeIDSet {
         let mut y_encoded: Vec<(usize, BitVec)> = y_splited
             .iter()
             .map(|(z, y)| {
-                let bit_vec = into_bitvec_xy(*z, *y);
+                let bit_vec = to_bitvec_xy(*z, *y);
                 let count = self.y.get(&bit_vec).map_or(0, |v| v.count);
                 (count, bit_vec)
             })
