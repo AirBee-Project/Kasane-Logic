@@ -2,9 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     bit_vec::BitVec,
-    space_time_id_set::{
-        LayerInfo, ReverseInfo, SpaceTimeIDSet, insert::select_dimensions::DimensionSelect,
-    },
+    encode_id::EncodeID,
+    space_time_id_set::{LayerInfo, SpaceTimeIDSet, insert::select_dimensions::DimensionSelect},
 };
 
 impl SpaceTimeIDSet {
@@ -25,7 +24,7 @@ impl SpaceTimeIDSet {
 
         self.reverse.insert(
             index,
-            ReverseInfo {
+            EncodeID {
                 f: map.f.clone(),
                 x: map.x.clone(),
                 y: map.y.clone(),

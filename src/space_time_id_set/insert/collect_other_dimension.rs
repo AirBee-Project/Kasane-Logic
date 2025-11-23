@@ -1,14 +1,15 @@
 use crate::{
     bit_vec::{BitVec, relation::BitVecRelation},
-    space_time_id_set::{ReverseInfo, SpaceTimeIDSet, insert::select_dimensions::DimensionSelect},
+    encode_id::EncodeID,
+    space_time_id_set::{SpaceTimeIDSet, insert::select_dimensions::DimensionSelect},
 };
 
 impl SpaceTimeIDSet {
     pub(crate) fn collect_other_dimension(
         dim: &BitVec,
         dim_select: &DimensionSelect,
-        top_reverse: &Vec<&ReverseInfo>,
-        under_reverse: &Vec<&ReverseInfo>,
+        top_reverse: &Vec<&EncodeID>,
+        under_reverse: &Vec<&EncodeID>,
     ) -> Option<(Vec<BitVecRelation>, Vec<BitVecRelation>)> {
         let mut top_unrelated = true;
         let mut under_unrelated = true;

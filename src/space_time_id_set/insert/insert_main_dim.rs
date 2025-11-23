@@ -4,8 +4,9 @@ use itertools::iproduct;
 
 use crate::{
     bit_vec::{BitVec, relation::BitVecRelation},
+    encode_id::EncodeID,
     space_time_id_set::{
-        Index, ReverseInfo, SpaceTimeIDSet,
+        Index, SpaceTimeIDSet,
         insert::{select_dimensions::DimensionSelect, split_self::RangesCollect},
     },
 };
@@ -80,7 +81,7 @@ impl SpaceTimeIDSet {
         }
 
         let mut need_delete: HashSet<Index> = HashSet::new();
-        let mut need_insert: HashSet<ReverseInfo> = HashSet::new();
+        let mut need_insert: HashSet<EncodeID> = HashSet::new();
 
         'outer: for ((a_encode_index, a), (b_encode_index, b)) in iproduct!(
             a_relations.iter().enumerate(),
@@ -119,7 +120,7 @@ impl SpaceTimeIDSet {
             };
 
             let mut need_delete_inside: HashSet<Index> = HashSet::new();
-            let mut need_insert_inside: HashSet<ReverseInfo> = HashSet::new();
+            let mut need_insert_inside: HashSet<EncodeID> = HashSet::new();
 
             for (i, (a_rel, b_rel)) in a_relation.0.iter().zip(b_relation.0.iter()).enumerate() {
                 match (a_rel, b_rel) {

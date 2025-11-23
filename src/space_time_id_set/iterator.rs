@@ -1,11 +1,7 @@
-use crate::{
-    encode_id::EncodeID,
-    space_time_id::SpaceTimeID,
-    space_time_id_set::{ReverseInfo, SpaceTimeIDSet},
-};
+use crate::{encode_id::EncodeID, space_time_id::SpaceTimeID, space_time_id_set::SpaceTimeIDSet};
 
 pub struct SpaceTimeIDSetIter<'a> {
-    reverse_iter: std::collections::hash_map::Iter<'a, usize, ReverseInfo>,
+    reverse_iter: std::collections::hash_map::Iter<'a, usize, EncodeID>,
 }
 
 impl SpaceTimeIDSet {
@@ -22,13 +18,7 @@ impl<'a> Iterator for SpaceTimeIDSetIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let (_index, reverse) = self.reverse_iter.next()?; // <-- ここが(usize, ReverseInfo)
 
-        let encode_id = EncodeID {
-            f: reverse.f.clone(),
-            x: reverse.x.clone(),
-            y: reverse.y.clone(),
-        };
-
-        Some(encode_id.decode())
+        Some(reverse.decode())
     }
 }
 

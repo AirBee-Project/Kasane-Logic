@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::bit_vec::BitVec;
+use crate::{bit_vec::BitVec, encode_id::EncodeID};
 
 ///Set内部におけるIDの一意な番号
 type Index = usize;
@@ -18,14 +18,6 @@ pub struct LayerInfo {
 
     //その階層の下にあるIDの個数
     pub count: usize,
-}
-
-/// インデックスから各次元の情報を逆引きするための構造体
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct ReverseInfo {
-    pub f: BitVec,
-    pub x: BitVec,
-    pub y: BitVec,
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -46,7 +38,7 @@ pub struct SpaceTimeIDSet {
     x: BTreeMap<BitVec, LayerInfo>,
     y: BTreeMap<BitVec, LayerInfo>,
     index: usize,
-    reverse: HashMap<Index, ReverseInfo>,
+    reverse: HashMap<Index, EncodeID>,
 }
 impl SpaceTimeIDSet {
     /// 新しい空の時空間ID集合を作成
