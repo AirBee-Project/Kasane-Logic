@@ -236,7 +236,7 @@ impl EncodeIDSet {
 
         //切断された範囲を挿入する
         for (f, x, y) in iproduct!(f_splited, x_splited, y_splited) {
-            self.uncheck_insert(EncodeID { f, x, y });
+            self.uncheck_insert(EncodeID { f, x, y, t: encode_id.t.clone() });
         }
     }
 }

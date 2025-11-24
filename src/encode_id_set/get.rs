@@ -128,6 +128,7 @@ impl EncodeIDSet {
                         f: map_dims.f.clone(),
                         x: main_ancestors_reverse[i].x.clone(),
                         y: main_ancestors_reverse[i].y.clone(),
+                        t: main_ancestors_reverse[i].t.clone(),
                     });
                 }
                 (BitVecRelation::Descendant | BitVecRelation::Equal, BitVecRelation::Ancestor) => {
@@ -136,6 +137,7 @@ impl EncodeIDSet {
                         f: map_dims.f.clone(),
                         x: main_ancestors_reverse[i].x.clone(),
                         y: map_dims.y.clone(),
+                        t: main_ancestors_reverse[i].t.clone(),
                     });
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
@@ -144,6 +146,7 @@ impl EncodeIDSet {
                         f: map_dims.f.clone(),
                         x: map_dims.x.clone(),
                         y: main_ancestors_reverse[i].y.clone(),
+                        t: main_ancestors_reverse[i].t.clone(),
                     });
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Ancestor) => {
@@ -175,6 +178,7 @@ impl EncodeIDSet {
                         f: map_dims.f.clone(),
                         x: main_descendants_reverse[i].x.clone(),
                         y: map_dims.y.clone(),
+                        t: main_descendants_reverse[i].t.clone(),
                     });
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
@@ -183,6 +187,7 @@ impl EncodeIDSet {
                         f: map_dims.f.clone(),
                         x: map_dims.x.clone(),
                         y: main_descendants_reverse[i].y.clone(),
+                        t: main_descendants_reverse[i].t.clone(),
                     });
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Ancestor) => {
@@ -191,6 +196,7 @@ impl EncodeIDSet {
                         f: main_ancestors_reverse[i].f.clone(),
                         x: map_dims.x.clone(),
                         y: map_dims.y.clone(),
+                        t: main_ancestors_reverse[i].t.clone(),
                     });
                 }
                 _ => {}

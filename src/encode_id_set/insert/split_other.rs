@@ -28,6 +28,7 @@ impl EncodeIDSet {
         let reverse_f = target_reverse.f.clone();
         let reverse_x = target_reverse.x.clone();
         let reverse_y = target_reverse.y.clone();
+        let reverse_t = target_reverse.t.clone();
 
         for single in splited {
             match target_dim {
@@ -35,16 +36,19 @@ impl EncodeIDSet {
                     f: single,
                     x: reverse_x.clone(),
                     y: reverse_y.clone(),
+                    t: reverse_t.clone(),
                 }),
                 DimensionSelect::X => need_insert.insert(EncodeID {
                     f: reverse_f.clone(),
                     x: single,
                     y: reverse_y.clone(),
+                    t: reverse_t.clone(),
                 }),
                 DimensionSelect::Y => need_insert.insert(EncodeID {
                     f: reverse_f.clone(),
                     x: reverse_x.clone(),
                     y: single,
+                    t: reverse_t.clone(),
                 }),
             };
         }
