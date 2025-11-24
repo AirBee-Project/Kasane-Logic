@@ -9,7 +9,7 @@ use crate::{
 impl EncodeIDSet {
     ///上位,上位,下位の場合に相手を切断する
     pub(crate) fn split_other(
-        &mut self,
+        &self,
         target_index: Index,
         target_bit: &BitVec,
         target_dim: &DimensionSelect,

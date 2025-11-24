@@ -152,8 +152,8 @@ impl EncodeIDSet {
                     BitVecRelation::Ancestor | BitVecRelation::Equal,
                     BitVecRelation::Ancestor | BitVecRelation::Equal,
                 ) => {
-                    //全ての次元において祖先のIDが存在するため、挿入の必要がない
-                    return;
+                    //全ての次元において子孫のIDが存在するため削除
+                    need_delete.insert(main_descendants[i]);
                 }
                 (BitVecRelation::Ancestor | BitVecRelation::Equal, BitVecRelation::Descendant) => {
                     self.split_other(
@@ -209,8 +209,7 @@ impl EncodeIDSet {
                     );
                 }
                 (BitVecRelation::Descendant, BitVecRelation::Descendant) => {
-                    //全ての次元において子孫のIDが存在するため削除する
-                    need_delete.insert(main_descendants[i]);
+                    //全ての次元において祖先のIDが存在するため、何もする必要がない
                     return;
                 }
                 _ => {}

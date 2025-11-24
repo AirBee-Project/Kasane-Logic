@@ -12,7 +12,9 @@ impl EncodeIDSet {
         main_bit: &BitVec,
         main_dim: &DimensionSelect,
     ) -> Vec<Index> {
-        let mut main_under = Vec::new();
+        println!("MAINBIT:{}", main_bit);
+
+        let mut main_descendants = Vec::new();
 
         let dims = self.dims_btree(&main_dim);
 
@@ -20,9 +22,11 @@ impl EncodeIDSet {
             .main
             .range((Excluded(main_bit.clone()), Excluded(main_bit.upper_bound())))
         {
-            main_under.extend(layerinfo.index.clone());
+            main_descendants.extend(layerinfo.index.clone());
         }
 
-        main_under
+        println!("{:?}", main_descendants);
+
+        main_descendants
     }
 }
