@@ -17,21 +17,22 @@ use crate::error::Error;
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct SpaceTimeID {
-    pub(crate) z: u8,
-    pub(crate) f: [i64; 2],
-    pub(crate) x: [u64; 2],
-    pub(crate) y: [u64; 2],
-    pub(crate) i: u64,
-    pub(crate) t: [u64; 2],
+    pub z: u8,
+    pub f: [i64; 2],
+    pub x: [u64; 2],
+    pub y: [u64; 2],
+    pub i: u64,
+    pub t: [u64; 2],
 }
+
 impl SpaceTimeID {
     pub fn new(
         z: u8,
-        f: [i64; 2],
-        x: [u64; 2],
-        y: [u64; 2],
+        f: [Option<i64>; 2],
+        x: [Option<u64>; 2],
+        y: [Option<u64>; 2],
         i: u64,
-        t: [u64; 2],
+        t: [Option<u64>; 2],
     ) -> Result<Self, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZoomLevelOutOfRange { zoom_level: z });
@@ -41,18 +42,26 @@ impl SpaceTimeID {
         let f_min = F_MIN[z as usize];
         let xy_max = XY_MAX[z as usize];
 
-        // 空間の次元を全て値に変換
+        // Optionを展開して None なら min/max に置き換え
         let new_f = normalize_dimension(f, f_min, f_max, valid_range_f, z)?;
         let new_x = normalize_dimension(x, 0, xy_max, valid_range_x, z)?;
         let new_y = normalize_dimension(y, 0, xy_max, valid_range_y, z)?;
 
-        // 時間軸をスケーリング（オーバーフローチェック付き）
+        // 時間軸も Option を展開
         let start_t = t[0]
+            .unwrap_or(0)
             .checked_mul(i)
-            .ok_or_else(|| Error::TimeOverflow { t: t[0], i })?;
+            .ok_or_else(|| Error::TimeOverflow {
+                t: t[0].unwrap_or(0),
+                i,
+            })?;
         let end_t = t[1]
+            .unwrap_or(u64::MAX)
             .checked_mul(i)
-            .ok_or_else(|| Error::TimeOverflow { t: t[1], i })?;
+            .ok_or_else(|| Error::TimeOverflow {
+                t: t[1].unwrap_or(u64::MAX),
+                i,
+            })?;
 
         Ok(SpaceTimeID {
             z,
@@ -65,9 +74,9 @@ impl SpaceTimeID {
     }
 }
 
-/// 次元の値を正規化する関数
+/// Optionに対応したnormalize_dimension
 fn normalize_dimension<T>(
-    dim: [T; 2],
+    dim: [Option<T>; 2],
     min: T,
     max: T,
     validate: impl Fn(T, T, T, u8) -> Result<(), Error>,
@@ -76,15 +85,16 @@ fn normalize_dimension<T>(
 where
     T: PartialOrd + Copy,
 {
-    // 値が範囲内なのかをチェックする
-    validate(dim[0], min, max, z)?;
-    validate(dim[1], min, max, z)?;
+    let left = dim[0].unwrap_or(min);
+    let right = dim[1].unwrap_or(max);
 
-    // 順序を正しくする
-    if dim[1] > dim[0] {
-        Ok(dim)
+    validate(left, min, max, z)?;
+    validate(right, min, max, z)?;
+
+    if right > left {
+        Ok([left, right])
     } else {
-        Ok([dim[1], dim[0]])
+        Ok([right, left])
     }
 }
 

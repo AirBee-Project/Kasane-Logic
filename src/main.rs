@@ -1,17 +1,60 @@
 use std::{collections::HashSet, fs::File};
 
-use kasane_logic::{encode_id, encode_id_set::EncodeIDSet, space_time_id::SpaceTimeID};
+use kasane_logic::{encode_id, encode_id_set::EncodeIDSet, id, space_time_id::SpaceTimeID};
 use std::io::Write;
 fn main() {
     let mut set1 = EncodeIDSet::new();
     let mut set2 = EncodeIDSet::new();
 
-    let id1 = SpaceTimeID::new(5, [-1, 10], [2, 10], [5, 10], 10, [10, 40]).unwrap();
-    let id2 = SpaceTimeID::new(4, [-1, 10], [2, 10], [5, 10], 10, [10, 40]).unwrap();
-    let id3 = SpaceTimeID::new(1, [1, 1], [1, 1], [1, 1], 10, [10, 40]).unwrap();
+    let id1 = id! {
+        z: 5,
+        f: [-1, 10],
+        x: [2, 10],
+        y: [5, 10],
+        i: 10,
+        t: [10, 40],
+    }
+    .unwrap();
 
-    let id4 = SpaceTimeID::new(2, [2, 2], [1, 1], [1, 1], 10, [10, 40]).unwrap();
-    let id5 = SpaceTimeID::new(1, [0, 0], [0, 0], [0, 0], 10, [10, 40]).unwrap();
+    let id2 = id! {
+        z: 4,
+        f: [-1, 10],
+        x: [2, 10],
+        y: [5, 10],
+        i: 10,
+        t: [10, 40],
+    }
+    .unwrap();
+
+    let id3 = id! {
+        z: 1,
+        f: [1, 1],
+        x: [1, 1],
+        y: [1, 1],
+        i: 10,
+        t: [10, 40],
+    }
+    .unwrap();
+
+    let id4 = id! {
+        z: 2,
+        f: [2, 2],
+        x: [1, 1],
+        y: [1, 1],
+        i: 10,
+        t: [10, 40],
+    }
+    .unwrap();
+
+    let id5 = id! {
+        z: 1,
+        f: [0, 0],
+        x: [0, 0],
+        y: [0, 0],
+        i: 10,
+        t: [10, 40],
+    }
+    .unwrap();
 
     let mut file1 = File::create("output.txt").expect("cannot create file");
 
