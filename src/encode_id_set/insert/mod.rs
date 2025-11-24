@@ -34,37 +34,59 @@ impl EncodeIDSet {
             None => 0,
         };
 
-        let min_count = f_descendants_count.min(x_descendants_count.min(y_descendants_count));
+        let t_descendants_count = match self.t.get(&encode_id.t) {
+            Some(info) => info.count,
+            None => 0,
+        };
+
+        let min_count = f_descendants_count.min(x_descendants_count.min(y_descendants_count.min(t_descendants_count)));
 
         //代表の次元を選出する
         let main_dim;
         let a_dim;
         let b_dim;
+        let c_dim;
         let main;
         let a;
         let b;
+        let c;
 
         if min_count == f_descendants_count {
             main_dim = DimensionSelect::F;
             a_dim = DimensionSelect::X;
             b_dim = DimensionSelect::Y;
+            c_dim = DimensionSelect::T;
             main = &encode_id.f;
             a = &encode_id.x;
             b = &encode_id.y;
+            c = &encode_id.t;
         } else if min_count == x_descendants_count {
             main_dim = DimensionSelect::X;
             a_dim = DimensionSelect::F;
             b_dim = DimensionSelect::Y;
+            c_dim = DimensionSelect::T;
             main = &encode_id.x;
             a = &encode_id.f;
             b = &encode_id.y;
-        } else {
+            c = &encode_id.t;
+        } else if min_count == y_descendants_count {
             main_dim = DimensionSelect::Y;
             a_dim = DimensionSelect::F;
             b_dim = DimensionSelect::X;
+            c_dim = DimensionSelect::T;
             main = &encode_id.y;
             a = &encode_id.f;
             b = &encode_id.x;
+            c = &encode_id.t;
+        } else {
+            main_dim = DimensionSelect::T;
+            a_dim = DimensionSelect::F;
+            b_dim = DimensionSelect::X;
+            c_dim = DimensionSelect::Y;
+            main = &encode_id.t;
+            a = &encode_id.f;
+            b = &encode_id.x;
+            c = &encode_id.y;
         }
 
         //Main次元の祖先を探索する
@@ -127,6 +149,19 @@ impl EncodeIDSet {
             }
         };
 
+        let c_relation = match Self::collect_other_dimension(
+            c,
+            &main_ancestors_reverse,
+            &main_descendants_reverse,
+            &c_dim,
+        ) {
+            Some(v) => v,
+            None => {
+                self.uncheck_insert(encode_id);
+                return;
+            }
+        };
+
         let mut need_delete: HashSet<Index> = HashSet::new();
         let mut need_insert: HashSet<EncodeID> = HashSet::new();
 
@@ -134,84 +169,125 @@ impl EncodeIDSet {
             f: vec![],
             x: vec![],
             y: vec![],
+            t: vec![],
         };
 
         //Main次元における祖先の範囲を調べる
-        for (i, (a_rel, b_rel)) in a_relation.0.iter().zip(b_relation.0.iter()).enumerate() {
-            match (a_rel, b_rel) {
-                (
-                    BitVecRelation::Descendant | BitVecRelation::Equal,
-                    BitVecRelation::Descendant | BitVecRelation::Equal,
-                ) => {
-                    self.split_other(
-                        &main_ancestors[i],
-                        main_ancestors_reverse[i],
-                        main,
-                        &main_dim,
-                        &mut need_delete,
-                        &mut need_insert,
-                    );
-                }
-                (BitVecRelation::Descendant | BitVecRelation::Equal, BitVecRelation::Ancestor) => {
-                    self.split_self(
-                        main_ancestors_reverse[i],
-                        &mut collect_divison_ranges,
-                        &main_dim.a(),
-                    );
-                }
-                (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
-                    self.split_self(
-                        main_ancestors_reverse[i],
-                        &mut collect_divison_ranges,
-                        &main_dim.b(),
-                    );
-                }
-                (BitVecRelation::Ancestor, BitVecRelation::Ancestor) => {
-                    //全ての次元において祖先のIDが存在するため、何もする必要がない
-                    return;
-                }
-                _ => {}
+        for (i, ((a_rel, b_rel), c_rel)) in a_relation.0.iter().zip(b_relation.0.iter()).zip(c_relation.0.iter()).enumerate() {
+            let a_desc = matches!(a_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
+            let b_desc = matches!(b_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
+            let c_desc = matches!(c_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
+            let a_anc = matches!(a_rel, BitVecRelation::Ancestor);
+            let b_anc = matches!(b_rel, BitVecRelation::Ancestor);
+            let c_anc = matches!(c_rel, BitVecRelation::Ancestor);
+
+            if a_desc && b_desc && c_desc {
+                // 全ての次元において子孫のIDが存在する
+                self.split_other(
+                    &main_ancestors[i],
+                    main_ancestors_reverse[i],
+                    main,
+                    &main_dim,
+                    &mut need_delete,
+                    &mut need_insert,
+                );
+            } else if a_anc && b_anc && c_anc {
+                // 全ての次元において祖先のIDが存在するため、何もする必要がない
+                return;
+            } else if a_anc && b_desc && c_desc {
+                // a次元のみ祖先
+                self.split_self(
+                    main_ancestors_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim.a(),
+                );
+            } else if b_anc && a_desc && c_desc {
+                // b次元のみ祖先
+                self.split_self(
+                    main_ancestors_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim.b(),
+                );
+            } else if c_anc && a_desc && b_desc {
+                // c次元のみ祖先
+                self.split_self(
+                    main_ancestors_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim.c(),
+                );
             }
         }
 
         //Main次元における子孫の範囲について調べる
-        for (i, (a_rel, b_rel)) in a_relation.1.iter().zip(b_relation.1.iter()).enumerate() {
-            match (a_rel, b_rel) {
-                (
-                    BitVecRelation::Descendant | BitVecRelation::Equal,
-                    BitVecRelation::Descendant | BitVecRelation::Equal,
-                ) => {
-                    //全ての次元において子孫のIDが存在するため削除
-                    need_delete.insert(main_descendants[i]);
-                }
-                (BitVecRelation::Descendant | BitVecRelation::Equal, BitVecRelation::Ancestor) => {
-                    self.split_other(
-                        &main_ancestors[i],
-                        main_descendants_reverse[i],
-                        b,
-                        &main_dim.b(),
-                        &mut need_delete,
-                        &mut need_insert,
-                    );
-                }
-                (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
-                    self.split_other(
-                        &main_ancestors[i],
-                        main_descendants_reverse[i],
-                        a,
-                        &main_dim.a(),
-                        &mut need_delete,
-                        &mut need_insert,
-                    );
-                }
-                (BitVecRelation::Ancestor, BitVecRelation::Ancestor) => {
-                    self.split_self(
-                        main_descendants_reverse[i],
-                        &mut collect_divison_ranges,
-                        &main_dim,
-                    );
-                }
-                _ => {}
+        for (i, ((a_rel, b_rel), c_rel)) in a_relation.1.iter().zip(b_relation.1.iter()).zip(c_relation.1.iter()).enumerate() {
+            let a_desc = matches!(a_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
+            let b_desc = matches!(b_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
+            let c_desc = matches!(c_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
+            let a_anc = matches!(a_rel, BitVecRelation::Ancestor);
+            let b_anc = matches!(b_rel, BitVecRelation::Ancestor);
+            let c_anc = matches!(c_rel, BitVecRelation::Ancestor);
+
+            if a_desc && b_desc && c_desc {
+                // 全ての次元において子孫のIDが存在するため削除
+                need_delete.insert(main_descendants[i]);
+            } else if a_desc && b_desc && c_anc {
+                // c次元のみ祖先
+                self.split_other(
+                    &main_ancestors[i],
+                    main_descendants_reverse[i],
+                    c,
+                    &main_dim.c(),
+                    &mut need_delete,
+                    &mut need_insert,
+                );
+            } else if a_desc && b_anc && c_desc {
+                // b次元のみ祖先
+                self.split_other(
+                    &main_ancestors[i],
+                    main_descendants_reverse[i],
+                    b,
+                    &main_dim.b(),
+                    &mut need_delete,
+                    &mut need_insert,
+                );
+            } else if a_anc && b_desc && c_desc {
+                // a次元のみ祖先
+                self.split_other(
+                    &main_ancestors[i],
+                    main_descendants_reverse[i],
+                    a,
+                    &main_dim.a(),
+                    &mut need_delete,
+                    &mut need_insert,
+                );
+            } else if a_anc && b_anc && c_desc {
+                // a,b次元が祖先
+                self.split_self(
+                    main_descendants_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim,
+                );
+            } else if a_anc && b_desc && c_anc {
+                // a,c次元が祖先
+                self.split_self(
+                    main_descendants_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim,
+                );
+            } else if a_desc && b_anc && c_anc {
+                // b,c次元が祖先
+                self.split_self(
+                    main_descendants_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim,
+                );
+            } else if a_anc && b_anc && c_anc {
+                // 全て祖先
+                self.split_self(
+                    main_descendants_reverse[i],
+                    &mut collect_divison_ranges,
+                    &main_dim,
+                );
             }
         }
 
@@ -234,9 +310,12 @@ impl EncodeIDSet {
         //B次元において、挿入するIDに切断が必要な部分を切断する
         let y_splited = encode_id.y.subtract_ranges(&collect_divison_ranges.y);
 
+        //C次元において、挿入するIDに切断が必要な部分を切断する
+        let t_splited = encode_id.t.subtract_ranges(&collect_divison_ranges.t);
+
         //切断された範囲を挿入する
-        for (f, x, y) in iproduct!(f_splited, x_splited, y_splited) {
-            self.uncheck_insert(EncodeID { f, x, y });
+        for (f, x, y, t) in iproduct!(f_splited, x_splited, y_splited, t_splited) {
+            self.uncheck_insert(EncodeID { f, x, y, t });
         }
     }
 }

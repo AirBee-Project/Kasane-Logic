@@ -11,6 +11,7 @@ impl EncodeIDSet {
         Self::update_layer_delete(&mut self.f, &removed.f, *index);
         Self::update_layer_delete(&mut self.x, &removed.x, *index);
         Self::update_layer_delete(&mut self.y, &removed.y, *index);
+        Self::update_layer_delete(&mut self.t, &removed.t, *index);
     }
 
     ///上位の階層のcountから-1

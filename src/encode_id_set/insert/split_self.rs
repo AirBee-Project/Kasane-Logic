@@ -8,6 +8,7 @@ pub struct RangesCollect {
     pub f: Vec<BitVec>,
     pub x: Vec<BitVec>,
     pub y: Vec<BitVec>,
+    pub t: Vec<BitVec>,
 }
 
 impl EncodeIDSet {
@@ -27,6 +28,9 @@ impl EncodeIDSet {
             }
             DimensionSelect::Y => {
                 divison_collect.y.push(target_reverse.y.clone());
+            }
+            DimensionSelect::T => {
+                divison_collect.t.push(target_reverse.t.clone());
             }
         }
     }
