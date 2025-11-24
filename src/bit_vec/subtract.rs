@@ -27,6 +27,12 @@ impl BitVec {
 
     /// 単体範囲 BitVec から単体 sub を引いて残りの開始点を返す
     pub fn subtract_range(&self, sub: &BitVec) -> Vec<BitVec> {
+        // sub が self と等しい、または sub が self の祖先（self を含む）の場合、
+        // 引き算の結果は空になるため、空のベクタを返す
+        if sub <= self {
+            return vec![];
+        }
+
         let mut result: Vec<BitVec> = vec![];
         let mut sub_clone = sub.clone();
 
