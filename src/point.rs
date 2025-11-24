@@ -1,9 +1,13 @@
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ts-rs")]
 use ts_rs::TS;
 
 use crate::{error::Error, space_time_id::SpaceTimeID};
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
 pub enum Point {
     Coordinate(Coordinate),
     ECEF(ECEF),
@@ -26,14 +30,18 @@ impl Point {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
 pub struct Coordinate {
     pub latitude: f64,
     pub longitude: f64,
     pub altitude: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "ts-rs", derive(TS))]
 pub struct ECEF {
     pub x: f64,
     pub y: f64,

@@ -1,8 +1,10 @@
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Kasane-logicで発生するエラー型
-#[derive(Debug, Error, Serialize, Deserialize)]
+#[derive(Debug, Error)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Error {
     #[error("ZoomLevel '{zoom_level}' is out of range (valid: 0..=60)")]
     ZoomLevelOutOfRange { zoom_level: u8 },

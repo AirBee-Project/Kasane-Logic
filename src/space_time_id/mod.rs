@@ -1,3 +1,4 @@
+#[cfg(feature = "serde")]
 use serde::Serialize;
 pub mod encode;
 pub mod format;
@@ -13,7 +14,8 @@ use crate::error::Error;
 /// - y: 緯度方向の範囲 (符号なし整数)
 /// - i: インデックス
 /// - t: 時間範囲
-#[derive(Serialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct SpaceTimeID {
     pub(crate) z: u8,
     pub(crate) f: [i64; 2],
