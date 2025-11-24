@@ -24,9 +24,6 @@ impl EncodeIDSet {
     ///EncodeIDSetに新規のEncodeIDを挿入する。
     /// 既存の範囲と重複がある場合は挿入時に調整が行われ、重複が排除される。
     pub fn insert(&mut self, encode_id: EncodeID) {
-        print!("Call Insert  ");
-        println!("{:?}", encode_id);
-
         //下位IDの個数が最小の次元を選択する
         let f_descendants_count = match self.f.get(&encode_id.f) {
             Some(info) => info.count,

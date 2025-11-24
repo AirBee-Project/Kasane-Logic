@@ -27,12 +27,7 @@ impl EncodeIDSet {
             DimensionSelect::Y => reverse.y.clone(),
         };
 
-        println!("TOP:{}", top);
-        println!("TAR:{}", target_bit);
-
         let splited = top.subtract_range(&target_bit);
-
-        println!("SPLITED");
 
         let reverse_f = reverse.f.clone();
         let reverse_x = reverse.x.clone();

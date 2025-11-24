@@ -12,8 +12,6 @@ impl EncodeIDSet {
         main_bit: &BitVec,
         main_dim: &DimensionSelect,
     ) -> Vec<Index> {
-        println!("MAINBIT:{}", main_bit);
-
         let mut main_descendants = Vec::new();
 
         let dims = self.dims_btree(&main_dim);
@@ -24,8 +22,6 @@ impl EncodeIDSet {
         {
             main_descendants.extend(layerinfo.index.clone());
         }
-
-        println!("{:?}", main_descendants);
 
         main_descendants
     }
