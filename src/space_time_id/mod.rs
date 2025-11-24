@@ -45,9 +45,9 @@ impl SpaceTimeID {
         let new_x = normalize_dimension(x, 0, xy_max, valid_range_x, z)?;
         let new_y = normalize_dimension(y, 0, xy_max, valid_range_y, z)?;
         let new_t = match t {
-            [None, None] => [0, u64::MAX],
+            [None, None] => [0, u64::MAX - 1],
             [None, Some(e)] => [0, e],
-            [Some(s), None] => [s, u64::MAX],
+            [Some(s), None] => [s, u64::MAX - 1],
             [Some(s), Some(e)] => [s.min(e), e.max(s)],
         };
 
