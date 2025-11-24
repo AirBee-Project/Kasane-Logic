@@ -48,7 +48,7 @@ impl SpaceTimeID {
             [None, None] => [0, u64::MAX],
             [None, Some(e)] => [0, e],
             [Some(s), None] => [s, u64::MAX],
-            [Some(s), Some(e)] => [s.min(e), e.min(s)],
+            [Some(s), Some(e)] => [s.min(e), e.max(s)],
         };
 
         Ok(SpaceTimeID {
