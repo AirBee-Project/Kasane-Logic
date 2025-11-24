@@ -262,7 +262,7 @@ impl EncodeIDSet {
                 // a,b次元が祖先
                 let map_dims = EncodeIDSet::map_dims(main, a, b, c, &main_dim);
                 result.push(EncodeID {
-                    f: main_ancestors_reverse[i].f.clone(),
+                    f: main_descendants_reverse[i].f.clone(),
                     x: map_dims.x.clone(),
                     y: map_dims.y.clone(),
                     t: main_descendants_reverse[i].t.clone(),
@@ -271,7 +271,7 @@ impl EncodeIDSet {
                 // a,c次元が祖先
                 let map_dims = EncodeIDSet::map_dims(main, a, b, c, &main_dim);
                 result.push(EncodeID {
-                    f: main_ancestors_reverse[i].f.clone(),
+                    f: main_descendants_reverse[i].f.clone(),
                     x: map_dims.x.clone(),
                     y: main_descendants_reverse[i].y.clone(),
                     t: map_dims.t.clone(),
@@ -289,7 +289,7 @@ impl EncodeIDSet {
                 // 全て祖先
                 let map_dims = EncodeIDSet::map_dims(main, a, b, c, &main_dim);
                 result.push(EncodeID {
-                    f: main_ancestors_reverse[i].f.clone(),
+                    f: main_descendants_reverse[i].f.clone(),
                     x: map_dims.x.clone(),
                     y: map_dims.y.clone(),
                     t: map_dims.t.clone(),

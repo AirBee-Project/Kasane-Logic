@@ -246,7 +246,7 @@ impl EncodeIDSet {
             } else if a_desc && b_desc && c_anc {
                 // c次元のみ祖先
                 self.split_other(
-                    &main_ancestors[i],
+                    &main_descendants[i],
                     main_descendants_reverse[i],
                     c,
                     &main_dim.c(),
@@ -256,7 +256,7 @@ impl EncodeIDSet {
             } else if a_desc && b_anc && c_desc {
                 // b次元のみ祖先
                 self.split_other(
-                    &main_ancestors[i],
+                    &main_descendants[i],
                     main_descendants_reverse[i],
                     b,
                     &main_dim.b(),
@@ -266,7 +266,7 @@ impl EncodeIDSet {
             } else if a_anc && b_desc && c_desc {
                 // a次元のみ祖先
                 self.split_other(
-                    &main_ancestors[i],
+                    &main_descendants[i],
                     main_descendants_reverse[i],
                     a,
                     &main_dim.a(),
