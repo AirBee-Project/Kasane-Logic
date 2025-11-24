@@ -44,5 +44,5 @@ pub mod space_time_id;
 pub mod encode_id_set;
 
 pub mod encode_id;
-pub mod interval_manager;
+// pub mod interval_manager;
 pub mod macros;

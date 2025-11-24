@@ -15,6 +15,7 @@ impl EncodeIDSet {
         Self::update_layer(&mut self.f, &encode_id.f, index);
         Self::update_layer(&mut self.x, &encode_id.x, index);
         Self::update_layer(&mut self.y, &encode_id.y, index);
+        Self::update_layer(&mut self.t, &encode_id.t, index);
 
         self.reverse.insert(index, encode_id);
     }

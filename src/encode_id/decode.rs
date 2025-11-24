@@ -35,7 +35,7 @@ impl EncodeID {
         };
 
         let t = {
-            let k = 2_u64.pow((64 - y_z) as u32);
+            let k = 2_u64.pow((63 - t_z) as u32);
             [t_v * k, (t_v + 1) * k - 1]
         };
 
