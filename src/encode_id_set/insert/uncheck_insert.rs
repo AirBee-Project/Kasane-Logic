@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 use crate::{
     bit_vec::BitVec,
     encode_id::EncodeID,
-    space_time_id_set::{EncodeIDSet, LayerInfo},
+    encode_id_set::{EncodeIDSet, LayerInfo},
 };
 
 impl EncodeIDSet {

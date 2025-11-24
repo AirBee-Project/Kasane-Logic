@@ -5,7 +5,7 @@ use itertools::iproduct;
 use crate::{
     bit_vec::relation::BitVecRelation,
     encode_id::EncodeID,
-    space_time_id_set::{
+    encode_id_set::{
         EncodeIDSet, Index,
         insert::{self, select_dimensions::DimensionSelect, split_self::RangesCollect},
     },

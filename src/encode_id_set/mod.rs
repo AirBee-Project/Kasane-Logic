@@ -6,9 +6,9 @@ use crate::{bit_vec::BitVec, encode_id::EncodeID};
 type Index = usize;
 
 pub mod insert;
-// pub mod intersection;
+pub mod intersection;
 pub mod iterator;
-// pub mod union;
+pub mod union;
 
 /// 階層ごとの情報を保持する構造体
 #[derive(Debug, Clone)]

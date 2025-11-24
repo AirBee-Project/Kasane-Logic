@@ -1,5 +1,5 @@
-use crate::space_time_id_set::{BTreeMap, EncodeIDSet, HashSet, Index};
-use crate::{bit_vec::BitVec, space_time_id_set::LayerInfo};
+use crate::encode_id_set::{BTreeMap, EncodeIDSet, HashSet, Index};
+use crate::{bit_vec::BitVec, encode_id_set::LayerInfo};
 
 impl EncodeIDSet {
     pub(crate) fn uncheck_delete(&mut self, index: &Index) {

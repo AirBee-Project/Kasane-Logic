@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     bit_vec::BitVec,
-    space_time_id_set::{EncodeIDSet, LayerInfo},
+    encode_id_set::{EncodeIDSet, LayerInfo},
 };
 
 #[derive(Debug)]

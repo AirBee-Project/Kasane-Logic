@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::{
     bit_vec::BitVec,
     encode_id::EncodeID,
-    space_time_id_set::{EncodeIDSet, Index, insert::select_dimensions::DimensionSelect},
+    encode_id_set::{EncodeIDSet, Index, insert::select_dimensions::DimensionSelect},
 };
 
 impl EncodeIDSet {

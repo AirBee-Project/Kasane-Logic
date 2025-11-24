@@ -1,6 +1,6 @@
 use crate::{
     bit_vec::BitVec,
-    space_time_id_set::{EncodeIDSet, Index, insert::select_dimensions::DimensionSelect},
+    encode_id_set::{EncodeIDSet, Index, insert::select_dimensions::DimensionSelect},
 };
 #[derive(Debug)]
 pub struct RangesCollect {

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs::File};
 
-use kasane_logic::{encode_id, space_time_id::SpaceTimeID, space_time_id_set::EncodeIDSet};
+use kasane_logic::{encode_id, encode_id_set::EncodeIDSet, space_time_id::SpaceTimeID};
 use std::io::Write;
 fn main() {
     let mut set = EncodeIDSet::new();

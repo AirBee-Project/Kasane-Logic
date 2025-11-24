@@ -1,4 +1,4 @@
-use crate::space_time_id_set::{EncodeIDSet, Index};
+use crate::encode_id_set::{EncodeIDSet, Index};
 
 impl EncodeIDSet {
     pub(crate) fn generate_index(&mut self) -> Index {

@@ -1,8 +1,8 @@
-use crate::space_time_id_set::{Index, SpaceTimeIDSet};
+use crate::encode_id_set::{EncodeIDSet, Index};
 
-impl SpaceTimeIDSet {
+impl EncodeIDSet {
     /// 二つのSpaceTimeIDSetを結合する
-    pub fn intersection(&self, other: &SpaceTimeIDSet) -> SpaceTimeIDSet {
+    pub fn intersection(&self, other: &EncodeIDSet) -> EncodeIDSet {
         // 小さい方を small、大きい方を large にする
         let (small, large) = if self.iter().len() <= other.iter().len() {
             (self, other)
