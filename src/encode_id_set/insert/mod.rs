@@ -144,7 +144,8 @@ impl EncodeIDSet {
                     BitVecRelation::Descendant | BitVecRelation::Equal,
                 ) => {
                     self.split_other(
-                        main_ancestors[i],
+                        &main_ancestors[i],
+                        main_ancestors_reverse[i],
                         main,
                         &main_dim,
                         &mut need_delete,
@@ -153,15 +154,15 @@ impl EncodeIDSet {
                 }
                 (BitVecRelation::Descendant | BitVecRelation::Equal, BitVecRelation::Ancestor) => {
                     self.split_self(
+                        main_ancestors_reverse[i],
                         &mut collect_divison_ranges,
-                        main_ancestors[i],
                         &main_dim.a(),
                     );
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
                     self.split_self(
+                        main_ancestors_reverse[i],
                         &mut collect_divison_ranges,
-                        main_ancestors[i],
                         &main_dim.b(),
                     );
                 }
@@ -185,7 +186,8 @@ impl EncodeIDSet {
                 }
                 (BitVecRelation::Descendant | BitVecRelation::Equal, BitVecRelation::Ancestor) => {
                     self.split_other(
-                        main_descendants[i],
+                        &main_ancestors[i],
+                        main_descendants_reverse[i],
                         b,
                         &main_dim.b(),
                         &mut need_delete,
@@ -194,7 +196,8 @@ impl EncodeIDSet {
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
                     self.split_other(
-                        main_descendants[i],
+                        &main_ancestors[i],
+                        main_descendants_reverse[i],
                         a,
                         &main_dim.a(),
                         &mut need_delete,
@@ -202,7 +205,11 @@ impl EncodeIDSet {
                     );
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Ancestor) => {
-                    self.split_self(&mut collect_divison_ranges, main_descendants[i], &main_dim);
+                    self.split_self(
+                        main_descendants_reverse[i],
+                        &mut collect_divison_ranges,
+                        &main_dim,
+                    );
                 }
                 _ => {}
             }

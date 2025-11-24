@@ -10,28 +10,24 @@ impl EncodeIDSet {
     ///上位,上位,下位の場合に相手を切断する
     pub(crate) fn split_other(
         &self,
-        target_index: Index,
+        target_index: &Index,
+        target_reverse: &EncodeID,
         target_bit: &BitVec,
         target_dim: &DimensionSelect,
         need_delete: &mut HashSet<Index>,
         need_insert: &mut HashSet<EncodeID>,
     ) {
-        let reverse = self
-            .reverse
-            .get(&target_index)
-            .expect("Internal error: reverse index not found in top_top_under");
-
         let top = match target_dim {
-            DimensionSelect::F => reverse.f.clone(),
-            DimensionSelect::X => reverse.x.clone(),
-            DimensionSelect::Y => reverse.y.clone(),
+            DimensionSelect::F => target_reverse.f.clone(),
+            DimensionSelect::X => target_reverse.x.clone(),
+            DimensionSelect::Y => target_reverse.y.clone(),
         };
 
         let splited = top.subtract_range(&target_bit);
 
-        let reverse_f = reverse.f.clone();
-        let reverse_x = reverse.x.clone();
-        let reverse_y = reverse.y.clone();
+        let reverse_f = target_reverse.f.clone();
+        let reverse_x = target_reverse.x.clone();
+        let reverse_y = target_reverse.y.clone();
 
         for single in splited {
             match target_dim {
@@ -53,6 +49,6 @@ impl EncodeIDSet {
             };
         }
 
-        need_delete.insert(target_index);
+        need_delete.insert(*target_index);
     }
 }
