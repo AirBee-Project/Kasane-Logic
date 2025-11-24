@@ -28,7 +28,7 @@ pub enum BitVecRelation {
 
 impl BitVec {
     /// self と other の階層構造の関係を返す
-    /// 
+    ///
     /// 返り値は `other` の `self` に対する関係を表す：
     /// - `Ancestor`: `other` が `self` の祖先（`other` が `self` を包含する）
     /// - `Descendant`: `other` が `self` の子孫（`self` が `other` を包含する）

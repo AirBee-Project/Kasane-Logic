@@ -29,7 +29,8 @@ impl EncodeIDSet {
             None => 0,
         };
 
-        let min_count = f_descendants_count.min(x_descendants_count.min(y_descendants_count.min(t_descendants_count)));
+        let min_count = f_descendants_count
+            .min(x_descendants_count.min(y_descendants_count.min(t_descendants_count)));
 
         //代表の次元を選出する
         let main_dim;
@@ -151,7 +152,13 @@ impl EncodeIDSet {
         //全ての次元で直積を取ってDeleteとInsertを繰り返す
 
         //Main次元における祖先の範囲を調べる
-        for (i, ((a_rel, b_rel), c_rel)) in a_relation.0.iter().zip(b_relation.0.iter()).zip(c_relation.0.iter()).enumerate() {
+        for (_i, ((a_rel, b_rel), c_rel)) in a_relation
+            .0
+            .iter()
+            .zip(b_relation.0.iter())
+            .zip(c_relation.0.iter())
+            .enumerate()
+        {
             let a_anc = matches!(a_rel, BitVecRelation::Ancestor);
             let b_anc = matches!(b_rel, BitVecRelation::Ancestor);
             let c_anc = matches!(c_rel, BitVecRelation::Ancestor);
@@ -163,7 +170,13 @@ impl EncodeIDSet {
         }
 
         //Main次元における子孫の範囲について調べる
-        for (i, ((a_rel, b_rel), c_rel)) in a_relation.1.iter().zip(b_relation.1.iter()).zip(c_relation.1.iter()).enumerate() {
+        for (_i, ((a_rel, b_rel), c_rel)) in a_relation
+            .1
+            .iter()
+            .zip(b_relation.1.iter())
+            .zip(c_relation.1.iter())
+            .enumerate()
+        {
             let a_desc = matches!(a_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
             let b_desc = matches!(b_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
             let c_desc = matches!(c_rel, BitVecRelation::Descendant | BitVecRelation::Equal);
