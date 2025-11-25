@@ -48,4 +48,17 @@ macro_rules! id {
 
         SpaceTimeID::new($z, f_range, x_range, y_range, t_range)
     }};
+
+    (
+        z: $z:expr,
+        f: $f:tt,
+        x: $x:tt,
+        y: $y:tt,
+    ) => {{
+        let f_range: [Option<i64>; 2] = $crate::range_opt!($f);
+        let x_range: [Option<u64>; 2] = $crate::range_opt!($x);
+        let y_range: [Option<u64>; 2] = $crate::range_opt!($y);
+
+        SpaceTimeID::new($z, f_range, x_range, y_range, [None, None])
+    }};
 }
