@@ -22,6 +22,7 @@ impl EncodeIDSet {
                 DimensionSelect::F => &ancestor.f,
                 DimensionSelect::X => &ancestor.x,
                 DimensionSelect::Y => &ancestor.y,
+                DimensionSelect::T => &ancestor.t,
             };
 
             let relation = main.relation(target);
@@ -38,6 +39,7 @@ impl EncodeIDSet {
                 DimensionSelect::F => &descendant.f,
                 DimensionSelect::X => &descendant.x,
                 DimensionSelect::Y => &descendant.y,
+                DimensionSelect::T => &descendant.t,
             };
 
             let relation = main.relation(target);

@@ -34,6 +34,7 @@ pub struct EncodeIDSet {
     f: BTreeMap<BitVec, LayerInfo>,
     x: BTreeMap<BitVec, LayerInfo>,
     y: BTreeMap<BitVec, LayerInfo>,
+    t: BTreeMap<BitVec, LayerInfo>,
     index: usize,
     reverse: HashMap<Index, EncodeID>,
 }
@@ -44,6 +45,7 @@ impl EncodeIDSet {
             f: BTreeMap::new(),
             x: BTreeMap::new(),
             y: BTreeMap::new(),
+            t: BTreeMap::new(),
             index: 0,
             reverse: HashMap::new(),
         }

@@ -8,11 +8,14 @@ use crate::{
 
 impl EncodeIDSet {
     pub fn uncheck_insert(&mut self, encode_id: EncodeID) {
+        //TODO:可能な限り周囲と結合したい
+
         let index = self.generate_index();
 
         Self::update_layer(&mut self.f, &encode_id.f, index);
         Self::update_layer(&mut self.x, &encode_id.x, index);
         Self::update_layer(&mut self.y, &encode_id.y, index);
+        Self::update_layer(&mut self.t, &encode_id.t, index);
 
         self.reverse.insert(index, encode_id);
     }

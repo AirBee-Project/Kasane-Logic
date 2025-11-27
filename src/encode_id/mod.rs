@@ -6,4 +6,5 @@ pub struct EncodeID {
     pub f: BitVec,
     pub x: BitVec,
     pub y: BitVec,
+    pub t: BitVec,
 }
