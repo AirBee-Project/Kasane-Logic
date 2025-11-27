@@ -177,8 +177,6 @@ impl Coordinate {
             f: [f_id, f_id],
             x: [x_id, x_id],
             y: [y_id, y_id],
-            i: 0,
-            t: [0, u64::MAX],
         }
     }
 }
