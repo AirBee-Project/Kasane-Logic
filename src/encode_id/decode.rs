@@ -37,8 +37,8 @@ impl EncodeID {
             f,
             x,
             y,
-            i: 0,
-            t: [0, u64::MAX],
+            // i: 0,
+            // t: [0, u64::MAX],
         }
     }
 }

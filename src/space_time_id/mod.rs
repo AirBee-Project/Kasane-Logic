@@ -21,8 +21,8 @@ pub struct SpaceTimeID {
     pub f: [i64; 2],
     pub x: [u64; 2],
     pub y: [u64; 2],
-    pub i: u64,
-    pub t: [u64; 2],
+    // pub i: u64,
+    // pub t: [u64; 2],
 }
 
 impl SpaceTimeID {
@@ -68,8 +68,8 @@ impl SpaceTimeID {
             f: new_f,
             x: new_x,
             y: new_y,
-            i,
-            t: [start_t, end_t],
+            // i,
+            // t: [start_t, end_t],
         })
     }
 }
