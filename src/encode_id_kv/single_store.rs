@@ -228,26 +228,26 @@ impl<V: Encode + Decode<()> + Clone> EncodeIDKVStore<V> {
 
     /// Clear all entries from the store.
     pub fn clear(&self) -> Result<(), EncodeIDKVError> {
+        // Collect all keys first using a read transaction
+        let keys: Vec<Vec<u8>> = {
+            let read_txn = self.db.begin_read()?;
+            let table_def: TableDefinition<'_, &[u8], &[u8]> =
+                TableDefinition::new(&self.table_name);
+            let table = read_txn.open_table(table_def)?;
+            let mut keys = Vec::new();
+            for entry in table.iter()? {
+                let (key_guard, _) = entry?;
+                keys.push(key_guard.value().to_vec());
+            }
+            keys
+        };
+
+        // Then remove all keys in a write transaction
         let write_txn = self.db.begin_write()?;
         {
             let table_def: TableDefinition<'_, &[u8], &[u8]> =
                 TableDefinition::new(&self.table_name);
             let mut table = write_txn.open_table(table_def)?;
-            // Collect all keys first
-            let keys: Vec<Vec<u8>> = {
-                let read_txn = self.db.begin_read()?;
-                let table_def_read: TableDefinition<'_, &[u8], &[u8]> =
-                    TableDefinition::new(&self.table_name);
-                let read_table = read_txn.open_table(table_def_read)?;
-                read_table
-                    .iter()?
-                    .map(|entry| {
-                        let (key_guard, _) = entry.unwrap();
-                        key_guard.value().to_vec()
-                    })
-                    .collect()
-            };
-            // Remove all keys
             for key in keys {
                 table.remove(key.as_slice())?;
             }

@@ -301,11 +301,12 @@ impl<V: Encode + Decode<()> + Clone> EncodeIDKVMultiStore<V> {
             let table_def: MultimapTableDefinition<'_, &[u8], &[u8]> =
                 MultimapTableDefinition::new(&self.table_name);
             let table = read_txn.open_multimap_table(table_def)?;
-            table
-                .iter()?
-                .filter_map(|entry| entry.ok())
-                .map(|(key_guard, _)| key_guard.value().to_vec())
-                .collect()
+            let mut keys = Vec::new();
+            for entry in table.iter()? {
+                let (key_guard, _) = entry?;
+                keys.push(key_guard.value().to_vec());
+            }
+            keys
         };
 
         // Remove all keys
