@@ -4,6 +4,7 @@ pub mod encode;
 pub mod format;
 pub mod random;
 use crate::error::Error;
+use crate::time_interval::TimeInterval;
 
 /// 時空間ID（4次元：3次元空間+時間）
 ///
@@ -58,6 +59,37 @@ impl SpaceTimeID {
             y: new_y,
             t: new_t,
         })
+    }
+
+    /// 時間範囲をTimeIntervalとして取得
+    ///
+    /// TimeIntervalは区間演算（包含、重なり、差分など）を効率的に実行でき、
+    /// BitVecによる階層構造よりもシンプルな時間操作が可能
+    pub fn time_interval(&self) -> TimeInterval {
+        TimeInterval::new(self.t[0], self.t[1])
+    }
+
+    /// 時間範囲をTimeIntervalで設定
+    ///
+    /// TimeIntervalを使用して時間範囲を設定する。
+    /// 既存の空間次元は維持される。
+    pub fn with_time_interval(mut self, interval: TimeInterval) -> Self {
+        self.t = [interval.start, interval.end];
+        self
+    }
+
+    /// 二つのSpaceTimeIDの時間範囲が重なるかどうかを判定
+    ///
+    /// TimeIntervalを使用して効率的に判定を行う
+    pub fn time_overlaps(&self, other: &Self) -> bool {
+        self.time_interval().overlaps(&other.time_interval())
+    }
+
+    /// 二つのSpaceTimeIDの時間範囲の共通部分を取得
+    ///
+    /// 重ならない場合はNoneを返す
+    pub fn time_intersection(&self, other: &Self) -> Option<TimeInterval> {
+        self.time_interval().intersection(&other.time_interval())
     }
 }
 

@@ -5,17 +5,18 @@
 //! ## 主要な機能
 //!
 //! - `SpaceTimeID`: 時空間IDの定義と操作
-//! - `SpaceTimeIDSet`: 時空間IDの集合を効率的に管理
+//! - `EncodeIDSet`: 時空間IDの集合を効率的に管理
 //! - `Point`: 座標系の変換（緯度経度高度 ⇔ ECEF）
 //! - `function`: 幾何形状（点、線、三角形）から時空間IDを生成
+//! - `TimeInterval`: 時間区間を効率的に管理
 //!
 //! ## 使用例
 //!
 //! ```no_run
-//! use kasane_logic::space_time_id_set::SpaceTimeIDSet;
+//! use kasane_logic::encode_id_set::EncodeIDSet;
 //! use kasane_logic::point::{Point, Coordinate};
 //!
-//! let mut set = SpaceTimeIDSet::new();
+//! let mut set = EncodeIDSet::new();
 //! let point = Point::Coordinate(Coordinate {
 //!     latitude: 35.6809,
 //!     longitude: 139.7673,
@@ -46,3 +47,9 @@ pub mod encode_id_set;
 pub mod encode_id;
 // pub mod interval_manager;
 pub mod macros;
+
+/// 時間区間を効率的に管理するモジュール
+///
+/// BitVecによる階層構造ではなく、直接的な区間表現を使用することで
+/// 時間データの管理を効率化する
+pub mod time_interval;

@@ -1,7 +1,7 @@
 use crate::{
     bit_vec::BitVec,
     encode_id::EncodeID,
-    encode_id_set::{EncodeIDSet, Index, utils::select_dimensions::DimensionSelect},
+    encode_id_set::{EncodeIDSet, utils::select_dimensions::DimensionSelect},
 };
 #[derive(Debug)]
 pub struct RangesCollect {

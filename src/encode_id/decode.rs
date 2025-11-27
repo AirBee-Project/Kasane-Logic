@@ -2,9 +2,11 @@ use crate::{
     bit_vec::BitVec,
     encode_id::EncodeID,
     space_time_id::{F_MAX, SpaceTimeID},
+    time_interval::TimeInterval,
 };
 
 impl EncodeID {
+    /// EncodeIDをSpaceTimeIDにデコードする
     pub fn decode(&self) -> SpaceTimeID {
         let (f_z, f_v) = to_segment_f(&self.f);
         let (x_z, x_v) = to_segment_xy(&self.x);
@@ -46,6 +48,32 @@ impl EncodeID {
             y,
             t,
         }
+    }
+
+    /// 時間範囲をTimeIntervalとして取得
+    ///
+    /// BitVecからデコードされた時間範囲をTimeIntervalとして返す。
+    /// これにより、効率的な区間演算（包含、重なり、差分など）が可能になる。
+    pub fn time_interval(&self) -> TimeInterval {
+        let (t_z, t_v) = to_segment_xy(&self.t);
+        let k = 2_u64.pow((63 - t_z) as u32);
+        let start = t_v * k;
+        let end = (t_v + 1) * k - 1;
+        TimeInterval::new(start, end)
+    }
+
+    /// 二つのEncodeIDの時間範囲が重なるかどうかを判定
+    ///
+    /// TimeIntervalを使用して効率的に判定を行う
+    pub fn time_overlaps(&self, other: &Self) -> bool {
+        self.time_interval().overlaps(&other.time_interval())
+    }
+
+    /// 二つのEncodeIDの時間範囲の共通部分を取得
+    ///
+    /// 重ならない場合はNoneを返す
+    pub fn time_intersection(&self, other: &Self) -> Option<TimeInterval> {
+        self.time_interval().intersection(&other.time_interval())
     }
 }
 

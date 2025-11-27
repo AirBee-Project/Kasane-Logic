@@ -1,4 +1,4 @@
-use crate::{encode_id::EncodeID, encode_id_set::EncodeIDSet};
+use crate::encode_id_set::EncodeIDSet;
 
 impl EncodeIDSet {
     pub fn difference(&self, other: &EncodeIDSet) -> EncodeIDSet {

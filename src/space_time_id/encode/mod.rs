@@ -1,5 +1,4 @@
 use crate::{
-    bit_vec::BitVec,
     encode_id::EncodeID,
     space_time_id::{
         SpaceTimeID,

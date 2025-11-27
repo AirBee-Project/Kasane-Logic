@@ -1,5 +1,3 @@
-use std::result;
-
 use crate::{
     bit_vec::relation::BitVecRelation,
     encode_id::EncodeID,

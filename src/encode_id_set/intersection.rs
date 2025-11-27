@@ -1,7 +1,4 @@
-use crate::{
-    encode_id_set::{EncodeIDSet, Index},
-    space_time_id::SpaceTimeID,
-};
+use crate::encode_id_set::EncodeIDSet;
 
 impl EncodeIDSet {
     /// 二つのSpaceTimeIDSetを結合する

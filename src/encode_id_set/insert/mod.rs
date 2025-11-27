@@ -7,7 +7,7 @@ use crate::{
     encode_id::EncodeID,
     encode_id_set::{
         EncodeIDSet, Index,
-        insert::{self, split_self::RangesCollect},
+        insert::split_self::RangesCollect,
         utils::select_dimensions::DimensionSelect,
     },
 };
