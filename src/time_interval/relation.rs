@@ -47,6 +47,7 @@ impl TimeInterval {
     /// - `Overlap`: 部分的に重なる
     /// - `Unrelated`: 完全に無関係
     pub fn relation(&self, other: &Self) -> TimeIntervalRelation {
+        // 完全に一致する場合
         if self == other {
             return TimeIntervalRelation::Equal;
         }
@@ -56,12 +57,14 @@ impl TimeInterval {
             return TimeIntervalRelation::Unrelated;
         }
 
-        // other が self を完全に包含する（self ⊂ other）
+        // other が self を完全に包含する（self ⊂ other、ただし等しい場合は上で処理済み）
+        // Note: Equal check is already done above, so this won't match equal intervals
         if other.start <= self.start && self.end <= other.end {
             return TimeIntervalRelation::Ancestor;
         }
 
-        // self が other を完全に包含する（other ⊂ self）
+        // self が other を完全に包含する（other ⊂ self、ただし等しい場合は上で処理済み）
+        // Note: Equal check is already done above, so this won't match equal intervals
         if self.start <= other.start && other.end <= self.end {
             return TimeIntervalRelation::Descendant;
         }

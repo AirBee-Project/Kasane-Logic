@@ -113,16 +113,16 @@ impl TimeInterval {
 
         let mut result = Vec::new();
 
-        // 左側の残り
-        if self.start < other.start {
+        // 左側の残り（underflowを防ぐためother.start > 0をチェック）
+        if self.start < other.start && other.start > 0 {
             result.push(Self {
                 start: self.start,
                 end: other.start - 1,
             });
         }
 
-        // 右側の残り
-        if self.end > other.end {
+        // 右側の残り（overflowを防ぐためother.end < u64::MAXをチェック）
+        if self.end > other.end && other.end < u64::MAX {
             result.push(Self {
                 start: other.end + 1,
                 end: self.end,
@@ -309,5 +309,30 @@ mod tests {
         assert_eq!(point.start, 100);
         assert_eq!(point.end, 100);
         assert_eq!(point.len(), 1);
+    }
+
+    #[test]
+    fn test_subtract_edge_cases() {
+        // other.start が 0 の場合（underflow防止テスト）
+        let a = TimeInterval::new(0, 10);
+        let b = TimeInterval::new(0, 5);
+        let result = a.subtract(&b);
+        // 左側には何も残らない（other.start == 0 なので）
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], TimeInterval::new(6, 10));
+
+        // other.end が u64::MAX の場合（overflow防止テスト）
+        let c = TimeInterval::new(10, u64::MAX);
+        let d = TimeInterval::new(15, u64::MAX);
+        let result2 = c.subtract(&d);
+        // 右側には何も残らない（other.end == u64::MAX なので）
+        assert_eq!(result2.len(), 1);
+        assert_eq!(result2[0], TimeInterval::new(10, 14));
+
+        // 完全に包含される場合
+        let e = TimeInterval::new(10, 20);
+        let f = TimeInterval::new(5, 25);
+        let result3 = e.subtract(&f);
+        assert_eq!(result3.len(), 0);
     }
 }

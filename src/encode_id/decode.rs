@@ -7,6 +7,13 @@ use crate::{
 
 impl EncodeID {
     /// EncodeIDをSpaceTimeIDにデコードする
+    ///
+    /// 各次元（f, x, y, t）のBitVecをデコードし、対応するズームレベルと値を取得する。
+    /// 空間次元（f, x, y）の最大ズームレベルを使用して座標範囲を計算する。
+    ///
+    /// # 戻り値
+    ///
+    /// デコードされた`SpaceTimeID`構造体
     pub fn decode(&self) -> SpaceTimeID {
         let (f_z, f_v) = to_segment_f(&self.f);
         let (x_z, x_v) = to_segment_xy(&self.x);
