@@ -1,3 +1,7 @@
 /target
 output.txt
 output_debug.txt
+output1.txt
+output2.txt
+output3.txt
+*.redb
