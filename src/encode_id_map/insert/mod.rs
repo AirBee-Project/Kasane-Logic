@@ -188,7 +188,7 @@ impl<V: Clone> EncodeIDMap<V> {
                 }
                 (BitVecRelation::Descendant | BitVecRelation::Equal, BitVecRelation::Ancestor) => {
                     self.split_other(
-                        &main_ancestors[i],
+                        &main_descendants[i],
                         main_descendants_reverse[i],
                         b,
                         &main_dim.b(),
@@ -198,7 +198,7 @@ impl<V: Clone> EncodeIDMap<V> {
                 }
                 (BitVecRelation::Ancestor, BitVecRelation::Descendant | BitVecRelation::Equal) => {
                     self.split_other(
-                        &main_ancestors[i],
+                        &main_descendants[i],
                         main_descendants_reverse[i],
                         a,
                         &main_dim.a(),
