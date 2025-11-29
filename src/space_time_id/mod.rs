@@ -11,7 +11,7 @@ use crate::error::Error;
 /// - f: 高度方向の範囲 (符号付き整数)
 /// - x: 経度方向の範囲 (符号なし整数)
 /// - y: 緯度方向の範囲 (符号なし整数)
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct SpaceTimeID {
     pub z: u8,

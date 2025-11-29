@@ -1,5 +1,6 @@
 use crate::encode_id_map::EncodeIDMap;
 
+pub mod decode;
 pub mod difference;
 pub mod get;
 pub mod insert;
