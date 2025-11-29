@@ -10,16 +10,16 @@ use crate::{
 /// 浮動小数点数のボクセル座標
 /// DDAアルゴリズムで使用する
 #[derive(Debug, Clone, Copy)]
-struct VoxelFloat {
-    z: u8,
-    f: f64,
-    x: f64,
-    y: f64,
+pub(crate) struct VoxelFloat {
+    pub(crate) z: u8,
+    pub(crate) f: f64,
+    pub(crate) x: f64,
+    pub(crate) y: f64,
 }
 
 impl VoxelFloat {
     /// 整数ボクセル座標に変換
-    fn to_voxel(&self) -> Voxel {
+    pub(crate) fn to_voxel(&self) -> Voxel {
         Voxel {
             z: self.z,
             f: self.f.floor() as i64,
@@ -31,26 +31,65 @@ impl VoxelFloat {
 
 /// 整数のボクセル座標
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct Voxel {
-    z: u8,
-    f: i64,
-    x: u64,
-    y: u64,
+pub(crate) struct Voxel {
+    pub(crate) z: u8,
+    pub(crate) f: i64,
+    pub(crate) x: u64,
+    pub(crate) y: u64,
 }
 
 impl Voxel {
     /// EncodeIDに変換
-    fn to_encode_id(&self) -> EncodeID {
+    pub(crate) fn to_encode_id(&self) -> EncodeID {
         EncodeID {
             f: to_bitvec_f(self.z, self.f),
             x: to_bitvec_xy(self.z, self.x),
             y: to_bitvec_xy(self.z, self.y),
         }
     }
+
+    /// 浮動小数点ボクセル座標に変換（中心座標）
+    pub(crate) fn to_voxel_float(&self) -> VoxelFloat {
+        VoxelFloat {
+            z: self.z,
+            f: self.f as f64 + 0.5,
+            x: self.x as f64 + 0.5,
+            y: self.y as f64 + 0.5,
+        }
+    }
+
+    /// 座標を調整した新しいVoxelを返す
+    pub(crate) fn adjust(&self, df: i64, dx: i64, dy: i64) -> Voxel {
+        Voxel {
+            z: self.z,
+            f: self.f + df,
+            x: (self.x as i64 + dx) as u64,
+            y: (self.y as i64 + dy) as u64,
+        }
+    }
+
+    /// 指定された軸方向のボクセルの長さ（メートル）を取得
+    /// f: 高度方向、x: 経度方向、y: 緯度方向
+    pub(crate) fn get_length(&self, axis: &str) -> f64 {
+        match axis {
+            "f" => {
+                // 高度方向: 1ボクセル = 2^(25-z) メートル
+                2_f64.powi(25 - self.z as i32)
+            }
+            "x" | "y" => {
+                // x/y方向: 地球の円周 / 2^z
+                // 赤道での近似値（約40075km / 2^z）
+                let earth_circumference = 40_075_000.0; // メートル
+                let n = 2_f64.powi(self.z as i32);
+                earth_circumference / n
+            }
+            _ => 0.0,
+        }
+    }
 }
 
 /// 座標から浮動小数点ボクセル座標に変換
-fn coordinate_to_voxel_float(coord: &crate::point::Coordinate, z: u8) -> VoxelFloat {
+pub(crate) fn coordinate_to_voxel_float(coord: &crate::point::Coordinate, z: u8) -> VoxelFloat {
     let lat = coord.latitude;
     let lon = coord.longitude;
     let alt = coord.altitude;
@@ -71,7 +110,7 @@ fn coordinate_to_voxel_float(coord: &crate::point::Coordinate, z: u8) -> VoxelFl
 }
 
 /// 3D DDAアルゴリズムで2点間のボクセルを取得
-fn get_line_voxels_dda(vf1: VoxelFloat, vf2: VoxelFloat) -> Vec<Voxel> {
+pub(crate) fn get_line_voxels_dda(vf1: VoxelFloat, vf2: VoxelFloat) -> Vec<Voxel> {
     let mut voxels = Vec::new();
 
     let z = vf1.z;
