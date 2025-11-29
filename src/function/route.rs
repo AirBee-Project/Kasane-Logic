@@ -10,6 +10,12 @@ use crate::{encode_id_set::EncodeIDSet, point::Coordinate};
 
 use super::line::{coordinate_to_voxel_float, get_line_voxels_dda, Voxel};
 
+/// ヒューリスティック関数の重み係数
+const HEURISTIC_WEIGHT: f64 = 1.2;
+
+/// タイブレーカーペナルティの重み係数
+const TIE_PENALTY_WEIGHT: f64 = 0.2;
+
 /// A*探索用のノード
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -67,8 +73,7 @@ fn heuristic_ratio(a: &Voxel, b: &Voxel, vertical_length: f64) -> f64 {
     let dx = (a.x as i64 - b.x as i64).abs() as f64;
     let dy = (a.y as i64 - b.y as i64).abs() as f64;
     let df = (a.f - b.f).abs() as f64;
-    let k = 1.2; // ヒューリスティックの重み
-    k * (dx * dx + dy * dy + (df * vertical_length).powi(2)).sqrt()
+    HEURISTIC_WEIGHT * (dx * dx + dy * dy + (df * vertical_length).powi(2)).sqrt()
 }
 
 /// パスが通過可能かどうかをDDAで確認
@@ -208,8 +213,7 @@ fn tie_penalty(
         .max(0.0)
         .sqrt();
 
-    let p = 0.2; // ペナルティの重み
-    p * cg_sin
+    TIE_PENALTY_WEIGHT * cg_sin
 }
 
 /// EncodeIDSetから禁止区域のVoxelのHashSetを構築
@@ -475,8 +479,8 @@ mod tests {
             y: 1,
         };
         let h = heuristic_ratio(&a, &b, 1.0);
-        // 3次元のユークリッド距離 * 1.2
-        let expected = 1.2 * (3.0_f64).sqrt();
+        // 3次元のユークリッド距離 * HEURISTIC_WEIGHT
+        let expected = HEURISTIC_WEIGHT * (3.0_f64).sqrt();
         assert!((h - expected).abs() < 0.001);
     }
 

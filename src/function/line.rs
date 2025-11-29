@@ -59,12 +59,15 @@ impl Voxel {
     }
 
     /// 座標を調整した新しいVoxelを返す
+    /// 注意: x, yは負の値にならないよう、0で飽和する
     pub(crate) fn adjust(&self, df: i64, dx: i64, dy: i64) -> Voxel {
+        let new_x = (self.x as i64).saturating_add(dx);
+        let new_y = (self.y as i64).saturating_add(dy);
         Voxel {
             z: self.z,
             f: self.f + df,
-            x: (self.x as i64 + dx) as u64,
-            y: (self.y as i64 + dy) as u64,
+            x: new_x.max(0) as u64,
+            y: new_y.max(0) as u64,
         }
     }
 
