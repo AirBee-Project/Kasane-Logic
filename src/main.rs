@@ -1,12 +1,13 @@
 use kasane_logic::space_id::single::SingleID;
 
 fn main() {
-    let mut id = SingleID::new(9, -24, 90, 55).unwrap();
+    let id = SingleID::new(4, 3, 5, 4).unwrap();
 
     println!("{},", id);
 
-    for z in 0..*id.as_z() - 1 {
-        id = id.parent(1).unwrap();
-        println!("{},", id);
+    let children = id.children(2).unwrap().collect::<Vec<_>>();
+
+    for ele in children {
+        println!("{},", ele);
     }
 }

@@ -1,4 +1,6 @@
-use std::{fmt, i64};
+use std::{fmt, i64, u8};
+
+use itertools::iproduct;
 
 use crate::{
     encode_id::EncodeID,
@@ -69,8 +71,26 @@ impl SingleID {
         &self.y
     }
 
-    pub fn children(&self, difference: u8) -> Result<Vec<SingleID>, Error> {
-        todo!()
+    pub fn children(&self, difference: u8) -> Result<impl Iterator<Item = SingleID>, Error> {
+        let z = self
+            .z
+            .checked_add(difference)
+            .ok_or(Error::ZoomLevelOutOfRange {
+                zoom_level: u8::MAX,
+            })?;
+
+        if z > 63 {
+            return Err(Error::ZoomLevelOutOfRange { zoom_level: z });
+        }
+
+        let scale_f = 2_i64.pow(difference as u32);
+        let scale_xy = 2_u64.pow(difference as u32);
+
+        let f_range = self.f * scale_f..=self.f * scale_f + scale_f - 1;
+        let x_range = self.x * scale_xy..=self.x * scale_xy + scale_xy - 1;
+        let y_range = self.y * scale_xy..=self.y * scale_xy + scale_xy - 1;
+
+        Ok(iproduct!(f_range, x_range, y_range).map(move |(f, x, y)| SingleID { z, f, x, y }))
     }
 
     pub fn parent(&self, difference: u8) -> Option<SingleID> {
