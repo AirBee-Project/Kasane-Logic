@@ -71,6 +71,42 @@ impl SingleID {
         &self.y
     }
 
+    pub fn set_f(&mut self, value: i64) -> Result<(), Error> {
+        if self.min_f() <= value && value <= self.max_f() {
+            self.f = value;
+        } else {
+            return Err(Error::FOutOfRange {
+                f: value,
+                z: self.z,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn set_x(&mut self, value: u64) -> Result<(), Error> {
+        if value <= self.max_xy() {
+            self.x = value;
+        } else {
+            return Err(Error::XOutOfRange {
+                x: value,
+                z: self.z,
+            });
+        }
+        Ok(())
+    }
+
+    pub fn set_y(&mut self, value: u64) -> Result<(), Error> {
+        if value <= self.max_xy() {
+            self.y = value;
+        } else {
+            return Err(Error::YOutOfRange {
+                y: value,
+                z: self.z,
+            });
+        }
+        Ok(())
+    }
+
     pub fn children(&self, difference: u8) -> Result<impl Iterator<Item = SingleID>, Error> {
         let z = self
             .z
@@ -177,42 +213,6 @@ impl SpaceID for SingleID {
 
     fn move_west(&mut self, by: u64) {
         self.x = (self.x.wrapping_add(by)) % self.max_xy();
-    }
-
-    fn set_f(&mut self, value: i64) -> Result<(), Error> {
-        if self.min_f() <= value && value <= self.max_f() {
-            self.f = value;
-        } else {
-            return Err(Error::FOutOfRange {
-                f: value,
-                z: self.z,
-            });
-        }
-        Ok(())
-    }
-
-    fn set_x(&mut self, value: u64) -> Result<(), Error> {
-        if value <= self.max_xy() {
-            self.x = value;
-        } else {
-            return Err(Error::XOutOfRange {
-                x: value,
-                z: self.z,
-            });
-        }
-        Ok(())
-    }
-
-    fn set_y(&mut self, value: u64) -> Result<(), Error> {
-        if value <= self.max_xy() {
-            self.y = value;
-        } else {
-            return Err(Error::YOutOfRange {
-                y: value,
-                z: self.z,
-            });
-        }
-        Ok(())
     }
 
     fn into_encode(self) -> EncodeID {

@@ -21,11 +21,6 @@ pub trait SpaceID {
     fn move_east(&mut self, by: u64);
     fn move_west(&mut self, by: u64);
 
-    //各次元の値
-    fn set_f(&mut self, value: i64) -> Result<(), Error>;
-    fn set_x(&mut self, value: u64) -> Result<(), Error>;
-    fn set_y(&mut self, value: u64) -> Result<(), Error>;
-
     //IDをエンコードする
     fn into_encode(self) -> EncodeID;
 }

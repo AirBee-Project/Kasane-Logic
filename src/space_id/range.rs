@@ -1,6 +1,7 @@
-use std::{fmt, i64};
+use std::{collections::btree_map::Range, fmt, i64};
 
 use crate::{
+    encode_id::EncodeID,
     error::Error,
     space_id::{
         SpaceID,
@@ -98,7 +99,25 @@ impl RangeID {
     }
 
     pub fn children(&self, difference: u8) -> Result<RangeID, Error> {
-        todo!()
+        let z = self
+            .z
+            .checked_add(difference)
+            .ok_or(Error::ZoomLevelOutOfRange {
+                zoom_level: u8::MAX,
+            })?;
+
+        if z > 63 {
+            return Err(Error::ZoomLevelOutOfRange { zoom_level: z });
+        }
+
+        let scale_f = 2_i64.pow(difference as u32);
+        let scale_xy = 2_u64.pow(difference as u32);
+
+        let f = [self.f[0] * scale_f, self.f[1] * scale_f + scale_f - 1];
+        let x = [self.x[0] * scale_xy, self.x[1] * scale_xy + scale_xy - 1];
+        let y = [self.y[0] * scale_xy, self.y[1] * scale_xy + scale_xy - 1];
+
+        Ok(RangeID { z, f, x, y })
     }
 
     pub fn parent(&self, difference: u8) -> Option<RangeID> {
@@ -128,34 +147,26 @@ impl SpaceID for RangeID {
     }
 
     fn move_north(&mut self, by: u64) {
-        todo!()
+        self.y[0] = (self.y[0].wrapping_add(by)) % self.max_xy();
+        self.y[1] = (self.y[1].wrapping_add(by)) % self.max_xy();
     }
 
     fn move_south(&mut self, by: u64) {
-        todo!()
+        self.y[0] = (self.y[0].wrapping_sub(by)) % self.max_xy();
+        self.y[1] = (self.y[1].wrapping_sub(by)) % self.max_xy();
     }
 
     fn move_east(&mut self, by: u64) {
-        todo!()
+        self.x[0] = (self.x[0].wrapping_add(by)) % self.max_xy();
+        self.x[1] = (self.x[1].wrapping_add(by)) % self.max_xy();
     }
 
     fn move_west(&mut self, by: u64) {
-        todo!()
+        self.x[0] = (self.x[0].wrapping_sub(by)) % self.max_xy();
+        self.x[1] = (self.x[1].wrapping_sub(by)) % self.max_xy();
     }
 
-    fn set_f(&mut self, value: i64) -> Result<(), Error> {
-        todo!()
-    }
-
-    fn set_x(&mut self, value: u64) -> Result<(), Error> {
-        todo!()
-    }
-
-    fn set_y(&mut self, value: u64) -> Result<(), Error> {
-        todo!()
-    }
-
-    fn into_encode(self) -> crate::encode_id::EncodeID {
+    fn into_encode(self) -> EncodeID {
         todo!()
     }
 }
