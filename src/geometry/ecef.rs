@@ -1,15 +1,15 @@
-use crate::coordinate::{Coordinate, WGS84_A, WGS84_INV_F};
+use crate::geometry::coordinate::{Coordinate, WGS84_A, WGS84_INV_F};
 
 #[derive(Debug, Clone, Copy)]
-pub struct ECEF {
+pub struct Ecef {
     pub x: f64,
     pub y: f64,
     pub z: f64,
 }
 
-impl ECEF {
-    pub fn new(x: f64, y: f64, z: f64) -> ECEF {
-        ECEF { x, y, z }
+impl Ecef {
+    pub fn new(x: f64, y: f64, z: f64) -> Ecef {
+        Ecef { x, y, z }
     }
 
     fn to_coordinate(&self) -> Coordinate {

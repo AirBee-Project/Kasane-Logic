@@ -4,11 +4,11 @@ use itertools::iproduct;
 
 use crate::{
     bit_vec::BitVec,
-    encode_id::EncodeID,
+    id::encode::EncodeID,
     error::Error,
-    segment::Segment,
-    space_id::{
-        SpaceID,
+    id::space_id::segment::Segment,
+    id::space_id::{
+        SpaceId,
         constants::{F_MAX, F_MIN, XY_MAX},
         single::SingleID,
     },
@@ -157,7 +157,7 @@ impl RangeID {
     }
 }
 
-impl SpaceID for RangeID {
+impl SpaceId for RangeID {
     fn min_f(&self) -> i64 {
         F_MIN[self.z as usize]
     }

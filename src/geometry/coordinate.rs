@@ -1,4 +1,4 @@
-use crate::{ecef::ECEF, error::Error, space_id::single::SingleID};
+use crate::{geometry::ecef::Ecef as ECEF, error::Error, id::space_id::single::SingleID};
 
 /// WGS-84楕円体の長半径（赤道半径）[m]
 pub const WGS84_A: f64 = 6_378_137.0;

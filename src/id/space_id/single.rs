@@ -3,11 +3,11 @@ use std::{fmt, i64, u8};
 use itertools::iproduct;
 
 use crate::{
-    encode_id::EncodeID,
+    id::encode::EncodeID,
     error::Error,
-    segment::Segment,
-    space_id::{
-        SpaceID,
+    id::space_id::segment::Segment,
+    id::space_id::{
+        SpaceId,
         constants::{F_MAX, F_MIN, XY_MAX},
     },
 };
@@ -148,7 +148,7 @@ impl SingleID {
     }
 }
 
-impl SpaceID for SingleID {
+impl SpaceId for SingleID {
     fn min_f(&self) -> i64 {
         F_MIN[self.z as usize]
     }

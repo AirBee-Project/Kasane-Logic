@@ -1,8 +1,10 @@
-pub mod bit_vec;
-pub mod coordinate;
-pub mod ecef;
-pub mod encode_id;
 pub mod error;
-pub mod space_id;
+pub mod bit_vec;
+pub mod geometry;
+pub mod id;
 
-pub mod segment;
+pub use bit_vec::BitVec;
+pub use error::Error;
+pub use geometry::{Coordinate, Ecef};
+pub use id::space_id::SpaceId;
+pub use id::encode::EncodeID;
