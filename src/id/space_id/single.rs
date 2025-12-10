@@ -13,6 +13,7 @@ use crate::{
     },
 };
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct SingleID {
     pub(crate) z: u8,
     pub(crate) f: i64,
@@ -27,20 +28,18 @@ impl fmt::Display for SingleID {
 }
 
 impl SingleID {
-    /// 指定された値から [`SingleID`] を構築します。
+    /// 指定された値から標準的な空間ID [`SingleID`] を構築します。
     ///
-    /// このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  
-    /// 各ズームレベルにおける範囲内にあるかを検証し、  
-    /// 範囲外の場合は [`Error`] を返します。
+    /// このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
-    /// * `z` — ズームレベル（0–63 の本ライブラリでは有効）  
-    /// * `f` — 高度成分（`z` に対応する量子化レンジ内である必要があります）  
-    /// * `x` — 経度方向のタイルインデックス  
-    /// * `y` — 緯度方向のタイルインデックス
+    /// * `z` — ズームレベル（0–63の範囲が有効）  
+    /// * `f` — Fインデックス（鉛直方向）
+    /// * `x` — Xインデックス（東西方向）
+    /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`Error::ZoomLevelOutOfRange`] を返します。  
+    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返します。  
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
     ///   [`Error::FOutOfRange`] を返します。  
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  
@@ -50,19 +49,33 @@ impl SingleID {
     /// 範囲検証に成功した場合は、対応する [`SingleID`] を返します。
     ///
     /// # 例
+    ///
+    /// IDの作成
     /// ```
-    /// let id = SingleID::new(10, 0, 512, 512).unwrap();
-    /// assert_eq!(id.z, 10);
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// assert_eq!(id.to_string(), "5/3/2/10".to_string());
     /// ```
     ///
-    /// エラー例:
+    /// 次元の範囲外の検知
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::error::Error;
+    /// let id = SingleID::new(3, 3, 2, 10);
+    /// assert_eq!(id, Err(Error::YOutOfRange{z:3,y:10}));
+    /// ```
     ///
+    /// ズームレベルの範囲外の検知
     /// ```
-    /// assert!(SingleID::new(70, 0, 0, 0).is_err()); // z が範囲外
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::error::Error;
+    /// let id = SingleID::new(68, 3, 2, 10);
+    /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
+
     pub fn new(z: u8, f: i64, x: u64, y: u64) -> Result<SingleID, Error> {
         if z > 63u8 {
-            return Err(Error::ZoomLevelOutOfRange { z });
+            return Err(Error::ZOutOfRange { z });
         }
 
         let f_min = F_MIN[z as usize];
@@ -136,10 +149,10 @@ impl SingleID {
         let z = self
             .z
             .checked_add(difference)
-            .ok_or(Error::ZoomLevelOutOfRange { z: u8::MAX })?;
+            .ok_or(Error::ZOutOfRange { z: u8::MAX })?;
 
         if z > 63 {
-            return Err(Error::ZoomLevelOutOfRange { z });
+            return Err(Error::ZOutOfRange { z });
         }
 
         let scale_f = 2_i64.pow(difference as u32);

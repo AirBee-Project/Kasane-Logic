@@ -1,10 +1,10 @@
 use thiserror::Error;
 
 /// Kasane-logicで発生するエラー型
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum Error {
     #[error("ZoomLevel '{z}' is out of range (valid: 0..=60)")]
-    ZoomLevelOutOfRange { z: u8 },
+    ZOutOfRange { z: u8 },
 
     #[error("F coordinate '{f}' is out of range for ZoomLevel '{z}'")]
     FOutOfRange { z: u8, f: i64 },

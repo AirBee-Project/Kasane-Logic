@@ -46,7 +46,7 @@ fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
 impl RangeID {
     pub fn new(z: u8, f: [i64; 2], x: [u64; 2], y: [u64; 2]) -> Result<RangeID, Error> {
         if z > 63u8 {
-            return Err(Error::ZoomLevelOutOfRange { z });
+            return Err(Error::ZOutOfRange { z });
         }
 
         let f_min = F_MIN[z as usize];
@@ -102,9 +102,9 @@ impl RangeID {
         let z = self
             .z
             .checked_add(difference)
-            .ok_or(Error::ZoomLevelOutOfRange { z: u8::MAX })?;
+            .ok_or(Error::ZOutOfRange { z: u8::MAX })?;
         if z > 63 {
-            return Err(Error::ZoomLevelOutOfRange { z });
+            return Err(Error::ZOutOfRange { z });
         }
 
         let scale_f = 2_i64.pow(difference as u32);
