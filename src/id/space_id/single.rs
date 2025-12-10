@@ -45,10 +45,6 @@ impl SingleID {
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  
     ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返します。
     ///
-    /// # 戻り値
-    /// 範囲検証に成功した場合は、対応する [`SingleID`] を返します。
-    ///
-    /// # 例
     ///
     /// IDの作成
     /// ```
@@ -72,7 +68,6 @@ impl SingleID {
     /// let id = SingleID::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
-
     pub fn new(z: u8, f: i64, x: u64, y: u64) -> Result<SingleID, Error> {
         if z > 63u8 {
             return Err(Error::ZOutOfRange { z });
@@ -95,19 +90,77 @@ impl SingleID {
         Ok(SingleID { z, f, x, y })
     }
 
-    pub fn as_z(&self) -> &u8 {
-        &self.z
-    }
-    pub fn as_f(&self) -> &i64 {
-        &self.f
-    }
-    pub fn as_x(&self) -> &u64 {
-        &self.x
-    }
-    pub fn as_y(&self) -> &u64 {
-        &self.y
+    /// この `SingleID` が保持しているズームレベル `z` を返します。
+    ///
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// assert_eq!(id.as_z(), 5u8);
+    /// ```
+    pub fn as_z(&self) -> u8 {
+        self.z
     }
 
+    /// この `SingleID` が保持している F インデックス `f` を返します。
+    ///
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// assert_eq!(id.as_f(), 3i64);
+    /// ```
+    pub fn as_f(&self) -> i64 {
+        self.f
+    }
+
+    /// この `SingleID` が保持している X インデックス `x` を返します。
+    ///
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// assert_eq!(id.as_x(), 2u64);
+    /// ```
+    pub fn as_x(&self) -> u64 {
+        self.x
+    }
+
+    /// この `SingleID` が保持している Y インデックス `y` を返します。
+    ///
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// assert_eq!(id.as_y(), 10u64);
+    /// ```
+    pub fn as_y(&self) -> u64 {
+        self.y
+    }
+
+    /// F インデックスを更新します。
+    ///
+    /// 与えられた `value` が、現在のズームレベル `z` に対応する
+    /// `F_MIN[z]..=F_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    ///
+    /// # パラメータ
+    /// * `value` — 新しい F インデックス
+    ///
+    /// # バリデーション
+    /// - `value` が許容範囲外の場合、[`Error::FOutOfRange`] を返します。
+    ///
+    /// 正常な更新
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let mut id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// id.set_f(4).unwrap();
+    /// assert_eq!(id.as_f(), 4);
+    /// ```
+    ///
+    /// 範囲外の検知
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::error::Error;
+    /// let mut id = SingleID::new(3, 3, 2, 7).unwrap();
+    /// let result = id.set_f(999);
+    /// assert!(matches!(result, Err(Error::FOutOfRange { z: 3, f: 999 })));
+    /// ```
     pub fn set_f(&mut self, value: i64) -> Result<(), Error> {
         let min = self.min_f();
         let max = self.max_f();
@@ -121,6 +174,33 @@ impl SingleID {
         Ok(())
     }
 
+    /// X インデックスを更新します。
+    ///
+    /// 与えられた `value` が、現在のズームレベル `z` に対応する
+    /// `0..=XY_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    ///
+    /// # パラメータ
+    /// * `value` — 新しい X インデックス
+    ///
+    /// # バリデーション
+    /// - `value` が許容範囲外の場合、[`Error::XOutOfRange`] を返します。
+    ///
+    /// 正常な更新
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let mut id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// id.set_x(4).unwrap();
+    /// assert_eq!(id.as_x(), 4);
+    /// ```
+    ///
+    /// 範囲外の検知
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::error::Error;
+    /// let mut id = SingleID::new(3, 3, 2, 7).unwrap();
+    /// let result = id.set_x(999);
+    /// assert!(matches!(result, Err(Error::XOutOfRange { z: 3, x: 999 })));
+    /// ```
     pub fn set_x(&mut self, value: u64) -> Result<(), Error> {
         let max = self.max_xy();
         if value > max {
@@ -133,6 +213,33 @@ impl SingleID {
         Ok(())
     }
 
+    /// Y インデックスを更新します。
+    ///
+    /// 与えられた `value` が、現在のズームレベル `z` に対応する
+    /// `0..=XY_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    ///
+    /// # パラメータ
+    /// * `value` — 新しい Y インデックス
+    ///
+    /// # バリデーション
+    /// - `value` が許容範囲外の場合、[`Error::YOutOfRange`] を返します。
+    ///
+    /// 正常な更新
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let mut id = SingleID::new(5, 3, 2, 10).unwrap();
+    /// id.set_y(8).unwrap();
+    /// assert_eq!(id.as_y(), 8);
+    /// ```
+    ///
+    /// 範囲外の検知
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::error::Error;
+    /// let mut id = SingleID::new(3, 3, 2, 7).unwrap();
+    /// let result = id.set_y(999);
+    /// assert!(matches!(result, Err(Error::YOutOfRange { z: 3, y: 999 })));
+    /// ```
     pub fn set_y(&mut self, value: u64) -> Result<(), Error> {
         let max = self.max_xy();
         if value > max {
@@ -145,6 +252,40 @@ impl SingleID {
         Ok(())
     }
 
+    /// 指定したズームレベル差 `difference` に基づき、この `SingleID` が表す空間のすべての子 `SingleID` を生成します。
+    ///
+    /// # パラメータ
+    /// * `difference` — 子 ID を計算する際に増加させるズームレベル差（差の値が0–63の範囲の場合に有効）
+    ///
+    /// # バリデーション
+    /// - `self.z + difference` が `63` を超える場合、[`Error::ZOutOfRange`] を返します。
+    ///
+    /// `difference = 1` による細分化
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(3, 3, 2, 7).unwrap();
+    ///
+    /// // difference = 1 のため F, X, Y はそれぞれ 2 分割される
+    /// let children: Vec<_> = id.children(1).unwrap().collect();
+    ///
+    /// assert_eq!(children.len(), 8); // 2 × 2 × 2
+    ///
+    /// // 最初の要素を確認（f, x, y の下限側）
+    /// let first = &children[0];
+    /// assert_eq!(first.as_z(), 4);
+    /// assert_eq!(first.as_f(), 3 * 2);   // 2
+    /// assert_eq!(first.as_x(), 2 * 2);   // 6
+    /// assert_eq!(first.as_y(), 7 * 2);   // 8
+    /// ```
+    ///
+    /// ズームレベルの範囲外
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::error::Error;
+    /// let id = SingleID::new(3, 3, 2, 7).unwrap();
+    /// let result = id.children(63);
+    /// assert!(matches!(result, Err(Error::ZOutOfRange { z: 66 })));
+    /// ```
     pub fn children(&self, difference: u8) -> Result<impl Iterator<Item = SingleID>, Error> {
         let z = self
             .z
@@ -165,6 +306,48 @@ impl SingleID {
         Ok(iproduct!(f_range, x_range, y_range).map(move |(f, x, y)| SingleID { z, f, x, y }))
     }
 
+    /// 指定したズームレベル差 `difference` に基づき、この `SingleID` の親 `SingleID` を返します。
+    ///
+    /// # パラメータ
+    /// * `difference` — 親 ID を計算する際に減少させるズームレベル差
+    ///
+    /// # バリデーション
+    /// - `self.z - difference < 0` の場合、親が存在しないため `None` を返します。
+    ///
+    /// `difference = 1` による上位層への移動
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(4, 6, 9, 14).unwrap();
+    ///
+    /// let parent = id.parent(1).unwrap();
+    ///
+    /// assert_eq!(parent.as_z(), 3);
+    /// assert_eq!(parent.as_f(), 3);
+    /// assert_eq!(parent.as_x(), 4);
+    /// assert_eq!(parent.as_y(), 7);
+    /// ```
+    ///
+    /// Fが負の場合の挙動
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(4, -1, 8, 12).unwrap();
+    ///
+    /// let parent = id.parent(1).unwrap();
+    ///
+    /// assert_eq!(parent.as_z(), 3);
+    /// assert_eq!(parent.as_f(), -1);
+    /// assert_eq!(parent.as_x(), 4);
+    /// assert_eq!(parent.as_y(), 6);
+    /// ```
+    ///
+    /// ズームレベルの範囲外:
+    /// ```
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// let id = SingleID::new(3, 3, 2, 7).unwrap();
+    ///
+    /// // difference = 4 の場合は親が存在しないため None
+    /// assert!(id.parent(4).is_none());
+    /// ```
     pub fn parent(&self, difference: u8) -> Option<SingleID> {
         let z = self.z.checked_sub(difference)?;
         let f = if self.f == -1 {
