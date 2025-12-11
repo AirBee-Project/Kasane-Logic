@@ -7,37 +7,6 @@ pub(crate) struct Segment<T> {
 }
 
 impl Segment<u64> {
-    /// XY座標 Segment を BitVec へ変換
-    pub fn to_bitvec(self) -> BitVec {
-        let z = self.z;
-        let xy = self.dim;
-
-        let length = ((z * 2 / 8) + 1).max(1) as usize;
-        let mut result = vec![0u8; length];
-
-        let bit_count = (z + 1) as u32;
-        let mask = if bit_count >= 64 {
-            u64::MAX
-        } else {
-            (1u64 << bit_count) - 1
-        };
-        let uxy = xy & mask;
-
-        for now_z in (0..=z).rev() {
-            let index = ((now_z) * 2 / 8) as usize;
-            let in_index = now_z % 4;
-
-            result[index] |= 1 << (7 - in_index * 2);
-
-            let bit_position = z - now_z;
-            if (uxy >> bit_position) & 1 != 0 {
-                result[index] |= 1 << (6 - in_index * 2);
-            }
-        }
-
-        BitVec::from_vec(result)
-    }
-
     /// XY向けのセグメント分割
     pub fn new(z: u8, dimension: [u64; 2]) -> Vec<Segment<u64>> {
         let mut target = dimension;
@@ -86,22 +55,6 @@ impl Segment<u64> {
 }
 
 impl Segment<i64> {
-    /// F座標 Segment を BitVec へ変換
-    pub fn to_bitvec(self) -> BitVec {
-        let z = self.z;
-        let f = self.dim;
-
-        if f >= 0 {
-            return Segment { z, dim: f as u64 }.to_bitvec();
-        }
-
-        let u = (f.abs() - 1) as u64;
-        let mut converted = Segment { z, dim: u }.to_bitvec();
-
-        converted.0[0] |= 0b11000000;
-        converted
-    }
-
     /// F向けのセグメント分割
     pub fn new(z: u8, dimension: [i64; 2]) -> Vec<Segment<i64>> {
         let diff = 2_i64.pow(z.into());
@@ -147,5 +100,54 @@ impl Segment<i64> {
         }
 
         result
+    }
+}
+
+impl From<Segment<i64>> for BitVec {
+    fn from(segment: Segment<i64>) -> Self {
+        let z = segment.z;
+        let f = segment.dim;
+
+        if f >= 0 {
+            return Segment { z, dim: f as u64 }.into();
+        }
+
+        let u = (f.abs() - 1) as u64;
+        let mut converted: BitVec = Segment { z, dim: u }.into();
+
+        converted.0[0] |= 0b11000000;
+        converted
+    }
+}
+
+impl From<Segment<u64>> for BitVec {
+    fn from(segment: Segment<u64>) -> Self {
+        let z = segment.z;
+        let xy = segment.dim;
+
+        let length = ((z * 2 / 8) + 1).max(1) as usize;
+        let mut result = vec![0u8; length];
+
+        let bit_count = (z + 1) as u32;
+        let mask = if bit_count >= 64 {
+            u64::MAX
+        } else {
+            (1u64 << bit_count) - 1
+        };
+        let uxy = xy & mask;
+
+        for now_z in (0..=z).rev() {
+            let index = ((now_z) * 2 / 8) as usize;
+            let in_index = now_z % 4;
+
+            result[index] |= 1 << (7 - in_index * 2);
+
+            let bit_position = z - now_z;
+            if (uxy >> bit_position) & 1 != 0 {
+                result[index] |= 1 << (6 - in_index * 2);
+            }
+        }
+
+        BitVec::from_vec(result)
     }
 }

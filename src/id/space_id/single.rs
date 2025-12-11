@@ -1148,9 +1148,9 @@ impl crate::id::space_id::SpaceID for SingleID {
 
 impl From<SingleID> for EncodeID {
     fn from(id: SingleID) -> Self {
-        let f_bitvec = Segment { z: id.z, dim: id.f }.to_bitvec();
-        let x_bitvec = Segment { z: id.z, dim: id.x }.to_bitvec();
-        let y_bitvec = Segment { z: id.z, dim: id.y }.to_bitvec();
+        let f_bitvec = Segment { z: id.z, dim: id.f }.into();
+        let x_bitvec = Segment { z: id.z, dim: id.x }.into();
+        let y_bitvec = Segment { z: id.z, dim: id.y }.into();
 
         EncodeID {
             f: vec![f_bitvec],

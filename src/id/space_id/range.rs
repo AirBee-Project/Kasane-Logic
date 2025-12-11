@@ -512,9 +512,9 @@ impl From<RangeID> for EncodeID {
         let x_segment = Segment::<u64>::new(id.z, id.x);
         let y_segment = Segment::<u64>::new(id.z, id.y);
 
-        let f_bitvec: Vec<BitVec> = f_segment.iter().map(|f| f.to_bitvec()).collect();
-        let x_bitvec: Vec<BitVec> = x_segment.iter().map(|x| x.to_bitvec()).collect();
-        let y_bitvec: Vec<BitVec> = y_segment.iter().map(|y| y.to_bitvec()).collect();
+        let f_bitvec: Vec<BitVec> = f_segment.iter().map(|f| (*f).into()).collect();
+        let x_bitvec: Vec<BitVec> = x_segment.iter().map(|x| (*x).into()).collect();
+        let y_bitvec: Vec<BitVec> = y_segment.iter().map(|y| (*y).into()).collect();
 
         EncodeID {
             f: f_bitvec,
