@@ -1071,6 +1071,19 @@ impl crate::id::space_id::SpaceID for SingleID {
         self.y = new_value as u64;
     }
 
+    /// `SingleID` の中心座標を[`Coordinate`]型で返します。
+    ///
+    /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    ///
+    /// ```
+    /// # use kasane_logic::id::space_id::SpaceID;
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::geometry::point::coordinate::Coordinate;
+    /// let id = SingleID::new(4, 6, 9, 14).unwrap();
+    /// let center: Coordinate = id.center();
+    /// println!("{:?}", center);
+    /// // Coordinate { latitude: -81.09321385260839, longitude: 33.75, altitude: 13631488.0 }
+    /// ```
     fn center(&self) -> Coordinate {
         Coordinate {
             longitude: helpers::longitude(self.x as f64 + 0.5, self.z),
@@ -1079,6 +1092,20 @@ impl crate::id::space_id::SpaceID for SingleID {
         }
     }
 
+    /// `SingleID` の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
+    ///
+    /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    ///
+    /// ```
+    /// # use kasane_logic::id::space_id::SpaceID;
+    /// # use kasane_logic::id::space_id::single::SingleID;
+    /// # use kasane_logic::geometry::point::coordinate::Coordinate;
+    /// let id = SingleID::new(4, 6, 9, 14).unwrap();
+    /// let vertices: [Coordinate; 8] = id.vertices();
+    /// println!("{:?}", vertices);
+    ///
+    ///  //[Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 14680064.0 }]
+    /// ```
     fn vertices(&self) -> [Coordinate; 8] {
         use itertools::iproduct;
 
