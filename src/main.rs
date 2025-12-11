@@ -11,8 +11,5 @@ use kasane_logic::{
 };
 
 fn main() {
-    let mut id = SingleID::new(4, 6, 9, 14).unwrap();
-
-    let center: [Coordinate; 8] = id.vertices();
-    println!("{:?}", center);
+    println!("{:?}", F_MIN);
 }

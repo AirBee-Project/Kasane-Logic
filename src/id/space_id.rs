@@ -51,8 +51,8 @@
 use crate::{error::Error, geometry::point::coordinate::Coordinate};
 
 pub mod constants;
-pub mod encode;
-pub mod helpers;
+pub(crate) mod encode;
+pub(crate) mod helpers;
 pub mod range;
 pub mod segment;
 pub mod single;
