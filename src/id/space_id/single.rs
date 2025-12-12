@@ -42,7 +42,6 @@ impl fmt::Display for SingleID {
     ///
     /// 形式は `"{z}/{f}/{x}/{y}"` です。
     ///
-    /// # 例
     /// ```
     /// # use kasane_logic::id::space_id::single::SingleID;
     /// # use std::fmt::Write;

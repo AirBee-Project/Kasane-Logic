@@ -16,6 +16,24 @@ use crate::{
     },
 };
 
+/// RangeIDは拡張された空間 ID を表す型です。各インデックスを範囲で指定することができます。 各次元の範囲には順序が意味を持ち、通常は `[α, β]` の形で `α <= β` を想定します。ただし `α >= β` の場合は区間が反転し、空間の循環方向を表します。例えば Xインデックス ではWEB メルカトル法に基づく経度の循環性のため、これは実空間上の連続性と一致します。
+///
+/// 一方 Yインデックス は WEB メルカトル法の制約（高緯度の非対応）により、反転区間は必ずしも実空間上の連続性を意味しません。Fインデックス については XYインデックス との対称性を考慮し境界循環を定義していますが、`α >= β` の場合は実空間的な連続性を保証しません。
+///
+/// 内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、
+/// ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
+///
+/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
+///
+/// ```
+/// pub struct RangeID {
+///     z: u8,
+///     f: [i64; 2],
+///     x: [u64; 2],
+///     y: [u64; 2],
+/// }
+/// ```
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct RangeID {
     pub(crate) z: u8,
     pub(crate) f: [i64; 2],
@@ -24,6 +42,37 @@ pub struct RangeID {
 }
 
 impl fmt::Display for RangeID {
+    /// `RangeID` を文字列形式で表示します。
+    ///
+    /// 形式は `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
+    /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になります。
+    ///
+    /// 通常時の範囲表示
+    /// ```
+    /// # use kasane_logic::id::space_id::range::RangeID;
+    /// # use std::fmt::Write;
+    /// let id = RangeID::new(4, [-3,6], [8,9], [5,10]).unwrap();
+    /// let s = format!("{}", id);
+    /// assert_eq!(s, "4/-3:6/8:9/5:10");
+    /// ```
+    ///
+    /// Single範囲に自動圧縮（`f1=f2`）
+    /// ```
+    /// # use kasane_logic::id::space_id::range::RangeID;
+    /// # use std::fmt::Write;
+    /// let id = RangeID::new(4, [-3,-3], [8,9], [5,10]).unwrap();
+    /// let s = format!("{}", id);
+    ///  assert_eq!(s, "4/-3/8:9/5:10");;
+    /// ```
+    ///
+    /// 反転範囲の表現（Xインデックス）
+    /// ```
+    /// # use kasane_logic::id::space_id::range::RangeID;
+    /// # use std::fmt::Write;
+    /// let id = RangeID::new(4, [-3,-3], [9,1], [5,10]).unwrap();
+    /// let s = format!("{}", id);
+    ///  assert_eq!(s, "4/-3/9:1/5:10");;
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -36,6 +85,7 @@ impl fmt::Display for RangeID {
     }
 }
 
+//次元の文字列を圧縮するための関数
 fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
     if dimension[0] == dimension[1] {
         format!("{}", dimension[0])
@@ -45,6 +95,49 @@ fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
 }
 
 impl RangeID {
+    /// 指定された値から [`RangeID`] を構築します。このコンストラクタは、与えられた `z`, `f1`, `f2`, `x1`, `x2`, `y1`, `y2` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    ///
+    /// # パラメータ
+    /// * `z` — ズームレベル（0–63の範囲が有効）  
+    /// * `f1` — 鉛直方向範囲の端のFインデックス
+    /// * `f2` — 鉛直方向範囲の端のFインデックス
+    /// * `x1` — 東西方向範囲の端のXインデックス
+    /// * `x2` — 東西方向範囲の端のXインデックス
+    /// * `y1` — 南北方向範囲の端のXインデックス
+    /// * `y2` — 南北方向範囲の端のXインデックス
+    ///
+    /// # バリデーション
+    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返します。  
+    /// - `f1`,`f2` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
+    ///   [`Error::FOutOfRange`] を返します。  
+    /// - `x1`,`x2` または `y1`,`y2` が `0..=XY_MAX[z]` の範囲外の場合、  
+    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返します。
+    ///
+    ///
+    /// IDの作成:
+    /// ```
+    /// # use kasane_logic::id::space_id::range::RangeID;
+    /// # use kasane_logic::error::Error;
+    /// let id = RangeID::new(4, [-3,6], [8,9], [5,10]).unwrap();
+    /// let s = format!("{}", id);
+    /// assert_eq!(s, "4/-3:6/8:9/5:10");
+    /// ```
+    ///
+    /// 次元の範囲外の検知:
+    /// ```
+    /// # use kasane_logic::id::space_id::range::RangeID;
+    /// # use kasane_logic::error::Error;
+    /// let id = RangeID::new(4, [-3,29], [8,9], [5,10]);
+    /// assert_eq!(id, Err(Error::FOutOfRange{z:4,f:29}));
+    /// ```
+    ///
+    /// ズームレベルの範囲外の検知:
+    /// ```
+    /// # use kasane_logic::id::space_id::range::RangeID;
+    /// # use kasane_logic::error::Error;
+    /// let id = RangeID::new(68, [-3,29], [8,9], [5,10]);
+    /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
+    /// ```
     pub fn new(z: u8, f: [i64; 2], x: [u64; 2], y: [u64; 2]) -> Result<RangeID, Error> {
         if z > 63u8 {
             return Err(Error::ZOutOfRange { z });
@@ -78,17 +171,17 @@ impl RangeID {
         Ok(RangeID { z, f, x, y })
     }
 
-    pub fn as_z(&self) -> &u8 {
-        &self.z
+    pub fn as_z(&self) -> u8 {
+        self.z
     }
-    pub fn as_f(&self) -> &[i64; 2] {
-        &self.f
+    pub fn as_f(&self) -> [i64; 2] {
+        self.f
     }
-    pub fn as_x(&self) -> &[u64; 2] {
-        &self.x
+    pub fn as_x(&self) -> [u64; 2] {
+        self.x
     }
-    pub fn as_y(&self) -> &[u64; 2] {
-        &self.y
+    pub fn as_y(&self) -> [u64; 2] {
+        self.y
     }
 
     pub fn children(&self, difference: u8) -> Result<RangeID, Error> {
@@ -154,104 +247,28 @@ impl SpaceID for RangeID {
         XY_MAX[self.z as usize]
     }
 
-    /* -----------------------------
-     *     bound_*  (非循環、境界で Err)
-     * ----------------------------- */
-
     fn bound_up(&mut self, by: u64) -> Result<(), Error> {
-        todo!()
+        self.bound_f(by as i64)
     }
 
     fn bound_down(&mut self, by: u64) -> Result<(), Error> {
-        todo!()
+        self.bound_f(-(by as i64))
     }
 
     fn bound_north(&mut self, by: u64) -> Result<(), Error> {
-        let max = self.max_xy();
-        let z = self.z;
-
-        let ns = self.y[0]
-            .checked_add(by)
-            .ok_or(Error::YOutOfRange { y: u64::MAX, z })?;
-        let ne = self.y[1]
-            .checked_add(by)
-            .ok_or(Error::YOutOfRange { y: u64::MAX, z })?;
-
-        if ns > max {
-            return Err(Error::YOutOfRange { y: ns, z });
-        }
-        if ne > max {
-            return Err(Error::YOutOfRange { y: ne, z });
-        }
-
-        self.y = [ns, ne];
-        Ok(())
+        self.bound_x(by as i64)
     }
 
     fn bound_south(&mut self, by: u64) -> Result<(), Error> {
-        let max = self.max_xy();
-        let z = self.z;
-
-        let ns = self.y[0]
-            .checked_sub(by)
-            .ok_or(Error::YOutOfRange { y: 0, z })?;
-        let ne = self.y[1]
-            .checked_sub(by)
-            .ok_or(Error::YOutOfRange { y: 0, z })?;
-
-        if ns > max {
-            return Err(Error::YOutOfRange { y: ns, z });
-        }
-        if ne > max {
-            return Err(Error::YOutOfRange { y: ne, z });
-        }
-
-        self.y = [ns, ne];
-        Ok(())
+        self.bound_x(-(by as i64))
     }
 
     fn bound_east(&mut self, by: u64) -> Result<(), Error> {
-        let max = self.max_xy();
-        let z = self.z;
-
-        let ns = self.x[0]
-            .checked_add(by)
-            .ok_or(Error::XOutOfRange { x: u64::MAX, z })?;
-        let ne = self.x[1]
-            .checked_add(by)
-            .ok_or(Error::XOutOfRange { x: u64::MAX, z })?;
-
-        if ns > max {
-            return Err(Error::XOutOfRange { x: ns, z });
-        }
-        if ne > max {
-            return Err(Error::XOutOfRange { x: ne, z });
-        }
-
-        self.x = [ns, ne];
-        Ok(())
+        self.bound_y(by as i64)
     }
 
     fn bound_west(&mut self, by: u64) -> Result<(), Error> {
-        let max = self.max_xy();
-        let z = self.z;
-
-        let ns = self.x[0]
-            .checked_sub(by)
-            .ok_or(Error::XOutOfRange { x: 0, z })?;
-        let ne = self.x[1]
-            .checked_sub(by)
-            .ok_or(Error::XOutOfRange { x: 0, z })?;
-
-        if ns > max {
-            return Err(Error::XOutOfRange { x: ns, z });
-        }
-        if ne > max {
-            return Err(Error::XOutOfRange { x: ne, z });
-        }
-
-        self.x = [ns, ne];
-        Ok(())
+        self.bound_y(-(by as i64))
     }
 
     fn bound_f(&mut self, by: i64) -> Result<(), Error> {
@@ -279,7 +296,6 @@ impl SpaceID for RangeID {
 
     fn bound_x(&mut self, by: i64) -> Result<(), Error> {
         if by >= 0 {
-            // east
             let byu = by as u64;
             let max = self.max_xy();
             let z = self.z;
@@ -301,7 +317,6 @@ impl SpaceID for RangeID {
             self.x = [ns, ne];
             Ok(())
         } else {
-            // west
             let byu = (-by) as u64;
             let max = self.max_xy();
             let z = self.z;
@@ -327,7 +342,6 @@ impl SpaceID for RangeID {
 
     fn bound_y(&mut self, by: i64) -> Result<(), Error> {
         if by >= 0 {
-            // north
             let byu = by as u64;
             let max = self.max_xy();
             let z = self.z;
@@ -374,47 +388,27 @@ impl SpaceID for RangeID {
     }
 
     fn wrap_up(&mut self, by: u64) {
-        todo!()
+        self.wrap_f(by as i64);
     }
 
     fn wrap_down(&mut self, by: u64) {
-        todo!()
+        self.wrap_f(-(by as i64));
     }
 
     fn wrap_north(&mut self, by: u64) {
-        let max = self.max_xy();
-        let ring = max + 1;
-
-        for v in &mut self.y {
-            *v = ((*v + by) % ring);
-        }
+        self.wrap_y(by as i64);
     }
 
     fn wrap_south(&mut self, by: u64) {
-        let max = self.max_xy();
-        let ring = max + 1;
-
-        for v in &mut self.y {
-            *v = ((*v + ring - (by % ring)) % ring);
-        }
+        self.wrap_y(-(by as i64));
     }
 
     fn wrap_east(&mut self, by: u64) {
-        let max = self.max_xy();
-        let ring = max + 1;
-
-        for v in &mut self.x {
-            *v = ((*v + by) % ring);
-        }
+        self.wrap_x(by as i64);
     }
 
     fn wrap_west(&mut self, by: u64) {
-        let max = self.max_xy();
-        let ring = max + 1;
-
-        for v in &mut self.x {
-            *v = ((*v + ring - (by % ring)) % ring);
-        }
+        self.wrap_x(-(by as i64));
     }
 
     fn wrap_f(&mut self, by: i64) {

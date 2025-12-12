@@ -50,12 +50,15 @@
 
 use crate::{error::Error, geometry::point::coordinate::Coordinate};
 
+//ユーザーに対して公開されているモジュール
 pub mod constants;
+pub mod range;
+pub mod single;
+
+//非公開のモジュール
 pub(crate) mod encode;
 pub(crate) mod helpers;
-pub mod range;
-pub mod segment;
-pub mod single;
+pub(crate) mod segment;
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpaceID {
