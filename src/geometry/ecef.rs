@@ -8,18 +8,18 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Ecef {
-    pub(crate) x: f64,
-    pub(crate) y: f64,
-    pub(crate) z: f64,
+pub struct Ecef {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 
 impl Ecef {
-    pub(crate) fn new(x: f64, y: f64, z: f64) -> Ecef {
+    pub fn new(x: f64, y: f64, z: f64) -> Ecef {
         Ecef { x, y, z }
     }
 
-    pub(crate) fn to_id(&self, z: u8) -> Result<SingleID, Error> {
+    pub fn to_id(&self, z: u8) -> Result<SingleID, Error> {
         let coordinate: Coordinate = self.clone().try_into()?;
         Ok(coordinate.to_id(z))
     }
