@@ -801,10 +801,12 @@ impl crate::id::space_id::SpaceID for SingleID {
     /// // Coordinate { latitude: -81.09321385260839, longitude: 33.75, altitude: 13631488.0 }
     /// ```
     fn center(&self) -> Coordinate {
-        Coordinate {
-            longitude: helpers::longitude(self.x as f64 + 0.5, self.z),
-            latitude: helpers::latitude(self.y as f64 + 0.5, self.z),
-            altitude: helpers::altitude(self.f as f64 + 0.5, self.z),
+        unsafe {
+            Coordinate::uncheck_new(
+                helpers::latitude(self.y as f64 + 0.5, self.z),
+                helpers::longitude(self.x as f64 + 0.5, self.z),
+                helpers::altitude(self.f as f64 + 0.5, self.z),
+            )
         }
     }
 
@@ -843,19 +845,19 @@ impl crate::id::space_id::SpaceID for SingleID {
             helpers::altitude(fs[1], self.z),
         ];
 
-        // 結果配列
-        let mut out = [Coordinate {
-            longitude: 0.0,
-            latitude: 0.0,
-            altitude: 0.0,
-        }; 8];
+        // 結果配列（Default を利用）
+        let mut out = [Coordinate::default(); 8];
 
         for (i, (f_i, y_i, x_i)) in iproduct!(0..2, 0..2, 0..2).enumerate() {
-            out[i] = Coordinate {
-                longitude: lon2[x_i],
-                latitude: lat2[y_i],
-                altitude: alt2[f_i],
-            };
+            out[i]
+                .set_longitude(lon2[x_i])
+                .expect("longitude must be within valid range");
+            out[i]
+                .set_latitude(lat2[y_i])
+                .expect("latitude must be within valid range");
+            out[i]
+                .set_altitude(alt2[f_i])
+                .expect("altitude must be within valid range");
         }
 
         out

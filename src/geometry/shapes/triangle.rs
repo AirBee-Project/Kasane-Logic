@@ -20,10 +20,10 @@ pub fn triangle(
     let ecef_c: Ecef = c.into();
 
     let min_lat_rad = a
-        .latitude
+        .as_latitude()
         .abs()
-        .min(b.latitude.abs())
-        .min(c.latitude.abs())
+        .min(b.as_latitude().abs())
+        .min(c.as_latitude().abs())
         .to_radians();
 
     let d = PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-2 - z as i32);

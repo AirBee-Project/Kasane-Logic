@@ -20,7 +20,11 @@ pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let dz = ecef_b.z - ecef_a.z;
     let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
-    let min_lat_rad = a.latitude.abs().min(b.latitude.abs()).to_radians();
+    let min_lat_rad = a
+        .as_latitude()
+        .abs()
+        .min(b.as_latitude().abs())
+        .to_radians();
     let d = std::f64::consts::PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-3 - z as i32);
     let steps = (distance / d).ceil() as usize;
 

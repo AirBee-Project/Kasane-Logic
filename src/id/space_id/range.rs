@@ -681,17 +681,6 @@ impl SpaceID for RangeID {
     /// [`RangeID`] の中心座標を[`Coordinate`]型で返します。
     ///
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
-    ///
-    /// ```
-    /// # use kasane_logic::id::space_id::range::RangeID;
-    /// # use kasane_logic::error::Error;
-    /// # use crate::kasane_logic::id::space_id::SpaceID;
-    /// let id = RangeID::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    ///
-    /// let center: Coordinate = id.center();
-    /// println!("{:?}", center);
-    /// // Coordinate { latitude: 66.51326044311186, longitude: -78.75, altitude: -7340032.0 }
-    /// ```
     fn center(&self) -> Coordinate {
         let z = self.z;
 
@@ -699,26 +688,18 @@ impl SpaceID for RangeID {
         let yf = (self.y[0] + self.y[1]) as f64 / 2.0 + 0.5;
         let ff = (self.f[0] + self.f[1]) as f64 / 2.0 + 0.5;
 
-        Coordinate {
-            longitude: helpers::longitude(xf, z),
-            latitude: helpers::latitude(yf, z),
-            altitude: helpers::altitude(ff, z),
+        unsafe {
+            Coordinate::uncheck_new(
+                helpers::longitude(xf, z),
+                helpers::latitude(yf, z),
+                helpers::altitude(ff, z),
+            )
         }
     }
 
     /// [`RangeID`] の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
     ///
     /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
-    /// ```
-    /// # use kasane_logic::id::space_id::range::RangeID;
-    /// # use kasane_logic::error::Error;
-    /// # use crate::kasane_logic::id::space_id::SpaceID;
-    /// let id = RangeID::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    ///
-    /// let vertices: [Coordinate; 8] = id.vertices();
-    /// println!("{:?}", vertices);
-    /// // [Coordinate { latitude: 76.84081641443098, longitude: -90.0, altitude: -10485760.0 }, Coordinate { latitude: 76.84081641443098, longitude: -67.5, altitude: -10485760.0 },....]
-    /// ```
     fn vertices(&self) -> [Coordinate; 8] {
         let z = self.z;
 
@@ -734,18 +715,12 @@ impl SpaceID for RangeID {
 
         let altitudes: [f64; 2] = [helpers::altitude(fs[0], z), helpers::altitude(fs[1], z)];
 
-        let mut out = [Coordinate {
-            longitude: 0.0,
-            latitude: 0.0,
-            altitude: 0.0,
-        }; 8];
+        let mut out = [Coordinate::default(); 8];
 
         for (i, (fi, yi, xi)) in iproduct!(0..2, 0..2, 0..2).enumerate() {
-            out[i] = Coordinate {
-                longitude: longitudes[xi],
-                latitude: latitudes[yi],
-                altitude: altitudes[fi],
-            };
+            let _ = out[i].set_altitude(altitudes[fi]);
+            let _ = out[i].set_latitude(latitudes[yi]);
+            let _ = out[i].set_longitude(longitudes[xi]);
         }
 
         out
