@@ -3,7 +3,7 @@ use std::fmt;
 use crate::{
     error::Error,
     geometry::{
-        constants::{WGS84_A, WGS84_INV_F},
+        constants::{WGS84_A, WGS84_E2, WGS84_F, WGS84_INV_F},
         coordinate::Coordinate,
     },
     id::space_id::single::SingleID,
@@ -89,10 +89,6 @@ impl TryFrom<Ecef> for Coordinate {
     /// この変換は WGS-84 楕円体モデルに基づいており、
     /// Bowring 法による反復計算を用いて緯度と高度を求めます。
     fn try_from(value: Ecef) -> Result<Self, Self::Error> {
-        let f = 1.0 / WGS84_INV_F;
-        let b = WGS84_A * (1.0 - f);
-        let e2 = 1.0 - (b * b) / (WGS84_A * WGS84_A);
-
         let x = value.x;
         let y = value.y;
         let z = value.z;
@@ -101,15 +97,15 @@ impl TryFrom<Ecef> for Coordinate {
         let p = (x * x + y * y).sqrt();
 
         // 緯度の初期値（Bowring）
-        let mut lat = (z / p).atan2(1.0 - f);
+        let mut lat = (z / p).atan2(1.0 - WGS84_F);
         let mut h = 0.0;
 
         for _ in 0..10 {
             let sin_lat = lat.sin();
-            let n = WGS84_A / (1.0 - e2 * sin_lat * sin_lat).sqrt();
+            let n = WGS84_A / (1.0 - WGS84_E2 * sin_lat * sin_lat).sqrt();
             h = p / lat.cos() - n;
 
-            let new_lat = (z + e2 * n * sin_lat).atan2(p);
+            let new_lat = (z + WGS84_E2 * n * sin_lat).atan2(p);
 
             if (new_lat - lat).abs() < 1e-12 {
                 lat = new_lat;
