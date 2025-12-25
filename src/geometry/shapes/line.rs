@@ -71,34 +71,33 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
     [f, x, y]
 }
-// fn line_DDA(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleID>, Error> {
-//     if z > MAX_ZOOM_LEVEL as u8 {
-//         return Err(Error::ZOutOfRange { z });
-//     }
-//     let vp1 = coordinate_to_matrix(a, z);
-//     let vp2 = coordinate_to_matrix(b, z);
-//     let df_total = vp2[0] - vp1[0];
-//     let dx_total = vp2[1] - vp1[1];
-//     let dy_total = vp2[2] - vp1[2];
-//     let id1 = SingleID::new(
-//         z,
-//         vp1[0].floor() as i64,
-//         vp1[1].floor() as u64,
-//         vp1[2].floor() as u64,
-//     );
-//     let id2 = SingleID::new(
-//         z,
-//         vp2[0].floor() as i64,
-//         vp2[1].floor() as u64,
-//         vp2[2].floor() as u64,
-//     );
-//     let length: f64 = (df_total * df_total + dx_total * dx_total + dy_total * dy_total).sqrt();
-//     let iter = std::iter::successors(Some(id1), |&prev| {
-//         if prev != id2 {
-//             Some(SingleID::new(1, 1, 1, 1))
-//         } else {
-//             None
-//         }
-//     });
-//     Ok(iter)
-// }
+fn line_DDA(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleID>, Error> {
+    if z > MAX_ZOOM_LEVEL as u8 {
+        return Err(Error::ZOutOfRange { z });
+    }
+    let vp1 = coordinate_to_matrix(a, z);
+    let vp2 = coordinate_to_matrix(b, z);
+    let df_total = vp2[0] - vp1[0];
+    let dx_total = vp2[1] - vp1[1];
+    let dy_total = vp2[2] - vp1[2];
+    let id1 = SingleID::new(
+        z,
+        vp1[0].floor() as i64,
+        vp1[1].floor() as u64,
+        vp1[2].floor() as u64,
+    );
+    let id2 = SingleID::new(
+        z,
+        vp2[0].floor() as i64,
+        vp2[1].floor() as u64,
+        vp2[2].floor() as u64,
+    );
+    let length: f64 = (df_total * df_total + dx_total * dx_total + dy_total * dy_total).sqrt();
+    let iter = std::iter::successors(Some(id1), |&prev| {
+        if prev != id2 {
+        } else {
+            None
+        }
+    });
+    Ok(iter)
+}
