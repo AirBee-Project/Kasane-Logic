@@ -151,7 +151,7 @@ impl Coordinate {
         let alt = self.altitude;
 
         // ---- 高度 h -> f (Python の h_to_f を Rust に移植) ----
-        let factor = 2_f64.powi(z as i32 - 25); // 2^(z-25)
+        let factor = 2_f64.powi(z as i32 - 25); // 空間idの高さはz=25でちょうど1mになるように定義されている
         let f = (factor * alt).floor() as i64;
 
         // ---- 経度 lon -> x ----
