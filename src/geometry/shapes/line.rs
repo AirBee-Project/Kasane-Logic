@@ -140,9 +140,7 @@ pub fn line_dda(
     let sign_i = (vp2[max_flag] - vp1[max_flag]).signum() as i64;
     let sign_j = (vp2[other_flag_1] - vp1[other_flag_1]).signum() as i64;
     let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i64;
-    let mut steps = 0;
     while current != [i2, j2, k2] {
-        steps += 1;
         if to1 > to2 {
             if tm_int as f64 > to2 {
                 to2 += d_o2;
