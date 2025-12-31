@@ -15,10 +15,10 @@ pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let ecef_b: Ecef = b.into();
 
     // ステップ数計算
-    let d_o1 = ecef_b.as_x() - ecef_a.as_x();
-    let d_o2 = ecef_b.as_y() - ecef_a.as_y();
+    let dx = ecef_b.as_x() - ecef_a.as_x();
+    let dy = ecef_b.as_y() - ecef_a.as_y();
     let dz = ecef_b.as_z() - ecef_a.as_z();
-    let distance = (d_o1 * d_o1 + d_o2 * d_o2 + dz * dz).sqrt();
+    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
     let min_lat_rad = a
         .as_latitude()
@@ -112,11 +112,11 @@ pub fn line_dda(
         f64::INFINITY
     };
     let tm = if i2 > i1 {
-        1.0 - vp1[other_flag_1] + vp1[other_flag_1].floor()
+        1.0 - vp1[max_flag] + vp1[max_flag].floor()
     } else if i2 == i1 {
         f64::INFINITY
     } else {
-        vp1[other_flag_1] - vp1[other_flag_1].floor()
+        vp1[max_flag] - vp1[max_flag].floor()
     };
     let mut to1 = if j2 > j1 {
         (1.0 - vp1[other_flag_1] + vp1[other_flag_1].floor()) * d_o1 - tm
@@ -130,7 +130,7 @@ pub fn line_dda(
     } else if k2 == k1 {
         f64::INFINITY
     } else {
-        (vp1[2] - vp1[2].floor()) * d_o2 - tm
+        (vp1[other_flag_2] - vp1[other_flag_2].floor()) * d_o2 - tm
     };
     let mut tm_int: u64 = 0;
     let max_steps = (i2 - i1).abs() as u64;
@@ -157,7 +157,7 @@ pub fn line_dda(
                     current[pull_index[2]] as u64,
                 )?);
                 if (tm_int as f64) > to1 {
-                    to1 += d_o2;
+                    to1 += d_o1;
                     current[1] += sign_j;
                     voxels.push(SingleID::new(
                         z,
