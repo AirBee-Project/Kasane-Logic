@@ -111,7 +111,7 @@ pub fn line_dda(
     } else {
         f64::INFINITY
     };
-    let mut tm = if i2 > i1 {
+    let tm = if i2 > i1 {
         1.0 - vp1[other_flag_1] + vp1[other_flag_1].floor()
     } else if i2 == i1 {
         f64::INFINITY
@@ -133,13 +133,13 @@ pub fn line_dda(
         (vp1[2] - vp1[2].floor()) * d_o2 - tm
     };
     let mut tm_int: u16 = 0;
+    let max_steps = (i2 - i1).abs() as u16;
     let mut voxels: Vec<SingleID> = Vec::new();
     voxels.push(SingleID::new(z, i1, j1 as u64, k1 as u64)?);
     let mut current = [i1, j1, k1];
     let sign_i = (vp2[max_flag] - vp1[max_flag]).signum() as i64;
     let sign_j = (vp2[other_flag_1] - vp1[other_flag_1]).signum() as i64;
     let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i64;
-    let max_steps = (i2 - i1).abs() + (j2 - j1).abs() + (k2 - k1).abs() + 3;
     let mut steps = 0;
     while current != [i2, j2, k2] {
         steps += 1;
@@ -194,7 +194,7 @@ pub fn line_dda(
             current[3 - other_flag_2] as u64,
             current[3 - other_flag_1] as u64,
         )?);
-        if steps > max_steps {
+        if tm_int > max_steps {
             print!("WARNING:無限ループを検知!");
             break;
         }
