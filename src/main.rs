@@ -10,10 +10,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0)?;
     let nagoya = Coordinate::new(35.1706431, 136.8816945, 100.0)?;
     let yokohama = Coordinate::new(35.4660694, 139.6226196, 100.0)?;
-    let iter = line_dda(24, tokyo, nagoya)?;
+    let (z, start, goal) = (28, tokyo, yokohama);
+    let iter = line_dda(z, start, goal)?;
     for id in iter {
         // SingleIDの内容を一行ずつ書き込む
         writeln!(file, "{},", id)?;
     }
+    println!("{},{}", start.to_id(z), goal.to_id(z));
     Ok(println!("結果を output.txt に保存しました 。"))
 }

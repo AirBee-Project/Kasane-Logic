@@ -133,6 +133,7 @@ pub fn line_dda(
         (vp1[other_flag_2] - vp1[other_flag_2].floor()) * d_o2 - tm
     };
     let mut tm_int: u64 = 0;
+    let jk_diff = (j2 - j1).abs() + (k2 - k1).abs();
     let max_steps = (i2 - i1).abs() as u64;
     let mut voxels: Vec<SingleID> = Vec::new();
     voxels.push(SingleID::new(z, i1, j1 as u64, k1 as u64)?);
@@ -146,6 +147,12 @@ pub fn line_dda(
         (3 - other_flag_1) % 3,
     ];
     while current != [i2, j2, k2] {
+        if tm_int >= max_steps {
+            if (current[1] - j1).abs() + (current[2] - k1).abs() >= jk_diff {
+                println!("WARNING:無限ループを検知!");
+                break;
+            }
+        }
         if to1 > to2 {
             if tm_int as f64 > to2 {
                 to2 += d_o2;
@@ -197,10 +204,6 @@ pub fn line_dda(
             current[pull_index[1]] as u64,
             current[pull_index[2]] as u64,
         )?);
-        if tm_int > max_steps + 1 {
-            print!("WARNING:無限ループを検知!");
-            break;
-        }
     }
     let iter = voxels.into_iter();
     Ok(iter)
