@@ -1,38 +1,94 @@
+use std::fmt;
+
 use crate::{
     error::Error,
     geometry::{
-        constants::{WGS84_A, WGS84_INV_F},
+        constants::{WGS84_A, WGS84_E2, WGS84_F, WGS84_INV_F},
         coordinate::Coordinate,
     },
     id::space_id::single::SingleID,
 };
 
-#[derive(Debug, Clone, Copy)]
+/// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表します。
+///
+/// 原点は地球の重心にあり、
+/// * X 軸は赤道面上で本初子午線方向
+/// * Y 軸は赤道面上で東経 90 度方向
+/// * Z 軸は北極方向
+///
+/// 単位はすべてメートルです。
+#[derive(Clone, Copy)]
 pub struct Ecef {
-    pub(crate) x: f64,
-    pub(crate) y: f64,
-    pub(crate) z: f64,
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
+impl fmt::Debug for Ecef {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Ecef")
+            .field("x", &self.x)
+            .field("y", &self.y)
+            .field("z", &self.z)
+            .finish()
+    }
 }
 
 impl Ecef {
+    /// 指定された XYZ 成分から `Ecef` を生成します。
+    ///
+    /// 各値はメートル単位で指定します。
     pub fn new(x: f64, y: f64, z: f64) -> Ecef {
         Ecef { x, y, z }
     }
 
+    /// X 成分を返します。
+    pub fn as_x(&self) -> f64 {
+        self.x
+    }
+
+    /// Y 成分を返します。
+    pub fn as_y(&self) -> f64 {
+        self.y
+    }
+
+    /// Z 成分を返します。
+    pub fn as_z(&self) -> f64 {
+        self.z
+    }
+
+    /// X 成分を設定します。
+    pub fn set_x(&mut self, x: f64) {
+        self.x = x;
+    }
+
+    /// Y 成分を設定します。
+    pub fn set_y(&mut self, y: f64) {
+        self.y = y;
+    }
+
+    /// Z 成分を設定します。
+    pub fn set_z(&mut self, z: f64) {
+        self.z = z;
+    }
+
+    /// この ECEF 座標を、指定されたズームレベルの `SingleID` に変換します。
+    ///
+    /// 内部的に一度 `Coordinate`（緯度・経度・高度）へ変換した後、
+    /// 空間 ID へ変換します。
     pub fn to_id(&self, z: u8) -> Result<SingleID, Error> {
-        let coordinate: Coordinate = self.clone().try_into()?;
+        let coordinate: Coordinate = (*self).try_into()?;
         Ok(coordinate.to_id(z))
     }
 }
 
 impl TryFrom<Ecef> for Coordinate {
     type Error = Error;
-
+    /// 地心直交座標系（ECEF）から地理座標（緯度・経度・高度）への変換を提供します。
+    ///
+    /// この変換は WGS-84 楕円体モデルに基づいており、
+    /// Bowring 法による反復計算を用いて緯度と高度を求めます。
     fn try_from(value: Ecef) -> Result<Self, Self::Error> {
-        let f = 1.0 / WGS84_INV_F;
-        let b = WGS84_A * (1.0 - f);
-        let e2 = 1.0 - (b * b) / (WGS84_A * WGS84_A);
-
         let x = value.x;
         let y = value.y;
         let z = value.z;
@@ -41,15 +97,15 @@ impl TryFrom<Ecef> for Coordinate {
         let p = (x * x + y * y).sqrt();
 
         // 緯度の初期値（Bowring）
-        let mut lat = (z / p).atan2(1.0 - f);
+        let mut lat = (z / p).atan2(1.0 - WGS84_F);
         let mut h = 0.0;
 
         for _ in 0..10 {
             let sin_lat = lat.sin();
-            let n = WGS84_A / (1.0 - e2 * sin_lat * sin_lat).sqrt();
+            let n = WGS84_A / (1.0 - WGS84_E2 * sin_lat * sin_lat).sqrt();
             h = p / lat.cos() - n;
 
-            let new_lat = (z + e2 * n * sin_lat).atan2(p);
+            let new_lat = (z + WGS84_E2 * n * sin_lat).atan2(p);
 
             if (new_lat - lat).abs() < 1e-12 {
                 lat = new_lat;

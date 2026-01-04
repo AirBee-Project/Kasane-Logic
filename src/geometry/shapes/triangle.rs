@@ -20,25 +20,25 @@ pub fn triangle(
     let ecef_c: Ecef = c.into();
 
     let min_lat_rad = a
-        .latitude
+        .as_latitude()
         .abs()
-        .min(b.latitude.abs())
-        .min(c.latitude.abs())
+        .min(b.as_latitude().abs())
+        .min(c.as_latitude().abs())
         .to_radians();
 
     let d = PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-2 - z as i32);
 
-    let l1 = ((ecef_c.x - ecef_b.x).powi(2)
-        + (ecef_c.y - ecef_b.y).powi(2)
-        + (ecef_c.z - ecef_b.z).powi(2))
+    let l1 = ((ecef_c.as_x() - ecef_b.as_x()).powi(2)
+        + (ecef_c.as_y() - ecef_b.as_y()).powi(2)
+        + (ecef_c.as_z() - ecef_b.as_z()).powi(2))
     .sqrt();
-    let l2 = ((ecef_a.x - ecef_c.x).powi(2)
-        + (ecef_a.y - ecef_c.y).powi(2)
-        + (ecef_a.z - ecef_c.z).powi(2))
+    let l2 = ((ecef_a.as_x() - ecef_c.as_x()).powi(2)
+        + (ecef_a.as_y() - ecef_c.as_y()).powi(2)
+        + (ecef_a.as_z() - ecef_c.as_z()).powi(2))
     .sqrt();
-    let l3 = ((ecef_a.x - ecef_b.x).powi(2)
-        + (ecef_a.y - ecef_b.y).powi(2)
-        + (ecef_a.z - ecef_b.z).powi(2))
+    let l3 = ((ecef_a.as_x() - ecef_b.as_x()).powi(2)
+        + (ecef_a.as_y() - ecef_b.as_y()).powi(2)
+        + (ecef_a.as_z() - ecef_b.as_z()).powi(2))
     .sqrt();
 
     let steps = (l1.max(l2).max(l3) / d).ceil() as usize;
@@ -49,21 +49,21 @@ pub fn triangle(
         let t = i as f64 / steps as f64;
 
         let line1 = (
-            ecef_a.x * (1.0 - t) + ecef_b.x * t,
-            ecef_a.y * (1.0 - t) + ecef_b.y * t,
-            ecef_a.z * (1.0 - t) + ecef_b.z * t,
+            ecef_a.as_x() * (1.0 - t) + ecef_b.as_x() * t,
+            ecef_a.as_y() * (1.0 - t) + ecef_b.as_y() * t,
+            ecef_a.as_z() * (1.0 - t) + ecef_b.as_z() * t,
         );
         let line2 = (
-            ecef_a.x * (1.0 - t) + ecef_c.x * t,
-            ecef_a.y * (1.0 - t) + ecef_c.y * t,
-            ecef_a.z * (1.0 - t) + ecef_c.z * t,
+            ecef_a.as_x() * (1.0 - t) + ecef_c.as_x() * t,
+            ecef_a.as_y() * (1.0 - t) + ecef_c.as_y() * t,
+            ecef_a.as_z() * (1.0 - t) + ecef_c.as_z() * t,
         );
 
         let seen = seen.clone();
 
         (0..=i).filter_map(move |j| {
             let (x, y, z_pos) = if i == 0 {
-                (ecef_a.x, ecef_a.y, ecef_a.z)
+                (ecef_a.as_x(), ecef_a.as_y(), ecef_a.as_z())
             } else {
                 let s = j as f64 / i as f64;
                 (

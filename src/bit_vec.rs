@@ -11,7 +11,7 @@ use core::fmt;
 ///
 /// 内部的にはバイト配列として保持し、階層ごとのビット操作を効率的に行う
 #[derive(Debug, Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub struct BitVec(pub Vec<u8>);
+pub struct BitVec(pub(crate) Vec<u8>);
 
 impl BitVec {
     /// `Vec<u8>` から BitVec を生成
@@ -27,6 +27,14 @@ impl BitVec {
     /// 空の BitVec を生成
     pub fn new() -> Self {
         BitVec(Vec::new())
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.clone()
     }
 
     /// self の全ての上位階層を列挙して返す
