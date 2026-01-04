@@ -59,7 +59,6 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     // ---- 高度 h -> f (Python の h_to_f を Rust に移植) ----
     let factor = 2_f64.powi(z as i32 - 25); // 空間idの高さはz=25でちょうど1mになるように定義されている
     let f = factor * alt;
-
     // ---- 経度 lon -> x ----
     let n = 2u64.pow(z as u32) as f64;
     let x = (lon + 180.0) / 360.0 * n;
@@ -144,7 +143,6 @@ pub fn line_dda(
     } else {
         (vp1[other_flag_2] - vp1[other_flag_2].floor()) * d_o2 - tm
     };
-    let jk_diff = (j2 - j1).abs() + (k2 - k1).abs();
     let max_steps = (i2 - i1).abs() as u64;
     let mut voxels: Vec<SingleID> = Vec::new();
     voxels.push(SingleID::new(z, i1, j1 as u64, k1 as u64)?);
@@ -158,12 +156,6 @@ pub fn line_dda(
         (3 - other_flag_1) % 3,
     ];
     for tm_int in 0..max_steps {
-        // if tm_int >= max_steps {
-        //     if (current[1] - j1).abs() + (current[2] - k1).abs() >= jk_diff {
-        //         println!("WARNING:無限ループを検知!");
-        //         break;
-        //     }
-        // }
         if to1 > to2 {
             if tm_int as f64 > to2 {
                 to2 += d_o2;
