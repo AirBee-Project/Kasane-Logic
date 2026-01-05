@@ -211,6 +211,5 @@ pub fn line_dda(
         println!("失敗")
     }
     let iter = voxels.into_iter();
-
     Ok(iter)
 }
