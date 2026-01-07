@@ -1,7 +1,6 @@
 use crate::{
-    geometry::{constants::WGS84_A,coordinate::Coordinate,ecef::Ecef,},
-    id::space_id::single::SingleID,
-    id::space_id::SpaceID
+    geometry::{constants::WGS84_A, coordinate::Coordinate, ecef::Ecef},
+    spatial_id::{SpatialId, single::SingleId},
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -11,15 +10,13 @@ pub enum VoxelAxis {
     F,
 }
 
-
-
 impl Coordinate {
     pub fn distance(&self, other: &Coordinate) -> f64 {
         let e1: Ecef = (*self).into();
         let e2: Ecef = (*other).into();
         ((e1.as_x() - e2.as_x()).powi(2)
-        + (e1.as_y() - e2.as_y()).powi(2)
-        + (e1.as_z() - e2.as_z()).powi(2))
+            + (e1.as_y() - e2.as_y()).powi(2)
+            + (e1.as_z() - e2.as_z()).powi(2))
         .sqrt()
     }
 }
@@ -42,8 +39,8 @@ pub fn sphere<'a>(
     z: u8,
     center: &'a Coordinate,
     radius: f64,
-) -> impl Iterator<Item = SingleID> + 'a {
-    let voxel_diag_half = voxel_length(z, VoxelAxis::X)* 3.0_f64.sqrt() / 2.0;
+) -> impl Iterator<Item = SingleId> + 'a {
+    let voxel_diag_half = voxel_length(z, VoxelAxis::X) * 3.0_f64.sqrt() / 2.0;
     let center_ecef: Ecef = (*center).into();
 
     // 球の8頂点 → 探索範囲推定
@@ -70,16 +67,14 @@ pub fn sphere<'a>(
     let f_min = corners.iter().map(|v| v.f).min().unwrap();
     let f_max = corners.iter().map(|v| v.f).max().unwrap();
 
-    // 👇 ここが Iterator 化の本体
     (x_min..=x_max)
         .flat_map(move |x| {
             (y_min..=y_max).flat_map(move |y| {
-                (f_min..=f_max).map(move |f| SingleID { z, f, x, y })
+                (f_min..=f_max).map(move |f| unsafe { SingleId::uncheck_new(z, f, x, y) })
             })
         })
-    .filter(move |id| {
-        let p: Coordinate = id.center();
-        center.distance(&p) <= radius + voxel_diag_half
-    })
+        .filter(move |id| {
+            let p: Coordinate = id.center();
+            center.distance(&p) <= radius + voxel_diag_half
+        })
 }
-

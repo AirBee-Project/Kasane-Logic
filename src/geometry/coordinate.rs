@@ -6,7 +6,7 @@ use crate::{
         constants::{WGS84_A, WGS84_E2},
         ecef::Ecef,
     },
-    id::space_id::single::SingleID,
+    spatial_id::single::SingleId,
 };
 
 /// `Coordinate` 型は、緯度・経度・高度によって点の位置を表現するための型です。
@@ -135,17 +135,17 @@ impl Coordinate {
         Ok(())
     }
 
-    /// この座標を、指定されたズームレベルに対応する `SingleID` に変換します。
+    /// この座標を、指定されたズームレベルに対応する `SingleId` に変換します。
     ///
     /// 緯度・経度・高度をそれぞれ空間 ID の各成分（`x`, `y`, `f`）へ変換し、
-    /// ズームレベル `z` を含む `SingleID` を生成します。
+    /// ズームレベル `z` を含む `SingleId` を生成します。
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル
     ///
     /// # 戻り値
-    /// * 指定されたズームレベルに対応する `SingleID`
-    pub fn to_id(&self, z: u8) -> SingleID {
+    /// * 指定されたズームレベルに対応する `SingleId`
+    pub fn to_single_id(&self, z: u8) -> SingleId {
         let lat = self.latitude;
         let lon = self.longitude;
         let alt = self.altitude;
@@ -164,7 +164,7 @@ impl Coordinate {
             * n)
             .floor() as u64;
 
-        SingleID { z, f, x, y }
+        SingleId { z, f, x, y }
     }
 }
 

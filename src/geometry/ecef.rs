@@ -3,10 +3,10 @@ use std::fmt;
 use crate::{
     error::Error,
     geometry::{
-        constants::{WGS84_A, WGS84_E2, WGS84_F, WGS84_INV_F},
+        constants::{WGS84_A, WGS84_E2, WGS84_F},
         coordinate::Coordinate,
     },
-    id::space_id::single::SingleID,
+    spatial_id::single::SingleId,
 };
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表します。
@@ -73,13 +73,13 @@ impl Ecef {
         self.z = z;
     }
 
-    /// この ECEF 座標を、指定されたズームレベルの `SingleID` に変換します。
+    /// この ECEF 座標を、指定されたズームレベルの `SingleId` に変換します。
     ///
     /// 内部的に一度 `Coordinate`（緯度・経度・高度）へ変換した後、
     /// 空間 ID へ変換します。
-    pub fn to_id(&self, z: u8) -> Result<SingleID, Error> {
+    pub fn to_id(&self, z: u8) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
-        Ok(coordinate.to_id(z))
+        Ok(coordinate.to_single_id(z))
     }
 }
 

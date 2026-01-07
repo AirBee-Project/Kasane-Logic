@@ -1,5 +1,4 @@
-pub mod bit_vec;
 pub mod error;
 pub mod geometry;
-pub mod id;
-pub mod kv;
+pub mod segment;
+pub mod spatial_id;
