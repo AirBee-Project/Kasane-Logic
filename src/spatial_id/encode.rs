@@ -1,6 +1,6 @@
 use crate::segment::encode::EncodeSegment;
 
-pub struct EncodeID {
+pub struct EncodeId {
     f: EncodeSegment,
     x: EncodeSegment,
     y: EncodeSegment,

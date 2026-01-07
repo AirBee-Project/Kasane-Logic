@@ -30,7 +30,7 @@
 //! }
 //! ```
 
-use crate::{error::Error, geometry::coordinate::Coordinate};
+use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::encode::EncodeId};
 
 //ユーザーに対して公開されているモジュール
 pub mod constants;
@@ -60,4 +60,5 @@ pub trait SpatialId {
     fn vertices(&self) -> [Coordinate; 8];
 
     //EncodeIdの集合に変換するメゾット
+    fn to_encode_id(&self) -> impl Iterator<Item = EncodeId> + '_;
 }
