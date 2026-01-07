@@ -1,16 +1,6 @@
 use crate::{
-    error::Error,
-    geometry::{
-        constants::{WGS84_A, WGS84_E2},
-        coordinate::Coordinate,
-        ecef::Ecef,
-    },
-    spatial_id::helpers::latitude,
-    spatial_id::{
-        SpatialId,
-        constants::{MAX_ZOOM_LEVEL, XY_MAX},
-        single::SingleId,
-    },
+    geometry::ecef::Ecef,
+    spatial_id::{SpatialId, single::SingleId},
 };
 pub enum Axis {
     F,
