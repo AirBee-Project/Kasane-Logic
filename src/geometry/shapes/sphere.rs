@@ -1,26 +1,19 @@
 use crate::{
     geometry::{constants::WGS84_A, coordinate::Coordinate, ecef::Ecef},
-    spatial_id::{SpatialId, single::SingleId},
+    spatial_id::{SpatialId, helpers::Dimension, single::SingleId},
 };
-
-#[derive(Debug, Clone, Copy)]
-pub enum VoxelAxis {
-    X,
-    Y,
-    F,
-}
 
 /// ===============================
 /// voxel 1辺の長さ（m）
 /// ===============================
-pub fn voxel_length(z: u8, axis: VoxelAxis) -> f64 {
+pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
     let n = 2f64.powi(z as i32);
 
     match axis {
         // 赤道周長 = 2πa
-        VoxelAxis::X | VoxelAxis::Y => 2.0 * std::f64::consts::PI * WGS84_A / n,
+        Dimension::X | Dimension::Y => 2.0 * std::f64::consts::PI * WGS84_A / n,
         // F方向（高度）
-        VoxelAxis::F => 2f64.powi(25 - z as i32),
+        Dimension::F => 2f64.powi(25 - z as i32),
     }
 }
 
@@ -29,7 +22,7 @@ pub fn sphere<'a>(
     center: &'a Coordinate,
     radius: f64,
 ) -> impl Iterator<Item = SingleId> + 'a {
-    let voxel_diag_half = voxel_length(z, VoxelAxis::X) * 3.0_f64.sqrt() / 2.0;
+    let voxel_diag_half = voxel_length(z, Dimension::X) * 3.0_f64.sqrt() / 2.0;
     let center_ecef: Ecef = (*center).into();
 
     // 球の8頂点 → 探索範囲推定

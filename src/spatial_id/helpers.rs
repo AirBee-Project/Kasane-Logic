@@ -48,3 +48,11 @@ pub fn altitude(f: f64, z: u8) -> f64 {
     let n = 2_f64.powi(z as i32);
     33_554_432.0 * (f / n)
 }
+
+#[derive(Debug, Clone, Copy)]
+///次元を選択するEnum
+pub enum Dimension {
+    F,
+    X,
+    Y,
+}
