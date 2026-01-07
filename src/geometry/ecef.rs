@@ -24,6 +24,7 @@ pub struct Ecef {
     z: f64,
 }
 
+
 impl fmt::Debug for Ecef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Ecef")
