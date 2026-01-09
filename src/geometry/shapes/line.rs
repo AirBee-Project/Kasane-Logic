@@ -59,7 +59,7 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     [f, x, y]
 }
 
-pub fn line_dda(
+pub(crate) fn line_dda(
     z: u8,
     a: Coordinate,
     b: Coordinate,
