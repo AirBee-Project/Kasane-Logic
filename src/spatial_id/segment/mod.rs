@@ -1,4 +1,4 @@
-use crate::spatial_id::segment::encode::EncodeSegment;
+use crate::spatial_id::{constants::MAX_ZOOM_LEVEL, segment::encode::EncodeSegment};
 
 pub mod encode;
 
@@ -115,12 +115,57 @@ impl Iterator for SegmentIter {
 
 impl From<EncodeSegment> for Segment<u64> {
     fn from(encode: EncodeSegment) -> Self {
-        todo!()
+        let mut z: u8 = 0;
+        let mut index = 0;
+
+        'outer: for byte in encode.0 {
+            for bit_index in 0..=3 {
+                let masked: u8 = ((0b11000000 >> bit_index * 2) & byte) << bit_index * 2;
+
+                if masked == 0b10000000 {
+                    index = index * 2;
+                    z = z + 1;
+                } else if masked == 0b11000000 {
+                    index = index * 2 + 1;
+                    z = z + 1;
+                } else {
+                    break 'outer;
+                }
+            }
+        }
+
+        Segment {
+            //初期のZ=0の処理を相殺
+            z: z - 1,
+            dimension: index,
+        }
     }
 }
 
 impl From<EncodeSegment> for Segment<i64> {
     fn from(encode: EncodeSegment) -> Self {
-        todo!()
+        let mut z: u8 = 0;
+        let mut index = -1;
+
+        'outer: for byte in encode.0 {
+            for bit_index in 0..=3 {
+                let masked: u8 = ((0b11000000 >> bit_index * 2) & byte) << bit_index * 2;
+
+                if masked == 0b10000000 {
+                    index = index * 2;
+                    z = z + 1;
+                } else if masked == 0b11000000 {
+                    index = index * 2 + 1;
+                    z = z + 1;
+                } else {
+                    break 'outer;
+                }
+            }
+        }
+
+        Segment {
+            z: z,
+            dimension: index,
+        }
     }
 }
