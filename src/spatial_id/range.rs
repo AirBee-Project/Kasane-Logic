@@ -7,7 +7,7 @@ use crate::{
     geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
         SpatialId,
-        constants::{F_MAX, F_MIN, XY_MAX},
+        constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         encode::EncodeId,
         helpers,
         single::SingleId,
@@ -31,9 +31,9 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct RangeId {
     pub(crate) z: u8,
-    pub(crate) f: [i64; 2],
-    pub(crate) x: [u64; 2],
-    pub(crate) y: [u64; 2],
+    pub(crate) f: [i32; 2],
+    pub(crate) x: [u32; 2],
+    pub(crate) y: [u32; 2],
 }
 
 impl fmt::Display for RangeId {
@@ -129,8 +129,8 @@ impl RangeId {
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
-    pub fn new(z: u8, mut f: [i64; 2], mut x: [u64; 2], mut y: [u64; 2]) -> Result<RangeId, Error> {
-        if z > 63 {
+    pub fn new(z: u8, mut f: [i32; 2], mut x: [u32; 2], mut y: [u32; 2]) -> Result<RangeId, Error> {
+        if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
 
@@ -183,7 +183,7 @@ impl RangeId {
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_f(), [-3i64,29i64]);
     /// ```
-    pub fn as_f(&self) -> [i64; 2] {
+    pub fn as_f(&self) -> [i32; 2] {
         self.f
     }
 
@@ -195,7 +195,7 @@ impl RangeId {
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_x(), [8u64,9u64]);
     /// ```
-    pub fn as_x(&self) -> [u64; 2] {
+    pub fn as_x(&self) -> [u32; 2] {
         self.x
     }
 
@@ -207,11 +207,11 @@ impl RangeId {
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_y(), [5u64,10u64]);
     /// ```
-    pub fn as_y(&self) -> [u64; 2] {
+    pub fn as_y(&self) -> [u32; 2] {
         self.y
     }
 
-    pub fn set_f(&mut self, mut value: [i64; 2]) -> Result<(), Error> {
+    pub fn set_f(&mut self, mut value: [i32; 2]) -> Result<(), Error> {
         let z = self.z;
         let f_min = F_MIN[z as usize];
         let f_max = F_MAX[z as usize];
@@ -230,7 +230,7 @@ impl RangeId {
         Ok(())
     }
 
-    pub fn set_x(&mut self, mut value: [u64; 2]) -> Result<(), Error> {
+    pub fn set_x(&mut self, mut value: [u32; 2]) -> Result<(), Error> {
         let z = self.z;
         let xy_max = XY_MAX[z as usize];
 
@@ -248,7 +248,7 @@ impl RangeId {
         Ok(())
     }
 
-    pub fn set_y(&mut self, mut value: [u64; 2]) -> Result<(), Error> {
+    pub fn set_y(&mut self, mut value: [u32; 2]) -> Result<(), Error> {
         let z = self.z;
         let xy_max = XY_MAX[z as usize];
 
@@ -301,12 +301,12 @@ impl RangeId {
             return Err(Error::ZOutOfRange { z });
         }
 
-        let scale_f = 2_i64.pow(difference as u32);
-        let scale_xy = 2_u64.pow(difference as u32);
+        let scale_f = 2_i32.pow(difference as u32);
+        let scale_xy = 2_u32.pow(difference as u32);
 
-        let f = helpers::scale_range_i64(self.f[0], self.f[1], scale_f);
-        let x = helpers::scale_range_u64(self.x[0], self.x[1], scale_xy);
-        let y = helpers::scale_range_u64(self.y[0], self.y[1], scale_xy);
+        let f = helpers::scale_range_i32(self.f[0], self.f[1], scale_f);
+        let x = helpers::scale_range_u32(self.x[0], self.x[1], scale_xy);
+        let y = helpers::scale_range_u32(self.y[0], self.y[1], scale_xy);
 
         Ok(RangeId { z, f, x, y })
     }
@@ -383,7 +383,8 @@ impl RangeId {
         let x_range = self.x[0]..=self.x[1];
         let y_range = self.y[0]..=self.y[1];
 
-        iproduct!(f_range, x_range, y_range).map(move |(f, x, y)| SingleId { z: self.z, f, x, y })
+        iproduct!(f_range, x_range, y_range)
+            .map(move |(f, x, y)| unsafe { SingleId::uncheck_new(self.z, f, x, y) })
     }
 
     /// 検証を行わずに [`RangeId`] を構築します。
@@ -412,7 +413,7 @@ impl RangeId {
     /// assert_eq!(id.as_x(), [8,9]);
     /// assert_eq!(id.as_y(), [5,10]);
     /// ```
-    pub unsafe fn uncheck_new(z: u8, f: [i64; 2], x: [u64; 2], y: [u64; 2]) -> RangeId {
+    pub unsafe fn uncheck_new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
         RangeId { z, f, x, y }
     }
 }
@@ -427,7 +428,7 @@ impl SpatialId for RangeId {
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.min_f(), -32i64);
     /// ```
-    fn min_f(&self) -> i64 {
+    fn min_f(&self) -> i32 {
         F_MIN[self.z as usize]
     }
 
@@ -440,7 +441,7 @@ impl SpatialId for RangeId {
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_f(), 31i64);
     /// ```
-    fn max_f(&self) -> i64 {
+    fn max_f(&self) -> i32 {
         F_MAX[self.z as usize]
     }
 
@@ -453,21 +454,21 @@ impl SpatialId for RangeId {
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u64);
     /// ```
-    fn max_xy(&self) -> u64 {
+    fn max_xy(&self) -> u32 {
         XY_MAX[self.z as usize]
     }
 
-    fn move_f(&mut self, by: i64) -> Result<(), Error> {
+    fn move_f(&mut self, by: i32) -> Result<(), Error> {
         let min = self.min_f();
         let max = self.max_f();
         let z = self.z;
 
         let ns = self.f[0]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i64::MAX, z })?;
+            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
         let ne = self.f[1]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i64::MAX, z })?;
+            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
 
         if ns < min || ns > max {
             return Err(Error::FOutOfRange { f: ns, z });
@@ -480,26 +481,26 @@ impl SpatialId for RangeId {
         Ok(())
     }
 
-    fn move_x(&mut self, by: i64) {
-        let new = (self.x[0] as i64 + by).rem_euclid(self.max_xy().try_into().unwrap());
-        self.x[0] = new as u64;
+    fn move_x(&mut self, by: i32) {
+        let new = (self.x[0] as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
+        self.x[0] = new as u32;
 
-        let new = (self.x[1] as i64 + by).rem_euclid(self.max_xy().try_into().unwrap());
-        self.x[1] = new as u64;
+        let new = (self.x[1] as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
+        self.x[1] = new as u32;
     }
 
-    fn move_y(&mut self, by: i64) -> Result<(), Error> {
+    fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
-            let byu = by as u64;
+            let byu = by as u32;
             let max = self.max_xy();
             let z = self.z;
 
             let ns = self.y[0]
                 .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u64::MAX, z })?;
+                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
             let ne = self.y[1]
                 .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u64::MAX, z })?;
+                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
 
             if ns > max {
                 return Err(Error::YOutOfRange { y: ns, z });
@@ -512,7 +513,7 @@ impl SpatialId for RangeId {
             Ok(())
         } else {
             // south
-            let byu = (-by) as u64;
+            let byu = (-by) as u32;
             let max = self.max_xy();
             let z = self.z;
 
@@ -615,10 +616,10 @@ impl From<SingleId> for RangeId {
     ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
     fn from(id: SingleId) -> Self {
         RangeId {
-            z: id.z,
-            f: [id.f, id.f],
-            x: [id.x, id.x],
-            y: [id.y, id.y],
+            z: id.as_z(),
+            f: [id.as_f(), id.as_f()],
+            x: [id.as_x(), id.as_x()],
+            y: [id.as_y(), id.as_y()],
         }
     }
 }

@@ -19,8 +19,8 @@ pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let distance = (dx * dx + dy * dy + dz * dz).sqrt();
     let (v1, v2) = (a.to_single_id(z), b.to_single_id(z));
     let diff = ((v1.as_f() - v2.as_f()).abs()
-        + (v1.as_x() as i64 - v2.as_x() as i64).abs()
-        + (v1.as_y() as i64 - v2.as_y() as i64).abs()) as f64;
+        + (v1.as_x() as i32 - v2.as_x() as i32).abs()
+        + (v1.as_y() as i32 - v2.as_y() as i32).abs()) as f64;
     let devide_num = 5 + (diff / 120.0 + distance / 2000.0).floor() as u16;
     let mut coordinates = Vec::new();
     for i in 0..=devide_num {
@@ -144,9 +144,9 @@ pub(crate) fn line_dda(
     voxels.push(unsafe {
         SingleId::uncheck_new(
             z,
-            current[pull_index[0]] + offsets_int[0],
-            (current[pull_index[1]] + offsets_int[1]) as u64,
-            (current[pull_index[2]] + offsets_int[2]) as u64,
+            (current[pull_index[0]] + offsets_int[0]) as i32,
+            (current[pull_index[1]] + offsets_int[1]) as u32,
+            (current[pull_index[2]] + offsets_int[2]) as u32,
         )
     });
     let sign_i = (vp2[max_flag] - vp1[max_flag]).signum() as i64;
@@ -171,9 +171,9 @@ pub(crate) fn line_dda(
         voxels.push(unsafe {
             SingleId::uncheck_new(
                 z,
-                current[pull_index[0]] + offsets_int[0],
-                (current[pull_index[1]] + offsets_int[1]) as u64,
-                (current[pull_index[2]] + offsets_int[2]) as u64,
+                (current[pull_index[0]] + offsets_int[0]) as i32,
+                (current[pull_index[1]] + offsets_int[1]) as u32,
+                (current[pull_index[2]] + offsets_int[2]) as u32,
             )
         });
         counter += 1;

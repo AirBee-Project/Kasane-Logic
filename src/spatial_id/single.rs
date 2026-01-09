@@ -28,10 +28,10 @@ use crate::{
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct SingleId {
-    pub(crate) z: u8,
-    pub(crate) f: i64,
-    pub(crate) x: u64,
-    pub(crate) y: u64,
+    z: u8,
+    f: i32,
+    x: u32,
+    y: u32,
 }
 
 impl fmt::Display for SingleId {
@@ -90,7 +90,7 @@ impl SingleId {
     /// let id = SingleId::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
-    pub fn new(z: u8, f: i64, x: u64, y: u64) -> Result<SingleId, Error> {
+    pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
         }
@@ -130,7 +130,7 @@ impl SingleId {
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_f(), 3i64);
     /// ```
-    pub fn as_f(&self) -> i64 {
+    pub fn as_f(&self) -> i32 {
         self.f
     }
 
@@ -141,7 +141,7 @@ impl SingleId {
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_x(), 2u64);
     /// ```
-    pub fn as_x(&self) -> u64 {
+    pub fn as_x(&self) -> u32 {
         self.x
     }
 
@@ -152,7 +152,7 @@ impl SingleId {
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_y(), 10u64);
     /// ```
-    pub fn as_y(&self) -> u64 {
+    pub fn as_y(&self) -> u32 {
         self.y
     }
 
@@ -183,7 +183,7 @@ impl SingleId {
     /// let result = id.set_f(999);
     /// assert!(matches!(result, Err(Error::FOutOfRange { z: 3, f: 999 })));
     /// ```
-    pub fn set_f(&mut self, value: i64) -> Result<(), Error> {
+    pub fn set_f(&mut self, value: i32) -> Result<(), Error> {
         let min = self.min_f();
         let max = self.max_f();
         if value < min || value > max {
@@ -223,7 +223,7 @@ impl SingleId {
     /// let result = id.set_x(999);
     /// assert!(matches!(result, Err(Error::XOutOfRange { z: 3, x: 999 })));
     /// ```
-    pub fn set_x(&mut self, value: u64) -> Result<(), Error> {
+    pub fn set_x(&mut self, value: u32) -> Result<(), Error> {
         let max = self.max_xy();
         if value > max {
             return Err(Error::XOutOfRange {
@@ -262,7 +262,7 @@ impl SingleId {
     /// let result = id.set_y(999);
     /// assert!(matches!(result, Err(Error::YOutOfRange { z: 3, y: 999 })));
     /// ```
-    pub fn set_y(&mut self, value: u64) -> Result<(), Error> {
+    pub fn set_y(&mut self, value: u32) -> Result<(), Error> {
         let max = self.max_xy();
         if value > max {
             return Err(Error::YOutOfRange {
@@ -314,12 +314,12 @@ impl SingleId {
             .checked_add(difference)
             .ok_or(Error::ZOutOfRange { z: u8::MAX })?;
 
-        if z > 63 {
+        if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
 
-        let scale_f = 2_i64.pow(difference as u32);
-        let scale_xy = 2_u64.pow(difference as u32);
+        let scale_f = 2_i32.pow(difference as u32);
+        let scale_xy = 2_u32.pow(difference as u32);
 
         let f_range = self.f * scale_f..=self.f * scale_f + scale_f - 1;
         let x_range = self.x * scale_xy..=self.x * scale_xy + scale_xy - 1;
@@ -408,7 +408,7 @@ impl SingleId {
     /// assert_eq!(id.as_x(), 2);
     /// assert_eq!(id.as_y(), 10);
     /// ```
-    pub unsafe fn uncheck_new(z: u8, f: i64, x: u64, y: u64) -> SingleId {
+    pub unsafe fn uncheck_new(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId { z, f, x, y }
     }
 }
@@ -422,7 +422,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.min_f(), -32i64);
     /// ```
-    fn min_f(&self) -> i64 {
+    fn min_f(&self) -> i32 {
         F_MIN[self.z as usize]
     }
 
@@ -434,7 +434,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_f(), 31i64);
     /// ```
-    fn max_f(&self) -> i64 {
+    fn max_f(&self) -> i32 {
         F_MAX[self.z as usize]
     }
 
@@ -446,7 +446,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u64);
     /// ```
-    fn max_xy(&self) -> u64 {
+    fn max_xy(&self) -> u32 {
         XY_MAX[self.z as usize]
     }
 
@@ -478,9 +478,9 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.as_f(), 6);
     /// assert_eq!(id.move_f(50), Err(Error::FOutOfRange { z: 4, f: 56 }));
     /// ```
-    fn move_f(&mut self, by: i64) -> Result<(), Error> {
+    fn move_f(&mut self, by: i32) -> Result<(), Error> {
         let new = self.f.checked_add(by).ok_or(Error::FOutOfRange {
-            f: if by >= 0 { i64::MAX } else { i64::MIN },
+            f: if by >= 0 { i32::MAX } else { i32::MIN },
             z: self.z,
         })?;
 
@@ -519,9 +519,9 @@ impl SpatialId for SingleId {
     /// let _ = id.move_x(100);
     /// assert_eq!(id.as_x(), 4);
     /// ```
-    fn move_x(&mut self, by: i64) {
-        let new = (self.x as i64 + by).rem_euclid(self.max_xy().try_into().unwrap());
-        self.x = new as u64;
+    fn move_x(&mut self, by: i32) {
+        let new = (self.x as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
+        self.x = new as u32;
     }
 
     /// 指定したインデックス差 `by` に基づき、この `SingleId` を南北方向に動かします。
@@ -552,15 +552,15 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.as_y(), 10);
     /// assert_eq!(id.move_y(-20), Err(Error::YOutOfRange { z: 4, y: 0 }));
     /// ```
-    fn move_y(&mut self, by: i64) -> Result<(), Error> {
+    fn move_y(&mut self, by: i32) -> Result<(), Error> {
         let new = if by >= 0 {
-            self.y.checked_add(by as u64).ok_or(Error::YOutOfRange {
-                y: u64::MAX,
+            self.y.checked_add(by as u32).ok_or(Error::YOutOfRange {
+                y: u32::MAX,
                 z: self.z,
             })?
         } else {
             self.y
-                .checked_sub(-by as u64)
+                .checked_sub(-by as u32)
                 .ok_or(Error::YOutOfRange { y: 0, z: self.z })?
         };
 

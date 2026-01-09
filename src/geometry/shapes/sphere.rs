@@ -36,12 +36,12 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
         }
     }
 
-    let x_min = corners.iter().map(|v| v.x).min().unwrap();
-    let x_max = corners.iter().map(|v| v.x).max().unwrap();
-    let y_min = corners.iter().map(|v| v.y).min().unwrap();
-    let y_max = corners.iter().map(|v| v.y).max().unwrap();
-    let f_min = corners.iter().map(|v| v.f).min().unwrap();
-    let f_max = corners.iter().map(|v| v.f).max().unwrap();
+    let x_min = corners.iter().map(|v| v.as_x()).min().unwrap();
+    let x_max = corners.iter().map(|v| v.as_x()).max().unwrap();
+    let y_min = corners.iter().map(|v| v.as_y()).min().unwrap();
+    let y_max = corners.iter().map(|v| v.as_y()).max().unwrap();
+    let f_min = corners.iter().map(|v| v.as_f()).min().unwrap();
+    let f_max = corners.iter().map(|v| v.as_f()).max().unwrap();
 
     (x_min..=x_max)
         .flat_map(move |x| {

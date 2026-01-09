@@ -1,7 +1,9 @@
+use crate::spatial_id::segment::encode::EncodeSegment;
+
 pub mod encode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Segment<T> {
+pub struct Segment<T> {
     z: u8,
     dimension: T,
 }
@@ -108,5 +110,17 @@ impl Iterator for SegmentIter {
         self.cur_z -= 1;
 
         self.next()
+    }
+}
+
+impl From<EncodeSegment> for Segment<u64> {
+    fn from(encode: EncodeSegment) -> Self {
+        todo!()
+    }
+}
+
+impl From<EncodeSegment> for Segment<i64> {
+    fn from(encode: EncodeSegment) -> Self {
+        todo!()
     }
 }

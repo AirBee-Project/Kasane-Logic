@@ -10,17 +10,17 @@ pub enum Error {
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して
     /// 有効範囲外であることを示します。
     #[error("F coordinate '{f}' is out of range for ZoomLevel '{z}'")]
-    FOutOfRange { z: u8, f: i64 },
+    FOutOfRange { z: u8, f: i32 },
 
     /// X 方向インデックスが、指定されたズームレベルに対して
     /// 有効範囲外であることを示します。
     #[error("X coordinate '{x}' is out of range for ZoomLevel '{z}'")]
-    XOutOfRange { z: u8, x: u64 },
+    XOutOfRange { z: u8, x: u32 },
 
     /// Y 方向インデックスが、指定されたズームレベルに対して
     /// 有効範囲外であることを示します。
     #[error("Y coordinate '{y}' is out of range for ZoomLevel '{z}'")]
-    YOutOfRange { z: u8, y: u64 },
+    YOutOfRange { z: u8, y: u32 },
 
     /// 経度が有効範囲外であることを示します。
     ///

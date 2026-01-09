@@ -179,17 +179,17 @@ impl Coordinate {
 
         //Z=25のとき高さはちょうど1m
         let factor = 2_f64.powi(z as i32 - 25);
-        let f = (factor * alt).floor() as i64;
+        let f = (factor * alt).floor() as i32;
 
         let n = 2u64.pow(z as u32) as f64;
-        let x = ((lon + 180.0) / 360.0 * n).floor() as u64;
+        let x = ((lon + 180.0) / 360.0 * n).floor() as u32;
 
         let lat_rad = lat.to_radians();
         let y = ((1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0
             * n)
-            .floor() as u64;
+            .floor() as u32;
 
-        SingleId { z, f, x, y }
+        unsafe { SingleId::uncheck_new(z, f, x, y) }
     }
 
     /// 他の [`Coordinate`] との距離をメートル単位で返します。

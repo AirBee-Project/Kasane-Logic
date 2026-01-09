@@ -1,14 +1,14 @@
 use std::f64::consts::PI;
 /// Scale an inclusive range `[start, end]` by `scale` for children calculation.
 /// For integer types, result is `[start*scale, end*scale + scale - 1]`
-pub fn scale_range_i64(start: i64, end: i64, scale: i64) -> [i64; 2] {
+pub fn scale_range_i32(start: i32, end: i32, scale: i32) -> [i32; 2] {
     [
         start.saturating_mul(scale),
         end.saturating_mul(scale).saturating_add(scale - 1),
     ]
 }
 
-pub fn scale_range_u64(start: u64, end: u64, scale: u64) -> [u64; 2] {
+pub fn scale_range_u32(start: u32, end: u32, scale: u32) -> [u32; 2] {
     [
         start.saturating_mul(scale),
         end.saturating_mul(scale).saturating_add(scale - 1),
