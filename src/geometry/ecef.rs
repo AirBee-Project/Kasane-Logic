@@ -24,7 +24,6 @@ pub struct Ecef {
     z: f64,
 }
 
-
 impl fmt::Debug for Ecef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Ecef")
@@ -80,6 +79,14 @@ impl Ecef {
     pub fn to_id(&self, z: u8) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
         Ok(coordinate.to_single_id(z))
+    }
+
+    ///Ecef型同士の距離をメートル単位で求める関数
+    pub fn distance(&self, other: &Ecef) -> f64 {
+        ((self.as_x() - other.as_x()).powi(2)
+            + (self.as_y() - other.as_y()).powi(2)
+            + (self.as_z() - other.as_z()).powi(2))
+        .sqrt()
     }
 }
 

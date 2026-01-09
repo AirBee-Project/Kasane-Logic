@@ -167,14 +167,11 @@ impl Coordinate {
         SingleId { z, f, x, y }
     }
 
-    ///Coordinate型同士の距離を求める関数
+    ///Coordinate型同士の距離をメートル単位で求める関数
     pub fn distance(&self, other: &Coordinate) -> f64 {
         let e1: Ecef = (*self).into();
         let e2: Ecef = (*other).into();
-        ((e1.as_x() - e2.as_x()).powi(2)
-            + (e1.as_y() - e2.as_y()).powi(2)
-            + (e1.as_z() - e2.as_z()).powi(2))
-        .sqrt()
+        e1.distance(&e2)
     }
 }
 
