@@ -34,15 +34,11 @@ impl EncodeSegment {
     ///ある階層の情報をセットする
     /// 上下階層との整合性などは保証せず、呼び出し側が保証を行う
     /// 対象のBitが`00`であることが呼び出し条件
-    fn set_bit_pair(&mut self, z: u8, bit: Bit) {
+    pub(super) fn set_bit_pair(&mut self, z: u8, bit: Bit) {
         let byte_index = (z / 4) as usize;
         let bit_index = (z % 4) * 2;
 
         let byte = &mut self.0[byte_index];
-
-        // 対象 2bit をクリア
-        // let mask = !(0b11 << bit_index);
-        // *byte &= mask;
 
         // 新しい 2bit を作成
         let new_bits: u8 = match bit {
@@ -55,18 +51,26 @@ impl EncodeSegment {
     }
 
     ///ある階層の情報を`00`にリセットする
-    fn clear_bit_pair(&mut self, z: u8) {
+    pub(super) fn clear_bit_pair(&mut self, z: u8) {
         let byte_index = (z / 4) as usize;
         let bit_index = (z % 4) * 2;
-
         let byte = &mut self.0[byte_index];
-        let mask = !(0b11 << bit_index);
+        let mask = !(0b11000000 >> bit_index);
         *byte &= mask;
+    }
+
+    pub(super) fn top_bit_pair(&self) -> Bit {
+        let pair = self.0[0] & 0b11000000;
+        match pair {
+            0b10000000 => Bit::Zero,
+            0b11000000 => Bit::One,
+            _ => unreachable!("bit pair at z=0 is not set"),
+        }
     }
 }
 
-impl From<Segment<u64>> for EncodeSegment {
-    fn from(segment: Segment<u64>) -> Self {
+impl From<Segment<u32>> for EncodeSegment {
+    fn from(segment: Segment<u32>) -> Self {
         let mut result = EncodeSegment([0u8; EncodeSegment::ARRAY_LENGTH]);
         let mut index_num = segment.as_dimension();
         for z in (0..=segment.as_z()).rev() {
@@ -88,15 +92,15 @@ impl From<Segment<u64>> for EncodeSegment {
     }
 }
 
-impl From<Segment<i64>> for EncodeSegment {
-    fn from(segment: Segment<i64>) -> Self {
+impl From<Segment<i32>> for EncodeSegment {
+    fn from(segment: Segment<i32>) -> Self {
         let is_negative = segment.dimension.is_negative();
 
         // Segment<u64>に変換して考える
         let u64_dimension = if is_negative {
-            (segment.dimension.abs() - 1) as u64
+            (segment.dimension.abs() - 1) as u32
         } else {
-            segment.dimension as u64
+            segment.dimension as u32
         };
 
         let u64_segment = Segment {

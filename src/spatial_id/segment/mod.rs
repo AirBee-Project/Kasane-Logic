@@ -1,4 +1,9 @@
-use crate::spatial_id::{constants::MAX_ZOOM_LEVEL, segment::encode::EncodeSegment};
+use std::f32::consts::E;
+
+use crate::spatial_id::{
+    constants::MAX_ZOOM_LEVEL,
+    segment::encode::{Bit, EncodeSegment},
+};
 
 pub mod encode;
 
@@ -8,20 +13,20 @@ pub struct Segment<T> {
     dimension: T,
 }
 
-impl Segment<u64> {
+impl Segment<u32> {
     /// XY向けのセグメント分割
-    pub fn new(z: u8, dimension: [u64; 2]) -> impl Iterator<Item = Segment<u64>> {
+    pub fn new(z: u8, dimension: [u32; 2]) -> impl Iterator<Item = Segment<u32>> {
         let [l, r] = dimension;
 
         SegmentIter {
             z,
-            l: l as i64,
-            r: r as i64,
+            l: l as i32,
+            r: r as i32,
             cur_z: z,
         }
         .map(|seg| Segment {
             z: seg.z,
-            dimension: seg.dimension as u64,
+            dimension: seg.dimension as u32,
         })
     }
 
@@ -29,15 +34,15 @@ impl Segment<u64> {
         self.z
     }
 
-    pub fn as_dimension(&self) -> u64 {
+    pub fn as_dimension(&self) -> u32 {
         self.dimension
     }
 }
 
-impl Segment<i64> {
+impl Segment<i32> {
     /// F向けのセグメント分割
-    pub fn new(z: u8, dimension: [i64; 2]) -> impl Iterator<Item = Segment<i64>> {
-        let diff = 1i64 << z;
+    pub fn new(z: u8, dimension: [i32; 2]) -> impl Iterator<Item = Segment<i32>> {
+        let diff = 1i32 << z;
         let [l, r] = dimension;
 
         SegmentIter {
@@ -46,29 +51,29 @@ impl Segment<i64> {
             r: r + diff,
             cur_z: z,
         }
-        .map(move |seg| Segment {
+        .map(move |seg: Segment<i32>| Segment {
             z: seg.z,
-            dimension: seg.dimension - (1i64 << seg.z),
+            dimension: seg.dimension - (1i32 << seg.z),
         })
     }
     pub fn as_z(&self) -> u8 {
         self.z
     }
 
-    pub fn as_dimension(&self) -> i64 {
+    pub fn as_dimension(&self) -> i32 {
         self.dimension
     }
 }
 
 struct SegmentIter {
     z: u8,
-    l: i64,
-    r: i64,
+    l: i32,
+    r: i32,
     cur_z: u8,
 }
 
 impl Iterator for SegmentIter {
-    type Item = Segment<i64>;
+    type Item = Segment<i32>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // 区間が空になったら終了
@@ -113,7 +118,7 @@ impl Iterator for SegmentIter {
     }
 }
 
-impl From<EncodeSegment> for Segment<u64> {
+impl From<EncodeSegment> for Segment<u32> {
     fn from(encode: EncodeSegment) -> Self {
         let mut z: u8 = 0;
         let mut index = 0;
@@ -142,30 +147,28 @@ impl From<EncodeSegment> for Segment<u64> {
     }
 }
 
-impl From<EncodeSegment> for Segment<i64> {
+impl From<EncodeSegment> for Segment<i32> {
     fn from(encode: EncodeSegment) -> Self {
-        let mut z: u8 = 0;
-        let mut index = -1;
+        let mut encode = encode;
 
-        'outer: for byte in encode.0 {
-            for bit_index in 0..=3 {
-                let masked: u8 = ((0b11000000 >> bit_index * 2) & byte) << bit_index * 2;
+        // z=0 の bit pair は符号
+        let is_negative = encode.top_bit_pair() == Bit::One;
 
-                if masked == 0b10000000 {
-                    index = index * 2;
-                    z = z + 1;
-                } else if masked == 0b11000000 {
-                    index = index * 2 + 1;
-                    z = z + 1;
-                } else {
-                    break 'outer;
-                }
-            }
-        }
+        //Segment<u64> に戻して考える
+        encode.clear_bit_pair(0);
+        encode.set_bit_pair(0, Bit::Zero);
+
+        let u64_segment = Segment::<u32>::from(encode);
+
+        let dimension = if is_negative {
+            -((u64_segment.dimension as i32) + 1)
+        } else {
+            u64_segment.dimension as i32
+        };
 
         Segment {
-            z: z,
-            dimension: index,
+            z: u64_segment.z,
+            dimension,
         }
     }
 }
