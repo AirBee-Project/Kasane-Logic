@@ -10,9 +10,9 @@ use rand::prelude::*;
 use std::{collections::HashSet, fs::File};
 use std::{fmt::Error, io::Write};
 
-const MIN_LAT: f64 = 35.6197;
+const MIN_LAT: f64 = 26.00; //35.6197;
 const MAX_LAT: f64 = 35.7380;
-const MIN_LON: f64 = 139.68;
+const MIN_LON: f64 = 127.88; //139.68;
 const MAX_LON: f64 = 139.7983;
 const MIN_ALT: f64 = 0.0;
 const MAX_ALT: f64 = 100.0;
@@ -49,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0)?;
     let nagoya = Coordinate::new(35.1706431, 136.8816945, 100.0)?;
     let yokohama = Coordinate::new(35.4660694, 139.6226196, 100.0)?;
-    let (z, start, goal) = (25, tokyo, yokohama);
+    let (z, start, goal) = (17, tokyo, yokohama);
     // let iter = line_dda(z, start, goal)?;
     // for id in iter {
     //     // SingleIDの内容を一行ずつ書き込む
@@ -63,6 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let b = rondom_point(&mut my_rng);
         println!("距離{}m", difference(a, b));
         benchmark(z, a, b);
+        println!("");
     }
     Ok(())
 }

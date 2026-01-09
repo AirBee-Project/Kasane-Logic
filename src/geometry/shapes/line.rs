@@ -63,9 +63,18 @@ pub fn line_new(
     if z > MAX_ZOOM_LEVEL as u8 {
         return Err(Error::ZOutOfRange { z });
     }
-    let devide_num = 20_u16;
     let ecef_a: Ecef = a.into();
     let ecef_b: Ecef = b.into();
+    let dx = ecef_a.as_x() - ecef_b.as_x();
+    let dy = ecef_a.as_y() - ecef_b.as_y();
+    let dz = ecef_a.as_z() - ecef_b.as_z();
+    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+    let (v1, v2) = (a.to_id(z), b.to_id(z));
+    let diff = ((v1.as_f() - v2.as_f()).abs()
+        + (v1.as_x() as i64 - v2.as_x() as i64).abs()
+        + (v1.as_y() as i64 - v2.as_y() as i64).abs()) as f64; //(dif * 2_f64.powi(24 - z as i32) / 10.0).floor() as u16;
+    let devide_num = 5 + (diff / 120.0 + distance / 2000.0).floor() as u16;
+    println!("内分{}回", devide_num);
     let mut coordinates = Vec::new();
     for i in 0..=devide_num {
         let t = i as f64 / devide_num as f64;
@@ -219,9 +228,9 @@ pub fn line_dda(
         )?);
         counter += 1;
     }
-    if current != [i2, j2, k2] {
-        println!("失敗")
-    }
+    // if current != [i2, j2, k2] {
+    //     println!("失敗")
+    // }
     let iter = voxels.into_iter();
     Ok(iter)
 }
