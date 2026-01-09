@@ -3,7 +3,7 @@ use std::{fmt, u64};
 
 use crate::{
     error::Error,
-    geometry::coordinate::Coordinate,
+    geometry::{coordinate::Coordinate, ecef::Ecef},
     segment::Segment,
     spatial_id::{
         SpatialId,
@@ -653,5 +653,25 @@ impl SpatialId for SingleId {
     fn to_encode_id(&self) -> impl Iterator<Item = EncodeId> + '_ {
         todo!();
         std::iter::empty()
+    }
+
+    ///その空間IDのＦ方向の長さをメートル単位で計算する関数
+    fn length_f(&self) -> f64 {
+        //Z=25のとき、ちょうど高さが1mとなる
+        2_i32.pow(25 - self.as_z() as u32) as f64
+    }
+
+    ///その空間IDのX方向の長さをメートル単位で計算する関数
+    fn length_x(&self) -> f64 {
+        let ecef: Ecef = self.center().into();
+        let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
+        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
+    }
+
+    ///その空間IDのY方向の長さをメートル単位で計算する関数
+    fn length_y(&self) -> f64 {
+        let ecef: Ecef = self.center().into();
+        let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
+        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
     }
 }

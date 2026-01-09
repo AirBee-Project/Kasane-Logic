@@ -53,6 +53,11 @@ pub trait SpatialId {
     fn move_x(&mut self, by: i64);
     fn move_y(&mut self, by: i64) -> Result<(), Error>;
 
+    //各次元の長さを取得するメソット
+    fn length_f(&self) -> f64;
+    fn length_x(&self) -> f64;
+    fn length_y(&self) -> f64;
+
     //中心点の座標を求める関数
     fn center(&self) -> Coordinate;
 
