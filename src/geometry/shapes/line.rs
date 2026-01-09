@@ -37,7 +37,7 @@ pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
         let y = ecef_a.as_y() * (1.0 - t) + ecef_b.as_y() * t;
         let z_pos = ecef_a.as_z() * (1.0 - t) + ecef_b.as_z() * t;
 
-        if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_id(z) {
+        if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_single_id(z) {
             if seen.insert(voxel_id.clone()) {
                 Some(voxel_id)
             } else {

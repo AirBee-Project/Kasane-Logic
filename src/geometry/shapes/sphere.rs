@@ -35,7 +35,7 @@ pub fn sphere<'a>(
                     center_ecef.as_y() + radius * sy,
                     center_ecef.as_z() + radius * sz,
                 );
-                if let Ok(id) = e.to_id(z) {
+                if let Ok(id) = e.to_single_id(z) {
                     corners.push(id);
                 }
             }

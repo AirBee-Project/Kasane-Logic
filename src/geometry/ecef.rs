@@ -35,53 +35,122 @@ impl fmt::Debug for Ecef {
 }
 
 impl Ecef {
-    /// 指定された XYZ 成分から [Ecef]型 を生成します。
+    /// 指定された XYZ 成分から [`Ecef`] を生成します。
     ///
-    /// 各値はメートル単位で指定します。
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let ecef = Ecef::new(10.0, 20.0, 30.0);
+    ///
+    /// assert_eq!(ecef.as_x(), 10.0);
+    /// assert_eq!(ecef.as_y(), 20.0);
+    /// assert_eq!(ecef.as_z(), 30.0);
+    /// ```
     pub fn new(x: f64, y: f64, z: f64) -> Ecef {
         Ecef { x, y, z }
     }
-
     /// X 成分を返します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let ecef = Ecef::new(1.0, 0.0, 0.0);
+    /// assert_eq!(ecef.as_x(), 1.0);
+    /// ```
     pub fn as_x(&self) -> f64 {
         self.x
     }
 
     /// Y 成分を返します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let ecef = Ecef::new(0.0, 2.0, 0.0);
+    /// assert_eq!(ecef.as_y(), 2.0);
+    /// ```
     pub fn as_y(&self) -> f64 {
         self.y
     }
 
     /// Z 成分を返します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let ecef = Ecef::new(0.0, 0.0, 3.0);
+    /// assert_eq!(ecef.as_z(), 3.0);
+    /// ```
     pub fn as_z(&self) -> f64 {
         self.z
     }
 
     /// X 成分を設定します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
+    /// ecef.set_x(5.0);
+    ///
+    /// assert_eq!(ecef.as_x(), 5.0);
+    /// ```
     pub fn set_x(&mut self, x: f64) {
         self.x = x;
     }
 
     /// Y 成分を設定します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
+    /// ecef.set_y(6.0);
+    ///
+    /// assert_eq!(ecef.as_y(), 6.0);
+    /// ```
     pub fn set_y(&mut self, y: f64) {
         self.y = y;
     }
 
     /// Z 成分を設定します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
+    /// ecef.set_z(7.0);
+    ///
+    /// assert_eq!(ecef.as_z(), 7.0);
+    /// ```
     pub fn set_z(&mut self, z: f64) {
         self.z = z;
     }
 
-    /// この ECEF 座標を、指定されたズームレベルの `SingleId` に変換します。
-    ///
-    /// 内部的に一度 `Coordinate`（緯度・経度・高度）へ変換した後、
-    /// 空間 ID へ変換します。
-    pub fn to_id(&self, z: u8) -> Result<SingleId, Error> {
+    /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換します。
+    pub fn to_single_id(&self, z: u8) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
         Ok(coordinate.to_single_id(z))
     }
 
-    ///Ecef型同士の距離をメートル単位で求める関数
+    /// 他の [`Ecef`] 座標との距離をメートル単位で返します。
+    ///
+    /// # Examples
+    /// ```
+    /// use kasane_logic::geometry::ecef::Ecef;
+    ///
+    /// let a = Ecef::new(0.0, 0.0, 0.0);
+    /// let b = Ecef::new(3.0, 4.0, 0.0);
+    ///
+    /// assert_eq!(a.distance(&b), 5.0);
+    /// ```
     pub fn distance(&self, other: &Ecef) -> f64 {
         ((self.as_x() - other.as_x()).powi(2)
             + (self.as_y() - other.as_y()).powi(2)

@@ -73,7 +73,7 @@ pub fn triangle(
                 )
             };
 
-            if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_id(z) {
+            if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_single_id(z) {
                 let mut borrowed = seen.borrow_mut();
                 if borrowed.insert(voxel_id.clone()) {
                     Some(voxel_id)
