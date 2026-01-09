@@ -1,12 +1,8 @@
-use std::{collections::HashSet, f64};
+use std::f64;
 
 use crate::{
     error::Error,
-    geometry::{
-        constants::WGS84_A,
-        coordinate::Coordinate,
-        ecef::{self, Ecef},
-    },
+    geometry::{coordinate::Coordinate, ecef::Ecef},
     id::space_id::{constants::MAX_ZOOM_LEVEL, single::SingleID},
 };
 pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleID>, Error> {

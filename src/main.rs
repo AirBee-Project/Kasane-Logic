@@ -1,7 +1,4 @@
-use kasane_logic::{
-    geometry::{coordinate::Coordinate, shapes::line::line},
-    id::space_id::single::SingleID,
-};
+use kasane_logic::geometry::{coordinate::Coordinate, shapes::line::line};
 use std::fs::File;
 use std::io::Write;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
