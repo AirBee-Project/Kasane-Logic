@@ -23,9 +23,9 @@ use crate::{
 /// ```
 /// pub struct RangeId {
 ///     z: u8,
-///     f: [i64; 2],
-///     x: [u64; 2],
-///     y: [u64; 2],
+///     f: [i32; 2],
+///     x: [u32; 2],
+///     y: [u32; 2],
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -181,7 +181,7 @@ impl RangeId {
     /// # use kasane_logic::spatial_id::range::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_f(), [-3i64,29i64]);
+    /// assert_eq!(id.as_f(), [-3i32,29i32]);
     /// ```
     pub fn as_f(&self) -> [i32; 2] {
         self.f
@@ -193,7 +193,7 @@ impl RangeId {
     /// # use kasane_logic::spatial_id::range::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_x(), [8u64,9u64]);
+    /// assert_eq!(id.as_x(), [8u32,9u32]);
     /// ```
     pub fn as_x(&self) -> [u32; 2] {
         self.x
@@ -205,7 +205,7 @@ impl RangeId {
     /// # use kasane_logic::spatial_id::range::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_y(), [5u64,10u64]);
+    /// assert_eq!(id.as_y(), [5u32,10u32]);
     /// ```
     pub fn as_y(&self) -> [u32; 2] {
         self.y
@@ -426,7 +426,7 @@ impl SpatialId for RangeId {
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.min_f(), -32i64);
+    /// assert_eq!(id.min_f(), -32i32);
     /// ```
     fn min_f(&self) -> i32 {
         F_MIN[self.z as usize]
@@ -439,7 +439,7 @@ impl SpatialId for RangeId {
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.max_f(), 31i64);
+    /// assert_eq!(id.max_f(), 31i32);
     /// ```
     fn max_f(&self) -> i32 {
         F_MAX[self.z as usize]
@@ -452,7 +452,7 @@ impl SpatialId for RangeId {
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.max_xy(), 31u64);
+    /// assert_eq!(id.max_xy(), 31u32);
     /// ```
     fn max_xy(&self) -> u32 {
         XY_MAX[self.z as usize]

@@ -21,9 +21,9 @@ use crate::{
 /// ```
 /// pub struct SingleId {
 ///     z: u8,
-///     f: i64,
-///     x: u64,
-///     y: u64,
+///     f: i32,
+///     x: u32,
+///     y: u32,
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -128,7 +128,7 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::spatial_id::single::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_f(), 3i64);
+    /// assert_eq!(id.as_f(), 3i32);
     /// ```
     pub fn as_f(&self) -> i32 {
         self.f
@@ -139,7 +139,7 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::spatial_id::single::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_x(), 2u64);
+    /// assert_eq!(id.as_x(), 2u32);
     /// ```
     pub fn as_x(&self) -> u32 {
         self.x
@@ -150,7 +150,7 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::spatial_id::single::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_y(), 10u64);
+    /// assert_eq!(id.as_y(), 10u32);
     /// ```
     pub fn as_y(&self) -> u32 {
         self.y
@@ -343,10 +343,10 @@ impl SingleId {
     ///
     /// let parent = id.parent(1).unwrap();
     ///
-    /// assert_eq!(parent.as_z(), 3);
-    /// assert_eq!(parent.as_f(), 3);
-    /// assert_eq!(parent.as_x(), 4);
-    /// assert_eq!(parent.as_y(), 7);
+    /// assert_eq!(parent.as_z(), 3u8);
+    /// assert_eq!(parent.as_f(), 3i32);
+    /// assert_eq!(parent.as_x(), 4u32);
+    /// assert_eq!(parent.as_y(), 7u32);
     /// ```
     ///
     /// Fが負の場合の挙動
@@ -356,10 +356,10 @@ impl SingleId {
     ///
     /// let parent = id.parent(1).unwrap();
     ///
-    /// assert_eq!(parent.as_z(), 3);
-    /// assert_eq!(parent.as_f(), -1);
-    /// assert_eq!(parent.as_x(), 4);
-    /// assert_eq!(parent.as_y(), 6);
+    /// assert_eq!(parent.as_z(), 3u8);
+    /// assert_eq!(parent.as_f(), -1i32);
+    /// assert_eq!(parent.as_x(), 4u32);
+    /// assert_eq!(parent.as_y(), 6u32);
     /// ```
     ///
     /// ズームレベルの範囲外:
@@ -403,10 +403,10 @@ impl SingleId {
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { SingleId::uncheck_new(5, 3, 2, 10) };
     ///
-    /// assert_eq!(id.as_z(), 5);
-    /// assert_eq!(id.as_f(), 3);
-    /// assert_eq!(id.as_x(), 2);
-    /// assert_eq!(id.as_y(), 10);
+    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.as_f(), 3i32);
+    /// assert_eq!(id.as_x(), 2u32);
+    /// assert_eq!(id.as_y(), 10u32);
     /// ```
     pub unsafe fn uncheck_new(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId { z, f, x, y }
@@ -420,7 +420,7 @@ impl SpatialId for SingleId {
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.min_f(), -32i64);
+    /// assert_eq!(id.min_f(), -32i32);
     /// ```
     fn min_f(&self) -> i32 {
         F_MIN[self.z as usize]
@@ -432,7 +432,7 @@ impl SpatialId for SingleId {
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.max_f(), 31i64);
+    /// assert_eq!(id.max_f(), 31i32);
     /// ```
     fn max_f(&self) -> i32 {
         F_MAX[self.z as usize]
@@ -444,7 +444,7 @@ impl SpatialId for SingleId {
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.max_xy(), 31u64);
+    /// assert_eq!(id.max_xy(), 31u32);
     /// ```
     fn max_xy(&self) -> u32 {
         XY_MAX[self.z as usize]
