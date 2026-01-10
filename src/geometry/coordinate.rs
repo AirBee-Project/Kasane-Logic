@@ -105,6 +105,11 @@ impl Coordinate {
     ///
     /// 返される値は度数法（degree）で表され、
     /// 常にWEBメルカトル上で扱える有効な範囲（-85.0511 〜 85.0511）内に収まります。
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
+    /// assert_eq!(coord.as_latitude(), 43.068564);
+    /// ```
     pub fn as_latitude(&self) -> f64 {
         self.latitude
     }
@@ -113,6 +118,11 @@ impl Coordinate {
     ///
     /// 返される値は度数法（degree）で表され、
     /// 常に -180.0 〜 180.0 の範囲内に収まります。
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let coord = Coordinate::new(35.4095198,136.7566027, 0.0).unwrap();
+    /// assert_eq!(coord.as_longitude(), 136.7566027);
+    /// ```
     pub fn as_longitude(&self) -> f64 {
         self.longitude
     }
@@ -121,6 +131,11 @@ impl Coordinate {
     ///
     /// される値はメートル（m）で表され、
     /// 常に`-33,554,432.0 ..= 33,554,432.0`の範囲内にに収まります。
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
+    /// assert_eq!(coord.as_altitude(), 20.0);
+    /// ```
     pub fn as_altitude(&self) -> f64 {
         self.altitude
     }
@@ -129,6 +144,12 @@ impl Coordinate {
     ///
     /// 指定された値が有効な範囲外の場合、この関数はエラーを返し、
     /// 内部の値は変更されません。
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let mut coord = Coordinate::new(35.0, 41.3507138, 30.0).unwrap();
+    /// coord.set_latitude(43.068564);
+    /// assert_eq!(coord.as_latitude(), 43.068564);
+    /// ```
     pub fn set_latitude(&mut self, latitude: f64) -> Result<(), Error> {
         if !(-85.0511..=85.0511).contains(&latitude) {
             return Err(Error::LatitudeOutOfRange { latitude });
@@ -141,6 +162,12 @@ impl Coordinate {
     ///
     /// 指定された値が有効な範囲外の場合、この関数はエラーを返し、
     /// 内部の値は変更されません。
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let mut coord = Coordinate::new(35.4095198,130.0, 0.0).unwrap();
+    /// coord.set_longitude(136.7566027);
+    /// assert_eq!(coord.as_longitude(), 136.7566027);
+    /// ```
     pub fn set_longitude(&mut self, longitude: f64) -> Result<(), Error> {
         if !(-180.0..=180.0).contains(&longitude) {
             return Err(Error::LongitudeOutOfRange { longitude });
@@ -154,6 +181,16 @@ impl Coordinate {
     /// 単位はメートル（m）です。
     /// 指定された値が有効な範囲外の場合、この関数はエラーを返し、
     /// 内部の値は変更されません。
+    /// 高度を返します。
+    ///
+    /// される値はメートル（m）で表され、
+    /// 常に`-33,554,432.0 ..= 33,554,432.0`の範囲内にに収まります。
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let mut coord = Coordinate::new(34.9851603, 135.7584294, -10.0).unwrap();
+    /// coord.set_altitude(20.0);
+    /// assert_eq!(coord.as_altitude(), 20.0);
+    /// ```
     pub fn set_altitude(&mut self, altitude: f64) -> Result<(), Error> {
         if !(-33_554_432.0..=33_554_432.0).contains(&altitude) {
             return Err(Error::AltitudeOutOfRange { altitude });
@@ -172,6 +209,14 @@ impl Coordinate {
     ///
     /// # 戻り値
     /// * 指定されたズームレベルに対応する [SingleId]
+    /// ```
+    /// # use kasane_logic::{geometry::coordinate::Coordinate,spatial_id::single::SingleId,};
+    /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
+    /// assert_eq!(
+    ///     &coord.to_single_id(24),
+    ///     &SingleId::new(24, 10, 14715409, 6646263).unwrap()
+    /// )
+    /// ```
     pub fn to_single_id(&self, z: u8) -> SingleId {
         let lat = self.latitude;
         let lon = self.longitude;
@@ -205,6 +250,14 @@ impl Coordinate {
     ///
     /// # 戻り値
     /// * 2 点間の距離（メートル）
+    ///
+    /// ```
+    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// let coord_tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0).unwrap();
+    /// let coord_sinagawa = Coordinate::new(35.630152, 139.74044000000004, 10.0).unwrap();
+    /// let d = coord_tokyo.distance(&coord_sinagawa);
+    /// assert_eq!(&d, &6140.165513581259);
+    /// ```
     pub fn distance(&self, other: &Coordinate) -> f64 {
         let e1: Ecef = (*self).into();
         let e2: Ecef = (*other).into();
@@ -214,6 +267,16 @@ impl Coordinate {
 
 impl From<Coordinate> for Ecef {
     /// [`Coordinate`]を[`Ecef`]へ変換します。
+    /// ```
+    /// # use kasane_logic::geometry::{coordinate::Coordinate,ecef::Ecef,};
+    /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
+    /// let ecef: Ecef = coord.into();
+    /// print!("{},{},{}", ecef.as_x(), ecef.as_y(), ecef.as_z());
+    /// assert_eq!(ecef.as_x(), 3503254.6369501497);
+    /// assert_eq!(ecef.as_y(), 3083182.6924748584);
+    /// assert_eq!(ecef.as_z(), 4333089.862951963);
+    /// ```
+
     fn from(value: Coordinate) -> Self {
         let lat = value.latitude.to_radians();
         let lon = value.longitude.to_radians();
@@ -238,7 +301,7 @@ impl From<Coordinate> for Ecef {
 ///
 /// 緯度・経度・高度のすべてが `0.0` に設定された座標
 ///（赤道・本初子午線上、高度 0）を表します。
-/// この値は常に有効な範囲内に収まります。
+/// この値は常に有効な範囲内に収まります。   
 impl Default for Coordinate {
     fn default() -> Self {
         Self {
