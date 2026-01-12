@@ -134,27 +134,25 @@ pub(crate) fn line_dda(
         (vp1[other_flag_2] - vp1[other_flag_2].floor()) * d_o2 - tm
     };
     let max_steps = ((i2 - i1).abs() + (j2 - j1).abs() + (k2 - k1).abs()) as usize;
-    let mut voxels: Vec<SingleId> = Vec::new();
     let pull_index = [
         (3 - max_flag) % 3,
         (3 - other_flag_2) % 3,
         (3 - other_flag_1) % 3,
     ];
     let mut current = [i1, j1, k1];
-    voxels.push(unsafe {
+    let sign_i = (vp2[max_flag] - vp1[max_flag]).signum() as i32;
+    let sign_j = (vp2[other_flag_1] - vp1[other_flag_1]).signum() as i32;
+    let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i32;
+    let mut tm_int = 0;
+    let first = unsafe {
         SingleId::uncheck_new(
             z,
             current[pull_index[0]] + offsets_int[0],
             (current[pull_index[1]] + offsets_int[1]) as u32,
             (current[pull_index[2]] + offsets_int[2]) as u32,
         )
-    });
-    let sign_i = (vp2[max_flag] - vp1[max_flag]).signum() as i32;
-    let sign_j = (vp2[other_flag_1] - vp1[other_flag_1]).signum() as i32;
-    let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i32;
-    let mut tm_int = 0;
-
-    let iter = (1..=max_steps).map(move |_| {
+    };
+    let iter = std::iter::once(first).chain((1..=max_steps).map(move |_| {
         let min_wall = (tm_int as f64).min(to1).min(to2);
         if min_wall == tm_int as f64 {
             tm_int += 1;
@@ -174,6 +172,6 @@ pub(crate) fn line_dda(
                 (current[pull_index[2]] + offsets_int[2]) as u32,
             )
         }
-    });
+    }));
     Ok(iter)
 }
