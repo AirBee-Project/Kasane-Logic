@@ -152,12 +152,10 @@ pub(crate) fn line_dda(
     let sign_i = (vp2[max_flag] - vp1[max_flag]).signum() as i64;
     let sign_j = (vp2[other_flag_1] - vp1[other_flag_1]).signum() as i64;
     let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i64;
-    let mut counter = 1_usize;
     let mut tm_int = 0;
-    let mut min_wall;
 
-    while counter <= max_steps {
-        min_wall = (tm_int as f64).min(to1).min(to2);
+    let iter = (1..=max_steps).map(move |_| {
+        let min_wall = (tm_int as f64).min(to1).min(to2);
         if min_wall == tm_int as f64 {
             tm_int += 1;
             current[0] += sign_i;
@@ -168,16 +166,14 @@ pub(crate) fn line_dda(
             to2 += d_o2;
             current[2] += sign_k;
         }
-        voxels.push(unsafe {
+        unsafe {
             SingleId::uncheck_new(
                 z,
                 (current[pull_index[0]] + offsets_int[0]) as i32,
                 (current[pull_index[1]] + offsets_int[1]) as u32,
                 (current[pull_index[2]] + offsets_int[2]) as u32,
             )
-        });
-        counter += 1;
-    }
-    let iter = voxels.into_iter();
+        }
+    });
     Ok(iter)
 }
