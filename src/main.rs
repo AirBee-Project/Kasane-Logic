@@ -7,7 +7,7 @@ use kasane_logic::spatial_id::{
 use rand::Rng;
 
 fn main() {
-    let segment: Vec<_> = Segment::<i32>::new(0, [-1, 0]).collect();
+    let segment: Vec<_> = Segment::<i32>::new(1, [-2, 1]).collect();
 
     println!("{:?}", segment);
 }
