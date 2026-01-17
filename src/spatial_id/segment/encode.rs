@@ -4,7 +4,7 @@ use std::fmt::Display;
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::segment::Segment;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EncodeSegment(pub(crate) [u8; EncodeSegment::ARRAY_LENGTH]);
 
 impl Display for EncodeSegment {
@@ -76,6 +76,7 @@ impl EncodeSegment {
         }
     }
 
+    ///関係を返す関数
     pub fn relation(&self, other: &EncodeSegment) -> SegmentRelation {
         for (b1, b2) in self.0.iter().zip(other.0.iter()) {
             // バイトが完全に一致していれば、そのバイト内の全階層は同じ道を辿っている
@@ -103,6 +104,105 @@ impl EncodeSegment {
 
         // 最後まで違いが見つからなかった場合
         SegmentRelation::Equal
+    }
+
+    ///兄弟セグメントを返す関数
+    pub fn sibling(&self) -> EncodeSegment {
+        let mut out = self.clone();
+
+        // 下位レベルから探索
+        for byte_index in (0..out.0.len()).rev() {
+            let byte = out.0[byte_index];
+
+            // このバイトに有効 bit-pair が無ければスキップ
+            if byte == 0 {
+                continue;
+            }
+
+            // 1バイト内を下位ペアから確認
+            for shift in [0, 2, 4, 6] {
+                let mask = 0b11 << shift;
+                let pair = (byte & mask) >> shift;
+
+                if pair == 0 {
+                    continue;
+                }
+
+                // 10 <-> 11 を反転
+                let flipped = match pair {
+                    0b10 => 0b11,
+                    0b11 => 0b10,
+                    _ => unreachable!(),
+                } << shift;
+
+                out.0[byte_index] &= !mask;
+                out.0[byte_index] |= flipped;
+
+                return out;
+            }
+        }
+
+        unreachable!("このセグメントは無効です");
+    }
+
+    /// 1つ上の階層（親セグメント）を返す
+    pub fn parent(&self) -> Option<EncodeSegment> {
+        let mut out = self.clone();
+
+        // 下位から探索
+        for byte_index in (0..out.0.len()).rev() {
+            let byte = out.0[byte_index];
+
+            if byte == 0 {
+                continue;
+            }
+
+            for shift in [0, 2, 4, 6] {
+                let mask = 0b11 << shift;
+                let pair = (byte & mask) >> shift;
+
+                if pair == 0 {
+                    continue;
+                }
+
+                // 最下位の有効 bit-pair を消す
+                out.0[byte_index] &= !mask;
+                return Some(out);
+            }
+        }
+
+        // すでに root（これ以上上がれない）
+        None
+    }
+
+    ///下位のセグメントを検索するための範囲の下限を返す関数
+    pub fn children_range_end(&self) -> EncodeSegment {
+        let mut end_segment = self.clone();
+        let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
+
+        for z in (0..=max_z).rev() {
+            let pair = end_segment.get_raw_pair(z);
+
+            match pair {
+                0b00 => continue,
+                0b10 => {
+                    end_segment.set_bit_pair(z, Bit::One);
+                    return end_segment;
+                }
+                0b11 => {
+                    end_segment.clear_bit_pair(z);
+                }
+                _ => unreachable!("Invalid bit pair detected"),
+            }
+        }
+        end_segment
+    }
+
+    fn get_raw_pair(&self, z: u8) -> u8 {
+        let byte_index = (z / 4) as usize;
+        let bit_index = (z % 4) * 2;
+        // マスクして取り出し、右端(LSB)に寄せる
+        (self.0[byte_index] >> (6 - bit_index)) & 0b11
     }
 }
 
