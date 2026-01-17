@@ -33,7 +33,6 @@ impl Segment<u32> {
     }
 }
 
-
 impl Segment<i32> {
     /// F 向けセグメント分割
     pub fn new(z: u8, dimension: [i32; 2]) -> impl Iterator<Item = Segment<i32>> {
@@ -80,10 +79,7 @@ impl Iterator for SegmentIter {
             if self.cur_z == 0 {
                 let v = self.l;
                 self.l += 1;
-                return Some(Segment {
-                    z: 0,
-                    dimension: v,
-                });
+                return Some(Segment { z: 0, dimension: v });
             }
 
             let z = self.cur_z as u8;
@@ -124,8 +120,7 @@ impl From<EncodeSegment> for Segment<u32> {
 
         'outer: for byte in encode.0 {
             for bit_index in 0..=3 {
-                let masked =
-                    ((0b11000000 >> bit_index * 2) & byte) << bit_index * 2;
+                let masked = ((0b11000000 >> bit_index * 2) & byte) << bit_index * 2;
 
                 if masked == 0b10000000 {
                     index = index * 2;

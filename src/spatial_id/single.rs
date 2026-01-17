@@ -10,6 +10,7 @@ use crate::{
         encode::EncodeId,
         helpers,
         range::RangeId,
+        segment::{Segment, encode::EncodeSegment},
     },
 };
 
@@ -650,8 +651,18 @@ impl SpatialId for SingleId {
     }
 
     fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
-        todo!();
-        std::iter::empty()
+        let f_encode_segment: Vec<_> =
+            Segment::<i32>::new(self.as_z(), [self.as_f(), self.as_f()]).collect();
+        let x_encode_segment: Vec<_> =
+            Segment::<u32>::new(self.z, [self.as_x(), self.as_x()]).collect();
+        let y_encode_segment: Vec<_> =
+            Segment::<u32>::new(self.z, [self.as_y(), self.as_y()]).collect();
+        let result = EncodeId {
+            f: EncodeSegment::from(f_encode_segment.first().unwrap().clone()),
+            x: EncodeSegment::from(x_encode_segment.first().unwrap().clone()),
+            y: EncodeSegment::from(y_encode_segment.first().unwrap().clone()),
+        };
+        std::iter::once(result)
     }
 
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数

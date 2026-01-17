@@ -10,6 +10,7 @@ use crate::{
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         encode::EncodeId,
         helpers,
+        segment::{Segment, encode::EncodeSegment},
         single::SingleId,
     },
 };
@@ -585,8 +586,30 @@ impl SpatialId for RangeId {
     }
 
     fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
-        todo!();
-        std::iter::empty()
+        let f_segments = Segment::<i32>::new(self.as_z(), self.as_f());
+        let x_segments = Segment::<u32>::new(self.z, self.as_x());
+        let y_segments = Segment::<u32>::new(self.z, self.as_y());
+
+        let x_segments: Vec<_> = x_segments.collect();
+        let y_segments: Vec<_> = y_segments.collect();
+
+        println!("{:?}", x_segments);
+        println!("{:?}", y_segments);
+
+        f_segments.flat_map(move |f| {
+            let x_segments = x_segments.clone();
+            let y_segments = y_segments.clone();
+
+            x_segments.into_iter().flat_map(move |x| {
+                let y_segments = y_segments.clone();
+
+                y_segments.into_iter().map(move |y| EncodeId {
+                    f: EncodeSegment::from(f.clone()),
+                    x: EncodeSegment::from(x.clone()),
+                    y: EncodeSegment::from(y.clone()),
+                })
+            })
+        })
     }
 
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
