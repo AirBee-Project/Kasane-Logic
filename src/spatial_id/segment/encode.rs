@@ -27,6 +27,14 @@ pub(crate) enum Bit {
     One = 1,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SegmentRelation {
+    Equal,
+    Ancestor,
+    Descendant,
+    Disjoint,
+}
+
 impl EncodeSegment {
     ///EncodeSegmentの配列長を[MAX_ZOOM_LEVEL]から定義
     pub(crate) const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
@@ -66,6 +74,35 @@ impl EncodeSegment {
             0b11000000 => Bit::One,
             _ => unreachable!("bit pair at z=0 is not set"),
         }
+    }
+
+    pub fn relation(&self, other: &EncodeSegment) -> SegmentRelation {
+        for (b1, b2) in self.0.iter().zip(other.0.iter()) {
+            // バイトが完全に一致していれば、そのバイト内の全階層は同じ道を辿っている
+            if b1 == b2 {
+                continue;
+            }
+
+            for shift in [6, 4, 2, 0] {
+                let mask = 0b11 << shift;
+                let p1 = (b1 & mask) >> shift;
+                let p2 = (b2 & mask) >> shift;
+
+                if p1 == p2 {
+                    continue;
+                }
+
+                // NOTE: 0 = 0b00 (無効/パディング), 非0 = 0b10 or 0b11 (有効)
+                return match (p1, p2) {
+                    (0, _) => SegmentRelation::Ancestor, // 自分は終わってるが相手は続いてる -> 上位
+                    (_, 0) => SegmentRelation::Descendant, // 相手は終わってるが自分は続いてる -> 下位
+                    (_, _) => SegmentRelation::Disjoint,   // 両方有効だが値が違う -> 排反
+                };
+            }
+        }
+
+        // 最後まで違いが見つからなかった場合
+        SegmentRelation::Equal
     }
 }
 
