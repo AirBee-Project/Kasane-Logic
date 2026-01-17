@@ -1,5 +1,5 @@
 // src/id/spatial_id/range.rs
-use itertools::iproduct;
+use itertools::{Either, iproduct};
 use std::fmt;
 
 use crate::{
@@ -154,9 +154,6 @@ impl RangeId {
         if f[0] > f[1] {
             f.swap(0, 1);
         }
-        if x[0] > x[1] {
-            x.swap(0, 1);
-        }
         if y[0] > y[1] {
             y.swap(0, 1);
         }
@@ -212,8 +209,9 @@ impl RangeId {
         self.y
     }
 
-    pub fn set_f(&mut self, mut value: [i32; 2]) -> Result<(), Error> {
+    pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
         let z = self.z;
+        let mut value = value;
         let f_min = F_MIN[z as usize];
         let f_max = F_MAX[z as usize];
 
@@ -231,7 +229,7 @@ impl RangeId {
         Ok(())
     }
 
-    pub fn set_x(&mut self, mut value: [u32; 2]) -> Result<(), Error> {
+    pub fn set_x(&mut self, value: [u32; 2]) -> Result<(), Error> {
         let z = self.z;
         let xy_max = XY_MAX[z as usize];
 
@@ -241,16 +239,13 @@ impl RangeId {
             }
         }
 
-        if value[0] > value[1] {
-            value.swap(0, 1);
-        }
-
         self.x = value;
         Ok(())
     }
 
-    pub fn set_y(&mut self, mut value: [u32; 2]) -> Result<(), Error> {
+    pub fn set_y(&mut self, value: [u32; 2]) -> Result<(), Error> {
         let z = self.z;
+        let mut value = value;
         let xy_max = XY_MAX[z as usize];
 
         for i in 0..2 {
@@ -381,7 +376,11 @@ impl RangeId {
     /// [`RangeId`]を[`SingleId`]に分解し、イテレータとして提供します。
     pub fn to_single(&self) -> impl Iterator<Item = SingleId> + '_ {
         let f_range = self.f[0]..=self.f[1];
-        let x_range = self.x[0]..=self.x[1];
+        let x_range = if self.x[0] <= self.x[1] {
+            Either::Left(self.x[0]..=self.x[1])
+        } else {
+            Either::Right((self.x[0]..=self.max_xy()).chain(0..=self.x[1]))
+        };
         let y_range = self.y[0]..=self.y[1];
 
         iproduct!(f_range, x_range, y_range)
@@ -585,16 +584,21 @@ impl SpatialId for RangeId {
         out
     }
 
+    ///[EncodeId]に変換を行う関数
     fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
         let f_segments = Segment::<i32>::new(self.as_z(), self.as_f());
-        let x_segments = Segment::<u32>::new(self.z, self.as_x());
-        let y_segments = Segment::<u32>::new(self.z, self.as_y());
+        let x_segments: Vec<_> = if self.x[0] <= self.x[1] {
+            Segment::<u32>::new(self.z, self.as_x()).collect()
+        } else {
+            let max = self.max_xy();
+            Segment::<u32>::new(self.z, [self.x[0], max])
+                .chain(Segment::<u32>::new(self.z, [0, self.x[1]]))
+                .collect()
+        };
+        let y_segments = Segment::<u32>::new(self.z, self.as_y()).collect();
 
-        let x_segments: Vec<_> = x_segments.collect();
-        let y_segments: Vec<_> = y_segments.collect();
-
-        println!("{:?}", x_segments);
-        println!("{:?}", y_segments);
+        let x_segments: Vec<_> = x_segments;
+        let y_segments: Vec<_> = y_segments;
 
         f_segments.flat_map(move |f| {
             let x_segments = x_segments.clone();

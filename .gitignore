@@ -1,3 +1,4 @@
 /target
 output.txt
 output_debug.txt
+/src/main.rs
