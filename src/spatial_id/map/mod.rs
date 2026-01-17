@@ -27,15 +27,15 @@ impl SpatialIdMap {
 
     pub fn insert<T: SpatialId>(spatial_id: T) {}
 
+    ///関連ある[EncodeId]のRankのリストを返す
     pub fn find_related(&self, encode_id: EncodeId) -> RoaringTreemap {
-        let get_related_ranks = |map: &BTreeMap<EncodeSegment, RoaringTreemap>,
-                                 target: &EncodeSegment|
+        let related_segments = |map: &BTreeMap<EncodeSegment, RoaringTreemap>,
+                                target: &EncodeSegment|
          -> RoaringTreemap {
             let mut related_bitmap = RoaringTreemap::new();
             let mut current = Some(target.clone());
             while let Some(seg) = current {
                 if let Some(ranks) = map.get(&seg) {
-                    // 和集合 (OR) をとる
                     related_bitmap |= ranks;
                 }
                 current = seg.parent();
@@ -45,15 +45,12 @@ impl SpatialIdMap {
                 // 和集合 (OR) をとる
                 related_bitmap |= ranks;
             }
-
             related_bitmap
         };
-
-        let f_related = get_related_ranks(&self.f, encode_id.as_f());
-        let x_related = get_related_ranks(&self.x, encode_id.as_x());
-        let y_related = get_related_ranks(&self.y, encode_id.as_y());
+        let f_related = related_segments(&self.f, encode_id.as_f());
+        let x_related = related_segments(&self.x, encode_id.as_x());
+        let y_related = related_segments(&self.y, encode_id.as_y());
         let result_bitmap = f_related & x_related & y_related;
-
         result_bitmap
     }
 
@@ -84,7 +81,7 @@ impl SpatialIdMap {
     }
 
     /// 指定されたRankを持つIDを全てのインデックスから完全に削除する
-    pub fn delete(&mut self, rank: Rank) {
+    fn delete(&mut self, rank: Rank) {
         let encode_id = match self.main.remove(&rank) {
             Some(v) => v,
             None => return,

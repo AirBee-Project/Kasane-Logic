@@ -40,8 +40,6 @@ impl EncodeSegment {
     pub(crate) const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
 
     ///ある階層の情報をセットする
-    /// 上下階層との整合性などは保証せず、呼び出し側が保証を行う
-    /// 対象のBitが`00`であることが呼び出し条件
     pub(super) fn set_bit_pair(&mut self, z: u8, bit: Bit) {
         let byte_index = (z / 4) as usize;
         let bit_index = (z % 4) * 2;
@@ -67,6 +65,7 @@ impl EncodeSegment {
         *byte &= mask;
     }
 
+    ///Z=0の階層の情報を読み取る
     pub(super) fn top_bit_pair(&self) -> Bit {
         let pair = self.0[0] & 0b11000000;
         match pair {
@@ -76,7 +75,7 @@ impl EncodeSegment {
         }
     }
 
-    ///関係を返す関数
+    ///セグメント同士の関係を返す関数
     pub fn relation(&self, other: &EncodeSegment) -> SegmentRelation {
         for (b1, b2) in self.0.iter().zip(other.0.iter()) {
             // バイトが完全に一致していれば、そのバイト内の全階層は同じ道を辿っている
@@ -148,30 +147,21 @@ impl EncodeSegment {
     /// 1つ上の階層（親セグメント）を返す
     pub fn parent(&self) -> Option<EncodeSegment> {
         let mut out = self.clone();
-
-        // 下位から探索
         for byte_index in (0..out.0.len()).rev() {
             let byte = out.0[byte_index];
-
             if byte == 0 {
                 continue;
             }
-
             for shift in [0, 2, 4, 6] {
                 let mask = 0b11 << shift;
                 let pair = (byte & mask) >> shift;
-
                 if pair == 0 {
                     continue;
                 }
-
-                // 最下位の有効 bit-pair を消す
                 out.0[byte_index] &= !mask;
                 return Some(out);
             }
         }
-
-        // すでに root（これ以上上がれない）
         None
     }
 
@@ -181,7 +171,10 @@ impl EncodeSegment {
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
 
         for z in (0..=max_z).rev() {
-            let pair = end_segment.get_raw_pair(z);
+            let byte_index = (z / 4) as usize;
+            let bit_index = (z % 4) * 2;
+
+            let pair = (end_segment.0[byte_index] >> (6 - bit_index)) & 0b11;
 
             match pair {
                 0b00 => continue,
@@ -195,14 +188,8 @@ impl EncodeSegment {
                 _ => unreachable!("Invalid bit pair detected"),
             }
         }
-        end_segment
-    }
 
-    fn get_raw_pair(&self, z: u8) -> u8 {
-        let byte_index = (z / 4) as usize;
-        let bit_index = (z % 4) * 2;
-        // マスクして取り出し、右端(LSB)に寄せる
-        (self.0[byte_index] >> (6 - bit_index)) & 0b11
+        end_segment
     }
 }
 
