@@ -607,10 +607,12 @@ impl SpatialId for RangeId {
             x_segments.into_iter().flat_map(move |x| {
                 let y_segments = y_segments.clone();
 
-                y_segments.into_iter().map(move |y| EncodeId {
-                    f: EncodeSegment::from(f.clone()),
-                    x: EncodeSegment::from(x.clone()),
-                    y: EncodeSegment::from(y.clone()),
+                y_segments.into_iter().map(move |y| {
+                    EncodeId::new(
+                        EncodeSegment::from(f.clone()),
+                        EncodeSegment::from(x.clone()),
+                        EncodeSegment::from(y.clone()),
+                    )
                 })
             })
         })

@@ -8,17 +8,21 @@ use crate::spatial_id::{
 
 #[derive(Clone, PartialEq)]
 pub struct EncodeId {
-    pub(crate) f: EncodeSegment,
-    pub(crate) x: EncodeSegment,
-    pub(crate) y: EncodeSegment,
+    f: EncodeSegment,
+    x: EncodeSegment,
+    y: EncodeSegment,
 }
 
 pub enum EncodeIdRelation {
     Disjoint,
-    Intersecting,
+    Related,
 }
 
 impl EncodeId {
+    pub fn new(f: EncodeSegment, x: EncodeSegment, y: EncodeSegment) -> EncodeId {
+        EncodeId { f, x, y }
+    }
+
     ///[RangeId]に戻す
     pub fn decode(&self) -> RangeId {
         let f_seg = Segment::<i32>::from(self.f.clone());
@@ -73,7 +77,7 @@ impl EncodeId {
         {
             EncodeIdRelation::Disjoint
         } else {
-            EncodeIdRelation::Intersecting
+            EncodeIdRelation::Related
         }
     }
 
@@ -112,33 +116,18 @@ impl EncodeId {
         })
     }
 
-    /// 差集合 (self - other) を計算する。
-    ///
-    /// 空間的に重なりがない場合は `vec![self]` を返す。
-    /// `other` が `self` を完全に覆っている場合は `vec![]` (空) を返す。
-    /// それ以外の場合、`self` の領域から `other` との重なりを除外した断片のリストを返す。
     pub fn difference(&self, other: &EncodeId) -> Vec<EncodeId> {
-        // 1. まず共通部分 (Intersection) を求める
-        //    A - B は、A - (A ∩ B) と等価であるため。
         let intersection = match self.intersection(other) {
             Some(i) => i,
             None => return vec![self.clone()], // 排反ならAそのまま
         };
 
-        // 2. 共通部分が Self と完全に一致する場合 (Self ⊆ Other)
-        //    全て削り取られるので、結果は空。
         if *self == intersection {
             return vec![];
         }
 
         let mut result = Vec::new();
 
-        // 3. 3次元的なくり抜き処理 (Decomposition)
-        //    intersection (hole) は必ず self (base) の内側にあります。
-        //    以下の3つの領域に分割して収集します。
-
-        // Area 1: F次元の差分 (X, Yは Base のまま)
-        // 範囲: (Base.f - Hole.f) × Base.x × Base.y
         let f_diffs = Self::segment_difference_one_way(&self.f, &intersection.f);
         for f_seg in f_diffs {
             result.push(EncodeId {
@@ -148,24 +137,20 @@ impl EncodeId {
             });
         }
 
-        // Area 2: X次元の差分 (Fは Hole に制限, Yは Base のまま)
-        // 範囲: Hole.f × (Base.x - Hole.x) × Base.y
         let x_diffs = Self::segment_difference_one_way(&self.x, &intersection.x);
         for x_seg in x_diffs {
             result.push(EncodeId {
-                f: intersection.f.clone(), // FはHoleに合わせる
+                f: intersection.f.clone(),
                 x: x_seg,
                 y: self.y.clone(),
             });
         }
 
-        // Area 3: Y次元の差分 (F, Xは Hole に制限)
-        // 範囲: Hole.f × Hole.x × (Base.y - Hole.y)
         let y_diffs = Self::segment_difference_one_way(&self.y, &intersection.y);
         for y_seg in y_diffs {
             result.push(EncodeId {
-                f: intersection.f.clone(), // FはHoleに合わせる
-                x: intersection.x.clone(), // XもHoleに合わせる
+                f: intersection.f.clone(),
+                x: intersection.x.clone(),
                 y: y_seg,
             });
         }

@@ -176,7 +176,7 @@ impl EncodeSegment {
     }
 
     ///下位のセグメントを検索するための範囲の下限を返す関数
-    pub fn children_range_end(&self) -> EncodeSegment {
+    pub fn descendant_range_end(&self) -> EncodeSegment {
         let mut end_segment = self.clone();
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
 

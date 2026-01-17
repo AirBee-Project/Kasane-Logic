@@ -27,17 +27,11 @@ impl SpatialIdMap {
 
     pub fn insert<T: SpatialId>(spatial_id: T) {}
 
-    ///Setの中から関連のあるIDを見つける
-    /// Setの中から関連のあるIDを見つける
-    pub fn find_related_id(&self, encode_id: EncodeId) -> Vec<Rank> {
-        // ヘルパー: ある次元のマップとターゲットセグメントを受け取り、関連するRankの集合を返す
+    pub fn find_related(&self, encode_id: EncodeId) -> RoaringTreemap {
         let get_related_ranks = |map: &BTreeMap<EncodeSegment, RoaringTreemap>,
                                  target: &EncodeSegment|
          -> RoaringTreemap {
             let mut related_bitmap = RoaringTreemap::new();
-
-            // 1. 等価 (Equal) および 上位セグメント (Ancestor) の検索
-            // ターゲットから親へ向かってルートまで遡る
             let mut current = Some(target.clone());
             while let Some(seg) = current {
                 if let Some(ranks) = map.get(&seg) {
@@ -46,12 +40,7 @@ impl SpatialIdMap {
                 }
                 current = seg.parent();
             }
-
-            // 2. 下位セグメント (Descendant) の検索
-            // BTreeMapの範囲検索機能を使用
-            // 範囲: (ターゲット(除外) 〜 ターゲットの子孫の終わり(除外))
-            // ※ターゲット自体はStep 1で取得済みなのでExcluded
-            let range_end = target.children_range_end();
+            let range_end = target.descendant_range_end();
             for (_, ranks) in map.range((Excluded(target), Excluded(&range_end))) {
                 // 和集合 (OR) をとる
                 related_bitmap |= ranks;
@@ -60,20 +49,60 @@ impl SpatialIdMap {
             related_bitmap
         };
 
-        // 各次元について関連するID集合を取得
         let f_related = get_related_ranks(&self.f, encode_id.as_f());
         let x_related = get_related_ranks(&self.x, encode_id.as_x());
         let y_related = get_related_ranks(&self.y, encode_id.as_y());
-
-        // 3. 全次元の積集合 (Intersection / AND) をとる
-        // これが「関連のある符号化空間ID」の定義（全ての次元で関連していること）を満たす
-        // RoaringTreemap同士の & 演算は非常に高速
         let result_bitmap = f_related & x_related & y_related;
 
-        // Vec<Rank> に変換して返す
-        result_bitmap.iter().collect()
+        result_bitmap
     }
 
-    ///Setの中から特定のIDを削除する
-    fn delete_id(rank: Rank) {}
+    /// IDを追加し、可能な場合は結合を行う
+    pub fn add(&mut self, mut target: EncodeId) {
+        //Fの兄弟候補
+        let f_sibling = EncodeId::new(
+            target.as_f().sibling(),
+            target.as_x().clone(),
+            target.as_y().clone(),
+        );
+
+        match self.find(&f_sibling) {
+            Some(_) => {}
+            None => {}
+        }
+
+        todo!()
+    }
+
+    ///指定されたEncodeIdと完全に一致するEncodeIdのRankを返す
+    fn find(&self, target: &EncodeId) -> Option<Rank> {
+        let f_hits = self.f.get(target.as_f())?;
+        let x_hits = self.x.get(target.as_x())?;
+        let y_hits = self.y.get(target.as_y())?;
+        let result = f_hits & x_hits & y_hits;
+        result.iter().next()
+    }
+
+    /// 指定されたRankを持つIDを全てのインデックスから完全に削除する
+    pub fn delete(&mut self, rank: Rank) {
+        let encode_id = match self.main.remove(&rank) {
+            Some(v) => v,
+            None => return,
+        };
+
+        let remove_from_dim = |map: &mut BTreeMap<EncodeSegment, RoaringTreemap>,
+                               segment: EncodeSegment| {
+            if let std::collections::btree_map::Entry::Occupied(mut entry) = map.entry(segment) {
+                let bitmap = entry.get_mut();
+                bitmap.remove(rank);
+                if bitmap.is_empty() {
+                    entry.remove_entry();
+                }
+            }
+        };
+
+        remove_from_dim(&mut self.f, encode_id.as_f().clone());
+        remove_from_dim(&mut self.x, encode_id.as_x().clone());
+        remove_from_dim(&mut self.y, encode_id.as_y().clone());
+    }
 }

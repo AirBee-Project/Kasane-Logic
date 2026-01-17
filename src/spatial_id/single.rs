@@ -657,11 +657,11 @@ impl SpatialId for SingleId {
             Segment::<u32>::new(self.z, [self.as_x(), self.as_x()]).collect();
         let y_encode_segment: Vec<_> =
             Segment::<u32>::new(self.z, [self.as_y(), self.as_y()]).collect();
-        let result = EncodeId {
-            f: EncodeSegment::from(f_encode_segment.first().unwrap().clone()),
-            x: EncodeSegment::from(x_encode_segment.first().unwrap().clone()),
-            y: EncodeSegment::from(y_encode_segment.first().unwrap().clone()),
-        };
+        let result = EncodeId::new(
+            EncodeSegment::from(f_encode_segment.first().unwrap().clone()),
+            EncodeSegment::from(x_encode_segment.first().unwrap().clone()),
+            EncodeSegment::from(y_encode_segment.first().unwrap().clone()),
+        );
         std::iter::once(result)
     }
 
