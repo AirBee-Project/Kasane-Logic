@@ -1,4 +1,3 @@
-use itertools::iproduct;
 use std::{fmt, u64};
 
 use crate::{
@@ -322,11 +321,20 @@ impl SingleId {
         let scale_f = 2_i32.pow(difference as u32);
         let scale_xy = 2_u32.pow(difference as u32);
 
-        let f_range = self.f * scale_f..=self.f * scale_f + scale_f - 1;
-        let x_range = self.x * scale_xy..=self.x * scale_xy + scale_xy - 1;
-        let y_range = self.y * scale_xy..=self.y * scale_xy + scale_xy - 1;
+        let f_start = self.f * scale_f;
+        let x_start = self.x * scale_xy;
+        let y_start = self.y * scale_xy;
 
-        Ok(iproduct!(f_range, x_range, y_range).map(move |(f, x, y)| SingleId { z, f, x, y }))
+        let f_range = f_start..=f_start + scale_f - 1;
+        let x_range = x_start..=x_start + scale_xy - 1;
+        let y_range = y_start..=y_start + scale_xy - 1;
+
+        Ok(f_range.flat_map(move |f| {
+            let x_range = x_range.clone();
+            let y_range = y_range.clone();
+
+            x_range.flat_map(move |x| y_range.clone().map(move |y| SingleId { z, f, x, y }))
+        }))
     }
 
     /// 指定したズームレベル差 `difference` に基づき、この `SingleId` の親 `SingleId` を返します。
@@ -612,8 +620,6 @@ impl SpatialId for SingleId {
     ///  //[Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 14680064.0 }]
     /// ```
     fn vertices(&self) -> [Coordinate; 8] {
-        use itertools::iproduct;
-
         let xs = [self.x as f64, self.x as f64 + 1.0];
         let ys = [self.y as f64, self.y as f64 + 1.0];
         let fs = [self.f as f64, self.f as f64 + 1.0];
@@ -635,16 +641,22 @@ impl SpatialId for SingleId {
         // 結果配列（Default を利用）
         let mut out = [Coordinate::default(); 8];
 
-        for (i, (f_i, y_i, x_i)) in iproduct!(0..2, 0..2, 0..2).enumerate() {
-            out[i]
-                .set_longitude(lon2[x_i])
-                .expect("longitude must be within valid range");
-            out[i]
-                .set_latitude(lat2[y_i])
-                .expect("latitude must be within valid range");
-            out[i]
-                .set_altitude(alt2[f_i])
-                .expect("altitude must be within valid range");
+        let mut i = 0;
+        for f_i in 0..2 {
+            for y_i in 0..2 {
+                for x_i in 0..2 {
+                    out[i]
+                        .set_longitude(lon2[x_i])
+                        .expect("longitude must be within valid range");
+                    out[i]
+                        .set_latitude(lat2[y_i])
+                        .expect("latitude must be within valid range");
+                    out[i]
+                        .set_altitude(alt2[f_i])
+                        .expect("altitude must be within valid range");
+                    i += 1;
+                }
+            }
         }
 
         out

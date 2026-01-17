@@ -6,7 +6,4 @@ license = "MIT"
 description = "This is Kasane-logic"
 
 [dependencies]
-thiserror = "2.0.17"
-itertools = "0.14.0"
-rand = "0.9.2"
 roaring = "0.11.3"

@@ -9,14 +9,14 @@ use crate::{
     spatial_id::single::SingleId,
 };
 
-/// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表します。
+/// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
 ///
 /// 原点は地球の重心にあり、
 /// * X 軸は赤道面上で本初子午線方向
 /// * Y 軸は赤道面上で東経 90 度方向
 /// * Z 軸は北極方向
 ///
-/// 単位はすべてメートルです。
+/// 単位はすべてメートル。
 #[derive(Clone, Copy)]
 pub struct Ecef {
     x: f64,
@@ -35,7 +35,7 @@ impl fmt::Debug for Ecef {
 }
 
 impl Ecef {
-    /// 指定された XYZ 成分から [`Ecef`] を生成します。
+    /// 指定された XYZ 成分から [`Ecef`] を生成する。
     ///
     /// # Examples
     /// ```
@@ -50,7 +50,7 @@ impl Ecef {
     pub fn new(x: f64, y: f64, z: f64) -> Ecef {
         Ecef { x, y, z }
     }
-    /// X 成分を返します。
+    /// X 成分を返す。
     ///
     /// # Examples
     /// ```
@@ -63,7 +63,7 @@ impl Ecef {
         self.x
     }
 
-    /// Y 成分を返します。
+    /// Y 成分を返す。
     ///
     /// # Examples
     /// ```
@@ -76,7 +76,7 @@ impl Ecef {
         self.y
     }
 
-    /// Z 成分を返します。
+    /// Z 成分を返す。
     ///
     /// # Examples
     /// ```
@@ -89,7 +89,7 @@ impl Ecef {
         self.z
     }
 
-    /// X 成分を設定します。
+    /// X 成分を設定する。
     ///
     /// # Examples
     /// ```
@@ -104,7 +104,7 @@ impl Ecef {
         self.x = x;
     }
 
-    /// Y 成分を設定します。
+    /// Y 成分を設定する。
     ///
     /// # Examples
     /// ```
@@ -119,7 +119,7 @@ impl Ecef {
         self.y = y;
     }
 
-    /// Z 成分を設定します。
+    /// Z 成分を設定する。
     ///
     /// # Examples
     /// ```
@@ -134,13 +134,13 @@ impl Ecef {
         self.z = z;
     }
 
-    /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換します。
+    /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換する。
     pub fn to_single_id(&self, z: u8) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
         Ok(coordinate.to_single_id(z))
     }
 
-    /// 他の [`Ecef`] 座標との距離をメートル単位で返します。
+    /// 他の [`Ecef`] 座標との距離をメートル単位で返す。
     ///
     /// # Examples
     /// ```
@@ -161,10 +161,7 @@ impl Ecef {
 
 impl TryFrom<Ecef> for Coordinate {
     type Error = Error;
-    /// 地心直交座標系（ECEF）から地理座標（緯度・経度・高度）への変換を提供します。
-    ///
-    /// この変換は WGS-84 楕円体モデルに基づいており、
-    /// Bowring 法による反復計算を用いて緯度と高度を求めます。
+    /// 地心直交座標系（ECEF）から地理座標（緯度・経度・高度）への変換。
     fn try_from(value: Ecef) -> Result<Self, Self::Error> {
         let x = value.x;
         let y = value.y;

@@ -1,5 +1,4 @@
 // src/id/spatial_id/range.rs
-use itertools::{Either, iproduct};
 use std::fmt;
 
 use crate::{
@@ -130,7 +129,7 @@ impl RangeId {
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
-    pub fn new(z: u8, mut f: [i32; 2], mut x: [u32; 2], mut y: [u32; 2]) -> Result<RangeId, Error> {
+    pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
         if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
@@ -138,6 +137,8 @@ impl RangeId {
         let f_min = F_MIN[z as usize];
         let f_max = F_MAX[z as usize];
         let xy_max = XY_MAX[z as usize];
+        let mut f = f;
+        let mut y = y;
 
         for i in 0..2 {
             if f[i] < f_min || f[i] > f_max {
@@ -375,16 +376,28 @@ impl RangeId {
 
     /// [`RangeId`]を[`SingleId`]に分解し、イテレータとして提供します。
     pub fn to_single(&self) -> impl Iterator<Item = SingleId> + '_ {
+        let z = self.z;
+
         let f_range = self.f[0]..=self.f[1];
-        let x_range = if self.x[0] <= self.x[1] {
-            Either::Left(self.x[0]..=self.x[1])
-        } else {
-            Either::Right((self.x[0]..=self.max_xy()).chain(0..=self.x[1]))
-        };
         let y_range = self.y[0]..=self.y[1];
 
-        iproduct!(f_range, x_range, y_range)
-            .map(move |(f, x, y)| unsafe { SingleId::uncheck_new(self.z, f, x, y) })
+        f_range.flat_map(move |f| {
+            let y_range = y_range.clone();
+
+            let x_iter = if self.x[0] <= self.x[1] {
+                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
+            } else {
+                (self.x[0]..=self.max_xy())
+                    .chain(0..=self.x[1])
+                    .collect::<Vec<_>>()
+            };
+
+            x_iter.into_iter().flat_map(move |x| {
+                y_range
+                    .clone()
+                    .map(move |y| unsafe { SingleId::uncheck_new(z, f, x, y) })
+            })
+        })
     }
 
     /// 検証を行わずに [`RangeId`] を構築します。
@@ -575,10 +588,16 @@ impl SpatialId for RangeId {
 
         let mut out = [Coordinate::default(); 8];
 
-        for (i, (fi, yi, xi)) in iproduct!(0..2, 0..2, 0..2).enumerate() {
-            let _ = out[i].set_altitude(altitudes[fi]);
-            let _ = out[i].set_latitude(latitudes[yi]);
-            let _ = out[i].set_longitude(longitudes[xi]);
+        let mut i = 0;
+        for fi in 0..2 {
+            for yi in 0..2 {
+                for xi in 0..2 {
+                    let _ = out[i].set_altitude(altitudes[fi]);
+                    let _ = out[i].set_latitude(latitudes[yi]);
+                    let _ = out[i].set_longitude(longitudes[xi]);
+                    i += 1;
+                }
+            }
         }
 
         out

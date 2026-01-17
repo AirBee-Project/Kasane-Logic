@@ -9,12 +9,12 @@ use crate::{
     spatial_id::single::SingleId,
 };
 
-/// 内部的には下記のような構造体として定義されており、各フィールドを非公開とすることで、
-/// 空間 ID 上で扱える座標に対する制約が常に満たされるようにしています。
+/// 緯度・経度・高度を表す型。
+///
+/// 内部的には下記のような構造体として定義されており、空間 ID 上で扱える座標に対する制約が常に満たされる。
 ///
 /// この型は `PartialOrd` を実装していますが、これは主に `BTreeSet` や `BTreeMap`
-/// といった順序付きコレクションにおける格納および探索を目的としたものです。
-/// 空間的な位置関係における「大小」を意味するものではありません。
+/// といった順序付きコレクションにおける格納および探索を目的としたものであり、。空間的な位置関係における「大小」を意味するものではない。
 /// ```
 /// pub struct Coordinate {
 ///     latitude: f64,
@@ -40,10 +40,10 @@ impl fmt::Debug for Coordinate {
 }
 
 impl Coordinate {
-    /// 指定された緯度・経度・高度から `Coordinate` を生成します。
+    /// 指定された緯度・経度・高度から [Coordinate] を生成する。
     ///
-    /// 各引数は、空間 ID 上で扱える座標として有効な範囲に収まっている必要があります。
-    /// 範囲外の値が指定された場合、この関数は対応するエラーを返します。
+    /// 各引数は、空間 ID 上で扱える座標として有効な範囲に収まっている必要がある。
+    /// 範囲外の値が指定された場合、この関数は対応するエラーを返す。
     ///
     /// # 引数
     /// * `latitude` - 緯度（-85.0511 〜 85.0511）
@@ -51,9 +51,10 @@ impl Coordinate {
     /// * `altitude` - 高度（-33,554,432.0 〜 33,554,432.0）
     ///
     /// # 戻り値
-    /// * 有効な値が指定された場合は `Ok(Coordinate)` を返します
-    /// * いずれかの値が範囲外の場合は、対応する `Error` を返します
+    /// * 有効な値が指定された場合は `Ok(Coordinate)` を返す。
+    /// * いずれかの値が範囲外の場合は、対応する `Error` を返す。
     ///
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let coord = Coordinate::new(35.0, 139.0, 10.0).unwrap();
@@ -82,17 +83,16 @@ impl Coordinate {
         })
     }
 
-    /// 値の妥当性検証を行わずに `Coordinate` を生成します。
+    /// 値の妥当性検証を行わずに `Coordinate` を生成する。
     ///
-    /// この関数は緯度・経度・高度に対する範囲チェックを一切行いません。
+    /// この関数は緯度・経度・高度に対する範囲チェックを一切行わない。
     /// 呼び出し側は、渡す値が空間 ID 上で扱える有効な範囲に収まっていることを
-    /// 保証する責任を負います。
+    /// 保証する責任を負う。
     ///
     /// # Safety
-    /// この関数は `unsafe` です。
+    /// この関数は `unsafe` である。
     /// 不正な値を指定した場合、`Coordinate` が前提としている不変条件が破られ、
-    /// 以降の処理で未定義な振る舞いまたは論理的な不整合を引き起こす可能性があります。
-    /// そのため、入力値の正当性が外部で十分に検証されている場合にのみ使用してください。
+    /// 以降の処理で未定義な振る舞いまたは論理的な不整合を引き起こす可能性があるため、入力値の正当性が外部で十分に検証されている場合にのみ使用せよ。
     pub unsafe fn uncheck_new(latitude: f64, longitude: f64, altitude: f64) -> Coordinate {
         Coordinate {
             latitude,
@@ -101,10 +101,12 @@ impl Coordinate {
         }
     }
 
-    /// 緯度を返します。
+    /// 緯度を返す。
     ///
     /// 返される値は度数法（degree）で表され、
-    /// 常にWEBメルカトル上で扱える有効な範囲（-85.0511 〜 85.0511）内に収まります。
+    /// 常にWEBメルカトル上で扱える有効な範囲（-85.0511 〜 85.0511）内に収まる。
+    ///
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
@@ -114,10 +116,12 @@ impl Coordinate {
         self.latitude
     }
 
-    /// 経度を返します。
+    /// 経度を返す。
     ///
     /// 返される値は度数法（degree）で表され、
-    /// 常に -180.0 〜 180.0 の範囲内に収まります。
+    /// 常に -180.0 〜 180.0 の範囲内に収まる。
+    ///
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let coord = Coordinate::new(35.4095198,136.7566027, 0.0).unwrap();
@@ -127,10 +131,12 @@ impl Coordinate {
         self.longitude
     }
 
-    /// 高度を返します。
+    /// 高度を返す。
     ///
     /// される値はメートル（m）で表され、
-    /// 常に`-33,554,432.0 ..= 33,554,432.0`の範囲内にに収まります。
+    /// 常に`-33,554,432.0 ..= 33,554,432.0`の範囲内に収まる。
+    ///
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
@@ -140,10 +146,12 @@ impl Coordinate {
         self.altitude
     }
 
-    /// 緯度を設定します。
+    /// 緯度を設定する。
     ///
     /// 指定された値が有効な範囲外の場合、この関数はエラーを返し、
-    /// 内部の値は変更されません。
+    /// 内部の値は変更されない。
+    ///
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let mut coord = Coordinate::new(35.0, 41.3507138, 30.0).unwrap();
@@ -158,10 +166,12 @@ impl Coordinate {
         Ok(())
     }
 
-    /// 経度を設定します。
+    /// 経度を設定する。
     ///
     /// 指定された値が有効な範囲外の場合、この関数はエラーを返し、
-    /// 内部の値は変更されません。
+    /// 内部の値は変更されない。
+    ///
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let mut coord = Coordinate::new(35.4095198,130.0, 0.0).unwrap();
@@ -176,15 +186,13 @@ impl Coordinate {
         Ok(())
     }
 
-    /// 高度を設定します。
+    /// 高度を設定する。
     ///
-    /// 単位はメートル（m）です。
+    /// 単位はメートル（m）である。
     /// 指定された値が有効な範囲外の場合、この関数はエラーを返し、
-    /// 内部の値は変更されません。
-    /// 高度を返します。
+    /// 内部の値は変更されない。
     ///
-    /// される値はメートル（m）で表され、
-    /// 常に`-33,554,432.0 ..= 33,554,432.0`の範囲内にに収まります。
+    /// # Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, -10.0).unwrap();
@@ -199,16 +207,15 @@ impl Coordinate {
         Ok(())
     }
 
-    /// この座標を、指定されたズームレベルに対応する [SingleId] に変換します。
-    ///
-    /// 緯度・経度・高度をそれぞれ空間 ID の各成分（`x`, `y`, `f`）へ変換し、
-    /// ズームレベル `z` を含む [SingleId] を生成します。
+    /// この座標を、指定されたズームレベルに対応する [SingleId] に変換する。
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル
     ///
     /// # 戻り値
     /// * 指定されたズームレベルに対応する [SingleId]
+    ///
+    /// # Example
     /// ```
     /// # use kasane_logic::{geometry::coordinate::Coordinate,spatial_id::single::SingleId,};
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
@@ -237,13 +244,10 @@ impl Coordinate {
         unsafe { SingleId::uncheck_new(z, f, x, y) }
     }
 
-    /// 他の [`Coordinate`] との距離をメートル単位で返します。
-    ///
-    /// この関数は、両座標を地心直交座標系（ECEF）へ変換したうえで、
-    /// それらのユークリッド距離を計算します。
+    /// 他の [`Coordinate`] との距離をメートル単位で返す。
     ///
     /// * 単位はメートル（m）です
-    /// * WGS84 楕円体を前提とした近似距離となります
+    /// * WGS84 楕円体を前提とした近似距離。
     ///
     /// # 引数
     /// * `other` - 距離を計算する対象の座標
@@ -251,6 +255,7 @@ impl Coordinate {
     /// # 戻り値
     /// * 2 点間の距離（メートル）
     ///
+    ///# Example
     /// ```
     /// # use kasane_logic::geometry::coordinate::Coordinate;
     /// let coord_tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0).unwrap();
@@ -266,7 +271,7 @@ impl Coordinate {
 }
 
 impl From<Coordinate> for Ecef {
-    /// [`Coordinate`]を[`Ecef`]へ変換します。
+    /// [`Coordinate`]を[`Ecef`]への変換。
     /// ```
     /// # use kasane_logic::geometry::{coordinate::Coordinate,ecef::Ecef,};
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
@@ -297,11 +302,7 @@ impl From<Coordinate> for Ecef {
     }
 }
 
-/// [Coordinate] の既定値を返します。
-///
-/// 緯度・経度・高度のすべてが `0.0` に設定された座標
-///（赤道・本初子午線上、高度 0）を表します。
-/// この値は常に有効な範囲内に収まります。   
+/// 緯度・経度・高度のすべてが `0.0` に設定された座標を返す。
 impl Default for Coordinate {
     fn default() -> Self {
         Self {

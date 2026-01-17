@@ -1,11 +1,14 @@
 use roaring::RoaringTreemap;
 use std::collections::BTreeMap;
 
-use crate::spatial_id::{SpatialId, encode::EncodeId, segment::encode::EncodeSegment};
+use crate::spatial_id::{
+    SpatialId, encode::EncodeId, range::RangeId, segment::encode::EncodeSegment,
+};
 use std::ops::Bound::Excluded;
 
 type Rank = u64;
 
+#[derive(PartialEq, Clone)]
 pub struct SpatialIdMap {
     f: BTreeMap<EncodeSegment, RoaringTreemap>,
     x: BTreeMap<EncodeSegment, RoaringTreemap>,
@@ -25,7 +28,51 @@ impl SpatialIdMap {
         }
     }
 
-    pub fn insert<T: SpatialId>(spatial_id: T) {}
+    //デコードする関数
+    pub fn iter(&self) -> impl Iterator<Item = RangeId> + '_ {
+        self.main.iter().map(|(_, encode_id)| encode_id.decode())
+    }
+
+    pub(crate) fn iter_encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+        self.main.iter().map(|(_, encode_id)| encode_id.clone())
+    }
+
+    ///入っているEncodeIdの個数
+    pub fn size(&self) -> usize {
+        self.main.len()
+    }
+
+    pub fn insert<T: SpatialId>(&mut self, spatial_id: T) {
+        for encode in spatial_id.encode() {
+            self.insert_encode(encode);
+        }
+    }
+
+    fn insert_encode(&mut self, encode_id: EncodeId) {}
+
+    pub fn intersection(&self, other: &SpatialIdMap) -> SpatialIdMap {
+        todo!()
+    }
+
+    pub fn union(&self, other: &SpatialIdMap) -> SpatialIdMap {
+        let mut result;
+        if self.size() < other.size() {
+            result = other.clone();
+            for encode in self.iter_encode() {
+                result.insert_encode(encode);
+            }
+        } else {
+            result = self.clone();
+            for encode in other.iter_encode() {
+                result.insert_encode(encode);
+            }
+        };
+        result
+    }
+
+    pub fn difference(&self, other: &SpatialIdMap) -> SpatialIdMap {
+        todo!()
+    }
 
     ///関連ある[EncodeId]のRankのリストを返す
     pub fn find_related(&self, encode_id: EncodeId) -> RoaringTreemap {
@@ -42,7 +89,6 @@ impl SpatialIdMap {
             }
             let range_end = target.descendant_range_end();
             for (_, ranks) in map.range((Excluded(target), Excluded(&range_end))) {
-                // 和集合 (OR) をとる
                 related_bitmap |= ranks;
             }
             related_bitmap
@@ -55,7 +101,7 @@ impl SpatialIdMap {
     }
 
     /// IDを追加し、可能な場合は結合を行う
-    pub fn add(&mut self, mut target: EncodeId) {
+    pub fn add(&mut self, target: EncodeId) {
         //Fの兄弟候補
         let f_sibling = EncodeId::new(
             target.as_f().sibling(),
@@ -63,12 +109,79 @@ impl SpatialIdMap {
             target.as_y().clone(),
         );
 
+        //Fで結合
         match self.find(&f_sibling) {
-            Some(_) => {}
+            Some(rank) => {
+                self.delete(rank);
+                self.add(EncodeId::new(
+                    target.as_f().parent().unwrap(),
+                    target.as_x().clone(),
+                    target.as_y().clone(),
+                ));
+                return;
+            }
             None => {}
         }
 
-        todo!()
+        //Xの兄弟候補
+        let x_sibling = EncodeId::new(
+            target.as_f().clone(),
+            target.as_x().sibling(),
+            target.as_y().clone(),
+        );
+
+        //Xで結合
+        match self.find(&x_sibling) {
+            Some(rank) => {
+                self.delete(rank);
+                self.add(EncodeId::new(
+                    target.as_f().clone(),
+                    target.as_x().sibling(),
+                    target.as_y().clone(),
+                ));
+                return;
+            }
+            None => {}
+        }
+
+        //Yの兄弟候補
+        let y_sibling = EncodeId::new(
+            target.as_f().clone(),
+            target.as_x().clone(),
+            target.as_y().sibling(),
+        );
+
+        //Yで結合
+        match self.find(&y_sibling) {
+            Some(rank) => {
+                self.delete(rank);
+                self.add(EncodeId::new(
+                    target.as_f().clone(),
+                    target.as_x().clone(),
+                    target.as_y().sibling(),
+                ));
+                return;
+            }
+            None => {}
+        }
+
+        let rank = self.next_rank;
+        self.next_rank += 1;
+
+        self.f
+            .entry(target.as_f().clone())
+            .or_default()
+            .insert(rank);
+        self.x
+            .entry(target.as_x().clone())
+            .or_default()
+            .insert(rank);
+        self.y
+            .entry(target.as_y().clone())
+            .or_default()
+            .insert(rank);
+
+        self.main.insert(rank, target);
     }
 
     ///指定されたEncodeIdと完全に一致するEncodeIdのRankを返す

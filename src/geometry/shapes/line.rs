@@ -59,11 +59,8 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     [f, x, y]
 }
 
-pub(crate) fn line_dda(
-    z: u8,
-    a: Coordinate,
-    b: Coordinate,
-) -> Result<impl Iterator<Item = SingleId>, Error> {
+///DDAを用いたLine関数
+fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
     if z > MAX_ZOOM_LEVEL as u8 {
         return Err(Error::ZOutOfRange { z });
     }
