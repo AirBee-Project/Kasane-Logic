@@ -4,7 +4,7 @@ use crate::{
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
-        SpatialId,
+        SpatialId, SpatialIdEncode,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         encode::EncodeId,
         helpers,
@@ -13,10 +13,11 @@ use crate::{
     },
 };
 
-/// SingleIdは標準的な空間 ID を表す型です。
-/// 内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
+/// SingleIdは標準的な空間 ID を表す型。
 ///
-/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
+/// 内部的には下記のような構造体で構成されている。
+///
+/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
 ///
 /// ```
 /// pub struct SingleId {
@@ -35,9 +36,9 @@ pub struct SingleId {
 }
 
 impl fmt::Display for SingleId {
-    /// `SingleId` を文字列形式で表示します。
+    /// `SingleId` を文字列形式で表示する。
     ///
-    /// 形式は `"{z}/{f}/{x}/{y}"` です。
+    /// 形式は `"{z}/{f}/{x}/{y}"`。
     ///
     /// ```
     /// # use kasane_logic::spatial_id::single::SingleId;
@@ -662,21 +663,6 @@ impl SpatialId for SingleId {
         out
     }
 
-    fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
-        let f_encode_segment: Vec<_> =
-            Segment::<i32>::new(self.as_z(), [self.as_f(), self.as_f()]).collect();
-        let x_encode_segment: Vec<_> =
-            Segment::<u32>::new(self.z, [self.as_x(), self.as_x()]).collect();
-        let y_encode_segment: Vec<_> =
-            Segment::<u32>::new(self.z, [self.as_y(), self.as_y()]).collect();
-        let result = EncodeId::new(
-            EncodeSegment::from(f_encode_segment.first().unwrap().clone()),
-            EncodeSegment::from(x_encode_segment.first().unwrap().clone()),
-            EncodeSegment::from(y_encode_segment.first().unwrap().clone()),
-        );
-        std::iter::once(result)
-    }
-
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
@@ -695,5 +681,22 @@ impl SpatialId for SingleId {
         let ecef: Ecef = self.center().into();
         let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
+    }
+}
+
+impl SpatialIdEncode for SingleId {
+    fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+        let f_encode_segment: Vec<_> =
+            Segment::<i32>::new(self.as_z(), [self.as_f(), self.as_f()]).collect();
+        let x_encode_segment: Vec<_> =
+            Segment::<u32>::new(self.z, [self.as_x(), self.as_x()]).collect();
+        let y_encode_segment: Vec<_> =
+            Segment::<u32>::new(self.z, [self.as_y(), self.as_y()]).collect();
+        let result = EncodeId::new(
+            EncodeSegment::from(f_encode_segment.first().unwrap().clone()),
+            EncodeSegment::from(x_encode_segment.first().unwrap().clone()),
+            EncodeSegment::from(y_encode_segment.first().unwrap().clone()),
+        );
+        std::iter::once(result)
     }
 }

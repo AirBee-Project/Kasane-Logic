@@ -61,7 +61,9 @@ pub trait SpatialId {
 
     //頂点をの座標を求める関数
     fn vertices(&self) -> [Coordinate; 8];
+}
 
+pub trait SpatialIdEncode {
     //EncodeIdの集合に変換するメゾット
     fn encode(&self) -> impl Iterator<Item = EncodeId> + '_;
 }

@@ -1,4 +1,5 @@
 use crate::spatial_id::{
+    SpatialIdEncode,
     range::RangeId,
     segment::{
         Segment,
@@ -6,7 +7,7 @@ use crate::spatial_id::{
     },
 };
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct EncodeId {
     f: EncodeSegment,
     x: EncodeSegment,
@@ -187,5 +188,11 @@ impl EncodeId {
 
     pub fn merge() -> impl Iterator<Item = EncodeId> {
         std::iter::empty()
+    }
+}
+
+impl SpatialIdEncode for EncodeId {
+    fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+        std::iter::once(self.clone())
     }
 }

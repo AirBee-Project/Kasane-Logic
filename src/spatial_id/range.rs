@@ -5,7 +5,7 @@ use crate::{
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
-        SpatialId,
+        SpatialId, SpatialIdEncode,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         encode::EncodeId,
         helpers,
@@ -603,6 +603,30 @@ impl SpatialId for RangeId {
         out
     }
 
+    ///その空間IDのＦ方向の長さをメートル単位で計算する関数
+    fn length_f(&self) -> f64 {
+        //Z=25のとき、ちょうど高さが1mとなる
+        let one = 2_i32.pow(25 - self.as_z() as u32) as f64;
+
+        //このRangeIdの高さ方向の幅を計算
+        let range = (self.as_f()[0] - self.as_f()[1]).abs() as f64;
+
+        //かけ合わせて答えを返却
+        (one * range).into()
+    }
+
+    ///その空間IDのX方向の長さをメートル単位で計算する関数
+    fn length_x(&self) -> f64 {
+        todo!()
+    }
+
+    ///その空間IDのY方向の長さをメートル単位で計算する関数
+    fn length_y(&self) -> f64 {
+        todo!()
+    }
+}
+
+impl SpatialIdEncode for RangeId {
     ///[EncodeId]に変換を行う関数
     fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
         let f_segments = Segment::<i32>::new(self.as_z(), self.as_f());
@@ -635,28 +659,6 @@ impl SpatialId for RangeId {
                 })
             })
         })
-    }
-
-    ///その空間IDのＦ方向の長さをメートル単位で計算する関数
-    fn length_f(&self) -> f64 {
-        //Z=25のとき、ちょうど高さが1mとなる
-        let one = 2_i32.pow(25 - self.as_z() as u32) as f64;
-
-        //このRangeIdの高さ方向の幅を計算
-        let range = (self.as_f()[0] - self.as_f()[1]).abs() as f64;
-
-        //かけ合わせて答えを返却
-        (one * range).into()
-    }
-
-    ///その空間IDのX方向の長さをメートル単位で計算する関数
-    fn length_x(&self) -> f64 {
-        todo!()
-    }
-
-    ///その空間IDのY方向の長さをメートル単位で計算する関数
-    fn length_y(&self) -> f64 {
-        todo!()
     }
 }
 
