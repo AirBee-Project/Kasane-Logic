@@ -7,7 +7,7 @@ use crate::spatial_id::{
     range::RangeId,
     segment::encode::EncodeSegment,
 };
-use std::ops::Bound::Excluded;
+use std::ops::Bound::{Excluded, Included};
 
 type Rank = u64;
 
@@ -50,29 +50,32 @@ impl SpatialIdSet {
     ///[SpatialIdSet]の中にある`target`と関連ある[EncodeId]のRankを返す。
     fn related(&self, target: &EncodeId) -> RoaringTreemap {
         let related_segments = |map: &BTreeMap<EncodeSegment, RoaringTreemap>,
-                                target: &EncodeSegment|
+                                target_seg: &EncodeSegment|
          -> RoaringTreemap {
             let mut related_bitmap = RoaringTreemap::new();
-            let mut current = Some(target.clone());
+
+            let mut current = target_seg.parent();
             while let Some(seg) = current {
                 if let Some(ranks) = map.get(&seg) {
                     related_bitmap |= ranks;
                 }
                 current = seg.parent();
             }
-            let range_end = target.descendant_range_end();
-            for (_, ranks) in map.range((Excluded(target), Excluded(&range_end))) {
+
+            let range_end = target_seg.descendant_range_end();
+            for (_, ranks) in map.range((Included(target_seg), Excluded(&range_end))) {
                 related_bitmap |= ranks;
             }
+
             related_bitmap
         };
+
         let f_related = related_segments(&self.f, target.as_f());
         let x_related = related_segments(&self.x, target.as_x());
         let y_related = related_segments(&self.y, target.as_y());
 
-        let result_bitmap = f_related & x_related & y_related;
-
-        result_bitmap
+        // 3次元すべての積集合をとる
+        f_related & x_related & y_related
     }
 
     pub unsafe fn uncheck_insert<T: SpatialIdEncode>(&mut self, target: &T) {
@@ -99,18 +102,26 @@ impl SpatialIdSet {
     ///[SpatialIdSet]に[SpatialId]を挿入する。
     pub fn insert<T: SpatialIdEncode>(&mut self, target: &T) {
         for encode_id in target.encode() {
-            //重なりがある部分を自身から削除する
-            let mut base = SpatialIdSet::new();
-            unsafe { base.uncheck_insert(&encode_id) };
-            for related_rank in self.related(&encode_id) {
-                let need_remove = self.main.get(&related_rank).unwrap();
-                base.remove(need_remove);
+            let related_ranks = self.related(&encode_id);
+            let mut is_contained = false;
+            let mut to_remove = Vec::new();
+            for rank in related_ranks {
+                if let Some(existing_id) = self.main.get(&rank) {
+                    if existing_id.contains(&encode_id) {
+                        is_contained = true;
+                        break;
+                    } else if encode_id.contains(existing_id) {
+                        to_remove.push(rank);
+                    }
+                }
             }
-
-            //結合しながら挿入
-            for need_insert in base.iter_encode() {
-                self.join_insert(&need_insert);
+            if is_contained {
+                continue;
             }
+            for rank in to_remove {
+                self.remove_rank(rank);
+            }
+            self.join_uncheck_insert(&encode_id);
         }
     }
 
@@ -124,7 +135,7 @@ impl SpatialIdSet {
                 self.y.remove(base.as_y());
                 let diff = base.difference(&encode_id);
                 for need_insert in diff {
-                    self.join_insert(&need_insert)
+                    self.join_uncheck_insert(&need_insert)
                 }
             }
         }
@@ -171,7 +182,7 @@ impl SpatialIdSet {
     }
 
     /// IDを追加し、可能な場合は結合を行う
-    fn join_insert(&mut self, target: &EncodeId) {
+    fn join_uncheck_insert(&mut self, target: &EncodeId) {
         //Fの兄弟候補
         let f_sibling = EncodeId::new(
             target.as_f().sibling(),
@@ -183,7 +194,7 @@ impl SpatialIdSet {
         match self.find_encode(&f_sibling) {
             Some(rank) => {
                 self.remove_rank(rank);
-                self.join_insert(&EncodeId::new(
+                self.join_uncheck_insert(&EncodeId::new(
                     target.as_f().parent().unwrap(),
                     target.as_x().clone(),
                     target.as_y().clone(),
@@ -204,7 +215,7 @@ impl SpatialIdSet {
         match self.find_encode(&x_sibling) {
             Some(rank) => {
                 self.remove_rank(rank);
-                self.join_insert(&EncodeId::new(
+                self.join_uncheck_insert(&EncodeId::new(
                     target.as_f().clone(),
                     target.as_x().parent().unwrap(),
                     target.as_y().clone(),
@@ -225,7 +236,7 @@ impl SpatialIdSet {
         match self.find_encode(&y_sibling) {
             Some(rank) => {
                 self.remove_rank(rank);
-                self.join_insert(&EncodeId::new(
+                self.join_uncheck_insert(&EncodeId::new(
                     target.as_f().clone(),
                     target.as_x().clone(),
                     target.as_y().parent().unwrap(),

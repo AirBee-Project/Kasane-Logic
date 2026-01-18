@@ -186,8 +186,13 @@ impl EncodeId {
         results
     }
 
-    pub fn merge() -> impl Iterator<Item = EncodeId> {
-        std::iter::empty()
+    pub fn contains(&self, other: &EncodeId) -> bool {
+        self.as_f().relation(other.as_f()) != SegmentRelation::Disjoint
+            && self.as_f().relation(other.as_f()) != SegmentRelation::Descendant
+            && self.as_x().relation(other.as_x()) != SegmentRelation::Disjoint
+            && self.as_x().relation(other.as_x()) != SegmentRelation::Descendant
+            && self.as_y().relation(other.as_y()) != SegmentRelation::Disjoint
+            && self.as_y().relation(other.as_y()) != SegmentRelation::Descendant
     }
 }
 
