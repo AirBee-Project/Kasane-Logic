@@ -29,9 +29,9 @@
 use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::encode::EncodeId};
 
 //ユーザーに対して公開されているモジュール
+pub mod collection;
 pub mod constants;
 pub mod range;
-pub mod set;
 pub mod single;
 
 //非公開のモジュール
