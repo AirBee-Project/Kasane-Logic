@@ -137,7 +137,7 @@ impl Ecef {
     /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換する。
     pub fn to_single_id(&self, z: u8) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
-        Ok(coordinate.to_single_id(z))
+        Ok(coordinate.to_single_id(z)?)
     }
 
     /// 他の [`Ecef`] 座標との距離をメートル単位で返す。

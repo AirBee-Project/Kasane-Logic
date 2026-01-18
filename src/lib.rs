@@ -6,3 +6,5 @@ pub mod geometry;
 
 /// 空間IDに関する型を定義。
 pub mod spatial_id;
+
+pub mod kv;

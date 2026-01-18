@@ -17,7 +17,7 @@ pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let dy = ecef_a.as_y() - ecef_b.as_y();
     let dz = ecef_a.as_z() - ecef_b.as_z();
     let distance = (dx * dx + dy * dy + dz * dz).sqrt();
-    let (v1, v2) = (a.to_single_id(z), b.to_single_id(z));
+    let (v1, v2) = (a.to_single_id(z)?, b.to_single_id(z)?);
     let diff = ((v1.as_f() - v2.as_f()).abs()
         + (v1.as_x() as i32 - v2.as_x() as i32).abs()
         + (v1.as_y() as i32 - v2.as_y() as i32).abs()) as f64;

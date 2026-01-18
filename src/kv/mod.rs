@@ -1,49 +1,36 @@
-//Kasaneがバックエンドに求める能力をTraitとして定義したもの
-
 use std::ops::RangeBounds;
 
-pub trait MapIter<V> {
-    type Iter: Iterator<Item = V>;
-    fn iter(&self) -> Self::Iter;
-}
+pub mod btree_map;
 
-pub trait MapGet<K, V>
+pub trait KvStore<K, V>
 where
     K: Ord,
 {
-    fn get(&self, key: &K) -> Option<V>;
-}
+    type Iter<'a>: Iterator<Item = (&'a K, &'a V)>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
 
-pub trait MapRange<K, V>
-where
-    K: Ord,
-{
-    type RangeIter: Iterator<Item = V>;
+    type RangeIter<'a>: Iterator<Item = (&'a K, &'a V)>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
 
-    fn range<R>(&self, range: R) -> Self::RangeIter
+    fn iter(&self) -> Self::Iter<'_>;
+
+    fn range<R>(&self, range: R) -> Self::RangeIter<'_>
     where
         R: RangeBounds<K>;
-}
 
-pub trait MapInsert<K, V>
-where
-    K: Ord,
-{
-    fn insert(&mut self, key: K, value: V);
-}
+    fn get(&self, key: &K) -> Option<&V>;
 
-pub trait MapRemove<K>
-where
-    K: Ord,
-{
-    fn remove(&mut self, key: &K);
-}
+    fn insert(&mut self, key: K, value: V) -> Option<V>;
 
-pub trait MapUpdate<K, V>
-where
-    K: Ord,
-{
+    fn remove(&mut self, key: &K) -> Option<V>;
+
     fn update<F>(&mut self, key: &K, f: F)
     where
-        F: FnOnce(&V) -> V;
+        F: FnOnce(&mut V);
 }
