@@ -411,14 +411,14 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::spatial_id::single::SingleId;
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
-    /// let id = unsafe { SingleId::uncheck_new(5, 3, 2, 10) };
+    /// let id = unsafe { SingleId::new_unchecked(5, 3, 2, 10) };
     ///
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.as_f(), 3i32);
     /// assert_eq!(id.as_x(), 2u32);
     /// assert_eq!(id.as_y(), 10u32);
     /// ```
-    pub unsafe fn uncheck_new(z: u8, f: i32, x: u32, y: u32) -> SingleId {
+    pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId { z, f, x, y }
     }
 }
@@ -598,7 +598,7 @@ impl SpatialId for SingleId {
     /// ```
     fn center(&self) -> Coordinate {
         unsafe {
-            Coordinate::uncheck_new(
+            Coordinate::new_unchecked(
                 helpers::latitude(self.y as f64 + 0.5, self.z),
                 helpers::longitude(self.x as f64 + 0.5, self.z),
                 helpers::altitude(self.f as f64 + 0.5, self.z),

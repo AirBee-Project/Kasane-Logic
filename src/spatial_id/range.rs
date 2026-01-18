@@ -395,7 +395,7 @@ impl RangeId {
             x_iter.into_iter().flat_map(move |x| {
                 y_range
                     .clone()
-                    .map(move |y| unsafe { SingleId::uncheck_new(z, f, x, y) })
+                    .map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
             })
         })
     }
@@ -419,14 +419,14 @@ impl RangeId {
     /// ```
     /// # use kasane_logic::spatial_id::range::RangeId;
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
-    /// let id = unsafe { RangeId::uncheck_new(5, [-10,-5], [8,9], [5,10]) };
+    /// let id = unsafe { RangeId::new_unchecked(5, [-10,-5], [8,9], [5,10]) };
     ///
     /// assert_eq!(id.as_z(), 5);
     /// assert_eq!(id.as_f(), [-10,-5]);
     /// assert_eq!(id.as_x(), [8,9]);
     /// assert_eq!(id.as_y(), [5,10]);
     /// ```
-    pub unsafe fn uncheck_new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
+    pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
         RangeId { z, f, x, y }
     }
 }
@@ -560,7 +560,7 @@ impl SpatialId for RangeId {
         let ff = (self.f[0] + self.f[1]) as f64 / 2.0 + 0.5;
 
         unsafe {
-            Coordinate::uncheck_new(
+            Coordinate::new_unchecked(
                 helpers::longitude(xf, z),
                 helpers::latitude(yf, z),
                 helpers::altitude(ff, z),

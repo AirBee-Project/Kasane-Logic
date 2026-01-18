@@ -46,7 +46,7 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
     (x_min..=x_max)
         .flat_map(move |x| {
             (y_min..=y_max).flat_map(move |y| {
-                (f_min..=f_max).map(move |f| unsafe { SingleId::uncheck_new(z, f, x, y) })
+                (f_min..=f_max).map(move |f| unsafe { SingleId::new_unchecked(z, f, x, y) })
             })
         })
         .filter(move |id| {

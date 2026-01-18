@@ -142,7 +142,7 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i32;
     let mut tm_int = 0;
     let first = unsafe {
-        SingleId::uncheck_new(
+        SingleId::new_unchecked(
             z,
             current[pull_index[0]] + offsets_int[0],
             (current[pull_index[1]] + offsets_int[1]) as u32,
@@ -162,7 +162,7 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
             current[2] += sign_k;
         }
         unsafe {
-            SingleId::uncheck_new(
+            SingleId::new_unchecked(
                 z,
                 current[pull_index[0]] + offsets_int[0],
                 (current[pull_index[1]] + offsets_int[1]) as u32,

@@ -6,7 +6,7 @@ use crate::{
         constants::{WGS84_A, WGS84_E2},
         ecef::Ecef,
     },
-    spatial_id::single::SingleId,
+    spatial_id::{constants::MAX_ZOOM_LEVEL, single::SingleId},
 };
 
 /// 緯度・経度・高度を表す型。
@@ -93,7 +93,7 @@ impl Coordinate {
     /// この関数は `unsafe` である。
     /// 不正な値を指定した場合、`Coordinate` が前提としている不変条件が破られ、
     /// 以降の処理で未定義な振る舞いまたは論理的な不整合を引き起こす可能性があるため、入力値の正当性が外部で十分に検証されている場合にのみ使用せよ。
-    pub unsafe fn uncheck_new(latitude: f64, longitude: f64, altitude: f64) -> Coordinate {
+    pub unsafe fn new_unchecked(latitude: f64, longitude: f64, altitude: f64) -> Coordinate {
         Coordinate {
             latitude,
             longitude,
@@ -224,7 +224,11 @@ impl Coordinate {
     ///     &SingleId::new(24, 10, 14715409, 6646263).unwrap()
     /// )
     /// ```
-    pub fn to_single_id(&self, z: u8) -> SingleId {
+    pub fn to_single_id(&self, z: u8) -> Result<SingleId, Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(Error::ZOutOfRange { z });
+        }
+
         let lat = self.latitude;
         let lon = self.longitude;
         let alt = self.altitude;
@@ -241,7 +245,7 @@ impl Coordinate {
             * n)
             .floor() as u32;
 
-        unsafe { SingleId::uncheck_new(z, f, x, y) }
+        Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
     }
 
     /// 他の [`Coordinate`] との距離をメートル単位で返す。

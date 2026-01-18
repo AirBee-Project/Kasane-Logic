@@ -1,7 +1,7 @@
 use kasane_logic::spatial_id::{
-    map::SpatialIdSet,
     range::RangeId,
     segment::{Segment, encode::EncodeSegment},
+    set::SpatialIdSet,
     single::SingleId,
 };
 

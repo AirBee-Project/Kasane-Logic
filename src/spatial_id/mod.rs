@@ -30,8 +30,8 @@ use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::encode::
 
 //ユーザーに対して公開されているモジュール
 pub mod constants;
-pub mod map;
 pub mod range;
+pub mod set;
 pub mod single;
 
 //非公開のモジュール
