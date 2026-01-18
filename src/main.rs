@@ -26,7 +26,7 @@ fn main() {
     let mut set2 = SpatialIdSet::new();
     set2.insert(&diff);
 
-    let set3 = set.difference(&set2);
+    let set3 = set.intersection(&set2);
 
     for ele in set3.iter() {
         println!("{},", ele);

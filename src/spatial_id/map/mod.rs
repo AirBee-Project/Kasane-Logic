@@ -157,12 +157,39 @@ impl SpatialIdSet {
         result
     }
 
-    pub fn get<T: SpatialIdEncode>(&mut self, target: &T) -> EncodeId {
-        todo!()
+    pub fn get<T: SpatialIdEncode>(&self, target: &T) -> SpatialIdSet {
+        let mut result = SpatialIdSet::new();
+        for encode_id in target.encode() {
+            for related_rank in self.related(&encode_id) {
+                //関連あるIDについて、順番に積集合を取って、それをResultに追加していく
+                let base = self.main.get(&related_rank).unwrap();
+                let intersection = encode_id.intersection(base).unwrap();
+                result.join_uncheck_insert(&intersection);
+            }
+        }
+        result
     }
 
     pub fn intersection(&self, other: &SpatialIdSet) -> SpatialIdSet {
-        todo!()
+        let mut result = SpatialIdSet::new();
+        let large;
+        let small;
+
+        if self.size() < other.size() {
+            large = other;
+            small = self;
+        } else {
+            large = self;
+            small = other;
+        };
+
+        for encode_id in small.iter_encode() {
+            for intersecton_encode_id in large.get(&encode_id).iter_encode() {
+                result.join_uncheck_insert(&intersecton_encode_id);
+            }
+        }
+
+        result
     }
 
     pub fn union(&self, other: &SpatialIdSet) -> SpatialIdSet {
