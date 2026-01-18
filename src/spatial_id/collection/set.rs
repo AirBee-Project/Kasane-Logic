@@ -10,89 +10,61 @@ use crate::{
     kv::KvStore,
     spatial_id::{
         SpatialIdEncode,
-        collection::{MapTrait, Rank, map::MapLogic},
+        collection::{
+            MapTrait, Rank,
+            map::{Map, MapLogic},
+        },
         encode::EncodeId,
         range::RangeId,
         segment::encode::EncodeSegment,
     },
 };
 
-pub struct Set {
-    f: BTreeMap<EncodeSegment, RoaringTreemap>,
-    x: BTreeMap<EncodeSegment, RoaringTreemap>,
-    y: BTreeMap<EncodeSegment, RoaringTreemap>,
-    main: BTreeMap<Rank, (EncodeId, ())>,
-    next_rank: Cell<Rank>,
-}
+// Setは実質的に Map<()> のラッパー
+#[derive(Clone, Default)]
+pub struct Set(pub(crate) Map<()>);
 
 impl Set {
     pub fn new() -> Self {
-        Self {
-            f: BTreeMap::new(),
-            x: BTreeMap::new(),
-            y: BTreeMap::new(),
-            main: BTreeMap::new(),
-            next_rank: Cell::new(0),
-        }
+        Self(Map::new())
     }
 }
 
-impl Default for Set {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+// MapTraitを委譲する
 impl MapTrait for Set {
     type V = ();
-
     type DimensionMap = BTreeMap<EncodeSegment, RoaringTreemap>;
-    type MainMap = BTreeMap<Rank, (EncodeId, Self::V)>;
+    type MainMap = BTreeMap<Rank, (EncodeId, ())>;
 
     fn f(&self) -> &Self::DimensionMap {
-        &self.f
+        self.0.f()
     }
-
     fn f_mut(&mut self) -> &mut Self::DimensionMap {
-        &mut self.f
+        self.0.f_mut()
     }
-
     fn x(&self) -> &Self::DimensionMap {
-        &self.x
+        self.0.x()
     }
-
     fn x_mut(&mut self) -> &mut Self::DimensionMap {
-        &mut self.x
+        self.0.x_mut()
     }
-
     fn y(&self) -> &Self::DimensionMap {
-        &self.y
+        self.0.y()
     }
-
     fn y_mut(&mut self) -> &mut Self::DimensionMap {
-        &mut self.y
+        self.0.y_mut()
     }
-
     fn main(&self) -> &Self::MainMap {
-        &self.main
+        self.0.main()
     }
-
     fn main_mut(&mut self) -> &mut Self::MainMap {
-        &mut self.main
+        self.0.main_mut()
     }
-
     fn fetch_next_rank(&self) -> Rank {
-        let rank = self.next_rank.get();
-        self.next_rank.set(rank + 1);
-        rank
+        self.0.fetch_next_rank()
     }
-
     fn clear(&mut self) {
-        self.f.clear();
-        self.x.clear();
-        self.y.clear();
-        self.main.clear();
-        self.next_rank.set(0);
+        self.0.clear()
     }
 }
 
