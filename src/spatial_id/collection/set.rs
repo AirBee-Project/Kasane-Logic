@@ -51,7 +51,7 @@ impl SpatialIdSet {
     }
 
     pub fn subset<T: SpatialIdEncode>(&self, target: &T) -> SpatialIdSet {
-        self.map.subset(target).to_set()
+        self.map.subset(target).to_set_join()
     }
 
     /// 和集合 (A | B)

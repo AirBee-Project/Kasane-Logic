@@ -38,22 +38,24 @@ where
 
     /// Mapの値を捨てて、領域情報のみを持つSetに変換する
     pub fn to_set(self) -> SpatialIdSet {
-        let new_main: BTreeMap<Rank, (EncodeId, ())> = self
-            .main
-            .into_iter()
-            .map(|(rank, (encode_id, _val))| (rank, (encode_id, ())))
-            .collect();
-        // これにより、再インデックス化のコストがかからない
-        let new_inner_map = SpatialIdMap {
-            f: self.f,
-            x: self.x,
-            y: self.y,
-            main: new_main,
-            next_rank: self.next_rank,
-        };
+        let mut set = SpatialIdSet::new();
+        for (encode_id, _) in self.main.into_values() {
+            // Setのinsertは値を無視して結合を行うため、
+            // Map時代には色が違って分かれていたIDもここで結合される
+            set.insert(&encode_id);
+        }
+        set
+    }
 
-        // 3. Setとしてラップして返す
-        SpatialIdSet { map: new_inner_map }
+    ///最適化された結合
+    pub fn to_set_join(self) -> SpatialIdSet {
+        let mut set = SpatialIdSet::new();
+        for (encode_id, _) in self.main.into_values() {
+            // Setのinsertは値を無視して結合を行うため、
+            // Map時代には色が違って分かれていたIDもここで結合される
+            set.insert(&encode_id);
+        }
+        set
     }
 
     /// キー（RangeId）のイテレータ
