@@ -2,7 +2,11 @@ use roaring::RoaringTreemap;
 use std::collections::BTreeMap;
 
 use crate::spatial_id::{
-    SpatialIdEncode, encode::EncodeId, range::RangeId, segment::encode::EncodeSegment,
+    SpatialIdEncode,
+    collection::{map, set::SpatialIdSet},
+    encode::EncodeId,
+    range::RangeId,
+    segment::encode::EncodeSegment,
 };
 use std::ops::Bound::{Excluded, Included};
 
@@ -10,11 +14,11 @@ type Rank = u64;
 
 #[derive(Clone)]
 pub struct SpatialIdMap<V> {
-    f: BTreeMap<EncodeSegment, RoaringTreemap>,
-    x: BTreeMap<EncodeSegment, RoaringTreemap>,
-    y: BTreeMap<EncodeSegment, RoaringTreemap>,
+    pub(crate) f: BTreeMap<EncodeSegment, RoaringTreemap>,
+    pub(crate) x: BTreeMap<EncodeSegment, RoaringTreemap>,
+    pub(crate) y: BTreeMap<EncodeSegment, RoaringTreemap>,
     pub(crate) main: BTreeMap<Rank, (EncodeId, V)>,
-    next_rank: Rank,
+    pub(crate) next_rank: Rank,
 }
 
 impl<V> SpatialIdMap<V>
@@ -30,6 +34,26 @@ where
             main: BTreeMap::new(),
             next_rank: 0,
         }
+    }
+
+    /// Mapの値を捨てて、領域情報のみを持つSetに変換する
+    pub fn to_set(self) -> SpatialIdSet {
+        let new_main: BTreeMap<Rank, (EncodeId, ())> = self
+            .main
+            .into_iter()
+            .map(|(rank, (encode_id, _val))| (rank, (encode_id, ())))
+            .collect();
+        // これにより、再インデックス化のコストがかからない
+        let new_inner_map = SpatialIdMap {
+            f: self.f,
+            x: self.x,
+            y: self.y,
+            main: new_main,
+            next_rank: self.next_rank,
+        };
+
+        // 3. Setとしてラップして返す
+        SpatialIdSet { map: new_inner_map }
     }
 
     /// キー（RangeId）のイテレータ

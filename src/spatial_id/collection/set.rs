@@ -1,12 +1,18 @@
-use std::ops::{BitAnd, BitOr, Not, Sub};
+use std::{
+    collections::BTreeMap,
+    ops::{BitAnd, BitOr, Not, Sub},
+};
 
 use crate::spatial_id::{
-    SpatialIdEncode, collection::map::SpatialIdMap, encode::EncodeId, range::RangeId,
+    SpatialIdEncode,
+    collection::{Rank, map::SpatialIdMap},
+    encode::EncodeId,
+    range::RangeId,
 };
 
 #[derive(Clone)]
 pub struct SpatialIdSet {
-    map: SpatialIdMap<()>,
+    pub(crate) map: SpatialIdMap<()>,
 }
 
 impl SpatialIdSet {
@@ -44,6 +50,10 @@ impl SpatialIdSet {
         self.map.remove(target);
     }
 
+    pub fn subset<T: SpatialIdEncode>(&self, target: &T) -> SpatialIdSet {
+        self.map.subset(target).to_set()
+    }
+
     /// 和集合 (A | B)
     pub fn union(&self, other: &SpatialIdSet) -> SpatialIdSet {
         let mut result = self.clone();
@@ -63,8 +73,6 @@ impl SpatialIdSet {
         };
 
         for encode_id in small.iter_encode() {
-            // mapのrelatedを使って重なりを検出し、交差部分を計算
-            // subset相当のロジック
             let related = large.map.related(&encode_id);
             for rank in related {
                 if let Some((large_id, _)) = large.map.main.get(&rank) {
