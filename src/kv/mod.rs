@@ -20,6 +20,8 @@ where
 
     fn iter(&self) -> Self::Iter<'_>;
 
+    fn len(&self) -> usize;
+
     fn range<R>(&self, range: R) -> Self::RangeIter<'_>
     where
         R: RangeBounds<K>;

@@ -1,12 +1,12 @@
 use kasane_logic::spatial_id::{
-    collection::set::SpatialIdSet,
+    collection::{SpatialIdMap, SpatialIdSet, set::Set},
     range::RangeId,
     segment::{Segment, encode::EncodeSegment},
     single::SingleId,
 };
 
 fn main() {
-    let mut set = SpatialIdSet::new();
+    let mut set = SpatialIdMap::new();
 
     let id = RangeId::new(5, [-10, 13], [1, 13], [1, 10]).unwrap();
     let id2 = SingleId::new(2, 1, 1, 1).unwrap();

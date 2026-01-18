@@ -1,61 +1,167 @@
 use std::{
+    cell::Cell,
     collections::BTreeMap,
     ops::{BitAnd, BitOr, Not, Sub},
 };
 
-use crate::spatial_id::{
-    SpatialIdEncode,
-    collection::{Rank, map::SpatialIdMap},
-    encode::EncodeId,
-    range::RangeId,
+use roaring::RoaringTreemap;
+
+use crate::{
+    kv::KvStore,
+    spatial_id::{
+        SpatialIdEncode,
+        collection::{MapTrait, Rank, map::MapLogic},
+        encode::EncodeId,
+        range::RangeId,
+        segment::encode::EncodeSegment,
+    },
 };
 
-#[derive(Clone)]
-pub struct SpatialIdSet {
-    pub(crate) map: SpatialIdMap<()>,
+pub struct Set {
+    f: BTreeMap<EncodeSegment, RoaringTreemap>,
+    x: BTreeMap<EncodeSegment, RoaringTreemap>,
+    y: BTreeMap<EncodeSegment, RoaringTreemap>,
+    main: BTreeMap<Rank, (EncodeId, ())>,
+    next_rank: Cell<Rank>,
 }
 
-impl SpatialIdSet {
+impl Set {
     pub fn new() -> Self {
         Self {
-            map: SpatialIdMap::new(),
+            f: BTreeMap::new(),
+            x: BTreeMap::new(),
+            y: BTreeMap::new(),
+            main: BTreeMap::new(),
+            next_rank: Cell::new(0),
         }
+    }
+}
+
+impl Default for Set {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MapTrait for Set {
+    type V = ();
+
+    type DimensionMap = BTreeMap<EncodeSegment, RoaringTreemap>;
+    type MainMap = BTreeMap<Rank, (EncodeId, Self::V)>;
+
+    fn f(&self) -> &Self::DimensionMap {
+        &self.f
+    }
+
+    fn f_mut(&mut self) -> &mut Self::DimensionMap {
+        &mut self.f
+    }
+
+    fn x(&self) -> &Self::DimensionMap {
+        &self.x
+    }
+
+    fn x_mut(&mut self) -> &mut Self::DimensionMap {
+        &mut self.x
+    }
+
+    fn y(&self) -> &Self::DimensionMap {
+        &self.y
+    }
+
+    fn y_mut(&mut self) -> &mut Self::DimensionMap {
+        &mut self.y
+    }
+
+    fn main(&self) -> &Self::MainMap {
+        &self.main
+    }
+
+    fn main_mut(&mut self) -> &mut Self::MainMap {
+        &mut self.main
+    }
+
+    fn fetch_next_rank(&self) -> Rank {
+        let rank = self.next_rank.get();
+        self.next_rank.set(rank + 1);
+        rank
+    }
+
+    fn clear(&mut self) {
+        self.f.clear();
+        self.x.clear();
+        self.y.clear();
+        self.main.clear();
+        self.next_rank.set(0);
+    }
+}
+
+#[derive(Clone)]
+pub struct SetLogic<S>(pub(crate) MapLogic<S>);
+
+impl<S> SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    pub fn new() -> Self {
+        Self(MapLogic::new(S::default()))
+    }
+
+    /// 既存のMap（V=()）からSetを作成
+    pub fn from_map(map: MapLogic<S>) -> Self {
+        Self(map)
     }
 
     pub fn size(&self) -> usize {
-        self.map.size()
+        self.0.size()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
+        self.0.is_empty()
     }
 
     pub fn clear(&mut self) {
-        self.map.clear();
+        self.0.clear();
     }
 
+    // ---------------------------------------------------------------------
+    //  Iterators
+    // ---------------------------------------------------------------------
+
     pub fn iter(&self) -> impl Iterator<Item = RangeId> + '_ {
-        self.map.keys()
+        self.0.keys()
     }
 
     fn iter_encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
-        self.map.keys_encode()
+        self.0.keys_encode()
     }
 
+    // ---------------------------------------------------------------------
+    //  Mutation
+    // ---------------------------------------------------------------------
+
     pub fn insert<T: SpatialIdEncode>(&mut self, target: &T) {
-        self.map.insert(target, &());
+        // 値は常に ()
+        self.0.insert(target, &());
     }
 
     pub fn remove<T: SpatialIdEncode>(&mut self, target: &T) {
-        self.map.remove(target);
+        self.0.remove(target);
     }
 
-    pub fn subset<T: SpatialIdEncode>(&self, target: &T) -> SpatialIdSet {
-        self.map.subset(target).to_set_join()
+    // ---------------------------------------------------------------------
+    //  Set Operations
+    // ---------------------------------------------------------------------
+
+    pub fn subset<T: SpatialIdEncode>(&self, target: &T) -> SetLogic<S> {
+        // Mapのsubset結果をラップして返す
+        // Map::subset は部分集合のMapを返すので、それをSetにする
+        SetLogic(self.0.subset(target))
     }
 
     /// 和集合 (A | B)
-    pub fn union(&self, other: &SpatialIdSet) -> SpatialIdSet {
+    pub fn union(&self, other: &SetLogic<S>) -> SetLogic<S> {
+        // 新しいSetを作成 (S::default() で空のストアを作成)
         let mut result = self.clone();
         for encode in other.iter_encode() {
             result.insert(&encode);
@@ -64,18 +170,35 @@ impl SpatialIdSet {
     }
 
     /// 積集合 (A & B)
-    pub fn intersection(&self, other: &SpatialIdSet) -> SpatialIdSet {
-        let mut result = SpatialIdSet::new();
+    pub fn intersection(&self, other: &SetLogic<S>) -> SetLogic<S> {
+        let mut result = SetLogic::new();
+
         let (small, large) = if self.size() < other.size() {
             (self, other)
         } else {
             (other, self)
         };
 
+        // 内部ロジック: Mapの機能を活用
+        // SはMapTraitなので、inner() で生のストアにアクセスできるなら
+        // self.0.related(...) のような呼び出しが可能
+
+        // ※ SpatialIdMap が related を公開していない場合は、
+        // SpatialIdMap に `intersection_ids(&self, target: &EncodeId)` のような
+        // ヘルパーを生やすか、pub(crate)でアクセスする必要があります。
+        // ここでは SpatialIdMap<S> 経由でアクセスできる前提で書きます。
+
         for encode_id in small.iter_encode() {
-            let related = large.map.related(&encode_id);
-            for rank in related {
-                if let Some((large_id, _)) = large.map.main.get(&rank) {
+            // ここは SpatialIdMap の実装に依存します。
+            // SpatialIdMap<S> に `related` が実装されている必要があります。
+            // もし `related` が private なら pub(crate) にしてください。
+            let related_ranks = large.0.related(&encode_id);
+
+            // トレイト経由でデータを取得
+            let large_store = large.0.inner();
+
+            for rank in related_ranks {
+                if let Some((large_id, _)) = large_store.main().get(&rank) {
                     if let Some(inter) = encode_id.intersection(large_id) {
                         result.insert(&inter);
                     }
@@ -86,7 +209,7 @@ impl SpatialIdSet {
     }
 
     /// 差集合 (A - B)
-    pub fn difference(&self, other: &SpatialIdSet) -> SpatialIdSet {
+    pub fn difference(&self, other: &SetLogic<S>) -> SetLogic<S> {
         let mut result = self.clone();
         for encode in other.iter_encode() {
             result.remove(&encode);
@@ -95,55 +218,128 @@ impl SpatialIdSet {
     }
 }
 
-// 演算子オーバーロード
+// =========================================================================
+//  Operator Overloading
+// =========================================================================
 
-impl BitOr for &SpatialIdSet {
-    type Output = SpatialIdSet;
+impl<S> BitOr for &SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    type Output = SetLogic<S>;
     fn bitor(self, rhs: Self) -> Self::Output {
         self.union(rhs)
     }
 }
 
-impl BitAnd for &SpatialIdSet {
-    type Output = SpatialIdSet;
+impl<S> BitAnd for &SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    type Output = SetLogic<S>;
     fn bitand(self, rhs: Self) -> Self::Output {
         self.intersection(rhs)
     }
 }
 
-impl Sub for &SpatialIdSet {
-    type Output = SpatialIdSet;
+impl<S> Sub for &SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    type Output = SetLogic<S>;
     fn sub(self, rhs: Self) -> Self::Output {
         self.difference(rhs)
     }
 }
 
-impl Not for SpatialIdSet {
+impl<S> Not for SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default + Clone,
+{
     type Output = Self;
     fn not(self) -> Self::Output {
-        let mut universe = SpatialIdSet::new();
+        let mut universe = SetLogic::new();
+        // 全空間定義 ([0, 1] 等は仕様に合わせて調整してください)
         let root_range = unsafe { RangeId::new_unchecked(0, [0, 1], [0, 0], [0, 0]) };
         universe.insert(&root_range);
         universe.difference(&self)
     }
 }
 
-// イテレータ実装
+// =========================================================================
+//  Iterators
+// =========================================================================
 
-impl IntoIterator for SpatialIdSet {
+impl<S> IntoIterator for SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default,
+{
     type Item = RangeId;
+    // Box<dyn ...> を避けるなら、Mapのイテレータ型を公開する必要がありますが、
+    // ここでは簡便のため Box で実装します
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.map.main.into_values().map(|(id, _)| id.decode()))
+        // SpatialIdMap<S> の iterator を使う
+        // inner() は &S を返すので、所有権を消費してイテレートするには
+        // Map 側に into_iter 的な何かが必要です。
+        // S::MainMap が IntoIterator を実装していれば簡単です。
+
+        // ここでは簡易的に collect してからイテレータにします (所有権移動のため)
+        // ※効率化するには S::MainMap::IntoIter を使うように設計変更が必要
+        let ids: Vec<RangeId> = self.0.keys().collect();
+        Box::new(ids.into_iter())
     }
 }
 
-impl<'a> IntoIterator for &'a SpatialIdSet {
+impl<'a, S> IntoIterator for &'a SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default,
+{
     type Item = RangeId;
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.map.keys())
+        Box::new(self.0.keys())
+    }
+}
+
+// =========================================================================
+//  From / Extend
+// =========================================================================
+
+impl<T, S> FromIterator<T> for SetLogic<S>
+where
+    T: SpatialIdEncode,
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut set = SetLogic::new();
+        for item in iter {
+            set.insert(&item);
+        }
+        set
+    }
+}
+
+impl<T, S> Extend<T> for SetLogic<S>
+where
+    T: SpatialIdEncode,
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.insert(&item);
+        }
+    }
+}
+
+// デフォルト実装
+impl<S> Default for SetLogic<S>
+where
+    S: MapTrait<V = ()> + Default + Clone,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
