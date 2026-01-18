@@ -151,15 +151,6 @@ where
             (other, self)
         };
 
-        // 内部ロジック: Mapの機能を活用
-        // SはMapTraitなので、inner() で生のストアにアクセスできるなら
-        // self.0.related(...) のような呼び出しが可能
-
-        // ※ SpatialIdMap が related を公開していない場合は、
-        // SpatialIdMap に `intersection_ids(&self, target: &EncodeId)` のような
-        // ヘルパーを生やすか、pub(crate)でアクセスする必要があります。
-        // ここでは SpatialIdMap<S> 経由でアクセスできる前提で書きます。
-
         for encode_id in small.iter_encode() {
             // ここは SpatialIdMap の実装に依存します。
             // SpatialIdMap<S> に `related` が実装されている必要があります。

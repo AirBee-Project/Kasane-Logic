@@ -107,12 +107,12 @@ where
     }
 
     /// 内部のストアへの参照を取得
-    pub fn inner(&self) -> &S {
+    pub(crate) fn inner(&self) -> &S {
         &self.0
     }
 
     /// 内部のストアへの可変参照を取得
-    pub fn inner_mut(&mut self) -> &mut S {
+    pub(crate) fn inner_mut(&mut self) -> &mut S {
         &mut self.0
     }
 
