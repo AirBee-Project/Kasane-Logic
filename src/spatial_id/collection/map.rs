@@ -3,7 +3,7 @@ use crate::{
     spatial_id::{
         SpatialIdEncode,
         collection::{MapTrait, Rank},
-        encode::EncodeId,
+        encode::FlexId,
         range::RangeId,
         segment::encode::EncodeSegment,
     },
@@ -18,7 +18,7 @@ pub struct Map<V> {
     f: BTreeMap<EncodeSegment, RoaringTreemap>,
     x: BTreeMap<EncodeSegment, RoaringTreemap>,
     y: BTreeMap<EncodeSegment, RoaringTreemap>,
-    main: BTreeMap<Rank, (EncodeId, V)>,
+    main: BTreeMap<Rank, (FlexId, V)>,
     next_rank: Cell<Rank>,
 }
 
@@ -44,7 +44,7 @@ impl<V> MapTrait for Map<V> {
     type V = V;
 
     type DimensionMap = BTreeMap<EncodeSegment, RoaringTreemap>;
-    type MainMap = BTreeMap<Rank, (EncodeId, V)>;
+    type MainMap = BTreeMap<Rank, (FlexId, V)>;
 
     fn f(&self) -> &Self::DimensionMap {
         &self.f
@@ -120,7 +120,7 @@ where
         self.0.main().iter().map(|(_, (id, _))| id.decode())
     }
 
-    pub fn keys_encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+    pub fn keys_encode(&self) -> impl Iterator<Item = FlexId> + '_ {
         self.0.main().iter().map(|(_, (id, _))| id.clone())
     }
 
@@ -148,7 +148,7 @@ where
     //  Core Logic
     // ---------------------------------------------------------------------
 
-    pub(crate) fn related(&self, target: &EncodeId) -> RoaringTreemap {
+    pub(crate) fn related(&self, target: &FlexId) -> RoaringTreemap {
         // ヘルパー: 特定の次元マップから関連Rankを取得
         let get_related = |map: &S::DimensionMap, seg: &EncodeSegment| -> RoaringTreemap {
             let mut bitmap = RoaringTreemap::new();
@@ -177,7 +177,7 @@ where
         f_related & x_related & y_related
     }
 
-    fn find_encode(&self, target: &EncodeId) -> Option<Rank> {
+    fn find_encode(&self, target: &FlexId) -> Option<Rank> {
         let f_hits = self.0.f().get(target.as_f())?;
         let x_hits = self.0.x().get(target.as_x())?;
         let y_hits = self.0.y().get(target.as_y())?;
@@ -271,10 +271,10 @@ where
     }
 
     /// 結合付き挿入（内部用）
-    pub unsafe fn join_insert_unchecked(&mut self, target: &EncodeId, value: &S::V) {
+    pub unsafe fn join_insert_unchecked(&mut self, target: &FlexId, value: &S::V) {
         // --- F次元の結合チェック ---
 
-        let f_sibling = EncodeId::new(
+        let f_sibling = FlexId::new(
             target.as_f().sibling(),
             target.as_x().clone(),
             target.as_y().clone(),
@@ -286,7 +286,7 @@ where
                     let parent = target.as_f().parent().unwrap();
                     unsafe {
                         self.join_insert_unchecked(
-                            &EncodeId::new(parent, target.as_x().clone(), target.as_y().clone()),
+                            &FlexId::new(parent, target.as_x().clone(), target.as_y().clone()),
                             value,
                         )
                     };
@@ -296,7 +296,7 @@ where
         }
 
         // --- X次元の結合チェック ---
-        let x_sibling = EncodeId::new(
+        let x_sibling = FlexId::new(
             target.as_f().clone(),
             target.as_x().sibling(),
             target.as_y().clone(),
@@ -308,7 +308,7 @@ where
                     let parent = target.as_x().parent().unwrap();
                     unsafe {
                         self.join_insert_unchecked(
-                            &EncodeId::new(target.as_f().clone(), parent, target.as_y().clone()),
+                            &FlexId::new(target.as_f().clone(), parent, target.as_y().clone()),
                             value,
                         )
                     };
@@ -318,7 +318,7 @@ where
         }
 
         // --- Y次元の結合チェック ---
-        let y_sibling = EncodeId::new(
+        let y_sibling = FlexId::new(
             target.as_f().clone(),
             target.as_x().clone(),
             target.as_y().sibling(),
@@ -330,7 +330,7 @@ where
                     let parent = target.as_y().parent().unwrap();
                     unsafe {
                         self.join_insert_unchecked(
-                            &EncodeId::new(target.as_f().clone(), target.as_x().clone(), parent),
+                            &FlexId::new(target.as_f().clone(), target.as_x().clone(), parent),
                             value,
                         )
                     };
@@ -344,7 +344,7 @@ where
     }
 
     /// 生の挿入処理 (KvStoreへの書き込み)
-    pub unsafe fn insert_unchecked(&mut self, target: &EncodeId, value: &S::V) {
+    pub unsafe fn insert_unchecked(&mut self, target: &FlexId, value: &S::V) {
         let rank = self.0.fetch_next_rank();
 
         // ヘルパー: Bitmapへの追加 (Entry APIの代用)
@@ -372,7 +372,7 @@ where
     }
 
     /// 指定Rankの削除
-    fn remove_rank(&mut self, rank: Rank) -> Option<(EncodeId, S::V)> {
+    fn remove_rank(&mut self, rank: Rank) -> Option<(FlexId, S::V)> {
         // Mainから削除してIDと値を取得
         let (encode_id, val) = self.0.main_mut().remove(&rank)?;
 

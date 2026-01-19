@@ -7,7 +7,7 @@ use crate::{
     spatial_id::{
         SpatialId, SpatialIdEncode,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        encode::EncodeId,
+        encode::FlexId,
         helpers,
         segment::{Segment, encode::EncodeSegment},
         single::SingleId,
@@ -627,8 +627,8 @@ impl SpatialId for RangeId {
 }
 
 impl SpatialIdEncode for RangeId {
-    ///[EncodeId]に変換を行う関数
-    fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+    ///[FlexId]に変換を行う関数
+    fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
         let f_segments = Segment::<i32>::new(self.as_z(), self.as_f());
         let x_segments: Vec<_> = if self.x[0] <= self.x[1] {
             Segment::<u32>::new(self.z, self.as_x()).collect()
@@ -651,7 +651,7 @@ impl SpatialIdEncode for RangeId {
                 let y_segments = y_segments.clone();
 
                 y_segments.into_iter().map(move |y| {
-                    EncodeId::new(
+                    FlexId::new(
                         EncodeSegment::from(f.clone()),
                         EncodeSegment::from(x.clone()),
                         EncodeSegment::from(y.clone()),

@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::encode::EncodeId};
+use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::encode::FlexId};
 
 //ユーザーに対して公開されているモジュール
 pub mod collection;
@@ -64,6 +64,6 @@ pub trait SpatialId {
 }
 
 pub trait SpatialIdEncode {
-    //EncodeIdの集合に変換するメゾット
-    fn encode(&self) -> impl Iterator<Item = EncodeId> + '_;
+    //FlexIdの集合に変換するメゾット
+    fn encode(&self) -> impl Iterator<Item = FlexId> + '_;
 }

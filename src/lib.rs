@@ -7,4 +7,5 @@ pub mod geometry;
 /// 空間IDに関する型を定義。
 pub mod spatial_id;
 
+/// このライブライがサポートするストレージのTrait定義と実装
 pub mod kv;

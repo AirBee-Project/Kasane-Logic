@@ -8,20 +8,20 @@ use crate::spatial_id::{
 };
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct EncodeId {
+pub struct FlexId {
     f: EncodeSegment,
     x: EncodeSegment,
     y: EncodeSegment,
 }
 
-pub enum EncodeIdRelation {
+pub enum FlexIdRelation {
     Disjoint,
     Related,
 }
 
-impl EncodeId {
-    pub fn new(f: EncodeSegment, x: EncodeSegment, y: EncodeSegment) -> EncodeId {
-        EncodeId { f, x, y }
+impl FlexId {
+    pub fn new(f: EncodeSegment, x: EncodeSegment, y: EncodeSegment) -> FlexId {
+        FlexId { f, x, y }
     }
 
     ///[RangeId]に戻す
@@ -66,8 +66,8 @@ impl EncodeId {
         &self.y
     }
 
-    ///EncodeId同士の関連を返す関数
-    pub fn relation(&self, other: &EncodeId) -> EncodeIdRelation {
+    ///FlexId同士の関連を返す関数
+    pub fn relation(&self, other: &FlexId) -> FlexIdRelation {
         let f_relation = self.as_f().relation(other.as_f());
         let x_relation = self.as_x().relation(other.as_x());
         let y_relation = self.as_y().relation(other.as_y());
@@ -76,13 +76,13 @@ impl EncodeId {
             || x_relation == SegmentRelation::Disjoint
             || y_relation == SegmentRelation::Disjoint
         {
-            EncodeIdRelation::Disjoint
+            FlexIdRelation::Disjoint
         } else {
-            EncodeIdRelation::Related
+            FlexIdRelation::Related
         }
     }
 
-    pub fn intersection(&self, other: &EncodeId) -> Option<EncodeId> {
+    pub fn intersection(&self, other: &FlexId) -> Option<FlexId> {
         let f = match self.as_f().relation(other.as_f()) {
             SegmentRelation::Equal => self.as_f(),
             SegmentRelation::Ancestor => other.as_f(),
@@ -110,14 +110,14 @@ impl EncodeId {
             }
         };
 
-        Some(EncodeId {
+        Some(FlexId {
             f: f.clone(),
             x: x.clone(),
             y: y.clone(),
         })
     }
 
-    pub fn difference(&self, other: &EncodeId) -> Vec<EncodeId> {
+    pub fn difference(&self, other: &FlexId) -> Vec<FlexId> {
         let intersection = match self.intersection(other) {
             Some(i) => i,
             None => return vec![self.clone()], // 排反ならAそのまま
@@ -131,7 +131,7 @@ impl EncodeId {
 
         let f_diffs = Self::segment_difference_one_way(&self.f, &intersection.f);
         for f_seg in f_diffs {
-            result.push(EncodeId {
+            result.push(FlexId {
                 f: f_seg,
                 x: self.x.clone(),
                 y: self.y.clone(),
@@ -140,7 +140,7 @@ impl EncodeId {
 
         let x_diffs = Self::segment_difference_one_way(&self.x, &intersection.x);
         for x_seg in x_diffs {
-            result.push(EncodeId {
+            result.push(FlexId {
                 f: intersection.f.clone(),
                 x: x_seg,
                 y: self.y.clone(),
@@ -149,7 +149,7 @@ impl EncodeId {
 
         let y_diffs = Self::segment_difference_one_way(&self.y, &intersection.y);
         for y_seg in y_diffs {
-            result.push(EncodeId {
+            result.push(FlexId {
                 f: intersection.f.clone(),
                 x: intersection.x.clone(),
                 y: y_seg,
@@ -186,7 +186,7 @@ impl EncodeId {
         results
     }
 
-    pub fn contains(&self, other: &EncodeId) -> bool {
+    pub fn contains(&self, other: &FlexId) -> bool {
         self.as_f().relation(other.as_f()) != SegmentRelation::Disjoint
             && self.as_f().relation(other.as_f()) != SegmentRelation::Descendant
             && self.as_x().relation(other.as_x()) != SegmentRelation::Disjoint
@@ -196,8 +196,8 @@ impl EncodeId {
     }
 }
 
-impl SpatialIdEncode for EncodeId {
-    fn encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+impl SpatialIdEncode for FlexId {
+    fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
         std::iter::once(self.clone())
     }
 }

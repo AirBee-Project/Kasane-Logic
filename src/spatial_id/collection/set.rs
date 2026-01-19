@@ -14,7 +14,7 @@ use crate::{
             MapTrait, Rank,
             map::{Map, MapLogic},
         },
-        encode::EncodeId,
+        encode::FlexId,
         range::RangeId,
         segment::encode::EncodeSegment,
     },
@@ -34,7 +34,7 @@ impl Set {
 impl MapTrait for Set {
     type V = ();
     type DimensionMap = BTreeMap<EncodeSegment, RoaringTreemap>;
-    type MainMap = BTreeMap<Rank, (EncodeId, ())>;
+    type MainMap = BTreeMap<Rank, (FlexId, ())>;
 
     fn f(&self) -> &Self::DimensionMap {
         self.0.f()
@@ -104,7 +104,7 @@ where
         self.0.keys()
     }
 
-    fn iter_encode(&self) -> impl Iterator<Item = EncodeId> + '_ {
+    fn iter_encode(&self) -> impl Iterator<Item = FlexId> + '_ {
         self.0.keys_encode()
     }
 

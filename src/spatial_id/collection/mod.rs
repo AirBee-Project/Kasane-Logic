@@ -1,7 +1,7 @@
 use crate::kv::KvStore;
 use crate::spatial_id::collection::map::{Map, MapLogic};
 use crate::spatial_id::collection::set::{Set, SetLogic};
-use crate::spatial_id::{encode::EncodeId, segment::encode::EncodeSegment};
+use crate::spatial_id::{encode::FlexId, segment::encode::EncodeSegment};
 use roaring::RoaringTreemap;
 
 mod map;
@@ -18,7 +18,7 @@ pub trait MapTrait {
     type V; // ユーザーが格納する値の型
 
     type DimensionMap: KvStore<EncodeSegment, RoaringTreemap>;
-    type MainMap: KvStore<Rank, (EncodeId, Self::V)>;
+    type MainMap: KvStore<Rank, (FlexId, Self::V)>;
 
     fn f(&self) -> &Self::DimensionMap;
     fn f_mut(&mut self) -> &mut Self::DimensionMap;
