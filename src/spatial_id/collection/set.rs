@@ -16,7 +16,7 @@ use crate::{
         },
         encode::FlexId,
         range::RangeId,
-        segment::encode::EncodeSegment,
+        segment::Segment,
     },
 };
 
@@ -33,7 +33,7 @@ impl Set {
 // MapTraitを委譲する
 impl MapTrait for Set {
     type V = ();
-    type DimensionMap = BTreeMap<EncodeSegment, RoaringTreemap>;
+    type DimensionMap = BTreeMap<Segment, RoaringTreemap>;
     type MainMap = BTreeMap<Rank, (FlexId, ())>;
 
     fn f(&self) -> &Self::DimensionMap {

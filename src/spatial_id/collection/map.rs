@@ -5,7 +5,7 @@ use crate::{
         collection::{MapTrait, Rank},
         encode::FlexId,
         range::RangeId,
-        segment::encode::EncodeSegment,
+        segment::Segment,
     },
 };
 use roaring::RoaringTreemap;
@@ -15,9 +15,9 @@ use std::ops::Bound::{Excluded, Included};
 
 #[derive(Clone)]
 pub struct Map<V> {
-    f: BTreeMap<EncodeSegment, RoaringTreemap>,
-    x: BTreeMap<EncodeSegment, RoaringTreemap>,
-    y: BTreeMap<EncodeSegment, RoaringTreemap>,
+    f: BTreeMap<Segment, RoaringTreemap>,
+    x: BTreeMap<Segment, RoaringTreemap>,
+    y: BTreeMap<Segment, RoaringTreemap>,
     main: BTreeMap<Rank, (FlexId, V)>,
     next_rank: Cell<Rank>,
 }
@@ -43,7 +43,7 @@ impl<V> Default for Map<V> {
 impl<V> MapTrait for Map<V> {
     type V = V;
 
-    type DimensionMap = BTreeMap<EncodeSegment, RoaringTreemap>;
+    type DimensionMap = BTreeMap<Segment, RoaringTreemap>;
     type MainMap = BTreeMap<Rank, (FlexId, V)>;
 
     fn f(&self) -> &Self::DimensionMap {
@@ -150,7 +150,7 @@ where
 
     pub(crate) fn related(&self, target: &FlexId) -> RoaringTreemap {
         // ヘルパー: 特定の次元マップから関連Rankを取得
-        let get_related = |map: &S::DimensionMap, seg: &EncodeSegment| -> RoaringTreemap {
+        let get_related = |map: &S::DimensionMap, seg: &Segment| -> RoaringTreemap {
             let mut bitmap = RoaringTreemap::new();
 
             // Ancestors (親を辿る)
@@ -348,7 +348,7 @@ where
         let rank = self.0.fetch_next_rank();
 
         // ヘルパー: Bitmapへの追加 (Entry APIの代用)
-        let upsert = |map: &mut S::DimensionMap, key: &EncodeSegment| {
+        let upsert = |map: &mut S::DimensionMap, key: &Segment| {
             // updateができれば使う、できなければ get -> insert/new
             let mut done = false;
             map.update(key, |bm| {
@@ -377,7 +377,7 @@ where
         let (encode_id, val) = self.0.main_mut().remove(&rank)?;
 
         // 各次元インデックスからRankを削除
-        let remove_from_dim = |map: &mut S::DimensionMap, key: &EncodeSegment| {
+        let remove_from_dim = |map: &mut S::DimensionMap, key: &Segment| {
             let mut should_remove_key = false;
             map.update(key, |bm| {
                 bm.remove(rank);

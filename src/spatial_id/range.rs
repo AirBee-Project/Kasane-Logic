@@ -9,7 +9,7 @@ use crate::{
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         encode::FlexId,
         helpers,
-        segment::{Segment, encode::EncodeSegment},
+        segment::Segment,
         single::SingleId,
     },
 };
@@ -629,16 +629,15 @@ impl SpatialId for RangeId {
 impl SpatialIdEncode for RangeId {
     ///[FlexId]に変換を行う関数
     fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
-        let f_segments = Segment::<i32>::new(self.as_z(), self.as_f());
+        let f_segments = Segment::split_f(self.as_z(), self.as_f());
         let x_segments: Vec<_> = if self.x[0] <= self.x[1] {
-            Segment::<u32>::new(self.z, self.as_x()).collect()
+            Segment::split_xy(self.as_z(), self.as_y()).collect()
         } else {
-            let max = self.max_xy();
-            Segment::<u32>::new(self.z, [self.x[0], max])
-                .chain(Segment::<u32>::new(self.z, [0, self.x[1]]))
+            Segment::split_xy(self.as_z(), [self.x[0], self.max_xy()])
+                .chain(Segment::split_xy(self.as_z(), [0, self.x[1]]))
                 .collect()
         };
-        let y_segments = Segment::<u32>::new(self.z, self.as_y()).collect();
+        let y_segments = Segment::split_xy(self.as_z(), self.as_y()).collect();
 
         let x_segments: Vec<_> = x_segments;
         let y_segments: Vec<_> = y_segments;
@@ -650,12 +649,9 @@ impl SpatialIdEncode for RangeId {
             x_segments.into_iter().flat_map(move |x| {
                 let y_segments = y_segments.clone();
 
-                y_segments.into_iter().map(move |y| {
-                    FlexId::new(
-                        EncodeSegment::from(f.clone()),
-                        EncodeSegment::from(x.clone()),
-                        EncodeSegment::from(y.clone()),
-                    )
+                y_segments.into_iter().map({
+                    let value = f.clone();
+                    move |y| FlexId::new(value.clone(), x.clone(), y)
                 })
             })
         })

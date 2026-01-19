@@ -9,7 +9,7 @@ use crate::{
         encode::FlexId,
         helpers,
         range::RangeId,
-        segment::{Segment, encode::EncodeSegment},
+        segment::Segment,
     },
 };
 
@@ -686,17 +686,10 @@ impl SpatialId for SingleId {
 
 impl SpatialIdEncode for SingleId {
     fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
-        let f_encode_segment: Vec<_> =
-            Segment::<i32>::new(self.as_z(), [self.as_f(), self.as_f()]).collect();
-        let x_encode_segment: Vec<_> =
-            Segment::<u32>::new(self.z, [self.as_x(), self.as_x()]).collect();
-        let y_encode_segment: Vec<_> =
-            Segment::<u32>::new(self.z, [self.as_y(), self.as_y()]).collect();
-        let result = FlexId::new(
-            EncodeSegment::from(f_encode_segment.first().unwrap().clone()),
-            EncodeSegment::from(x_encode_segment.first().unwrap().clone()),
-            EncodeSegment::from(y_encode_segment.first().unwrap().clone()),
-        );
+        let f_segment = Segment::from_f(self.as_z(), self.as_f());
+        let x_segment = Segment::from_xy(self.as_z(), self.as_x());
+        let y_segment = Segment::from_xy(self.as_z(), self.as_y());
+        let result = FlexId::new(f_segment, x_segment, y_segment);
         std::iter::once(result)
     }
 }

@@ -1,17 +1,10 @@
-use crate::spatial_id::{
-    SpatialIdEncode,
-    range::RangeId,
-    segment::{
-        Segment,
-        encode::{EncodeSegment, SegmentRelation},
-    },
-};
-
+use crate::spatial_id::segment::SegmentRelation;
+use crate::spatial_id::{SpatialIdEncode, range::RangeId, segment::Segment};
 #[derive(Clone, PartialEq, Debug)]
 pub struct FlexId {
-    f: EncodeSegment,
-    x: EncodeSegment,
-    y: EncodeSegment,
+    f: Segment,
+    x: Segment,
+    y: Segment,
 }
 
 pub enum FlexIdRelation {
@@ -20,31 +13,27 @@ pub enum FlexIdRelation {
 }
 
 impl FlexId {
-    pub fn new(f: EncodeSegment, x: EncodeSegment, y: EncodeSegment) -> FlexId {
+    pub fn new(f: Segment, x: Segment, y: Segment) -> FlexId {
         FlexId { f, x, y }
     }
 
-    ///[RangeId]に戻す
     pub fn decode(&self) -> RangeId {
-        let f_seg = Segment::<i32>::from(self.f.clone());
-        let x_seg = Segment::<u32>::from(self.x.clone());
-        let y_seg = Segment::<u32>::from(self.y.clone());
+        let (f_z, f_dim) = self.f.to_f();
+        let (x_z, x_dim) = self.x.to_xy();
+        let (y_z, y_dim) = self.y.to_xy();
 
-        let max_z = f_seg.as_z().max(x_seg.as_z().max(y_seg.as_z()));
+        let max_z = f_z.max(x_z).max(y_z);
 
-        let scale_to_range = |val: i64, current_z: u8, target_z: u8| -> [i64; 2] {
-            let diff = target_z - current_z;
-            let scale = 1_i64 << diff;
-
-            let start = val * scale;
-            let end = start + scale - 1;
-
+        let scale_to_range = |val: i64, current_z: u8| -> [i64; 2] {
+            let diff = max_z - current_z;
+            let start = val << diff;
+            let end = start + (1_i64 << diff) - 1;
             [start, end]
         };
 
-        let f_range = scale_to_range(f_seg.as_dimension() as i64, f_seg.as_z(), max_z);
-        let x_range = scale_to_range(x_seg.as_dimension() as i64, x_seg.as_z(), max_z);
-        let y_range = scale_to_range(y_seg.as_dimension() as i64, y_seg.as_z(), max_z);
+        let f_range = scale_to_range(f_dim as i64, f_z);
+        let x_range = scale_to_range(x_dim as i64, x_z);
+        let y_range = scale_to_range(y_dim as i64, y_z);
 
         RangeId {
             z: max_z,
@@ -54,15 +43,15 @@ impl FlexId {
         }
     }
 
-    pub fn as_f(&self) -> &EncodeSegment {
+    pub fn as_f(&self) -> &Segment {
         &self.f
     }
 
-    pub fn as_x(&self) -> &EncodeSegment {
+    pub fn as_x(&self) -> &Segment {
         &self.x
     }
 
-    pub fn as_y(&self) -> &EncodeSegment {
+    pub fn as_y(&self) -> &Segment {
         &self.y
     }
 
@@ -159,10 +148,7 @@ impl FlexId {
         result
     }
 
-    fn segment_difference_one_way(
-        base: &EncodeSegment,
-        hole: &EncodeSegment,
-    ) -> Vec<EncodeSegment> {
+    fn segment_difference_one_way(base: &Segment, hole: &Segment) -> Vec<Segment> {
         if base == hole {
             return vec![];
         }
