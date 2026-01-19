@@ -18,6 +18,7 @@ pub use geometry::{
 };
 pub use kv::KvStore;
 pub use spatial_id::{
-    collection::MapIndexTrait, collection::MapTrait, collection::map::MapLogic,
-    collection::set::SetLogic, range_id::RangeId, single_id::SingleId,
+    SpatialId, collection::MapIndexTrait, collection::MapTrait, collection::map::MapLogic,
+    collection::map::SpatialIdMap, collection::set::SetLogic, range_id::RangeId,
+    single_id::SingleId,
 };

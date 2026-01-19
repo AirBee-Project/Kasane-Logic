@@ -1,6 +1,5 @@
 use crate::kv::KvStore;
 use crate::spatial_id::collection::map::{MapLogic, OnMemoryMap};
-use crate::spatial_id::collection::set::{OnMemorySet, SetLogic};
 use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use roaring::RoaringTreemap;
