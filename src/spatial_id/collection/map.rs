@@ -3,8 +3,8 @@ use crate::{
     spatial_id::{
         SpatialIdEncode,
         collection::{MapTrait, Rank},
-        encode::FlexId,
-        range::RangeId,
+        flex_id::FlexId,
+        range_id::RangeId,
         segment::Segment,
     },
 };

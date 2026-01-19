@@ -7,10 +7,10 @@ use crate::{
     spatial_id::{
         SpatialId, SpatialIdEncode,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        encode::FlexId,
+        flex_id::FlexId,
         helpers,
         segment::Segment,
-        single::SingleId,
+        single_id::SingleId,
     },
 };
 
@@ -30,10 +30,10 @@ use crate::{
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct RangeId {
-    pub(crate) z: u8,
-    pub(crate) f: [i32; 2],
-    pub(crate) x: [u32; 2],
-    pub(crate) y: [u32; 2],
+    z: u8,
+    f: [i32; 2],
+    x: [u32; 2],
+    y: [u32; 2],
 }
 
 impl fmt::Display for RangeId {

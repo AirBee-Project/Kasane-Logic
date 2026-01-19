@@ -1,7 +1,7 @@
 use crate::kv::KvStore;
 use crate::spatial_id::collection::map::{Map, MapLogic};
 use crate::spatial_id::collection::set::{Set, SetLogic};
-use crate::spatial_id::encode::FlexId;
+use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use roaring::RoaringTreemap;
 

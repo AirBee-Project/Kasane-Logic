@@ -6,7 +6,7 @@ use crate::{
         constants::{WGS84_A, WGS84_E2},
         ecef::Ecef,
     },
-    spatial_id::{constants::MAX_ZOOM_LEVEL, single::SingleId},
+    spatial_id::{constants::MAX_ZOOM_LEVEL, single_id::SingleId},
 };
 
 /// 緯度・経度・高度を表す型。

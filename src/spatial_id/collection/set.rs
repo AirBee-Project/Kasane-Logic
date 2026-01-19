@@ -14,8 +14,8 @@ use crate::{
             MapTrait, Rank,
             map::{Map, MapLogic},
         },
-        encode::FlexId,
-        range::RangeId,
+        flex_id::FlexId,
+        range_id::RangeId,
         segment::Segment,
     },
 };

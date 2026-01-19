@@ -1,5 +1,5 @@
 use crate::spatial_id::segment::SegmentRelation;
-use crate::spatial_id::{SpatialIdEncode, range::RangeId, segment::Segment};
+use crate::spatial_id::{SpatialIdEncode, range_id::RangeId, segment::Segment};
 #[derive(Clone, PartialEq, Debug)]
 pub struct FlexId {
     f: Segment,
@@ -35,11 +35,13 @@ impl FlexId {
         let x_range = scale_to_range(x_dim as i64, x_z);
         let y_range = scale_to_range(y_dim as i64, y_z);
 
-        RangeId {
-            z: max_z,
-            f: [f_range[0] as i32, f_range[1] as i32],
-            x: [x_range[0] as u32, x_range[1] as u32],
-            y: [y_range[0] as u32, y_range[1] as u32],
+        unsafe {
+            RangeId::new_unchecked(
+                max_z,
+                [f_range[0] as i32, f_range[1] as i32],
+                [x_range[0] as u32, x_range[1] as u32],
+                [y_range[0] as u32, y_range[1] as u32],
+            )
         }
     }
 

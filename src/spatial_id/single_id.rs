@@ -6,9 +6,8 @@ use crate::{
     spatial_id::{
         SpatialId, SpatialIdEncode,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        encode::FlexId,
+        flex_id::FlexId,
         helpers,
-        range::RangeId,
         segment::Segment,
     },
 };

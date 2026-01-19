@@ -1,7 +1,7 @@
 use kasane_logic::spatial_id::{
     collection::{SpatialMap, SpatialSet},
-    range::RangeId,
-    single::SingleId,
+    range_id::RangeId,
+    single_id::SingleId,
 };
 
 fn main() {

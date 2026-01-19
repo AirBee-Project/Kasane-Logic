@@ -26,16 +26,18 @@
 //! }
 //! ```
 
-use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::encode::FlexId};
+use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::flex_id::FlexId};
 
 //ユーザーに対して公開されているモジュール
 pub mod collection;
 pub mod constants;
-pub mod range;
-pub mod single;
+pub mod range_id;
+pub mod single_id;
 
 //非公開のモジュール
-pub(crate) mod encode;
+
+///
+pub(crate) mod flex_id;
 pub(crate) mod helpers;
 pub mod segment;
 

@@ -2,7 +2,7 @@ use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use std::fmt::{self, Display};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Segment(pub(crate) [u8; Segment::ARRAY_LENGTH]);
+pub struct Segment([u8; Segment::ARRAY_LENGTH]);
 
 /// 内部ビット表現のヘルパー
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,10 +24,6 @@ pub enum SegmentRelation {
 impl Segment {
     /// 配列長 (MAX_ZOOM_LEVEL * 2 bits / 8)
     pub(crate) const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
-
-    // -------------------------------------------------------------------------
-    //  Constructors & Range Splitters
-    // -------------------------------------------------------------------------
 
     /// u32 (X/Y次元) の範囲から、最適な解像度のセグメント列を生成する
     pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment> {
@@ -92,10 +88,6 @@ impl Segment {
         segment
     }
 
-    // -------------------------------------------------------------------------
-    //  Converters (Decode)
-    // -------------------------------------------------------------------------
-
     /// 情報を復元する (X/Y次元用) -> (z, dimension)
     pub fn to_xy(&self) -> (u8, u32) {
         let mut z: u8 = 0;
@@ -144,10 +136,6 @@ impl Segment {
         };
         (z, dim)
     }
-
-    // -------------------------------------------------------------------------
-    //  Spatial Relations & Traversals
-    // -------------------------------------------------------------------------
 
     pub fn relation(&self, other: &Self) -> SegmentRelation {
         for (b1, b2) in self.0.iter().zip(other.0.iter()) {

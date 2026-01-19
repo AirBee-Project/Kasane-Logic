@@ -6,7 +6,7 @@ use crate::{
         constants::{WGS84_A, WGS84_E2, WGS84_F},
         coordinate::Coordinate,
     },
-    spatial_id::single::SingleId,
+    spatial_id::single_id::SingleId,
 };
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
