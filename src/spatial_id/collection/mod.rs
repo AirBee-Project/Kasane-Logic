@@ -1,14 +1,14 @@
 use crate::kv::KvStore;
-use crate::spatial_id::collection::map::{MapLogic, OnMemoryMap};
 use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use roaring::RoaringTreemap;
 
-pub mod map;
-pub mod set;
-
-// 内部で使用するRankの型
+mod map;
+mod set;
 pub type Rank = u64;
+
+pub use map::{MapLogic, SpatialIdMap};
+pub use set::{SetLogic, SpatialIdSet};
 
 /// 空間インデックスに必要なストレージ機能をまとめたトレイト
 pub trait MapTrait {
