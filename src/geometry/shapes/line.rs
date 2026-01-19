@@ -1,9 +1,10 @@
 use std::f64;
 
 use crate::{
+    SingleId,
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
-    spatial_id::{constants::MAX_ZOOM_LEVEL, single_id::SingleId},
+    spatial_id::constants::MAX_ZOOM_LEVEL,
 };
 
 /// 指定された 2 点で構成される直線を覆う空間 ID を列挙する。

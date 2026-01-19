@@ -1,5 +1,8 @@
+use std::collections::btree_map::Range;
+
+use crate::RangeId;
 use crate::spatial_id::segment::SegmentRelation;
-use crate::spatial_id::{SpatialIdEncode, range_id::RangeId, segment::Segment};
+use crate::spatial_id::{SpatialIdEncode, segment::Segment};
 #[derive(Clone, PartialEq, Debug)]
 pub struct FlexId {
     f: Segment,
@@ -18,31 +21,7 @@ impl FlexId {
     }
 
     pub fn decode(&self) -> RangeId {
-        let (f_z, f_dim) = self.f.to_f();
-        let (x_z, x_dim) = self.x.to_xy();
-        let (y_z, y_dim) = self.y.to_xy();
-
-        let max_z = f_z.max(x_z).max(y_z);
-
-        let scale_to_range = |val: i64, current_z: u8| -> [i64; 2] {
-            let diff = max_z - current_z;
-            let start = val << diff;
-            let end = start + (1_i64 << diff) - 1;
-            [start, end]
-        };
-
-        let f_range = scale_to_range(f_dim as i64, f_z);
-        let x_range = scale_to_range(x_dim as i64, x_z);
-        let y_range = scale_to_range(y_dim as i64, y_z);
-
-        unsafe {
-            RangeId::new_unchecked(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-            )
-        }
+        self.clone().into()
     }
 
     pub fn as_f(&self) -> &Segment {
@@ -120,7 +99,7 @@ impl FlexId {
 
         let mut result = Vec::new();
 
-        let f_diffs = Self::segment_difference_one_way(&self.f, &intersection.f);
+        let f_diffs = self.as_x().difference(&intersection.x);
         for f_seg in f_diffs {
             result.push(FlexId {
                 f: f_seg,
@@ -129,7 +108,7 @@ impl FlexId {
             });
         }
 
-        let x_diffs = Self::segment_difference_one_way(&self.x, &intersection.x);
+        let x_diffs = self.as_x().difference(&intersection.x);
         for x_seg in x_diffs {
             result.push(FlexId {
                 f: intersection.f.clone(),
@@ -138,7 +117,7 @@ impl FlexId {
             });
         }
 
-        let y_diffs = Self::segment_difference_one_way(&self.y, &intersection.y);
+        let y_diffs = self.as_y().difference(&intersection.y);
         for y_seg in y_diffs {
             result.push(FlexId {
                 f: intersection.f.clone(),
@@ -148,30 +127,6 @@ impl FlexId {
         }
 
         result
-    }
-
-    fn segment_difference_one_way(base: &Segment, hole: &Segment) -> Vec<Segment> {
-        if base == hole {
-            return vec![];
-        }
-
-        let mut results = Vec::new();
-        let mut current = hole.clone();
-
-        // hole から base に到達するまで、親を辿りながら「兄弟」を収集する
-        // これにより、baseの内側で hole の外側にある領域を網羅できる
-        while &current != base {
-            // 兄弟がいれば追加 (兄弟 = holeの親から見て、holeではない方の分岐)
-            results.push(current.sibling());
-
-            // 親へ移動
-            match current.parent() {
-                Some(p) => current = p,
-                None => break, // ここには来ないはず (baseに到達するはず)
-            }
-        }
-
-        results
     }
 
     pub fn contains(&self, other: &FlexId) -> bool {
@@ -187,5 +142,35 @@ impl FlexId {
 impl SpatialIdEncode for FlexId {
     fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
         std::iter::once(self.clone())
+    }
+}
+
+impl From<FlexId> for RangeId {
+    fn from(flex_id: FlexId) -> Self {
+        let (f_z, f_dim) = flex_id.f.to_f();
+        let (x_z, x_dim) = flex_id.x.to_xy();
+        let (y_z, y_dim) = flex_id.y.to_xy();
+
+        let max_z = f_z.max(x_z).max(y_z);
+
+        let scale_to_range = |val: i64, current_z: u8| -> [i64; 2] {
+            let diff = max_z - current_z;
+            let start = val << diff;
+            let end = start + (1_i64 << diff) - 1;
+            [start, end]
+        };
+
+        let f_range = scale_to_range(f_dim as i64, f_z);
+        let x_range = scale_to_range(x_dim as i64, x_z);
+        let y_range = scale_to_range(y_dim as i64, y_z);
+
+        unsafe {
+            RangeId::new_unchecked(
+                max_z,
+                [f_range[0] as i32, f_range[1] as i32],
+                [x_range[0] as u32, x_range[1] as u32],
+                [y_range[0] as u32, y_range[1] as u32],
+            )
+        }
     }
 }

@@ -1,11 +1,7 @@
-use kasane_logic::spatial_id::{
-    collection::{SpatialMap, SpatialSet},
-    range_id::RangeId,
-    single_id::SingleId,
-};
+use kasane_logic::{Coordinate, RangeId, SingleId, SpatialIdMap, SpatialIdSet};
 
 fn main() {
-    let mut set = SpatialSet::new();
+    let mut set = SpatialIdSet::new();
 
     let id = RangeId::new(5, [-10, 13], [1, 13], [1, 10]).unwrap();
     let id2 = SingleId::new(2, 1, 1, 1).unwrap();

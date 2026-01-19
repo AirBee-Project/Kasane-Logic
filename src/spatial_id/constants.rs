@@ -5,7 +5,7 @@ pub const MAX_ZOOM_LEVEL: usize = 31;
 /// 各ズームレベルにおけるXYインデックスの最大値
 ///
 /// ```
-/// # use kasane_logic::spatial_id::single::SingleId;
+/// # use kasane_logic::spatial_id::single_id::SingleId;
 /// # use kasane_logic::spatial_id::constants::XY_MAX;
 /// # use crate::kasane_logic::spatial_id::SpatialId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
@@ -20,7 +20,7 @@ pub const XY_MAX: [u32; MAX_ZOOM_LEVEL + 1] = [
 /// 各ズームレベルにおけるFインデックスの最小値
 ///
 /// ```
-/// # use kasane_logic::spatial_id::single::SingleId;
+/// # use kasane_logic::spatial_id::single_id::SingleId;
 /// # use kasane_logic::spatial_id::constants::F_MIN;
 /// # use crate::kasane_logic::spatial_id::SpatialId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
@@ -64,7 +64,7 @@ pub const F_MIN: [i32; MAX_ZOOM_LEVEL + 1] = [
 /// 各ズームレベルにおけるFインデックスの最大値
 ///
 /// ```
-/// # use kasane_logic::spatial_id::single::SingleId;
+/// # use kasane_logic::spatial_id::single_id::SingleId;
 /// # use kasane_logic::spatial_id::constants::F_MAX;
 /// # use crate::kasane_logic::spatial_id::SpatialId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();

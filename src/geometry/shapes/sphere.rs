@@ -1,6 +1,7 @@
 use crate::{
+    SingleId,
     geometry::{constants::WGS84_A, coordinate::Coordinate, ecef::Ecef},
-    spatial_id::{SpatialId, helpers::Dimension, single_id::SingleId},
+    spatial_id::{SpatialId, helpers::Dimension},
 };
 
 pub fn voxel_length(z: u8, axis: Dimension) -> f64 {

@@ -1,10 +1,10 @@
 use crate::{
+    RangeId,
     kv::KvStore,
     spatial_id::{
         SpatialIdEncode,
         collection::{MapTrait, Rank},
         flex_id::FlexId,
-        range_id::RangeId,
         segment::Segment,
     },
 };
@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::ops::Bound::{Excluded, Included};
 
 #[derive(Clone)]
-pub struct Map<V> {
+pub struct OnMemoryMap<V> {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
@@ -22,7 +22,7 @@ pub struct Map<V> {
     next_rank: Cell<Rank>,
 }
 
-impl<V> Map<V> {
+impl<V> OnMemoryMap<V> {
     pub fn new() -> Self {
         Self {
             f: BTreeMap::new(),
@@ -34,13 +34,13 @@ impl<V> Map<V> {
     }
 }
 
-impl<V> Default for Map<V> {
+impl<V> Default for OnMemoryMap<V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<V> MapTrait for Map<V> {
+impl<V> MapTrait for OnMemoryMap<V> {
     type V = V;
 
     type DimensionMap = BTreeMap<Segment, RoaringTreemap>;

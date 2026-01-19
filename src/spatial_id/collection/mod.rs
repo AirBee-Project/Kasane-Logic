@@ -1,15 +1,12 @@
 use crate::kv::KvStore;
-use crate::spatial_id::collection::map::{Map, MapLogic};
-use crate::spatial_id::collection::set::{Set, SetLogic};
+use crate::spatial_id::collection::map::{MapLogic, OnMemoryMap};
+use crate::spatial_id::collection::set::{OnMemorySet, SetLogic};
 use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use roaring::RoaringTreemap;
 
-mod map;
-mod set;
-
-pub type SpatialSet = SetLogic<Set>;
-pub type SpatialMap<V> = MapLogic<Map<V>>;
+pub mod map;
+pub mod set;
 
 // 内部で使用するRankの型
 pub type Rank = u64;

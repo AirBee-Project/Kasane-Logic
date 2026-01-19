@@ -22,11 +22,9 @@ pub enum SegmentRelation {
 }
 
 impl Segment {
-    /// 配列長 (MAX_ZOOM_LEVEL * 2 bits / 8)
     pub(crate) const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
 
-    /// u32 (X/Y次元) の範囲から、最適な解像度のセグメント列を生成する
-    pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment> {
+    pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment> {
         let [l, r] = range;
         SegmentIter {
             l: l as i32,
@@ -36,8 +34,7 @@ impl Segment {
         .map(|(z, dim)| Segment::from_xy(z, dim as u32))
     }
 
-    /// i32 (F次元) の範囲から、最適な解像度のセグメント列を生成する
-    pub fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment> {
+    pub(crate) fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment> {
         let diff = 1i32 << z;
         let [l, r] = range;
         SegmentIter {
@@ -51,8 +48,7 @@ impl Segment {
         })
     }
 
-    /// (Z, Dimension) からセグメントを作成 (X, Y次元用)
-    pub fn from_xy(z: u8, mut dimension: u32) -> Self {
+    pub(crate) fn from_xy(z: u8, mut dimension: u32) -> Self {
         let mut segment = Segment([0u8; Self::ARRAY_LENGTH]);
 
         // Z=0 は常に 0 (ルート)
@@ -70,8 +66,7 @@ impl Segment {
         segment
     }
 
-    /// (Z, Dimension) からセグメントを作成 (F次元用)
-    pub fn from_f(z: u8, dimension: i32) -> Self {
+    pub(crate) fn from_f(z: u8, dimension: i32) -> Self {
         let is_negative = dimension.is_negative();
         let u_dim = if is_negative {
             (dimension.abs() - 1) as u32
@@ -88,8 +83,7 @@ impl Segment {
         segment
     }
 
-    /// 情報を復元する (X/Y次元用) -> (z, dimension)
-    pub fn to_xy(&self) -> (u8, u32) {
+    pub(crate) fn to_xy(&self) -> (u8, u32) {
         let mut z: u8 = 0;
         let mut index = 0;
 
@@ -119,7 +113,7 @@ impl Segment {
     }
 
     /// 情報を復元する (F次元用) -> (z, dimension)
-    pub fn to_f(&self) -> (u8, i32) {
+    pub(crate) fn to_f(&self) -> (u8, i32) {
         let is_negative = self.top_bit_pair() == Bit::One;
 
         // 符号ビットを除外して計算するためにクローンして上書き
@@ -137,7 +131,7 @@ impl Segment {
         (z, dim)
     }
 
-    pub fn relation(&self, other: &Self) -> SegmentRelation {
+    pub(crate) fn relation(&self, other: &Self) -> SegmentRelation {
         for (b1, b2) in self.0.iter().zip(other.0.iter()) {
             if b1 == b2 {
                 continue;
@@ -162,7 +156,7 @@ impl Segment {
         SegmentRelation::Equal
     }
 
-    pub fn sibling(&self) -> Self {
+    pub(crate) fn sibling(&self) -> Self {
         let mut out = self.clone();
         for byte_index in (0..out.0.len()).rev() {
             let byte = out.0[byte_index];
@@ -192,7 +186,7 @@ impl Segment {
         unreachable!()
     }
 
-    pub fn parent(&self) -> Option<Self> {
+    pub(crate) fn parent(&self) -> Option<Self> {
         let mut out = self.clone();
         for byte_index in (0..out.0.len()).rev() {
             let byte = out.0[byte_index];
@@ -215,7 +209,7 @@ impl Segment {
         None
     }
 
-    pub fn descendant_range_end(&self) -> Self {
+    pub(crate) fn descendant_range_end(&self) -> Self {
         let mut end_segment = self.clone();
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
 
@@ -243,9 +237,21 @@ impl Segment {
         end_segment
     }
 
-    // -------------------------------------------------------------------------
-    //  Internal Helpers
-    // -------------------------------------------------------------------------
+    pub(crate) fn difference(&self, other: &Self) -> Vec<Segment> {
+        if self == other {
+            return vec![];
+        }
+        let mut results = Vec::new();
+        let mut current = other.clone();
+        while &current != self {
+            results.push(current.sibling());
+            match current.parent() {
+                Some(p) => current = p,
+                None => break,
+            }
+        }
+        results
+    }
 
     fn set_bit_pair(&mut self, z: u8, bit: Bit) {
         let byte_index = (z / 4) as usize;

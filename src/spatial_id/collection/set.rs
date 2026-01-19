@@ -1,5 +1,4 @@
 use std::{
-    cell::Cell,
     collections::BTreeMap,
     ops::{BitAnd, BitOr, Not, Sub},
 };
@@ -7,31 +6,31 @@ use std::{
 use roaring::RoaringTreemap;
 
 use crate::{
+    RangeId,
     kv::KvStore,
     spatial_id::{
         SpatialIdEncode,
         collection::{
             MapTrait, Rank,
-            map::{Map, MapLogic},
+            map::{MapLogic, OnMemoryMap},
         },
         flex_id::FlexId,
-        range_id::RangeId,
         segment::Segment,
     },
 };
 
 // Setは実質的に Map<()> のラッパー
 #[derive(Clone, Default)]
-pub struct Set(pub(crate) Map<()>);
+pub struct OnMemorySet(pub(crate) OnMemoryMap<()>);
 
-impl Set {
+impl OnMemorySet {
     pub fn new() -> Self {
-        Self(Map::new())
+        Self(OnMemoryMap::new())
     }
 }
 
 // MapTraitを委譲する
-impl MapTrait for Set {
+impl MapTrait for OnMemorySet {
     type V = ();
     type DimensionMap = BTreeMap<Segment, RoaringTreemap>;
     type MainMap = BTreeMap<Rank, (FlexId, ())>;
@@ -96,10 +95,6 @@ where
         self.0.clear();
     }
 
-    // ---------------------------------------------------------------------
-    //  Iterators
-    // ---------------------------------------------------------------------
-
     pub fn iter(&self) -> impl Iterator<Item = RangeId> + '_ {
         self.0.keys()
     }
@@ -107,10 +102,6 @@ where
     fn iter_encode(&self) -> impl Iterator<Item = FlexId> + '_ {
         self.0.keys_encode()
     }
-
-    // ---------------------------------------------------------------------
-    //  Mutation
-    // ---------------------------------------------------------------------
 
     pub fn insert<T: SpatialIdEncode>(&mut self, target: &T) {
         // 値は常に ()
@@ -120,10 +111,6 @@ where
     pub fn remove<T: SpatialIdEncode>(&mut self, target: &T) {
         self.0.remove(target);
     }
-
-    // ---------------------------------------------------------------------
-    //  Set Operations
-    // ---------------------------------------------------------------------
 
     pub fn subset<T: SpatialIdEncode>(&self, target: &T) -> SetLogic<S> {
         // Mapのsubset結果をラップして返す
@@ -152,12 +139,8 @@ where
         };
 
         for encode_id in small.iter_encode() {
-            // ここは SpatialIdMap の実装に依存します。
-            // SpatialIdMap<S> に `related` が実装されている必要があります。
-            // もし `related` が private なら pub(crate) にしてください。
             let related_ranks = large.0.related(&encode_id);
 
-            // トレイト経由でデータを取得
             let large_store = large.0.inner();
 
             for rank in related_ranks {
@@ -180,10 +163,6 @@ where
         result
     }
 }
-
-// =========================================================================
-//  Operator Overloading
-// =========================================================================
 
 impl<S> BitOr for &SetLogic<S>
 where
@@ -222,82 +201,12 @@ where
     type Output = Self;
     fn not(self) -> Self::Output {
         let mut universe = SetLogic::new();
-        // 全空間定義 ([0, 1] 等は仕様に合わせて調整してください)
         let root_range = unsafe { RangeId::new_unchecked(0, [0, 1], [0, 0], [0, 0]) };
         universe.insert(&root_range);
         universe.difference(&self)
     }
 }
 
-// =========================================================================
-//  Iterators
-// =========================================================================
-
-impl<S> IntoIterator for SetLogic<S>
-where
-    S: MapTrait<V = ()> + Default,
-{
-    type Item = RangeId;
-    // Box<dyn ...> を避けるなら、Mapのイテレータ型を公開する必要がありますが、
-    // ここでは簡便のため Box で実装します
-    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        // SpatialIdMap<S> の iterator を使う
-        // inner() は &S を返すので、所有権を消費してイテレートするには
-        // Map 側に into_iter 的な何かが必要です。
-        // S::MainMap が IntoIterator を実装していれば簡単です。
-
-        // ここでは簡易的に collect してからイテレータにします (所有権移動のため)
-        // ※効率化するには S::MainMap::IntoIter を使うように設計変更が必要
-        let ids: Vec<RangeId> = self.0.keys().collect();
-        Box::new(ids.into_iter())
-    }
-}
-
-impl<'a, S> IntoIterator for &'a SetLogic<S>
-where
-    S: MapTrait<V = ()> + Default,
-{
-    type Item = RangeId;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.0.keys())
-    }
-}
-
-// =========================================================================
-//  From / Extend
-// =========================================================================
-
-impl<T, S> FromIterator<T> for SetLogic<S>
-where
-    T: SpatialIdEncode,
-    S: MapTrait<V = ()> + Default + Clone,
-{
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut set = SetLogic::new();
-        for item in iter {
-            set.insert(&item);
-        }
-        set
-    }
-}
-
-impl<T, S> Extend<T> for SetLogic<S>
-where
-    T: SpatialIdEncode,
-    S: MapTrait<V = ()> + Default + Clone,
-{
-    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
-        for item in iter {
-            self.insert(&item);
-        }
-    }
-}
-
-// デフォルト実装
 impl<S> Default for SetLogic<S>
 where
     S: MapTrait<V = ()> + Default + Clone,

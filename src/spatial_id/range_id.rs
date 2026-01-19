@@ -2,6 +2,7 @@
 use std::fmt;
 
 use crate::{
+    SingleId,
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
@@ -10,7 +11,6 @@ use crate::{
         flex_id::FlexId,
         helpers,
         segment::Segment,
-        single_id::SingleId,
     },
 };
 
@@ -44,7 +44,7 @@ impl fmt::Display for RangeId {
     ///
     /// 通常時の範囲表示
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use std::fmt::Write;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
@@ -53,7 +53,7 @@ impl fmt::Display for RangeId {
     ///
     /// Single範囲に自動圧縮（`f1=f2`）
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use std::fmt::Write;
     /// let id = RangeId::new(4, [-3,-3], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
@@ -107,7 +107,7 @@ impl RangeId {
     ///
     /// IDの作成:
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
@@ -116,7 +116,7 @@ impl RangeId {
     ///
     /// 次元の範囲外の検知:
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(4, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(Error::FOutOfRange{z:4,f:29}));
@@ -124,7 +124,7 @@ impl RangeId {
     ///
     /// ズームレベルの範囲外の検知:
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
@@ -165,7 +165,7 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `z` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
@@ -177,7 +177,7 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `[f1,f2]` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_f(), [-3i32,29i32]);
@@ -189,7 +189,7 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `[x1,x2]` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_x(), [8u32,9u32]);
@@ -201,7 +201,7 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `[y1,y2]` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_y(), [5u32,10u32]);
@@ -273,7 +273,7 @@ impl RangeId {
     ///
     /// `difference = 1` による細分化
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.children(1).unwrap();
@@ -283,7 +283,7 @@ impl RangeId {
     ///
     /// ズームレベルの範囲外
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.children(63);
@@ -318,7 +318,7 @@ impl RangeId {
     ///
     /// `difference = 1` による上位層への移動
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
     /// let parent = id.parent(1).unwrap();
@@ -331,7 +331,7 @@ impl RangeId {
     ///
     /// Fが負の場合の挙動:
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     ///
@@ -345,7 +345,7 @@ impl RangeId {
     ///
     /// ズームレベルの範囲外:
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// // difference = 6 の場合は親が存在しないため None
@@ -417,7 +417,7 @@ impl RangeId {
     /// パニック・不正メモリアクセス・未定義動作を引き起こす可能性があります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { RangeId::new_unchecked(5, [-10,-5], [8,9], [5,10]) };
     ///
@@ -434,7 +434,7 @@ impl RangeId {
 impl SpatialId for RangeId {
     /// このIDのズームレベルにおける最小の F インデックスを返す
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
@@ -447,7 +447,7 @@ impl SpatialId for RangeId {
 
     /// このIDのズームレベルにおける最小の F インデックスを返す
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
@@ -460,7 +460,7 @@ impl SpatialId for RangeId {
 
     /// このIDのズームレベルにおける最小の F インデックスを返す
     /// ```
-    /// # use kasane_logic::spatial_id::range::RangeId;
+    /// # use kasane_logic::spatial_id::range_id::RangeId;
     /// # use kasane_logic::error::Error;
     /// # use crate::kasane_logic::spatial_id::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
