@@ -22,11 +22,17 @@ where
 
     fn len(&self) -> usize;
 
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     fn range<R>(&self, range: R) -> Self::RangeIter<'_>
     where
         R: RangeBounds<K>;
 
     fn get(&self, key: &K) -> Option<&V>;
+
+    fn get_mut(&mut self, key: &K) -> Option<&mut V>;
 
     fn insert(&mut self, key: K, value: V) -> Option<V>;
 
@@ -35,4 +41,10 @@ where
     fn update<F>(&mut self, key: &K, f: F)
     where
         F: FnOnce(&mut V);
+
+    fn get_or_insert_with<F>(&mut self, key: K, f: F) -> &mut V
+    where
+        F: FnOnce() -> V;
+
+    fn clear(&mut self);
 }

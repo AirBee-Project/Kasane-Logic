@@ -35,6 +35,10 @@ where
         self.get(key)
     }
 
+    fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.get_mut(key)
+    }
+
     fn insert(&mut self, key: K, value: V) -> Option<V> {
         self.insert(key, value)
     }
@@ -52,7 +56,18 @@ where
         }
     }
 
+    fn get_or_insert_with<F>(&mut self, key: K, f: F) -> &mut V
+    where
+        F: FnOnce() -> V,
+    {
+        self.entry(key).or_insert_with(f)
+    }
+
     fn len(&self) -> usize {
         self.len()
+    }
+
+    fn clear(&mut self) {
+        self.clear();
     }
 }
