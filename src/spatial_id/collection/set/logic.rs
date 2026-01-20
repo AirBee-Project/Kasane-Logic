@@ -1,13 +1,14 @@
+use crate::spatial_id::collection::Collection;
 use crate::spatial_id::collection::set::memory::SetOnMemory;
 use crate::spatial_id::{ToFlexId, collection::set::SetStorage};
 use crate::storage::BTreeMapTrait;
 
 #[derive(Default)]
-pub struct SetLogic<S: SetStorage>(S);
+pub struct SetLogic<S: SetStorage + Collection>(S);
 
 impl<S> SetLogic<S>
 where
-    S: SetStorage + Default,
+    S: SetStorage + Collection + Default,
 {
     pub fn open(set_storage: S) -> Self {
         Self(set_storage)

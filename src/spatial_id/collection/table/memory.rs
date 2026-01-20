@@ -8,45 +8,45 @@ use roaring::RoaringTreemap;
 use crate::spatial_id::{
     collection::{
         Collection, Rank,
-        map::{MapStorage, logic::MapLogic},
+        table::{TableStorage, logic::TableLogic},
     },
     flex_id::FlexId,
     segment::Segment,
 };
 
-pub struct MapOnMemory<V>(MapLogic<MapOnMemoryInner<V>>)
+pub struct TableOnMemory<V>(TableLogic<TableOnMemoryInner<V>>)
 where
-    V: Clone + PartialEq;
+    V: Clone + PartialEq + Ord;
 
-impl<V> Default for MapOnMemory<V>
+impl<V> Default for TableOnMemory<V>
 where
-    V: Clone + PartialEq,
+    V: Clone + PartialEq + Ord,
 {
     fn default() -> Self {
-        Self(MapLogic::open(MapOnMemoryInner::default()))
+        Self(TableLogic::open(TableOnMemoryInner::default()))
     }
 }
 
-impl<V> Deref for MapOnMemory<V>
+impl<V> Deref for TableOnMemory<V>
 where
-    V: Clone + PartialEq,
+    V: Clone + PartialEq + Ord,
 {
-    type Target = MapLogic<MapOnMemoryInner<V>>;
+    type Target = TableLogic<TableOnMemoryInner<V>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<V> DerefMut for MapOnMemory<V>
+impl<V> DerefMut for TableOnMemory<V>
 where
-    V: Clone + PartialEq,
+    V: Clone + PartialEq + Ord,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-pub struct MapOnMemoryInner<V> {
+pub struct TableOnMemoryInner<V> {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
@@ -55,7 +55,7 @@ pub struct MapOnMemoryInner<V> {
     recycled_ranks: Vec<u64>,
 }
 
-impl<V> Default for MapOnMemoryInner<V> {
+impl<V> Default for TableOnMemoryInner<V> {
     fn default() -> Self {
         Self {
             f: Default::default(),
@@ -68,13 +68,13 @@ impl<V> Default for MapOnMemoryInner<V> {
     }
 }
 
-impl<V> MapStorage for MapOnMemoryInner<V>
+impl<V> TableStorage for TableOnMemoryInner<V>
 where
-    V: Clone + PartialEq,
+    V: Clone + PartialEq + Ord,
 {
     type Value = V;
-
     type Main = BTreeMap<Rank, (FlexId, V)>;
+    type Index = BTreeMap<V, RoaringTreemap>;
 
     fn main(&self) -> &Self::Main {
         todo!()
@@ -83,9 +83,17 @@ where
     fn main_mut(&mut self) -> &mut Self::Main {
         todo!()
     }
+
+    fn index(&self) -> Self::Index {
+        todo!()
+    }
+
+    fn index_mut(&mut self) -> Self::Index {
+        todo!()
+    }
 }
 
-impl<V> Collection for MapOnMemoryInner<V> {
+impl<V> Collection for TableOnMemoryInner<V> {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
 
     fn f(&self) -> &Self::Dimension {
