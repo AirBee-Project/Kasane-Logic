@@ -13,6 +13,13 @@ where
         K: 'a,
         V: 'a;
 
+    type IterMut<'a>
+        = std::collections::btree_map::IterMut<'a, K, V>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+
     type RangeIter<'a>
         = std::collections::btree_map::Range<'a, K, V>
     where
@@ -22,6 +29,10 @@ where
 
     fn iter(&self) -> Self::Iter<'_> {
         self.iter()
+    }
+
+    fn iter_mut(&mut self) -> Self::IterMut<'_> {
+        self.iter_mut()
     }
 
     fn range<R>(&self, range: R) -> Self::RangeIter<'_>

@@ -7,7 +7,7 @@ use roaring::RoaringTreemap;
 
 use crate::spatial_id::{
     collection::{
-        Collection, MAX_RECYCLE_CAPACITY, Rank,
+        Collection, FlexIdRank, MAX_RECYCLE_CAPACITY,
         set::{SetStorage, logic::SetLogic},
     },
     flex_id::FlexId,
@@ -42,7 +42,7 @@ pub struct SetOnMemoryInner {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
-    main: BTreeMap<Rank, (FlexId, ())>,
+    main: BTreeMap<FlexIdRank, FlexId>,
     next_rank: u64,
     recycled_ranks: Vec<u64>,
 }
@@ -65,7 +65,7 @@ impl SetStorage for SetOnMemoryInner {}
 impl Collection for SetOnMemoryInner {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
     type Value = ();
-    type Main = BTreeMap<Rank, (FlexId, Self::Value)>;
+    type Main = BTreeMap<FlexIdRank, FlexId>;
 
     fn main(&self) -> &Self::Main {
         &self.main

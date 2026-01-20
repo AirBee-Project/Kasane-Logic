@@ -47,4 +47,12 @@ where
         F: FnOnce() -> V;
 
     fn clear(&mut self);
+
+    type IterMut<'a>: Iterator<Item = (&'a K, &'a mut V)>
+    where
+        Self: 'a,
+        K: 'a,
+        V: 'a;
+
+    fn iter_mut(&mut self) -> Self::IterMut<'_>;
 }

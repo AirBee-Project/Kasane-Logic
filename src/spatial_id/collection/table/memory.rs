@@ -7,7 +7,7 @@ use roaring::RoaringTreemap;
 
 use crate::spatial_id::{
     collection::{
-        Collection, MAX_RECYCLE_CAPACITY, Rank,
+        Collection, FlexIdRank, MAX_RECYCLE_CAPACITY, ValueRank,
         table::{TableStorage, logic::TableLogic},
     },
     flex_id::FlexId,
@@ -50,8 +50,10 @@ pub struct TableOnMemoryInner<V> {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
-    main: BTreeMap<Rank, (FlexId, V)>,
-    index: BTreeMap<V, RoaringTreemap>,
+    main: BTreeMap<FlexIdRank, FlexId>,
+    forward: BTreeMap<FlexIdRank, ValueRank>,
+    dictionary: BTreeMap<ValueRank, V>,
+    reserve: BTreeMap<V, ValueRank>,
     next_rank: u64,
     recycled_ranks: Vec<u64>,
 }
@@ -63,7 +65,9 @@ impl<V> Default for TableOnMemoryInner<V> {
             x: Default::default(),
             y: Default::default(),
             main: Default::default(),
-            index: Default::default(),
+            forward: Default::default(),
+            dictionary: Default::default(),
+            reserve: Default::default(),
             next_rank: 0,
             recycled_ranks: vec![],
         }
@@ -75,14 +79,32 @@ where
     V: Clone + PartialEq + Ord,
 {
     type Value = V;
-    type Index = BTreeMap<V, RoaringTreemap>;
+    type Forward = BTreeMap<FlexIdRank, ValueRank>;
+    type Dictionary = BTreeMap<ValueRank, V>;
+    type Reverse = BTreeMap<V, ValueRank>;
 
-    fn index(&self) -> &Self::Index {
-        &self.index
+    fn forward(&self) -> &Self::Forward {
+        &self.forward
     }
 
-    fn index_mut(&mut self) -> &mut Self::Index {
-        &mut self.index
+    fn forward_mut(&mut self) -> &mut Self::Forward {
+        &mut self.forward
+    }
+
+    fn dictionary(&self) -> &Self::Dictionary {
+        &self.dictionary
+    }
+
+    fn dictionary_mut(&mut self) -> &mut Self::Dictionary {
+        &mut self.dictionary
+    }
+
+    fn reverse(&self) -> &Self::Reverse {
+        &self.reserve
+    }
+
+    fn reverse_mut(&mut self) -> &mut Self::Reverse {
+        &mut self.reserve
     }
 }
 
@@ -92,7 +114,7 @@ where
 {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
     type Value = V;
-    type Main = BTreeMap<Rank, (FlexId, Self::Value)>;
+    type Main = BTreeMap<FlexIdRank, FlexId>;
 
     fn main(&self) -> &Self::Main {
         &self.main

@@ -4,18 +4,25 @@ use crate::{
     BTreeMapTrait,
     spatial_id::{flex_id::FlexId, segment::Segment},
 };
+use std::ops::Bound::{Excluded, Included};
 
-pub mod helpers;
-pub mod map;
 pub mod set;
 pub mod table;
 
-pub type Rank = u64;
+pub type FlexIdRank = u64;
+pub type ValueRank = u64;
+
 const MAX_RECYCLE_CAPACITY: usize = 1024;
+
+#[derive(Debug)]
+pub struct Patch<V> {
+    add: Vec<(FlexIdRank, V)>,
+    remove: Vec<FlexIdRank>,
+}
 
 pub trait Collection {
     type Value: Clone + PartialEq;
-    type Main: BTreeMapTrait<Rank, (FlexId, Self::Value)>;
+    type Main: BTreeMapTrait<FlexIdRank, FlexId>;
     type Dimension: BTreeMapTrait<Segment, RoaringTreemap>;
     fn main(&self) -> &Self::Main;
     fn main_mut(&mut self) -> &mut Self::Main;

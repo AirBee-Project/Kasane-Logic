@@ -8,7 +8,7 @@ pub struct SetLogic<S: SetStorage + Collection>(S);
 
 impl<S> SetLogic<S>
 where
-    S: SetStorage + Collection + Default,
+    S: SetStorage + Collection<Value = ()> + Default,
 {
     pub fn open(set_storage: S) -> Self {
         Self(set_storage)
