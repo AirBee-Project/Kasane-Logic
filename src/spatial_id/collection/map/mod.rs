@@ -1,5 +1,6 @@
 use roaring::RoaringTreemap;
 pub mod logic;
+pub mod memory;
 
 use crate::{
     BTreeMapTrait,

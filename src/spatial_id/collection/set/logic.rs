@@ -9,6 +9,14 @@ impl<S> SetLogic<S>
 where
     S: SetStorage + Default,
 {
+    pub fn open(set_storage: S) -> Self {
+        Self(set_storage)
+    }
+
+    pub fn close(self) -> S {
+        self.0
+    }
+
     pub fn size(&self) -> usize {
         self.0.main().len()
     }
