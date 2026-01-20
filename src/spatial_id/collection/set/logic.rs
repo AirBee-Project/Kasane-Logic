@@ -1,53 +1,86 @@
-use crate::spatial_id::collection::Collection;
-use crate::spatial_id::collection::set::memory::SetOnMemory;
+use std::collections::BTreeMap;
+
+use roaring::RoaringTreemap;
+
+use crate::RangeId;
+use crate::spatial_id::collection::set::memory::{SetOnMemory, SetOnMemoryInner};
+use crate::spatial_id::collection::{Collection, FlexIdRank, set};
 use crate::spatial_id::flex_id::FlexId;
+use crate::spatial_id::segment::Segment;
 use crate::spatial_id::{ToFlexId, collection::set::SetStorage};
 use crate::storage::BTreeMapTrait;
 
 #[derive(Default)]
-pub struct SetLogic<S: SetStorage + Collection>(S);
+pub struct SetLogic<S: SetStorage + Collection>(pub(crate) S);
 
 impl<S> SetLogic<S>
 where
     S: SetStorage + Collection + Default,
 {
+    ///SetStorageが実装された型を開いて、操作可能な状態にする
     pub fn open(set_storage: S) -> Self {
         Self(set_storage)
     }
 
+    ///SetStorageが実装された型を読み込んで、コピーのSetOnMemoryを作成する
+    pub fn load(set_storage: &S) -> SetOnMemory {
+        // let main: BTreeMap<FlexIdRank, FlexId> = set_storage.main().clone().iter();
+        // let f: BTreeMap<Segment, RoaringTreemap> = set_storage.f().clone().iter().map(|f|{});
+        // let x: BTreeMap<Segment, RoaringTreemap> = set_storage.x().clone();
+        // let y: BTreeMap<Segment, RoaringTreemap> = set_storage.y().clone();
+
+        // SetOnMemory(SetLogic(SetOnMemoryInner {
+        //     f: f.into(),
+        //     x: todo!(),
+        //     y: todo!(),
+        //     main: todo!(),
+        //     next_rank: todo!(),
+        //     recycled_ranks: todo!(),
+        // }))
+
+        todo!()
+    }
+
+    ///SetStorageが実装された型を外に出す
     pub fn close(self) -> S {
         self.0
     }
 
+    ///内部にあるFlexIdの個数を返す
     pub fn size(&self) -> usize {
         self.0.main().len()
     }
 
-    pub(crate) fn flex_ids(&self) -> impl Iterator<Item = &FlexId> {
-        self.0.flex_ids()
+    ///内部にあるRangeIdを全て返す
+    pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
+        self.0.main().iter().map(|flex_id| flex_id.1.decode())
     }
 
-    pub fn insert<I: ToFlexId>(&mut self, target: &I) {
-        for flex_id in target.to_flex_id() {
-            let mut tmp_set = SetOnMemory::default();
-            unsafe { tmp_set.insert_unchecked(&flex_id) };
-            for need_insert in tmp_set.flex_ids() {
-                for related_rank in self.0.related(&need_insert) {
-                    let related_id = self.0.get_flex_id(related_rank).unwrap();
+    ///内部にあるFlexIdを全て返す
+    pub fn flex_ids(&self) -> impl Iterator<Item = &FlexId> + '_ {
+        self.0.main().iter().map(|f| f.1)
+    }
 
-                    //挿入対象のIDが他のIDに完全に含まれる場合
-                    if related_id.contains(&flex_id) {
-                        return;
-                    }
-                    //他のIDが挿入対象のIDに完全に含まれる場合
-                    else if flex_id.contains(related_id) {
-                        self.0.remove_flex_id(related_rank);
-                    }
-                    //競合解消が必要な場合
-                    else {
+    ///重複の解消と結合の最適化を行う
+    pub fn insert<I: ToFlexId>(&mut self, target: &I) {
+        let mut work_list: Vec<FlexId> = target.to_flex_id().into_iter().collect();
+        'process_queue: while let Some(current_insert) = work_list.pop() {
+            let related_ranks = self.0.related(&current_insert);
+
+            for rank in related_ranks {
+                if let Some(existing_id) = self.0.get_flex_id(rank) {
+                    if existing_id.contains(&current_insert) {
+                        continue 'process_queue;
+                    } else if current_insert.contains(existing_id) {
+                        self.0.remove_flex_id(rank);
+                    } else {
+                        let fragments = current_insert.difference(existing_id);
+                        work_list.extend(fragments);
+                        continue 'process_queue;
                     }
                 }
             }
+            unsafe { self.join_insert_unchecked(&current_insert) };
         }
     }
 
@@ -98,7 +131,6 @@ where
                 unsafe { result.join_insert_unchecked(&flex_id.intersection(related_id).unwrap()) };
             }
         }
-
         result
     }
 
@@ -116,15 +148,79 @@ where
         result
     }
 
+    ///2つのSetの和集合のSetを作成する
     pub fn union(&self, other: &Self) -> SetOnMemory {
-        todo!()
+        let mut result = SetOnMemory::default();
+        let (base, merger) = if self.size() >= other.size() {
+            (self, other)
+        } else {
+            (other, self)
+        };
+        for id in base.flex_ids() {
+            unsafe { result.join_insert_unchecked(id) };
+        }
+        for flex_id in merger.flex_ids() {
+            result.insert(flex_id);
+        }
+        result
     }
 
+    ///2つのSetの積集合のSetを作成する
     pub fn intersection(&self, other: &Self) -> SetOnMemory {
-        todo!()
-    }
+        let mut result = SetOnMemory::default();
+        let (scanner, searcher) = if self.size() < other.size() {
+            (self, other)
+        } else {
+            (other, self)
+        };
+        for scan_id in scanner.flex_ids() {
+            let related_ranks = searcher.0.related(scan_id);
 
+            for rank in related_ranks {
+                if let Some(searcher_id) = searcher.0.get_flex_id(rank) {
+                    if let Some(inter) = scan_id.intersection(searcher_id) {
+                        unsafe { result.join_insert_unchecked(&inter) };
+                    }
+                }
+            }
+        }
+
+        result
+    }
+    ///2つのSetの差集合のSetを作成する
     pub fn difference(&self, other: &Self) -> SetOnMemory {
-        todo!()
+        let mut result = SetOnMemory::default();
+
+        //引く側が十分に小さい場合
+        if other.size() < self.size() * 2 {
+            for id in self.flex_ids() {
+                unsafe { result.join_insert_unchecked(id) };
+            }
+            // B を削除
+            for need_remove in other.flex_ids() {
+                result.remove(need_remove);
+            }
+        } else {
+            for self_id in self.flex_ids() {
+                let mut fragments = vec![self_id.clone()];
+                let related_ranks = other.0.related(self_id);
+                for rank in related_ranks {
+                    let other_id = other.0.get_flex_id(rank).unwrap();
+                    let mut next_fragments = Vec::new();
+                    for frag in fragments {
+                        let diffs = frag.difference(other_id);
+                        next_fragments.extend(diffs);
+                    }
+                    fragments = next_fragments;
+                    if fragments.is_empty() {
+                        break;
+                    }
+                }
+                for frag in fragments {
+                    unsafe { result.join_insert_unchecked(&frag) };
+                }
+            }
+        }
+        result
     }
 }

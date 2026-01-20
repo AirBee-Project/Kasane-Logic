@@ -12,6 +12,7 @@ pub mod table;
 pub type FlexIdRank = u64;
 pub type ValueRank = u64;
 
+///Rankの
 const MAX_RECYCLE_CAPACITY: usize = 1024;
 
 #[derive(Debug, Default)]

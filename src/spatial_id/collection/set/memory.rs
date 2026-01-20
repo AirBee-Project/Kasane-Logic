@@ -19,7 +19,7 @@ use crate::spatial_id::{
 //SetOnMemoryInner型が見えるとややこしいので薄いラップ
 //基本的な公開メゾットはDerefとDerefMutによりそのまま伝播するようになっている
 #[derive(Default)]
-pub struct SetOnMemory(SetLogic<SetOnMemoryInner>);
+pub struct SetOnMemory(pub(crate) SetLogic<SetOnMemoryInner>);
 
 impl Deref for SetOnMemory {
     type Target = SetLogic<SetOnMemoryInner>;
@@ -39,12 +39,12 @@ impl DerefMut for SetOnMemory {
 //SetLogicをメモリ上でBTreeMapを用いて実装したもの
 //SetLogicの恩恵によりストレージの記法さえ実装すれば動作するようにできている
 pub struct SetOnMemoryInner {
-    f: BTreeMap<Segment, RoaringTreemap>,
-    x: BTreeMap<Segment, RoaringTreemap>,
-    y: BTreeMap<Segment, RoaringTreemap>,
-    main: BTreeMap<FlexIdRank, FlexId>,
-    next_rank: u64,
-    recycled_ranks: Vec<u64>,
+    pub(crate) f: BTreeMap<Segment, RoaringTreemap>,
+    pub(crate) x: BTreeMap<Segment, RoaringTreemap>,
+    pub(crate) y: BTreeMap<Segment, RoaringTreemap>,
+    pub(crate) main: BTreeMap<FlexIdRank, FlexId>,
+    pub(crate) next_rank: u64,
+    pub(crate) recycled_ranks: Vec<u64>,
 }
 
 impl Default for SetOnMemoryInner {
