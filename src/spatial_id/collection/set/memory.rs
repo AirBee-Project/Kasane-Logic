@@ -33,11 +33,64 @@ impl DerefMut for SetOnMemory {
         &mut self.0
     }
 }
+
+impl Clone for SetOnMemory {
+    fn clone(&self) -> Self {
+        Self::load(&**self)
+    }
+}
+
+impl SetOnMemory {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn load<S>(storage: &S) -> Self
+    where
+        S: SetStorage + Collection,
+        for<'a> &'a S::Main: IntoIterator<Item = (&'a FlexIdRank, &'a FlexId)>,
+        for<'a> &'a S::Dimension: IntoIterator<Item = (&'a Segment, &'a RoaringTreemap)>,
+    {
+        let main: BTreeMap<FlexIdRank, FlexId> = storage
+            .main()
+            .into_iter()
+            .map(|(k, v)| (*k, v.clone()))
+            .collect();
+        let next_rank = main.keys().next_back().map(|&r| r + 1).unwrap_or(0);
+        let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
+            source
+                .into_iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect()
+        };
+
+        let f = copy_dim(storage.f());
+        let x = copy_dim(storage.x());
+        let y = copy_dim(storage.y());
+
+        let inner = SetOnMemoryInner {
+            f,
+            x,
+            y,
+            main,
+            next_rank,
+            recycled_ranks: Vec::new(),
+        };
+
+        Self(SetLogic::open(inner))
+    }
+
+    pub fn into_inner(self) -> SetLogic<SetOnMemoryInner> {
+        self.0
+    }
+}
+
 //===========================================
 
 //===========================================
 //SetLogicをメモリ上でBTreeMapを用いて実装したもの
 //SetLogicの恩恵によりストレージの記法さえ実装すれば動作するようにできている
+#[derive(Clone)]
 pub struct SetOnMemoryInner {
     pub(crate) f: BTreeMap<Segment, RoaringTreemap>,
     pub(crate) x: BTreeMap<Segment, RoaringTreemap>,

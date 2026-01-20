@@ -20,6 +20,8 @@ where
         Self(table_storage)
     }
 
+    pub fn load() {}
+
     pub fn close(self) -> S {
         self.0
     }

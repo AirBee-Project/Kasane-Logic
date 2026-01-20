@@ -183,7 +183,8 @@ impl Segment {
                 return out;
             }
         }
-        unreachable!()
+        println!("Neko");
+        unreachable!("Neko")
     }
 
     pub(crate) fn parent(&self) -> Option<Self> {
@@ -209,7 +210,7 @@ impl Segment {
         None
     }
 
-    pub(crate) fn descendant_range_end(&self) -> Self {
+    pub(crate) fn descendant_range_end(&self) -> Option<Self> {
         let mut end_segment = self.clone();
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
 
@@ -225,7 +226,7 @@ impl Segment {
                 0b10 => {
                     // 0 -> 1 にして返す
                     end_segment.set_bit_pair(z, Bit::One);
-                    return end_segment;
+                    return Some(end_segment);
                 }
                 0b11 => {
                     // 1 -> 0 にして上位へ
@@ -234,7 +235,7 @@ impl Segment {
                 _ => unreachable!(),
             }
         }
-        end_segment
+        None
     }
 
     pub(crate) fn difference(&self, other: &Self) -> Vec<Segment> {

@@ -4,7 +4,7 @@ use crate::{
     BTreeMapTrait,
     spatial_id::{flex_id::FlexId, segment::Segment},
 };
-use std::ops::Bound::{Excluded, Included};
+use std::ops::Bound::{Excluded, Included, Unbounded};
 
 pub mod set;
 pub mod table;
@@ -124,8 +124,20 @@ pub trait Collection {
                 current = parent.parent();
             }
             let end = seg.descendant_range_end();
-            for (_, ranks) in map.range((Included(seg), Excluded(&end))) {
-                bitmap |= ranks;
+
+            match end {
+                //segが右端ではない場合
+                Some(end_segment) => {
+                    for (_, ranks) in map.range((Included(seg), Excluded(&end_segment))) {
+                        bitmap |= ranks;
+                    }
+                }
+                //segが右端の場合
+                None => {
+                    for (_, ranks) in map.range((Included(seg), Unbounded)) {
+                        bitmap |= ranks;
+                    }
+                }
             }
 
             bitmap
