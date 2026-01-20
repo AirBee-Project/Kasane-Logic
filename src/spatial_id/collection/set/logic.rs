@@ -23,22 +23,32 @@ where
     }
 
     ///SetStorageが実装された型を読み込んで、コピーのSetOnMemoryを作成する
-    pub fn load(set_storage: &S) -> SetOnMemory {
-        // let main: BTreeMap<FlexIdRank, FlexId> = set_storage.main().clone().iter();
-        // let f: BTreeMap<Segment, RoaringTreemap> = set_storage.f().clone().iter().map(|f|{});
-        // let x: BTreeMap<Segment, RoaringTreemap> = set_storage.x().clone();
-        // let y: BTreeMap<Segment, RoaringTreemap> = set_storage.y().clone();
-
-        // SetOnMemory(SetLogic(SetOnMemoryInner {
-        //     f: f.into(),
-        //     x: todo!(),
-        //     y: todo!(),
-        //     main: todo!(),
-        //     next_rank: todo!(),
-        //     recycled_ranks: todo!(),
-        // }))
-
-        todo!()
+    ///大量のReadが発生する可能性があるため、注意して使用せよ
+    pub fn load(set_storage: &S) -> SetOnMemory
+    where
+        S: SetStorage + Collection,
+    {
+        let main: BTreeMap<FlexIdRank, FlexId> = set_storage
+            .main()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        let next_rank = main.keys().next_back().map(|&r| r + 1).unwrap_or(0);
+        let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
+            source.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        };
+        let f = copy_dim(set_storage.f());
+        let x = copy_dim(set_storage.x());
+        let y = copy_dim(set_storage.y());
+        let inner = SetOnMemoryInner {
+            f,
+            x,
+            y,
+            main,
+            next_rank,
+            recycled_ranks: Vec::new(),
+        };
+        SetOnMemory(SetLogic::open(inner))
     }
 
     ///SetStorageが実装された型を外に出す
