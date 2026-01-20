@@ -15,6 +15,6 @@ pub trait TableStorage {
     fn main(&self) -> &Self::Main;
     fn main_mut(&mut self) -> &mut Self::Main;
 
-    fn index(&self) -> Self::Index;
-    fn index_mut(&mut self) -> Self::Index;
+    fn index(&self) -> &Self::Index;
+    fn index_mut(&mut self) -> &mut Self::Index;
 }

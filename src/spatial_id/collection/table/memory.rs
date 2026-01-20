@@ -7,7 +7,7 @@ use roaring::RoaringTreemap;
 
 use crate::spatial_id::{
     collection::{
-        Collection, Rank,
+        Collection, MAX_RECYCLE_CAPACITY, Rank,
         table::{TableStorage, logic::TableLogic},
     },
     flex_id::FlexId,
@@ -51,6 +51,7 @@ pub struct TableOnMemoryInner<V> {
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
     main: BTreeMap<Rank, (FlexId, V)>,
+    index: BTreeMap<V, RoaringTreemap>,
     next_rank: u64,
     recycled_ranks: Vec<u64>,
 }
@@ -62,6 +63,7 @@ impl<V> Default for TableOnMemoryInner<V> {
             x: Default::default(),
             y: Default::default(),
             main: Default::default(),
+            index: Default::default(),
             next_rank: 0,
             recycled_ranks: vec![],
         }
@@ -77,19 +79,19 @@ where
     type Index = BTreeMap<V, RoaringTreemap>;
 
     fn main(&self) -> &Self::Main {
-        todo!()
+        &self.main
     }
 
     fn main_mut(&mut self) -> &mut Self::Main {
-        todo!()
+        &mut self.main
     }
 
-    fn index(&self) -> Self::Index {
-        todo!()
+    fn index(&self) -> &Self::Index {
+        &self.index
     }
 
-    fn index_mut(&mut self) -> Self::Index {
-        todo!()
+    fn index_mut(&mut self) -> &mut Self::Index {
+        &mut self.index
     }
 }
 
@@ -97,34 +99,41 @@ impl<V> Collection for TableOnMemoryInner<V> {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
 
     fn f(&self) -> &Self::Dimension {
-        todo!()
+        &self.f
     }
 
     fn f_mut(&mut self) -> &mut Self::Dimension {
-        todo!()
+        &mut self.f
     }
 
     fn x(&self) -> &Self::Dimension {
-        todo!()
+        &self.x
     }
 
     fn x_mut(&mut self) -> &mut Self::Dimension {
-        todo!()
+        &mut self.x
     }
 
     fn y(&self) -> &Self::Dimension {
-        todo!()
+        &self.y
     }
 
     fn y_mut(&mut self) -> &mut Self::Dimension {
-        todo!()
+        &mut self.y
     }
 
     fn fetch_rank(&mut self) -> u64 {
-        todo!()
+        if let Some(rank) = self.recycled_ranks.pop() {
+            return rank;
+        }
+        let rank = self.next_rank;
+        self.next_rank += 1;
+        rank
     }
 
     fn return_rank(&mut self, rank: u64) {
-        todo!()
+        if self.recycled_ranks.len() < MAX_RECYCLE_CAPACITY {
+            self.recycled_ranks.push(rank);
+        }
     }
 }
