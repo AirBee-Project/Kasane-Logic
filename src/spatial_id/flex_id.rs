@@ -135,6 +135,33 @@ impl FlexId {
             && self.as_y().relation(other.as_y()) != SegmentRelation::Disjoint
             && self.as_y().relation(other.as_y()) != SegmentRelation::Descendant
     }
+
+    ///f方向の親FlexIdを作成する
+    pub fn f_parent(&self) -> Option<FlexId> {
+        Some(FlexId::new(
+            self.as_f().parent()?,
+            self.as_x().clone(),
+            self.as_y().clone(),
+        ))
+    }
+
+    ///x方向の親FlexIdを作成する
+    pub fn x_parent(&self) -> Option<FlexId> {
+        Some(FlexId::new(
+            self.as_f().clone(),
+            self.as_x().parent()?,
+            self.as_y().clone(),
+        ))
+    }
+
+    ///y方向の親FlexIdを作成する
+    pub fn y_parent(&self) -> Option<FlexId> {
+        Some(FlexId::new(
+            self.as_f().clone(),
+            self.as_x().clone(),
+            self.as_y().parent()?,
+        ))
+    }
 }
 
 impl ToFlexId for FlexId {

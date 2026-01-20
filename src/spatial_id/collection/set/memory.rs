@@ -64,7 +64,6 @@ impl SetStorage for SetOnMemoryInner {}
 
 impl Collection for SetOnMemoryInner {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
-    type Value = ();
     type Main = BTreeMap<FlexIdRank, FlexId>;
 
     fn main(&self) -> &Self::Main {

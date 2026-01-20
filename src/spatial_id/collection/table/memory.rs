@@ -113,7 +113,6 @@ where
     V: Clone + PartialEq + Ord,
 {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
-    type Value = V;
     type Main = BTreeMap<FlexIdRank, FlexId>;
 
     fn main(&self) -> &Self::Main {
