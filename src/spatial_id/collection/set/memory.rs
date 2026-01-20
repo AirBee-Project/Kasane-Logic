@@ -42,7 +42,7 @@ pub struct SetOnMemoryInner {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
-    main: BTreeMap<Rank, FlexId>,
+    main: BTreeMap<Rank, (FlexId, ())>,
     next_rank: u64,
     recycled_ranks: Vec<u64>,
 }
@@ -60,9 +60,12 @@ impl Default for SetOnMemoryInner {
     }
 }
 
-impl SetStorage for SetOnMemoryInner {
-    type Main = BTreeMap<Rank, FlexId>;
+impl SetStorage for SetOnMemoryInner {}
+
+impl Collection for SetOnMemoryInner {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
+    type Value = ();
+    type Main = BTreeMap<Rank, (FlexId, Self::Value)>;
 
     fn main(&self) -> &Self::Main {
         &self.main
@@ -71,10 +74,6 @@ impl SetStorage for SetOnMemoryInner {
     fn main_mut(&mut self) -> &mut Self::Main {
         &mut self.main
     }
-}
-
-impl Collection for SetOnMemoryInner {
-    type Dimension = BTreeMap<Segment, RoaringTreemap>;
 
     fn f(&self) -> &Self::Dimension {
         &self.f

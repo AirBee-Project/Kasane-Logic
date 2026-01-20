@@ -2,7 +2,10 @@ use crate::{
     BTreeMapTrait,
     spatial_id::{
         ToFlexId,
-        collection::{Collection, table::TableStorage},
+        collection::{
+            Collection,
+            table::{TableStorage, memory::TableOnMemory},
+        },
     },
 };
 
@@ -26,6 +29,20 @@ where
     }
 
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
+        todo!()
+    }
+
+    pub fn get<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<<S as Collection>::Value>
+    where
+        <S as Collection>::Value: Ord,
+    {
+        todo!()
+    }
+
+    pub fn remove<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<<S as Collection>::Value>
+    where
+        <S as Collection>::Value: Ord,
+    {
         todo!()
     }
 }

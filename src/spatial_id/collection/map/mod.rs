@@ -7,10 +7,4 @@ use crate::{
     spatial_id::{collection::Rank, flex_id::FlexId, segment::Segment},
 };
 
-pub trait MapStorage {
-    type Value: Clone + PartialEq;
-    type Main: BTreeMapTrait<Rank, (FlexId, Self::Value)>;
-
-    fn main(&self) -> &Self::Main;
-    fn main_mut(&mut self) -> &mut Self::Main;
-}
+pub trait MapStorage {}

@@ -68,13 +68,15 @@ impl<V> Default for MapOnMemoryInner<V> {
     }
 }
 
-impl<V> MapStorage for MapOnMemoryInner<V>
+impl<V> MapStorage for MapOnMemoryInner<V> where V: Clone + PartialEq {}
+
+impl<V> Collection for MapOnMemoryInner<V>
 where
     V: Clone + PartialEq,
 {
+    type Dimension = BTreeMap<Segment, RoaringTreemap>;
     type Value = V;
-
-    type Main = BTreeMap<Rank, (FlexId, V)>;
+    type Main = BTreeMap<Rank, (FlexId, Self::Value)>;
 
     fn main(&self) -> &Self::Main {
         todo!()
@@ -83,10 +85,6 @@ where
     fn main_mut(&mut self) -> &mut Self::Main {
         todo!()
     }
-}
-
-impl<V> Collection for MapOnMemoryInner<V> {
-    type Dimension = BTreeMap<Segment, RoaringTreemap>;
 
     fn f(&self) -> &Self::Dimension {
         &self.f

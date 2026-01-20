@@ -75,16 +75,7 @@ where
     V: Clone + PartialEq + Ord,
 {
     type Value = V;
-    type Main = BTreeMap<Rank, (FlexId, V)>;
     type Index = BTreeMap<V, RoaringTreemap>;
-
-    fn main(&self) -> &Self::Main {
-        &self.main
-    }
-
-    fn main_mut(&mut self) -> &mut Self::Main {
-        &mut self.main
-    }
 
     fn index(&self) -> &Self::Index {
         &self.index
@@ -95,8 +86,21 @@ where
     }
 }
 
-impl<V> Collection for TableOnMemoryInner<V> {
+impl<V> Collection for TableOnMemoryInner<V>
+where
+    V: Clone + PartialEq + Ord,
+{
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
+    type Value = V;
+    type Main = BTreeMap<Rank, (FlexId, Self::Value)>;
+
+    fn main(&self) -> &Self::Main {
+        &self.main
+    }
+
+    fn main_mut(&mut self) -> &mut Self::Main {
+        &mut self.main
+    }
 
     fn f(&self) -> &Self::Dimension {
         &self.f

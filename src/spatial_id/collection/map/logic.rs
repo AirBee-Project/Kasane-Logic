@@ -19,13 +19,13 @@ impl<S: MapStorage + Collection> MapLogic<S> {
         self.0.main().len()
     }
 
-    pub fn insert<I: ToFlexId>(&mut self, target: &I, value: S::Value) {}
+    pub fn insert<I: ToFlexId>(&mut self, target: &I, value: <S as Collection>::Value) {}
 
-    pub fn get<I: ToFlexId>(&mut self, target: &I) -> MapOnMemory<S::Value> {
+    pub fn get<I: ToFlexId>(&mut self, target: &I) -> MapOnMemory<<S as Collection>::Value> {
         todo!()
     }
 
-    pub fn remove<I: ToFlexId>(&mut self, target: &I) -> MapOnMemory<S::Value> {
+    pub fn remove<I: ToFlexId>(&mut self, target: &I) -> MapOnMemory<<S as Collection>::Value> {
         todo!()
     }
 }
