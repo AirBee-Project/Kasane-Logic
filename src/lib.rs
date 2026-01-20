@@ -5,10 +5,10 @@ mod error;
 mod geometry;
 
 /// 空間IDに関する型を定義。
-mod spatial_id;
+pub mod spatial_id;
 
 /// このライブライがサポートするストレージのTrait定義と実装
-mod kv;
+mod storage;
 
 pub use roaring::RoaringTreemap;
 
@@ -16,10 +16,5 @@ pub use error::Error;
 pub use geometry::{
     coordinate::Coordinate, ecef::Ecef, shapes::line, shapes::sphere, shapes::triangle,
 };
-pub use kv::KvStore;
-pub use spatial_id::{
-    SpatialId,
-    collection::{MapIndexTrait, MapLogic, MapTrait, SetLogic, SpatialIdMap, SpatialIdSet},
-    range_id::RangeId,
-    single_id::SingleId,
-};
+pub use spatial_id::{SpatialId, range_id::RangeId, single_id::SingleId};
+pub use storage::BTreeMapTrait;

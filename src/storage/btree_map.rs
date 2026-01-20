@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, ops::RangeBounds};
 
-use crate::kv::KvStore;
+use crate::storage::BTreeMapTrait;
 
-impl<K, V> KvStore<K, V> for BTreeMap<K, V>
+impl<K, V> BTreeMapTrait<K, V> for BTreeMap<K, V>
 where
     K: Ord,
 {

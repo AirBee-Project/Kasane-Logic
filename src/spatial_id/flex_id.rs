@@ -1,8 +1,6 @@
-use std::collections::btree_map::Range;
-
 use crate::RangeId;
 use crate::spatial_id::segment::SegmentRelation;
-use crate::spatial_id::{SpatialIdEncode, segment::Segment};
+use crate::spatial_id::{ToFlexId, segment::Segment};
 #[derive(Clone, PartialEq, Debug)]
 pub struct FlexId {
     f: Segment,
@@ -139,8 +137,8 @@ impl FlexId {
     }
 }
 
-impl SpatialIdEncode for FlexId {
-    fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
+impl ToFlexId for FlexId {
+    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_ {
         std::iter::once(self.clone())
     }
 }

@@ -6,7 +6,7 @@ use crate::{
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
-        SpatialId, SpatialIdEncode,
+        SpatialId, ToFlexId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         flex_id::FlexId,
         helpers,
@@ -626,9 +626,9 @@ impl SpatialId for RangeId {
     }
 }
 
-impl SpatialIdEncode for RangeId {
+impl ToFlexId for RangeId {
     ///[FlexId]に変換を行う関数
-    fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
+    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_ {
         let f_segments = Segment::split_f(self.as_z(), self.as_f());
         let x_segments: Vec<_> = if self.x[0] <= self.x[1] {
             Segment::split_xy(self.as_z(), self.as_y()).collect()

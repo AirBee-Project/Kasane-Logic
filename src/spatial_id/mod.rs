@@ -28,7 +28,6 @@
 
 use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::flex_id::FlexId};
 
-//ユーザーに対して公開されているモジュール
 pub mod collection;
 pub mod constants;
 pub mod range_id;
@@ -65,7 +64,7 @@ pub trait SpatialId {
     fn vertices(&self) -> [Coordinate; 8];
 }
 
-pub trait SpatialIdEncode {
+pub trait ToFlexId {
     //FlexIdの集合に変換するメゾット
-    fn encode(&self) -> impl Iterator<Item = FlexId> + '_;
+    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_;
 }

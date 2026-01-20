@@ -2,7 +2,7 @@ use std::ops::RangeBounds;
 
 pub mod btree_map;
 
-pub trait KvStore<K, V>
+pub trait BTreeMapTrait<K, V>
 where
     K: Ord,
 {

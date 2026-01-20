@@ -4,7 +4,7 @@ use crate::{
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
-        SpatialId, SpatialIdEncode,
+        SpatialId, ToFlexId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         flex_id::FlexId,
         helpers,
@@ -683,8 +683,8 @@ impl SpatialId for SingleId {
     }
 }
 
-impl SpatialIdEncode for SingleId {
-    fn encode(&self) -> impl Iterator<Item = FlexId> + '_ {
+impl ToFlexId for SingleId {
+    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_ {
         let f_segment = Segment::from_f(self.as_z(), self.as_f());
         let x_segment = Segment::from_xy(self.as_z(), self.as_x());
         let y_segment = Segment::from_xy(self.as_z(), self.as_y());
