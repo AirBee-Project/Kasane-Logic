@@ -2,6 +2,7 @@ use crate::{RangeId, SetOnMemory, SingleId};
 
 pub mod insert;
 pub mod intersection;
+pub mod union;
 
 ///SetAを生成する
 ///SetAはBとは一切交わらない
