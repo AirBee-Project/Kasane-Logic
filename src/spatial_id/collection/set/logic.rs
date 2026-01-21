@@ -252,7 +252,7 @@ where
 
     ///二つのSetの表す空間的な範囲が等しいかどうかを見る
     /// コストはそこそこ高い
-    fn equal(&self, other: &Self) -> bool {
+    pub fn equal(&self, other: &Self) -> bool {
         if self.size() != other.size() {
             return false;
         }
