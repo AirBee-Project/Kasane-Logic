@@ -1,5 +1,6 @@
 use crate::{RangeId, SetOnMemory, SingleId};
 
+pub mod equal;
 pub mod insert;
 pub mod intersection;
 pub mod union;
