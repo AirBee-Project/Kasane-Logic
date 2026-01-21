@@ -1,7 +1,7 @@
 use crate::RangeId;
 use crate::spatial_id::segment::SegmentRelation;
 use crate::spatial_id::{ToFlexId, segment::Segment};
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub struct FlexId {
     f: Segment,
     x: Segment,

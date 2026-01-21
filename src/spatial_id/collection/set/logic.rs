@@ -96,6 +96,9 @@ where
     }
 
     ///重複確認なく挿入を行う
+    /// 結合の最適化を行わないとEqなどが正常に動作しなくなる
+    /// 結合最適化を行ったものを入れないと、ロジックが壊れる
+    /// もしくは、明らかに結合不能なIDなど
     pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.to_flex_id() {
             self.0.insert_flex_id(&flex_id);
@@ -233,5 +236,40 @@ where
             }
         }
         result
+    }
+
+    ///二つのSetの表す空間的な範囲が等しいかどうかを見る
+    /// コストはそこそこ高い
+    fn equal(&self, other: &Self) -> bool {
+        if self.size() != other.size() {
+            return false;
+        }
+        let mut self_ids: Vec<&FlexId> = self.flex_ids().collect();
+        let mut other_ids: Vec<&FlexId> = other.flex_ids().collect();
+        self_ids.sort();
+        other_ids.sort();
+        self_ids == other_ids
+    }
+
+    ///全てのFlexIdをSingleIdに変換して、2つのSetの中身が完全に一致することを検証します。
+    ///主にテスト用です。重いのでプロダクションでは使用しないでください。
+    #[cfg(debug_assertions)]
+    pub fn verification_eq(&self, other: &Self) -> bool {
+        use crate::SingleId;
+        let expand_to_singles = |set: &Self| -> Vec<SingleId> {
+            let mut singles: Vec<SingleId> = set
+                .range_ids()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .flat_map(|range_id| range_id.to_single().collect::<Vec<_>>())
+                .collect();
+            singles.sort();
+            singles
+        };
+
+        let self_singles = expand_to_singles(self);
+        let other_singles = expand_to_singles(other);
+
+        self_singles == other_singles
     }
 }

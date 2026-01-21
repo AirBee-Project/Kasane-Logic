@@ -90,7 +90,7 @@ impl SetOnMemory {
 //===========================================
 //SetLogicをメモリ上でBTreeMapを用いて実装したもの
 //SetLogicの恩恵によりストレージの記法さえ実装すれば動作するようにできている
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct SetOnMemoryInner {
     pub(crate) f: BTreeMap<Segment, RoaringTreemap>,
     pub(crate) x: BTreeMap<Segment, RoaringTreemap>,
