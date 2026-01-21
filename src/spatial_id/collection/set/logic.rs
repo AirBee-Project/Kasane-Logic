@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::{self, Display};
 
 use roaring::RoaringTreemap;
 
@@ -282,5 +283,17 @@ where
         let other_singles = expand_to_singles(other);
 
         self_singles == other_singles
+    }
+}
+
+impl<S> Display for SetLogic<S>
+where
+    S: SetStorage + Collection + Default,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for range_id in self.range_ids() {
+            write!(f, "{},", range_id)?;
+        }
+        Ok(())
     }
 }

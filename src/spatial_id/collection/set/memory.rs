@@ -1,5 +1,6 @@
 use std::{
     collections::BTreeMap,
+    fmt::Display,
     ops::{Deref, DerefMut},
 };
 
@@ -82,6 +83,12 @@ impl SetOnMemory {
 
     pub fn into_inner(self) -> SetLogic<SetOnMemoryInner> {
         self.0
+    }
+}
+
+impl Display for SetOnMemory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 

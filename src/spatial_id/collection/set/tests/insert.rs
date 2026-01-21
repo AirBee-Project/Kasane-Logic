@@ -40,8 +40,11 @@ mod tests {
         //正解
         let mut answer: Vec<SingleId> = range_id.single_ids().collect();
 
+        answer.sort();
+        single_ids.sort();
+
         //並び替えれば全く同じになる
-        assert_eq!(answer.sort(), single_ids.sort());
+        assert_eq!(answer, single_ids);
     }
 
     ///0/0/0/0を1つだけ挿入するケース
@@ -84,8 +87,11 @@ mod tests {
         //正解
         let mut answer: Vec<SingleId> = range_id.single_ids().collect();
 
+        answer.sort();
+        single_ids.sort();
+
         //並び替えれば全く同じになる
-        assert_eq!(answer.sort(), single_ids.sort());
+        assert_eq!(answer, single_ids);
     }
 
     ///最も小さなSingleIdを1つだけ挿入するケース
@@ -233,8 +239,11 @@ mod tests {
         //答え
         let mut answer = vec![RangeId::from(single_id_a), RangeId::from(single_id_b)];
 
+        range_ids.sort();
+        answer.sort();
+
         //含まれるIDは生成したSingleIdと一致するはず
-        assert_eq!(range_ids.sort(), answer.sort())
+        assert_eq!(range_ids, answer)
     }
 
     ///RangeIdを挿入したときに、大きなIDになって帰ってくるか
