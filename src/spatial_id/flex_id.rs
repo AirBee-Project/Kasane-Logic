@@ -165,7 +165,7 @@ impl FlexId {
 }
 
 impl ToFlexId for FlexId {
-    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_ {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
         std::iter::once(self.clone())
     }
 }

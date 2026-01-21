@@ -674,7 +674,7 @@ impl SpatialId for RangeId {
 }
 
 impl ToFlexId for RangeId {
-    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_ {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
         let f_segments = Segment::split_f(self.as_z(), self.as_f());
         let x_segments: Vec<_> = if self.x[0] <= self.x[1] {
             Segment::split_xy(self.as_z(), self.as_x()).collect()

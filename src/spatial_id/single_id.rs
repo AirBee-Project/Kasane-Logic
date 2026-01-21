@@ -720,7 +720,7 @@ impl SpatialId for SingleId {
 }
 
 impl ToFlexId for SingleId {
-    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_ {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
         let f_segment = Segment::from_f(self.as_z(), self.as_f());
         let x_segment = Segment::from_xy(self.as_z(), self.as_x());
         let y_segment = Segment::from_xy(self.as_z(), self.as_y());

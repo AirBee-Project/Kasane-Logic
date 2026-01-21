@@ -73,7 +73,7 @@ where
 
     ///重複の解消と結合の最適化を行う
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
-        let mut work_list: Vec<FlexId> = target.to_flex_id().into_iter().collect();
+        let mut work_list: Vec<FlexId> = target.flex_ids().into_iter().collect();
 
         'process_queue: while let Some(current_insert) = work_list.pop() {
             let related_ranks = self.0.related(&current_insert);
@@ -100,7 +100,7 @@ where
     /// 結合最適化を行ったものを入れないと、ロジックが壊れる
     /// もしくは、明らかに結合不能なIDなど
     pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
-        for flex_id in target.to_flex_id() {
+        for flex_id in target.flex_ids() {
             self.0.insert_flex_id(&flex_id);
         }
     }
@@ -108,7 +108,7 @@ where
     ///重複確認なく挿入を行う
     ///結合の最適化を行う
     pub unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
-        for flex_id in target.to_flex_id() {
+        for flex_id in target.flex_ids() {
             if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id) {
                 if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().f_parent() {
                     self.0.remove_flex_id(sibling_rank);
@@ -139,7 +139,7 @@ where
     ///FlexIdで指定した領域を取得し、削除した領域をSetOnMemoryとして返す
     pub fn get<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
         let mut result = SetOnMemory::default();
-        for flex_id in target.to_flex_id() {
+        for flex_id in target.flex_ids() {
             for related_rank in self.0.related(&flex_id) {
                 let related_id = self.0.get_flex_id(related_rank).unwrap();
                 unsafe { result.join_insert_unchecked(&flex_id.intersection(related_id).unwrap()) };
@@ -151,7 +151,7 @@ where
     ///FlexIdで指定した領域を削除し、削除した領域をSetOnMemoryとして返す
     pub fn remove<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
         let mut result = SetOnMemory::default();
-        for flex_id in target.to_flex_id() {
+        for flex_id in target.flex_ids() {
             for related_rank in self.0.related(&flex_id) {
                 let related_id = self.0.get_flex_id(related_rank).unwrap();
                 for removed_flex_id in flex_id.difference(related_id) {

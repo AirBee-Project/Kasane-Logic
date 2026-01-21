@@ -64,5 +64,5 @@ pub trait SpatialId {
 
 pub trait ToFlexId {
     //FlexIdの集合に変換するメゾット
-    fn to_flex_id(&self) -> impl Iterator<Item = FlexId> + '_;
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_;
 }
