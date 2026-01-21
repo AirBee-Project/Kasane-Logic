@@ -157,7 +157,6 @@ impl Segment {
     }
 
     pub(crate) fn sibling(&self) -> Self {
-        println!("{}", self);
         let mut out = self.clone();
         for byte_index in (0..out.0.len()).rev() {
             let byte = out.0[byte_index];
@@ -187,6 +186,8 @@ impl Segment {
         unreachable!("Neko")
     }
 
+    ///そのセグメントの1階層上位のセグメントを返す
+    /// ただし、Z=0に親は存在しないため、その場合はNoneを返す
     pub(crate) fn parent(&self) -> Option<Self> {
         let mut out = self.clone();
         for byte_index in (0..out.0.len()).rev() {
@@ -194,22 +195,22 @@ impl Segment {
             if byte == 0 {
                 continue;
             }
-
             for shift in [0, 2, 4, 6] {
                 let mask = 0b11 << shift;
                 let pair = (byte & mask) >> shift;
+
                 if pair == 0 {
                     continue;
                 }
-
-                // 最後に見つかった有効ビットペアを00(消去)にする
+                if byte_index == 0 && shift == 6 {
+                    return None;
+                }
                 out.0[byte_index] &= !mask;
                 return Some(out);
             }
         }
         None
     }
-
     pub(crate) fn descendant_range_end(&self) -> Option<Self> {
         let mut end_segment = self.clone();
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;

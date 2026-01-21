@@ -697,6 +697,7 @@ impl ToFlexId for RangeId {
 
                 y_segments.into_iter().map({
                     let value = f.clone();
+
                     move |y| FlexId::new(value.clone(), x.clone(), y)
                 })
             })
