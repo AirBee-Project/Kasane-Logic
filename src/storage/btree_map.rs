@@ -81,4 +81,12 @@ where
     fn clear(&mut self) {
         self.clear();
     }
+
+    fn first_key_value(&self) -> Option<(&K, &V)> {
+        BTreeMap::first_key_value(self)
+    }
+
+    fn last_key_value(&self) -> Option<(&K, &V)> {
+        BTreeMap::last_key_value(self)
+    }
 }

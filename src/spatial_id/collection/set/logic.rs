@@ -84,6 +84,42 @@ where
         self.0.main().iter().map(|f| f.1)
     }
 
+    ///最も細かい空間IDの1辺のズームレベル値を返す
+    pub fn max_z(&self) -> u8 {
+        let find_max_z_in_dim = |dim: &S::Dimension| -> u8 {
+            dim.iter()
+                .map(|seg| {
+                    // SegmentからZだけを高速に取り出す
+                    // to_xy() は (z, index) を返すので .0 を使う
+                    seg.0.to_xy().0
+                })
+                .max()
+                .unwrap_or(0)
+        };
+        let f_max = self
+            .0
+            .f()
+            .iter()
+            .map(|(s, _)| s.to_f().0)
+            .max()
+            .unwrap_or(0);
+        let x_max = find_max_z_in_dim(self.0.x());
+        let y_max = find_max_z_in_dim(self.0.y());
+
+        f_max.max(x_max).max(y_max)
+    }
+
+    ///そのSetの中の最も細かい解像度に変換して出力
+    pub fn flatten(&self) -> impl Iterator<Item = SingleId> + '_ {
+        let target_z = self.max_z();
+        self.range_ids()
+            .filter_map(move |id| {
+                let diff = target_z.checked_sub(id.as_z())?;
+                id.children(diff).ok()
+            })
+            .flat_map(|scaled_range_id| scaled_range_id.single_ids().collect::<Vec<_>>())
+    }
+
     ///重複の解消と結合の最適化を行う
     /// 領域を挿入する。
     /// 既存の領域と重なる場合、**既存の領域を削って（上書きして）** 新しい領域を配置する。

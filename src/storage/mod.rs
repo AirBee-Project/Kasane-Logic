@@ -55,4 +55,7 @@ where
         V: 'a;
 
     fn iter_mut(&mut self) -> Self::IterMut<'_>;
+
+    fn first_key_value(&self) -> Option<(&K, &V)>;
+    fn last_key_value(&self) -> Option<(&K, &V)>;
 }

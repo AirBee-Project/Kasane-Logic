@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
     use crate::spatial_id::collection::set::tests::{set_a, set_b, set_c};
+    use std::collections::HashSet;
 
     ///交わりがない場合のテスト
     #[test]

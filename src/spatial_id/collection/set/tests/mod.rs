@@ -6,9 +6,6 @@ pub mod intersection;
 pub mod union;
 
 ///SetAを生成する
-///SetAはBとは一切交わらない
-/// SetCと交わる
-
 pub fn set_a() -> SetOnMemory {
     let mut set = SetOnMemory::default();
     let id1 = RangeId::new(5, [-7, 11], [1, 5], [5, 30]).unwrap();
@@ -19,8 +16,6 @@ pub fn set_a() -> SetOnMemory {
 }
 
 ///SetBを生成する
-///SetBはAとは一切交わらない
-/// SetCと交わる
 pub fn set_b() -> SetOnMemory {
     let mut set = SetOnMemory::default();
     let id1 = RangeId::new(4, [5, 4], [4, 5], [9, 10]).unwrap();
@@ -31,7 +26,6 @@ pub fn set_b() -> SetOnMemory {
 }
 
 ///SetCを生成する
-///SetAとBと交わる
 pub fn set_c() -> SetOnMemory {
     let mut set = SetOnMemory::default();
     let id1 = SingleId::new(2, 1, 1, 1).unwrap();
