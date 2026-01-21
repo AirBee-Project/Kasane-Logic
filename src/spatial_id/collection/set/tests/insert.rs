@@ -1,7 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use std::collections::btree_map::Range;
-
     use crate::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SetOnMemory, SingleId, XY_MAX};
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
@@ -237,5 +235,29 @@ mod tests {
 
         //含まれるIDは生成したSingleIdと一致するはず
         assert_eq!(range_ids.sort(), answer.sort())
+    }
+
+    ///RangeIdを挿入したときに、大きなIDになって帰ってくるか
+    #[test]
+    fn first_insert_range_id_join() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let range_id = RangeId::new(4, [0, F_MAX[4]], [0, XY_MAX[4]], [0, XY_MAX[4]]).unwrap();
+
+        set.insert(&range_id);
+
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, range_ids.len());
+
+        //地表面より上の全てのID=0/0/0/0と一致するはず
+        assert_eq!(
+            *range_ids.first().unwrap(),
+            RangeId::new(0, [0, 0], [0, 0], [0, 0]).unwrap()
+        )
     }
 }

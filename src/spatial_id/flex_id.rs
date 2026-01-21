@@ -18,7 +18,7 @@ impl FlexId {
         FlexId { f, x, y }
     }
 
-    pub fn decode(&self) -> RangeId {
+    pub fn range_id(&self) -> RangeId {
         self.clone().into()
     }
 

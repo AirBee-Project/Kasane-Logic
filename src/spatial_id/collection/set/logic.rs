@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 
 use roaring::RoaringTreemap;
 
-use crate::RangeId;
 use crate::spatial_id::collection::set::memory::{SetOnMemory, SetOnMemoryInner};
 use crate::spatial_id::collection::{Collection, FlexIdRank, set};
 use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use crate::spatial_id::{ToFlexId, collection::set::SetStorage};
 use crate::storage::BTreeMapTrait;
+use crate::{RangeId, SingleId};
 
 #[derive(Default)]
 pub struct SetLogic<S: SetStorage + Collection>(pub(crate) S);
@@ -61,37 +61,48 @@ where
         self.0.main().len()
     }
 
-    ///内部にあるRangeIdを全て返す
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
+    }
+
+    ///内部にあるIDを全てRangeIdとして返す
     pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
-        self.0.main().iter().map(|flex_id| flex_id.1.decode())
+        self.0.main().iter().map(|flex_id| flex_id.1.range_id())
+    }
+
+    ///内部にあるIDを全てSingleIdとして返す
+    pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
+        self.0
+            .main()
+            .iter()
+            .flat_map(|flex_id| flex_id.1.range_id().single_ids().collect::<Vec<_>>())
     }
 
     ///内部にあるFlexIdを全て返す
-    pub fn flex_ids(&self) -> impl Iterator<Item = &FlexId> + '_ {
+    pub(crate) fn flex_ids(&self) -> impl Iterator<Item = &FlexId> + '_ {
         self.0.main().iter().map(|f| f.1)
     }
 
     ///重複の解消と結合の最適化を行う
+    /// 領域を挿入する。
+    /// 既存の領域と重なる場合、**既存の領域を削って（上書きして）** 新しい領域を配置する。
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
-        let mut work_list: Vec<FlexId> = target.flex_ids().into_iter().collect();
-
-        'process_queue: while let Some(current_insert) = work_list.pop() {
-            let related_ranks = self.0.related(&current_insert);
-
+        let inserts: Vec<FlexId> = target.flex_ids().into_iter().collect();
+        for new_id in inserts {
+            let related_ranks: Vec<FlexIdRank> = self.0.related(&new_id).into_iter().collect();
             for rank in related_ranks {
                 if let Some(existing_id) = self.0.get_flex_id(rank) {
-                    if existing_id.contains(&current_insert) {
-                        continue 'process_queue;
-                    } else if current_insert.contains(existing_id) {
+                    if new_id.intersection(existing_id).is_some() {
+                        let existing_backup = existing_id.clone();
                         self.0.remove_flex_id(rank);
-                    } else {
-                        let fragments = current_insert.difference(existing_id);
-                        work_list.extend(fragments);
-                        continue 'process_queue;
+                        let fragments = existing_backup.difference(&new_id);
+                        for frag in fragments {
+                            unsafe { self.join_insert_unchecked(&frag) };
+                        }
                     }
                 }
             }
-            unsafe { self.join_insert_unchecked(&current_insert) };
+            unsafe { self.join_insert_unchecked(&new_id) };
         }
     }
 

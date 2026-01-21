@@ -1,24 +1,18 @@
 use kasane_logic::{RangeId, SetOnMemory, SingleId};
 
 fn main() {
-    let mut set = SetOnMemory::new();
-    let mut set2 = SetOnMemory::new();
+    let mut set = SetOnMemory::default();
+    let id1 = RangeId::new(5, [-7, 11], [1, 5], [5, 30]).unwrap();
+    println!("START");
 
-    let id = RangeId::new(5, [7, 11], [1, 5], [3, 10]).unwrap();
-    let id2 = SingleId::new(3, 2, 1, 2).unwrap();
-    let id3 = SingleId::new(3, 2, 0, 1).unwrap();
-    set2.insert(&id3);
+    set.insert(&id1);
+    let id2 = RangeId::new(3, [2, 2], [1, 5], [2, 2]).unwrap();
+    println!("START");
 
-    println!("{}", id);
-    println!("{}", id2);
-    println!("{}", id3);
-
-    set.insert(&id);
     set.insert(&id2);
+    println!("START");
 
-    let set3 = set.intersection(&set2);
-
-    for range_id in set3.flex_ids() {
-        println!("{},", range_id.decode());
+    for ele in set.range_ids() {
+        println!("{},", ele);
     }
 }
