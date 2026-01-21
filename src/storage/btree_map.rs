@@ -1,92 +1,46 @@
-use std::{collections::BTreeMap, ops::RangeBounds};
+use std::collections::BTreeMap;
 
-use crate::storage::BTreeMapTrait;
+use crate::{KeyValueStore, OrderedKeyValueStore, storage::Batch};
 
-impl<K, V> BTreeMapTrait<K, V> for BTreeMap<K, V>
+impl<K, V> KeyValueStore<K, V> for BTreeMap<K, V>
 where
-    K: Ord,
+    K: Ord + Clone,
+    V: Clone,
 {
-    type Iter<'a>
-        = std::collections::btree_map::Iter<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a,
-        V: 'a;
-
-    type IterMut<'a>
-        = std::collections::btree_map::IterMut<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a,
-        V: 'a;
-
-    type RangeIter<'a>
-        = std::collections::btree_map::Range<'a, K, V>
-    where
-        Self: 'a,
-        K: 'a,
-        V: 'a;
-
-    fn iter(&self) -> Self::Iter<'_> {
-        self.iter()
+    fn get(&self, key: &K) -> Option<V> {
+        self.get(key).cloned()
     }
 
-    fn iter_mut(&mut self) -> Self::IterMut<'_> {
-        self.iter_mut()
+    fn batch_get(&self, keys: &[K]) -> Vec<Option<V>> {
+        keys.iter().map(|key| self.get(key).cloned()).collect()
     }
 
-    fn range<R>(&self, range: R) -> Self::RangeIter<'_>
-    where
-        R: RangeBounds<K>,
-    {
-        self.range(range)
-    }
-
-    fn get(&self, key: &K) -> Option<&V> {
-        self.get(key)
-    }
-
-    fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-        self.get_mut(key)
-    }
-
-    fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.insert(key, value)
-    }
-
-    fn remove(&mut self, key: &K) -> Option<V> {
-        self.remove(key)
-    }
-
-    fn update<F>(&mut self, key: &K, f: F)
-    where
-        F: FnOnce(&mut V),
-    {
-        if let Some(v) = self.get_mut(key) {
-            f(v);
+    fn apply_batch(&mut self, batch: Batch<K, V>) {
+        for key in batch.deletes {
+            self.remove(&key);
+        }
+        for (key, value) in batch.puts {
+            self.insert(key, value);
         }
     }
-
-    fn get_or_insert_with<F>(&mut self, key: K, f: F) -> &mut V
-    where
-        F: FnOnce() -> V,
-    {
-        self.entry(key).or_insert_with(f)
+    fn iter(&self) -> impl Iterator<Item = (K, V)> {
+        Box::new(self.iter().map(|(k, v)| (k.clone(), v.clone())))
     }
 
     fn len(&self) -> usize {
         self.len()
     }
+}
 
-    fn clear(&mut self) {
-        self.clear();
+impl<K, V> OrderedKeyValueStore<K, V> for BTreeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Clone,
+{
+    fn scan_range(&self, start: &K, end: &K) -> Box<dyn Iterator<Item = (K, V)> + '_> {
+        Box::new(self.range(start..end).map(|(k, v)| (k.clone(), v.clone())))
     }
-
-    fn first_key_value(&self) -> Option<(&K, &V)> {
-        BTreeMap::first_key_value(self)
-    }
-
-    fn last_key_value(&self) -> Option<(&K, &V)> {
-        BTreeMap::last_key_value(self)
+    fn last_key(&self) -> Option<K> {
+        self.keys().next_back().cloned()
     }
 }

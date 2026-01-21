@@ -2,17 +2,18 @@ pub mod logic;
 pub mod memory;
 
 use crate::{
-    BTreeMapTrait,
     spatial_id::collection::{FlexIdRank, ValueRank},
+    storage::{KeyValueStore, OrderedKeyValueStore},
 };
 
 pub trait TableStorage {
-    /// 格納するデータの型
     type Value: Clone + PartialEq + Ord;
 
-    type Forward: BTreeMapTrait<FlexIdRank, ValueRank>;
-    type Dictionary: BTreeMapTrait<ValueRank, Self::Value>;
-    type Reverse: BTreeMapTrait<Self::Value, ValueRank>;
+    type Forward: KeyValueStore<FlexIdRank, ValueRank>;
+
+    type Dictionary: KeyValueStore<ValueRank, Self::Value>;
+
+    type Reverse: OrderedKeyValueStore<Self::Value, ValueRank>;
 
     fn forward(&self) -> &Self::Forward;
     fn forward_mut(&mut self) -> &mut Self::Forward;

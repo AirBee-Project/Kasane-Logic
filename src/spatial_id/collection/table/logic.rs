@@ -1,11 +1,8 @@
-use crate::{
-    BTreeMapTrait,
-    spatial_id::{
-        ToFlexId,
-        collection::{
-            Collection,
-            table::{TableStorage, memory::TableOnMemory},
-        },
+use crate::spatial_id::{
+    ToFlexId,
+    collection::{
+        Collection,
+        table::{TableStorage, memory::TableOnMemory},
     },
 };
 
@@ -27,7 +24,7 @@ where
     }
 
     pub fn size(&self) -> usize {
-        self.0.main().len()
+        todo!()
     }
 
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {

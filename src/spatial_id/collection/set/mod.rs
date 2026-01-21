@@ -8,6 +8,7 @@ mod tests;
 pub trait SetStorage {}
 
 impl<S: SetStorage + Collection> SetStorage for SetLogic<S> {}
+
 impl<S: Collection + SetStorage> Collection for SetLogic<S> {
     type Main = S::Main;
     type Dimension = S::Dimension;

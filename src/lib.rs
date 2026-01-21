@@ -25,4 +25,4 @@ pub use spatial_id::{
 
 pub use spatial_id::collection::set::{SetStorage, logic::SetLogic, memory::SetOnMemory};
 
-pub use storage::BTreeMapTrait;
+pub use storage::{KeyValueStore, OrderedKeyValueStore};

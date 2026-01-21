@@ -1,22 +1,21 @@
 use roaring::RoaringTreemap;
 
-use crate::{
-    BTreeMapTrait,
-    spatial_id::{flex_id::FlexId, segment::Segment},
-};
-use std::ops::Bound::{Excluded, Included, Unbounded};
+use crate::spatial_id::{flex_id::FlexId, segment::Segment};
+use crate::storage::{Batch, KeyValueStore, OrderedKeyValueStore};
+
 pub mod set;
 pub mod table;
 
 pub(crate) type FlexIdRank = u64;
 pub(crate) type ValueRank = u64;
 
-///Rankのごみ箱のキャパシティー
+/// Rankのごみ箱のキャパシティー
 const MAX_RECYCLE_CAPACITY: usize = 1024;
 
 pub trait Collection {
-    type Main: BTreeMapTrait<FlexIdRank, FlexId>;
-    type Dimension: BTreeMapTrait<Segment, RoaringTreemap>;
+    type Main: KeyValueStore<FlexIdRank, FlexId>;
+    type Dimension: OrderedKeyValueStore<Segment, RoaringTreemap>;
+
     fn main(&self) -> &Self::Main;
     fn main_mut(&mut self) -> &mut Self::Main;
 
@@ -32,109 +31,139 @@ pub trait Collection {
 
     /// FlexIdRankに割り当てられていたFlexIdを削除し、そのFlexIdを返す
     fn remove_flex_id(&mut self, rank: FlexIdRank) -> Option<FlexId> {
-        let flex_id = self.main_mut().remove(&rank)?;
-        let remove_from_dim = |map: &mut Self::Dimension, seg: &Segment| {
-            if let Some(bitmap) = map.get_mut(seg) {
-                bitmap.remove(rank);
+        let flex_id = self.main().get(&rank)?;
+
+        let mut main_batch = Batch::new();
+        main_batch.delete(rank);
+
+        let mut update_dim = |store: &mut Self::Dimension, seg: &Segment| {
+            let mut batch = Batch::new();
+            // 現在の状態を取得
+            if let Some(mut bitmap) = store.get(seg) {
+                // 変更を適用
+                let changed = bitmap.remove(rank);
+
+                // Write: 変更があればバッチに追加
                 if bitmap.is_empty() {
-                    map.remove(seg);
+                    batch.delete(seg.clone());
+                } else if changed {
+                    batch.put(seg.clone(), bitmap);
                 }
             }
+            store.apply_batch(batch);
         };
-        remove_from_dim(self.f_mut(), flex_id.as_f());
-        remove_from_dim(self.x_mut(), flex_id.as_x());
-        remove_from_dim(self.y_mut(), flex_id.as_y());
+
+        update_dim(self.f_mut(), flex_id.as_f());
+        update_dim(self.x_mut(), flex_id.as_x());
+        update_dim(self.y_mut(), flex_id.as_y());
+
+        // 3. Apply: Mainへの変更を適用
+        self.main_mut().apply_batch(main_batch);
+
         self.return_rank(rank);
         Some(flex_id)
     }
 
-    ///FlexIdを挿入し、割り当てられたFlexIdRankを返す
+    /// FlexIdを挿入し、割り当てられたFlexIdRankを返す
     fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
         let rank = self.fetch_rank();
-        let update_dim = |map: &mut Self::Dimension, seg: Segment| {
-            map.get_or_insert_with(seg, RoaringTreemap::new)
-                .insert(rank);
+
+        // Dimensionへの挿入ロジック
+        let mut update_dim = |store: &mut Self::Dimension, seg: Segment| {
+            let mut batch = Batch::new();
+            // Read: 既存があれば取得、なければ新規作成
+            let mut bitmap = store.get(&seg).unwrap_or_else(RoaringTreemap::new);
+
+            // Modify: ランクを追加
+            bitmap.insert(rank);
+
+            // Write: バッチにPut
+            batch.put(seg, bitmap);
+            store.apply_batch(batch);
         };
+
+        // Cloneして渡す必要がある (segの所有権が必要なため)
         update_dim(self.f_mut(), target.as_f().clone());
         update_dim(self.x_mut(), target.as_x().clone());
         update_dim(self.y_mut(), target.as_y().clone());
-        self.main_mut().insert(rank, target.clone());
+
+        // Mainへの挿入
+        let mut main_batch = Batch::new();
+        main_batch.put(rank, target.clone());
+        self.main_mut().apply_batch(main_batch);
+
         rank
     }
 
-    ///あるFlexIdRankの実体のFlexIdを参照する
-    /// 見つからない場合はNoneを返す
-    fn get_flex_id(&self, flex_id_rank: FlexIdRank) -> Option<&FlexId> {
+    /// あるFlexIdRankの実体のFlexIdを参照する
+    fn get_flex_id(&self, flex_id_rank: FlexIdRank) -> Option<FlexId> {
         self.main().get(&flex_id_rank)
     }
 
-    ///あるFlexIdとf方向で兄弟なFlexIdのRankを取得する
+    /// あるFlexIdとf方向で兄弟なFlexIdのRankを取得する
     fn get_f_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
+        // get() が Option<V> を返すので ? でチェーンできる
         let f_ranks = self.f().get(&target.as_f().sibling())?;
         let x_ranks = self.x().get(target.as_x())?;
         let y_ranks = self.y().get(target.as_y())?;
+
+        // RoaringTreemap同士の積集合
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
     }
 
-    ///あるFlexIdとx方向で兄弟なFlexIdのRankを取得する
+    /// あるFlexIdとx方向で兄弟なFlexIdのRankを取得する
     fn get_x_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(&target.as_f())?;
+        let f_ranks = self.f().get(target.as_f())?;
         let x_ranks = self.x().get(&target.as_x().sibling())?;
         let y_ranks = self.y().get(target.as_y())?;
+
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
     }
 
-    ///あるFlexIdとy方向で兄弟なFlexIdのRankを取得する
+    /// あるFlexIdとy方向で兄弟なFlexIdのRankを取得する
     fn get_y_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(&target.as_f())?;
+        let f_ranks = self.f().get(target.as_f())?;
         let x_ranks = self.x().get(target.as_x())?;
         let y_ranks = self.y().get(&target.as_y().sibling())?;
+
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
     }
 
-    ///FlexIdの全ての参照を返す
-    fn flex_ids(&self) -> impl Iterator<Item = &FlexId> {
-        self.main().iter().map(|f| f.1)
+    fn flex_ids(&self) -> Box<dyn Iterator<Item = FlexId> + '_> {
+        Box::new(self.main().iter().map(|(_, v)| v))
     }
 
-    ///FlexIdの可変参照を返す
-    fn flex_ids_mut(&mut self) -> impl Iterator<Item = &mut FlexId> {
-        self.main_mut().iter_mut().map(|f| f.1)
-    }
-
-    ///あるFlexIdと関連のあるFlexIdRankを全て返す
+    /// あるFlexIdと関連のあるFlexIdRankを全て返す
     fn related(&self, target: &FlexId) -> RoaringTreemap {
-        let get_related_segment = |map: &Self::Dimension, seg: &Segment| -> RoaringTreemap {
+        let get_related_segment = |store: &Self::Dimension, seg: &Segment| -> RoaringTreemap {
             let mut bitmap = RoaringTreemap::new();
             let mut current = seg.parent();
             while let Some(parent) = current {
-                if let Some(ranks) = map.get(&parent) {
+                if let Some(ranks) = store.get(&parent) {
                     bitmap |= ranks;
                 }
                 current = parent.parent();
             }
             let end = seg.descendant_range_end();
+            let iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
+                Some(end_segment) => store.scan_range(seg, &end_segment),
+                None => match store.last_key() {
+                    Some(last) => store.scan_range(seg, &last),
+                    None => Box::new(std::iter::empty::<(Segment, RoaringTreemap)>())
+                        as Box<dyn Iterator<Item = (Segment, RoaringTreemap)>>,
+                },
+            };
 
-            match end {
-                //segが右端ではない場合
-                Some(end_segment) => {
-                    for (_, ranks) in map.range((Included(seg), Excluded(&end_segment))) {
-                        bitmap |= ranks;
-                    }
-                }
-                //segが右端の場合
-                None => {
-                    for (_, ranks) in map.range((Included(seg), Unbounded)) {
-                        bitmap |= ranks;
-                    }
-                }
+            for (_, ranks) in iter {
+                bitmap |= ranks;
             }
 
             bitmap
         };
+
         let f_related = get_related_segment(self.f(), target.as_f());
         let x_related = get_related_segment(self.x(), target.as_x());
         let y_related = get_related_segment(self.y(), target.as_y());

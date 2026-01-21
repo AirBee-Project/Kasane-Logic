@@ -4,11 +4,12 @@ use std::fmt::{self, Display};
 use roaring::RoaringTreemap;
 
 use crate::spatial_id::collection::set::memory::{SetOnMemory, SetOnMemoryInner};
-use crate::spatial_id::collection::{Collection, FlexIdRank, set};
+use crate::spatial_id::collection::{Collection, FlexIdRank};
 use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use crate::spatial_id::{ToFlexId, collection::set::SetStorage};
-use crate::storage::BTreeMapTrait;
+
+use crate::storage::KeyValueStore;
 use crate::{Error, MAX_ZOOM_LEVEL, RangeId, SingleId};
 
 #[derive(Default)]
@@ -29,18 +30,19 @@ where
     where
         S: SetStorage + Collection,
     {
-        let main: BTreeMap<FlexIdRank, FlexId> = set_storage
-            .main()
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+        // KVSベースになったため、iteratorは (K, V) を返す
+        let main: BTreeMap<FlexIdRank, FlexId> = set_storage.main().iter().collect();
+
         let next_rank = main.keys().next_back().map(|&r| r + 1).unwrap_or(0);
+
         let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
-            source.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+            source.iter().collect()
         };
+
         let f = copy_dim(set_storage.f());
         let x = copy_dim(set_storage.x());
         let y = copy_dim(set_storage.y());
+
         let inner = SetOnMemoryInner {
             f,
             x,
@@ -68,34 +70,24 @@ where
 
     ///内部にあるIDを全てRangeIdとして返す
     pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
-        self.0.main().iter().map(|flex_id| flex_id.1.range_id())
+        self.0.flex_ids().map(|flex_id| flex_id.range_id())
     }
 
-    ///内部にあるIDを全てSingleIdとして返す
     pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
         self.0
-            .main()
-            .iter()
-            .flat_map(|flex_id| flex_id.1.range_id().single_ids().collect::<Vec<_>>())
+            .flex_ids()
+            .flat_map(|flex_id| flex_id.range_id().single_ids().collect::<Vec<_>>())
     }
 
-    ///内部にあるFlexIdを全て返す
-    pub(crate) fn flex_ids(&self) -> impl Iterator<Item = &FlexId> + '_ {
-        self.0.main().iter().map(|f| f.1)
+    pub(crate) fn flex_ids(&self) -> Box<dyn Iterator<Item = FlexId> + '_> {
+        self.0.flex_ids()
     }
 
-    ///最も細かい空間IDの1辺のズームレベル値を返す
     pub fn max_z(&self) -> u8 {
         let find_max_z_in_dim = |dim: &S::Dimension| -> u8 {
-            dim.iter()
-                .map(|seg| {
-                    // SegmentからZだけを高速に取り出す
-                    // to_xy() は (z, index) を返すので .0 を使う
-                    seg.0.to_xy().0
-                })
-                .max()
-                .unwrap_or(0)
+            dim.iter().map(|(seg, _)| seg.to_xy().0).max().unwrap_or(0)
         };
+
         let f_max = self
             .0
             .f()
@@ -103,6 +95,7 @@ where
             .map(|(s, _)| s.to_f().0)
             .max()
             .unwrap_or(0);
+
         let x_max = find_max_z_in_dim(self.0.x());
         let y_max = find_max_z_in_dim(self.0.y());
 
@@ -133,24 +126,29 @@ where
         Ok(self
             .range_ids()
             .flat_map(move |id| {
-                // 1. ?演算子で None を弾く
                 let diff = target_z.checked_sub(id.as_z())?;
                 let child_range = id.children(diff).ok()?;
                 Some(child_range.single_ids().collect::<Vec<_>>())
             })
             .flatten())
     }
+
     ///重複の解消と結合の最適化を行う
     /// 領域を挿入する。
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
         let inserts: Vec<FlexId> = target.flex_ids().into_iter().collect();
         for new_id in inserts {
+            // Collectionのrelatedを使う
             let related_ranks: Vec<FlexIdRank> = self.0.related(&new_id).into_iter().collect();
+
             for rank in related_ranks {
+                // Collectionのget_flex_idを使う (Option<FlexId>が返る)
                 if let Some(existing_id) = self.0.get_flex_id(rank) {
-                    if new_id.intersection(existing_id).is_some() {
+                    if new_id.intersection(&existing_id).is_some() {
                         let existing_backup = existing_id.clone();
+                        // Collectionのremove_flex_idを使う
                         self.0.remove_flex_id(rank);
+
                         let fragments = existing_backup.difference(&new_id);
                         for frag in fragments {
                             unsafe { self.join_insert_unchecked(&frag) };
@@ -168,6 +166,7 @@ where
     /// もしくは、明らかに結合不能なIDなど
     pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
+            // Collectionのinsert_flex_idを使う
             self.0.insert_flex_id(&flex_id);
         }
     }
@@ -177,6 +176,7 @@ where
     pub unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
             if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id) {
+                // get_flex_idは実体を返すので、参照のライフタイム問題はない
                 if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().f_parent() {
                     self.0.remove_flex_id(sibling_rank);
                     unsafe { self.join_insert_unchecked(&parent) };
@@ -209,7 +209,9 @@ where
         for flex_id in target.flex_ids() {
             for related_rank in self.0.related(&flex_id) {
                 let related_id = self.0.get_flex_id(related_rank).unwrap();
-                unsafe { result.join_insert_unchecked(&flex_id.intersection(related_id).unwrap()) };
+                unsafe {
+                    result.join_insert_unchecked(&flex_id.intersection(&related_id).unwrap())
+                };
             }
         }
         result
@@ -221,7 +223,7 @@ where
         for flex_id in target.flex_ids() {
             for related_rank in self.0.related(&flex_id) {
                 let related_id = self.0.get_flex_id(related_rank).unwrap();
-                for removed_flex_id in flex_id.difference(related_id) {
+                for removed_flex_id in flex_id.difference(&related_id) {
                     unsafe { result.join_insert_unchecked(&removed_flex_id) };
                 }
             }
@@ -238,10 +240,10 @@ where
             (other, self)
         };
         for id in base.flex_ids() {
-            unsafe { result.join_insert_unchecked(id) };
+            unsafe { result.join_insert_unchecked(&id) };
         }
         for flex_id in merger.flex_ids() {
-            result.insert(flex_id);
+            result.insert(&flex_id);
         }
         result
     }
@@ -255,11 +257,12 @@ where
             (other, self)
         };
         for scan_id in scanner.flex_ids() {
-            let related_ranks = searcher.0.related(scan_id);
+            // Collectionのrelated
+            let related_ranks = searcher.0.related(&scan_id);
 
             for rank in related_ranks {
                 if let Some(searcher_id) = searcher.0.get_flex_id(rank) {
-                    if let Some(inter) = scan_id.intersection(searcher_id) {
+                    if let Some(inter) = scan_id.intersection(&searcher_id) {
                         unsafe { result.join_insert_unchecked(&inter) };
                     }
                 }
@@ -275,21 +278,22 @@ where
         //引く側が十分に小さい場合
         if other.size() < self.size() * 2 {
             for id in self.flex_ids() {
-                unsafe { result.join_insert_unchecked(id) };
+                unsafe { result.join_insert_unchecked(&id) };
             }
             // B を削除
             for need_remove in other.flex_ids() {
-                result.remove(need_remove);
+                result.remove(&need_remove);
             }
         } else {
             for self_id in self.flex_ids() {
                 let mut fragments = vec![self_id.clone()];
-                let related_ranks = other.0.related(self_id);
+                // Collectionのrelated
+                let related_ranks = other.0.related(&self_id);
                 for rank in related_ranks {
                     let other_id = other.0.get_flex_id(rank).unwrap();
                     let mut next_fragments = Vec::new();
                     for frag in fragments {
-                        let diffs = frag.difference(other_id);
+                        let diffs = frag.difference(&other_id);
                         next_fragments.extend(diffs);
                     }
                     fragments = next_fragments;
@@ -311,8 +315,9 @@ where
         if self.size() != other.size() {
             return false;
         }
-        let mut self_ids: Vec<&FlexId> = self.flex_ids().collect();
-        let mut other_ids: Vec<&FlexId> = other.flex_ids().collect();
+        // 実体を返すようになったので Vec<FlexId> になる
+        let mut self_ids: Vec<FlexId> = self.flex_ids().collect();
+        let mut other_ids: Vec<FlexId> = other.flex_ids().collect();
         self_ids.sort();
         other_ids.sort();
         self_ids == other_ids
