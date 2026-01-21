@@ -261,7 +261,7 @@ where
                 .range_ids()
                 .collect::<Vec<_>>()
                 .into_iter()
-                .flat_map(|range_id| range_id.to_single().collect::<Vec<_>>())
+                .flat_map(|range_id| range_id.single_ids().collect::<Vec<_>>())
                 .collect();
             singles.sort();
             singles

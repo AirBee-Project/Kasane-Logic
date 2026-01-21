@@ -1,7 +1,4 @@
-use kasane_logic::{
-    RangeId, SingleId,
-    spatial_id::{ToFlexId, collection::set::memory::SetOnMemory},
-};
+use kasane_logic::{RangeId, SetOnMemory, SingleId};
 
 fn main() {
     let mut set = SetOnMemory::new();

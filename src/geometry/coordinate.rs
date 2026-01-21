@@ -57,7 +57,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(35.0, 139.0, 10.0).unwrap();
     ///
     /// assert_eq!(coord.as_latitude(), 35.0);
@@ -109,7 +109,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
     /// assert_eq!(coord.as_latitude(), 43.068564);
     /// ```
@@ -124,7 +124,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(35.4095198,136.7566027, 0.0).unwrap();
     /// assert_eq!(coord.as_longitude(), 136.7566027);
     /// ```
@@ -139,7 +139,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     /// assert_eq!(coord.as_altitude(), 20.0);
     /// ```
@@ -154,7 +154,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let mut coord = Coordinate::new(35.0, 41.3507138, 30.0).unwrap();
     /// coord.set_latitude(43.068564);
     /// assert_eq!(coord.as_latitude(), 43.068564);
@@ -174,7 +174,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let mut coord = Coordinate::new(35.4095198,130.0, 0.0).unwrap();
     /// coord.set_longitude(136.7566027);
     /// assert_eq!(coord.as_longitude(), 136.7566027);
@@ -195,7 +195,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, -10.0).unwrap();
     /// coord.set_altitude(20.0);
     /// assert_eq!(coord.as_altitude(), 20.0);
@@ -218,7 +218,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::{geometry::coordinate::Coordinate,spatial_id::single::SingleId,};
+    /// # use kasane_logic::{Coordinate,SingleId};
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     /// assert_eq!(
     ///     &coord.to_single_id(24),
@@ -262,7 +262,7 @@ impl Coordinate {
     ///
     ///# Example
     /// ```
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// use kasane_logic::Coordinate;
     /// let coord_tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0).unwrap();
     /// let coord_sinagawa = Coordinate::new(35.630152, 139.74044000000004, 10.0).unwrap();
     /// let d = coord_tokyo.distance(&coord_sinagawa);

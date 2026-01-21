@@ -28,20 +28,18 @@
 
 use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::flex_id::FlexId};
 
-pub mod collection;
+pub(crate) mod collection;
 pub mod constants;
-pub mod range_id;
-pub mod single_id;
+pub(crate) mod range_id;
+pub(crate) mod single_id;
 
 //非公開のモジュール
-
-///
 pub(crate) mod flex_id;
 pub(crate) mod helpers;
 pub mod segment;
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub trait SpatialId {
+pub(crate) trait SpatialId {
     //そのIDの各次元の最大と最小を返す
     fn min_f(&self) -> i32;
     fn max_f(&self) -> i32;

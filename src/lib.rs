@@ -16,5 +16,12 @@ pub use error::Error;
 pub use geometry::{
     coordinate::Coordinate, ecef::Ecef, shapes::line, shapes::sphere, shapes::triangle,
 };
-pub use spatial_id::{SpatialId, range_id::RangeId, single_id::SingleId};
+pub use spatial_id::{
+    constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
+    range_id::RangeId,
+    single_id::SingleId,
+};
+
+pub use spatial_id::collection::set::{SetStorage, logic::SetLogic, memory::SetOnMemory};
+
 pub use storage::BTreeMapTrait;

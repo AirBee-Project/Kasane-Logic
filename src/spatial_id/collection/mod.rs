@@ -5,21 +5,14 @@ use crate::{
     spatial_id::{flex_id::FlexId, segment::Segment},
 };
 use std::ops::Bound::{Excluded, Included, Unbounded};
-
 pub mod set;
 pub mod table;
 
-pub type FlexIdRank = u64;
-pub type ValueRank = u64;
+pub(crate) type FlexIdRank = u64;
+pub(crate) type ValueRank = u64;
 
-///Rankの
+///Rankのごみ箱のキャパシティー
 const MAX_RECYCLE_CAPACITY: usize = 1024;
-
-#[derive(Debug, Default)]
-pub struct Plan {
-    add: Vec<FlexId>,
-    remove: Vec<FlexIdRank>,
-}
 
 pub trait Collection {
     type Main: BTreeMapTrait<FlexIdRank, FlexId>;

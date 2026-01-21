@@ -157,6 +157,7 @@ impl Segment {
     }
 
     pub(crate) fn sibling(&self) -> Self {
+        println!("{}", self);
         let mut out = self.clone();
         for byte_index in (0..out.0.len()).rev() {
             let byte = out.0[byte_index];
@@ -183,7 +184,6 @@ impl Segment {
                 return out;
             }
         }
-        println!("Neko");
         unreachable!("Neko")
     }
 

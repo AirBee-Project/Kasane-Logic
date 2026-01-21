@@ -2,6 +2,7 @@ use crate::spatial_id::collection::{Collection, set::logic::SetLogic};
 
 pub mod logic;
 pub mod memory;
+pub mod tests;
 
 pub trait SetStorage {}
 
