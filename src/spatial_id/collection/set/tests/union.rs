@@ -1,64 +1,64 @@
 #[cfg(test)]
 mod tests {
-    use crate::spatial_id::collection::set::tests::{set_a, set_b, set_c};
     use std::collections::HashSet;
 
-    ///交わりがない場合のテスト
+    use crate::spatial_id::collection::set::tests::{set_a, set_b, set_c, to_flat_set};
+
     #[test]
-    fn no_intersection() {
-        let mut a_union_b: Vec<_> = set_a().union(&set_b()).single_ids().collect();
+    fn test_union_consistency() {
+        let set_a = set_a();
+        let set_b = set_b();
 
-        let mut a_single_id: Vec<_> = set_a().single_ids().collect();
-        let b_single_id: Vec<_> = set_b().single_ids().collect();
+        let logic_result = set_a.union(&set_b);
 
-        a_single_id.extend(b_single_id);
+        let target_z = [set_a.max_z(), set_b.max_z(), logic_result.max_z()]
+            .into_iter()
+            .max()
+            .unwrap();
 
-        a_single_id.sort();
-        a_union_b.sort();
+        let actual = to_flat_set(&logic_result, target_z);
 
-        assert_eq!(a_single_id, a_union_b)
+        let flat_a = to_flat_set(&set_a, target_z);
+        let flat_b = to_flat_set(&set_b, target_z);
+
+        let expected: HashSet<_> = flat_a.union(&flat_b).cloned().collect();
+
+        assert_eq!(
+            actual, expected,
+            "SetLogic::union result should match HashSet::union"
+        );
     }
 
-    ///交わりがある場合のテスト
     #[test]
-    fn normal_intersection_a_union_c() {
-        let a_union_c: Vec<_> = set_a().union(&set_c()).single_ids().collect();
-        let mut set: HashSet<_> = a_union_c.iter().collect();
+    fn test_union_three_sets() {
+        let set_a = set_a();
+        let set_b = set_b();
+        let set_c = set_c();
 
-        //重複がないことを確認
-        assert_eq!(set.len(), a_union_c.len());
+        let logic_union_ab = set_a.union(&set_b);
+        let logic_result = logic_union_ab.union(&set_c);
 
-        //範囲があっていることを確認
-        for single_id in set_a().single_ids() {
-            set.remove(&single_id);
-        }
+        let target_z = [
+            set_a.max_z(),
+            set_b.max_z(),
+            set_c.max_z(),
+            logic_result.max_z(),
+        ]
+        .into_iter()
+        .max()
+        .unwrap();
 
-        for single_id in set_c().single_ids() {
-            set.remove(&single_id);
-        }
+        let actual = to_flat_set(&logic_result, target_z);
 
-        assert_eq!(true, set.is_empty())
-    }
+        let flat_a = to_flat_set(&set_a, target_z);
+        let flat_b = to_flat_set(&set_b, target_z);
+        let flat_c = to_flat_set(&set_c, target_z);
 
-    ///交わりがある場合のテスト
-    #[test]
-    fn normal_intersection_b_union_c() {
-        let a_union_c: Vec<_> = set_b().union(&set_c()).single_ids().collect();
-        let mut set: HashSet<_> = a_union_c.iter().collect();
+        let mut expected = flat_a;
+        expected.extend(flat_b); // A ∪ B
+        expected.extend(flat_c); // (A ∪ B) ∪ C
 
-        //重複がないことを確認
-        assert_eq!(set.len(), a_union_c.len());
-
-        //範囲があっていることを確認
-        for single_id in set_b().single_ids() {
-            set.remove(&single_id);
-        }
-
-        for single_id in set_c().single_ids() {
-            set.remove(&single_id);
-        }
-
-        assert_eq!(true, set.is_empty())
+        assert_eq!(actual, expected, "Union of 3 sets (A, B, C) should match");
     }
 
     ///順番を入れ替えても計算結果が逆転しないことをテストする

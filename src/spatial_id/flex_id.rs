@@ -88,7 +88,7 @@ impl FlexId {
     pub fn difference(&self, other: &FlexId) -> Vec<FlexId> {
         let intersection = match self.intersection(other) {
             Some(i) => i,
-            None => return vec![self.clone()], // 排反ならAそのまま
+            None => return vec![self.clone()],
         };
 
         if *self == intersection {
@@ -97,7 +97,7 @@ impl FlexId {
 
         let mut result = Vec::new();
 
-        let f_diffs = self.as_x().difference(&intersection.x);
+        let f_diffs = self.as_f().difference(&intersection.f);
         for f_seg in f_diffs {
             result.push(FlexId {
                 f: f_seg,

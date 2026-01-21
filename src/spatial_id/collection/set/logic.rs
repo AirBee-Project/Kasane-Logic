@@ -30,7 +30,6 @@ where
     where
         S: SetStorage + Collection,
     {
-        // KVSベースになったため、iteratorは (K, V) を返す
         let main: BTreeMap<FlexIdRank, FlexId> = set_storage.main().iter().collect();
 
         let next_rank = main.keys().next_back().map(|&r| r + 1).unwrap_or(0);
@@ -271,41 +270,46 @@ where
 
         result
     }
-    ///2つのSetの差集合のSetを作成する
     pub fn difference(&self, other: &Self) -> SetOnMemory {
+        if other.is_empty() {
+            return Self::load(&self.0);
+        }
+        if self.is_empty() {
+            return SetOnMemory::default();
+        }
+
         let mut result = SetOnMemory::default();
 
-        //引く側が十分に小さい場合
-        if other.size() < self.size() * 2 {
-            for id in self.flex_ids() {
-                unsafe { result.join_insert_unchecked(&id) };
-            }
-            // B を削除
-            for need_remove in other.flex_ids() {
-                result.remove(&need_remove);
-            }
-        } else {
-            for self_id in self.flex_ids() {
-                let mut fragments = vec![self_id.clone()];
-                // Collectionのrelated
-                let related_ranks = other.0.related(&self_id);
-                for rank in related_ranks {
-                    let other_id = other.0.get_flex_id(rank).unwrap();
-                    let mut next_fragments = Vec::new();
+        for self_id in self.flex_ids() {
+            let mut fragments = vec![self_id.clone()];
+            let related_ranks = other.0.related(&self_id);
+
+            for rank in related_ranks {
+                if let Some(other_id) = other.0.get_flex_id(rank) {
+                    let mut next_fragments = Vec::with_capacity(fragments.len());
+
                     for frag in fragments {
-                        let diffs = frag.difference(&other_id);
-                        next_fragments.extend(diffs);
+                        if frag.intersection(&other_id).is_some() {
+                            let diffs = frag.difference(&other_id);
+                            next_fragments.extend(diffs);
+                        } else {
+                            next_fragments.push(frag);
+                        }
                     }
                     fragments = next_fragments;
+
                     if fragments.is_empty() {
                         break;
                     }
-                }
-                for frag in fragments {
-                    unsafe { result.join_insert_unchecked(&frag) };
+                } else {
+                    panic!()
                 }
             }
+            for frag in fragments {
+                unsafe { result.join_insert_unchecked(&frag) };
+            }
         }
+
         result
     }
 

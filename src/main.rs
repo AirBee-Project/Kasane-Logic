@@ -1,9 +1,18 @@
 use kasane_logic::{RangeId, SetOnMemory, SingleId};
 
 fn main() {
-    for ele in set_a().flatten() {
-        print!("{},", ele)
-    }
+    let set_a = set_a();
+    let set_b = set_b();
+    let set_c = set_c();
+
+    println!("{}", set_a);
+    println!("{}", set_b);
+    println!("{}", set_c);
+
+    let diff_ab = set_a.difference(&set_b);
+    let logic_result = diff_ab.difference(&set_c);
+
+    println!("{}", logic_result);
 }
 
 ///SetAを生成する
@@ -33,5 +42,7 @@ pub fn set_c() -> SetOnMemory {
     set.insert(&id1);
     let id2 = SingleId::new(3, 4, 4, 4).unwrap();
     set.insert(&id2);
+    let id3 = RangeId::new(4, [-7, 11], [4, 10], [1, 9]).unwrap();
+    set.insert(&id3);
     set
 }
