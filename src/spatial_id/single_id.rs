@@ -1,3 +1,5 @@
+#[cfg(feature = "random")]
+use std::ops::{Range, RangeInclusive};
 use std::{fmt, u64};
 
 use crate::{
@@ -419,6 +421,40 @@ impl SingleId {
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId { z, f, x, y }
+    }
+
+    ///ランダムな[SingleId]を作成する
+    #[cfg(feature = "random")]
+    pub fn random() -> Self {
+        Self::random_within(0..=MAX_ZOOM_LEVEL as u8)
+    }
+
+    ///特定のズームレベルにおいて、ランダムな[SingleId]を作成する
+    #[cfg(feature = "random")]
+    pub fn random_at(z: u8) -> Self {
+        Self::random_within(z..=z)
+    }
+
+    ///特定のズームレベル間において、ランダムな[SingleId]を作成する
+    #[cfg(feature = "random")]
+    pub fn random_within(z: RangeInclusive<u8>) -> Self {
+        use rand::Rng;
+        let mut rng = rand::rng();
+        let start = *z.start();
+        let end = (*z.end()).min(MAX_ZOOM_LEVEL as u8);
+
+        let z = if start > end {
+            end
+        } else {
+            rng.random_range(start..=end)
+        };
+
+        let z_idx = z as usize;
+        let f = rng.random_range(F_MIN[z_idx]..=F_MAX[z_idx]);
+        let x = rng.random_range(0..=XY_MAX[z_idx]);
+        let y = rng.random_range(0..=XY_MAX[z_idx]);
+
+        SingleId::new(z, f, x, y).expect("Failed to generate random SingleId")
     }
 }
 

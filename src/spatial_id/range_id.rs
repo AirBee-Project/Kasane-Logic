@@ -1,5 +1,7 @@
 // src/id/spatial_id/range.rs
 use std::fmt;
+#[cfg(feature = "random")]
+use std::ops::RangeInclusive;
 
 use crate::{
     SingleId,
@@ -428,6 +430,51 @@ impl RangeId {
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
         RangeId { z, f, x, y }
+    }
+
+    /// 全空間（Z=0〜MAX）からランダムにRangeIdを生成
+    #[cfg(feature = "random")]
+    pub fn random() -> Self {
+        Self::random_within(0..=MAX_ZOOM_LEVEL as u8)
+    }
+
+    /// 指定したズームレベルでランダムにRangeIdを生成
+    #[cfg(feature = "random")]
+    pub fn random_at(z: u8) -> Self {
+        Self::random_within(z..=z)
+    }
+
+    #[cfg(feature = "random")]
+    pub fn random_within(z_range: RangeInclusive<u8>) -> Self {
+        use rand::Rng;
+        let mut rng = rand::rng();
+
+        // 1. Zの決定
+        let start = *z_range.start();
+        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
+        let z = if start > end {
+            end
+        } else {
+            rng.random_range(start..=end)
+        };
+        let z_idx = z as usize;
+
+        let f_min = F_MIN[z_idx];
+        let f_max = F_MAX[z_idx];
+        let xy_max = XY_MAX[z_idx];
+
+        let f1 = rng.random_range(f_min..=f_max);
+        let f2 = rng.random_range(f_min..=f_max);
+
+        let x1 = rng.random_range(0..=xy_max);
+        let x2 = rng.random_range(0..=xy_max);
+
+        let y1 = rng.random_range(0..=xy_max);
+        let y2 = rng.random_range(0..=xy_max);
+
+        // 4. 構築
+        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
+            .expect("Generated parameters should be always valid")
     }
 }
 
