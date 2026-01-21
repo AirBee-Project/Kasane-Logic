@@ -74,6 +74,7 @@ where
     ///重複の解消と結合の最適化を行う
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
         let mut work_list: Vec<FlexId> = target.to_flex_id().into_iter().collect();
+
         'process_queue: while let Some(current_insert) = work_list.pop() {
             let related_ranks = self.0.related(&current_insert);
 
