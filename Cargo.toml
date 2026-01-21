@@ -14,3 +14,4 @@ random = [ "rand" ]
 
 [dev-dependencies]
 cargo-husky = "1"
+rand = "0.9.2"

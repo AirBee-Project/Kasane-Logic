@@ -1,6 +1,6 @@
-#[cfg(feature = "random")]
-use std::ops::{Range, RangeInclusive};
-use std::{fmt, u64};
+use std::fmt;
+#[cfg(any(test, feature = "random"))]
+use std::ops::RangeInclusive;
 
 use crate::{
     error::Error,
@@ -424,19 +424,19 @@ impl SingleId {
     }
 
     ///ランダムな[SingleId]を作成する
-    #[cfg(feature = "random")]
+    #[cfg(any(test, feature = "random"))]
     pub fn random() -> Self {
         Self::random_within(0..=MAX_ZOOM_LEVEL as u8)
     }
 
     ///特定のズームレベルにおいて、ランダムな[SingleId]を作成する
-    #[cfg(feature = "random")]
+    #[cfg(any(test, feature = "random"))]
     pub fn random_at(z: u8) -> Self {
         Self::random_within(z..=z)
     }
 
     ///特定のズームレベル間において、ランダムな[SingleId]を作成する
-    #[cfg(feature = "random")]
+    #[cfg(any(test, feature = "random"))]
     pub fn random_within(z: RangeInclusive<u8>) -> Self {
         use rand::Rng;
         let mut rng = rand::rng();

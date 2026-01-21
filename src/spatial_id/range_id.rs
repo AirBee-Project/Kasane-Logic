@@ -1,7 +1,5 @@
 // src/id/spatial_id/range.rs
 use std::fmt;
-#[cfg(feature = "random")]
-use std::ops::RangeInclusive;
 
 use crate::{
     SingleId,
@@ -16,6 +14,8 @@ use crate::{
     },
 };
 
+#[cfg(any(test, feature = "random"))]
+use std::ops::RangeInclusive;
 /// RangeIdは拡張された空間 ID を表す型です。
 ///
 /// 各インデックスを範囲で指定することができます。各次元の範囲を表す配列の順序には意味を持ちません。内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
@@ -433,23 +433,22 @@ impl RangeId {
     }
 
     /// 全空間（Z=0〜MAX）からランダムにRangeIdを生成
-    #[cfg(feature = "random")]
+    #[cfg(any(test, feature = "random"))]
     pub fn random() -> Self {
         Self::random_within(0..=MAX_ZOOM_LEVEL as u8)
     }
 
     /// 指定したズームレベルでランダムにRangeIdを生成
-    #[cfg(feature = "random")]
+    #[cfg(any(test, feature = "random"))]
     pub fn random_at(z: u8) -> Self {
         Self::random_within(z..=z)
     }
 
-    #[cfg(feature = "random")]
+    #[cfg(any(test, feature = "random"))]
     pub fn random_within(z_range: RangeInclusive<u8>) -> Self {
         use rand::Rng;
         let mut rng = rand::rng();
 
-        // 1. Zの決定
         let start = *z_range.start();
         let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
         let z = if start > end {
@@ -472,7 +471,6 @@ impl RangeId {
         let y1 = rng.random_range(0..=xy_max);
         let y2 = rng.random_range(0..=xy_max);
 
-        // 4. 構築
         RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
             .expect("Generated parameters should be always valid")
     }

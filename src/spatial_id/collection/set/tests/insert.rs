@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::{RangeId, SetOnMemory, SingleId};
+    use std::collections::btree_map::Range;
+
+    use crate::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SetOnMemory, SingleId, XY_MAX};
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
     fn first_insert_single_id() {
@@ -86,5 +88,154 @@ mod tests {
 
         //並び替えれば全く同じになる
         assert_eq!(answer.sort(), single_ids.sort());
+    }
+
+    ///最も小さなSingleIdを1つだけ挿入するケース
+    #[test]
+    fn first_insert_single_id_smallest() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let single_id = SingleId::new(MAX_ZOOM_LEVEL as u8, 10, 10, 10).unwrap();
+        set.insert(&single_id);
+
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, range_ids.len());
+
+        //含まれるIDはランダムに生成したSingleIdと一致するはず
+        assert_eq!(RangeId::from(single_id), range_ids.first().unwrap().clone())
+    }
+
+    ///最も小さなSingleIdを端に1つだけ挿入するケース
+    #[test]
+    fn first_insert_single_id_smallest_edge_start() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let single_id = SingleId::new(MAX_ZOOM_LEVEL as u8, F_MIN[MAX_ZOOM_LEVEL], 0, 0).unwrap();
+        set.insert(&single_id);
+
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, range_ids.len());
+
+        //含まれるIDは生成したSingleIdと一致するはず
+        assert_eq!(RangeId::from(single_id), range_ids.first().unwrap().clone())
+    }
+
+    ///最も小さなSingleIdを端に1つだけ挿入するケース
+    ///コーナーケースのバグを拾う
+    #[test]
+    fn first_insert_single_id_smallest_edge_end() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let single_id = SingleId::new(
+            MAX_ZOOM_LEVEL as u8,
+            F_MAX[MAX_ZOOM_LEVEL],
+            XY_MAX[MAX_ZOOM_LEVEL],
+            XY_MAX[MAX_ZOOM_LEVEL],
+        )
+        .unwrap();
+        set.insert(&single_id);
+
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, range_ids.len());
+
+        //含まれるIDは生成したSingleIdと一致するはず
+        assert_eq!(RangeId::from(single_id), range_ids.first().unwrap().clone())
+    }
+
+    ///2つのIDを挿入するテスト
+    ///AがBに含まれる場合にBのみが残るかをテストする
+    ///1:1の重複していた場合の競合解消
+    #[test]
+    fn multiple_insert_single_id_overlap() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
+        let single_id_b = SingleId::new(3, 1, 1, 0).unwrap();
+
+        set.insert(&single_id_a);
+        set.insert(&single_id_b);
+
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, range_ids.len());
+
+        //含まれるIDは生成したSingleIdと一致するはず
+        assert_eq!(
+            RangeId::from(single_id_b),
+            range_ids.first().unwrap().clone()
+        )
+    }
+
+    ///2つのIDを挿入するテスト
+    ///AとBが兄弟の場合にRangeIdとして帰ってくるのかを検証する
+    #[test]
+    fn multiple_insert_single_id_join() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
+        let single_id_b = SingleId::new(4, 3, 2, 0).unwrap();
+
+        set.insert(&single_id_a);
+        set.insert(&single_id_b);
+
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, range_ids.len());
+
+        //含まれるIDは生成したSingleIdと一致するはず
+        assert_eq!(
+            *range_ids.first().unwrap(),
+            RangeId::new(4, [3, 3], [2, 2], [0, 1]).unwrap()
+        )
+    }
+
+    ///2つのIDを挿入するテスト
+    ///AとBが隣り合っているが、兄弟ではない場合に分かれて帰ってくるか
+    #[test]
+    fn multiple_insert_single_id_no_join() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
+
+        //SingleIdの作成と挿入
+        let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
+        let single_id_b = SingleId::new(4, 3, 2, 2).unwrap();
+
+        set.insert(&single_id_a);
+        set.insert(&single_id_b);
+
+        //SetからRangeIdを取り出す
+        let mut range_ids: Vec<RangeId> = set.range_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(2, range_ids.len());
+
+        //答え
+        let mut answer = vec![RangeId::from(single_id_a), RangeId::from(single_id_b)];
+
+        //含まれるIDは生成したSingleIdと一致するはず
+        assert_eq!(range_ids.sort(), answer.sort())
     }
 }
