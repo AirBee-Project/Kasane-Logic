@@ -462,7 +462,7 @@ impl SpatialId for SingleId {
     /// このIDのズームレベルにおける最小の F インデックスを返す
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.min_f(), -32i32);
@@ -474,7 +474,7 @@ impl SpatialId for SingleId {
     /// このIDのズームレベルにおける最大の F インデックスを返す
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_f(), 31i32);
@@ -486,7 +486,7 @@ impl SpatialId for SingleId {
     /// このIDのズームレベルにおける最大の XY インデックスを返す
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u32);
@@ -506,7 +506,7 @@ impl SpatialId for SingleId {
     /// 移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.as_f(), 6);
     ///
@@ -517,7 +517,7 @@ impl SpatialId for SingleId {
     /// 範囲外の検知によるエラー
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.as_f(), 6);
@@ -546,7 +546,7 @@ impl SpatialId for SingleId {
     /// 移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.as_x(), 9);
     ///
@@ -557,7 +557,7 @@ impl SpatialId for SingleId {
     /// 循環による移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.as_x(), 9);
     ///
@@ -580,7 +580,7 @@ impl SpatialId for SingleId {
     /// 移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.as_y(), 10);
     ///
@@ -591,7 +591,7 @@ impl SpatialId for SingleId {
     /// 範囲外の検知によるエラー
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.as_y(), 10);
@@ -623,9 +623,9 @@ impl SpatialId for SingleId {
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
     /// ```
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// # use kasane_logic::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     /// let center: Coordinate = id.center();
     /// println!("{:?}", center);
@@ -646,9 +646,9 @@ impl SpatialId for SingleId {
     /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
     /// ```
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::geometry::coordinate::Coordinate;
+    /// # use kasane_logic::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     /// let vertices: [Coordinate; 8] = id.vertices();
     /// println!("{:?}", vertices);

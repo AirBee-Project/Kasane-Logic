@@ -39,7 +39,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(10.0, 20.0, 30.0);
     ///
@@ -54,7 +54,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(1.0, 0.0, 0.0);
     /// assert_eq!(ecef.as_x(), 1.0);
@@ -67,7 +67,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(0.0, 2.0, 0.0);
     /// assert_eq!(ecef.as_y(), 2.0);
@@ -80,7 +80,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(0.0, 0.0, 3.0);
     /// assert_eq!(ecef.as_z(), 3.0);
@@ -93,7 +93,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
     /// ecef.set_x(5.0);
@@ -108,7 +108,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
     /// ecef.set_y(6.0);
@@ -123,7 +123,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
     /// ecef.set_z(7.0);
@@ -144,7 +144,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// use kasane_logic::Ecef;
+    /// # use kasane_logic::Ecef;
     ///
     /// let a = Ecef::new(0.0, 0.0, 0.0);
     /// let b = Ecef::new(3.0, 4.0, 0.0);

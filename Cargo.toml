@@ -11,3 +11,6 @@ rand = { version = "0.9.2", optional = true }
 
 [features]
 random = [ "rand" ]
+
+[dev-dependencies]
+cargo-husky = "1"

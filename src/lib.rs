@@ -5,7 +5,7 @@ mod error;
 mod geometry;
 
 /// 空間IDに関する型を定義。
-pub mod spatial_id;
+mod spatial_id;
 
 /// このライブライがサポートするストレージのTrait定義と実装
 mod storage;
@@ -17,6 +17,7 @@ pub use geometry::{
     coordinate::Coordinate, ecef::Ecef, shapes::line, shapes::sphere, shapes::triangle,
 };
 pub use spatial_id::{
+    SpatialId,
     constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
     range_id::RangeId,
     single_id::SingleId,

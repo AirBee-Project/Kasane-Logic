@@ -39,7 +39,7 @@ pub(crate) mod helpers;
 pub mod segment;
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub(crate) trait SpatialId {
+pub trait SpatialId {
     //そのIDの各次元の最大と最小を返す
     fn min_f(&self) -> i32;
     fn max_f(&self) -> i32;

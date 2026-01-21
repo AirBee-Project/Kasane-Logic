@@ -483,7 +483,7 @@ impl SpatialId for RangeId {
     /// ```
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.min_f(), -32i32);
@@ -496,7 +496,7 @@ impl SpatialId for RangeId {
     /// ```
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_f(), 31i32);
@@ -509,7 +509,7 @@ impl SpatialId for RangeId {
     /// ```
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
-    /// # use crate::kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.as_z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u32);
