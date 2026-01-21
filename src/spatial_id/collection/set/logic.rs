@@ -9,7 +9,7 @@ use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use crate::spatial_id::{ToFlexId, collection::set::SetStorage};
 use crate::storage::BTreeMapTrait;
-use crate::{RangeId, SingleId};
+use crate::{Error, MAX_ZOOM_LEVEL, RangeId, SingleId};
 
 #[derive(Default)]
 pub struct SetLogic<S: SetStorage + Collection>(pub(crate) S);
@@ -111,18 +111,37 @@ where
 
     ///そのSetの中の最も細かい解像度に変換して出力
     pub fn flatten(&self) -> impl Iterator<Item = SingleId> + '_ {
-        let target_z = self.max_z();
-        self.range_ids()
-            .filter_map(move |id| {
-                let diff = target_z.checked_sub(id.as_z())?;
-                id.children(diff).ok()
-            })
-            .flat_map(|scaled_range_id| scaled_range_id.single_ids().collect::<Vec<_>>())
+        self.flatten_deep(0).unwrap()
     }
 
+    ///そのSetの中の最も細かい解像度に変換して出力
+    /// 元の情報だけを保ったままズームレベルだけを上げる
+    /// additional_depthにより、MAX_ZOOM_LEVELまでならさらに細かくできる
+    pub fn flatten_deep(
+        &self,
+        additional_depth: u8,
+    ) -> Result<impl Iterator<Item = SingleId> + '_, Error> {
+        let current_max = self.max_z();
+
+        let target_z = current_max
+            .checked_add(additional_depth)
+            .filter(|&z| z <= MAX_ZOOM_LEVEL as u8)
+            .ok_or(Error::ZOutOfRange {
+                z: current_max.saturating_add(additional_depth),
+            })?;
+
+        Ok(self
+            .range_ids()
+            .flat_map(move |id| {
+                // 1. ?演算子で None を弾く
+                let diff = target_z.checked_sub(id.as_z())?;
+                let child_range = id.children(diff).ok()?;
+                Some(child_range.single_ids().collect::<Vec<_>>())
+            })
+            .flatten())
+    }
     ///重複の解消と結合の最適化を行う
     /// 領域を挿入する。
-    /// 既存の領域と重なる場合、**既存の領域を削って（上書きして）** 新しい領域を配置する。
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
         let inserts: Vec<FlexId> = target.flex_ids().into_iter().collect();
         for new_id in inserts {
