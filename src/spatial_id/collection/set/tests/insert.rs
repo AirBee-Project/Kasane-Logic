@@ -64,27 +64,27 @@ mod tests {
         assert_eq!(RangeId::from(single_id), range_ids.first().unwrap().clone())
     }
 
-    //0/-1:0/0/0を1つだけ挿入するケース
-    // #[test]
-    // fn first_insert_range_id_largest() {
-    //     //Setの新規作成
-    //     let mut set = SetOnMemory::new();
+    ///0/-1:0/0/0を1つだけ挿入するケース
+    #[test]
+    fn first_insert_range_id_largest() {
+        //Setの新規作成
+        let mut set = SetOnMemory::new();
 
-    //     //RangeIdの作成と挿入
-    //     let range_id = RangeId::new(0, [-1, 0], [0, 0], [0, 0]).unwrap();
-    //     set.insert(&range_id);
+        //RangeIdの作成と挿入
+        let range_id = RangeId::new(0, [-1, 0], [0, 0], [0, 0]).unwrap();
+        set.insert(&range_id);
 
-    //     //SetからRangeIdを取り出す
-    //     let range_ids: Vec<RangeId> = set.range_ids().collect();
+        //SetからRangeIdを取り出す
+        let range_ids: Vec<RangeId> = set.range_ids().collect();
 
-    //     //取り出したRangeIdを全てSingleIdに変換する
-    //     let mut single_ids: Vec<SingleId> =
-    //         range_ids.iter().flat_map(|id| id.single_ids()).collect();
+        //取り出したRangeIdを全てSingleIdに変換する
+        let mut single_ids: Vec<SingleId> =
+            range_ids.iter().flat_map(|id| id.single_ids()).collect();
 
-    //     //正解
-    //     let mut answer: Vec<SingleId> = range_id.single_ids().collect();
+        //正解
+        let mut answer: Vec<SingleId> = range_id.single_ids().collect();
 
-    //     //並び替えれば全く同じになる
-    //     assert_eq!(answer.sort(), single_ids.sort());
-    // }
+        //並び替えれば全く同じになる
+        assert_eq!(answer.sort(), single_ids.sort());
+    }
 }
