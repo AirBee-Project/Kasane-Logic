@@ -17,8 +17,10 @@ use crate::{
     },
 };
 
+use rand::Rng;
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
+
 /// RangeIdは拡張された空間 ID を表す型です。
 ///
 /// 各インデックスを範囲で指定することができます。各次元の範囲を表す配列の順序には意味を持ちません。内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
@@ -508,6 +510,49 @@ impl RangeId {
                 },
             )
         })
+    }
+
+    #[cfg(any(test, feature = "random"))]
+    pub fn random_using<R: Rng>(rng: &mut R) -> Self {
+        Self::random_within_using(rng, 0..=MAX_ZOOM_LEVEL as u8)
+    }
+
+    /// 外部から渡された乱数生成器を使用して、指定したズームレベルでランダムにRangeIdを生成
+    #[cfg(any(test, feature = "random"))]
+    pub fn random_at_using<R: Rng>(rng: &mut R, z: u8) -> Self {
+        Self::random_within_using(rng, z..=z)
+    }
+
+    /// 外部から渡された乱数生成器を使用して、指定したズームレベル範囲内でランダムにRangeIdを生成
+    #[cfg(any(test, feature = "random"))]
+    pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
+        let start = *z_range.start();
+        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
+
+        let z = if start > end {
+            end
+        } else {
+            rng.random_range(start..=end)
+        };
+        let z_idx = z as usize;
+
+        let f_min = F_MIN[z_idx];
+        let f_max = F_MAX[z_idx];
+        let xy_max = XY_MAX[z_idx];
+
+        // 範囲の両端をランダムに生成
+        let f1 = rng.random_range(f_min..=f_max);
+        let f2 = rng.random_range(f_min..=f_max);
+
+        let x1 = rng.random_range(0..=xy_max);
+        let x2 = rng.random_range(0..=xy_max);
+
+        let y1 = rng.random_range(0..=xy_max);
+        let y2 = rng.random_range(0..=xy_max);
+
+        // RangeId::new 内部で min/max の入れ替え等は処理される前提
+        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
+            .expect("Generated parameters should be always valid")
     }
 }
 

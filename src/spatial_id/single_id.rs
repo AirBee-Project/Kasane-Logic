@@ -1,3 +1,5 @@
+#[cfg(any(test, feature = "random"))]
+use rand::Rng;
 use std::fmt;
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
@@ -483,6 +485,41 @@ impl SingleId {
                 Self::new(z, f, x, y).expect("Strategy generated invalid ID")
             })
         })
+    }
+
+    #[cfg(any(test, feature = "random"))]
+    /// 外部から渡された乱数生成器を使用して、特定のズームレベルの[SingleId]を作成する
+    ///
+    pub fn random_using<R: Rng>(rng: &mut R) -> Self {
+        Self::random_within_using(rng, 0..=MAX_ZOOM_LEVEL as u8)
+    }
+
+    /// 外部から渡された乱数生成器を使用して、特定のズームレベルの[SingleId]を作成する
+    #[cfg(any(test, feature = "random"))]
+    pub fn random_at_using<R: Rng>(rng: &mut R, z: u8) -> Self {
+        Self::random_within_using(rng, z..=z)
+    }
+
+    /// 外部から渡された乱数生成器を使用して、特定範囲の[SingleId]を作成する
+    #[cfg(any(test, feature = "random"))]
+    pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
+        let start = *z_range.start();
+        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
+
+        let z = if start > end {
+            end
+        } else {
+            rng.random_range(start..=end)
+        };
+
+        let z_idx = z as usize;
+
+        // F, X, Y の範囲生成も渡された rng を使用
+        let f = rng.random_range(F_MIN[z_idx]..=F_MAX[z_idx]);
+        let x = rng.random_range(0..=XY_MAX[z_idx]);
+        let y = rng.random_range(0..=XY_MAX[z_idx]);
+
+        SingleId::new(z, f, x, y).expect("Failed to generate random SingleId")
     }
 }
 
