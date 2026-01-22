@@ -1,9 +1,45 @@
 #[cfg(test)]
 mod tests {
+    use crate::spatial_id::collection::set::memory::SetOnMemory;
+    use crate::spatial_id::collection::set::tests::{
+        arb_small_set, set_a, set_b, set_c, to_flat_set,
+    };
+    use proptest::prelude::*;
 
-    use std::collections::HashSet;
+    fn assert_intersection_consistency(
+        logic_result: &SetOnMemory,
+        inputs: &[&SetOnMemory],
+        context_msg: &str,
+    ) {
+        if inputs.is_empty() {
+            return;
+        }
 
-    use crate::spatial_id::collection::set::tests::{set_a, set_b, set_c, to_flat_set};
+        let max_z = inputs
+            .iter()
+            .map(|s| s.max_z())
+            .chain(std::iter::once(logic_result.max_z()))
+            .max()
+            .unwrap_or(0);
+
+        let actual = to_flat_set(logic_result, max_z);
+
+        let mut expected = to_flat_set(inputs[0], max_z);
+
+        for other_set in &inputs[1..] {
+            let other_flat = to_flat_set(other_set, max_z);
+            expected.retain(|id| other_flat.contains(id));
+        }
+
+        assert_eq!(
+            actual,
+            expected,
+            "{}\nInputs sizes: {:?}, Result size: {}",
+            context_msg,
+            inputs.iter().map(|s| s.size()).collect::<Vec<_>>(),
+            logic_result.size()
+        );
+    }
 
     #[test]
     fn test_intersection_two_sets() {
@@ -12,19 +48,11 @@ mod tests {
 
         let logic_result = set_a.intersection(&set_b);
 
-        let target_z = [set_a.max_z(), set_b.max_z(), logic_result.max_z()]
-            .into_iter()
-            .max()
-            .unwrap();
-
-        let actual = to_flat_set(&logic_result, target_z);
-
-        let flat_a = to_flat_set(&set_a, target_z);
-        let flat_b = to_flat_set(&set_b, target_z);
-
-        let expected: HashSet<_> = flat_a.intersection(&flat_b).cloned().collect();
-
-        assert_eq!(actual, expected, "Intersection of A and B should match");
+        assert_intersection_consistency(
+            &logic_result,
+            &[&set_a, &set_b],
+            "Manual intersection (A ∩ B) failed",
+        );
     }
 
     #[test]
@@ -33,44 +61,61 @@ mod tests {
         let set_b = set_b();
         let set_c = set_c();
 
+        // (A ∩ B) ∩ C
         let logic_inter_ab = set_a.intersection(&set_b);
         let logic_result = logic_inter_ab.intersection(&set_c);
 
-        let target_z = [
-            set_a.max_z(),
-            set_b.max_z(),
-            set_c.max_z(),
-            logic_result.max_z(),
-        ]
-        .into_iter()
-        .max()
-        .unwrap();
-
-        let actual = to_flat_set(&logic_result, target_z);
-
-        let flat_a = to_flat_set(&set_a, target_z);
-        let flat_b = to_flat_set(&set_b, target_z);
-        let flat_c = to_flat_set(&set_c, target_z);
-
-        // A ∩ B
-        let inter_ab: HashSet<_> = flat_a.intersection(&flat_b).cloned().collect();
-        // (A ∩ B) ∩ C
-        let expected: HashSet<_> = inter_ab.intersection(&flat_c).cloned().collect();
-
-        assert_eq!(
-            actual, expected,
-            "Intersection of 3 sets (A, B, C) should match"
+        assert_intersection_consistency(
+            &logic_result,
+            &[&set_a, &set_b, &set_c],
+            "Manual intersection (A ∩ B ∩ C) failed",
         );
     }
 
     #[test]
     fn reverse() {
+        // 結果が可換であることを確認する簡易テスト
         let mut a_and_c: Vec<_> = set_a().intersection(&set_c()).single_ids().collect();
         let mut c_and_a: Vec<_> = set_c().intersection(&set_a()).single_ids().collect();
 
         a_and_c.sort();
         c_and_a.sort();
 
-        assert_eq!(a_and_c, c_and_a)
+        assert_eq!(a_and_c, c_and_a, "Intersection should be commutative")
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(20))]
+
+        #[test]
+        fn random_test_intersection(
+            set_a in arb_small_set(20),
+            set_b in arb_small_set(20)
+        ) {
+            let logic_result = set_a.intersection(&set_b);
+
+            assert_intersection_consistency(
+                &logic_result,
+                &[&set_a, &set_b],
+                "Random intersection check failed"
+            );
+        }
+
+        #[test]
+        fn random_test_intersection_three_sets(
+            set_a in arb_small_set(15),
+            set_b in arb_small_set(15),
+            set_c in arb_small_set(15)
+        ) {
+            // (A ∩ B) ∩ C
+            let inter_ab = set_a.intersection(&set_b);
+            let logic_result = inter_ab.intersection(&set_c);
+
+            assert_intersection_consistency(
+                &logic_result,
+                &[&set_a, &set_b, &set_c],
+                "Random 3-set intersection check failed"
+            );
+        }
     }
 }

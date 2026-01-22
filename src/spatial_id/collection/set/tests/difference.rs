@@ -1,55 +1,121 @@
-use crate::spatial_id::collection::set::tests::{set_a, set_b, set_c, to_flat_set};
-use std::collections::HashSet;
+#[cfg(test)]
+mod tests {
+    use crate::spatial_id::collection::set::memory::SetOnMemory;
+    use crate::spatial_id::collection::set::tests::{
+        arb_small_set, set_a, set_b, set_c, to_flat_set,
+    };
+    use proptest::prelude::*;
 
-#[test]
-fn test_difference_two_sets() {
-    let set_a = set_a();
-    let set_b = set_b();
+    fn assert_difference_consistency(
+        logic_result: &SetOnMemory,
+        initial_set: &SetOnMemory,
+        subtractors: &[&SetOnMemory],
+        context_msg: &str,
+    ) {
+        let max_z = std::iter::once(logic_result.max_z())
+            .chain(std::iter::once(initial_set.max_z()))
+            .chain(subtractors.iter().map(|s| s.max_z()))
+            .max()
+            .unwrap_or(0);
 
-    let logic_result = set_a.difference(&set_b);
+        let actual = to_flat_set(logic_result, max_z);
 
-    let target_z = [set_a.max_z(), set_b.max_z(), logic_result.max_z()]
-        .into_iter()
-        .max()
-        .unwrap();
+        let mut expected = to_flat_set(initial_set, max_z);
 
-    let actual = to_flat_set(&logic_result, target_z);
+        for sub_set in subtractors {
+            let sub_flat = to_flat_set(sub_set, max_z);
+            // sub_flat に含まれているものは削除する (A - B)
+            expected.retain(|id| !sub_flat.contains(id));
+        }
 
-    let flat_a = to_flat_set(&set_a, target_z);
-    let flat_b = to_flat_set(&set_b, target_z);
+        assert_eq!(
+            actual,
+            expected,
+            "{}\nInitial size: {}, Subtractors sizes: {:?}, Result size: {}",
+            context_msg,
+            initial_set.size(),
+            subtractors.iter().map(|s| s.size()).collect::<Vec<_>>(),
+            logic_result.size()
+        );
+    }
 
-    let expected: HashSet<_> = flat_a.difference(&flat_b).cloned().collect();
+    #[test]
+    fn test_difference_two_sets() {
+        let set_a = set_a();
+        let set_b = set_b();
 
-    assert_eq!(actual, expected, "Difference (A - B) should match");
-}
+        let logic_result = set_a.difference(&set_b);
 
-#[test]
-fn test_difference_three_sets() {
-    let set_a = set_a();
-    let set_b = set_b();
-    let set_c = set_c();
+        assert_difference_consistency(
+            &logic_result,
+            &set_a,
+            &[&set_b],
+            "Manual difference (A - B) failed",
+        );
+    }
 
-    let diff_ab = set_a.difference(&set_b);
-    let logic_result = diff_ab.difference(&set_c);
+    #[test]
+    fn test_difference_three_sets() {
+        let set_a = set_a();
+        let set_b = set_b();
+        let set_c = set_c();
 
-    let target_z = [
-        set_a.max_z(),
-        set_b.max_z(),
-        set_c.max_z(),
-        logic_result.max_z(),
-    ]
-    .into_iter()
-    .max()
-    .unwrap();
+        let diff_ab = set_a.difference(&set_b);
+        let logic_result = diff_ab.difference(&set_c);
 
-    let actual = to_flat_set(&logic_result, target_z);
+        assert_difference_consistency(
+            &logic_result,
+            &set_a,
+            &[&set_b, &set_c],
+            "Manual difference ((A - B) - C) failed",
+        );
+    }
 
-    let flat_a = to_flat_set(&set_a, target_z);
-    let flat_b = to_flat_set(&set_b, target_z);
-    let flat_c = to_flat_set(&set_c, target_z);
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(20))]
 
-    let diff_ab_set: HashSet<_> = flat_a.difference(&flat_b).cloned().collect();
-    let expected: HashSet<_> = diff_ab_set.difference(&flat_c).cloned().collect();
+        #[test]
+        fn random_test_difference(
+            set_a in arb_small_set(20),
+            set_b in arb_small_set(20)
+        ) {
+            let logic_result = set_a.difference(&set_b);
 
-    assert_eq!(actual, expected, "Difference ((A - B) - C) should match");
+            assert_difference_consistency(
+                &logic_result,
+                &set_a,
+                &[&set_b],
+                "Random difference check failed"
+            );
+        }
+
+        #[test]
+        fn random_test_difference_three_sets(
+            set_a in arb_small_set(15),
+            set_b in arb_small_set(15),
+            set_c in arb_small_set(15)
+        ) {
+            // (A - B) - C
+            let diff_ab = set_a.difference(&set_b);
+            let logic_result = diff_ab.difference(&set_c);
+
+            assert_difference_consistency(
+                &logic_result,
+                &set_a,
+                &[&set_b, &set_c],
+                "Random 3-set difference check failed"
+            );
+        }
+
+        #[test]
+        fn random_test_self_difference(
+            set_a in arb_small_set(20)
+        ) {
+            let logic_result = set_a.difference(&set_a);
+
+            // 結果は空であるはず
+            prop_assert!(logic_result.is_empty(),
+                "A - A should be empty. Result size: {}", logic_result.size());
+        }
+    }
 }
