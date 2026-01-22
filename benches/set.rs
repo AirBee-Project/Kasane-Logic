@@ -10,7 +10,7 @@ fn generate_fixed_ids(size: usize, seed: u64) -> Vec<SingleId> {
     let mut ids = Vec::with_capacity(size);
 
     for _ in 0..size {
-        let id = SingleId::random_within_using(&mut rng, 0..=10);
+        let id = SingleId::random_within_using(&mut rng, 15..=25);
         ids.push(id);
     }
     ids
@@ -27,7 +27,7 @@ fn build_set_from_ids(ids: &[SingleId]) -> SetOnMemory {
 fn bench_set_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("Set Operations");
     group.sample_size(10);
-    let sizes = (100..=1000).step_by(100);
+    let sizes = (1000..=10000).step_by(1000);
 
     for size in sizes {
         let ids_a = generate_fixed_ids(size, 12345);
