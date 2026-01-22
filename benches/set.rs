@@ -1,7 +1,8 @@
-use criterion::{BatchSize, BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::{SetOnMemory, SingleId};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
+use std::hint::black_box;
 
 fn generate_fixed_ids(size: usize, seed: u64) -> Vec<SingleId> {
     let mut rng = ChaCha8Rng::seed_from_u64(seed); // シード固定
@@ -34,7 +35,7 @@ fn bench_set_operations(c: &mut Criterion) {
         let set_a = build_set_from_ids(&ids_a);
         let set_b = build_set_from_ids(&ids_b);
 
-        group.bench_with_input(BenchmarkId::new("Construction", size), &ids_a, |b, ids| {
+        group.bench_with_input(BenchmarkId::new("Insert", size), &ids_a, |b, ids| {
             b.iter_batched(
                 || SetOnMemory::default(),
                 |mut set| {
