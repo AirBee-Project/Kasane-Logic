@@ -8,12 +8,9 @@ use crate::{
 
 pub trait TableStorage {
     type Value: Clone + PartialEq + Ord;
-
     type Forward: KeyValueStore<FlexIdRank, ValueRank>;
-
-    type Dictionary: KeyValueStore<ValueRank, Self::Value>;
-
-    type Reverse: OrderedKeyValueStore<Self::Value, ValueRank>;
+    type Dictionary: OrderedKeyValueStore<ValueRank, Self::Value>;
+    type Reverse: KeyValueStore<Self::Value, ValueRank>;
 
     fn forward(&self) -> &Self::Forward;
     fn forward_mut(&mut self) -> &mut Self::Forward;

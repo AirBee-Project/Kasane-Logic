@@ -47,4 +47,12 @@ impl<S: Collection + SetStorage> Collection for SetLogic<S> {
     fn return_rank(&mut self, rank: u64) {
         self.0.return_rank(rank)
     }
+
+    fn allocation_cursor(&self) -> u64 {
+        self.0.allocation_cursor()
+    }
+
+    fn free_list(&self) -> Vec<u64> {
+        self.0.free_list()
+    }
 }

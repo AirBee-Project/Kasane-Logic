@@ -29,6 +29,12 @@ pub trait Collection {
     fn fetch_rank(&mut self) -> u64;
     fn return_rank(&mut self, rank: u64);
 
+    ///ストレージ間でデータを移動するときに次に割り当てるべきRankを引き継ぐ用
+    fn allocation_cursor(&self) -> u64;
+
+    ///ストレージ間でデータを移動するときにゴミのRankを引き継ぐ用
+    fn free_list(&self) -> Vec<u64>;
+
     /// FlexIdRankに割り当てられていたFlexIdを削除し、そのFlexIdを返す
     fn remove_flex_id(&mut self, rank: FlexIdRank) -> Option<FlexId> {
         let flex_id = self.main().get(&rank)?;
@@ -36,7 +42,7 @@ pub trait Collection {
         let mut main_batch = Batch::new();
         main_batch.delete(rank);
 
-        let mut update_dim = |store: &mut Self::Dimension, seg: &Segment| {
+        let update_dim = |store: &mut Self::Dimension, seg: &Segment| {
             let mut batch = Batch::new();
             // 現在の状態を取得
             if let Some(mut bitmap) = store.get(seg) {

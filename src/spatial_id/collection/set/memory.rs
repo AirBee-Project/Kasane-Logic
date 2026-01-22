@@ -1,24 +1,25 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap}, // HashMapを追加
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
 };
 
 use roaring::RoaringTreemap;
 
-use crate::spatial_id::{
-    collection::{
-        Collection, FlexIdRank, MAX_RECYCLE_CAPACITY,
-        set::{SetStorage, logic::SetLogic},
+use crate::{
+    KeyValueStore,
+    spatial_id::{
+        collection::{
+            Collection, FlexIdRank, MAX_RECYCLE_CAPACITY,
+            set::{SetStorage, logic::SetLogic},
+        },
+        flex_id::FlexId,
+        segment::Segment,
     },
-    flex_id::FlexId,
-    segment::Segment,
 };
 
 //===========================================
 //ユーザーが実際に触るデフォルトの「Set」型
-//SetOnMemoryInner型が見えるとややこしいので薄いラップ
-//基本的な公開メゾットはDerefとDerefMutによりそのまま伝播するようになっている
 #[derive(Default)]
 pub struct SetOnMemory(pub(crate) SetLogic<SetOnMemoryInner>);
 
@@ -49,20 +50,14 @@ impl SetOnMemory {
     pub fn load<S>(storage: &S) -> Self
     where
         S: SetStorage + Collection,
-        for<'a> &'a S::Main: IntoIterator<Item = (&'a FlexIdRank, &'a FlexId)>,
-        for<'a> &'a S::Dimension: IntoIterator<Item = (&'a Segment, &'a RoaringTreemap)>,
     {
-        let main: BTreeMap<FlexIdRank, FlexId> = storage
-            .main()
-            .into_iter()
-            .map(|(k, v)| (*k, v.clone()))
-            .collect();
-        let next_rank = main.keys().next_back().map(|&r| r + 1).unwrap_or(0);
+        let main: HashMap<FlexIdRank, FlexId> =
+            storage.main().iter().map(|(k, v)| (k, v.clone())).collect();
+
+        let next_rank = storage.allocation_cursor();
+
         let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
-            source
-                .into_iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect()
+            source.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
         };
 
         let f = copy_dim(storage.f());
@@ -75,7 +70,7 @@ impl SetOnMemory {
             y,
             main,
             next_rank,
-            recycled_ranks: Vec::new(),
+            recycled_ranks: storage.free_list(),
         };
 
         Self(SetLogic::open(inner))
@@ -98,17 +93,14 @@ impl Debug for SetOnMemory {
     }
 }
 
-//===========================================
-
-//===========================================
-//SetLogicをメモリ上でBTreeMapを用いて実装したもの
-//SetLogicの恩恵によりストレージの記法さえ実装すれば動作するようにできている
 #[derive(Clone, PartialEq)]
 pub struct SetOnMemoryInner {
     pub(crate) f: BTreeMap<Segment, RoaringTreemap>,
     pub(crate) x: BTreeMap<Segment, RoaringTreemap>,
     pub(crate) y: BTreeMap<Segment, RoaringTreemap>,
-    pub(crate) main: BTreeMap<FlexIdRank, FlexId>,
+
+    pub(crate) main: HashMap<FlexIdRank, FlexId>,
+
     pub(crate) next_rank: u64,
     pub(crate) recycled_ranks: Vec<u64>,
 }
@@ -130,7 +122,7 @@ impl SetStorage for SetOnMemoryInner {}
 
 impl Collection for SetOnMemoryInner {
     type Dimension = BTreeMap<Segment, RoaringTreemap>;
-    type Main = BTreeMap<FlexIdRank, FlexId>;
+    type Main = HashMap<FlexIdRank, FlexId>;
 
     fn main(&self) -> &Self::Main {
         &self.main
@@ -178,5 +170,14 @@ impl Collection for SetOnMemoryInner {
             self.recycled_ranks.push(rank);
         }
     }
+
+    // 追加実装
+    fn allocation_cursor(&self) -> u64 {
+        self.next_rank
+    }
+
+    // 追加実装
+    fn free_list(&self) -> Vec<u64> {
+        self.recycled_ranks.clone()
+    }
 }
-//===========================================

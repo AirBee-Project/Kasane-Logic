@@ -161,4 +161,12 @@ where
             self.recycled_ranks.push(rank);
         }
     }
+
+    fn allocation_cursor(&self) -> u64 {
+        todo!()
+    }
+
+    fn free_list(&self) -> Vec<u64> {
+        todo!()
+    }
 }
