@@ -1,11 +1,12 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
+use std::hint::black_box;
+
 use kasane_logic::{SetOnMemory, SingleId};
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
-use std::hint::black_box;
 
 fn generate_fixed_ids(size: usize, seed: u64) -> Vec<SingleId> {
-    let mut rng = ChaCha8Rng::seed_from_u64(seed); // シード固定
+    let mut rng = ChaCha8Rng::seed_from_u64(seed);
     let mut ids = Vec::with_capacity(size);
 
     for _ in 0..size {
@@ -25,21 +26,21 @@ fn build_set_from_ids(ids: &[SingleId]) -> SetOnMemory {
 
 fn bench_set_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("Set Operations");
+    group.sample_size(10);
+    let sizes = (100..=1000).step_by(100);
 
-    let sizes = [100, 1_000, 10_000];
-
-    for &size in &sizes {
+    for size in sizes {
         let ids_a = generate_fixed_ids(size, 12345);
         let ids_b = generate_fixed_ids(size, 67890);
 
         let set_a = build_set_from_ids(&ids_a);
         let set_b = build_set_from_ids(&ids_b);
 
+        // 1. Insert
         group.bench_with_input(BenchmarkId::new("Insert", size), &ids_a, |b, ids| {
             b.iter_batched(
                 || SetOnMemory::default(),
                 |mut set| {
-                    // Routine
                     for id in ids {
                         set.insert(id);
                     }
@@ -49,6 +50,7 @@ fn bench_set_operations(c: &mut Criterion) {
             );
         });
 
+        // 2. Union
         group.bench_with_input(
             BenchmarkId::new("Union", size),
             &(&set_a, &set_b),
@@ -60,6 +62,7 @@ fn bench_set_operations(c: &mut Criterion) {
             },
         );
 
+        // 3. Intersection
         group.bench_with_input(
             BenchmarkId::new("Intersection", size),
             &(&set_a, &set_b),
@@ -71,6 +74,7 @@ fn bench_set_operations(c: &mut Criterion) {
             },
         );
 
+        // 4. Difference
         group.bench_with_input(
             BenchmarkId::new("Difference", size),
             &(&set_a, &set_b),
