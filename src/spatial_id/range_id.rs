@@ -16,7 +16,7 @@ use crate::{
         segment::Segment,
     },
 };
-
+#[cfg(any(test, feature = "random"))]
 use rand::Rng;
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
