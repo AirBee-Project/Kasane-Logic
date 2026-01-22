@@ -1,3 +1,5 @@
+use std::ops::RangeBounds;
+
 pub mod btree_map;
 pub mod hash_map;
 
@@ -32,6 +34,9 @@ pub trait KeyValueStore<K, V> {
 }
 
 pub trait OrderedKeyValueStore<K, V>: KeyValueStore<K, V> {
-    fn scan_range(&self, start: &K, end: &K) -> Box<dyn Iterator<Item = (K, V)> + '_>;
+    fn scan<R>(&self, range: R) -> Box<dyn Iterator<Item = (K, V)> + '_>
+    where
+        R: RangeBounds<K>;
+
     fn last_key(&self) -> Option<K>;
 }

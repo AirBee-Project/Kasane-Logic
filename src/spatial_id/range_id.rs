@@ -1,6 +1,9 @@
 // src/id/spatial_id/range.rs
 use std::fmt;
 
+#[cfg(any(test))]
+use proptest::prelude::*;
+
 use crate::{
     SingleId,
     error::Error,
@@ -473,6 +476,38 @@ impl RangeId {
 
         RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
             .expect("Generated parameters should be always valid")
+    }
+
+    #[cfg(any(test))]
+    pub fn arb() -> impl Strategy<Value = Self> {
+        Self::arb_within(0..=MAX_ZOOM_LEVEL as u8)
+    }
+
+    #[cfg(any(test))]
+    pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
+        Self::arb_within(z..=z)
+    }
+
+    #[cfg(any(test))]
+    pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
+        z_range.prop_flat_map(|z| {
+            let z_idx = z as usize;
+
+            let f_min = F_MIN[z_idx];
+            let f_max = F_MAX[z_idx];
+            let xy_max = XY_MAX[z_idx];
+
+            let f_strat = (f_min..=f_max, f_min..=f_max);
+            let x_strat = (0..=xy_max, 0..=xy_max);
+            let y_strat = (0..=xy_max, 0..=xy_max);
+
+            (Just(z), f_strat, x_strat, y_strat).prop_map(
+                move |(z, (f1, f2), (x1, x2), (y1, y2))| {
+                    RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
+                        .expect("Generated parameters should be always valid")
+                },
+            )
+        })
     }
 }
 

@@ -32,14 +32,20 @@ where
     }
 }
 
+use std::ops::RangeBounds;
+
 impl<K, V> OrderedKeyValueStore<K, V> for BTreeMap<K, V>
 where
     K: Ord + Clone,
     V: Clone,
 {
-    fn scan_range(&self, start: &K, end: &K) -> Box<dyn Iterator<Item = (K, V)> + '_> {
-        Box::new(self.range(start..end).map(|(k, v)| (k.clone(), v.clone())))
+    fn scan<R>(&self, range: R) -> Box<dyn Iterator<Item = (K, V)> + '_>
+    where
+        R: RangeBounds<K>,
+    {
+        Box::new(self.range(range).map(|(k, v)| (k.clone(), v.clone())))
     }
+
     fn last_key(&self) -> Option<K> {
         self.keys().next_back().cloned()
     }

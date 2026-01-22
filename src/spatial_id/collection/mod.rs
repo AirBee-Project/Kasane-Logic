@@ -68,26 +68,18 @@ pub trait Collection {
     fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
         let rank = self.fetch_rank();
 
-        // Dimensionへの挿入ロジック
-        let mut update_dim = |store: &mut Self::Dimension, seg: Segment| {
+        let update_dim = |store: &mut Self::Dimension, seg: Segment| {
             let mut batch = Batch::new();
-            // Read: 既存があれば取得、なければ新規作成
             let mut bitmap = store.get(&seg).unwrap_or_else(RoaringTreemap::new);
-
-            // Modify: ランクを追加
             bitmap.insert(rank);
-
-            // Write: バッチにPut
             batch.put(seg, bitmap);
             store.apply_batch(batch);
         };
 
-        // Cloneして渡す必要がある (segの所有権が必要なため)
         update_dim(self.f_mut(), target.as_f().clone());
         update_dim(self.x_mut(), target.as_x().clone());
         update_dim(self.y_mut(), target.as_y().clone());
 
-        // Mainへの挿入
         let mut main_batch = Batch::new();
         main_batch.put(rank, target.clone());
         self.main_mut().apply_batch(main_batch);
@@ -149,12 +141,16 @@ pub trait Collection {
             }
             let end = seg.descendant_range_end();
             let iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
-                Some(end_segment) => store.scan_range(seg, &end_segment),
-                None => match store.last_key() {
-                    Some(last) => store.scan_range(seg, &last),
-                    None => Box::new(std::iter::empty::<(Segment, RoaringTreemap)>())
-                        as Box<dyn Iterator<Item = (Segment, RoaringTreemap)>>,
-                },
+                Some(end_segment) => {
+                    if seg <= &end_segment {
+                        store.scan(seg..=&end_segment)
+                    } else {
+                        println!("{}", seg);
+                        println!("{}", end_segment);
+                        store.scan(seg..)
+                    }
+                }
+                None => store.scan(seg..),
             };
 
             for (_, ranks) in iter {

@@ -2,6 +2,9 @@ use std::fmt;
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
 
+#[cfg(any(test))]
+use proptest::prelude::*;
+
 use crate::{
     error::Error,
     geometry::{coordinate::Coordinate, ecef::Ecef},
@@ -455,6 +458,31 @@ impl SingleId {
         let y = rng.random_range(0..=XY_MAX[z_idx]);
 
         SingleId::new(z, f, x, y).expect("Failed to generate random SingleId")
+    }
+
+    #[cfg(any(test))]
+    pub fn arb() -> impl Strategy<Value = Self> {
+        Self::arb_within(0..=MAX_ZOOM_LEVEL as u8)
+    }
+
+    #[cfg(any(test))]
+    pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
+        Self::arb_within(z..=z)
+    }
+
+    #[cfg(any(test))]
+    pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
+        z_range.prop_flat_map(|z| {
+            let z_idx = z as usize;
+
+            let f_strategy = F_MIN[z_idx]..=F_MAX[z_idx];
+            let x_strategy = 0..=XY_MAX[z_idx];
+            let y_strategy = 0..=XY_MAX[z_idx];
+
+            (Just(z), f_strategy, x_strategy, y_strategy).prop_map(|(z, f, x, y)| {
+                Self::new(z, f, x, y).expect("Strategy generated invalid ID")
+            })
+        })
     }
 }
 

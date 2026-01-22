@@ -1,5 +1,9 @@
 use std::collections::HashSet;
 
+use proptest::prelude::Strategy;
+#[cfg(any(test))]
+use proptest::proptest;
+
 use crate::{
     RangeId, SetLogic, SetOnMemory, SetStorage, SingleId, spatial_id::collection::Collection,
 };
@@ -10,6 +14,7 @@ pub mod intersection;
 pub mod union;
 
 ///SetAを生成する
+#[cfg(any(test))]
 pub fn set_a() -> SetOnMemory {
     let mut set = SetOnMemory::default();
     let id1 = RangeId::new(5, [-7, 11], [1, 5], [5, 30]).unwrap();
@@ -20,6 +25,7 @@ pub fn set_a() -> SetOnMemory {
 }
 
 ///SetBを生成する
+#[cfg(any(test))]
 pub fn set_b() -> SetOnMemory {
     let mut set = SetOnMemory::default();
     let id1 = RangeId::new(4, [5, 4], [4, 5], [9, 10]).unwrap();
@@ -30,6 +36,7 @@ pub fn set_b() -> SetOnMemory {
 }
 
 ///SetCを生成する
+#[cfg(any(test))]
 pub fn set_c() -> SetOnMemory {
     let mut set = SetOnMemory::default();
     let id1 = SingleId::new(2, 1, 1, 1).unwrap();
@@ -47,9 +54,39 @@ pub fn to_flat_set<S>(set: &SetLogic<S>, target_z: u8) -> HashSet<SingleId>
 where
     S: SetStorage + Collection + Default,
 {
-    // target_z が set.max_z() より深い場合のみ差分を計算
     let depth = target_z.saturating_sub(set.max_z());
     set.flatten_deep(depth)
         .expect("Failed to flatten set")
         .collect()
+}
+
+#[derive(Debug, Clone)]
+enum TestElem {
+    Single(SingleId),
+    Range(RangeId),
+}
+
+///テストのために、ランダムなSetを生成する関数
+/// 計算負荷の観点からズームレベルを4までに制限
+#[cfg(any(test))]
+pub fn arb_small_set(max_len: usize) -> impl Strategy<Value = SetOnMemory> {
+    use proptest::prop_oneof;
+    let z_range = 0u8..=4;
+
+    // SingleId と RangeId を半々の確率で選ぶ戦略
+    let elem_strategy = prop_oneof![
+        SingleId::arb_within(z_range.clone()).prop_map(TestElem::Single),
+        RangeId::arb_within(z_range).prop_map(TestElem::Range),
+    ];
+
+    proptest::collection::vec(elem_strategy, 0..=max_len).prop_map(|elems| {
+        let mut set = SetOnMemory::default();
+        for elem in elems {
+            match elem {
+                TestElem::Single(id) => set.insert(&id),
+                TestElem::Range(id) => set.insert(&id),
+            }
+        }
+        set
+    })
 }
