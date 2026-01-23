@@ -1,5 +1,7 @@
+use std::fmt::Debug;
 use std::{
     collections::BTreeMap,
+    fmt::Display,
     ops::{Deref, DerefMut},
 };
 
@@ -24,6 +26,15 @@ where
 {
     fn default() -> Self {
         Self(TableLogic::open(TableOnMemoryInner::default()))
+    }
+}
+
+impl<V> TableOnMemory<V>
+where
+    V: Clone + PartialEq + Ord,
+{
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -190,5 +201,23 @@ where
 
     fn move_flex_rank_free_list(&self) -> Vec<u64> {
         self.flex_id_recycled_ranks.clone()
+    }
+}
+
+impl<V> Display for TableOnMemory<V>
+where
+    V: Clone + PartialEq + Ord + Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<V> Debug for TableOnMemory<V>
+where
+    V: Clone + PartialEq + Ord + Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }

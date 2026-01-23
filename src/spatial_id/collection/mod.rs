@@ -65,6 +65,25 @@ pub trait Collection {
         Some(flex_id)
     }
 
+    /// ターゲットとなるFlexIdと空間的に重複する既存のIDを検出し、削除する。
+    /// 戻り値として、「削除されたIDのRank」と「そのIDから生成された破片(Fragments)」のリストを返す。
+    fn resolve_collisions(&mut self, target: &FlexId) -> Vec<(FlexIdRank, Vec<FlexId>)> {
+        let mut collisions = Vec::new();
+        let related_ranks: Vec<FlexIdRank> = self.related(target).into_iter().collect();
+        for rank in related_ranks {
+            if let Some(existing_id) = self.get_flex_id(rank) {
+                if target.intersection(&existing_id).is_some() {
+                    let existing_backup = existing_id.clone();
+                    self.remove_flex_id(rank);
+                    let fragments = existing_backup.difference(target);
+
+                    collisions.push((rank, fragments));
+                }
+            }
+        }
+        collisions
+    }
+
     /// FlexIdを挿入し、割り当てられたFlexIdRankを返す
     fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
         let rank = self.fetch_flex_rank();

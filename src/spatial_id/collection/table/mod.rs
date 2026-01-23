@@ -31,7 +31,7 @@ pub trait TableStorage {
     ///ストレージ間でデータを移動するときにゴミのRankを引き継ぐ用
     fn move_value_rank_free_list(&self) -> Vec<u64>;
 
-    fn insert_value(&mut self, value: Self::Value, flex_id_ranks: Vec<FlexIdRank>) -> ValueRank {
+    fn insert_value(&mut self, value: &Self::Value, flex_id_ranks: Vec<FlexIdRank>) -> ValueRank {
         let value_rank = if let Some(rank) = self.reverse().get(&value) {
             rank
         } else {
@@ -40,7 +40,7 @@ pub trait TableStorage {
             dict_batch.put(new_rank, value.clone());
             self.dictionary_mut().apply_batch(dict_batch);
             let mut rev_batch = Batch::new();
-            rev_batch.put(value, new_rank);
+            rev_batch.put(value.clone(), new_rank);
             self.reverse_mut().apply_batch(rev_batch);
             new_rank
         };

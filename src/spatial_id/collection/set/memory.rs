@@ -7,8 +7,9 @@ use std::{
 use roaring::RoaringTreemap;
 
 use crate::{
-    KeyValueStore,
+    KeyValueStore, TableOnMemory,
     spatial_id::{
+        ToFlexId,
         collection::{
             Collection, FlexIdRank, MAX_RECYCLE_CAPACITY,
             set::{SetStorage, logic::SetLogic},
@@ -189,5 +190,11 @@ impl Collection for SetOnMemoryInner {
 
     fn move_flex_rank_free_list(&self) -> Vec<u64> {
         self.flex_id_recycled_ranks.clone()
+    }
+}
+
+impl ToFlexId for SetOnMemory {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
+        self.0.flex_ids()
     }
 }

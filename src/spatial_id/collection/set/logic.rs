@@ -135,24 +135,11 @@ where
     ///重複の解消と結合の最適化を行う
     /// 領域を挿入する。
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
-        let inserts: Vec<FlexId> = target.flex_ids().into_iter().collect();
-        for new_id in inserts {
-            // Collectionのrelatedを使う
-            let related_ranks: Vec<FlexIdRank> = self.0.related(&new_id).into_iter().collect();
-
-            for rank in related_ranks {
-                // Collectionのget_flex_idを使う (Option<FlexId>が返る)
-                if let Some(existing_id) = self.0.get_flex_id(rank) {
-                    if new_id.intersection(&existing_id).is_some() {
-                        let existing_backup = existing_id.clone();
-                        // Collectionのremove_flex_idを使う
-                        self.0.remove_flex_id(rank);
-
-                        let fragments = existing_backup.difference(&new_id);
-                        for frag in fragments {
-                            unsafe { self.join_insert_unchecked(&frag) };
-                        }
-                    }
+        for new_id in target.flex_ids() {
+            let collisions = self.0.resolve_collisions(&new_id);
+            for (_removed_rank, fragments) in collisions {
+                for frag in fragments {
+                    unsafe { self.join_insert_unchecked(&frag) };
                 }
             }
             unsafe { self.join_insert_unchecked(&new_id) };
@@ -165,7 +152,6 @@ where
     /// もしくは、明らかに結合不能なIDなど
     pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
-            // Collectionのinsert_flex_idを使う
             self.0.insert_flex_id(&flex_id);
         }
     }
