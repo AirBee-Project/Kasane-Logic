@@ -24,5 +24,6 @@ pub use spatial_id::{
 };
 
 pub use spatial_id::collection::set::{SetStorage, logic::SetLogic, memory::SetOnMemory};
+pub use spatial_id::collection::table::{TableStorage, logic::TableLogic, memory::TableOnMemory};
 
 pub use storage::{KeyValueStore, OrderedKeyValueStore};

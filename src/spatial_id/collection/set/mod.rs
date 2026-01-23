@@ -41,18 +41,18 @@ impl<S: Collection + SetStorage> Collection for SetLogic<S> {
         self.0.y_mut()
     }
 
-    fn fetch_rank(&mut self) -> u64 {
-        self.0.fetch_rank()
+    fn fetch_flex_rank(&mut self) -> u64 {
+        self.0.fetch_flex_rank()
     }
-    fn return_rank(&mut self, rank: u64) {
-        self.0.return_rank(rank)
-    }
-
-    fn allocation_cursor(&self) -> u64 {
-        self.0.allocation_cursor()
+    fn return_flex_rank(&mut self, rank: u64) {
+        self.0.return_flex_rank(rank)
     }
 
-    fn free_list(&self) -> Vec<u64> {
-        self.0.free_list()
+    fn move_flex_rank(&self) -> u64 {
+        self.0.move_flex_rank()
+    }
+
+    fn move_flex_rank_free_list(&self) -> Vec<u64> {
+        self.0.move_flex_rank_free_list()
     }
 }

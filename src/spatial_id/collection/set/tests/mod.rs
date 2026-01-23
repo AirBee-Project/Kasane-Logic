@@ -4,8 +4,14 @@ use proptest::prelude::Strategy;
 #[cfg(any(test))]
 use proptest::proptest;
 
+#[cfg(any(test))]
+use crate::spatial_id::collection::set::memory::SetOnMemory;
 use crate::{
-    RangeId, SetLogic, SetOnMemory, SetStorage, SingleId, spatial_id::collection::Collection,
+    RangeId, SingleId,
+    spatial_id::collection::{
+        Collection,
+        set::{SetStorage, logic::SetLogic},
+    },
 };
 
 pub mod difference;

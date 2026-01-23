@@ -32,7 +32,7 @@ where
     {
         let main: HashMap<FlexIdRank, FlexId> = set_storage.main().iter().collect();
 
-        let next_rank = set_storage.allocation_cursor();
+        let flex_id_next_rank = set_storage.move_flex_rank();
 
         let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
             source.iter().collect()
@@ -47,8 +47,8 @@ where
             x,
             y,
             main,
-            next_rank,
-            recycled_ranks: set_storage.free_list(),
+            flex_id_next_rank,
+            flex_id_recycled_ranks: set_storage.move_flex_rank_free_list(),
         };
         SetOnMemory(SetLogic::open(inner))
     }

@@ -54,8 +54,10 @@ pub struct TableOnMemoryInner<V> {
     forward: BTreeMap<FlexIdRank, ValueRank>,
     dictionary: BTreeMap<ValueRank, V>,
     reserve: BTreeMap<V, ValueRank>,
-    next_rank: u64,
-    recycled_ranks: Vec<u64>,
+    flex_id_next_rank: u64,
+    flex_id_recycled_ranks: Vec<u64>,
+    value_next_rank: u64,
+    value_recycled_ranks: Vec<u64>,
 }
 
 impl<V> Default for TableOnMemoryInner<V> {
@@ -68,8 +70,10 @@ impl<V> Default for TableOnMemoryInner<V> {
             forward: Default::default(),
             dictionary: Default::default(),
             reserve: Default::default(),
-            next_rank: 0,
-            recycled_ranks: vec![],
+            flex_id_next_rank: 0,
+            flex_id_recycled_ranks: vec![],
+            value_next_rank: 0,
+            value_recycled_ranks: vec![],
         }
     }
 }
@@ -105,6 +109,24 @@ where
 
     fn reverse_mut(&mut self) -> &mut Self::Reverse {
         &mut self.reserve
+    }
+
+    fn fetch_value_rank(&mut self) -> u64 {
+        self.value_next_rank
+    }
+
+    fn return_value_rank(&mut self, rank: u64) {
+        if self.value_recycled_ranks.len() < MAX_RECYCLE_CAPACITY {
+            self.value_recycled_ranks.push(rank);
+        }
+    }
+
+    fn move_value_rank(&self) -> u64 {
+        self.value_next_rank
+    }
+
+    fn move_value_rank_free_list(&self) -> Vec<u64> {
+        self.value_recycled_ranks.clone()
     }
 }
 
@@ -147,26 +169,26 @@ where
         &mut self.y
     }
 
-    fn fetch_rank(&mut self) -> u64 {
-        if let Some(rank) = self.recycled_ranks.pop() {
+    fn fetch_flex_rank(&mut self) -> u64 {
+        if let Some(rank) = self.flex_id_recycled_ranks.pop() {
             return rank;
         }
-        let rank = self.next_rank;
-        self.next_rank += 1;
+        let rank = self.flex_id_next_rank;
+        self.flex_id_next_rank += 1;
         rank
     }
 
-    fn return_rank(&mut self, rank: u64) {
-        if self.recycled_ranks.len() < MAX_RECYCLE_CAPACITY {
-            self.recycled_ranks.push(rank);
+    fn return_flex_rank(&mut self, rank: u64) {
+        if self.flex_id_recycled_ranks.len() < MAX_RECYCLE_CAPACITY {
+            self.flex_id_recycled_ranks.push(rank);
         }
     }
 
-    fn allocation_cursor(&self) -> u64 {
-        todo!()
+    fn move_flex_rank(&self) -> u64 {
+        self.flex_id_next_rank
     }
 
-    fn free_list(&self) -> Vec<u64> {
-        todo!()
+    fn move_flex_rank_free_list(&self) -> Vec<u64> {
+        self.flex_id_recycled_ranks.clone()
     }
 }

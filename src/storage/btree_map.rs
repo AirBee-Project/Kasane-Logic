@@ -49,4 +49,8 @@ where
     fn last_key(&self) -> Option<K> {
         self.keys().next_back().cloned()
     }
+
+    fn first_key(&self) -> Option<K> {
+        self.keys().next().cloned()
+    }
 }

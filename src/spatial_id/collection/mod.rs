@@ -26,14 +26,14 @@ pub trait Collection {
     fn y(&self) -> &Self::Dimension;
     fn y_mut(&mut self) -> &mut Self::Dimension;
 
-    fn fetch_rank(&mut self) -> u64;
-    fn return_rank(&mut self, rank: u64);
+    fn fetch_flex_rank(&mut self) -> u64;
+    fn return_flex_rank(&mut self, rank: u64);
 
     ///ストレージ間でデータを移動するときに次に割り当てるべきRankを引き継ぐ用
-    fn allocation_cursor(&self) -> u64;
+    fn move_flex_rank(&self) -> u64;
 
     ///ストレージ間でデータを移動するときにゴミのRankを引き継ぐ用
-    fn free_list(&self) -> Vec<u64>;
+    fn move_flex_rank_free_list(&self) -> Vec<u64>;
 
     /// FlexIdRankに割り当てられていたFlexIdを削除し、そのFlexIdを返す
     fn remove_flex_id(&mut self, rank: FlexIdRank) -> Option<FlexId> {
@@ -44,12 +44,8 @@ pub trait Collection {
 
         let update_dim = |store: &mut Self::Dimension, seg: &Segment| {
             let mut batch = Batch::new();
-            // 現在の状態を取得
             if let Some(mut bitmap) = store.get(seg) {
-                // 変更を適用
                 let changed = bitmap.remove(rank);
-
-                // Write: 変更があればバッチに追加
                 if bitmap.is_empty() {
                     batch.delete(seg.clone());
                 } else if changed {
@@ -63,16 +59,15 @@ pub trait Collection {
         update_dim(self.x_mut(), flex_id.as_x());
         update_dim(self.y_mut(), flex_id.as_y());
 
-        // 3. Apply: Mainへの変更を適用
         self.main_mut().apply_batch(main_batch);
 
-        self.return_rank(rank);
+        self.return_flex_rank(rank);
         Some(flex_id)
     }
 
     /// FlexIdを挿入し、割り当てられたFlexIdRankを返す
     fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
-        let rank = self.fetch_rank();
+        let rank = self.fetch_flex_rank();
 
         let update_dim = |store: &mut Self::Dimension, seg: Segment| {
             let mut batch = Batch::new();

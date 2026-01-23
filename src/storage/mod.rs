@@ -39,4 +39,6 @@ pub trait OrderedKeyValueStore<K, V>: KeyValueStore<K, V> {
         R: RangeBounds<K>;
 
     fn last_key(&self) -> Option<K>;
+
+    fn first_key(&self) -> Option<K>;
 }

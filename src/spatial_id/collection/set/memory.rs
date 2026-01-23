@@ -54,7 +54,7 @@ impl SetOnMemory {
         let main: HashMap<FlexIdRank, FlexId> =
             storage.main().iter().map(|(k, v)| (k, v.clone())).collect();
 
-        let next_rank = storage.allocation_cursor();
+        let flex_id_next_rank = storage.move_flex_rank();
 
         let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
             source.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
@@ -64,13 +64,25 @@ impl SetOnMemory {
         let x = copy_dim(storage.x());
         let y = copy_dim(storage.y());
 
+        let flex_id_recycled_ranks =
+            if storage.move_flex_rank_free_list().len() < MAX_RECYCLE_CAPACITY {
+                storage.move_flex_rank_free_list()
+            } else {
+                storage
+                    .move_flex_rank_free_list()
+                    .iter()
+                    .take(MAX_RECYCLE_CAPACITY)
+                    .cloned()
+                    .collect()
+            };
+
         let inner = SetOnMemoryInner {
             f,
             x,
             y,
             main,
-            next_rank,
-            recycled_ranks: storage.free_list(),
+            flex_id_next_rank,
+            flex_id_recycled_ranks,
         };
 
         Self(SetLogic::open(inner))
@@ -101,8 +113,8 @@ pub struct SetOnMemoryInner {
 
     pub(crate) main: HashMap<FlexIdRank, FlexId>,
 
-    pub(crate) next_rank: u64,
-    pub(crate) recycled_ranks: Vec<u64>,
+    pub(crate) flex_id_next_rank: u64,
+    pub(crate) flex_id_recycled_ranks: Vec<u64>,
 }
 
 impl Default for SetOnMemoryInner {
@@ -112,8 +124,8 @@ impl Default for SetOnMemoryInner {
             x: Default::default(),
             y: Default::default(),
             main: Default::default(),
-            next_rank: 0,
-            recycled_ranks: vec![],
+            flex_id_next_rank: 0,
+            flex_id_recycled_ranks: vec![],
         }
     }
 }
@@ -156,28 +168,26 @@ impl Collection for SetOnMemoryInner {
         &mut self.y
     }
 
-    fn fetch_rank(&mut self) -> u64 {
-        if let Some(rank) = self.recycled_ranks.pop() {
+    fn fetch_flex_rank(&mut self) -> u64 {
+        if let Some(rank) = self.flex_id_recycled_ranks.pop() {
             return rank;
         }
-        let rank = self.next_rank;
-        self.next_rank += 1;
+        let rank = self.flex_id_next_rank;
+        self.flex_id_next_rank += 1;
         rank
     }
 
-    fn return_rank(&mut self, rank: u64) {
-        if self.recycled_ranks.len() < MAX_RECYCLE_CAPACITY {
-            self.recycled_ranks.push(rank);
+    fn return_flex_rank(&mut self, rank: u64) {
+        if self.flex_id_recycled_ranks.len() < MAX_RECYCLE_CAPACITY {
+            self.flex_id_recycled_ranks.push(rank);
         }
     }
 
-    // 追加実装
-    fn allocation_cursor(&self) -> u64 {
-        self.next_rank
+    fn move_flex_rank(&self) -> u64 {
+        self.flex_id_next_rank
     }
 
-    // 追加実装
-    fn free_list(&self) -> Vec<u64> {
-        self.recycled_ranks.clone()
+    fn move_flex_rank_free_list(&self) -> Vec<u64> {
+        self.flex_id_recycled_ranks.clone()
     }
 }
