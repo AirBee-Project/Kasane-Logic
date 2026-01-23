@@ -138,9 +138,22 @@ where
     pub fn get_filter<I: ToFlexId>(
         &mut self,
         target: &I,
-        range: RangeInclusive<I>,
+        range: RangeInclusive<S::Value>, // 引数の型を修正: I -> S::Value
     ) -> TableOnMemory<S::Value> {
-        todo!()
+        let mut result = TableOnMemory::default();
+        for flex_id in target.flex_ids() {
+            for related_rank in self.0.related(&flex_id) {
+                let related_id = self.0.get_flex_id(related_rank).unwrap();
+                let value_rank = self.0.forward().get(&related_rank).unwrap();
+                let value = self.0.dictionary().get(&value_rank).unwrap();
+                if range.contains(&value) {
+                    if let Some(intersection) = flex_id.intersection(&related_id) {
+                        result.insert(&intersection, &value);
+                    }
+                }
+            }
+        }
+        result
     }
 
     pub fn remove<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
@@ -158,12 +171,42 @@ where
         result
     }
 
-    pub fn remove_filter<I: ToFlexId>(
-        &mut self,
-        target: &I,
-        range: RangeInclusive<I>,
-    ) -> TableOnMemory<S::Value> {
-        todo!()
+    pub fn find_by_value(&self, value: &S::Value) -> TableOnMemory<S::Value> {
+        let mut result = TableOnMemory::default();
+        if let Some(target_val_rank) = self.0.reverse().get(value) {
+            for (flex_id_rank, val_rank) in self.0.forward().iter() {
+                if val_rank == target_val_rank {
+                    if let Some(flex_id) = self.0.get_flex_id(flex_id_rank) {
+                        unsafe { result.insert_unchecked(&flex_id, value) };
+                    }
+                }
+            }
+        }
+        result
+    }
+
+    pub fn remove_by_value(&mut self, value: &S::Value) -> TableOnMemory<S::Value> {
+        let mut result = TableOnMemory::default();
+
+        if let Some(target_val_rank) = self.0.reverse().get(value) {
+            let mut remove_targets = Vec::new();
+
+            for (flex_id_rank, val_rank) in self.0.forward().iter() {
+                if val_rank == target_val_rank {
+                    remove_targets.push(flex_id_rank);
+                }
+            }
+
+            for rank in remove_targets {
+                if let Some(flex_id) = self.0.remove_flex_id(rank) {
+                    let mut batch = Batch::new();
+                    batch.delete(rank);
+                    self.0.forward_mut().apply_batch(batch);
+                    unsafe { result.insert_unchecked(&flex_id, value) };
+                }
+            }
+        }
+        result
     }
 
     ///重複確認なく挿入を行う
