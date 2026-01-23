@@ -199,3 +199,37 @@ impl From<FlexId> for RangeId {
         }
     }
 }
+
+impl From<FlexId>
+    for (
+        [u8; Segment::ARRAY_LENGTH],
+        [u8; Segment::ARRAY_LENGTH],
+        [u8; Segment::ARRAY_LENGTH],
+    )
+{
+    fn from(value: FlexId) -> Self {
+        (value.f.into(), value.x.into(), value.y.into())
+    }
+}
+
+impl
+    From<(
+        [u8; Segment::ARRAY_LENGTH],
+        [u8; Segment::ARRAY_LENGTH],
+        [u8; Segment::ARRAY_LENGTH],
+    )> for FlexId
+{
+    fn from(
+        value: (
+            [u8; Segment::ARRAY_LENGTH],
+            [u8; Segment::ARRAY_LENGTH],
+            [u8; Segment::ARRAY_LENGTH],
+        ),
+    ) -> Self {
+        Self {
+            f: value.0.into(),
+            x: value.1.into(),
+            y: value.2.into(),
+        }
+    }
+}

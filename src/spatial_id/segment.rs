@@ -22,7 +22,7 @@ pub enum SegmentRelation {
 }
 
 impl Segment {
-    pub(crate) const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
+    pub const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
 
     pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment> {
         let [l, r] = range;
@@ -334,5 +334,17 @@ impl Display for Segment {
             write!(f, "{:08b}", byte)?;
         }
         Ok(())
+    }
+}
+
+impl From<[u8; Segment::ARRAY_LENGTH]> for Segment {
+    fn from(value: [u8; Segment::ARRAY_LENGTH]) -> Self {
+        Segment(value)
+    }
+}
+
+impl From<Segment> for [u8; Segment::ARRAY_LENGTH] {
+    fn from(value: Segment) -> Self {
+        value.0
     }
 }
