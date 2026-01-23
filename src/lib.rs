@@ -23,7 +23,7 @@ pub use spatial_id::{
     single_id::SingleId,
 };
 
+pub use spatial_id::collection::Collection;
 pub use spatial_id::collection::set::{SetStorage, logic::SetLogic, memory::SetOnMemory};
 pub use spatial_id::collection::table::{TableStorage, logic::TableLogic, memory::TableOnMemory};
-
 pub use storage::{KeyValueStore, OrderedKeyValueStore};

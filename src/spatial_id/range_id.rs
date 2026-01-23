@@ -7,7 +7,7 @@ use proptest::prelude::*;
 use crate::{
     SingleId,
     error::Error,
-    geometry::{coordinate::Coordinate, ecef::Ecef},
+    geometry::coordinate::Coordinate,
     spatial_id::{
         SpatialId, ToFlexId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},

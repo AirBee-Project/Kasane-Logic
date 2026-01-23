@@ -70,11 +70,14 @@ pub trait Collection {
     fn resolve_collisions(&mut self, target: &FlexId) -> Vec<(FlexIdRank, Vec<FlexId>)> {
         let mut collisions = Vec::new();
         let related_ranks: Vec<FlexIdRank> = self.related(target).into_iter().collect();
+
         for rank in related_ranks {
             if let Some(existing_id) = self.get_flex_id(rank) {
                 if target.intersection(&existing_id).is_some() {
                     let existing_backup = existing_id.clone();
+                    // 既存のIDを削除
                     self.remove_flex_id(rank);
+                    // 削られた断片を計算
                     let fragments = existing_backup.difference(target);
 
                     collisions.push((rank, fragments));
@@ -83,7 +86,6 @@ pub trait Collection {
         }
         collisions
     }
-
     /// FlexIdを挿入し、割り当てられたFlexIdRankを返す
     fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
         let rank = self.fetch_flex_rank();

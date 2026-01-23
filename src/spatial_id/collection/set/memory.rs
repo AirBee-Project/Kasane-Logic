@@ -7,7 +7,7 @@ use std::{
 use roaring::RoaringTreemap;
 
 use crate::{
-    KeyValueStore, TableOnMemory,
+    KeyValueStore,
     spatial_id::{
         ToFlexId,
         collection::{
@@ -19,8 +19,6 @@ use crate::{
     },
 };
 
-//===========================================
-//ユーザーが実際に触るデフォルトの「Set」型
 #[derive(Default)]
 pub struct SetOnMemory(pub(crate) SetLogic<SetOnMemoryInner>);
 

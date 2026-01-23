@@ -1,4 +1,7 @@
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    ops::RangeInclusive,
+};
 
 use crate::{
     KeyValueStore, RangeId, SingleId,
@@ -15,7 +18,7 @@ use crate::{
 use std::fmt::Debug;
 
 #[derive(Default)]
-pub struct TableLogic<S: TableStorage + Collection>(S);
+pub struct TableLogic<S: TableStorage + Collection>(pub S);
 
 impl<S> TableLogic<S>
 where
@@ -89,23 +92,36 @@ where
 
     pub fn insert<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         for new_id in target.flex_ids() {
+            // 1. 衝突判定: 重なっている既存のIDを検出し、削除する
             let collisions = self.0.resolve_collisions(&new_id);
+
             for (removed_rank, fragments) in collisions {
-                if let Some(old_val_rank) = self.0.forward().get(&removed_rank) {
-                    if let Some(old_value) = self.0.dictionary().get(&old_val_rank) {
-                        for frag in fragments {
-                            unsafe { self.join_insert_unchecked(&frag, &old_value) };
-                        }
+                // 2. 削除されたIDが持っていた「元の値」を取得
+                let old_value_opt = self
+                    .0
+                    .forward()
+                    .get(&removed_rank)
+                    .and_then(|val_rank| self.0.dictionary().get(&val_rank));
+
+                // 3. 【重要】Forwardテーブルからの削除を「再挿入の前」に行う
+                // これを後に回すと、fragmentsの再挿入で同じrankが再利用された場合に
+                // 新しいデータを消してしまうバグになります。
+                let mut batch = Batch::new();
+                batch.delete(removed_rank);
+                self.0.forward_mut().apply_batch(batch);
+
+                // 4. 衝突して削られた「断片」があれば、元の値を引き継いで再挿入する
+                if let Some(old_value) = old_value_opt {
+                    for frag in fragments {
+                        unsafe { self.join_insert_unchecked(&frag, &old_value) };
                     }
-                    let mut batch = Batch::new();
-                    batch.delete(removed_rank);
-                    self.0.forward_mut().apply_batch(batch);
                 }
             }
+
+            // 5. 新しいIDを「新しい値」で挿入する
             unsafe { self.join_insert_unchecked(&new_id, value) };
         }
     }
-
     pub fn get<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
         for flex_id in target.flex_ids() {
@@ -117,6 +133,14 @@ where
             }
         }
         result
+    }
+
+    pub fn get_filter<I: ToFlexId>(
+        &mut self,
+        target: &I,
+        range: RangeInclusive<I>,
+    ) -> TableOnMemory<S::Value> {
+        todo!()
     }
 
     pub fn remove<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
@@ -134,25 +158,30 @@ where
         result
     }
 
+    pub fn remove_filter<I: ToFlexId>(
+        &mut self,
+        target: &I,
+        range: RangeInclusive<I>,
+    ) -> TableOnMemory<S::Value> {
+        todo!()
+    }
+
     ///重複確認なく挿入を行う
     /// 結合の最適化を行わないとEqなどが正常に動作しなくなる
     /// 結合最適化を行ったものを入れないと、ロジックが壊れる
     /// もしくは、明らかに結合不能なIDなど
     pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         let mut flex_id_ranks = Vec::new();
-        let mut main_batch = Batch::new();
         for flex_id in target.flex_ids() {
-            let rank = self.0.fetch_flex_rank();
-            main_batch.put(rank, flex_id);
+            let rank = self.0.insert_flex_id(&flex_id);
             flex_id_ranks.push(rank);
         }
-        self.0.main_mut().apply_batch(main_batch);
         self.0.insert_value(value, flex_id_ranks);
     }
 
     pub unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         for flex_id in target.flex_ids() {
-            // (Forward -> Dictionary を引いて値の実体を比較)
+            // クロージャ定義: 値の一致確認ロジック
             let is_same_value = |storage: &S, rank: &FlexIdRank| -> bool {
                 storage
                     .forward()
@@ -168,18 +197,20 @@ where
                 me.0.forward_mut().apply_batch(batch);
             };
 
+            // F方向の結合チェック
             if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id) {
                 if is_same_value(&self.0, &sibling_rank) {
-                    // ID実体を取得して親を計算 (remove前に取得必須)
                     let sibling_id = self.0.get_flex_id(sibling_rank).unwrap().clone();
                     if let Some(parent) = sibling_id.f_parent() {
                         remove_sibling(self, sibling_rank);
+                        // 再帰呼び出し
                         unsafe { self.join_insert_unchecked(&parent, value) };
                         continue;
                     }
                 }
             }
 
+            // X方向の結合チェック
             if let Some(sibling_rank) = self.0.get_x_sibling_flex_id(&flex_id) {
                 if is_same_value(&self.0, &sibling_rank) {
                     let sibling_id = self.0.get_flex_id(sibling_rank).unwrap().clone();
@@ -191,6 +222,7 @@ where
                 }
             }
 
+            // Y方向の結合チェック
             if let Some(sibling_rank) = self.0.get_y_sibling_flex_id(&flex_id) {
                 if is_same_value(&self.0, &sibling_rank) {
                     let sibling_id = self.0.get_flex_id(sibling_rank).unwrap().clone();
@@ -202,11 +234,9 @@ where
                 }
             }
 
-            let new_rank = self.0.fetch_flex_rank();
-            let mut main_batch = Batch::new();
-            main_batch.put(new_rank, flex_id);
-            self.0.main_mut().apply_batch(main_batch);
-            self.0.insert_value(value, vec![new_rank]);
+            // 結合できなかった場合（Base Case）
+            // 最終的に insert_unchecked を呼んで挿入する
+            unsafe { self.insert_unchecked(&flex_id, value) };
         }
     }
 }

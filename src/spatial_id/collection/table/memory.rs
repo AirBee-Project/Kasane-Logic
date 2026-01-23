@@ -16,7 +16,8 @@ use crate::spatial_id::{
     segment::Segment,
 };
 
-pub struct TableOnMemory<V>(TableLogic<TableOnMemoryInner<V>>)
+#[derive(Debug)]
+pub struct TableOnMemory<V>(pub TableLogic<TableOnMemoryInner<V>>)
 where
     V: Clone + PartialEq + Ord;
 
@@ -57,18 +58,19 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct TableOnMemoryInner<V> {
-    f: BTreeMap<Segment, RoaringTreemap>,
-    x: BTreeMap<Segment, RoaringTreemap>,
-    y: BTreeMap<Segment, RoaringTreemap>,
-    main: BTreeMap<FlexIdRank, FlexId>,
-    forward: BTreeMap<FlexIdRank, ValueRank>,
-    dictionary: BTreeMap<ValueRank, V>,
-    reserve: BTreeMap<V, ValueRank>,
-    flex_id_next_rank: u64,
-    flex_id_recycled_ranks: Vec<u64>,
-    value_next_rank: u64,
-    value_recycled_ranks: Vec<u64>,
+    pub f: BTreeMap<Segment, RoaringTreemap>,
+    pub x: BTreeMap<Segment, RoaringTreemap>,
+    pub y: BTreeMap<Segment, RoaringTreemap>,
+    pub main: BTreeMap<FlexIdRank, FlexId>,
+    pub forward: BTreeMap<FlexIdRank, ValueRank>,
+    pub dictionary: BTreeMap<ValueRank, V>,
+    pub reserve: BTreeMap<V, ValueRank>,
+    pub flex_id_next_rank: u64,
+    pub flex_id_recycled_ranks: Vec<u64>,
+    pub value_next_rank: u64,
+    pub value_recycled_ranks: Vec<u64>,
 }
 
 impl<V> Default for TableOnMemoryInner<V> {
@@ -207,15 +209,6 @@ where
 impl<V> Display for TableOnMemory<V>
 where
     V: Clone + PartialEq + Ord + Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl<V> Debug for TableOnMemory<V>
-where
-    V: Clone + PartialEq + Ord + Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
