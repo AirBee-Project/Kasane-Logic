@@ -9,7 +9,7 @@ use crate::spatial_id::{ToFlexId, segment::Segment};
 /// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
 ///
 ///
-/// ```
+/// ```ignore
 /// pub struct RangeId {
 ///     f: Segment,
 ///     x: Segment,
@@ -236,6 +236,7 @@ impl From<FlexId>
         [u8; Segment::ARRAY_LENGTH],
     )
 {
+    ///
     fn from(value: FlexId) -> Self {
         (value.f.into(), value.x.into(), value.y.into())
     }
