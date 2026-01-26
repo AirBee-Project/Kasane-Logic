@@ -6,5 +6,5 @@ fn main() {
     table.insert(&id, &"neko".to_string());
     table.insert(&id, &"inu".to_string());
 
-    println!("{}", table);
+    println!("{}", table.to_set());
 }

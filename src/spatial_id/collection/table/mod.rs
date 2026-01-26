@@ -1,5 +1,6 @@
 pub mod logic;
 pub mod memory;
+pub mod tests;
 
 use crate::storage::Batch;
 use crate::{

@@ -1,9 +1,5 @@
 use std::collections::HashSet;
 
-use proptest::prelude::Strategy;
-#[cfg(any(test))]
-use proptest::proptest;
-
 #[cfg(any(test))]
 use crate::spatial_id::collection::set::memory::SetOnMemory;
 use crate::{
@@ -13,6 +9,7 @@ use crate::{
         set::{SetStorage, logic::SetLogic},
     },
 };
+use proptest::prelude::Strategy;
 
 pub mod difference;
 pub mod insert;

@@ -1,5 +1,6 @@
 use roaring::RoaringTreemap;
 
+use crate::SetOnMemory;
 use crate::spatial_id::{flex_id::FlexId, segment::Segment};
 use crate::storage::{Batch, KeyValueStore, OrderedKeyValueStore};
 
@@ -116,12 +117,9 @@ pub trait Collection {
 
     /// あるFlexIdとf方向で兄弟なFlexIdのRankを取得する
     fn get_f_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        // get() が Option<V> を返すので ? でチェーンできる
         let f_ranks = self.f().get(&target.as_f().sibling())?;
         let x_ranks = self.x().get(target.as_x())?;
         let y_ranks = self.y().get(target.as_y())?;
-
-        // RoaringTreemap同士の積集合
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
     }
@@ -188,5 +186,13 @@ pub trait Collection {
 
         let intersection = f_related & x_related & y_related;
         intersection.into_iter().collect()
+    }
+
+    fn to_set(&self) -> SetOnMemory {
+        let mut set = SetOnMemory::default();
+        for flex_id in self.flex_ids() {
+            set.insert(&flex_id);
+        }
+        set
     }
 }

@@ -4,7 +4,7 @@ use std::fmt::{self, Display};
 use roaring::RoaringTreemap;
 
 use crate::spatial_id::collection::set::memory::{SetOnMemory, SetOnMemoryInner};
-use crate::spatial_id::collection::{Collection, FlexIdRank, set};
+use crate::spatial_id::collection::{Collection, FlexIdRank};
 use crate::spatial_id::flex_id::FlexId;
 use crate::spatial_id::segment::Segment;
 use crate::spatial_id::{ToFlexId, collection::set::SetStorage};
