@@ -111,7 +111,7 @@ impl FlexId {
         })
     }
 
-    /// [FlexId]から[FlexId]を引き、残った[Vec<FlexId>]を返す。
+    /// [FlexId]から[FlexId]を引き、残った[FlexId]の集合を返す。
     pub(crate) fn difference(&self, other: &FlexId) -> Vec<FlexId> {
         let intersection = match self.intersection(other) {
             Some(i) => i,
@@ -165,7 +165,7 @@ impl FlexId {
             && self.as_y().relation(other.as_y()) != SegmentRelation::Descendant
     }
 
-    ///Fセグメントを親インデックスにした[FlexId]を返す。
+    ///Fセグメントを親セグメントにした[FlexId]を返す。
     pub(crate) fn f_parent(&self) -> Option<FlexId> {
         Some(FlexId::new(
             self.as_f().parent()?,
@@ -174,7 +174,7 @@ impl FlexId {
         ))
     }
 
-    ///Xセグメントを親インデックスにした[FlexId]を返す。
+    ///Xセグメントを親セグメントにした[FlexId]を返す。
     pub(crate) fn x_parent(&self) -> Option<FlexId> {
         Some(FlexId::new(
             self.as_f().clone(),
@@ -183,7 +183,7 @@ impl FlexId {
         ))
     }
 
-    ///Yセグメントを親インデックスにした[FlexId]を返す。
+    ///Yセグメントを親セグメントにした[FlexId]を返す。
     pub(crate) fn y_parent(&self) -> Option<FlexId> {
         Some(FlexId::new(
             self.as_f().clone(),

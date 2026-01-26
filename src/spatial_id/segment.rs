@@ -1,6 +1,7 @@
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use std::fmt::{self, Display};
 
+///Segmentを`V-Bit`を用いて表す。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Segment([u8; Segment::ARRAY_LENGTH]);
 
@@ -15,15 +16,23 @@ pub enum Bit {
 /// 2つのセグメントの位置関係
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SegmentRelation {
+    ///等価なセグメント。
     Equal,
+
+    ///上位セグメント。
     Ancestor,
+
+    ///下位セグメント。
     Descendant,
+
+    ///関連のないセグメント。
     Disjoint,
 }
 
 impl Segment {
     pub const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
 
+    ///XYのズームレベルとRangeから最適配置のセグメントを作成。
     pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment> {
         let [l, r] = range;
         SegmentIter {
@@ -34,6 +43,7 @@ impl Segment {
         .map(|(z, dim)| Segment::from_xy(z, dim as u32))
     }
 
+    ///FのズームレベルとRangeから最適配置のセグメントを作成。
     pub(crate) fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment> {
         let diff = 1i32 << z;
         let [l, r] = range;
@@ -48,6 +58,7 @@ impl Segment {
         })
     }
 
+    ///XYのズームレベルと値からセグメントを作成。
     pub(crate) fn from_xy(z: u8, mut dimension: u32) -> Self {
         let mut segment = Segment([0u8; Self::ARRAY_LENGTH]);
 
@@ -66,6 +77,7 @@ impl Segment {
         segment
     }
 
+    ///Fのズームレベルと値からセグメントを作成。
     pub(crate) fn from_f(z: u8, dimension: i32) -> Self {
         let is_negative = dimension.is_negative();
         let u_dim = if is_negative {
@@ -83,6 +95,7 @@ impl Segment {
         segment
     }
 
+    ///セグメントをズームレベルとインデックス値に変換する。
     pub(crate) fn to_xy(&self) -> (u8, u32) {
         let mut z: u8 = 0;
         let mut index = 0;
@@ -94,29 +107,24 @@ impl Segment {
 
                 match masked {
                     0b10 => {
-                        // Zero (0)
                         index = index * 2;
                         z += 1;
                     }
                     0b11 => {
-                        // One (1)
                         index = index * 2 + 1;
                         z += 1;
                     }
-                    _ => break 'outer, // 00 (End)
+                    _ => break 'outer,
                 }
             }
         }
-        // z=0 (ルート) 分を引く
         let final_z = if z > 0 { z - 1 } else { 0 };
         (final_z, index)
     }
 
-    /// 情報を復元する (F次元用) -> (z, dimension)
+    ///セグメントをズームレベルとインデックス値に変換する。
     pub(crate) fn to_f(&self) -> (u8, i32) {
         let is_negative = self.top_bit_pair() == Bit::One;
-
-        // 符号ビットを除外して計算するためにクローンして上書き
         let mut temp = self.clone();
         temp.clear_bit_pair(0);
         temp.set_bit_pair(0, Bit::Zero);
@@ -131,6 +139,7 @@ impl Segment {
         (z, dim)
     }
 
+    ///セグメント同士の関連を把握する。
     pub(crate) fn relation(&self, other: &Self) -> SegmentRelation {
         for (b1, b2) in self.0.iter().zip(other.0.iter()) {
             if b1 == b2 {
@@ -156,6 +165,7 @@ impl Segment {
         SegmentRelation::Equal
     }
 
+    ///兄弟セグメントを求める。
     pub(crate) fn sibling(&self) -> Self {
         let mut out = self.clone();
         for byte_index in (0..out.0.len()).rev() {
@@ -211,6 +221,8 @@ impl Segment {
         }
         None
     }
+
+    ///下位セグメントを検索する場合の検索範囲の右点を返す。
     pub(crate) fn descendant_range_end(&self) -> Option<Self> {
         let mut end_segment = self.clone();
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
@@ -225,12 +237,10 @@ impl Segment {
             match pair {
                 0b00 => continue,
                 0b10 => {
-                    // 0 -> 1 にして返す
                     end_segment.set_bit_pair(z, Bit::One);
                     return Some(end_segment);
                 }
                 0b11 => {
-                    // 1 -> 0 にして上位へ
                     end_segment.clear_bit_pair(z);
                 }
                 _ => unreachable!(),
@@ -239,6 +249,7 @@ impl Segment {
         None
     }
 
+    ///セグメントからセグメントを引く。
     pub(crate) fn difference(&self, other: &Self) -> Vec<Segment> {
         if self == other {
             return vec![];
@@ -255,6 +266,7 @@ impl Segment {
         results
     }
 
+    ///ある階層のBitPairを設定する。
     fn set_bit_pair(&mut self, z: u8, bit: Bit) {
         let byte_index = (z / 4) as usize;
         let bit_index = (z % 4) * 2;
@@ -265,6 +277,7 @@ impl Segment {
         self.0[byte_index] |= new_bits;
     }
 
+    ///ある階層のBitPairを`00`に置換する。
     fn clear_bit_pair(&mut self, z: u8) {
         let byte_index = (z / 4) as usize;
         let bit_index = (z % 4) * 2;
@@ -272,6 +285,7 @@ impl Segment {
         self.0[byte_index] &= mask;
     }
 
+    ///一番上位の階層の分割Bitが`0`か`1`かを返す。
     fn top_bit_pair(&self) -> Bit {
         match self.0[0] & 0b11000000 {
             0b10000000 => Bit::Zero,
