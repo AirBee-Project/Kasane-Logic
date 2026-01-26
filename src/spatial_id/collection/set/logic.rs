@@ -19,13 +19,12 @@ impl<S> SetLogic<S>
 where
     S: SetStorage + Collection + Default,
 {
-    ///SetStorageが実装された型を開いて、操作可能な状態にする
+    ///[SetStorage]が実装された型を開いて、操作可能な状態にする。
     pub fn open(set_storage: S) -> Self {
         Self(set_storage)
     }
 
-    ///SetStorageが実装された型を読み込んで、コピーのSetOnMemoryを作成する
-    ///大量のReadが発生する可能性があるため、注意して使用せよ
+    ///[SetStorage]が実装された型を読み込んで、コピーの[SetOnMemory]を作成する。
     pub fn load(set_storage: &S) -> SetOnMemory
     where
         S: SetStorage + Collection,
@@ -53,35 +52,39 @@ where
         SetOnMemory(SetLogic::open(inner))
     }
 
-    ///SetStorageが実装された型を外に出す
+    ///[SetStorage]が実装された型を外に出す。
     pub fn close(self) -> S {
         self.0
     }
 
-    ///内部にあるFlexIdの個数を返す
+    ///内部にある[FlexId]の個数を返す。
     pub fn size(&self) -> usize {
         self.0.main().len()
     }
 
+    /// 内部にある[FlexId]がないことを判定する。
     pub fn is_empty(&self) -> bool {
         self.size() == 0
     }
 
-    ///内部にあるIDを全てRangeIdとして返す
+    ///内部にあるIDを全て[RangeId]として返す。
     pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
         self.0.flex_ids().map(|flex_id| flex_id.range_id())
     }
 
+    ///内部にあるIDを全て[SingleId]として返す。
     pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
         self.0
             .flex_ids()
             .flat_map(|flex_id| flex_id.range_id().single_ids().collect::<Vec<_>>())
     }
 
+    ///内部にあるIDを全て[FlexId]として返す。
     pub(crate) fn flex_ids(&self) -> Box<dyn Iterator<Item = FlexId> + '_> {
         self.0.flex_ids()
     }
 
+    ///内部にある[FlexId]のうち、最も大きなズームレベルの値を返す。
     pub fn max_z(&self) -> u8 {
         let find_max_z_in_dim = |dim: &S::Dimension| -> u8 {
             dim.iter().map(|(seg, _)| seg.to_xy().0).max().unwrap_or(0)
@@ -101,14 +104,13 @@ where
         f_max.max(x_max).max(y_max)
     }
 
-    ///そのSetの中の最も細かい解像度に変換して出力
+    ///内部にあるIDを最も細かい[SingleId]として返す。
     pub fn flatten(&self) -> impl Iterator<Item = SingleId> + '_ {
         self.flatten_deep(0).unwrap()
     }
 
-    ///そのSetの中の最も細かい解像度に変換して出力
-    /// 元の情報だけを保ったままズームレベルだけを上げる
-    /// additional_depthにより、MAX_ZOOM_LEVELまでならさらに細かくできる
+    ///内部にあるIDを最も細かい[SingleId]として返す。
+    /// additional_depthにより、MAX_ZOOM_LEVELの範囲内でさらに細かくできる。
     pub fn flatten_deep(
         &self,
         additional_depth: u8,
@@ -132,8 +134,7 @@ where
             .flatten())
     }
 
-    ///重複の解消と結合の最適化を行う
-    /// 領域を挿入する。
+    /// [SingleId]や[RangeId]を集合に挿入する。
     pub fn insert<I: ToFlexId>(&mut self, target: &I) {
         for new_id in target.flex_ids() {
             let collisions = self.0.resolve_collisions(&new_id);
@@ -146,29 +147,23 @@ where
         }
     }
 
-    ///重複確認なく挿入を行う
-    /// 結合の最適化を行わないとEqなどが正常に動作しなくなる
-    /// 結合最適化を行ったものを入れないと、ロジックが壊れる
-    /// もしくは、明らかに結合不能なIDなど
+    /// [SingleId]や[RangeId]を重複確認と結合確認を行うことなく、集合に挿入する。
     pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
             self.0.insert_flex_id(&flex_id);
         }
     }
 
-    ///重複確認なく挿入を行う
-    ///結合の最適化を行う
+    /// [SingleId]や[RangeId]を重複確認を行うことなく、集合に挿入する。
     pub unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
             if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id) {
-                // get_flex_idは実体を返すので、参照のライフタイム問題はない
                 if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().f_parent() {
                     self.0.remove_flex_id(sibling_rank);
                     unsafe { self.join_insert_unchecked(&parent) };
                     continue;
                 }
             }
-
             if let Some(sibling_rank) = self.0.get_x_sibling_flex_id(&flex_id) {
                 if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().x_parent() {
                     self.0.remove_flex_id(sibling_rank);
@@ -176,7 +171,6 @@ where
                     continue;
                 }
             }
-
             if let Some(sibling_rank) = self.0.get_y_sibling_flex_id(&flex_id) {
                 if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().y_parent() {
                     self.0.remove_flex_id(sibling_rank);
@@ -188,7 +182,7 @@ where
         }
     }
 
-    ///FlexIdで指定した領域を取得し、削除した領域をSetOnMemoryとして返す
+    /// [SingleId]や[RangeId]で指定した領域を取得し、取得した領域を[SetOnMemory]として返す。
     pub fn get<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         for flex_id in target.flex_ids() {
@@ -202,7 +196,7 @@ where
         result
     }
 
-    ///FlexIdで指定した領域を削除し、削除した領域をSetOnMemoryとして返す
+    /// [SingleId]や[RangeId]で指定した領域を取得し、削除した領域を[SetOnMemory]として返す。
     pub fn remove<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         for flex_id in target.flex_ids() {
@@ -216,7 +210,7 @@ where
         result
     }
 
-    ///2つのSetの和集合のSetを作成する
+    ///2つの集合の和集合を[SetOnMemory]として返す。
     pub fn union(&self, other: &Self) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         let (base, merger) = if self.size() >= other.size() {
@@ -233,7 +227,7 @@ where
         result
     }
 
-    ///2つのSetの積集合のSetを作成する
+    ///2つの集合の積集合を[SetOnMemory]として返す。
     pub fn intersection(&self, other: &Self) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         let (scanner, searcher) = if self.size() < other.size() {
@@ -256,6 +250,8 @@ where
 
         result
     }
+
+    ///2つの集合の差集合を[SetOnMemory]として返す。
     pub fn difference(&self, other: &Self) -> SetOnMemory {
         if other.is_empty() {
             return Self::load(&self.0);
@@ -299,13 +295,11 @@ where
         result
     }
 
-    ///二つのSetの表す空間的な範囲が等しいかどうかを見る
-    /// コストはそこそこ高い
+    ///2つの集合が等しいかを判定する。
     pub fn equal(&self, other: &Self) -> bool {
         if self.size() != other.size() {
             return false;
         }
-        // 実体を返すようになったので Vec<FlexId> になる
         let mut self_ids: Vec<FlexId> = self.flex_ids().collect();
         let mut other_ids: Vec<FlexId> = other.flex_ids().collect();
         self_ids.sort();
@@ -313,8 +307,7 @@ where
         self_ids == other_ids
     }
 
-    ///全てのFlexIdをSingleIdに変換して、2つのSetの中身が完全に一致することを検証します。
-    ///主にテスト用です。重いのでプロダクションでは使用しないでください。
+    ///全てのFlexIdをSingleIdに変換して、2つのSetの中身が完全に一致することを検証する。
     #[cfg(debug_assertions)]
     pub fn verification_eq(&self, other: &Self) -> bool {
         use crate::SingleId;
