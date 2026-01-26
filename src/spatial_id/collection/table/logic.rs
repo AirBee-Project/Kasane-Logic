@@ -1,7 +1,4 @@
-use std::{
-    fmt::{self, Display},
-    ops::RangeInclusive,
-};
+use std::fmt::{self, Display};
 
 use crate::{
     KeyValueStore, RangeId, SetOnMemory, SingleId,

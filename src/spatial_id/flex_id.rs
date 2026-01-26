@@ -1,6 +1,21 @@
 use crate::RangeId;
 use crate::spatial_id::segment::SegmentRelation;
 use crate::spatial_id::{ToFlexId, segment::Segment};
+
+///FlexIdは拡張空間IDを表す。
+///
+/// 各インデックスを[Segment]を用いて表すことで、各次元で独立のズームレベルを持つことが可能です。
+///
+/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
+///
+///
+/// ```
+/// pub struct RangeId {
+///     f: Segment,
+///     x: Segment,
+///     y: Segment,
+/// }
+/// ```
 #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub struct FlexId {
     f: Segment,
@@ -8,34 +23,44 @@ pub struct FlexId {
     y: Segment,
 }
 
-pub enum FlexIdRelation {
+/// [FlexId]同士の関係を表します。
+enum FlexIdRelation {
+    /// 重なりがない。
     Disjoint,
+
+    /// 重なりがある。
     Related,
 }
 
 impl FlexId {
-    pub fn new(f: Segment, x: Segment, y: Segment) -> FlexId {
+    /// 新しく[FlexId]を作成する。
+    pub(crate) fn new(f: Segment, x: Segment, y: Segment) -> FlexId {
         FlexId { f, x, y }
     }
 
-    pub fn range_id(&self) -> RangeId {
+    /// [FlexId]を[RangeId]に変換する。
+    pub(crate) fn range_id(&self) -> RangeId {
         self.clone().into()
     }
 
-    pub fn as_f(&self) -> &Segment {
+    /// Fインデックスのセグメントを参照する。
+    pub(crate) fn as_f(&self) -> &Segment {
         &self.f
     }
 
-    pub fn as_x(&self) -> &Segment {
+    /// Xインデックスのセグメントを参照する。
+    pub(crate) fn as_x(&self) -> &Segment {
         &self.x
     }
 
-    pub fn as_y(&self) -> &Segment {
+    /// Yインデックスのセグメントを参照する。
+    pub(crate) fn as_y(&self) -> &Segment {
         &self.y
     }
 
-    ///FlexId同士の関連を返す関数
-    pub fn relation(&self, other: &FlexId) -> FlexIdRelation {
+    ///[FlexId]同士の関連を[FlexIdRelation]として返す。
+    #[allow(dead_code)]
+    fn relation(&self, other: &FlexId) -> FlexIdRelation {
         let f_relation = self.as_f().relation(other.as_f());
         let x_relation = self.as_x().relation(other.as_x());
         let y_relation = self.as_y().relation(other.as_y());
@@ -50,7 +75,8 @@ impl FlexId {
         }
     }
 
-    pub fn intersection(&self, other: &FlexId) -> Option<FlexId> {
+    /// [FlexId]同士の重なり合っている部分を返す。
+    pub(crate) fn intersection(&self, other: &FlexId) -> Option<FlexId> {
         let f = match self.as_f().relation(other.as_f()) {
             SegmentRelation::Equal => self.as_f(),
             SegmentRelation::Ancestor => other.as_f(),
@@ -85,7 +111,8 @@ impl FlexId {
         })
     }
 
-    pub fn difference(&self, other: &FlexId) -> Vec<FlexId> {
+    /// [FlexId]から[FlexId]を引き、残った[Vec<FlexId>]を返す。
+    pub(crate) fn difference(&self, other: &FlexId) -> Vec<FlexId> {
         let intersection = match self.intersection(other) {
             Some(i) => i,
             None => return vec![self.clone()],
@@ -127,7 +154,9 @@ impl FlexId {
         result
     }
 
-    pub fn contains(&self, other: &FlexId) -> bool {
+    ///[FlexId]が相手のFlexIdを含むかどうかを判定する。
+    #[allow(dead_code)]
+    fn contains(&self, other: &FlexId) -> bool {
         self.as_f().relation(other.as_f()) != SegmentRelation::Disjoint
             && self.as_f().relation(other.as_f()) != SegmentRelation::Descendant
             && self.as_x().relation(other.as_x()) != SegmentRelation::Disjoint
@@ -136,8 +165,8 @@ impl FlexId {
             && self.as_y().relation(other.as_y()) != SegmentRelation::Descendant
     }
 
-    ///f方向の親FlexIdを作成する
-    pub fn f_parent(&self) -> Option<FlexId> {
+    ///Fセグメントを親インデックスにした[FlexId]を返す。
+    pub(crate) fn f_parent(&self) -> Option<FlexId> {
         Some(FlexId::new(
             self.as_f().parent()?,
             self.as_x().clone(),
@@ -145,8 +174,8 @@ impl FlexId {
         ))
     }
 
-    ///x方向の親FlexIdを作成する
-    pub fn x_parent(&self) -> Option<FlexId> {
+    ///Xセグメントを親インデックスにした[FlexId]を返す。
+    pub(crate) fn x_parent(&self) -> Option<FlexId> {
         Some(FlexId::new(
             self.as_f().clone(),
             self.as_x().parent()?,
@@ -154,8 +183,8 @@ impl FlexId {
         ))
     }
 
-    ///y方向の親FlexIdを作成する
-    pub fn y_parent(&self) -> Option<FlexId> {
+    ///Yセグメントを親インデックスにした[FlexId]を返す。
+    pub(crate) fn y_parent(&self) -> Option<FlexId> {
         Some(FlexId::new(
             self.as_f().clone(),
             self.as_x().clone(),
