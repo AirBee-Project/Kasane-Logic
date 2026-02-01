@@ -8,15 +8,17 @@ where
     K: Eq + Hash + Clone,
     V: Clone,
 {
-    fn get(&self, key: &K) -> Option<V> {
-        self.get(key).cloned()
+    type Accessor<'a> = &'a V where Self: 'a;
+
+    async fn get<'a>(&'a self, key: &K) -> Option<Self::Accessor<'a>> {
+        self.get(key)
     }
 
-    fn batch_get(&self, keys: &[K]) -> Vec<Option<V>> {
-        keys.iter().map(|key| self.get(key).cloned()).collect()
+    async fn batch_get<'a>(&'a self, keys: &[K]) -> Vec<Option<Self::Accessor<'a>>> {
+        keys.iter().map(|key| self.get(key)).collect()
     }
 
-    fn apply_batch(&mut self, batch: Batch<K, V>) {
+    async fn apply_batch(&mut self, batch: Batch<K, V>) {
         // メモリ実装なので、ループで適用
         for key in batch.deletes {
             self.remove(&key);

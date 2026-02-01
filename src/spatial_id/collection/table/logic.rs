@@ -83,67 +83,68 @@ where
     }
 
     ///値が
-    pub fn insert<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
+    pub async fn insert<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         for new_id in target.flex_ids() {
-            let collisions = self.0.resolve_collisions(&new_id);
+            let collisions = self.0.resolve_collisions(&new_id).await;
 
             for (removed_rank, fragments) in collisions {
-                let old_value_opt = self
-                    .0
-                    .forward()
-                    .get(&removed_rank)
-                    .and_then(|val_rank| self.0.dictionary().get(&val_rank));
+                let old_value_opt = if let Some(val_rank) = self.0.forward().get(&removed_rank).await {
+                    self.0.dictionary().get(&val_rank).await.map(|v| v.clone())
+                } else {
+                    None
+                };
 
                 let mut batch = Batch::new();
                 batch.delete(removed_rank);
-                self.0.forward_mut().apply_batch(batch);
+                self.0.forward_mut().apply_batch(batch).await;
 
                 if let Some(old_value) = old_value_opt {
                     for frag in fragments {
-                        unsafe { self.join_insert_unchecked(&frag, &old_value) };
+                        unsafe { self.join_insert_unchecked(&frag, &old_value).await };
                     }
                 }
             }
 
-            unsafe { self.join_insert_unchecked(&new_id, value) };
+            unsafe { self.join_insert_unchecked(&new_id, value).await };
         }
     }
 
-    pub fn get<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
+    pub async fn get<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
         for flex_id in target.flex_ids() {
-            for related_rank in self.0.related(&flex_id) {
-                let related_id = self.0.get_flex_id(related_rank).unwrap();
-                let value_rank = self.0.forward().get(&related_rank).unwrap();
-                let value = self.0.dictionary().get(&value_rank).unwrap();
-                result.insert(&flex_id.intersection(&related_id).unwrap(), &value);
+            for related_rank in self.0.related(&flex_id).await {
+                let related_id = self.0.get_flex_id(related_rank).await.unwrap();
+                let value_rank = self.0.forward().get(&related_rank).await.unwrap();
+                let value = self.0.dictionary().get(&value_rank).await.unwrap();
+                result.insert(&flex_id.intersection(&related_id).unwrap(), &value.clone()).await;
             }
         }
         result
     }
 
-    pub fn remove<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
+    pub async fn remove<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
         for flex_id in target.flex_ids() {
-            for related_rank in self.0.related(&flex_id) {
-                let related_id = self.0.get_flex_id(related_rank).unwrap();
-                let value_rank = self.0.forward().get(&related_rank).unwrap();
-                let value = self.0.dictionary().get(&value_rank).unwrap();
+            for related_rank in self.0.related(&flex_id).await {
+                let related_id = self.0.get_flex_id(related_rank).await.unwrap();
+                let value_rank = self.0.forward().get(&related_rank).await.unwrap();
+                let value = self.0.dictionary().get(&value_rank).await.unwrap();
                 for removed_flex_id in flex_id.difference(&related_id) {
-                    result.insert(&removed_flex_id, &value);
+                    result.insert(&removed_flex_id, &value.clone()).await;
                 }
             }
         }
         result
     }
 
-    pub fn get_by_value(&self, value: &S::Value) -> TableOnMemory<S::Value> {
+    pub async fn get_by_value(&self, value: &S::Value) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
-        if let Some(target_val_rank) = self.0.reverse().get(value) {
+        if let Some(target_val_rank) = self.0.reverse().get(value).await {
+            let target_val_rank = target_val_rank.clone();
             for (flex_id_rank, val_rank) in self.0.forward().iter() {
                 if val_rank == target_val_rank {
-                    if let Some(flex_id) = self.0.get_flex_id(flex_id_rank) {
-                        unsafe { result.insert_unchecked(&flex_id, value) };
+                    if let Some(flex_id) = self.0.get_flex_id(flex_id_rank).await {
+                        unsafe { result.insert_unchecked(&flex_id, value).await };
                     }
                 }
             }
@@ -151,27 +152,32 @@ where
         result
     }
 
-    pub fn remove_by_value(&mut self, value: &S::Value) -> TableOnMemory<S::Value> {
+    pub async fn remove_by_value(&mut self, value: &S::Value) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
 
-        if let Some(target_val_rank) = self.0.reverse().get(value) {
-            let mut remove_targets = Vec::new();
+        let target_val_rank = if let Some(rank) = self.0.reverse().get(value).await {
+            rank.clone()
+        } else {
+            return result;
+        };
 
-            for (flex_id_rank, val_rank) in self.0.forward().iter() {
-                if val_rank == target_val_rank {
-                    remove_targets.push(flex_id_rank);
-                }
-            }
+        let mut remove_targets = Vec::new();
 
-            for rank in remove_targets {
-                if let Some(flex_id) = self.0.remove_flex_id(rank) {
-                    let mut batch = Batch::new();
-                    batch.delete(rank);
-                    self.0.forward_mut().apply_batch(batch);
-                    unsafe { result.insert_unchecked(&flex_id, value) };
-                }
+        for (flex_id_rank, val_rank) in self.0.forward().iter() {
+            if val_rank == target_val_rank {
+                remove_targets.push(flex_id_rank);
             }
         }
+
+        for rank in remove_targets {
+            if let Some(flex_id) = self.0.remove_flex_id(rank).await {
+                let mut batch = Batch::new();
+                batch.delete(rank);
+                self.0.forward_mut().apply_batch(batch).await;
+                unsafe { result.insert_unchecked(&flex_id, value).await };
+            }
+        }
+
         result
     }
 
@@ -179,70 +185,100 @@ where
     /// 結合の最適化を行わないとEqなどが正常に動作しなくなる
     /// 結合最適化を行ったものを入れないと、ロジックが壊れる
     /// もしくは、明らかに結合不能なIDなど
-    pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
+    pub async unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         let mut flex_id_ranks = Vec::new();
         for flex_id in target.flex_ids() {
-            let rank = self.0.insert_flex_id(&flex_id);
+            let rank = self.0.insert_flex_id(&flex_id).await;
             flex_id_ranks.push(rank);
         }
-        self.0.insert_value(value, flex_id_ranks);
+        self.0.insert_value(value, flex_id_ranks).await;
     }
 
-    pub unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
+    pub async unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         for flex_id in target.flex_ids() {
-            let is_same_value = |storage: &S, rank: &FlexIdRank| -> bool {
-                storage
-                    .forward()
-                    .get(rank)
-                    .and_then(|val_rank| storage.dictionary().get(&val_rank))
-                    .map_or(false, |v| v == value.clone())
-            };
-
-            let remove_sibling = |me: &mut Self, rank: FlexIdRank| {
-                me.0.remove_flex_id(rank);
-                let mut batch = Batch::new();
-                batch.delete(rank);
-                me.0.forward_mut().apply_batch(batch);
-            };
-
             // F方向の結合チェック
-            if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id) {
-                if is_same_value(&self.0, &sibling_rank) {
-                    let sibling_id = self.0.get_flex_id(sibling_rank).unwrap().clone();
+            if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id).await {
+                // Check if values are the same
+                let is_same = if let Some(val_rank) = self.0.forward().get(&sibling_rank).await {
+                    if let Some(v) = self.0.dictionary().get(&val_rank).await {
+                        *v == *value
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_same {
+                    let sibling_id = self.0.get_flex_id(sibling_rank).await.unwrap().clone();
                     if let Some(parent) = sibling_id.f_parent() {
-                        remove_sibling(self, sibling_rank);
-                        // 再帰呼び出し
-                        unsafe { self.join_insert_unchecked(&parent, value) };
+                        // Remove sibling
+                        self.0.remove_flex_id(sibling_rank).await;
+                        let mut batch = Batch::new();
+                        batch.delete(sibling_rank);
+                        self.0.forward_mut().apply_batch(batch).await;
+                        // Recursive call
+                        unsafe { self.join_insert_unchecked(&parent, value).await };
                         continue;
                     }
                 }
             }
 
             // X方向の結合チェック
-            if let Some(sibling_rank) = self.0.get_x_sibling_flex_id(&flex_id) {
-                if is_same_value(&self.0, &sibling_rank) {
-                    let sibling_id = self.0.get_flex_id(sibling_rank).unwrap().clone();
+            if let Some(sibling_rank) = self.0.get_x_sibling_flex_id(&flex_id).await {
+                // Check if values are the same
+                let is_same = if let Some(val_rank) = self.0.forward().get(&sibling_rank).await {
+                    if let Some(v) = self.0.dictionary().get(&val_rank).await {
+                        *v == *value
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_same {
+                    let sibling_id = self.0.get_flex_id(sibling_rank).await.unwrap().clone();
                     if let Some(parent) = sibling_id.x_parent() {
-                        remove_sibling(self, sibling_rank);
-                        unsafe { self.join_insert_unchecked(&parent, value) };
+                        // Remove sibling
+                        self.0.remove_flex_id(sibling_rank).await;
+                        let mut batch = Batch::new();
+                        batch.delete(sibling_rank);
+                        self.0.forward_mut().apply_batch(batch).await;
+                        unsafe { self.join_insert_unchecked(&parent, value).await };
                         continue;
                     }
                 }
             }
 
             // Y方向の結合チェック
-            if let Some(sibling_rank) = self.0.get_y_sibling_flex_id(&flex_id) {
-                if is_same_value(&self.0, &sibling_rank) {
-                    let sibling_id = self.0.get_flex_id(sibling_rank).unwrap().clone();
+            if let Some(sibling_rank) = self.0.get_y_sibling_flex_id(&flex_id).await {
+                // Check if values are the same
+                let is_same = if let Some(val_rank) = self.0.forward().get(&sibling_rank).await {
+                    if let Some(v) = self.0.dictionary().get(&val_rank).await {
+                        *v == *value
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_same {
+                    let sibling_id = self.0.get_flex_id(sibling_rank).await.unwrap().clone();
                     if let Some(parent) = sibling_id.y_parent() {
-                        remove_sibling(self, sibling_rank);
-                        unsafe { self.join_insert_unchecked(&parent, value) };
+                        // Remove sibling
+                        self.0.remove_flex_id(sibling_rank).await;
+                        let mut batch = Batch::new();
+                        batch.delete(sibling_rank);
+                        self.0.forward_mut().apply_batch(batch).await;
+                        unsafe { self.join_insert_unchecked(&parent, value).await };
                         continue;
                     }
                 }
             }
 
-            unsafe { self.insert_unchecked(&flex_id, value) };
+            unsafe { self.insert_unchecked(&flex_id, value).await };
         }
     }
 

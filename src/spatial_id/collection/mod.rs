@@ -37,30 +37,61 @@ pub trait Collection {
     fn move_flex_rank_free_list(&self) -> Vec<u64>;
 
     /// FlexIdRankに割り当てられていたFlexIdを削除し、そのFlexIdを返す
-    fn remove_flex_id(&mut self, rank: FlexIdRank) -> Option<FlexId> {
-        let flex_id = self.main().get(&rank)?;
+    async fn remove_flex_id(&mut self, rank: FlexIdRank) -> Option<FlexId> {
+        let flex_id = self.main().get(&rank).await?.clone();
 
         let mut main_batch = Batch::new();
         main_batch.delete(rank);
 
-        let update_dim = |store: &mut Self::Dimension, seg: &Segment| {
+        // Update F dimension
+        {
+            let seg = flex_id.as_f();
             let mut batch = Batch::new();
-            if let Some(mut bitmap) = store.get(seg) {
-                let changed = bitmap.remove(rank);
-                if bitmap.is_empty() {
+            if let Some(bitmap) = self.f().get(seg).await {
+                let mut bitmap_owned = bitmap.clone();
+                let changed = bitmap_owned.remove(rank);
+                if bitmap_owned.is_empty() {
                     batch.delete(seg.clone());
                 } else if changed {
-                    batch.put(seg.clone(), bitmap);
+                    batch.put(seg.clone(), bitmap_owned);
                 }
             }
-            store.apply_batch(batch);
-        };
+            self.f_mut().apply_batch(batch).await;
+        }
 
-        update_dim(self.f_mut(), flex_id.as_f());
-        update_dim(self.x_mut(), flex_id.as_x());
-        update_dim(self.y_mut(), flex_id.as_y());
+        // Update X dimension
+        {
+            let seg = flex_id.as_x();
+            let mut batch = Batch::new();
+            if let Some(bitmap) = self.x().get(seg).await {
+                let mut bitmap_owned = bitmap.clone();
+                let changed = bitmap_owned.remove(rank);
+                if bitmap_owned.is_empty() {
+                    batch.delete(seg.clone());
+                } else if changed {
+                    batch.put(seg.clone(), bitmap_owned);
+                }
+            }
+            self.x_mut().apply_batch(batch).await;
+        }
 
-        self.main_mut().apply_batch(main_batch);
+        // Update Y dimension
+        {
+            let seg = flex_id.as_y();
+            let mut batch = Batch::new();
+            if let Some(bitmap) = self.y().get(seg).await {
+                let mut bitmap_owned = bitmap.clone();
+                let changed = bitmap_owned.remove(rank);
+                if bitmap_owned.is_empty() {
+                    batch.delete(seg.clone());
+                } else if changed {
+                    batch.put(seg.clone(), bitmap_owned);
+                }
+            }
+            self.y_mut().apply_batch(batch).await;
+        }
+
+        self.main_mut().apply_batch(main_batch).await;
 
         self.return_flex_rank(rank);
         Some(flex_id)
@@ -68,16 +99,16 @@ pub trait Collection {
 
     /// ターゲットとなるFlexIdと空間的に重複する既存のIDを検出し、削除する。
     /// 戻り値として、「削除されたIDのRank」と「そのIDから生成された破片(Fragments)」のリストを返す。
-    fn resolve_collisions(&mut self, target: &FlexId) -> Vec<(FlexIdRank, Vec<FlexId>)> {
+    async fn resolve_collisions(&mut self, target: &FlexId) -> Vec<(FlexIdRank, Vec<FlexId>)> {
         let mut collisions = Vec::new();
-        let related_ranks: Vec<FlexIdRank> = self.related(target).into_iter().collect();
+        let related_ranks: Vec<FlexIdRank> = self.related(target).await.into_iter().collect();
 
         for rank in related_ranks {
-            if let Some(existing_id) = self.get_flex_id(rank) {
+            if let Some(existing_id) = self.get_flex_id(rank).await {
                 if target.intersection(&existing_id).is_some() {
                     let existing_backup = existing_id.clone();
                     // 既存のIDを削除
-                    self.remove_flex_id(rank);
+                    self.remove_flex_id(rank).await;
                     // 削られた断片を計算
                     let fragments = existing_backup.difference(target);
 
@@ -88,59 +119,80 @@ pub trait Collection {
         collisions
     }
     /// FlexIdを挿入し、割り当てられたFlexIdRankを返す
-    fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
+    async fn insert_flex_id(&mut self, target: &FlexId) -> FlexIdRank {
         let rank = self.fetch_flex_rank();
 
-        let update_dim = |store: &mut Self::Dimension, seg: Segment| {
+        // Update F dimension
+        {
+            let seg = target.as_f().clone();
             let mut batch = Batch::new();
-            let mut bitmap = store.get(&seg).unwrap_or_else(RoaringTreemap::new);
-            bitmap.insert(rank);
-            batch.put(seg, bitmap);
-            store.apply_batch(batch);
-        };
+            let bitmap = self.f().get(&seg).await;
+            let mut bitmap_owned = bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new);
+            bitmap_owned.insert(rank);
+            batch.put(seg, bitmap_owned);
+            self.f_mut().apply_batch(batch).await;
+        }
 
-        update_dim(self.f_mut(), target.as_f().clone());
-        update_dim(self.x_mut(), target.as_x().clone());
-        update_dim(self.y_mut(), target.as_y().clone());
+        // Update X dimension
+        {
+            let seg = target.as_x().clone();
+            let mut batch = Batch::new();
+            let bitmap = self.x().get(&seg).await;
+            let mut bitmap_owned = bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new);
+            bitmap_owned.insert(rank);
+            batch.put(seg, bitmap_owned);
+            self.x_mut().apply_batch(batch).await;
+        }
+
+        // Update Y dimension
+        {
+            let seg = target.as_y().clone();
+            let mut batch = Batch::new();
+            let bitmap = self.y().get(&seg).await;
+            let mut bitmap_owned = bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new);
+            bitmap_owned.insert(rank);
+            batch.put(seg, bitmap_owned);
+            self.y_mut().apply_batch(batch).await;
+        }
 
         let mut main_batch = Batch::new();
         main_batch.put(rank, target.clone());
-        self.main_mut().apply_batch(main_batch);
+        self.main_mut().apply_batch(main_batch).await;
 
         rank
     }
 
     /// あるFlexIdRankの実体のFlexIdを参照する
-    fn get_flex_id(&self, flex_id_rank: FlexIdRank) -> Option<FlexId> {
-        self.main().get(&flex_id_rank)
+    async fn get_flex_id(&self, flex_id_rank: FlexIdRank) -> Option<FlexId> {
+        self.main().get(&flex_id_rank).await.map(|f| f.clone())
     }
 
     /// あるFlexIdとf方向で兄弟なFlexIdのRankを取得する
-    fn get_f_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(&target.as_f().sibling())?;
-        let x_ranks = self.x().get(target.as_x())?;
-        let y_ranks = self.y().get(target.as_y())?;
-        let intersection = f_ranks & x_ranks & y_ranks;
+    async fn get_f_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
+        let f_ranks = self.f().get(&target.as_f().sibling()).await?;
+        let x_ranks = self.x().get(target.as_x()).await?;
+        let y_ranks = self.y().get(target.as_y()).await?;
+        let intersection = &*f_ranks & &*x_ranks & &*y_ranks;
         intersection.iter().next()
     }
 
     /// あるFlexIdとx方向で兄弟なFlexIdのRankを取得する
-    fn get_x_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(target.as_f())?;
-        let x_ranks = self.x().get(&target.as_x().sibling())?;
-        let y_ranks = self.y().get(target.as_y())?;
+    async fn get_x_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
+        let f_ranks = self.f().get(target.as_f()).await?;
+        let x_ranks = self.x().get(&target.as_x().sibling()).await?;
+        let y_ranks = self.y().get(target.as_y()).await?;
 
-        let intersection = f_ranks & x_ranks & y_ranks;
+        let intersection = &*f_ranks & &*x_ranks & &*y_ranks;
         intersection.iter().next()
     }
 
     /// あるFlexIdとy方向で兄弟なFlexIdのRankを取得する
-    fn get_y_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(target.as_f())?;
-        let x_ranks = self.x().get(target.as_x())?;
-        let y_ranks = self.y().get(&target.as_y().sibling())?;
+    async fn get_y_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
+        let f_ranks = self.f().get(target.as_f()).await?;
+        let x_ranks = self.x().get(target.as_x()).await?;
+        let y_ranks = self.y().get(&target.as_y().sibling()).await?;
 
-        let intersection = f_ranks & x_ranks & y_ranks;
+        let intersection = &*f_ranks & &*x_ranks & &*y_ranks;
         intersection.iter().next()
     }
 
@@ -149,13 +201,13 @@ pub trait Collection {
     }
 
     /// あるFlexIdと関連のあるFlexIdRankを全て返す
-    fn related(&self, target: &FlexId) -> RoaringTreemap {
-        let get_related_segment = |store: &Self::Dimension, seg: &Segment| -> RoaringTreemap {
+    async fn related(&self, target: &FlexId) -> RoaringTreemap {
+        let get_related_segment = |store: &Self::Dimension, seg: &Segment| async {
             let mut bitmap = RoaringTreemap::new();
             let mut current = seg.parent();
             while let Some(parent) = current {
-                if let Some(ranks) = store.get(&parent) {
-                    bitmap |= ranks;
+                if let Some(ranks) = store.get(&parent).await {
+                    bitmap |= &*ranks;
                 }
                 current = parent.parent();
             }
@@ -180,9 +232,9 @@ pub trait Collection {
             bitmap
         };
 
-        let f_related = get_related_segment(self.f(), target.as_f());
-        let x_related = get_related_segment(self.x(), target.as_x());
-        let y_related = get_related_segment(self.y(), target.as_y());
+        let f_related = get_related_segment(self.f(), target.as_f()).await;
+        let x_related = get_related_segment(self.x(), target.as_x()).await;
+        let y_related = get_related_segment(self.y(), target.as_y()).await;
 
         let intersection = f_related & x_related & y_related;
         intersection.into_iter().collect()

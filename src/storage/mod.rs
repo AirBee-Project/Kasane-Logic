@@ -26,9 +26,12 @@ impl<K, V> Batch<K, V> {
 }
 
 pub trait KeyValueStore<K, V> {
-    fn get(&self, key: &K) -> Option<V>;
-    fn batch_get(&self, keys: &[K]) -> Vec<Option<V>>;
-    fn apply_batch(&mut self, batch: Batch<K, V>);
+    /// データへのアクセサ（OnMemoryなら&V, RedbならGuard, TiKVならV）
+    type Accessor<'a>: std::ops::Deref<Target = V> where Self: 'a;
+
+    async fn get<'a>(&'a self, key: &K) -> Option<Self::Accessor<'a>>;
+    async fn batch_get<'a>(&'a self, keys: &[K]) -> Vec<Option<Self::Accessor<'a>>>;
+    async fn apply_batch(&mut self, batch: Batch<K, V>);
     fn iter(&self) -> impl Iterator<Item = (K, V)>;
     fn len(&self) -> usize;
 }
