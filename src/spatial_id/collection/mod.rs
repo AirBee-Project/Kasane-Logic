@@ -45,8 +45,7 @@ pub trait Collection {
 
         let update_dim = |store: &mut Self::Dimension, seg: &Segment| {
             let mut batch = Batch::new();
-            if let Some(bitmap) = store.get(seg).map(|v| v.clone()) {
-                let mut bitmap = bitmap;
+            if let Some(mut bitmap) = store.get(seg).map(|v| v.clone()) {
                 let changed = bitmap.remove(rank);
                 if bitmap.is_empty() {
                     batch.delete(seg.clone());
@@ -161,6 +160,7 @@ pub trait Collection {
                 current = parent.parent();
             }
             let end = seg.descendant_range_end();
+            // Iterator returns (&Segment, Accessor<RoaringTreemap>)
             let iter = match end {
                 Some(end_segment) => {
                     if seg <= &end_segment {
@@ -175,7 +175,7 @@ pub trait Collection {
             };
 
             for (_, ranks) in iter {
-                bitmap |= (*ranks).clone();
+                bitmap |= ranks.clone();
             }
 
             bitmap
