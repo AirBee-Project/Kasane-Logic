@@ -5,7 +5,7 @@ use crate::{
     spatial_id::{
         ToFlexId,
         collection::{
-            Collection, FlexIdRank,
+            Collection, FlexIdRank, ValueRank,
             table::{self, TableStorage, memory::TableOnMemory},
         },
         flex_id::FlexId,
@@ -60,10 +60,14 @@ where
     }
 
     pub(crate) fn flex_ids_values(&self) -> Box<dyn Iterator<Item = (FlexId, S::Value)> + '_> {
-        Box::new(self.0.main().iter().filter_map(|(rank, flex_id)| {
-            let val_rank = self.0.forward().get(&rank)?;
-            let value = self.0.dictionary().get(&val_rank)?;
-            Some((flex_id.clone(), value))
+        // Collect forward and dictionary maps into Vecs to avoid async in iterator
+        let forward_map: std::collections::HashMap<FlexIdRank, ValueRank> = self.0.forward().iter().collect();
+        let dict_map: std::collections::HashMap<ValueRank, S::Value> = self.0.dictionary().iter().collect();
+        
+        Box::new(self.0.main().iter().filter_map(move |(rank, flex_id)| {
+            let val_rank = forward_map.get(&rank)?;
+            let value = dict_map.get(val_rank)?;
+            Some((flex_id.clone(), value.clone()))
         }))
     }
 
@@ -218,7 +222,7 @@ where
                         batch.delete(sibling_rank);
                         self.0.forward_mut().apply_batch(batch).await;
                         // Recursive call
-                        unsafe { self.join_insert_unchecked(&parent, value).await };
+                        unsafe { Box::pin(self.join_insert_unchecked(&parent, value)).await };
                         continue;
                     }
                 }
@@ -245,7 +249,7 @@ where
                         let mut batch = Batch::new();
                         batch.delete(sibling_rank);
                         self.0.forward_mut().apply_batch(batch).await;
-                        unsafe { self.join_insert_unchecked(&parent, value).await };
+                        unsafe { Box::pin(self.join_insert_unchecked(&parent, value)).await };
                         continue;
                     }
                 }
@@ -272,7 +276,7 @@ where
                         let mut batch = Batch::new();
                         batch.delete(sibling_rank);
                         self.0.forward_mut().apply_batch(batch).await;
-                        unsafe { self.join_insert_unchecked(&parent, value).await };
+                        unsafe { Box::pin(self.join_insert_unchecked(&parent, value)).await };
                         continue;
                     }
                 }

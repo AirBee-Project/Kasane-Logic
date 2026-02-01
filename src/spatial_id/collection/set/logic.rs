@@ -135,61 +135,61 @@ where
     }
 
     /// [SingleId]や[RangeId]を集合に挿入する。
-    pub fn insert<I: ToFlexId>(&mut self, target: &I) {
+    pub async fn insert<I: ToFlexId>(&mut self, target: &I) {
         for new_id in target.flex_ids() {
-            let collisions = self.0.resolve_collisions(&new_id);
+            let collisions = self.0.resolve_collisions(&new_id).await;
             for (_removed_rank, fragments) in collisions {
                 for frag in fragments {
-                    unsafe { self.join_insert_unchecked(&frag) };
+                    unsafe { self.join_insert_unchecked(&frag).await };
                 }
             }
-            unsafe { self.join_insert_unchecked(&new_id) };
+            unsafe { self.join_insert_unchecked(&new_id).await };
         }
     }
 
     /// [SingleId]や[RangeId]を重複確認と結合確認を行うことなく、集合に挿入する。
-    pub unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
+    pub async unsafe fn insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
-            self.0.insert_flex_id(&flex_id);
+            self.0.insert_flex_id(&flex_id).await;
         }
     }
 
     /// [SingleId]や[RangeId]を重複確認を行うことなく、集合に挿入する。
-    pub unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
+    pub async unsafe fn join_insert_unchecked<I: ToFlexId>(&mut self, target: &I) {
         for flex_id in target.flex_ids() {
-            if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id) {
-                if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().f_parent() {
-                    self.0.remove_flex_id(sibling_rank);
-                    unsafe { self.join_insert_unchecked(&parent) };
+            if let Some(sibling_rank) = self.0.get_f_sibling_flex_id(&flex_id).await {
+                if let Some(parent) = self.0.get_flex_id(sibling_rank).await.unwrap().f_parent() {
+                    self.0.remove_flex_id(sibling_rank).await;
+                    unsafe { Box::pin(self.join_insert_unchecked(&parent)).await };
                     continue;
                 }
             }
-            if let Some(sibling_rank) = self.0.get_x_sibling_flex_id(&flex_id) {
-                if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().x_parent() {
-                    self.0.remove_flex_id(sibling_rank);
-                    unsafe { self.join_insert_unchecked(&parent) };
+            if let Some(sibling_rank) = self.0.get_x_sibling_flex_id(&flex_id).await {
+                if let Some(parent) = self.0.get_flex_id(sibling_rank).await.unwrap().x_parent() {
+                    self.0.remove_flex_id(sibling_rank).await;
+                    unsafe { Box::pin(self.join_insert_unchecked(&parent)).await };
                     continue;
                 }
             }
-            if let Some(sibling_rank) = self.0.get_y_sibling_flex_id(&flex_id) {
-                if let Some(parent) = self.0.get_flex_id(sibling_rank).unwrap().y_parent() {
-                    self.0.remove_flex_id(sibling_rank);
-                    unsafe { self.join_insert_unchecked(&parent) };
+            if let Some(sibling_rank) = self.0.get_y_sibling_flex_id(&flex_id).await {
+                if let Some(parent) = self.0.get_flex_id(sibling_rank).await.unwrap().y_parent() {
+                    self.0.remove_flex_id(sibling_rank).await;
+                    unsafe { Box::pin(self.join_insert_unchecked(&parent)).await };
                     continue;
                 }
             }
-            self.0.insert_flex_id(&flex_id);
+            self.0.insert_flex_id(&flex_id).await;
         }
     }
 
     /// [SingleId]や[RangeId]で指定した領域を取得し、取得した領域を[SetOnMemory]として返す。
-    pub fn get<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
+    pub async fn get<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         for flex_id in target.flex_ids() {
-            for related_rank in self.0.related(&flex_id) {
-                let related_id = self.0.get_flex_id(related_rank).unwrap();
+            for related_rank in self.0.related(&flex_id).await {
+                let related_id = self.0.get_flex_id(related_rank).await.unwrap();
                 unsafe {
-                    result.join_insert_unchecked(&flex_id.intersection(&related_id).unwrap())
+                    result.join_insert_unchecked(&flex_id.intersection(&related_id).unwrap()).await
                 };
             }
         }
@@ -197,13 +197,13 @@ where
     }
 
     /// [SingleId]や[RangeId]で指定した領域を取得し、削除した領域を[SetOnMemory]として返す。
-    pub fn remove<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
+    pub async fn remove<I: ToFlexId>(&mut self, target: &I) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         for flex_id in target.flex_ids() {
-            for related_rank in self.0.related(&flex_id) {
-                let related_id = self.0.get_flex_id(related_rank).unwrap();
+            for related_rank in self.0.related(&flex_id).await {
+                let related_id = self.0.get_flex_id(related_rank).await.unwrap();
                 for removed_flex_id in flex_id.difference(&related_id) {
-                    unsafe { result.join_insert_unchecked(&removed_flex_id) };
+                    unsafe { result.join_insert_unchecked(&removed_flex_id).await };
                 }
             }
         }
@@ -211,7 +211,7 @@ where
     }
 
     ///2つの集合の和集合を[SetOnMemory]として返す。
-    pub fn union(&self, other: &Self) -> SetOnMemory {
+    pub async fn union(&self, other: &Self) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         let (base, merger) = if self.size() >= other.size() {
             (self, other)
@@ -219,16 +219,16 @@ where
             (other, self)
         };
         for id in base.flex_ids() {
-            unsafe { result.join_insert_unchecked(&id) };
+            unsafe { result.join_insert_unchecked(&id).await };
         }
         for flex_id in merger.flex_ids() {
-            result.insert(&flex_id);
+            result.insert(&flex_id).await;
         }
         result
     }
 
     ///2つの集合の積集合を[SetOnMemory]として返す。
-    pub fn intersection(&self, other: &Self) -> SetOnMemory {
+    pub async fn intersection(&self, other: &Self) -> SetOnMemory {
         let mut result = SetOnMemory::default();
         let (scanner, searcher) = if self.size() < other.size() {
             (self, other)
@@ -237,12 +237,12 @@ where
         };
         for scan_id in scanner.flex_ids() {
             // Collectionのrelated
-            let related_ranks = searcher.0.related(&scan_id);
+            let related_ranks = searcher.0.related(&scan_id).await;
 
             for rank in related_ranks {
-                if let Some(searcher_id) = searcher.0.get_flex_id(rank) {
+                if let Some(searcher_id) = searcher.0.get_flex_id(rank).await {
                     if let Some(inter) = scan_id.intersection(&searcher_id) {
-                        unsafe { result.join_insert_unchecked(&inter) };
+                        unsafe { result.join_insert_unchecked(&inter).await };
                     }
                 }
             }
@@ -252,7 +252,7 @@ where
     }
 
     ///2つの集合の差集合を[SetOnMemory]として返す。
-    pub fn difference(&self, other: &Self) -> SetOnMemory {
+    pub async fn difference(&self, other: &Self) -> SetOnMemory {
         if other.is_empty() {
             return Self::load(&self.0);
         }
@@ -264,10 +264,10 @@ where
 
         for self_id in self.flex_ids() {
             let mut fragments = vec![self_id.clone()];
-            let related_ranks = other.0.related(&self_id);
+            let related_ranks = other.0.related(&self_id).await;
 
             for rank in related_ranks {
-                if let Some(other_id) = other.0.get_flex_id(rank) {
+                if let Some(other_id) = other.0.get_flex_id(rank).await {
                     let mut next_fragments = Vec::with_capacity(fragments.len());
 
                     for frag in fragments {
@@ -288,7 +288,7 @@ where
                 }
             }
             for frag in fragments {
-                unsafe { result.join_insert_unchecked(&frag) };
+                unsafe { result.join_insert_unchecked(&frag).await };
             }
         }
 

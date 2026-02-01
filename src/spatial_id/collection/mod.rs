@@ -126,8 +126,11 @@ pub trait Collection {
         {
             let seg = target.as_f().clone();
             let mut batch = Batch::new();
-            let bitmap = self.f().get(&seg).await;
-            let mut bitmap_owned = bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new);
+            let bitmap_owned = {
+                let bitmap = self.f().get(&seg).await;
+                bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new)
+            };
+            let mut bitmap_owned = bitmap_owned;
             bitmap_owned.insert(rank);
             batch.put(seg, bitmap_owned);
             self.f_mut().apply_batch(batch).await;
@@ -137,8 +140,11 @@ pub trait Collection {
         {
             let seg = target.as_x().clone();
             let mut batch = Batch::new();
-            let bitmap = self.x().get(&seg).await;
-            let mut bitmap_owned = bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new);
+            let bitmap_owned = {
+                let bitmap = self.x().get(&seg).await;
+                bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new)
+            };
+            let mut bitmap_owned = bitmap_owned;
             bitmap_owned.insert(rank);
             batch.put(seg, bitmap_owned);
             self.x_mut().apply_batch(batch).await;
@@ -148,8 +154,11 @@ pub trait Collection {
         {
             let seg = target.as_y().clone();
             let mut batch = Batch::new();
-            let bitmap = self.y().get(&seg).await;
-            let mut bitmap_owned = bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new);
+            let bitmap_owned = {
+                let bitmap = self.y().get(&seg).await;
+                bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new)
+            };
+            let mut bitmap_owned = bitmap_owned;
             bitmap_owned.insert(rank);
             batch.put(seg, bitmap_owned);
             self.y_mut().apply_batch(batch).await;
@@ -202,39 +211,80 @@ pub trait Collection {
 
     /// あるFlexIdと関連のあるFlexIdRankを全て返す
     async fn related(&self, target: &FlexId) -> RoaringTreemap {
-        let get_related_segment = |store: &Self::Dimension, seg: &Segment| async {
-            let mut bitmap = RoaringTreemap::new();
-            let mut current = seg.parent();
-            while let Some(parent) = current {
-                if let Some(ranks) = store.get(&parent).await {
-                    bitmap |= &*ranks;
-                }
-                current = parent.parent();
+        let mut f_related = RoaringTreemap::new();
+        let mut current = target.as_f().parent();
+        while let Some(parent) = current {
+            if let Some(ranks) = self.f().get(&parent).await {
+                f_related |= &*ranks;
             }
-            let end = seg.descendant_range_end();
-            let iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
-                Some(end_segment) => {
-                    if seg <= &end_segment {
-                        store.scan(seg..=&end_segment)
-                    } else {
-                        println!("{}", seg);
-                        println!("{}", end_segment);
-                        store.scan(seg..)
-                    }
+            current = parent.parent();
+        }
+        let end = target.as_f().descendant_range_end();
+        let f_iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
+            Some(end_segment) => {
+                if target.as_f() <= &end_segment {
+                    self.f().scan(target.as_f()..=&end_segment)
+                } else {
+                    println!("{}", target.as_f());
+                    println!("{}", end_segment);
+                    self.f().scan(target.as_f()..)
                 }
-                None => store.scan(seg..),
-            };
-
-            for (_, ranks) in iter {
-                bitmap |= ranks;
             }
-
-            bitmap
+            None => self.f().scan(target.as_f()..),
         };
+        for (_, ranks) in f_iter {
+            f_related |= ranks;
+        }
 
-        let f_related = get_related_segment(self.f(), target.as_f()).await;
-        let x_related = get_related_segment(self.x(), target.as_x()).await;
-        let y_related = get_related_segment(self.y(), target.as_y()).await;
+        let mut x_related = RoaringTreemap::new();
+        let mut current = target.as_x().parent();
+        while let Some(parent) = current {
+            if let Some(ranks) = self.x().get(&parent).await {
+                x_related |= &*ranks;
+            }
+            current = parent.parent();
+        }
+        let end = target.as_x().descendant_range_end();
+        let x_iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
+            Some(end_segment) => {
+                if target.as_x() <= &end_segment {
+                    self.x().scan(target.as_x()..=&end_segment)
+                } else {
+                    println!("{}", target.as_x());
+                    println!("{}", end_segment);
+                    self.x().scan(target.as_x()..)
+                }
+            }
+            None => self.x().scan(target.as_x()..),
+        };
+        for (_, ranks) in x_iter {
+            x_related |= ranks;
+        }
+
+        let mut y_related = RoaringTreemap::new();
+        let mut current = target.as_y().parent();
+        while let Some(parent) = current {
+            if let Some(ranks) = self.y().get(&parent).await {
+                y_related |= &*ranks;
+            }
+            current = parent.parent();
+        }
+        let end = target.as_y().descendant_range_end();
+        let y_iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
+            Some(end_segment) => {
+                if target.as_y() <= &end_segment {
+                    self.y().scan(target.as_y()..=&end_segment)
+                } else {
+                    println!("{}", target.as_y());
+                    println!("{}", end_segment);
+                    self.y().scan(target.as_y()..)
+                }
+            }
+            None => self.y().scan(target.as_y()..),
+        };
+        for (_, ranks) in y_iter {
+            y_related |= ranks;
+        }
 
         let intersection = f_related & x_related & y_related;
         intersection.into_iter().collect()
