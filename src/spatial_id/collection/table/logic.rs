@@ -60,7 +60,9 @@ where
     }
 
     pub(crate) fn flex_ids_values(&self) -> Box<dyn Iterator<Item = (FlexId, S::Value)> + '_> {
-        // Collect forward and dictionary maps into Vecs to avoid async in iterator
+        // Note: This collects all forward and dictionary entries into memory for iteration.
+        // This is a known trade-off to enable synchronous iteration over async storage.
+        // For large datasets, consider using async iteration patterns.
         let forward_map: std::collections::HashMap<FlexIdRank, ValueRank> = self.0.forward().iter().collect();
         let dict_map: std::collections::HashMap<ValueRank, S::Value> = self.0.dictionary().iter().collect();
         

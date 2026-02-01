@@ -126,11 +126,10 @@ pub trait Collection {
         {
             let seg = target.as_f().clone();
             let mut batch = Batch::new();
-            let bitmap_owned = {
+            let mut bitmap_owned = {
                 let bitmap = self.f().get(&seg).await;
                 bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new)
             };
-            let mut bitmap_owned = bitmap_owned;
             bitmap_owned.insert(rank);
             batch.put(seg, bitmap_owned);
             self.f_mut().apply_batch(batch).await;
@@ -140,11 +139,10 @@ pub trait Collection {
         {
             let seg = target.as_x().clone();
             let mut batch = Batch::new();
-            let bitmap_owned = {
+            let mut bitmap_owned = {
                 let bitmap = self.x().get(&seg).await;
                 bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new)
             };
-            let mut bitmap_owned = bitmap_owned;
             bitmap_owned.insert(rank);
             batch.put(seg, bitmap_owned);
             self.x_mut().apply_batch(batch).await;
@@ -154,11 +152,10 @@ pub trait Collection {
         {
             let seg = target.as_y().clone();
             let mut batch = Batch::new();
-            let bitmap_owned = {
+            let mut bitmap_owned = {
                 let bitmap = self.y().get(&seg).await;
                 bitmap.as_ref().map(|b| (**b).clone()).unwrap_or_else(RoaringTreemap::new)
             };
-            let mut bitmap_owned = bitmap_owned;
             bitmap_owned.insert(rank);
             batch.put(seg, bitmap_owned);
             self.y_mut().apply_batch(batch).await;
