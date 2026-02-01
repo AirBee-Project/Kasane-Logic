@@ -109,12 +109,6 @@ where
         }
     }
 
-    ///強制的に上書き
-    pub fn update<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
-        self.remove(target);
-        unsafe { self.join_insert_unchecked(target, value) };
-    }
-
     pub fn get<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
         for flex_id in target.flex_ids() {
