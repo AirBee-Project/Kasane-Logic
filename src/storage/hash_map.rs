@@ -8,12 +8,14 @@ where
     K: Eq + Hash + Clone,
     V: Clone,
 {
-    fn get(&self, key: &K) -> Option<V> {
-        self.get(key).cloned()
+    type Accessor<'a> = &'a V where Self: 'a;
+
+    fn get<'a>(&'a self, key: &K) -> Option<Self::Accessor<'a>> {
+        self.get(key)
     }
 
-    fn batch_get(&self, keys: &[K]) -> Vec<Option<V>> {
-        keys.iter().map(|key| self.get(key).cloned()).collect()
+    fn batch_get<'a>(&'a self, keys: &[K]) -> Vec<Option<Self::Accessor<'a>>> {
+        keys.iter().map(|key| self.get(key)).collect()
     }
 
     fn apply_batch(&mut self, batch: Batch<K, V>) {
@@ -26,8 +28,8 @@ where
         }
     }
 
-    fn iter(&self) -> impl Iterator<Item = (K, V)> {
-        Box::new(self.iter().map(|(k, v)| (k.clone(), v.clone())))
+    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (&'a K, Self::Accessor<'a>)> + 'a> {
+        Box::new(self.iter())
     }
 
     fn len(&self) -> usize {

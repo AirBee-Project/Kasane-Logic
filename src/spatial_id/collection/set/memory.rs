@@ -51,7 +51,7 @@ impl SetOnMemory {
         S: SetStorage + Collection,
     {
         let main: HashMap<FlexIdRank, FlexId> =
-            storage.main().iter().map(|(k, v)| (k, v.clone())).collect();
+            storage.main().iter().map(|(k, v)| (*k, v.clone())).collect();
 
         let flex_id_next_rank = storage.move_flex_rank();
 

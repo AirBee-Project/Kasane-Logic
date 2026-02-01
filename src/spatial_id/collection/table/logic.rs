@@ -63,7 +63,7 @@ where
         Box::new(self.0.main().iter().filter_map(|(rank, flex_id)| {
             let val_rank = self.0.forward().get(&rank)?;
             let value = self.0.dictionary().get(&val_rank)?;
-            Some((flex_id.clone(), value))
+            Some((flex_id.clone(), value.clone()))
         }))
     }
 
@@ -92,7 +92,8 @@ where
                     .0
                     .forward()
                     .get(&removed_rank)
-                    .and_then(|val_rank| self.0.dictionary().get(&val_rank));
+                    .and_then(|val_rank| self.0.dictionary().get(&val_rank))
+                    .map(|v| v.clone());
 
                 let mut batch = Batch::new();
                 batch.delete(removed_rank);
@@ -115,7 +116,7 @@ where
             for related_rank in self.0.related(&flex_id) {
                 let related_id = self.0.get_flex_id(related_rank).unwrap();
                 let value_rank = self.0.forward().get(&related_rank).unwrap();
-                let value = self.0.dictionary().get(&value_rank).unwrap();
+                let value = self.0.dictionary().get(&value_rank).unwrap().clone();
                 result.insert(&flex_id.intersection(&related_id).unwrap(), &value);
             }
         }
@@ -128,7 +129,7 @@ where
             for related_rank in self.0.related(&flex_id) {
                 let related_id = self.0.get_flex_id(related_rank).unwrap();
                 let value_rank = self.0.forward().get(&related_rank).unwrap();
-                let value = self.0.dictionary().get(&value_rank).unwrap();
+                let value = self.0.dictionary().get(&value_rank).unwrap().clone();
                 for removed_flex_id in flex_id.difference(&related_id) {
                     result.insert(&removed_flex_id, &value);
                 }
@@ -139,10 +140,10 @@ where
 
     pub fn get_by_value(&self, value: &S::Value) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
-        if let Some(target_val_rank) = self.0.reverse().get(value) {
+        if let Some(target_val_rank) = self.0.reverse().get(value).map(|v| *v) {
             for (flex_id_rank, val_rank) in self.0.forward().iter() {
-                if val_rank == target_val_rank {
-                    if let Some(flex_id) = self.0.get_flex_id(flex_id_rank) {
+                if *val_rank == target_val_rank {
+                    if let Some(flex_id) = self.0.get_flex_id(*flex_id_rank) {
                         unsafe { result.insert_unchecked(&flex_id, value) };
                     }
                 }
@@ -154,12 +155,12 @@ where
     pub fn remove_by_value(&mut self, value: &S::Value) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
 
-        if let Some(target_val_rank) = self.0.reverse().get(value) {
+        if let Some(target_val_rank) = self.0.reverse().get(value).map(|v| *v) {
             let mut remove_targets = Vec::new();
 
             for (flex_id_rank, val_rank) in self.0.forward().iter() {
-                if val_rank == target_val_rank {
-                    remove_targets.push(flex_id_rank);
+                if *val_rank == target_val_rank {
+                    remove_targets.push(*flex_id_rank);
                 }
             }
 
@@ -195,7 +196,7 @@ where
                     .forward()
                     .get(rank)
                     .and_then(|val_rank| storage.dictionary().get(&val_rank))
-                    .map_or(false, |v| v == value.clone())
+                    .map_or(false, |v| *v == value.clone())
             };
 
             let remove_sibling = |me: &mut Self, rank: FlexIdRank| {
