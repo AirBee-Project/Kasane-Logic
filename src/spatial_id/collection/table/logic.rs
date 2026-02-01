@@ -6,7 +6,7 @@ use crate::{
         ToFlexId,
         collection::{
             Collection, FlexIdRank, ValueRank,
-            table::{self, TableStorage, memory::TableOnMemory},
+            table::{TableStorage, memory::TableOnMemory},
         },
         flex_id::FlexId,
     },
