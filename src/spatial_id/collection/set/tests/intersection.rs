@@ -43,45 +43,53 @@ mod tests {
 
     #[test]
     fn test_intersection_two_sets() {
-        let set_a = set_a();
-        let set_b = set_b();
+        futures::executor::block_on(async {
+            let set_a = set_a().await;
+            let set_b = set_b().await;
 
-        let logic_result = set_a.intersection(&set_b);
+            let logic_result = set_a.intersection(&set_b).await;
 
-        assert_intersection_consistency(
-            &logic_result,
-            &[&set_a, &set_b],
-            "Manual intersection (A ∩ B) failed",
-        );
+            assert_intersection_consistency(
+                &logic_result,
+                &[&set_a, &set_b],
+                "Manual intersection (A ∩ B) failed",
+            );
+        });
     }
 
     #[test]
     fn test_intersection_three_sets() {
-        let set_a = set_a();
-        let set_b = set_b();
-        let set_c = set_c();
+        futures::executor::block_on(async {
+            let set_a = set_a().await;
+            let set_b = set_b().await;
+            let set_c = set_c().await;
 
-        // (A ∩ B) ∩ C
-        let logic_inter_ab = set_a.intersection(&set_b);
-        let logic_result = logic_inter_ab.intersection(&set_c);
+            // (A ∩ B) ∩ C
+            let logic_inter_ab = set_a.intersection(&set_b).await;
+            let logic_result = logic_inter_ab.intersection(&set_c).await;
 
-        assert_intersection_consistency(
-            &logic_result,
-            &[&set_a, &set_b, &set_c],
-            "Manual intersection (A ∩ B ∩ C) failed",
-        );
+            assert_intersection_consistency(
+                &logic_result,
+                &[&set_a, &set_b, &set_c],
+                "Manual intersection (A ∩ B ∩ C) failed",
+            );
+        });
     }
 
     #[test]
     fn reverse() {
-        // 結果が可換であることを確認する簡易テスト
-        let mut a_and_c: Vec<_> = set_a().intersection(&set_c()).single_ids().collect();
-        let mut c_and_a: Vec<_> = set_c().intersection(&set_a()).single_ids().collect();
+        futures::executor::block_on(async {
+            // 結果が可換であることを確認する簡易テスト
+            let set_a = set_a().await;
+            let set_c = set_c().await;
+            let mut a_and_c: Vec<_> = set_a.intersection(&set_c).await.single_ids().collect();
+            let mut c_and_a: Vec<_> = set_c.intersection(&set_a).await.single_ids().collect();
 
-        a_and_c.sort();
-        c_and_a.sort();
+            a_and_c.sort();
+            c_and_a.sort();
 
-        assert_eq!(a_and_c, c_and_a, "Intersection should be commutative")
+            assert_eq!(a_and_c, c_and_a, "Intersection should be commutative")
+        });
     }
 
     proptest! {
@@ -92,13 +100,15 @@ mod tests {
             set_a in arb_small_set(20),
             set_b in arb_small_set(20)
         ) {
-            let logic_result = set_a.intersection(&set_b);
+            futures::executor::block_on(async {
+                let logic_result = set_a.intersection(&set_b).await;
 
-            assert_intersection_consistency(
-                &logic_result,
-                &[&set_a, &set_b],
-                "Random intersection check failed"
-            );
+                assert_intersection_consistency(
+                    &logic_result,
+                    &[&set_a, &set_b],
+                    "Random intersection check failed"
+                );
+            });
         }
 
         #[test]
@@ -107,15 +117,17 @@ mod tests {
             set_b in arb_small_set(15),
             set_c in arb_small_set(15)
         ) {
-            // (A ∩ B) ∩ C
-            let inter_ab = set_a.intersection(&set_b);
-            let logic_result = inter_ab.intersection(&set_c);
+            futures::executor::block_on(async {
+                // (A ∩ B) ∩ C
+                let inter_ab = set_a.intersection(&set_b).await;
+                let logic_result = inter_ab.intersection(&set_c).await;
 
-            assert_intersection_consistency(
-                &logic_result,
-                &[&set_a, &set_b, &set_c],
-                "Random 3-set intersection check failed"
-            );
+                assert_intersection_consistency(
+                    &logic_result,
+                    &[&set_a, &set_b, &set_c],
+                    "Random 3-set intersection check failed"
+                );
+            });
         }
     }
 }

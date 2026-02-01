@@ -41,45 +41,51 @@ mod tests {
 
     #[test]
     fn test_union() {
-        let set_a = set_a();
-        let set_b = set_b();
+        futures::executor::block_on(async {
+            let set_a = set_a().await;
+            let set_b = set_b().await;
 
-        let logic_result = set_a.union(&set_b);
+            let logic_result = set_a.union(&set_b).await;
 
-        assert_union_consistency(
-            &logic_result,
-            &[&set_a, &set_b],
-            "Manual union (A U B) failed",
-        );
+            assert_union_consistency(
+                &logic_result,
+                &[&set_a, &set_b],
+                "Manual union (A U B) failed",
+            );
+        });
     }
 
     #[test]
     fn test_union_three_sets() {
-        let set_a = set_a();
-        let set_b = set_b();
-        let set_c = set_c();
+        futures::executor::block_on(async {
+            let set_a = set_a().await;
+            let set_b = set_b().await;
+            let set_c = set_c().await;
 
-        let logic_union_ab = set_a.union(&set_b);
-        let logic_result = logic_union_ab.union(&set_c);
+            let logic_union_ab = set_a.union(&set_b).await;
+            let logic_result = logic_union_ab.union(&set_c).await;
 
-        assert_union_consistency(
-            &logic_result,
-            &[&set_a, &set_b, &set_c],
-            "Manual union (A U B U C) failed",
-        );
+            assert_union_consistency(
+                &logic_result,
+                &[&set_a, &set_b, &set_c],
+                "Manual union (A U B U C) failed",
+            );
+        });
     }
 
     /// 順番を入れ替えても計算結果が逆転しないことをテストする (可換性)
     #[test]
     fn test_union_commutative_manual() {
-        let a = set_a();
-        let c = set_c();
+        futures::executor::block_on(async {
+            let a = set_a().await;
+            let c = set_c().await;
 
-        let a_union_c = a.union(&c);
-        let c_union_a = c.union(&a);
+            let a_union_c = a.union(&c).await;
+            let c_union_a = c.union(&a).await;
 
-        let z = a_union_c.max_z().max(c_union_a.max_z());
-        assert_eq!(to_flat_set(&a_union_c, z), to_flat_set(&c_union_a, z));
+            let z = a_union_c.max_z().max(c_union_a.max_z());
+            assert_eq!(to_flat_set(&a_union_c, z), to_flat_set(&c_union_a, z));
+        });
     }
 
     proptest! {
@@ -89,13 +95,15 @@ mod tests {
             set_a in arb_small_set(20),
             set_b in arb_small_set(20)
         ) {
-            let logic_result = set_a.union(&set_b);
+            futures::executor::block_on(async {
+                let logic_result = set_a.union(&set_b).await;
 
-            assert_union_consistency(
-                &logic_result,
-                &[&set_a, &set_b],
-                "Random union check failed"
-            );
+                assert_union_consistency(
+                    &logic_result,
+                    &[&set_a, &set_b],
+                    "Random union check failed"
+                );
+            });
         }
 
         #[test]
@@ -104,14 +112,16 @@ mod tests {
             set_b in arb_small_set(15),
             set_c in arb_small_set(15)
         ) {
-            let union_ab = set_a.union(&set_b);
-            let logic_result = union_ab.union(&set_c);
+            futures::executor::block_on(async {
+                let union_ab = set_a.union(&set_b).await;
+                let logic_result = union_ab.union(&set_c).await;
 
-            assert_union_consistency(
-                &logic_result,
-                &[&set_a, &set_b, &set_c],
-                "Random 3-set union check failed"
-            );
+                assert_union_consistency(
+                    &logic_result,
+                    &[&set_a, &set_b, &set_c],
+                    "Random 3-set union check failed"
+                );
+            });
         }
     }
 }

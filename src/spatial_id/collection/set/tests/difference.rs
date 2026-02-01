@@ -41,34 +41,38 @@ mod tests {
 
     #[test]
     fn test_difference_two_sets() {
-        let set_a = set_a();
-        let set_b = set_b();
+        futures::executor::block_on(async {
+            let set_a = set_a().await;
+            let set_b = set_b().await;
 
-        let logic_result = set_a.difference(&set_b);
+            let logic_result = set_a.difference(&set_b).await;
 
-        assert_difference_consistency(
-            &logic_result,
-            &set_a,
-            &[&set_b],
-            "Manual difference (A - B) failed",
-        );
+            assert_difference_consistency(
+                &logic_result,
+                &set_a,
+                &[&set_b],
+                "Manual difference (A - B) failed",
+            );
+        });
     }
 
     #[test]
     fn test_difference_three_sets() {
-        let set_a = set_a();
-        let set_b = set_b();
-        let set_c = set_c();
+        futures::executor::block_on(async {
+            let set_a = set_a().await;
+            let set_b = set_b().await;
+            let set_c = set_c().await;
 
-        let diff_ab = set_a.difference(&set_b);
-        let logic_result = diff_ab.difference(&set_c);
+            let diff_ab = set_a.difference(&set_b).await;
+            let logic_result = diff_ab.difference(&set_c).await;
 
-        assert_difference_consistency(
-            &logic_result,
-            &set_a,
-            &[&set_b, &set_c],
-            "Manual difference ((A - B) - C) failed",
-        );
+            assert_difference_consistency(
+                &logic_result,
+                &set_a,
+                &[&set_b, &set_c],
+                "Manual difference ((A - B) - C) failed",
+            );
+        });
     }
 
     proptest! {
@@ -79,14 +83,16 @@ mod tests {
             set_a in arb_small_set(20),
             set_b in arb_small_set(20)
         ) {
-            let logic_result = set_a.difference(&set_b);
+            futures::executor::block_on(async {
+                let logic_result = set_a.difference(&set_b).await;
 
-            assert_difference_consistency(
-                &logic_result,
-                &set_a,
-                &[&set_b],
-                "Random difference check failed"
-            );
+                assert_difference_consistency(
+                    &logic_result,
+                    &set_a,
+                    &[&set_b],
+                    "Random difference check failed"
+                );
+            });
         }
 
         #[test]
@@ -95,27 +101,36 @@ mod tests {
             set_b in arb_small_set(15),
             set_c in arb_small_set(15)
         ) {
-            // (A - B) - C
-            let diff_ab = set_a.difference(&set_b);
-            let logic_result = diff_ab.difference(&set_c);
+            futures::executor::block_on(async {
+                // (A - B) - C
+                let diff_ab = set_a.difference(&set_b).await;
+                let logic_result = diff_ab.difference(&set_c).await;
 
-            assert_difference_consistency(
-                &logic_result,
-                &set_a,
-                &[&set_b, &set_c],
-                "Random 3-set difference check failed"
-            );
+                assert_difference_consistency(
+                    &logic_result,
+                    &set_a,
+                    &[&set_b, &set_c],
+                    "Random 3-set difference check failed"
+                );
+            });
         }
 
         #[test]
         fn random_test_self_difference(
             set_a in arb_small_set(20)
         ) {
-            let logic_result = set_a.difference(&set_a);
+            let result = futures::executor::block_on(async {
+                let logic_result = set_a.difference(&set_a).await;
 
-            // 結果は空であるはず
-            prop_assert!(logic_result.is_empty(),
-                "A - A should be empty. Result size: {}", logic_result.size());
+                // 結果は空であるはず
+                if !logic_result.is_empty() {
+                    return Err(TestCaseError::fail(format!(
+                        "A - A should be empty. Result size: {}", logic_result.size()
+                    )));
+                }
+                Ok(())
+            });
+            result?;
         }
     }
 }
