@@ -7,8 +7,8 @@ use crate::storage::{Batch, KeyValueStore, OrderedKeyValueStore};
 pub mod set;
 pub mod table;
 
-pub(crate) type FlexIdRank = u64;
-pub(crate) type ValueRank = u64;
+pub type FlexIdRank = u64;
+pub type ValueRank = u64;
 
 /// Rankのごみ箱のキャパシティー
 const MAX_RECYCLE_CAPACITY: usize = 1024;

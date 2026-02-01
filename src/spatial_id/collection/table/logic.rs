@@ -19,7 +19,7 @@ pub struct TableLogic<S: TableStorage + Collection>(pub S);
 
 impl<S> TableLogic<S>
 where
-    S: TableStorage + Collection + Default,
+    S: TableStorage + Collection,
 {
     ///TableStorageが実装された型を開いて、操作可能な状態にする
     pub fn open(table_storage: S) -> Self {
@@ -82,6 +82,7 @@ where
         self.0.flex_ids()
     }
 
+    ///値が
     pub fn insert<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
         for new_id in target.flex_ids() {
             let collisions = self.0.resolve_collisions(&new_id);
@@ -107,6 +108,13 @@ where
             unsafe { self.join_insert_unchecked(&new_id, value) };
         }
     }
+
+    ///強制的に上書き
+    pub fn update<I: ToFlexId>(&mut self, target: &I, value: &S::Value) {
+        self.remove(target);
+        unsafe { self.join_insert_unchecked(target, value) };
+    }
+
     pub fn get<I: ToFlexId>(&mut self, target: &I) -> TableOnMemory<S::Value> {
         let mut result = TableOnMemory::default();
         for flex_id in target.flex_ids() {

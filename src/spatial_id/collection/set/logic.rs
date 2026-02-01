@@ -17,7 +17,7 @@ pub struct SetLogic<S: SetStorage + Collection>(pub(crate) S);
 
 impl<S> SetLogic<S>
 where
-    S: SetStorage + Collection + Default,
+    S: SetStorage + Collection,
 {
     ///[SetStorage]が実装された型を開いて、操作可能な状態にする。
     pub fn open(set_storage: S) -> Self {
