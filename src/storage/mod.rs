@@ -47,3 +47,58 @@ pub trait OrderedKeyValueStore<K, V>: KeyValueStore<K, V> {
 
     fn first_key(&self) -> Option<K>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn test_gats_zero_copy() {
+        let mut store: BTreeMap<u64, String> = BTreeMap::new();
+        store.insert(1, "hello".to_string());
+        store.insert(2, "world".to_string());
+
+        // Test that get() returns a reference accessor
+        let value = store.get(&1).expect("Value should exist");
+        assert_eq!(*value, "hello");
+        
+        // Test that the accessor implements Deref
+        assert_eq!(value.len(), 5);
+        
+        // Test batch_get
+        let values = store.batch_get(&[1, 2]);
+        assert_eq!(values.len(), 2);
+        assert_eq!(*values[0].as_ref().unwrap(), "hello");
+        assert_eq!(*values[1].as_ref().unwrap(), "world");
+        
+        // Test iter
+        let mut count = 0;
+        for (key, value) in store.iter() {
+            count += 1;
+            match *key {
+                1 => assert_eq!(*value, "hello"),
+                2 => assert_eq!(*value, "world"),
+                _ => panic!("Unexpected key"),
+            }
+        }
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_ordered_store_scan() {
+        let mut store: BTreeMap<u64, String> = BTreeMap::new();
+        store.insert(1, "one".to_string());
+        store.insert(2, "two".to_string());
+        store.insert(3, "three".to_string());
+        store.insert(4, "four".to_string());
+
+        // Test scan with range
+        let results: Vec<_> = store.scan(2..=3).collect();
+        assert_eq!(results.len(), 2);
+        assert_eq!(*results[0].0, 2);
+        assert_eq!(*results[0].1, "two");
+        assert_eq!(*results[1].0, 3);
+        assert_eq!(*results[1].1, "three");
+    }
+}
