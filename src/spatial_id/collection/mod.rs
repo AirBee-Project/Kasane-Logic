@@ -38,14 +38,15 @@ pub trait Collection {
 
     /// FlexIdRankに割り当てられていたFlexIdを削除し、そのFlexIdを返す
     fn remove_flex_id(&mut self, rank: FlexIdRank) -> Option<FlexId> {
-        let flex_id = self.main().get(&rank)?;
+        let flex_id = self.main().get(&rank).map(|v| v.clone())?;
 
         let mut main_batch = Batch::new();
         main_batch.delete(rank);
 
         let update_dim = |store: &mut Self::Dimension, seg: &Segment| {
             let mut batch = Batch::new();
-            if let Some(mut bitmap) = store.get(seg) {
+            if let Some(bitmap) = store.get(seg).map(|v| v.clone()) {
+                let mut bitmap = bitmap;
                 let changed = bitmap.remove(rank);
                 if bitmap.is_empty() {
                     batch.delete(seg.clone());
@@ -93,7 +94,7 @@ pub trait Collection {
 
         let update_dim = |store: &mut Self::Dimension, seg: Segment| {
             let mut batch = Batch::new();
-            let mut bitmap = store.get(&seg).unwrap_or_else(RoaringTreemap::new);
+            let mut bitmap = store.get(&seg).map(|v| v.clone()).unwrap_or_else(RoaringTreemap::new);
             bitmap.insert(rank);
             batch.put(seg, bitmap);
             store.apply_batch(batch);
@@ -112,23 +113,23 @@ pub trait Collection {
 
     /// あるFlexIdRankの実体のFlexIdを参照する
     fn get_flex_id(&self, flex_id_rank: FlexIdRank) -> Option<FlexId> {
-        self.main().get(&flex_id_rank)
+        self.main().get(&flex_id_rank).map(|v| v.clone())
     }
 
     /// あるFlexIdとf方向で兄弟なFlexIdのRankを取得する
     fn get_f_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(&target.as_f().sibling())?;
-        let x_ranks = self.x().get(target.as_x())?;
-        let y_ranks = self.y().get(target.as_y())?;
+        let f_ranks = self.f().get(&target.as_f().sibling()).map(|v| v.clone())?;
+        let x_ranks = self.x().get(target.as_x()).map(|v| v.clone())?;
+        let y_ranks = self.y().get(target.as_y()).map(|v| v.clone())?;
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
     }
 
     /// あるFlexIdとx方向で兄弟なFlexIdのRankを取得する
     fn get_x_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(target.as_f())?;
-        let x_ranks = self.x().get(&target.as_x().sibling())?;
-        let y_ranks = self.y().get(target.as_y())?;
+        let f_ranks = self.f().get(target.as_f()).map(|v| v.clone())?;
+        let x_ranks = self.x().get(&target.as_x().sibling()).map(|v| v.clone())?;
+        let y_ranks = self.y().get(target.as_y()).map(|v| v.clone())?;
 
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
@@ -136,16 +137,16 @@ pub trait Collection {
 
     /// あるFlexIdとy方向で兄弟なFlexIdのRankを取得する
     fn get_y_sibling_flex_id(&self, target: &FlexId) -> Option<FlexIdRank> {
-        let f_ranks = self.f().get(target.as_f())?;
-        let x_ranks = self.x().get(target.as_x())?;
-        let y_ranks = self.y().get(&target.as_y().sibling())?;
+        let f_ranks = self.f().get(target.as_f()).map(|v| v.clone())?;
+        let x_ranks = self.x().get(target.as_x()).map(|v| v.clone())?;
+        let y_ranks = self.y().get(&target.as_y().sibling()).map(|v| v.clone())?;
 
         let intersection = f_ranks & x_ranks & y_ranks;
         intersection.iter().next()
     }
 
     fn flex_ids(&self) -> Box<dyn Iterator<Item = FlexId> + '_> {
-        Box::new(self.main().iter().map(|(_, v)| v))
+        Box::new(self.main().iter().map(|(_, v)| v.clone()))
     }
 
     /// あるFlexIdと関連のあるFlexIdRankを全て返す
@@ -154,13 +155,13 @@ pub trait Collection {
             let mut bitmap = RoaringTreemap::new();
             let mut current = seg.parent();
             while let Some(parent) = current {
-                if let Some(ranks) = store.get(&parent) {
+                if let Some(ranks) = store.get(&parent).map(|v| v.clone()) {
                     bitmap |= ranks;
                 }
                 current = parent.parent();
             }
             let end = seg.descendant_range_end();
-            let iter: Box<dyn Iterator<Item = (Segment, RoaringTreemap)>> = match end {
+            let iter = match end {
                 Some(end_segment) => {
                     if seg <= &end_segment {
                         store.scan(seg..=&end_segment)
@@ -174,7 +175,7 @@ pub trait Collection {
             };
 
             for (_, ranks) in iter {
-                bitmap |= ranks;
+                bitmap |= (*ranks).clone();
             }
 
             bitmap

@@ -29,12 +29,12 @@ where
     where
         S: SetStorage + Collection,
     {
-        let main: HashMap<FlexIdRank, FlexId> = set_storage.main().iter().collect();
+        let main: HashMap<FlexIdRank, FlexId> = set_storage.main().iter().map(|(k, v)| (*k, v.clone())).collect();
 
         let flex_id_next_rank = set_storage.move_flex_rank();
 
         let copy_dim = |source: &S::Dimension| -> BTreeMap<Segment, RoaringTreemap> {
-            source.iter().collect()
+            source.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
         };
 
         let f = copy_dim(set_storage.f());

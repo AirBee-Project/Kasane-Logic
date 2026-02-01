@@ -33,7 +33,7 @@ pub trait TableStorage {
     fn move_value_rank_free_list(&self) -> Vec<u64>;
 
     fn insert_value(&mut self, value: &Self::Value, flex_id_ranks: Vec<FlexIdRank>) -> ValueRank {
-        let value_rank = if let Some(rank) = self.reverse().get(&value) {
+        let value_rank = if let Some(rank) = self.reverse().get(&value).map(|v| *v) {
             rank
         } else {
             let new_rank = self.fetch_value_rank();
