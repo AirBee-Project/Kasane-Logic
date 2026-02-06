@@ -1,13 +1,15 @@
 use std::{
     cell::{OnceCell, RefCell},
     collections::BTreeMap,
+    ops::RangeInclusive,
 };
 
 use roaring::RoaringTreemap;
+use std::ops::Bound::Included;
 
 use crate::{
     FlexIdRank, Segment,
-    spatial_id::{FlexIds, collection::set::SetOnMemory},
+    spatial_id::{FlexIds, collection::set::SetOnMemory, segment},
 };
 
 ///あるセグメントの他のセグメントの関係を記録する型
@@ -46,6 +48,24 @@ impl<'a> SegmentNeighborhood<'a> {
                         continue;
                     }
                 };
+            }
+            result
+        })
+    }
+
+    fn children(&self) -> &RoaringTreemap {
+        self.children.get_or_init(|| {
+            let mut result = RoaringTreemap::new();
+            //子のSegmentの探索の最終地点
+            let end = self.segment.descendant_range_end();
+            //子を全て探索
+            let range_scan = match end {
+                Some(v) => self.btree.range(self.segment.clone()..v),
+                None => self.btree.range(self.segment.clone()..),
+            };
+            //全てをResultに返す
+            for (_, flex_id_ranks) in range_scan {
+                result.append(flex_id_ranks);
             }
             result
         })
@@ -110,15 +130,45 @@ pub struct FlexIdScanner<'a> {
     f: &'a SegmentNeighborhood<'a>,
     x: &'a SegmentNeighborhood<'a>,
     y: &'a SegmentNeighborhood<'a>,
+
+    //計算結果をキャッシュしておく
+    parent: OnceCell<Option<FlexIdRank>>,
+    children: OnceCell<RoaringTreemap>,
 }
 
 impl FlexIdScanner<'_> {
     ///親のFlexIdがあるかどうかを判定し、あればそのRankを返す
-    pub fn parent(&self) -> Option<FlexIdRank> {
-        let f = self.f.parents();
-        let x = self.x.parents();
-        let y = self.y.parents();
-        let intersection = f & x & y;
-        intersection.iter().next()
+    /// Parentには自分と同じ形のFlexIdも含まれる
+    /// ParentはSetの定義上、必ず0-1個である
+    pub fn unique_parent(&self) -> Option<FlexIdRank> {
+        *self.parent.get_or_init(|| {
+            let f = self.f.parents();
+            let x = self.x.parents();
+            let y = self.y.parents();
+            let intersection = f & x & y;
+
+            #[cfg(debug_assertions)]
+            if intersection.len() > 1 {
+                panic!("親のIDが2つ以上検知されました")
+            }
+            intersection.iter().next()
+        })
+    }
+
+    ///完全に自分含むFlexIdのRankを返す
+    pub fn children(&self) -> RoaringTreemap {
+        self.children
+            .get_or_init(|| {
+                let f = self.f.children();
+                let x = self.x.children();
+                let y = self.y.children();
+                f & x & y
+            })
+            .clone()
+    }
+
+    ///親でも子でもなく、部分的に重なっているFlexIdのRankを返す
+    pub fn partial_overlaps() -> RoaringTreemap {
+        todo!()
     }
 }

@@ -22,7 +22,7 @@ impl SetOnMemory {
 
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
-            if flex_id_scanner.parent().is_some() {
+            if flex_id_scanner.unique_parent().is_some() {
                 continue;
             }
 
