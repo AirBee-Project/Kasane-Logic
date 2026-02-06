@@ -116,6 +116,8 @@ impl<'a> FlexIdScanPlan<'a> {
                     f,
                     x,
                     y,
+                    parent: OnceCell::new(),
+                    children: OnceCell::new(),
                 })
             })
         })
