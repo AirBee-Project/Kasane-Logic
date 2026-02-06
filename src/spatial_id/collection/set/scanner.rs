@@ -114,7 +114,7 @@ pub struct FlexIdScanner<'a> {
 
 impl FlexIdScanner<'_> {
     ///親のFlexIdがあるかどうかを判定し、あればそのRankを返す
-    pub fn parent_flex_id(&self) -> Option<FlexIdRank> {
+    pub fn parent(&self) -> Option<FlexIdRank> {
         let f = self.f.parents();
         let x = self.x.parents();
         let y = self.y.parents();

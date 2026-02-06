@@ -20,7 +20,14 @@ impl SetOnMemory {
     pub fn insert<T: FlexIds>(&self, target: T) {
         let scanner = self.scanner(target);
 
-        for flex_id_info in scanner.scan() {}
+        for flex_id_scanner in scanner.scan() {
+            //もし、親に包まれていた場合はそのほかパターンを考える必要がない
+            if flex_id_scanner.parent().is_some() {
+                continue;
+            }
+
+            //
+        }
     }
 
     ///Setの中からFlexIdを効率的にスキャンするようにする
