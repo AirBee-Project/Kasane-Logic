@@ -1,58 +1,42 @@
-use crate::spatial_id::collection::{Collection, set::logic::SetLogic};
+use std::collections::BTreeMap;
 
-pub mod logic;
-pub mod memory;
-#[cfg(test)]
-mod tests;
+pub mod scanner;
 
-pub trait SetStorage {}
+use roaring::RoaringTreemap;
 
-impl<S: SetStorage + Collection> SetStorage for SetLogic<S> {}
+use crate::{
+    FlexId, FlexIdRank, Segment,
+    spatial_id::{FlexIds, collection::set::scanner::FlexIdScanPlan},
+};
 
-impl<S: Collection + SetStorage> Collection for SetLogic<S> {
-    type Main = S::Main;
-    type Dimension = S::Dimension;
+pub struct SetOnMemory {
+    f: BTreeMap<Segment, RoaringTreemap>,
+    x: BTreeMap<Segment, RoaringTreemap>,
+    y: BTreeMap<Segment, RoaringTreemap>,
+    main: BTreeMap<FlexIdRank, FlexId>,
+}
 
-    fn main(&self) -> &Self::Main {
-        self.0.main()
-    }
-    fn main_mut(&mut self) -> &mut Self::Main {
-        self.0.main_mut()
-    }
+impl SetOnMemory {
+    pub fn insert<T: FlexIds>(&self, target: T) {
+        let scanner = self.scanner(target);
 
-    fn f(&self) -> &Self::Dimension {
-        self.0.f()
-    }
-    fn f_mut(&mut self) -> &mut Self::Dimension {
-        self.0.f_mut()
+        for flex_id_info in scanner.scan() {}
     }
 
-    fn x(&self) -> &Self::Dimension {
-        self.0.x()
-    }
-    fn x_mut(&mut self) -> &mut Self::Dimension {
-        self.0.x_mut()
+    ///Setの中からFlexIdを効率的にスキャンするようにする
+    pub fn scanner<T: FlexIds>(&'_ self, target: T) -> FlexIdScanPlan<'_> {
+        FlexIdScanPlan::new(self, target)
     }
 
-    fn y(&self) -> &Self::Dimension {
-        self.0.y()
-    }
-    fn y_mut(&mut self) -> &mut Self::Dimension {
-        self.0.y_mut()
+    pub fn f(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+        &self.f
     }
 
-    fn fetch_flex_rank(&mut self) -> u64 {
-        self.0.fetch_flex_rank()
-    }
-    fn return_flex_rank(&mut self, rank: u64) {
-        self.0.return_flex_rank(rank)
+    pub fn x(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+        &self.x
     }
 
-    fn move_flex_rank(&self) -> u64 {
-        self.0.move_flex_rank()
-    }
-
-    fn move_flex_rank_free_list(&self) -> Vec<u64> {
-        self.0.move_flex_rank_free_list()
+    pub fn y(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+        &self.y
     }
 }

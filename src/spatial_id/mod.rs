@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use crate::{error::Error, geometry::coordinate::Coordinate, spatial_id::flex_id::FlexId};
+use crate::{Segment, error::Error, geometry::coordinate::Coordinate};
 
 pub(crate) mod collection;
 pub mod constants;
@@ -62,7 +62,15 @@ pub trait SpatialId {
     fn vertices(&self) -> [Coordinate; 8];
 }
 
-pub trait ToFlexId {
-    //FlexIdの集合に変換するメゾット
-    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_;
+//SetにはFlexIds Traitを実装しなければ、今回の実装は成り立つ
+//SingleID,RangeID,FlexIDにしかこのTraitを実装しない
+pub trait FlexIds {
+    fn segmentation(&self) -> Segmentation;
+}
+
+///RangeIDやSingleIDやFlexIDを最適分割したもの
+pub struct Segmentation {
+    f: Vec<Segment>,
+    x: Vec<Segment>,
+    y: Vec<Segment>,
 }

@@ -9,7 +9,7 @@ use crate::{
     error::Error,
     geometry::coordinate::Coordinate,
     spatial_id::{
-        SpatialId, ToFlexId,
+        FlexIds, Segmentation, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         flex_id::FlexId,
         helpers,
@@ -751,35 +751,18 @@ impl SpatialId for RangeId {
     }
 }
 
-impl ToFlexId for RangeId {
-    fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
-        let f_segments = Segment::split_f(self.as_z(), self.as_f());
-        let x_segments: Vec<_> = if self.x[0] <= self.x[1] {
+impl FlexIds for RangeId {
+    fn segmentation(&self) -> Segmentation {
+        let f = Segment::split_f(self.as_z(), self.as_f()).collect();
+        let x = if self.x[0] <= self.x[1] {
             Segment::split_xy(self.as_z(), self.as_x()).collect()
         } else {
             Segment::split_xy(self.as_z(), [self.x[0], self.max_xy()])
                 .chain(Segment::split_xy(self.as_z(), [0, self.x[1]]))
                 .collect()
         };
-        let y_segments = Segment::split_xy(self.as_z(), self.as_y()).collect();
-
-        let x_segments: Vec<_> = x_segments;
-        let y_segments: Vec<_> = y_segments;
-
-        f_segments.flat_map(move |f| {
-            let x_segments = x_segments.clone();
-            let y_segments = y_segments.clone();
-
-            x_segments.into_iter().flat_map(move |x| {
-                let y_segments = y_segments.clone();
-
-                y_segments.into_iter().map({
-                    let value = f.clone();
-
-                    move |y| FlexId::new(value.clone(), x.clone(), y)
-                })
-            })
-        })
+        let y = Segment::split_xy(self.as_z(), self.as_y()).collect();
+        Segmentation { f, x, y }
     }
 }
 

@@ -29,7 +29,4 @@ pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::segment::Segment;
 pub use storage::Batch;
 
-pub use spatial_id::collection::Collection;
-pub use spatial_id::collection::set::{SetStorage, logic::SetLogic, memory::SetOnMemory};
-pub use spatial_id::collection::table::{TableStorage, logic::TableLogic, memory::TableOnMemory};
 pub use storage::{KeyValueStore, OrderedKeyValueStore};
