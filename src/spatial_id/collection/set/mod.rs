@@ -1,14 +1,18 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 pub mod scanner;
+pub mod tests;
 
 use roaring::{RoaringBitmap, RoaringTreemap};
 
 use crate::{
-    FlexId, FlexIdRank, Segment,
-    spatial_id::{FlexIds, collection::set::scanner::FlexIdScanPlan},
+    FlexId, FlexIdRank, RangeId, Segment, SingleId,
+    spatial_id::{
+        FlexIds, collection::set::scanner::FlexIdScanPlan, flex_id, helpers::fast_intersect,
+    },
 };
 
+#[derive(Clone, Debug, Default)]
 pub struct SetOnMemory {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
@@ -19,6 +23,8 @@ pub struct SetOnMemory {
 }
 
 impl SetOnMemory {
+    const RECYCLE_RANK_MAX: usize = 1024;
+
     pub fn new() -> Self {
         SetOnMemory {
             f: BTreeMap::new(),
@@ -30,15 +36,15 @@ impl SetOnMemory {
         }
     }
 
-    pub fn insert<T: FlexIds>(&mut self, target: T) {
-        let scanner = self.scanner(target);
+    pub fn insert<T: FlexIds>(&mut self, target: &T) {
+        let scanner = self.scanner(target.clone());
 
         //削除が必要なIDを貯めて最後に削除する
         let mut need_delete_ranks = RoaringTreemap::new();
 
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
-            if flex_id_scanner.unique_parent().is_some() {
+            if flex_id_scanner.parent().is_some() {
                 continue;
             }
 
@@ -55,7 +61,7 @@ impl SetOnMemory {
 
             //Setを作成して競合を解消する
             let mut shave_set = Self::new();
-            shave_set.insert(flex_id_scanner.flex_id().clone());
+            unsafe { shave_set.uncheck_insert(flex_id_scanner.flex_id().clone()) };
 
             //SetからPartial Overlapsを順番に削除する
             //この時は常に自分を削る
@@ -69,6 +75,50 @@ impl SetOnMemory {
         for nend_delete_rank in need_delete_ranks {
             self.remove_from_rank(nend_delete_rank);
         }
+    }
+
+    ///なんのチェックもせず、挿入する
+    ///整合性を破壊する可能性があるため、注意して使用すること
+    /// 隣にあるIDと結合されることがある
+    pub unsafe fn join_uncheck_insert<T: FlexIds>(&mut self, target: T) {
+        for flex_id in target.flex_ids() {
+            match self.find(flex_id.f_sibling()) {
+                Some(v) => {
+                    self.remove_from_rank(v);
+                    unsafe { self.uncheck_insert(flex_id.f_parent().unwrap()) };
+                    continue;
+                }
+                None => {}
+            }
+
+            match self.find(flex_id.x_sibling()) {
+                Some(v) => {
+                    self.remove_from_rank(v);
+                    unsafe { self.uncheck_insert(flex_id.x_parent().unwrap()) };
+                    continue;
+                }
+                None => {}
+            }
+
+            match self.find(flex_id.y_sibling()) {
+                Some(v) => {
+                    self.remove_from_rank(v);
+                    unsafe { self.uncheck_insert(flex_id.y_parent().unwrap()) };
+                    continue;
+                }
+                None => {}
+            }
+
+            unsafe { self.uncheck_insert(flex_id) };
+        }
+    }
+
+    ///Targetと全く同じ形のFlexIdを見つけ、そのFlexIdRankを返す
+    pub fn find(&self, target: FlexId) -> Option<FlexIdRank> {
+        let f = self.f.get(target.as_f())?;
+        let x = self.x.get(target.as_x())?;
+        let y = self.y.get(target.as_y())?;
+        fast_intersect([f, x, y]).iter().next().clone()
     }
 
     ///なんのチェックもせず、挿入する
@@ -103,36 +153,25 @@ impl SetOnMemory {
     }
 
     ///指定した領域を削除して、削除された部分をSetとして返す
-    pub fn remove<T: FlexIds>(&mut self, target: T) -> Self {
-        let scanner = self.scanner(target);
-        let mut need_delete_ranks = RoaringTreemap::new();
-        let mut result = Self::new();
-        for flex_id_scanner in scanner.scan() {
-            //もし、親に包まれていた場合はそのほかパターンを考える必要がない
-            if flex_id_scanner.unique_parent().is_some() {
-                //何某かの処理
-                continue;
-            }
-
-            //子のIDを全て削除する
-            need_delete_ranks |= flex_id_scanner.children();
-        }
-
-        //削除が必要なものを削除して、挿入したい...
-        for nend_delete_rank in need_delete_ranks {
-            self.remove_from_rank(nend_delete_rank);
-        }
+    pub fn remove<T: FlexIds>(&mut self, target: &T) -> Self {
+        let mut result = SetOnMemory::new();
+        for flex_id in target.flex_ids() {}
 
         result
     }
 
+    ///このSetが持っているFlexIdの個数を調べる
+    pub fn size(&self) -> usize {
+        self.main.len()
+    }
+
     ///指定した領域を取得してSetを返す
-    pub fn get<T: FlexIds>(&self, target: T) -> Self {
-        let scanner = self.scanner(target);
+    pub fn get<T: FlexIds>(&self, target: &T) -> Self {
+        let scanner = self.scanner(target.clone());
         let mut result = Self::new();
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
-            if flex_id_scanner.unique_parent().is_some() {
+            if flex_id_scanner.parent().is_some() {
                 unsafe { result.uncheck_insert(flex_id_scanner.flex_id()) };
                 continue;
             }
@@ -167,6 +206,13 @@ impl SetOnMemory {
         }
     }
 
+    ///Rankをreturnするためのメソット
+    fn return_rank(&mut self, rank: u64) {
+        if self.recycle_rank.len() < Self::RECYCLE_RANK_MAX {
+            self.recycle_rank.push(rank);
+        }
+    }
+
     ///Rankを指定して削除する
     ///存在しないRankをリクエストされた場合はPanicします
     pub fn remove_from_rank(&mut self, rank: FlexIdRank) -> FlexId {
@@ -186,7 +232,7 @@ impl SetOnMemory {
         dimension_remove(&mut self.f, flex_id.as_f(), rank);
         dimension_remove(&mut self.x, flex_id.as_x(), rank);
         dimension_remove(&mut self.y, flex_id.as_y(), rank);
-
+        self.return_rank(rank);
         flex_id
     }
 
@@ -197,6 +243,10 @@ impl SetOnMemory {
 
     pub fn as_flex_id(&self, rank: &FlexIdRank) -> Option<&FlexId> {
         self.main.get(&rank)
+    }
+
+    pub fn as_flex_ids(&self) -> impl Iterator<Item = &FlexId> {
+        self.main.iter().map(|(_, v)| v)
     }
 
     pub fn f(&self) -> &BTreeMap<Segment, RoaringTreemap> {
@@ -210,4 +260,69 @@ impl SetOnMemory {
     pub fn y(&self) -> &BTreeMap<Segment, RoaringTreemap> {
         &self.y
     }
+
+    pub fn join(&mut self, target: &Self) {
+        for flex_id in target.as_flex_ids() {
+            self.insert(flex_id);
+        }
+    }
+
+    pub fn union(&self, target: &Self) -> Self {
+        let mut result;
+        if self.size() > target.size() {
+            result = self.clone();
+            for flex_id in target.as_flex_ids() {
+                result.insert(flex_id);
+            }
+        } else {
+            result = target.clone();
+            for flex_id in self.as_flex_ids() {
+                result.insert(flex_id);
+            }
+        }
+        result
+    }
+
+    pub fn intersection(&self, target: &Self) -> Self {
+        let mut result = Self::new();
+        if self.size() > target.size() {
+            for flex_id in target.as_flex_ids() {
+                let intersect = self.get(flex_id);
+                result.join(&intersect);
+            }
+        } else {
+            for flex_id in self.as_flex_ids() {
+                let intersect = target.get(flex_id);
+                result.join(&intersect);
+            }
+        }
+        result
+    }
+
+    pub fn difference(&self, target: &Self) -> Self {
+        let mut result = self.clone();
+        for flex_id in target.as_flex_ids() {
+            result.remove(flex_id);
+        }
+        result
+    }
+
+    pub fn range_ids(&self) -> impl Iterator<Item = RangeId> {
+        self.main.iter().map(|(_, flex_id)| flex_id.range_id())
+    }
+
+    pub fn single_ids(&self) -> impl Iterator<Item = SingleId> {
+        self.range_ids()
+            .flat_map(|f| f.single_ids().collect::<Vec<_>>())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.main.is_empty()
+    }
+
+    ///このSetが持っている最も大きなズームレベル値を返す
+    pub fn max_z(&self) -> u8 {}
+
+    ///このSetが持っている最も小さなズームレベル値を返す
+    pub fn min_z(&self) -> u8 {}
 }

@@ -64,7 +64,7 @@ pub trait SpatialId {
 
 //SetにはFlexIds Traitを実装しなければ、今回の実装は成り立つ
 //SingleID,RangeID,FlexIDにしかこのTraitを実装しない
-pub trait FlexIds {
+pub trait FlexIds: Clone {
     fn segmentation(&self) -> Segmentation;
     fn flex_ids(&self) -> Vec<FlexId> {
         let Segmentation { f, x, y } = self.segmentation();

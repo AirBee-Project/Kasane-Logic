@@ -165,6 +165,30 @@ impl FlexId {
             && self.as_y().relation(other.as_y()) != SegmentRelation::Disjoint
             && self.as_y().relation(other.as_y()) != SegmentRelation::Descendant
     }
+    ///Fセグメントが兄弟で、他が同じなFlexIdを返す
+    pub(crate) fn f_sibling(&self) -> FlexId {
+        FlexId {
+            f: self.f.sibling(),
+            x: self.x.clone(),
+            y: self.y.clone(),
+        }
+    }
+    ///Xセグメントが兄弟で、他が同じなFlexIdを返す
+    pub(crate) fn x_sibling(&self) -> FlexId {
+        FlexId {
+            f: self.f.clone(),
+            x: self.x.sibling(),
+            y: self.y.clone(),
+        }
+    }
+    ///Yセグメントが兄弟で、他が同じなFlexIdを返す
+    pub(crate) fn y_sibling(&self) -> FlexId {
+        FlexId {
+            f: self.f.clone(),
+            x: self.x.clone(),
+            y: self.y.sibling(),
+        }
+    }
 
     ///Fセグメントを親セグメントにした[FlexId]を返す。
     pub(crate) fn f_parent(&self) -> Option<FlexId> {

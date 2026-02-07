@@ -56,3 +56,38 @@ pub enum Dimension<T> {
     X(T),
     Y(T),
 }
+
+use roaring::RoaringTreemap;
+
+///[RoaringTreemap]が大量にあったときに、最も高速に積集合を求める関数
+pub fn fast_intersect<'a, I>(sets: I) -> RoaringTreemap
+where
+    I: IntoIterator<Item = &'a RoaringTreemap>,
+{
+    let mut vec: Vec<&RoaringTreemap> = sets.into_iter().collect();
+
+    if vec.is_empty() {
+        return RoaringTreemap::new();
+    }
+
+    // 空集合があれば即終了
+    if vec.iter().any(|s| s.is_empty()) {
+        return RoaringTreemap::new();
+    }
+
+    // 小さい順に並べる（最重要）
+    vec.sort_by_key(|s| s.len());
+
+    // 最小だけ clone
+    let mut result = vec[0].clone();
+
+    // 破壊的 AND
+    for s in &vec[1..] {
+        result &= *s;
+        if result.is_empty() {
+            break;
+        }
+    }
+
+    result
+}

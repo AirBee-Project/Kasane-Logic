@@ -4,7 +4,7 @@ use roaring::RoaringTreemap;
 
 use crate::{
     FlexId, FlexIdRank, Segment,
-    spatial_id::{FlexIds, collection::set::SetOnMemory},
+    spatial_id::{FlexIds, collection::set::SetOnMemory, helpers::fast_intersect},
 };
 
 ///あるセグメントの他のセグメントの関係を記録する型
@@ -141,7 +141,7 @@ impl FlexIdScanner<'_> {
     ///親のFlexIdがあるかどうかを判定し、あればそのRankを返す
     /// Parentには自分と同じ形のFlexIdも含まれる
     /// ParentはSetの定義上、必ず0-1個である
-    pub fn unique_parent(&self) -> Option<FlexIdRank> {
+    pub fn parent(&self) -> Option<FlexIdRank> {
         *self.parent.get_or_init(|| {
             let f = self.f.parents();
             let x = self.x.parents();
@@ -162,7 +162,7 @@ impl FlexIdScanner<'_> {
             let f = self.f.children();
             let x = self.x.children();
             let y = self.y.children();
-            f & x & y
+            fast_intersect([f, x, y])
         })
     }
 
@@ -171,7 +171,7 @@ impl FlexIdScanner<'_> {
         let mut all = self.all();
         all -= self.children();
 
-        if let Some(parent_rank) = self.unique_parent() {
+        if let Some(parent_rank) = self.parent() {
             all.remove(parent_rank);
         }
 
@@ -183,7 +183,7 @@ impl FlexIdScanner<'_> {
         let f = self.f.parents() | self.f.children();
         let x = self.x.parents() | self.x.children();
         let y = self.y.parents() | self.y.children();
-        f & x & y
+        fast_intersect([&f, &x, &y])
     }
 
     pub fn as_f(&self) -> &Segment {

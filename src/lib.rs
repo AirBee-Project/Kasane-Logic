@@ -29,4 +29,5 @@ pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::segment::Segment;
 pub use storage::Batch;
 
+pub use spatial_id::collection::set::SetOnMemory;
 pub use storage::{KeyValueStore, OrderedKeyValueStore};

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::spatial_id::collection::set::memory::SetOnMemory;
+    use crate::spatial_id::collection::set::SetOnMemory;
     use crate::spatial_id::collection::set::tests::{
         arb_small_set, set_a, set_b, set_c, to_flat_set,
     };

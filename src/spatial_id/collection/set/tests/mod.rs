@@ -1,14 +1,8 @@
 use std::collections::HashSet;
 
 #[cfg(any(test))]
-use crate::spatial_id::collection::set::memory::SetOnMemory;
-use crate::{
-    RangeId, SingleId,
-    spatial_id::collection::{
-        Collection,
-        set::{SetStorage, logic::SetLogic},
-    },
-};
+use crate::spatial_id::collection::set::SetOnMemory;
+use crate::{RangeId, SingleId};
 use proptest::prelude::Strategy;
 
 pub mod difference;
@@ -49,18 +43,6 @@ pub fn set_c() -> SetOnMemory {
     let id3 = RangeId::new(4, [-7, 11], [4, 10], [1, 9]).unwrap();
     set.insert(&id3);
     set
-}
-
-///粒度を合わせてSingleIdで比較するためのヘルパー関数
-/// テスト以外では使用しないため、ここに定義
-pub fn to_flat_set<S>(set: &SetLogic<S>, target_z: u8) -> HashSet<SingleId>
-where
-    S: SetStorage + Collection + Default,
-{
-    let depth = target_z.saturating_sub(set.max_z());
-    set.flatten_deep(depth)
-        .expect("Failed to flatten set")
-        .collect()
 }
 
 #[derive(Debug, Clone)]
