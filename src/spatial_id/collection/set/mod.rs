@@ -105,14 +105,25 @@ impl SetOnMemory {
     ///指定した領域を削除して、削除された部分をSetとして返す
     pub fn remove<T: FlexIds>(&mut self, target: T) -> Self {
         let scanner = self.scanner(target);
+        let mut need_delete_ranks = RoaringTreemap::new();
         let mut result = Self::new();
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
             if flex_id_scanner.unique_parent().is_some() {
+                //何某かの処理
                 continue;
             }
+
+            //子のIDを全て削除する
+            need_delete_ranks |= flex_id_scanner.children();
         }
-        todo!()
+
+        //削除が必要なものを削除して、挿入したい...
+        for nend_delete_rank in need_delete_ranks {
+            self.remove_from_rank(nend_delete_rank);
+        }
+
+        result
     }
 
     ///指定した領域を取得してSetを返す
