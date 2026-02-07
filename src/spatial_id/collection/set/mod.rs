@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 pub mod scanner;
-pub mod tests;
 
 use roaring::{RoaringBitmap, RoaringTreemap};
 
@@ -321,8 +320,12 @@ impl SetOnMemory {
     }
 
     ///このSetが持っている最も大きなズームレベル値を返す
-    pub fn max_z(&self) -> u8 {}
+    pub fn max_z(&self) -> u8 {
+        todo!()
+    }
 
     ///このSetが持っている最も小さなズームレベル値を返す
-    pub fn min_z(&self) -> u8 {}
+    pub fn min_z(&self) -> u8 {
+        todo!()
+    }
 }
