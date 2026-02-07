@@ -1,15 +1,10 @@
-use std::{
-    cell::{OnceCell, RefCell},
-    collections::BTreeMap,
-    ops::RangeInclusive,
-};
+use std::{cell::OnceCell, collections::BTreeMap};
 
 use roaring::RoaringTreemap;
-use std::ops::Bound::Included;
 
 use crate::{
-    FlexIdRank, Segment,
-    spatial_id::{FlexIds, collection::set::SetOnMemory, segment},
+    FlexId, FlexIdRank, Segment,
+    spatial_id::{FlexIds, collection::set::SetOnMemory},
 };
 
 ///あるセグメントの他のセグメントの関係を記録する型
@@ -42,12 +37,9 @@ impl<'a> SegmentNeighborhood<'a> {
         self.parents.get_or_init(|| {
             let mut result = RoaringTreemap::new();
             for parent_segment in self.segment.self_and_parents() {
-                let _ = match self.btree.get(&parent_segment) {
-                    Some(v) => result.append(v),
-                    None => {
-                        continue;
-                    }
-                };
+                if let Some(v) = self.btree.get(&parent_segment) {
+                    result |= v;
+                }
             }
             result
         })
@@ -56,16 +48,15 @@ impl<'a> SegmentNeighborhood<'a> {
     fn children(&self) -> &RoaringTreemap {
         self.children.get_or_init(|| {
             let mut result = RoaringTreemap::new();
-            //子のSegmentの探索の最終地点
+
             let end = self.segment.descendant_range_end();
-            //子を全て探索
             let range_scan = match end {
                 Some(v) => self.btree.range(self.segment.clone()..v),
                 None => self.btree.range(self.segment.clone()..),
             };
-            //全てをResultに返す
+
             for (_, flex_id_ranks) in range_scan {
-                result.append(flex_id_ranks);
+                result |= flex_id_ranks;
             }
             result
         })
@@ -139,6 +130,14 @@ pub struct FlexIdScanner<'a> {
 }
 
 impl FlexIdScanner<'_> {
+    pub fn flex_id(&self) -> FlexId {
+        let f = self.as_f();
+        let x = self.as_x();
+        let y = self.as_y();
+
+        FlexId::new(f.clone(), x.clone(), y.clone())
+    }
+
     ///親のFlexIdがあるかどうかを判定し、あればそのRankを返す
     /// Parentには自分と同じ形のFlexIdも含まれる
     /// ParentはSetの定義上、必ず0-1個である
@@ -158,19 +157,42 @@ impl FlexIdScanner<'_> {
     }
 
     ///完全に自分含むFlexIdのRankを返す
-    pub fn children(&self) -> RoaringTreemap {
-        self.children
-            .get_or_init(|| {
-                let f = self.f.children();
-                let x = self.x.children();
-                let y = self.y.children();
-                f & x & y
-            })
-            .clone()
+    pub fn children(&self) -> &RoaringTreemap {
+        self.children.get_or_init(|| {
+            let f = self.f.children();
+            let x = self.x.children();
+            let y = self.y.children();
+            f & x & y
+        })
     }
 
     ///親でも子でもなく、部分的に重なっているFlexIdのRankを返す
-    pub fn partial_overlaps() -> RoaringTreemap {
-        todo!()
+    pub fn partial_overlaps(&self) -> RoaringTreemap {
+        let mut all = self.all();
+        all -= self.children();
+
+        if let Some(parent_rank) = self.unique_parent() {
+            all.remove(parent_rank);
+        }
+
+        all
+    }
+
+    ///全ての重なりがあるFlexIDのRankを返す
+    pub fn all(&self) -> RoaringTreemap {
+        let f = self.f.parents() | self.f.children();
+        let x = self.x.parents() | self.x.children();
+        let y = self.y.parents() | self.y.children();
+        f & x & y
+    }
+
+    pub fn as_f(&self) -> &Segment {
+        &self.f.segment
+    }
+    pub fn as_x(&self) -> &Segment {
+        &self.x.segment
+    }
+    pub fn as_y(&self) -> &Segment {
+        &self.y.segment
     }
 }

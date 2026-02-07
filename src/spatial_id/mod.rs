@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use crate::{Segment, error::Error, geometry::coordinate::Coordinate};
+use crate::{FlexId, Segment, error::Error, geometry::coordinate::Coordinate};
 
 pub(crate) mod collection;
 pub mod constants;
@@ -66,6 +66,18 @@ pub trait SpatialId {
 //SingleID,RangeID,FlexIDにしかこのTraitを実装しない
 pub trait FlexIds {
     fn segmentation(&self) -> Segmentation;
+    fn flex_ids(&self) -> Vec<FlexId> {
+        let Segmentation { f, x, y } = self.segmentation();
+        let mut out = Vec::new();
+        for f in f {
+            for x in &x {
+                for y in &y {
+                    out.push(FlexId::new(f.clone(), x.clone(), y.clone()));
+                }
+            }
+        }
+        out
+    }
 }
 
 ///RangeIDやSingleIDやFlexIDを最適分割したもの
