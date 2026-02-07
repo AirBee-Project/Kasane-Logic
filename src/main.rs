@@ -1,9 +1,11 @@
-use kasane_logic::{RangeId, SetOnMemory};
+use kasane_logic::{RangeId, SetOnMemory, SingleId};
 
 fn main() {
     let mut set = SetOnMemory::new();
     let id1 = RangeId::new(5, [3, 4], [3, 3], [1, 4]).unwrap();
     set.insert(&id1);
+    let id2 = SingleId::new(4, 2, 1, 1).unwrap();
+    set.insert(&id2);
 
     for range_id in set.range_ids() {
         println!("{},", range_id);

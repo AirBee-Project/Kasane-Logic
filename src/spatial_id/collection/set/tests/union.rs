@@ -18,6 +18,7 @@ mod tests {
             .map(|s| s.max_z())
             .chain(std::iter::once(logic_result.max_z()))
             .max()
+            .unwrap()
             .unwrap_or(0);
 
         let actual = to_flat_set(logic_result, max_z);
@@ -78,7 +79,7 @@ mod tests {
         let a_union_c = a.union(&c);
         let c_union_a = c.union(&a);
 
-        let z = a_union_c.max_z().max(c_union_a.max_z());
+        let z = a_union_c.max_z().max(c_union_a.max_z()).unwrap();
         assert_eq!(to_flat_set(&a_union_c, z), to_flat_set(&c_union_a, z));
     }
 

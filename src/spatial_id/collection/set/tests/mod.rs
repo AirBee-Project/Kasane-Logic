@@ -1,14 +1,25 @@
+use crate::{RangeId, SetOnMemory, SingleId, spatial_id::single_id};
 use std::collections::HashSet;
 
 #[cfg(any(test))]
-use crate::spatial_id::collection::set::SetOnMemory;
-use crate::{RangeId, SingleId};
 use proptest::prelude::Strategy;
 
 pub mod difference;
 pub mod insert;
 pub mod intersection;
 pub mod union;
+
+///粒度を合わせてSingleIdで比較するためのヘルパー関数
+/// テスト以外では使用しないため、ここに定義
+pub fn to_flat_set(set: &SetOnMemory, target_z: u8) -> HashSet<SingleId> {
+    let mut result = HashSet::new();
+    for single_id in set.single_ids() {
+        let diff = target_z - single_id.as_z();
+        let children: Vec<_> = single_id.children(diff).unwrap().collect();
+        result.extend(children);
+    }
+    result
+}
 
 ///SetAを生成する
 #[cfg(any(test))]

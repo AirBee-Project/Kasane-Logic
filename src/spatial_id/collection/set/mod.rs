@@ -5,7 +5,7 @@ pub mod scanner;
 use roaring::{RoaringBitmap, RoaringTreemap};
 
 use crate::{
-    FlexId, FlexIdRank, RangeId, Segment, SingleId,
+    Error, FlexId, FlexIdRank, MAX_ZOOM_LEVEL, RangeId, Segment, SingleId,
     spatial_id::{
         FlexIds, collection::set::scanner::FlexIdScanPlan, flex_id, helpers::fast_intersect,
     },
@@ -93,11 +93,14 @@ impl SetOnMemory {
     pub unsafe fn join_uncheck_insert<T: FlexIds>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
             match self.find(flex_id.f_sibling()) {
-                Some(v) => {
-                    self.remove_from_rank(v);
-                    unsafe { self.uncheck_insert(flex_id.f_parent().unwrap()) };
-                    continue;
-                }
+                Some(v) => match flex_id.f_parent() {
+                    Some(parent) => {
+                        self.remove_from_rank(v);
+                        unsafe { self.uncheck_insert(parent) };
+                        continue;
+                    }
+                    None => {}
+                },
                 None => {}
             }
 

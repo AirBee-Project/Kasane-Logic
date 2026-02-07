@@ -3,3 +3,4 @@ output.txt
 output_debug.txt
 /src/main.rs
 .DS_Store
+/proptest-regressions

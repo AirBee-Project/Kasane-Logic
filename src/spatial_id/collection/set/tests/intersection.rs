@@ -20,6 +20,7 @@ mod tests {
             .map(|s| s.max_z())
             .chain(std::iter::once(logic_result.max_z()))
             .max()
+            .unwrap()
             .unwrap_or(0);
 
         let actual = to_flat_set(logic_result, max_z);

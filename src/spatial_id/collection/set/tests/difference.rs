@@ -16,6 +16,7 @@ mod tests {
             .chain(std::iter::once(initial_set.max_z()))
             .chain(subtractors.iter().map(|s| s.max_z()))
             .max()
+            .unwrap()
             .unwrap_or(0);
 
         let actual = to_flat_set(logic_result, max_z);
