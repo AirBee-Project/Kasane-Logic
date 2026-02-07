@@ -7,6 +7,7 @@ use crate::{
     spatial_id::{FlexIds, collection::set::SetOnMemory, helpers::fast_intersect},
 };
 
+#[derive(Debug)]
 ///あるセグメントの他のセグメントの関係を記録する型
 pub struct SegmentNeighborhood<'a> {
     ///対象となるセグメント
@@ -64,6 +65,7 @@ impl<'a> SegmentNeighborhood<'a> {
 }
 
 ///Setの中からあるFlexIDに関連するIDを効率的にスキャンする
+#[derive(Debug)]
 pub struct FlexIdScanPlan<'a> {
     ///スキャン対象となるSet
     set: &'a SetOnMemory,

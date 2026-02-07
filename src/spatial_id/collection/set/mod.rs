@@ -40,6 +40,7 @@ impl SetOnMemory {
 
         //削除が必要なIDを貯めて最後に削除する
         let mut need_delete_ranks = RoaringTreemap::new();
+        let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
 
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
@@ -55,6 +56,7 @@ impl SetOnMemory {
 
             //競合解消が不要な場合は次のFLexIDへ行く
             if partial_overlaps.is_empty() {
+                need_insert_flex_ids.push(flex_id_scanner.flex_id().clone());
                 continue;
             }
 
@@ -67,12 +69,21 @@ impl SetOnMemory {
             for partial_overlap_rank in partial_overlaps {
                 //存在しないRankが取れるはずがないのでunwrapする
                 let flex_id = self.as_flex_id(&partial_overlap_rank).unwrap();
+                shave_set.remove(flex_id);
             }
+
+            //削って競合がなくなったSetを挿入する
+            need_insert_flex_ids.extend(shave_set.as_flex_ids().cloned());
         }
 
         //削除が必要なものを削除する
         for nend_delete_rank in need_delete_ranks {
             self.remove_from_rank(nend_delete_rank);
+        }
+
+        //挿入するべきものを挿入する
+        for need_insert_flex_id in need_insert_flex_ids {
+            unsafe { self.join_uncheck_insert(need_insert_flex_id) };
         }
     }
 
@@ -152,11 +163,48 @@ impl SetOnMemory {
     }
 
     ///指定した領域を削除して、削除された部分をSetとして返す
-    pub fn remove<T: FlexIds>(&mut self, target: &T) -> Self {
-        let mut result = SetOnMemory::new();
-        for flex_id in target.flex_ids() {}
+    pub fn remove<T: FlexIds>(&mut self, target: &T) {
+        for flex_id in target.flex_ids() {
+            //単体のFlexIdをScanする
+            let scanner = self.scanner(flex_id.clone());
+            let mut need_delete_ranks: Vec<FlexIdRank> = Vec::new();
+            let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
 
-        result
+            let first = scanner.scan().next().unwrap();
+
+            //親のFlexIdについて処理する
+            if let Some(parent_rank) = first.parent() {
+                let parent_flex_id = self.as_flex_id(&parent_rank).unwrap();
+                let diff = parent_flex_id.difference(&flex_id.clone());
+                need_delete_ranks.push(parent_rank);
+                need_insert_flex_ids.extend(diff);
+            }
+            //親がなかった場合に処理する
+            else {
+                //子を処理する
+                let children_ranks = first.children();
+                need_delete_ranks.extend(children_ranks);
+
+                //partial_overlapsを処理する
+                let partial_overlaps = first.partial_overlaps();
+                for partial_overlap in partial_overlaps {
+                    let base = self.as_flex_id(&partial_overlap).unwrap();
+                    let diff = base.difference(&flex_id);
+                    need_delete_ranks.push(partial_overlap);
+                    need_insert_flex_ids.extend(diff);
+                }
+            }
+
+            //削除すべきものを削除する
+            for need_delete_rank in need_delete_ranks {
+                self.remove_from_rank(need_delete_rank);
+            }
+
+            //挿入するべきものを挿入する
+            for need_insert_flex_id in need_insert_flex_ids {
+                unsafe { self.join_uncheck_insert(need_insert_flex_id) };
+            }
+        }
     }
 
     ///このSetが持っているFlexIdの個数を調べる
@@ -306,26 +354,35 @@ impl SetOnMemory {
         result
     }
 
+    ///このSetに入っている[RangeId]を全て返す
     pub fn range_ids(&self) -> impl Iterator<Item = RangeId> {
         self.main.iter().map(|(_, flex_id)| flex_id.range_id())
     }
 
+    ///このSetに入っている[SingleId]を全て返す
     pub fn single_ids(&self) -> impl Iterator<Item = SingleId> {
         self.range_ids()
             .flat_map(|f| f.single_ids().collect::<Vec<_>>())
     }
 
+    ///このSetが空かどうかを判定する
     pub fn is_empty(&self) -> bool {
         self.main.is_empty()
     }
 
     ///このSetが持っている最も大きなズームレベル値を返す
-    pub fn max_z(&self) -> u8 {
-        todo!()
+    pub fn max_z(&self) -> Option<u8> {
+        let f = self.f.iter().next_back()?.0.to_f().0;
+        let x = self.x.iter().next_back()?.0.to_xy().0;
+        let y = self.y.iter().next_back()?.0.to_xy().0;
+        Some(f.max(x.max(y)))
     }
 
     ///このSetが持っている最も小さなズームレベル値を返す
-    pub fn min_z(&self) -> u8 {
-        todo!()
+    pub fn min_z(&self) -> Option<u8> {
+        let f = self.f.iter().next()?.0.to_f().0;
+        let x = self.x.iter().next()?.0.to_xy().0;
+        let y = self.y.iter().next()?.0.to_xy().0;
+        Some(f.min(x.min(y)))
     }
 }
