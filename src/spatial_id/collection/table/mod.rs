@@ -1,57 +1,87 @@
-pub mod logic;
-pub mod memory;
-pub mod tests;
-
-use crate::storage::Batch;
-use crate::{
-    spatial_id::collection::{FlexIdRank, ValueRank},
-    storage::{KeyValueStore, OrderedKeyValueStore},
+use std::{
+    collections::{BTreeMap, HashMap},
+    hash::Hash,
 };
 
-pub trait TableStorage {
-    type Value: Clone + PartialEq + Ord;
-    type Forward: KeyValueStore<FlexIdRank, ValueRank>;
-    type Dictionary: KeyValueStore<ValueRank, Self::Value>;
-    type Reverse: OrderedKeyValueStore<Self::Value, ValueRank>;
+use roaring::RoaringTreemap;
 
-    fn forward(&self) -> &Self::Forward;
-    fn forward_mut(&mut self) -> &mut Self::Forward;
+use crate::{FlexId, FlexIdRank, Segment, spatial_id::FlexIds};
+pub type ValueRank = u64;
 
-    fn dictionary(&self) -> &Self::Dictionary;
-    fn dictionary_mut(&mut self) -> &mut Self::Dictionary;
+pub struct TableOnMemory<V> {
+    f: BTreeMap<Segment, RoaringTreemap>,
+    x: BTreeMap<Segment, RoaringTreemap>,
+    y: BTreeMap<Segment, RoaringTreemap>,
+    main: HashMap<FlexIdRank, (FlexId, ValueRank)>,
+    next_rank: u64,
+    recycle_rank: Vec<u64>,
 
-    fn reverse(&self) -> &Self::Reverse;
-    fn reverse_mut(&mut self) -> &mut Self::Reverse;
+    //Table特有の要素
+    dictionary: BTreeMap<V, RoaringTreemap>,
+    reverse: HashMap<ValueRank, V>,
+    value_next_rank: u64,
+    value_recycle_rank: Vec<u64>,
+}
 
-    fn fetch_value_rank(&mut self) -> u64;
-    fn return_value_rank(&mut self, rank: u64);
+impl<V> TableOnMemory<V> {
+    const RECYCLE_RANK_MAX: usize = 1024;
 
-    ///ストレージ間でデータを移動するときに次に割り当てるべきRankを引き継ぐ用
-    fn move_value_rank(&self) -> u64;
-
-    ///ストレージ間でデータを移動するときにゴミのRankを引き継ぐ用
-    fn move_value_rank_free_list(&self) -> Vec<u64>;
-
-    fn insert_value(&mut self, value: &Self::Value, flex_id_ranks: Vec<FlexIdRank>) -> ValueRank {
-        let value_rank = if let Some(rank) = self.reverse().get(&value).map(|v| *v) {
-            rank
-        } else {
-            let new_rank = self.fetch_value_rank();
-            let mut dict_batch = Batch::new();
-            dict_batch.put(new_rank, value.clone());
-            self.dictionary_mut().apply_batch(dict_batch);
-            let mut rev_batch = Batch::new();
-            rev_batch.put(value.clone(), new_rank);
-            self.reverse_mut().apply_batch(rev_batch);
-            new_rank
-        };
-
-        let mut fwd_batch = Batch::new();
-        for id_rank in flex_id_ranks {
-            fwd_batch.put(id_rank, value_rank);
+    ///初期化する
+    pub fn new() -> Self {
+        Self {
+            f: BTreeMap::new(),
+            x: BTreeMap::new(),
+            y: BTreeMap::new(),
+            main: HashMap::new(),
+            next_rank: 0,
+            recycle_rank: Vec::new(),
+            dictionary: BTreeMap::new(),
+            reverse: HashMap::new(),
+            value_next_rank: 0,
+            value_recycle_rank: Vec::new(),
         }
-        self.forward_mut().apply_batch(fwd_batch);
+    }
 
-        value_rank
+    ///値を挿入する
+    pub fn insert<T: FlexIds>(&mut self, target: &T, value: &V) {
+        //まずは値について考えたほうが良いよね
+    }
+
+    ///新しいRankを予約するためのメソット
+    fn fetch_rank(&mut self) -> FlexIdRank {
+        match self.recycle_rank.pop() {
+            Some(v) => v,
+            None => {
+                let result = self.next_rank;
+                self.next_rank = self.next_rank + 1;
+                result
+            }
+        }
+    }
+
+    ///Rankをreturnするためのメソット
+    fn return_rank(&mut self, rank: u64) {
+        if self.recycle_rank.len() < Self::RECYCLE_RANK_MAX {
+            self.recycle_rank.push(rank);
+        }
+    }
+
+    ///新しいRankを予約するためのメソット
+    fn fetch_value_rank(&mut self) -> ValueRank {
+        match self.value_recycle_rank.pop() {
+            Some(v) => v,
+            None => {
+                let result = self.value_next_rank;
+                self.value_next_rank = self.value_next_rank + 1;
+                result
+            }
+        }
+    }
+
+    ///Rankをreturnするためのメソット
+    fn return_value_rank(&mut self, rank: u64) {
+        if self.value_recycle_rank.len() < Self::RECYCLE_RANK_MAX {
+            self.value_recycle_rank.push(rank);
+        }
     }
 }
