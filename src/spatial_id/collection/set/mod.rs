@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, btree_map::Entry};
+use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
 pub mod scanner;
 pub mod tests;
@@ -17,7 +17,7 @@ pub struct SetOnMemory {
     f: BTreeMap<Segment, RoaringTreemap>,
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
-    main: BTreeMap<FlexIdRank, FlexId>,
+    main: HashMap<FlexIdRank, FlexId>,
     next_rank: u64,
     recycle_rank: Vec<u64>,
 }
@@ -30,7 +30,7 @@ impl SetOnMemory {
             f: BTreeMap::new(),
             x: BTreeMap::new(),
             y: BTreeMap::new(),
-            main: BTreeMap::new(),
+            main: HashMap::new(),
             next_rank: 0,
             recycle_rank: Vec::new(),
         }
@@ -170,46 +170,38 @@ impl SetOnMemory {
     }
 
     ///指定した領域を削除して、削除された部分をSetとして返す
+    /// 指定されたID集合を削除する
     pub fn remove<T: FlexIds>(&mut self, target: &T) {
         for flex_id in target.flex_ids() {
-            //単体のFlexIdをScanする
             let scanner = self.scanner(flex_id.clone());
+
             let mut need_delete_ranks: Vec<FlexIdRank> = Vec::new();
             let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
 
-            let first = scanner.scan().next().unwrap();
-
-            //親のFlexIdについて処理する
-            if let Some(parent_rank) = first.parent() {
-                let parent_flex_id = self.as_flex_id(&parent_rank).unwrap();
-                let diff = parent_flex_id.difference(&flex_id.clone());
-                need_delete_ranks.push(parent_rank);
-                need_insert_flex_ids.extend(diff);
-            }
-            //親がなかった場合に処理する
-            else {
-                //子を処理する
-                let children_ranks = first.children();
-                need_delete_ranks.extend(children_ranks);
-
-                //partial_overlapsを処理する
-                let partial_overlaps = first.partial_overlaps();
-                for partial_overlap in partial_overlaps {
-                    let base = self.as_flex_id(&partial_overlap).unwrap();
-                    let diff = base.difference(&flex_id);
-                    need_delete_ranks.push(partial_overlap);
-                    need_insert_flex_ids.extend(diff);
+            for scan_result in scanner.scan() {
+                if let Some(parent_rank) = scan_result.parent() {
+                    if let Some(parent_flex_id) = self.as_flex_id(&parent_rank) {
+                        let diff = parent_flex_id.difference(&flex_id);
+                        need_delete_ranks.push(parent_rank);
+                        need_insert_flex_ids.extend(diff);
+                    }
+                } else {
+                    let children_ranks = scan_result.children();
+                    need_delete_ranks.extend(children_ranks);
+                    for partial_overlap_rank in scan_result.partial_overlaps() {
+                        if let Some(base_flex_id) = self.as_flex_id(&partial_overlap_rank) {
+                            let diff = base_flex_id.difference(&flex_id);
+                            need_delete_ranks.push(partial_overlap_rank);
+                            need_insert_flex_ids.extend(diff);
+                        }
+                    }
                 }
             }
-
-            //削除すべきものを削除する
-            for need_delete_rank in need_delete_ranks {
-                self.remove_from_rank(need_delete_rank);
+            for rank in need_delete_ranks {
+                self.remove_from_rank(rank);
             }
-
-            //挿入するべきものを挿入する
-            for need_insert_flex_id in need_insert_flex_ids {
-                unsafe { self.join_uncheck_insert(need_insert_flex_id) };
+            for insert_id in need_insert_flex_ids {
+                unsafe { self.join_uncheck_insert(insert_id) };
             }
         }
     }
@@ -226,14 +218,14 @@ impl SetOnMemory {
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
             if flex_id_scanner.parent().is_some() {
-                unsafe { result.uncheck_insert(flex_id_scanner.flex_id()) };
+                unsafe { result.join_uncheck_insert(flex_id_scanner.flex_id()) };
                 continue;
             }
 
             //子を全て追加する
             for child_rank in flex_id_scanner.children() {
                 let flex_id = self.as_flex_id(&child_rank).unwrap();
-                unsafe { result.uncheck_insert(flex_id.clone()) };
+                unsafe { result.join_uncheck_insert(flex_id.clone()) };
             }
 
             //partial_overlapの重なりがある部分を全て追加する
@@ -242,7 +234,7 @@ impl SetOnMemory {
                 let intersection = overlap_flex_id
                     .intersection(&flex_id_scanner.flex_id())
                     .unwrap();
-                unsafe { result.uncheck_insert(intersection) };
+                unsafe { result.join_uncheck_insert(intersection) };
             }
         }
         result
@@ -402,9 +394,13 @@ impl SetOnMemory {
     ///集合同士が指し示す範囲が等しいかを検証する
     pub fn equal(&self, target: &Self) -> bool {
         if self.size() != target.size() {
-            false
-        } else {
-            todo!()
+            return false;
         }
+        let diff1 = self.difference(target);
+        if !diff1.is_empty() {
+            return false;
+        }
+        let diff2 = target.difference(self);
+        diff2.is_empty()
     }
 }
