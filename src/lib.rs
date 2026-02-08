@@ -7,9 +7,6 @@ mod geometry;
 /// 空間IDに関する型を定義。
 mod spatial_id;
 
-/// このライブライがサポートするストレージのTrait定義と実装
-mod storage;
-
 pub use roaring::RoaringTreemap;
 
 pub use error::Error;
@@ -26,8 +23,5 @@ pub use spatial_id::{
 };
 
 pub use spatial_id::collection::FlexIdRank;
-pub use spatial_id::segment::Segment;
-pub use storage::Batch;
-
 pub use spatial_id::collection::set::SetOnMemory;
-pub use storage::{KeyValueStore, OrderedKeyValueStore};
+pub use spatial_id::segment::Segment;
