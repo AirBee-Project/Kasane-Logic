@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
 pub mod scanner;
+pub mod tests;
 
 use roaring::{RoaringBitmap, RoaringTreemap};
 
@@ -96,7 +97,7 @@ impl SetOnMemory {
                 Some(v) => match flex_id.f_parent() {
                     Some(parent) => {
                         self.remove_from_rank(v);
-                        unsafe { self.uncheck_insert(parent) };
+                        unsafe { self.join_uncheck_insert(parent) };
                         continue;
                     }
                     None => {}
@@ -104,24 +105,27 @@ impl SetOnMemory {
                 None => {}
             }
 
+            // X軸方向の結合チェック
             match self.find(flex_id.x_sibling()) {
                 Some(v) => {
                     self.remove_from_rank(v);
-                    unsafe { self.uncheck_insert(flex_id.x_parent().unwrap()) };
+                    unsafe { self.join_uncheck_insert(flex_id.x_parent().unwrap()) };
                     continue;
                 }
                 None => {}
             }
 
+            // Y軸方向の結合チェック
             match self.find(flex_id.y_sibling()) {
                 Some(v) => {
                     self.remove_from_rank(v);
-                    unsafe { self.uncheck_insert(flex_id.y_parent().unwrap()) };
+                    unsafe { self.join_uncheck_insert(flex_id.y_parent().unwrap()) };
                     continue;
                 }
                 None => {}
             }
 
+            // 結合相手がいなければ、そのまま挿入
             unsafe { self.uncheck_insert(flex_id) };
         }
     }
@@ -373,19 +377,34 @@ impl SetOnMemory {
         self.main.is_empty()
     }
 
-    ///このSetが持っている最も大きなズームレベル値を返す
+    /// このSetが持っている最も大きなズームレベル値を返す
+    /// (全探索を行うため、要素数に比例した計算コストがかかります)
     pub fn max_z(&self) -> Option<u8> {
-        let f = self.f.iter().next_back()?.0.to_f().0;
-        let x = self.x.iter().next_back()?.0.to_xy().0;
-        let y = self.y.iter().next_back()?.0.to_xy().0;
-        Some(f.max(x.max(y)))
+        self.f
+            .keys()
+            .map(|s| s.to_f().0)
+            .chain(self.x.keys().map(|s| s.to_xy().0))
+            .chain(self.y.keys().map(|s| s.to_xy().0))
+            .max()
     }
 
-    ///このSetが持っている最も小さなズームレベル値を返す
+    /// このSetが持っている最も小さなズームレベル値を返す
+    /// (全探索を行うため、要素数に比例した計算コストがかかります)
     pub fn min_z(&self) -> Option<u8> {
-        let f = self.f.iter().next()?.0.to_f().0;
-        let x = self.x.iter().next()?.0.to_xy().0;
-        let y = self.y.iter().next()?.0.to_xy().0;
-        Some(f.min(x.min(y)))
+        self.f
+            .keys()
+            .map(|s| s.to_f().0)
+            .chain(self.x.keys().map(|s| s.to_xy().0))
+            .chain(self.y.keys().map(|s| s.to_xy().0))
+            .min()
+    }
+
+    ///集合同士が指し示す範囲が等しいかを検証する
+    pub fn equal(&self, target: &Self) -> bool {
+        if self.size() != target.size() {
+            false
+        } else {
+            todo!()
+        }
     }
 }

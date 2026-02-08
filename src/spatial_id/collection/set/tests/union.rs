@@ -29,7 +29,6 @@ mod tests {
             expected.extend(flat);
         }
 
-        // 4. 比較
         assert_eq!(
             actual,
             expected,
