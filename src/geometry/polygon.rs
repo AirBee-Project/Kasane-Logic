@@ -52,7 +52,7 @@ impl Polygon {
             // 点から平面までの距離
             let distance = Self::point_to_plane_distance(pi, p0, &normal);
 
-            if distance.abs() > 0.0 {
+            if distance.abs() > 1e-10 {
                 return Ok(false);
             }
         }
@@ -124,5 +124,89 @@ impl Polygon {
     //-> Result<impl Iterator<Item = RangeId>, Error>
     {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn c(lat: f64, lon: f64, alt: f64) -> Coordinate {
+        Coordinate::new(lat, lon, alt).unwrap()
+    }
+
+    #[test]
+    fn triangle_on_plane() {
+        let coords = vec![
+            c(0.0, 0.0, 0.0),
+            c(1.0, 0.0, 0.0),
+            c(0.0, 1.0, 0.0),
+            c(0.0, 0.0, 0.0),
+        ];
+        assert!(Polygon::new(coords).is_ok());
+    }
+
+    #[test]
+    fn square_on_plane() {
+        let coords = vec![
+            c(0.0, 0.0, 0.0),
+            c(1.0, 0.0, 0.0),
+            c(1.0, 1.0, 0.0),
+            c(0.0, 1.0, 0.0),
+            c(0.0, 0.0, 0.0),
+        ];
+        assert!(Polygon::new(coords).is_ok());
+    }
+
+    #[test]
+    fn square_with_altitude() {
+        let coords = vec![
+            c(35.0, 139.0, 100.0),
+            c(35.1, 139.0, 100.0),
+            c(35.1, 139.1, 100.0),
+            c(35.0, 139.1, 100.0),
+            c(35.0, 139.0, 100.0),
+        ];
+        assert!(Polygon::new(coords).is_ok());
+    }
+
+    #[test]
+    fn not_planar() {
+        let coords = vec![
+            c(0.0, 0.0, 0.0),
+            c(1.0, 0.0, 0.0),
+            c(1.0, 1.0, 0.0),
+            c(0.0, 1.0, 100.0),
+            c(0.0, 0.0, 0.0),
+        ];
+        assert_eq!(Polygon::new(coords).unwrap_err(), Error::NotPlanar);
+    }
+
+    #[test]
+    fn too_few_points() {
+        let coords = vec![c(0.0, 0.0, 0.0), c(1.0, 0.0, 0.0), c(0.0, 0.0, 0.0)];
+        assert_eq!(Polygon::new(coords).unwrap_err(), Error::TooFewPoints(3));
+    }
+
+    #[test]
+    fn not_closed() {
+        let coords = vec![
+            c(0.0, 0.0, 0.0),
+            c(1.0, 0.0, 0.0),
+            c(0.0, 1.0, 0.0),
+            c(0.0, 0.0, 1.0),
+        ];
+        assert_eq!(Polygon::new(coords).unwrap_err(), Error::NotClosedRing);
+    }
+
+    #[test]
+    fn collinear_points() {
+        let coords = vec![
+            c(0.0, 0.0, 0.0),
+            c(1.0, 0.0, 0.0),
+            c(2.0, 0.0, 0.0),
+            c(0.0, 0.0, 0.0),
+        ];
+        assert_eq!(Polygon::new(coords).unwrap_err(), Error::CollinearPoints);
     }
 }

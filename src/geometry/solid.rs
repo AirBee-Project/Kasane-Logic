@@ -105,3 +105,55 @@ impl Solid {
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn c(lat: f64, lon: f64, alt: f64) -> Coordinate {
+        Coordinate::new(lat, lon, alt).unwrap()
+    }
+
+    fn make_polygon(coords: Vec<Coordinate>) -> Polygon {
+        Polygon::new(coords).unwrap()
+    }
+
+    /// 正四面体（テトラヘドロン）の4面を作成する。
+    /// 面の向きが整合するように頂点順序を設定する。
+    fn tetrahedron() -> Vec<Polygon> {
+        let a = c(0.0, 0.0, 0.0);
+        let b = c(1.0, 0.0, 0.0);
+        let c_ = c(0.5, 1.0, 0.0);
+        let d = c(0.5, 0.5, 1.0);
+
+        vec![
+            // 底面: A -> B -> C (下向き法線)
+            make_polygon(vec![a, b, c_, a]),
+            // 側面1: A -> C -> D (外向き)
+            make_polygon(vec![a, c_, d, a]),
+            // 側面2: C -> B -> D (外向き)
+            make_polygon(vec![c_, b, d, c_]),
+            // 側面3: B -> A -> D (外向き)
+            make_polygon(vec![b, a, d, b]),
+        ]
+    }
+
+    #[test]
+    fn valid_tetrahedron() {
+        let surfaces = tetrahedron();
+        assert!(Solid::new(surfaces).is_ok());
+    }
+
+    #[test]
+    fn empty_solid() {
+        assert_eq!(Solid::new(vec![]).unwrap_err(), Error::EmptySolid);
+    }
+
+    #[test]
+    fn open_hole_detected() {
+        // 四面体から一面を除去して穴を作る
+        let mut surfaces = tetrahedron();
+        surfaces.pop();
+        assert_eq!(Solid::new(surfaces).unwrap_err(), Error::OpenHoleDetected);
+    }
+}
