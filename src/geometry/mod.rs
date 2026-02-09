@@ -20,3 +20,5 @@ pub mod polygon;
 pub mod solid;
 
 pub mod triangle;
+
+pub mod helpers;

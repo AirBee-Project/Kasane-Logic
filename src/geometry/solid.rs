@@ -1,95 +1,9 @@
-use crate::{Coordinate, Error, Polygon, triangle::Triangle};
+use crate::{
+    Coordinate, Error, Polygon,
+    geometry::helpers::{aabb::AABB, vec2::Vec2, vec3::Vec3},
+    triangle::Triangle,
+};
 use std::collections::HashMap;
-
-/// 2Dベクトル型
-#[derive(Debug, Clone, Copy)]
-struct Vec2 {
-    x: f64,
-    y: f64,
-}
-
-/// 3Dベクトル型
-#[derive(Debug, Clone, Copy)]
-struct Vec3 {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-impl Vec3 {
-    fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { x, y, z }
-    }
-
-    fn from_coord(c: &Coordinate) -> Self {
-        Self {
-            x: c.as_longitude(),
-            y: c.as_latitude(),
-            z: c.as_altitude(),
-        }
-    }
-
-    fn dot(self, other: Vec3) -> f64 {
-        self.x * other.x + self.y * other.y + self.z * other.z
-    }
-
-    fn cross(self, other: Vec3) -> Vec3 {
-        Vec3 {
-            x: self.y * other.z - self.z * other.y,
-            y: self.z * other.x - self.x * other.z,
-            z: self.x * other.y - self.y * other.x,
-        }
-    }
-
-    fn sub(self, other: Vec3) -> Vec3 {
-        Vec3 {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
-        }
-    }
-
-    fn length_sq(self) -> f64 {
-        self.dot(self)
-    }
-
-    fn length(self) -> f64 {
-        self.length_sq().sqrt()
-    }
-}
-
-/// 軸並行バウンディングボックス
-#[derive(Debug, Clone, Copy)]
-struct AABB {
-    min: Vec3,
-    max: Vec3,
-}
-
-impl AABB {
-    fn from_triangle(v0: Vec3, v1: Vec3, v2: Vec3) -> Self {
-        Self {
-            min: Vec3 {
-                x: v0.x.min(v1.x).min(v2.x),
-                y: v0.y.min(v1.y).min(v2.y),
-                z: v0.z.min(v1.z).min(v2.z),
-            },
-            max: Vec3 {
-                x: v0.x.max(v1.x).max(v2.x),
-                y: v0.y.max(v1.y).max(v2.y),
-                z: v0.z.max(v1.z).max(v2.z),
-            },
-        }
-    }
-
-    fn intersects(&self, other: &AABB, margin: f64) -> bool {
-        self.min.x - margin <= other.max.x
-            && self.max.x + margin >= other.min.x
-            && self.min.y - margin <= other.max.y
-            && self.max.y + margin >= other.min.y
-            && self.min.z - margin <= other.max.z
-            && self.max.z + margin >= other.min.z
-    }
-}
 
 /// 三角形分割結果にどの面に属するかを付与した構造体
 #[derive(Debug)]
@@ -562,17 +476,17 @@ impl Solid {
         let cross_dir = n_a.cross(n_b);
 
         // 交差線への投影軸を決定（cross_dir の最大成分の軸）
-        let ax = cross_dir.x.abs();
-        let ay = cross_dir.y.abs();
-        let az = cross_dir.z.abs();
+        let ax = cross_dir.x().abs();
+        let ay = cross_dir.y().abs();
+        let az = cross_dir.z().abs();
 
         let project = |v: Vec3| -> f64 {
             if ax >= ay && ax >= az {
-                v.x
+                v.x()
             } else if ay >= ax && ay >= az {
-                v.y
+                v.y()
             } else {
-                v.z
+                v.z()
             }
         };
 
@@ -696,17 +610,17 @@ impl Solid {
         epsilon: f64,
     ) -> bool {
         // 法線の最大成分の軸を使って2Dに投影
-        let ax = normal.x.abs();
-        let ay = normal.y.abs();
-        let az = normal.z.abs();
+        let ax = normal.x().abs();
+        let ay = normal.y().abs();
+        let az = normal.z().abs();
 
         let project_2d = |v: &Vec3| -> Vec2 {
             if ax >= ay && ax >= az {
-                Vec2 { x: v.y, y: v.z }
+                Vec2::new(v.y(), v.z())
             } else if ay >= ax && ay >= az {
-                Vec2 { x: v.x, y: v.z }
+                Vec2::new(v.x(), v.z())
             } else {
-                Vec2 { x: v.x, y: v.y }
+                Vec2::new(v.x(), v.y())
             }
         };
 
@@ -793,9 +707,8 @@ impl Solid {
     }
 
     fn cross_2d_val(a: Vec2, b: Vec2, c: Vec2) -> f64 {
-        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+        (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())
     }
-
     /// 点が三角形の内部にあるか（2D）
     fn point_in_triangle_2d(p: Vec2, tri: &[Vec2; 3], epsilon: f64) -> bool {
         let d1 = Self::cross_2d_val(tri[0], tri[1], p);

@@ -1,53 +1,10 @@
 use crate::{
     Coordinate, Error, SingleId,
+    geometry::helpers::vec2::Vec2,
     triangle::{self, Triangle},
 };
 
-/// 2Dベクトル型（投影後の座標用）
-#[derive(Debug, Clone, Copy)]
-struct Vec2 {
-    x: f64,
-    y: f64,
-}
-
-/// 3Dベクトル型（法線計算・投影用）
-#[derive(Debug, Clone, Copy)]
-struct Vec3 {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-impl Vec3 {
-    fn dot(self, other: Vec3) -> f64 {
-        self.x * other.x + self.y * other.y + self.z * other.z
-    }
-
-    fn cross(self, other: Vec3) -> Vec3 {
-        Vec3 {
-            x: self.y * other.z - self.z * other.y,
-            y: self.z * other.x - self.x * other.z,
-            z: self.x * other.y - self.y * other.x,
-        }
-    }
-
-    fn length(self) -> f64 {
-        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
-    }
-
-    fn normalize(self) -> Option<Vec3> {
-        let len = self.length();
-        if len < 1.0e-15 {
-            None
-        } else {
-            Some(Vec3 {
-                x: self.x / len,
-                y: self.y / len,
-                z: self.z / len,
-            })
-        }
-    }
-}
+use crate::geometry::helpers::vec3::Vec3;
 
 #[derive(Debug, Clone)]
 pub struct Polygon {
@@ -145,16 +102,16 @@ impl Polygon {
             let curr = &points[i];
             let next = &points[(i + 1) % n];
 
-            let v1 = Vec3 {
-                x: curr.as_longitude() - prev.as_longitude(),
-                y: curr.as_latitude() - prev.as_latitude(),
-                z: curr.as_altitude() - prev.as_altitude(),
-            };
-            let v2 = Vec3 {
-                x: next.as_longitude() - curr.as_longitude(),
-                y: next.as_latitude() - curr.as_latitude(),
-                z: next.as_altitude() - curr.as_altitude(),
-            };
+            let v1 = Vec3::new(
+                curr.as_longitude() - prev.as_longitude(),
+                curr.as_latitude() - prev.as_latitude(),
+                curr.as_altitude() - prev.as_altitude(),
+            );
+            let v2 = Vec3::new(
+                next.as_longitude() - curr.as_longitude(),
+                next.as_latitude() - curr.as_latitude(),
+                next.as_altitude() - curr.as_altitude(),
+            );
 
             let cross = v1.cross(v2);
             let cross_len = cross.length();
@@ -226,7 +183,7 @@ impl Polygon {
     }
 
     fn cross_2d(a: Vec2, b: Vec2, c: Vec2) -> f64 {
-        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+        (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())
     }
 
     // ================================================================
@@ -255,61 +212,27 @@ impl Polygon {
             nz += (x0 - x1) * (y0 + y1);
         }
 
-        Vec3 {
-            x: nx,
-            y: ny,
-            z: nz,
-        }
+        Vec3::new(nx, ny, nz)
     }
 
     fn compute_projection_axes(normal: Vec3) -> (Vec3, Vec3) {
         let n = match normal.normalize() {
             Some(n) => n,
             None => {
-                return (
-                    Vec3 {
-                        x: 1.0,
-                        y: 0.0,
-                        z: 0.0,
-                    },
-                    Vec3 {
-                        x: 0.0,
-                        y: 1.0,
-                        z: 0.0,
-                    },
-                );
+                return (Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
             }
         };
 
-        let reference = if n.x.abs() < 0.9 {
-            Vec3 {
-                x: 1.0,
-                y: 0.0,
-                z: 0.0,
-            }
+        let reference = if n.x().abs() < 0.9 {
+            Vec3::new(1.0, 0.0, 0.0)
         } else {
-            Vec3 {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            }
+            Vec3::new(0.0, 1.0, 0.0)
         };
 
         let u = match n.cross(reference).normalize() {
             Some(u) => u,
             None => {
-                return (
-                    Vec3 {
-                        x: 1.0,
-                        y: 0.0,
-                        z: 0.0,
-                    },
-                    Vec3 {
-                        x: 0.0,
-                        y: 1.0,
-                        z: 0.0,
-                    },
-                );
+                return (Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
             }
         };
 
@@ -319,15 +242,13 @@ impl Polygon {
     }
 
     fn project_point(coord: &Coordinate, u_axis: Vec3, v_axis: Vec3) -> Vec2 {
-        let p = Vec3 {
-            x: coord.as_longitude(),
-            y: coord.as_latitude(),
-            z: coord.as_altitude(),
-        };
-        Vec2 {
-            x: p.dot(u_axis),
-            y: p.dot(v_axis),
-        }
+        let p = Vec3::new(
+            coord.as_longitude(),
+            coord.as_latitude(),
+            coord.as_altitude(),
+        );
+
+        Vec2::new(p.dot(u_axis), p.dot(v_axis))
     }
 
     fn project_polygon_to_2d(points: &[Coordinate], u_axis: Vec3, v_axis: Vec3) -> Vec<Vec2> {
@@ -526,7 +447,7 @@ impl Polygon {
         for i in 0..indices.len() {
             let curr = points_2d[indices[i]];
             let next = points_2d[indices[(i + 1) % indices.len()]];
-            area += (next.x - curr.x) * (next.y + curr.y);
+            area += (next.x() - curr.x()) * (next.y() + curr.y());
         }
         -area / 2.0
     }
@@ -536,7 +457,7 @@ impl Polygon {
         let b = points[curr];
         let c = points[next];
 
-        let cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        let cross = (b.x() - a.x()) * (c.y() - b.y()) - (b.y() - a.y()) * (c.x() - b.x());
         cross > -epsilon
     }
 
@@ -566,16 +487,16 @@ impl Polygon {
     }
 
     fn is_point_in_triangle_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2, epsilon: f64) -> bool {
-        let cross1 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-        let cross2 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
-        let cross3 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
+        let cross1 = (b.x() - a.x()) * (p.y() - a.y()) - (b.y() - a.y()) * (p.x() - a.x());
+        let cross2 = (c.x() - b.x()) * (p.y() - b.y()) - (c.y() - b.y()) * (p.x() - b.x());
+        let cross3 = (a.x() - c.x()) * (p.y() - c.y()) - (a.y() - c.y()) * (p.x() - c.x());
 
         let tol = -epsilon;
         cross1 >= tol && cross2 >= tol && cross3 >= tol
     }
 
     fn triangle_area_2d(a: Vec2, b: Vec2, c: Vec2) -> f64 {
-        ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)).abs() / 2.0
+        ((b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())).abs() / 2.0
     }
 
     // ================================================================
