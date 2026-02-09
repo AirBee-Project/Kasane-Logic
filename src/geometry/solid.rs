@@ -1,4 +1,4 @@
-use crate::{Coordinate, Error, Polygon};
+use crate::{Coordinate, Error, Polygon, triangle::Triangle};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -89,6 +89,17 @@ impl Solid {
         }
 
         Ok(())
+    }
+
+    pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
+        let mut all_triangles = Vec::new();
+
+        for surface in &self.surfaces {
+            let mut triangles = surface.triangulate()?;
+            all_triangles.append(&mut triangles);
+        }
+
+        Ok(all_triangles)
     }
 
     ///立体をSingleIdの集合に変換する関数

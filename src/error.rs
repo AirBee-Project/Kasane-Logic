@@ -6,25 +6,42 @@ use std::fmt;
 pub enum Error {
     // --- 既存の座標・ズームレベルエラー ---
     /// ズームレベルが有効範囲（0..=31）外であることを示す。
-    ZOutOfRange { z: u8 },
+    ZOutOfRange {
+        z: u8,
+    },
 
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
-    FOutOfRange { z: u8, f: i32 },
+    FOutOfRange {
+        z: u8,
+        f: i32,
+    },
 
     /// X 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    XOutOfRange { z: u8, x: u32 },
+    XOutOfRange {
+        z: u8,
+        x: u32,
+    },
 
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    YOutOfRange { z: u8, y: u32 },
+    YOutOfRange {
+        z: u8,
+        y: u32,
+    },
 
     /// 緯度が有効範囲外であることを表す。
-    LatitudeOutOfRange { latitude: f64 },
+    LatitudeOutOfRange {
+        latitude: f64,
+    },
 
     /// 経度が有効範囲外であることを表す。
-    LongitudeOutOfRange { longitude: f64 },
+    LongitudeOutOfRange {
+        longitude: f64,
+    },
 
     /// 高度が有効範囲外であることを表す。
-    AltitudeOutOfRange { altitude: f64 },
+    AltitudeOutOfRange {
+        altitude: f64,
+    },
 
     // --- 新規追加: Surface/Solid 幾何形状検証エラー ---
     /// ポリゴンの頂点数が不足している（閉じるためには最低4点必要）。
@@ -54,6 +71,9 @@ pub enum Error {
 
     /// 非多様体エッジ（3つ以上の面が共有）、または面の向きが不整合（法線フリップ）。
     NonManifoldEdge,
+
+    SelfIntersection,
+    TriangulationFailed,
 }
 
 impl fmt::Display for Error {
@@ -147,6 +167,14 @@ impl fmt::Display for Error {
                     f,
                     "Solid contains non-manifold edges or inconsistent normals (edge used >2 times or same direction twice)"
                 )
+            }
+
+            Error::SelfIntersection => {
+                write!(f, "SelfIntersection")
+            }
+
+            Error::TriangulationFailed => {
+                write!(f, "TriangulationFailed")
             }
         }
     }

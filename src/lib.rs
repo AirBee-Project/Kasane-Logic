@@ -12,7 +12,6 @@ pub use roaring::RoaringTreemap;
 pub use error::Error;
 pub use geometry::{
     coordinate::Coordinate, ecef::Ecef, shapes::line::line, shapes::sphere::sphere,
-    shapes::triangle::triangle,
 };
 pub use spatial_id::{
     SpatialId,
@@ -24,6 +23,7 @@ pub use spatial_id::{
 
 pub use geometry::polygon::Polygon;
 pub use geometry::solid::Solid;
+pub use geometry::triangle;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
 pub use spatial_id::segment::Segment;

@@ -1,4 +1,4 @@
-use crate::{Coordinate, Error, SingleId};
+use crate::{Coordinate, Error, SingleId, triangle::Triangle};
 
 #[derive(Debug, Clone)]
 /// 3次元空間内の同一平面上に存在する、閉じた多角形（ポリゴン）を表す型。
@@ -29,6 +29,11 @@ impl Polygon {
         //平面であることを確認
         if !Self::is_planar(&coords)? {
             return Err(Error::NotPlanar);
+        }
+
+        // 自己交差を確認
+        if Self::has_self_intersection(&coords) {
+            return Err(Error::SelfIntersection);
         }
 
         Ok(Self { points: coords })
@@ -110,6 +115,137 @@ impl Polygon {
     ///面を構成する点を借用する関数
     pub fn points(&self) -> &[Coordinate] {
         &self.points
+    }
+
+    fn has_self_intersection(coords: &[Coordinate]) -> bool {
+        let n = coords.len();
+        // 閉じたポリゴンなので、最後の点（=最初の点）を除いた辺のリストを考える
+        // 辺 i は (coords[i], coords[i+1])
+        for i in 0..n - 1 {
+            for j in i + 2..n - 1 {
+                // 隣接する辺（例：辺1と辺2）は頂点を共有しているだけなのでスキップ
+                // ただし、最初と最後の辺の結合部もチェック対象外にする
+                if i == 0 && j == n - 2 {
+                    continue;
+                }
+
+                if Self::segments_intersect(&coords[i], &coords[i + 1], &coords[j], &coords[j + 1])
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// 2つの線分が交差するか判定（2D投影を利用）
+    fn segments_intersect(a: &Coordinate, b: &Coordinate, c: &Coordinate, d: &Coordinate) -> bool {
+        // 簡易的に経度(x), 緯度(y)平面で判定
+        let ccw = |p1: &Coordinate, p2: &Coordinate, p3: &Coordinate| -> f64 {
+            (p2.as_longitude() - p1.as_longitude()) * (p3.as_latitude() - p1.as_latitude())
+                - (p2.as_latitude() - p1.as_latitude()) * (p3.as_longitude() - p1.as_longitude())
+        };
+
+        let res1 = ccw(a, b, c) * ccw(a, b, d);
+        let res2 = ccw(c, d, a) * ccw(c, d, b);
+
+        // 両方の線分がお互いを跨いでいれば交差
+        res1 < 0.0 && res2 < 0.0
+    }
+
+    /// ポリゴンを三角形の集合（Triangle）に分割する。
+    pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
+        let points = self.points();
+        let mut vertices: Vec<Coordinate> = points[..points.len() - 1].to_vec();
+
+        if vertices.len() < 3 {
+            return Err(Error::TooFewPoints(vertices.len()));
+        }
+
+        let mut area_sum = 0.0;
+        for i in 0..vertices.len() {
+            let curr = &vertices[i];
+            let next = &vertices[(i + 1) % vertices.len()];
+            area_sum += (next.as_longitude() - curr.as_longitude())
+                * (next.as_latitude() + curr.as_latitude());
+        }
+
+        let mut triangles = Vec::new();
+
+        while vertices.len() > 3 {
+            let mut ear_found = false;
+            for i in 0..vertices.len() {
+                let prev = (i + vertices.len() - 1) % vertices.len();
+                let curr = i;
+                let next = (i + 1) % vertices.len();
+
+                // 自己交差がないことが保証されているため、
+                // ここでの判定は「純粋な凸角判定」と「他の点の内包判定」だけで完結する
+                if self.is_ear(&vertices[prev], &vertices[curr], &vertices[next], &vertices) {
+                    triangles.push(Triangle::new([
+                        vertices[prev],
+                        vertices[curr],
+                        vertices[next],
+                    ]));
+                    vertices.remove(curr);
+                    ear_found = true;
+                    break;
+                }
+            }
+
+            if !ear_found {
+                return Err(Error::TriangulationFailed);
+            }
+        }
+        triangles.push(Triangle::new([vertices[0], vertices[1], vertices[2]]));
+        Ok(triangles)
+    }
+
+    fn is_ear(
+        &self,
+        a: &Coordinate,
+        b: &Coordinate,
+        c: &Coordinate,
+        all_points: &[Coordinate],
+    ) -> bool {
+        for p in all_points {
+            if p == a || p == b || p == c {
+                continue;
+            }
+            if self.is_point_in_triangle(p, a, b, c) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn is_point_in_triangle(
+        &self,
+        p: &Coordinate,
+        a: &Coordinate,
+        b: &Coordinate,
+        c: &Coordinate,
+    ) -> bool {
+        let (px, py) = (p.as_longitude(), p.as_latitude());
+        let (ax, ay) = (a.as_longitude(), a.as_latitude());
+        let (bx, by) = (b.as_longitude(), b.as_latitude());
+        let (cx, cy) = (c.as_longitude(), c.as_latitude());
+
+        let v0 = (cx - ax, cy - ay);
+        let v1 = (bx - ax, by - ay);
+        let v2 = (px - ax, py - ay);
+
+        let dot00 = v0.0 * v0.0 + v0.1 * v0.1;
+        let dot01 = v0.0 * v1.0 + v0.1 * v1.1;
+        let dot02 = v0.0 * v2.0 + v0.1 * v2.1;
+        let dot11 = v1.0 * v1.0 + v1.1 * v1.1;
+        let dot12 = v1.0 * v2.0 + v1.1 * v2.1;
+
+        let inv_den = 1.0 / (dot00 * dot11 - dot01 * dot01);
+        let u = (dot11 * dot02 - dot01 * dot12) * inv_den;
+        let v = (dot00 * dot12 - dot01 * dot02) * inv_den;
+
+        (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
     }
 
     ///面をSingleIdの集合に変換する関数
