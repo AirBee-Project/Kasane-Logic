@@ -76,6 +76,7 @@ pub enum Error {
     TriangulationFailed,
     DisconnectedSolid,
     DegenerateSolid,
+    GeometricIntersection,
 }
 
 impl fmt::Display for Error {
@@ -179,6 +180,7 @@ impl fmt::Display for Error {
             Error::DegenerateSolid => {
                 write!(f, "DegenerateSolid")
             }
+            Error::GeometricIntersection => write!(f, "GeometricIntersection"),
         }
     }
 }
