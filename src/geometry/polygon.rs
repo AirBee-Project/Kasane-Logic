@@ -1,11 +1,16 @@
 use crate::{
     Coordinate, Error, SingleId,
     geometry::helpers::vec2::Vec2,
-    triangle::{self, Triangle},
+    triangle::Triangle,
 };
 
 use crate::geometry::helpers::vec3::Vec3;
 
+/// A closed polygon defined by a sequence of coordinates.
+///
+/// The polygon must have at least 4 points (including the closing point).
+/// The first and last points must be the same to form a closed ring.
+/// Self-intersecting polygons are not allowed.
 #[derive(Debug, Clone)]
 pub struct Polygon {
     points: Vec<Coordinate>,
@@ -13,19 +18,27 @@ pub struct Polygon {
 }
 
 impl Polygon {
+    /// Default epsilon value for geometric operations.
     pub const DEFAULT_EPSILON: f64 = 1.0e-7;
 
+    /// Creates a new polygon from a sequence of coordinates.
+    ///
+    /// The polygon will be automatically closed if needed and cleaned up by:
+    /// - Removing duplicate points within epsilon distance
+    /// - Removing collinear vertices
+    /// - Checking for self-intersection
     pub fn new(coords: Vec<Coordinate>) -> Result<Self, Error> {
         Self::new_with_epsilon(coords, Self::DEFAULT_EPSILON)
     }
 
+    /// Creates a new polygon with a custom epsilon value.
     pub fn new_with_epsilon(coords: Vec<Coordinate>, epsilon: f64) -> Result<Self, Error> {
-        //点が4点以上あることを確認する
+        // Verify at least 4 points
         if coords.len() < 4 {
             return Err(Error::TooFewPoints(coords.len()));
         }
 
-        //誤差範囲にある点をマージする
+        // Merge points within epsilon distance
         let mut cleaned = Vec::with_capacity(coords.len());
         if let Some(first) = coords.first() {
             cleaned.push(first.clone());
@@ -43,7 +56,7 @@ impl Polygon {
             }
         }
 
-        //視点と終点のチェック
+        // Check start and end points
         if cleaned.len() > 1 {
             let first = &cleaned[0];
             let last = &cleaned[cleaned.len() - 1];
@@ -59,18 +72,18 @@ impl Polygon {
             }
         }
 
-        //点が4点以上あることを確認する
+        // Verify at least 4 points after cleaning
         if cleaned.len() < 4 {
             return Err(Error::TooFewPoints(cleaned.len()));
         }
 
-        //共線頂点の除去
+        // Remove collinear vertices
         let cleaned = Self::remove_collinear_vertices(&cleaned, epsilon);
         if cleaned.len() < 4 {
             return Err(Error::TooFewPoints(cleaned.len()));
         }
 
-        //自己交差を検出する
+        // Detect self-intersection
         if Self::has_self_intersection(&cleaned, epsilon) {
             return Err(Error::SelfIntersection);
         }
@@ -81,10 +94,10 @@ impl Polygon {
         })
     }
 
-    /// 共線頂点を除去する。
-    /// 始点=終点のリング構造を前提とする。
+    /// Removes collinear vertices from the polygon.
+    /// Assumes a ring structure where start == end.
     fn remove_collinear_vertices(points: &[Coordinate], epsilon: f64) -> Vec<Coordinate> {
-        let n = points.len() - 1; // 末尾は始点の重複
+        let n = points.len() - 1; // Last point is duplicate of first
         if n < 3 {
             return points.to_vec();
         }
@@ -130,7 +143,7 @@ impl Polygon {
         result
     }
 
-    /// 自己交差を検出する。
+    /// Detects self-intersection in the polygon.
     fn has_self_intersection(points: &[Coordinate], epsilon: f64) -> bool {
         let n = points.len() - 1;
 
@@ -248,7 +261,7 @@ impl Polygon {
             .collect()
     }
 
-    ///Polygon型を分割して[Triangle]にする関数
+    /// Triangulates the polygon into a list of triangles.
     pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
         let points_3d = &self.points;
         let count = points_3d.len();
@@ -357,7 +370,7 @@ impl Polygon {
                 let curr = indices[i];
                 let next = indices[(i + 1) % indices.len()];
 
-                // 退化三角形フィルタ
+                // Degenerate triangle filter
                 let tri_area =
                     Self::triangle_area_2d(points_2d[prev], points_2d[curr], points_2d[next]);
 
@@ -392,7 +405,7 @@ impl Polygon {
             }
         }
 
-        // 最後の3点
+        // Last 3 points
         if indices.len() == 3 {
             let tri_area = Self::triangle_area_2d(
                 points_2d[indices[0]],
@@ -473,10 +486,12 @@ impl Polygon {
         ((b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())).abs() / 2.0
     }
 
+    /// Returns the sequence of coordinates defining this polygon.
     pub fn points(&self) -> &[Coordinate] {
         &self.points
     }
 
+    /// Converts this polygon into a set of spatial IDs at the specified zoom level.
     pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let triangles = self.triangulate()?;
         let mut all_ids = std::collections::HashSet::new();

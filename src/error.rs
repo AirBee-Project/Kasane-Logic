@@ -173,19 +173,27 @@ impl fmt::Display for Error {
                 )
             }
             Error::SelfIntersection => {
-                write!(f, "SelfIntersection")
+                write!(f, "Polygon has self-intersecting edges")
             }
             Error::TriangulationFailed => {
-                write!(f, "TriangulationFailed")
+                write!(f, "Failed to triangulate polygon")
             }
             Error::DisconnectedSolid => {
-                write!(f, "DisconnectedSolid")
+                write!(f, "Solid has disconnected surfaces (not topologically connected)")
             }
             Error::DegenerateSolid => {
-                write!(f, "DegenerateSolid")
+                write!(f, "Solid has zero or near-zero volume")
             }
-            Error::GeometricIntersection => write!(f, "GeometricIntersection"),
-            Error::InvalidEdgeTopology { forward, backward } => write!(f, "InvalidEdgeTopology"),
+            Error::GeometricIntersection => {
+                write!(f, "Solid has geometric intersections between surfaces")
+            }
+            Error::InvalidEdgeTopology { forward, backward } => {
+                write!(
+                    f,
+                    "Invalid edge topology (forward: {}, backward: {})",
+                    forward, backward
+                )
+            }
         }
     }
 }

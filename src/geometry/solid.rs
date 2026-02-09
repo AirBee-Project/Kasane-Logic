@@ -5,7 +5,7 @@ use crate::{
 };
 use std::collections::HashMap;
 
-/// 三角形分割結果にどの面に属するかを付与した構造体
+/// A structure to store triangulation results with surface index.
 #[derive(Debug)]
 struct IndexedTriangle {
     surface_idx: usize,
@@ -19,31 +19,36 @@ struct EdgeStats {
     pub backward: Vec<usize>,
 }
 
-#[derive(Debug, Clone)]
-/// 隙間や穴のない、完全に閉じた立体を表す型。
+/// A completely closed solid with no gaps or holes.
 ///
-/// 作成時に下記のことを保証する。
-/// - 面が1つ以上存在すること。
-/// - 各面が有効な Polygon であること。
-/// - 全面の頂点が epsilon で正規化されていること。
-/// - すべての辺は正確に2つの面によって逆向きに共有されること（多様体条件）。
-/// - 面の向きが一貫していること。
-/// - 退化辺が存在しないこと。
-/// - 全面がトポロジー的に連結であること。
-/// - 符号付き体積がゼロでないこと。
-/// - 異なる面に属する三角形同士が幾何的に貫通していないこと。
+/// # Guarantees
+///
+/// When created, this type guarantees:
+/// - At least one surface exists
+/// - Each surface is a valid Polygon
+/// - All vertices are normalized with epsilon tolerance
+/// - Every edge is shared by exactly two surfaces in opposite directions (manifold condition)
+/// - Surface orientations are consistent
+/// - No degenerate edges exist
+/// - All surfaces are topologically connected
+/// - Signed volume is non-zero
+/// - No geometric intersections between surfaces from different faces
+#[derive(Debug, Clone)]
 pub struct Solid {
     surfaces: Vec<Polygon>,
     epsilon: f64,
 }
 
 impl Solid {
+    /// Default epsilon value for geometric operations.
     pub const DEFAULT_EPSILON: f64 = 1.0e-12;
 
+    /// Creates a new solid from a list of surfaces.
     pub fn new(surfaces: Vec<Polygon>) -> Result<Self, Error> {
         Self::new_with_epsilon(surfaces, Self::DEFAULT_EPSILON)
     }
 
+    /// Creates a new solid with a custom epsilon value.
     pub fn new_with_epsilon(surfaces: Vec<Polygon>, epsilon: f64) -> Result<Self, Error> {
         if surfaces.is_empty() {
             return Err(Error::EmptySolid);
@@ -61,10 +66,7 @@ impl Solid {
         Ok(solid)
     }
 
-    // ================================================================
-    //  頂点の正規化
-    // ================================================================
-
+    // Vertex normalization
     fn normalize_vertices(surfaces: Vec<Polygon>, epsilon: f64) -> Vec<Polygon> {
         let mut all_points: Vec<Coordinate> = Vec::new();
         let mut surface_ranges: Vec<(usize, usize)> = Vec::new();
@@ -72,8 +74,8 @@ impl Solid {
         for surface in &surfaces {
             let points = surface.points();
             let start = all_points.len();
-            for i in 0..points.len() - 1 {
-                all_points.push(points[i].clone());
+            for point in points.iter().take(points.len() - 1) {
+                all_points.push(point.clone());
             }
             let end = all_points.len();
             surface_ranges.push((start, end));
@@ -152,10 +154,7 @@ impl Solid {
         new_surfaces
     }
 
-    // ================================================================
-    //  辺の収集・検証
-    // ================================================================
-
+    // Edge collection and validation
     fn coord_to_bits(c: &Coordinate) -> [u64; 3] {
         [
             c.as_longitude().to_bits(),
@@ -227,10 +226,7 @@ impl Solid {
         Ok(())
     }
 
-    // ================================================================
-    //  連結性の検証
-    // ================================================================
-
+    // Connectivity validation
     fn validate_connectivity(&self) -> Result<(), Error> {
         let n = self.surfaces.len();
         if n <= 1 {
@@ -270,10 +266,7 @@ impl Solid {
         Ok(())
     }
 
-    // ================================================================
-    //  符号付き体積の検証
-    // ================================================================
-
+    // Signed volume validation
     fn validate_positive_volume(&self) -> Result<(), Error> {
         let triangles = self.triangulate()?;
 
@@ -307,18 +300,16 @@ impl Solid {
         Ok(())
     }
 
-    // ================================================================
-    //  幾何的交差の検証
-    // ================================================================
+    // Geometric intersection validation
 
-    /// 異なる面に属する三角形同士が幾何的に貫通していないことを検証する。
+    /// Validates that triangles from different surfaces do not geometrically intersect.
     ///
-    /// 手順:
-    /// 1. 全面を三角形分割し、各三角形にどの面に属するかを記録する
-    /// 2. 隣接面ペア（辺を共有する面）を収集する
-    /// 3. 全三角形ペアについて AABB で高速フィルタリングする
-    /// 4. AABB が重なるペアについて Möller の三角形交差判定を行う
-    /// 5. 隣接面の三角形同士は共有頂点での接触を除外する
+    /// Steps:
+    /// 1. Triangulate all surfaces and record which surface each triangle belongs to
+    /// 2. Collect adjacent surface pairs (surfaces sharing edges)
+    /// 3. Use AABB for fast filtering of all triangle pairs
+    /// 4. For AABB overlapping pairs, perform Möller triangle intersection test
+    /// 5. For adjacent surface triangles, exclude contact at shared vertices
     fn validate_no_geometric_intersection(&self) -> Result<(), Error> {
         // 1. 面ごとの三角形分割 + インデックス付与
         let indexed_triangles = self.build_indexed_triangles()?;
@@ -336,17 +327,17 @@ impl Solid {
                 let tri_a = &indexed_triangles[i];
                 let tri_b = &indexed_triangles[j];
 
-                // 同一面の三角形はスキップ
+                // Skip triangles from the same surface
                 if tri_a.surface_idx == tri_b.surface_idx {
                     continue;
                 }
 
-                // AABB の事前フィルタ
+                // AABB pre-filter
                 if !tri_a.aabb.intersects(&tri_b.aabb, self.epsilon) {
                     continue;
                 }
 
-                // 隣接面の三角形は共有要素での接触を許容する
+                // Adjacent surface triangles allow contact at shared elements
                 let are_adjacent = adjacent_pairs
                     .contains(&Self::surface_pair(tri_a.surface_idx, tri_b.surface_idx));
 
@@ -359,12 +350,12 @@ impl Solid {
         Ok(())
     }
 
-    /// 面ペアのキーを正規化（小さい方を前に）
+    /// Normalizes surface pair key (smaller index first).
     fn surface_pair(a: usize, b: usize) -> (usize, usize) {
         if a < b { (a, b) } else { (b, a) }
     }
 
-    /// 全面を三角形分割し、面のインデックスを付与して返す
+    /// Triangulates all surfaces and assigns surface indices.
     fn build_indexed_triangles(&self) -> Result<Vec<IndexedTriangle>, Error> {
         let mut result = Vec::new();
 
@@ -387,7 +378,7 @@ impl Solid {
         Ok(result)
     }
 
-    /// 辺を共有する面のペアを収集する
+    /// Collects pairs of surfaces that share edges.
     fn collect_adjacent_surface_pairs(&self) -> std::collections::HashSet<(usize, usize)> {
         let edge_map = self.collect_edges();
         let mut pairs = std::collections::HashSet::new();
@@ -403,48 +394,46 @@ impl Solid {
         pairs
     }
 
-    // ================================================================
-    //  三角形-三角形 交差判定（3D）
-    //  Möller の分離軸ベースアルゴリズム
-    // ================================================================
+    // Triangle-triangle intersection test (3D)
+    // Based on Möller's separating axis algorithm
 
-    /// 2つの三角形が3D空間で交差（貫通）しているかを判定する。
+    /// Determines if two triangles intersect (penetrate) in 3D space.
     ///
-    /// `are_adjacent` が true の場合、頂点や辺を共有する接触は貫通とみなさない。
+    /// When `are_adjacent` is true, contact at shared vertices or edges is not considered penetration.
     fn triangles_intersect_3d(
         tri_a: &[Vec3; 3],
         tri_b: &[Vec3; 3],
         are_adjacent: bool,
         epsilon: f64,
     ) -> bool {
-        // 隣接面の場合、共有頂点の数を数える
+        // For adjacent surfaces, count shared vertices
         if are_adjacent {
             let shared = Self::count_shared_vertices(tri_a, tri_b, epsilon);
-            // 2頂点以上を共有 → 辺を共有しているだけ（接触であり貫通ではない）
+            // 2 or more shared vertices → only shares edge (contact, not penetration)
             if shared >= 2 {
                 return false;
             }
         }
 
-        // --- Möller の三角形交差判定 ---
-        // 各三角形の平面を計算し、もう一方の三角形の頂点が平面のどちら側にあるかで判定
+        // --- Möller triangle intersection test ---
+        // Calculate plane for each triangle and determine which side vertices are on
 
-        // 三角形Aの平面
+        // Plane of triangle A
         let e1_a = tri_a[1].sub(tri_a[0]);
         let e2_a = tri_a[2].sub(tri_a[0]);
         let n_a = e1_a.cross(e2_a);
 
-        // 三角形Bの頂点の、平面Aに対する符号付き距離
+        // Signed distance of triangle B's vertices to plane A
         let db0 = n_a.dot(tri_b[0].sub(tri_a[0]));
         let db1 = n_a.dot(tri_b[1].sub(tri_a[0]));
         let db2 = n_a.dot(tri_b[2].sub(tri_a[0]));
 
-        // 浮動小数点誤差の丸め
+        // Round floating point errors
         let db0 = if db0.abs() < epsilon { 0.0 } else { db0 };
         let db1 = if db1.abs() < epsilon { 0.0 } else { db1 };
         let db2 = if db2.abs() < epsilon { 0.0 } else { db2 };
 
-        // 三角形Bの全頂点が平面Aの同じ側にある → 交差しない
+        // All vertices of triangle B are on the same side of plane A → no intersection
         if db0 > 0.0 && db1 > 0.0 && db2 > 0.0 {
             return false;
         }
@@ -452,12 +441,12 @@ impl Solid {
             return false;
         }
 
-        // 三角形Bの平面
+        // Plane of triangle B
         let e1_b = tri_b[1].sub(tri_b[0]);
         let e2_b = tri_b[2].sub(tri_b[0]);
         let n_b = e1_b.cross(e2_b);
 
-        // 三角形Aの頂点の、平面Bに対する符号付き距離
+        // Signed distance of triangle A's vertices to plane B
         let da0 = n_b.dot(tri_a[0].sub(tri_b[0]));
         let da1 = n_b.dot(tri_a[1].sub(tri_b[0]));
         let da2 = n_b.dot(tri_a[2].sub(tri_b[0]));
@@ -466,7 +455,7 @@ impl Solid {
         let da1 = if da1.abs() < epsilon { 0.0 } else { da1 };
         let da2 = if da2.abs() < epsilon { 0.0 } else { da2 };
 
-        // 三角形Aの全頂点が平面Bの同じ側にある → 交差しない
+        // All vertices of triangle A are on the same side of plane B → no intersection
         if da0 > 0.0 && da1 > 0.0 && da2 > 0.0 {
             return false;
         }
@@ -474,16 +463,16 @@ impl Solid {
             return false;
         }
 
-        // --- 共面の場合の処理 ---
+        // --- Handle coplanar case ---
         if db0 == 0.0 && db1 == 0.0 && db2 == 0.0 {
             return Self::coplanar_triangles_intersect(tri_a, tri_b, &n_a, are_adjacent, epsilon);
         }
 
-        // --- 交差線の区間重複判定 ---
-        // 2つの平面の交線上に、各三角形が作る区間を計算し、重複があれば交差
+        // --- Interval overlap test on intersection line ---
+        // Calculate the interval each triangle creates on the intersection line of the two planes
         let cross_dir = n_a.cross(n_b);
 
-        // 交差線への投影軸を決定（cross_dir の最大成分の軸）
+        // Determine projection axis onto intersection line (axis with maximum component of cross_dir)
         let ax = cross_dir.x().abs();
         let ay = cross_dir.y().abs();
         let az = cross_dir.z().abs();
@@ -498,13 +487,13 @@ impl Solid {
             }
         };
 
-        // 三角形Aの交差線上の区間
+        // Interval of triangle A on intersection line
         let pa0 = project(tri_a[0]);
         let pa1 = project(tri_a[1]);
         let pa2 = project(tri_a[2]);
         let interval_a = Self::compute_intersection_interval(pa0, pa1, pa2, da0, da1, da2);
 
-        // 三角形Bの交差線上の区間
+        // Interval of triangle B on intersection line
         let pb0 = project(tri_b[0]);
         let pb1 = project(tri_b[1]);
         let pb2 = project(tri_b[2]);
@@ -515,28 +504,28 @@ impl Solid {
             _ => return false,
         };
 
-        // 区間の重なり判定
-        // 隣接面で頂点を1つ共有する場合、端点での接触は許容する
+        // Interval overlap test
+        // For adjacent surfaces sharing a vertex, allow endpoint contact only
         if are_adjacent {
             let shared = Self::count_shared_vertices(tri_a, tri_b, epsilon);
             if shared >= 1 {
-                // 端点の接触のみ → 内部で重なっている場合のみ交差とする
+                // Endpoint contact only → only interior overlap is considered intersection
                 let overlap_start = interval_a.0.max(interval_b.0);
                 let overlap_end = interval_a.1.min(interval_b.1);
                 let overlap_len = overlap_end - overlap_start;
 
-                // 実質的な重なり長がある場合のみ交差
+                // Only intersection if there is actual overlap length
                 return overlap_len > epsilon;
             }
         }
 
-        // 区間が重なっていれば交差
+        // Intervals overlap → intersection
         interval_a.0 < interval_b.1 - epsilon && interval_b.0 < interval_a.1 - epsilon
     }
 
-    /// 三角形が交差線上に作る区間 [t_min, t_max] を計算する。
-    /// d0, d1, d2 は各頂点の平面からの符号付き距離。
-    /// p0, p1, p2 は各頂点の交差線への射影値。
+    /// Computes the interval [t_min, t_max] that a triangle creates on the intersection line.
+    /// d0, d1, d2 are signed distances of each vertex from the plane.
+    /// p0, p1, p2 are projection values of each vertex onto the intersection line.
     fn compute_intersection_interval(
         p0: f64,
         p1: f64,
@@ -545,28 +534,28 @@ impl Solid {
         d1: f64,
         d2: f64,
     ) -> Option<(f64, f64)> {
-        // 符号が異なる頂点ペア間を線形補間して交差点を求める
+        // Linear interpolation between vertices with different signs to find intersection
         let mut ts = Vec::with_capacity(2);
 
-        // d0 と d1 が異符号
+        // d0 and d1 have different signs
         if (d0 > 0.0 && d1 < 0.0) || (d0 < 0.0 && d1 > 0.0) {
             let t = p0 + (p1 - p0) * d0 / (d0 - d1);
             ts.push(t);
         }
 
-        // d0 と d2 が異符号
+        // d0 and d2 have different signs
         if (d0 > 0.0 && d2 < 0.0) || (d0 < 0.0 && d2 > 0.0) {
             let t = p0 + (p2 - p0) * d0 / (d0 - d2);
             ts.push(t);
         }
 
-        // d1 と d2 が異符号
+        // d1 and d2 have different signs
         if ts.len() < 2 && ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0)) {
             let t = p1 + (p2 - p1) * d1 / (d1 - d2);
             ts.push(t);
         }
 
-        // 頂点が平面上にある場合
+        // Vertices on the plane
         if ts.len() < 2 && d0 == 0.0 {
             ts.push(p0);
         }
@@ -587,7 +576,7 @@ impl Solid {
         Some((t_min, t_max))
     }
 
-    /// 共有頂点の数を数える
+    /// Counts the number of shared vertices between two triangles.
     fn count_shared_vertices(tri_a: &[Vec3; 3], tri_b: &[Vec3; 3], epsilon: f64) -> usize {
         let eps_sq = epsilon * epsilon;
         let mut count = 0;
@@ -596,7 +585,7 @@ impl Solid {
             for b in tri_b {
                 if a.sub(*b).length_sq() <= eps_sq {
                     count += 1;
-                    break; // この a に対しては1つマッチすれば十分
+                    break; // One match per vertex is sufficient
                 }
             }
         }
@@ -604,12 +593,10 @@ impl Solid {
         count
     }
 
-    // ================================================================
-    //  共面三角形の交差判定（2D に投影して判定）
-    // ================================================================
+    // Coplanar triangle intersection test (projected to 2D)
 
-    /// 2つの三角形が同一平面上にある場合の交差判定。
-    /// 法線方向を使って2Dに投影し、辺の交差で判定する。
+    /// Intersection test for two triangles on the same plane.
+    /// Uses normal direction to project to 2D and tests edge intersections.
     fn coplanar_triangles_intersect(
         tri_a: &[Vec3; 3],
         tri_b: &[Vec3; 3],
@@ -617,7 +604,7 @@ impl Solid {
         are_adjacent: bool,
         epsilon: f64,
     ) -> bool {
-        // 法線の最大成分の軸を使って2Dに投影
+        // Project to 2D using axis with maximum normal component
         let ax = normal.x().abs();
         let ay = normal.y().abs();
         let az = normal.z().abs();
@@ -643,7 +630,7 @@ impl Solid {
             project_2d(&tri_b[2]),
         ];
 
-        // 隣接面で辺を共有している場合、共有辺以外での交差のみを検出
+        // For adjacent surfaces sharing an edge, detect only non-shared edge intersections
         if are_adjacent {
             let shared = Self::count_shared_vertices(tri_a, tri_b, epsilon);
             if shared >= 2 {
@@ -651,14 +638,14 @@ impl Solid {
             }
         }
 
-        // 辺-辺の交差判定
+        // Edge-edge intersection test
         let edges_a = [(0, 1), (1, 2), (2, 0)];
         let edges_b = [(0, 1), (1, 2), (2, 0)];
 
         for &(a0, a1) in &edges_a {
             for &(b0, b1) in &edges_b {
                 if are_adjacent {
-                    // 共有頂点を含む辺同士の端点接触はスキップ
+                    // Skip endpoint contact of edges containing shared vertices
                     let a0_shared = Self::is_vertex_shared(&tri_a[a0], tri_b, epsilon);
                     let a1_shared = Self::is_vertex_shared(&tri_a[a1], tri_b, epsilon);
                     let b0_shared = Self::is_vertex_shared(&tri_b[b0], tri_a, epsilon);
@@ -675,11 +662,11 @@ impl Solid {
             }
         }
 
-        // 一方が他方を完全に包含するケース
+        // Case where one triangle completely contains the other
         if Self::point_in_triangle_2d(a2d[0], &b2d, epsilon)
             || Self::point_in_triangle_2d(b2d[0], &a2d, epsilon)
         {
-            // 隣接面で頂点を共有する場合、共有頂点のみでの包含は接触
+            // For adjacent surfaces sharing vertices, containment of only shared vertex is contact
             if are_adjacent {
                 let shared = Self::count_shared_vertices(tri_a, tri_b, epsilon);
                 if shared >= 1 {
@@ -692,13 +679,13 @@ impl Solid {
         false
     }
 
-    /// 頂点が相手の三角形の頂点と一致するか
+    /// Checks if a vertex matches any vertex in the triangle.
     fn is_vertex_shared(v: &Vec3, tri: &[Vec3; 3], epsilon: f64) -> bool {
         let eps_sq = epsilon * epsilon;
         tri.iter().any(|t| v.sub(*t).length_sq() <= eps_sq)
     }
 
-    /// 2D での線分交差判定（端点での接触を除外）
+    /// 2D line segment intersection test (excludes endpoint contact).
     fn segments_intersect_2d(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2, epsilon: f64) -> bool {
         let d1 = Self::cross_2d_val(a1, a2, b1);
         let d2 = Self::cross_2d_val(a1, a2, b2);
@@ -717,7 +704,7 @@ impl Solid {
     fn cross_2d_val(a: Vec2, b: Vec2, c: Vec2) -> f64 {
         (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())
     }
-    /// 点が三角形の内部にあるか（2D）
+    /// Tests if a point is inside a triangle (2D).
     fn point_in_triangle_2d(p: Vec2, tri: &[Vec2; 3], epsilon: f64) -> bool {
         let d1 = Self::cross_2d_val(tri[0], tri[1], p);
         let d2 = Self::cross_2d_val(tri[1], tri[2], p);
@@ -726,14 +713,13 @@ impl Solid {
         let has_neg = d1 < -epsilon || d2 < -epsilon || d3 < -epsilon;
         let has_pos = d1 > epsilon || d2 > epsilon || d3 > epsilon;
 
-        // 全て同符号なら内部（境界上は除外）
+        // All same sign → interior (excludes boundary)
         !(has_neg && has_pos) && (d1.abs() > epsilon && d2.abs() > epsilon && d3.abs() > epsilon)
     }
 
-    // ================================================================
-    //  公開メソッド
-    // ================================================================
+    // Public methods
 
+    /// Triangulates all surfaces into a list of triangles.
     pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
         let mut all_triangles = Vec::new();
         for surface in &self.surfaces {
@@ -743,21 +729,23 @@ impl Solid {
         Ok(all_triangles)
     }
 
+    /// Returns the surfaces defining this solid.
     pub fn surfaces(&self) -> &[Polygon] {
         &self.surfaces
     }
 
+    /// Returns the epsilon value used for geometric operations.
     pub fn epsilon(&self) -> f64 {
         self.epsilon
     }
 
-    pub fn single_ids(&self, z: u8)
+    pub fn single_ids(&self, _z: u8)
     //-> Result<impl Iterator<Item = SingleId>, Error>
     {
         todo!()
     }
 
-    pub fn range_ids(&self, z: u8)
+    pub fn range_ids(&self, _z: u8)
     //-> Result<impl Iterator<Item = RangeId>, Error>
     {
         todo!()

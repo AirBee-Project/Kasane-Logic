@@ -1,7 +1,7 @@
 use crate::geometry::helpers::vec3::Vec3;
 
-/// 軸に沿った境界ボックス
-/// 当たり判定用
+/// An axis-aligned bounding box.
+/// Used for collision detection.
 #[derive(Debug, Clone, Copy)]
 pub struct AABB {
     min: Vec3,
@@ -9,19 +9,20 @@ pub struct AABB {
 }
 
 impl AABB {
-    /// 新しいAABBを作成
+    /// Creates a new AABB.
     ///
-    /// # 引数
-    /// * `min` - ボックスの最小コーナー
-    /// * `max` - ボックスの最大コーナー
+    /// # Arguments
+    /// * `min` - Minimum corner of the box
+    /// * `max` - Maximum corner of the box
+    #[allow(dead_code)]
     pub fn new(min: Vec3, max: Vec3) -> Self {
         Self { min, max }
     }
 
-    /// 三角形からAABBを作成
+    /// Creates an AABB from a triangle.
     ///
-    /// # 引数
-    /// * `v0`, `v1`, `v2` - 三角形の頂点
+    /// # Arguments
+    /// * `v0`, `v1`, `v2` - Triangle vertices
     pub fn from_triangle(v0: Vec3, v1: Vec3, v2: Vec3) -> Self {
         Self {
             min: Vec3::new(
@@ -37,11 +38,11 @@ impl AABB {
         }
     }
 
-    /// 他のAABBと交差するか判定
+    /// Tests if this AABB intersects with another AABB.
     ///
-    /// # 引数
-    /// * `other` - 比較するAABB
-    /// * `margin` - 判定に用いる余白
+    /// # Arguments
+    /// * `other` - AABB to compare with
+    /// * `margin` - Margin for the test
     pub fn intersects(&self, other: &AABB, margin: f64) -> bool {
         self.min.x() - margin <= other.max.x()
             && self.max.x() + margin >= other.min.x()

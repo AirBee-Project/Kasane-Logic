@@ -2,15 +2,17 @@ use std::{cell::RefCell, collections::HashSet, f64::consts::PI, rc::Rc};
 
 use crate::{Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, SingleId, geometry::constants::WGS84_A};
 
-///三角形を表す型
+/// A triangle defined by three coordinates.
+///
+/// The three points must not be collinear (on the same line).
 pub struct Triangle {
     points: [Coordinate; 3],
 }
 
 impl Triangle {
-    ///[Triangle]を作成する。
+    /// Creates a new triangle from three coordinates.
     ///
-    ///3点が同一の直線に存在する場合はエラーとなる
+    /// Returns an error if the three points are collinear.
     pub fn new(points: [Coordinate; 3]) -> Result<Self, Error> {
         if Self::is_collinear(&points[0], &points[1], &points[2]) {
             return Err(Error::CollinearPoints);
@@ -18,16 +20,21 @@ impl Triangle {
         Ok(Self { points })
     }
 
-    ///チェックすることなく、[Triangle]を作成する。
+    /// Creates a new triangle without validation.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that the three points are not collinear.
     pub unsafe fn new_unchecked(points: [Coordinate; 3]) -> Self {
         Self { points }
     }
 
+    /// Returns the three points defining this triangle.
     pub fn points(&self) -> &[Coordinate; 3] {
         &self.points
     }
 
-    ///同一平面上にあるかを判定する
+    /// Checks if three points are collinear (on the same line).
     fn is_collinear(p0: &Coordinate, p1: &Coordinate, p2: &Coordinate) -> bool {
         let e0: Ecef = (*p0).into();
         let e1: Ecef = (*p1).into();
@@ -44,19 +51,19 @@ impl Triangle {
             e2.as_z() - e0.as_z(),
         );
 
-        // 外積 (Cross Product) を計算
+        // Cross product calculation
         let cx = v1.1 * v2.2 - v1.2 * v2.1;
         let cy = v1.2 * v2.0 - v1.0 * v2.2;
         let cz = v1.0 * v2.1 - v1.1 * v2.0;
 
-        // 外積の大きさの2乗
+        // Cross product magnitude squared
         let cross_product_sq = cx * cx + cy * cy + cz * cz;
 
-        //浮動小数点の誤差
+        // Floating point error tolerance
         cross_product_sq < f64::EPSILON
     }
 
-    ///[SingleId]の集合へ変換を行います。
+    /// Converts this triangle into a set of spatial IDs at the specified zoom level.
     pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });

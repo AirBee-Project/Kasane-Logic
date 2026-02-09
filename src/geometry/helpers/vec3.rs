@@ -1,6 +1,6 @@
 use crate::Coordinate;
 
-/// 3次元のベクトル型
+/// A 3D vector type.
 #[derive(Debug, Clone, Copy)]
 pub struct Vec3 {
     x: f64,
@@ -9,12 +9,12 @@ pub struct Vec3 {
 }
 
 impl Vec3 {
-    /// 新しい Vec3 を作成
+    /// Creates a new Vec3.
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
 
-    /// Coordinate から Vec3 を作成
+    /// Creates a Vec3 from a Coordinate.
     pub fn from_coord(coord: &Coordinate) -> Self {
         Self::new(
             coord.as_longitude(),
@@ -23,42 +23,43 @@ impl Vec3 {
         )
     }
 
-    /// ベクトルの x 成分を返す
+    /// Returns the x component of the vector.
     pub fn x(&self) -> f64 {
         self.x
     }
 
-    /// ベクトルの y 成分を返す
+    /// Returns the y component of the vector.
     pub fn y(&self) -> f64 {
         self.y
     }
 
-    /// ベクトルの z 成分を返す
+    /// Returns the z component of the vector.
     pub fn z(&self) -> f64 {
         self.z
     }
 
-    /// ベクトルの加算
+    /// Vector addition.
+    #[allow(dead_code)]
     pub fn add(self, other: Vec3) -> Vec3 {
         Vec3::new(self.x + other.x(), self.y + other.y(), self.z + other.z())
     }
 
-    /// ベクトルの減算
+    /// Vector subtraction.
     pub fn sub(self, other: Vec3) -> Vec3 {
         Vec3::new(self.x - other.x(), self.y - other.y(), self.z - other.z())
     }
 
-    /// ベクトルのスカラー倍
+    /// Scalar multiplication.
     pub fn mul(self, scalar: f64) -> Vec3 {
         Vec3::new(self.x * scalar, self.y * scalar, self.z * scalar)
     }
 
-    /// 内積（dot product）
+    /// Dot product.
     pub fn dot(self, other: Vec3) -> f64 {
         self.x * other.x() + self.y * other.y() + self.z * other.z()
     }
 
-    /// 外積（cross product）
+    /// Cross product.
     pub fn cross(self, other: Vec3) -> Vec3 {
         Vec3::new(
             self.y * other.z() - self.z * other.y(),
@@ -67,18 +68,18 @@ impl Vec3 {
         )
     }
 
-    /// ベクトルの長さの二乗
+    /// Returns the squared length of the vector.
     pub fn length_sq(self) -> f64 {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
-    /// ベクトルの長さ
+    /// Returns the length of the vector.
     pub fn length(self) -> f64 {
         self.length_sq().sqrt()
     }
 
-    /// ベクトルの正規化（長さ 1 にする）
-    /// 長さがほぼ 0 の場合は None を返す
+    /// Normalizes the vector (makes length 1).
+    /// Returns None if length is nearly 0.
     pub fn normalize(self) -> Option<Vec3> {
         let len = self.length();
         if len < 1.0e-15 {
@@ -88,12 +89,14 @@ impl Vec3 {
         }
     }
 
-    /// 他ベクトルとの距離
+    /// Returns the distance to another vector.
+    #[allow(dead_code)]
     pub fn distance(self, other: Vec3) -> f64 {
         self.sub(other).length()
     }
 
-    /// 他ベクトルとの距離の二乗
+    /// Returns the squared distance to another vector.
+    #[allow(dead_code)]
     pub fn distance_sq(self, other: Vec3) -> f64 {
         self.sub(other).length_sq()
     }
