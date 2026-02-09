@@ -1,13 +1,21 @@
-use crate::{Coordinate, Error, Surface};
+use crate::{Coordinate, Error, Polygon};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+/// 隙間や穴のない、完全に閉じた立体（閉多様体）を表す型。
+///
+/// 作成時に下記のことを完全に保証する。
+/// - 立体に穴（Hole）や隙間が一切空いていないこと。
+/// - すべての辺（エッジ）は、必ず他の面と隙間なく接合されていること。
+/// - 1つの辺を3枚以上の面が共有したり、自己交差したりする「非多様体」な構造ではないこと。
+/// - すべての辺は、正確に2つの面によって共有されること。
+/// - 頂点の座標はビット単位で厳密に一致していること。
 pub struct Solid {
-    surfaces: Vec<Surface>,
+    surfaces: Vec<Polygon>,
 }
 
 impl Solid {
-    pub fn new(surfaces: Vec<Surface>) -> Result<Self, Error> {
+    pub fn new(surfaces: Vec<Polygon>) -> Result<Self, Error> {
         //面があることを確認する
         if surfaces.is_empty() {
             return Err(Error::EmptySolid);
@@ -81,5 +89,19 @@ impl Solid {
         }
 
         Ok(())
+    }
+
+    ///立体をSingleIdの集合に変換する関数
+    pub fn single_ids(&self, z: u8)
+    //-> Result<impl Iterator<Item = SingleId>, Error>
+    {
+        todo!()
+    }
+
+    ///立体をRangeIdの集合に変換する関数
+    pub fn range_ids(&self, z: u8)
+    //-> Result<impl Iterator<Item = RangeId>, Error>
+    {
+        todo!()
     }
 }

@@ -1,11 +1,17 @@
-use crate::{Coordinate, Error};
+use crate::{Coordinate, Error, SingleId};
 
 #[derive(Debug, Clone)]
-pub struct Surface {
-    polygon: Vec<Coordinate>,
+/// 3次元空間内の同一平面上に存在する、閉じた多角形（ポリゴン）を表す型。
+///
+/// 作成時に下記のことを完全に保証する。
+/// - 始点と終点の座標が完全に一致しており、図形が閉じていること。
+/// - すべての頂点が、3次元空間内の同一平面上に存在すること。
+/// - 構成する頂点が一直線上に並んでいないこと。
+pub struct Polygon {
+    points: Vec<Coordinate>,
 }
 
-impl Surface {
+impl Polygon {
     pub fn new(coords: Vec<Coordinate>) -> Result<Self, Error> {
         //4点以上で構成されていることを確認
         if coords.len() < 4 {
@@ -25,7 +31,7 @@ impl Surface {
             return Err(Error::NotPlanar);
         }
 
-        Ok(Self { polygon: coords })
+        Ok(Self { points: coords })
     }
 
     ///完全な面であることを検証する関数
@@ -103,6 +109,20 @@ impl Surface {
 
     ///面を構成する点を借用する関数
     pub fn points(&self) -> &[Coordinate] {
-        &self.polygon
+        &self.points
+    }
+
+    ///面をSingleIdの集合に変換する関数
+    pub fn single_ids(&self, z: u8)
+    //-> Result<impl Iterator<Item = SingleId>, Error>
+    {
+        todo!()
+    }
+
+    ///面をRangeIdの集合に変換する関数
+    pub fn range_ids(&self, z: u8)
+    //-> Result<impl Iterator<Item = RangeId>, Error>
+    {
+        todo!()
     }
 }
