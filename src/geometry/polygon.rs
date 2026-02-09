@@ -20,13 +20,12 @@ impl Polygon {
     }
 
     pub fn new_with_epsilon(coords: Vec<Coordinate>, epsilon: f64) -> Result<Self, Error> {
+        //点が4点以上あることを確認する
         if coords.len() < 4 {
             return Err(Error::TooFewPoints(coords.len()));
         }
 
-        // ========================================
-        // 1. クリーニング: 距離が近すぎる頂点をマージ
-        // ========================================
+        //誤差範囲にある点をマージする
         let mut cleaned = Vec::with_capacity(coords.len());
         if let Some(first) = coords.first() {
             cleaned.push(first.clone());
@@ -44,9 +43,7 @@ impl Polygon {
             }
         }
 
-        // ========================================
-        // 2. 始点と終点の整合性チェック
-        // ========================================
+        //視点と終点のチェック
         if cleaned.len() > 1 {
             let first = &cleaned[0];
             let last = &cleaned[cleaned.len() - 1];
@@ -62,21 +59,18 @@ impl Polygon {
             }
         }
 
+        //点が4点以上あることを確認する
         if cleaned.len() < 4 {
             return Err(Error::TooFewPoints(cleaned.len()));
         }
 
-        // ========================================
-        // 3. 共線頂点の除去
-        // ========================================
+        //共線頂点の除去
         let cleaned = Self::remove_collinear_vertices(&cleaned, epsilon);
         if cleaned.len() < 4 {
             return Err(Error::TooFewPoints(cleaned.len()));
         }
 
-        // ========================================
-        // 4. 自己交差の検出
-        // ========================================
+        //自己交差を検出する
         if Self::has_self_intersection(&cleaned, epsilon) {
             return Err(Error::SelfIntersection);
         }
@@ -186,10 +180,6 @@ impl Polygon {
         (b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())
     }
 
-    // ================================================================
-    //  法線計算・投影
-    // ================================================================
-
     fn compute_newell_normal(points: &[Coordinate]) -> Vec3 {
         let mut nx = 0.0;
         let mut ny = 0.0;
@@ -258,10 +248,7 @@ impl Polygon {
             .collect()
     }
 
-    // ================================================================
-    //  三角形分割（Ear Clipping 改良版）
-    // ================================================================
-
+    ///Polygon型を分割して[Triangle]にする関数
     pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
         let points_3d = &self.points;
         let count = points_3d.len();
@@ -280,7 +267,6 @@ impl Polygon {
             indices.reverse();
         }
 
-        // 凸性キャッシュの初期化
         let mut is_convex_cache: Vec<bool> = (0..indices.len())
             .map(|i| {
                 let n = indices.len();
@@ -304,7 +290,6 @@ impl Polygon {
             let n = indices.len();
             let mut best_ear: Option<(usize, f64)> = None;
 
-            // --- A. 厳密な耳を探す（最大面積を選択） ---
             for i in 0..n {
                 if !is_convex_cache[i] {
                     continue;
@@ -326,7 +311,6 @@ impl Polygon {
                 }
             }
 
-            // --- B. リカバリー: 凸頂点の中で最大面積を妥協して採用 ---
             if best_ear.is_none() {
                 for i in 0..n {
                     if !is_convex_cache[i] {
@@ -349,7 +333,6 @@ impl Polygon {
                 }
             }
 
-            // --- C. 最終手段: 最大面積の三角形を強制選択 ---
             if best_ear.is_none() {
                 let mut max_area = -1.0;
                 let mut max_idx = 0;
@@ -369,7 +352,6 @@ impl Polygon {
                 best_ear = Some((max_idx, max_area));
             }
 
-            // --- 耳���切り取り ---
             if let Some((i, _)) = best_ear {
                 let prev = indices[(i + indices.len() - 1) % indices.len()];
                 let curr = indices[i];
@@ -387,15 +369,12 @@ impl Polygon {
                     ])?);
                 }
 
-                // インデックスとキャッシュから同時に削除
                 indices.remove(i);
                 is_convex_cache.remove(i);
 
-                // 隣接頂点の凸性を再計算
                 if indices.len() >= 3 {
                     let new_n = indices.len();
 
-                    // prev 側の頂点（削除前の i-1 に相当）
                     let prev_pos = if i == 0 { new_n - 1 } else { i - 1 };
                     let pp = indices[(prev_pos + new_n - 1) % new_n];
                     let pc = indices[prev_pos];
@@ -403,7 +382,6 @@ impl Polygon {
                     is_convex_cache[prev_pos] =
                         Self::is_convex(&points_2d, pp, pc, pn, self.epsilon);
 
-                    // next 側の頂点（削除後の i の位置に来た頂点）
                     let next_pos = i % new_n;
                     let np = indices[(next_pos + new_n - 1) % new_n];
                     let nc = indices[next_pos];
@@ -437,10 +415,6 @@ impl Polygon {
 
         Ok(triangles)
     }
-
-    // ================================================================
-    //  幾何計算ヘルパー
-    // ================================================================
 
     fn calculate_signed_area(points_2d: &[Vec2], indices: &[usize]) -> f64 {
         let mut area = 0.0;
@@ -498,10 +472,6 @@ impl Polygon {
     fn triangle_area_2d(a: Vec2, b: Vec2, c: Vec2) -> f64 {
         ((b.x() - a.x()) * (c.y() - a.y()) - (b.y() - a.y()) * (c.x() - a.x())).abs() / 2.0
     }
-
-    // ================================================================
-    //  公開アクセサ
-    // ================================================================
 
     pub fn points(&self) -> &[Coordinate] {
         &self.points

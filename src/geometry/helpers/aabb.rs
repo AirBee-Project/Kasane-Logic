@@ -1,6 +1,7 @@
 use crate::geometry::helpers::vec3::Vec3;
 
-/// 軸に沿った境界ボックス（Axis-Aligned Bounding Box）
+/// 軸に沿った境界ボックス
+/// 当たり判定用
 #[derive(Debug, Clone, Copy)]
 pub struct AABB {
     min: Vec3,
