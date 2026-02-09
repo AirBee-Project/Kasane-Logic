@@ -74,12 +74,13 @@ pub enum Error {
 
     SelfIntersection,
     TriangulationFailed,
+    DisconnectedSolid,
+    DegenerateSolid,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            // --- 既存のエラーメッセージ ---
             Error::ZOutOfRange { z } => {
                 write!(f, "ZoomLevel '{}' is out of range (valid: 0..=60)", z)
             }
@@ -125,8 +126,6 @@ impl fmt::Display for Error {
                     altitude
                 )
             }
-
-            // --- 新規追加: 幾何形状エラーメッセージ ---
             Error::TooFewPoints(n) => {
                 write!(
                     f,
@@ -168,13 +167,17 @@ impl fmt::Display for Error {
                     "Solid contains non-manifold edges or inconsistent normals (edge used >2 times or same direction twice)"
                 )
             }
-
             Error::SelfIntersection => {
                 write!(f, "SelfIntersection")
             }
-
             Error::TriangulationFailed => {
                 write!(f, "TriangulationFailed")
+            }
+            Error::DisconnectedSolid => {
+                write!(f, "DisconnectedSolid")
+            }
+            Error::DegenerateSolid => {
+                write!(f, "DegenerateSolid")
             }
         }
     }
