@@ -6,25 +6,42 @@ use std::fmt;
 pub enum Error {
     // --- 既存の座標・ズームレベルエラー ---
     /// ズームレベルが有効範囲（0..=31）外であることを示す。
-    ZOutOfRange { z: u8 },
+    ZOutOfRange {
+        z: u8,
+    },
 
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
-    FOutOfRange { z: u8, f: i32 },
+    FOutOfRange {
+        z: u8,
+        f: i32,
+    },
 
     /// X 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    XOutOfRange { z: u8, x: u32 },
+    XOutOfRange {
+        z: u8,
+        x: u32,
+    },
 
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    YOutOfRange { z: u8, y: u32 },
+    YOutOfRange {
+        z: u8,
+        y: u32,
+    },
 
     /// 緯度が有効範囲外であることを表す。
-    LatitudeOutOfRange { latitude: f64 },
+    LatitudeOutOfRange {
+        latitude: f64,
+    },
 
     /// 経度が有効範囲外であることを表す。
-    LongitudeOutOfRange { longitude: f64 },
+    LongitudeOutOfRange {
+        longitude: f64,
+    },
 
     /// 高度が有効範囲外であることを表す。
-    AltitudeOutOfRange { altitude: f64 },
+    AltitudeOutOfRange {
+        altitude: f64,
+    },
 
     // --- 新規追加: Surface/Solid 幾何形状検証エラー ---
     /// ポリゴンの頂点数が不足している（閉じるためには最低4点必要）。
@@ -55,30 +72,20 @@ pub enum Error {
     /// 非多様体エッジ（3つ以上の面が共有）、または面の向きが不整合（法線フリップ）。
     NonManifoldEdge,
 
-    // new_with_tolerance用の新しいエラー型
-    /// 許容値が無効（負の値など）
-    InvalidTolerance,
-
-    /// トポロジーがマージによって破綻した
-    TopologyBrokenByMerge {
-        original_error: Box<Error>,
-        vertex_count: usize,
+    SelfIntersection,
+    TriangulationFailed,
+    DisconnectedSolid,
+    DegenerateSolid,
+    GeometricIntersection,
+    InvalidEdgeTopology {
+        forward: usize,
+        backward: usize,
     },
-
-    /// すべての面が潰れてしまった
-    AllSurfacesCollapsed,
-
-    /// 面の数が一致しない（マージ後に面が消失または増加）
-    SurfaceCountMismatch { original: usize, after_merge: usize },
-
-    /// エッジのトポロジーが不正
-    InvalidEdgeTopology { forward: usize, backward: usize },
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            // --- 既存のエラーメッセージ ---
             Error::ZOutOfRange { z } => {
                 write!(f, "ZoomLevel '{}' is out of range (valid: 0..=60)", z)
             }
@@ -124,8 +131,6 @@ impl fmt::Display for Error {
                     altitude
                 )
             }
-
-            // --- 新規追加: 幾何形状エラーメッセージ ---
             Error::TooFewPoints(n) => {
                 write!(
                     f,
@@ -167,40 +172,20 @@ impl fmt::Display for Error {
                     "Solid contains non-manifold edges or inconsistent normals (edge used >2 times or same direction twice)"
                 )
             }
-
-            Error::InvalidTolerance => {
-                write!(f, "Invalid tolerance value (must be non-negative)")
+            Error::SelfIntersection => {
+                write!(f, "SelfIntersection")
             }
-            Error::TopologyBrokenByMerge {
-                original_error,
-                vertex_count,
-            } => {
-                write!(
-                    f,
-                    "Topology broken by vertex merging: surface became invalid ({}) with {} vertices",
-                    original_error, vertex_count
-                )
+            Error::TriangulationFailed => {
+                write!(f, "TriangulationFailed")
             }
-            Error::AllSurfacesCollapsed => {
-                write!(f, "All surfaces collapsed after vertex merging")
+            Error::DisconnectedSolid => {
+                write!(f, "DisconnectedSolid")
             }
-            Error::SurfaceCountMismatch {
-                original,
-                after_merge,
-            } => {
-                write!(
-                    f,
-                    "Surface count mismatch: {} original surfaces, {} after merge",
-                    original, after_merge
-                )
+            Error::DegenerateSolid => {
+                write!(f, "DegenerateSolid")
             }
-            Error::InvalidEdgeTopology { forward, backward } => {
-                write!(
-                    f,
-                    "Invalid edge topology: forward count = {}, backward count = {} (expected 1 each)",
-                    forward, backward
-                )
-            }
+            Error::GeometricIntersection => write!(f, "GeometricIntersection"),
+            Error::InvalidEdgeTopology { forward, backward } => write!(f, "InvalidEdgeTopology"),
         }
     }
 }

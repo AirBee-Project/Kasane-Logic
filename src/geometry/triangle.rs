@@ -2,15 +2,61 @@ use std::{cell::RefCell, collections::HashSet, f64::consts::PI, rc::Rc};
 
 use crate::{Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, SingleId, geometry::constants::WGS84_A};
 
+///三角形を表す型
 pub struct Triangle {
     points: [Coordinate; 3],
 }
 
 impl Triangle {
-    pub fn new(points: [Coordinate; 3]) -> Self {
+    ///[Triangle]を作成する。
+    ///
+    ///3点が同一の直線に存在する場合はエラーとなる
+    pub fn new(points: [Coordinate; 3]) -> Result<Self, Error> {
+        if Self::is_collinear(&points[0], &points[1], &points[2]) {
+            return Err(Error::CollinearPoints);
+        }
+        Ok(Self { points })
+    }
+
+    ///チェックすることなく、[Triangle]を作成する。
+    pub unsafe fn new_unchecked(points: [Coordinate; 3]) -> Self {
         Self { points }
     }
 
+    pub fn points(&self) -> &[Coordinate; 3] {
+        &self.points
+    }
+
+    ///同一平面上にあるかを判定する
+    fn is_collinear(p0: &Coordinate, p1: &Coordinate, p2: &Coordinate) -> bool {
+        let e0: Ecef = (*p0).into();
+        let e1: Ecef = (*p1).into();
+        let e2: Ecef = (*p2).into();
+
+        let v1 = (
+            e1.as_x() - e0.as_x(),
+            e1.as_y() - e0.as_y(),
+            e1.as_z() - e0.as_z(),
+        );
+        let v2 = (
+            e2.as_x() - e0.as_x(),
+            e2.as_y() - e0.as_y(),
+            e2.as_z() - e0.as_z(),
+        );
+
+        // 外積 (Cross Product) を計算
+        let cx = v1.1 * v2.2 - v1.2 * v2.1;
+        let cy = v1.2 * v2.0 - v1.0 * v2.2;
+        let cz = v1.0 * v2.1 - v1.1 * v2.0;
+
+        // 外積の大きさの2乗
+        let cross_product_sq = cx * cx + cy * cy + cz * cz;
+
+        //浮動小数点の誤差
+        cross_product_sq < f64::EPSILON
+    }
+
+    ///[SingleId]の集合へ変換を行います。
     pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
