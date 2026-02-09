@@ -54,6 +54,25 @@ pub enum Error {
 
     /// 非多様体エッジ（3つ以上の面が共有）、または面の向きが不整合（法線フリップ）。
     NonManifoldEdge,
+
+    // new_with_tolerance用の新しいエラー型
+    /// 許容値が無効（負の値など）
+    InvalidTolerance,
+
+    /// トポロジーがマージによって破綻した
+    TopologyBrokenByMerge {
+        original_error: Box<Error>,
+        vertex_count: usize,
+    },
+
+    /// すべての面が潰れてしまった
+    AllSurfacesCollapsed,
+
+    /// 面の数が一致しない（マージ後に面が消失または増加）
+    SurfaceCountMismatch { original: usize, after_merge: usize },
+
+    /// エッジのトポロジーが不正
+    InvalidEdgeTopology { forward: usize, backward: usize },
 }
 
 impl fmt::Display for Error {
@@ -146,6 +165,40 @@ impl fmt::Display for Error {
                 write!(
                     f,
                     "Solid contains non-manifold edges or inconsistent normals (edge used >2 times or same direction twice)"
+                )
+            }
+
+            Error::InvalidTolerance => {
+                write!(f, "Invalid tolerance value (must be non-negative)")
+            }
+            Error::TopologyBrokenByMerge {
+                original_error,
+                vertex_count,
+            } => {
+                write!(
+                    f,
+                    "Topology broken by vertex merging: surface became invalid ({}) with {} vertices",
+                    original_error, vertex_count
+                )
+            }
+            Error::AllSurfacesCollapsed => {
+                write!(f, "All surfaces collapsed after vertex merging")
+            }
+            Error::SurfaceCountMismatch {
+                original,
+                after_merge,
+            } => {
+                write!(
+                    f,
+                    "Surface count mismatch: {} original surfaces, {} after merge",
+                    original, after_merge
+                )
+            }
+            Error::InvalidEdgeTopology { forward, backward } => {
+                write!(
+                    f,
+                    "Invalid edge topology: forward count = {}, backward count = {} (expected 1 each)",
+                    forward, backward
                 )
             }
         }
