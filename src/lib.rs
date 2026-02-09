@@ -24,6 +24,7 @@ pub use spatial_id::{
 pub use geometry::polygon::Polygon;
 pub use geometry::solid::Solid;
 pub use geometry::triangle;
+pub use geometry::triangle::Triangle;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
 pub use spatial_id::segment::Segment;

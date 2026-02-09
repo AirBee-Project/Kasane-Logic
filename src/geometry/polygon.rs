@@ -1,264 +1,599 @@
-use crate::{Coordinate, Error, SingleId, triangle::Triangle};
+use crate::{
+    Coordinate, Error, SingleId,
+    triangle::{self, Triangle},
+};
+
+/// 2Dベクトル型（投影後の座標用）
+#[derive(Debug, Clone, Copy)]
+struct Vec2 {
+    x: f64,
+    y: f64,
+}
+
+/// 3Dベクトル型（法線計算・投影用）
+#[derive(Debug, Clone, Copy)]
+struct Vec3 {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
+impl Vec3 {
+    fn dot(self, other: Vec3) -> f64 {
+        self.x * other.x + self.y * other.y + self.z * other.z
+    }
+
+    fn cross(self, other: Vec3) -> Vec3 {
+        Vec3 {
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
+        }
+    }
+
+    fn length(self) -> f64 {
+        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
+    }
+
+    fn normalize(self) -> Option<Vec3> {
+        let len = self.length();
+        if len < 1.0e-15 {
+            None
+        } else {
+            Some(Vec3 {
+                x: self.x / len,
+                y: self.y / len,
+                z: self.z / len,
+            })
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
-/// 3次元空間内の同一平面上に存在する、閉じた多角形（ポリゴン）を表す型。
-///
-/// 作成時に下記のことを完全に保証する。
-/// - 始点と終点の座標が完全に一致しており、図形が閉じていること。
-/// - すべての頂点が、3次元空間内の同一平面上に存在すること。
-/// - 構成する頂点が一直線上に並んでいないこと。
 pub struct Polygon {
     points: Vec<Coordinate>,
+    epsilon: f64,
 }
 
 impl Polygon {
+    pub const DEFAULT_EPSILON: f64 = 1.0e-7;
+
     pub fn new(coords: Vec<Coordinate>) -> Result<Self, Error> {
-        //4点以上で構成されていることを確認
+        Self::new_with_epsilon(coords, Self::DEFAULT_EPSILON)
+    }
+
+    pub fn new_with_epsilon(coords: Vec<Coordinate>, epsilon: f64) -> Result<Self, Error> {
         if coords.len() < 4 {
             return Err(Error::TooFewPoints(coords.len()));
         }
 
-        let first = coords.first().unwrap();
-        let last = coords.last().unwrap();
+        // ========================================
+        // 1. クリーニング: 距離が近すぎる頂点をマージ
+        // ========================================
+        let mut cleaned = Vec::with_capacity(coords.len());
+        if let Some(first) = coords.first() {
+            cleaned.push(first.clone());
+            for i in 1..coords.len() {
+                let prev = &cleaned[cleaned.len() - 1];
+                let curr = &coords[i];
 
-        //閉じていることを確認
-        if first != last {
-            return Err(Error::NotClosedRing);
-        }
+                let dist_sq = (prev.as_longitude() - curr.as_longitude()).powi(2)
+                    + (prev.as_latitude() - curr.as_latitude()).powi(2)
+                    + (prev.as_altitude() - curr.as_altitude()).powi(2);
 
-        //平面であることを確認
-        if !Self::is_planar(&coords)? {
-            return Err(Error::NotPlanar);
-        }
-
-        // 自己交差を確認
-        if Self::has_self_intersection(&coords) {
-            return Err(Error::SelfIntersection);
-        }
-
-        Ok(Self { points: coords })
-    }
-
-    ///完全な面であることを検証する関数
-    fn is_planar(coords: &[Coordinate]) -> Result<bool, Error> {
-        if coords.len() < 4 {
-            return Ok(true);
-        }
-
-        let p0 = &coords[0];
-        let p1 = &coords[1];
-        let p2 = &coords[2];
-
-        let normal = Self::compute_normal(p0, p1, p2)?;
-
-        for i in 3..coords.len() {
-            let pi = &coords[i];
-
-            // 点から平面までの距離
-            let distance = Self::point_to_plane_distance(pi, p0, &normal);
-
-            if distance.abs() > 0.0 {
-                return Ok(false);
+                if dist_sq > epsilon * epsilon {
+                    cleaned.push(curr.clone());
+                }
             }
         }
 
-        Ok(true)
-    }
+        // ========================================
+        // 2. 始点と終点の整合性チェック
+        // ========================================
+        if cleaned.len() > 1 {
+            let first = &cleaned[0];
+            let last = &cleaned[cleaned.len() - 1];
+            let dist_sq = (first.as_longitude() - last.as_longitude()).powi(2)
+                + (first.as_latitude() - last.as_latitude()).powi(2)
+                + (first.as_altitude() - last.as_altitude()).powi(2);
 
-    /// 法線ベクトルを計算
-    fn compute_normal(
-        p0: &Coordinate,
-        p1: &Coordinate,
-        p2: &Coordinate,
-    ) -> Result<(f64, f64, f64), Error> {
-        // ベクトル p0->p1 と p0->p2
-        let v1 = (
-            p1.as_longitude() - p0.as_longitude(),
-            p1.as_latitude() - p0.as_latitude(),
-            p1.as_altitude() - p0.as_altitude(),
-        );
-        let v2 = (
-            p2.as_longitude() - p0.as_longitude(),
-            p2.as_latitude() - p0.as_latitude(),
-            p2.as_altitude() - p0.as_altitude(),
-        );
-
-        // 外積で法線ベクトルを計算
-        let nx = v1.1 * v2.2 - v1.2 * v2.1;
-        let ny = v1.2 * v2.0 - v1.0 * v2.2;
-        let nz = v1.0 * v2.1 - v1.1 * v2.0;
-
-        // 法線ベクトルの長さ（0なら3点が共線）
-        let len = (nx * nx + ny * ny + nz * nz).sqrt();
-
-        if len < f64::EPSILON {
-            return Err(Error::CollinearPoints);
+            if dist_sq > epsilon * epsilon {
+                cleaned.push(first.clone());
+            } else {
+                let len = cleaned.len();
+                cleaned[len - 1] = first.clone();
+            }
         }
 
-        Ok((nx / len, ny / len, nz / len))
+        if cleaned.len() < 4 {
+            return Err(Error::TooFewPoints(cleaned.len()));
+        }
+
+        // ========================================
+        // 3. 共線頂点の除去
+        // ========================================
+        let cleaned = Self::remove_collinear_vertices(&cleaned, epsilon);
+        if cleaned.len() < 4 {
+            return Err(Error::TooFewPoints(cleaned.len()));
+        }
+
+        // ========================================
+        // 4. 自己交差の検出
+        // ========================================
+        if Self::has_self_intersection(&cleaned, epsilon) {
+            return Err(Error::SelfIntersection);
+        }
+
+        Ok(Self {
+            points: cleaned,
+            epsilon,
+        })
     }
 
-    fn point_to_plane_distance(
-        point: &Coordinate,
-        plane_point: &Coordinate,
-        normal: &(f64, f64, f64),
-    ) -> f64 {
-        let (nx, ny, nz) = normal;
+    /// 共線頂点を除去する。
+    /// 始点=終点のリング構造を前提とする。
+    fn remove_collinear_vertices(points: &[Coordinate], epsilon: f64) -> Vec<Coordinate> {
+        let n = points.len() - 1; // 末尾は始点の重複
+        if n < 3 {
+            return points.to_vec();
+        }
 
-        let dx = point.as_longitude() - plane_point.as_longitude();
-        let dy = point.as_latitude() - plane_point.as_latitude();
-        let dz = point.as_altitude() - plane_point.as_altitude();
+        let mut keep = vec![true; n];
 
-        nx * dx + ny * dy + nz * dz
+        for i in 0..n {
+            let prev = &points[(i + n - 1) % n];
+            let curr = &points[i];
+            let next = &points[(i + 1) % n];
+
+            let v1 = Vec3 {
+                x: curr.as_longitude() - prev.as_longitude(),
+                y: curr.as_latitude() - prev.as_latitude(),
+                z: curr.as_altitude() - prev.as_altitude(),
+            };
+            let v2 = Vec3 {
+                x: next.as_longitude() - curr.as_longitude(),
+                y: next.as_latitude() - curr.as_latitude(),
+                z: next.as_altitude() - curr.as_altitude(),
+            };
+
+            let cross = v1.cross(v2);
+            let cross_len = cross.length();
+            let edge_len = v1.length() * v2.length();
+
+            if edge_len > 0.0 && cross_len / edge_len < epsilon * 10.0 {
+                keep[i] = false;
+            }
+        }
+
+        let mut result = Vec::new();
+        for i in 0..n {
+            if keep[i] {
+                result.push(points[i].clone());
+            }
+        }
+
+        if let Some(first) = result.first() {
+            result.push(first.clone());
+        }
+
+        result
     }
 
-    ///面を構成する点を借用する関数
-    pub fn points(&self) -> &[Coordinate] {
-        &self.points
-    }
+    /// 自己交差を検出する。
+    fn has_self_intersection(points: &[Coordinate], epsilon: f64) -> bool {
+        let n = points.len() - 1;
 
-    fn has_self_intersection(coords: &[Coordinate]) -> bool {
-        let n = coords.len();
-        // 閉じたポリゴンなので、最後の点（=最初の点）を除いた辺のリストを考える
-        // 辺 i は (coords[i], coords[i+1])
-        for i in 0..n - 1 {
-            for j in i + 2..n - 1 {
-                // 隣接する辺（例：辺1と辺2）は頂点を共有しているだけなのでスキップ
-                // ただし、最初と最後の辺の結合部もチェック対象外にする
-                if i == 0 && j == n - 2 {
+        let normal = Self::compute_newell_normal(points);
+        let (u_axis, v_axis) = Self::compute_projection_axes(normal);
+        let projected: Vec<Vec2> = points
+            .iter()
+            .map(|p| Self::project_point(p, u_axis, v_axis))
+            .collect();
+
+        for i in 0..n {
+            for j in (i + 2)..n {
+                if i == 0 && j == n - 1 {
                     continue;
                 }
 
-                if Self::segments_intersect(&coords[i], &coords[i + 1], &coords[j], &coords[j + 1])
-                {
+                let a1 = projected[i];
+                let a2 = projected[i + 1];
+                let b1 = projected[j];
+                let b2 = projected[j + 1];
+
+                if Self::segments_intersect(a1, a2, b1, b2, epsilon) {
                     return true;
                 }
             }
         }
+
         false
     }
 
-    /// 2つの線分が交差するか判定（2D投影を利用）
-    fn segments_intersect(a: &Coordinate, b: &Coordinate, c: &Coordinate, d: &Coordinate) -> bool {
-        // 簡易的に経度(x), 緯度(y)平面で判定
-        let ccw = |p1: &Coordinate, p2: &Coordinate, p3: &Coordinate| -> f64 {
-            (p2.as_longitude() - p1.as_longitude()) * (p3.as_latitude() - p1.as_latitude())
-                - (p2.as_latitude() - p1.as_latitude()) * (p3.as_longitude() - p1.as_longitude())
-        };
+    fn segments_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2, epsilon: f64) -> bool {
+        let d1 = Self::cross_2d(a1, a2, b1);
+        let d2 = Self::cross_2d(a1, a2, b2);
+        let d3 = Self::cross_2d(b1, b2, a1);
+        let d4 = Self::cross_2d(b1, b2, a2);
 
-        let res1 = ccw(a, b, c) * ccw(a, b, d);
-        let res2 = ccw(c, d, a) * ccw(c, d, b);
+        if ((d1 > epsilon && d2 < -epsilon) || (d1 < -epsilon && d2 > epsilon))
+            && ((d3 > epsilon && d4 < -epsilon) || (d3 < -epsilon && d4 > epsilon))
+        {
+            return true;
+        }
 
-        // 両方の線分がお互いを跨いでいれば交差
-        res1 < 0.0 && res2 < 0.0
+        false
     }
 
-    /// ポリゴンを三角形の集合（Triangle）に分割する。
+    fn cross_2d(a: Vec2, b: Vec2, c: Vec2) -> f64 {
+        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+    }
+
+    // ================================================================
+    //  法線計算・投影
+    // ================================================================
+
+    fn compute_newell_normal(points: &[Coordinate]) -> Vec3 {
+        let mut nx = 0.0;
+        let mut ny = 0.0;
+        let mut nz = 0.0;
+
+        for i in 0..points.len() - 1 {
+            let curr = &points[i];
+            let next = &points[i + 1];
+
+            let x0 = curr.as_longitude();
+            let y0 = curr.as_latitude();
+            let z0 = curr.as_altitude();
+
+            let x1 = next.as_longitude();
+            let y1 = next.as_latitude();
+            let z1 = next.as_altitude();
+
+            nx += (y0 - y1) * (z0 + z1);
+            ny += (z0 - z1) * (x0 + x1);
+            nz += (x0 - x1) * (y0 + y1);
+        }
+
+        Vec3 {
+            x: nx,
+            y: ny,
+            z: nz,
+        }
+    }
+
+    fn compute_projection_axes(normal: Vec3) -> (Vec3, Vec3) {
+        let n = match normal.normalize() {
+            Some(n) => n,
+            None => {
+                return (
+                    Vec3 {
+                        x: 1.0,
+                        y: 0.0,
+                        z: 0.0,
+                    },
+                    Vec3 {
+                        x: 0.0,
+                        y: 1.0,
+                        z: 0.0,
+                    },
+                );
+            }
+        };
+
+        let reference = if n.x.abs() < 0.9 {
+            Vec3 {
+                x: 1.0,
+                y: 0.0,
+                z: 0.0,
+            }
+        } else {
+            Vec3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
+            }
+        };
+
+        let u = match n.cross(reference).normalize() {
+            Some(u) => u,
+            None => {
+                return (
+                    Vec3 {
+                        x: 1.0,
+                        y: 0.0,
+                        z: 0.0,
+                    },
+                    Vec3 {
+                        x: 0.0,
+                        y: 1.0,
+                        z: 0.0,
+                    },
+                );
+            }
+        };
+
+        let v = n.cross(u);
+
+        (u, v)
+    }
+
+    fn project_point(coord: &Coordinate, u_axis: Vec3, v_axis: Vec3) -> Vec2 {
+        let p = Vec3 {
+            x: coord.as_longitude(),
+            y: coord.as_latitude(),
+            z: coord.as_altitude(),
+        };
+        Vec2 {
+            x: p.dot(u_axis),
+            y: p.dot(v_axis),
+        }
+    }
+
+    fn project_polygon_to_2d(points: &[Coordinate], u_axis: Vec3, v_axis: Vec3) -> Vec<Vec2> {
+        points
+            .iter()
+            .map(|p| Self::project_point(p, u_axis, v_axis))
+            .collect()
+    }
+
+    // ================================================================
+    //  三角形分割（Ear Clipping 改良版）
+    // ================================================================
+
     pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
-        let points = self.points();
-        let mut vertices: Vec<Coordinate> = points[..points.len() - 1].to_vec();
-
-        if vertices.len() < 3 {
-            return Err(Error::TooFewPoints(vertices.len()));
+        let points_3d = &self.points;
+        let count = points_3d.len();
+        if count < 4 {
+            return Err(Error::TooFewPoints(count));
         }
 
-        let mut area_sum = 0.0;
-        for i in 0..vertices.len() {
-            let curr = &vertices[i];
-            let next = &vertices[(i + 1) % vertices.len()];
-            area_sum += (next.as_longitude() - curr.as_longitude())
-                * (next.as_latitude() + curr.as_latitude());
+        let mut indices: Vec<usize> = (0..count - 1).collect();
+
+        let normal = Self::compute_newell_normal(points_3d);
+        let (u_axis, v_axis) = Self::compute_projection_axes(normal);
+        let points_2d = Self::project_polygon_to_2d(points_3d, u_axis, v_axis);
+
+        let area = Self::calculate_signed_area(&points_2d, &indices);
+        if area < 0.0 {
+            indices.reverse();
         }
 
-        let mut triangles = Vec::new();
+        // 凸性キャッシュの初期化
+        let mut is_convex_cache: Vec<bool> = (0..indices.len())
+            .map(|i| {
+                let n = indices.len();
+                let prev = indices[(i + n - 1) % n];
+                let curr = indices[i];
+                let next = indices[(i + 1) % n];
+                Self::is_convex(&points_2d, prev, curr, next, self.epsilon)
+            })
+            .collect();
 
-        while vertices.len() > 3 {
-            let mut ear_found = false;
-            for i in 0..vertices.len() {
-                let prev = (i + vertices.len() - 1) % vertices.len();
-                let curr = i;
-                let next = (i + 1) % vertices.len();
+        let mut triangles = Vec::with_capacity(indices.len() - 2);
+        let mut loop_count = 0;
+        let max_loops = indices.len() * indices.len() * 2;
 
-                // 自己交差がないことが保証されているため、
-                // ここでの判定は「純粋な凸角判定」と「他の点の内包判定」だけで完結する
-                if self.is_ear(&vertices[prev], &vertices[curr], &vertices[next], &vertices) {
-                    triangles.push(Triangle::new([
-                        vertices[prev],
-                        vertices[curr],
-                        vertices[next],
-                    ]));
-                    vertices.remove(curr);
-                    ear_found = true;
-                    break;
+        while indices.len() > 3 {
+            if loop_count > max_loops {
+                return Err(Error::TriangulationFailed);
+            }
+            loop_count += 1;
+
+            let n = indices.len();
+            let mut best_ear: Option<(usize, f64)> = None;
+
+            // --- A. 厳密な耳を探す（最大面積を選択） ---
+            for i in 0..n {
+                if !is_convex_cache[i] {
+                    continue;
+                }
+
+                let prev = indices[(i + n - 1) % n];
+                let curr = indices[i];
+                let next = indices[(i + 1) % n];
+
+                if Self::is_ear_empty(&points_2d, &indices, prev, curr, next, self.epsilon) {
+                    let tri_area =
+                        Self::triangle_area_2d(points_2d[prev], points_2d[curr], points_2d[next]);
+                    match &best_ear {
+                        Some((_, best_area)) if *best_area >= tri_area => {}
+                        _ => {
+                            best_ear = Some((i, tri_area));
+                        }
+                    }
                 }
             }
 
-            if !ear_found {
-                return Err(Error::TriangulationFailed);
+            // --- B. リカバリー: 凸頂点の中で最大面積を妥協して採用 ---
+            if best_ear.is_none() {
+                for i in 0..n {
+                    if !is_convex_cache[i] {
+                        continue;
+                    }
+
+                    let prev = indices[(i + n - 1) % n];
+                    let curr = indices[i];
+                    let next = indices[(i + 1) % n];
+
+                    let tri_area =
+                        Self::triangle_area_2d(points_2d[prev], points_2d[curr], points_2d[next]);
+
+                    match &best_ear {
+                        Some((_, best_area)) if *best_area >= tri_area => {}
+                        _ => {
+                            best_ear = Some((i, tri_area));
+                        }
+                    }
+                }
+            }
+
+            // --- C. 最終手段: 最大面積の三角形を強制選択 ---
+            if best_ear.is_none() {
+                let mut max_area = -1.0;
+                let mut max_idx = 0;
+                for i in 0..n {
+                    let prev = indices[(i + n - 1) % n];
+                    let curr = indices[i];
+                    let next = indices[(i + 1) % n];
+
+                    let tri_area =
+                        Self::triangle_area_2d(points_2d[prev], points_2d[curr], points_2d[next]);
+
+                    if tri_area > max_area {
+                        max_area = tri_area;
+                        max_idx = i;
+                    }
+                }
+                best_ear = Some((max_idx, max_area));
+            }
+
+            // --- 耳���切り取り ---
+            if let Some((i, _)) = best_ear {
+                let prev = indices[(i + indices.len() - 1) % indices.len()];
+                let curr = indices[i];
+                let next = indices[(i + 1) % indices.len()];
+
+                // 退化三角形フィルタ
+                let tri_area =
+                    Self::triangle_area_2d(points_2d[prev], points_2d[curr], points_2d[next]);
+
+                if tri_area > self.epsilon * self.epsilon {
+                    triangles.push(Triangle::new([
+                        points_3d[prev].clone(),
+                        points_3d[curr].clone(),
+                        points_3d[next].clone(),
+                    ])?);
+                }
+
+                // インデックスとキャッシュから同時に削除
+                indices.remove(i);
+                is_convex_cache.remove(i);
+
+                // 隣接頂点の凸性を再計算
+                if indices.len() >= 3 {
+                    let new_n = indices.len();
+
+                    // prev 側の頂点（削除前の i-1 に相当）
+                    let prev_pos = if i == 0 { new_n - 1 } else { i - 1 };
+                    let pp = indices[(prev_pos + new_n - 1) % new_n];
+                    let pc = indices[prev_pos];
+                    let pn = indices[(prev_pos + 1) % new_n];
+                    is_convex_cache[prev_pos] =
+                        Self::is_convex(&points_2d, pp, pc, pn, self.epsilon);
+
+                    // next 側の頂点（削除後の i の位置に来た頂点）
+                    let next_pos = i % new_n;
+                    let np = indices[(next_pos + new_n - 1) % new_n];
+                    let nc = indices[next_pos];
+                    let nn = indices[(next_pos + 1) % new_n];
+                    is_convex_cache[next_pos] =
+                        Self::is_convex(&points_2d, np, nc, nn, self.epsilon);
+                }
             }
         }
-        triangles.push(Triangle::new([vertices[0], vertices[1], vertices[2]]));
+
+        // 最後の3点
+        if indices.len() == 3 {
+            let tri_area = Self::triangle_area_2d(
+                points_2d[indices[0]],
+                points_2d[indices[1]],
+                points_2d[indices[2]],
+            );
+
+            if tri_area > self.epsilon * self.epsilon {
+                triangles.push(Triangle::new([
+                    points_3d[indices[0]].clone(),
+                    points_3d[indices[1]].clone(),
+                    points_3d[indices[2]].clone(),
+                ])?);
+            }
+        }
+
+        if triangles.is_empty() {
+            return Err(Error::TriangulationFailed);
+        }
+
         Ok(triangles)
     }
 
-    fn is_ear(
-        &self,
-        a: &Coordinate,
-        b: &Coordinate,
-        c: &Coordinate,
-        all_points: &[Coordinate],
+    // ================================================================
+    //  幾何計算ヘルパー
+    // ================================================================
+
+    fn calculate_signed_area(points_2d: &[Vec2], indices: &[usize]) -> f64 {
+        let mut area = 0.0;
+        for i in 0..indices.len() {
+            let curr = points_2d[indices[i]];
+            let next = points_2d[indices[(i + 1) % indices.len()]];
+            area += (next.x - curr.x) * (next.y + curr.y);
+        }
+        -area / 2.0
+    }
+
+    fn is_convex(points: &[Vec2], prev: usize, curr: usize, next: usize, epsilon: f64) -> bool {
+        let a = points[prev];
+        let b = points[curr];
+        let c = points[next];
+
+        let cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        cross > -epsilon
+    }
+
+    fn is_ear_empty(
+        points: &[Vec2],
+        indices: &[usize],
+        prev: usize,
+        curr: usize,
+        next: usize,
+        epsilon: f64,
     ) -> bool {
-        for p in all_points {
-            if p == a || p == b || p == c {
+        let a = points[prev];
+        let b = points[curr];
+        let c = points[next];
+
+        for &idx in indices {
+            if idx == prev || idx == curr || idx == next {
                 continue;
             }
-            if self.is_point_in_triangle(p, a, b, c) {
+
+            let p = points[idx];
+            if Self::is_point_in_triangle_2d(p, a, b, c, epsilon) {
                 return false;
             }
         }
         true
     }
 
-    fn is_point_in_triangle(
-        &self,
-        p: &Coordinate,
-        a: &Coordinate,
-        b: &Coordinate,
-        c: &Coordinate,
-    ) -> bool {
-        let (px, py) = (p.as_longitude(), p.as_latitude());
-        let (ax, ay) = (a.as_longitude(), a.as_latitude());
-        let (bx, by) = (b.as_longitude(), b.as_latitude());
-        let (cx, cy) = (c.as_longitude(), c.as_latitude());
+    fn is_point_in_triangle_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2, epsilon: f64) -> bool {
+        let cross1 = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+        let cross2 = (c.x - b.x) * (p.y - b.y) - (c.y - b.y) * (p.x - b.x);
+        let cross3 = (a.x - c.x) * (p.y - c.y) - (a.y - c.y) * (p.x - c.x);
 
-        let v0 = (cx - ax, cy - ay);
-        let v1 = (bx - ax, by - ay);
-        let v2 = (px - ax, py - ay);
-
-        let dot00 = v0.0 * v0.0 + v0.1 * v0.1;
-        let dot01 = v0.0 * v1.0 + v0.1 * v1.1;
-        let dot02 = v0.0 * v2.0 + v0.1 * v2.1;
-        let dot11 = v1.0 * v1.0 + v1.1 * v1.1;
-        let dot12 = v1.0 * v2.0 + v1.1 * v2.1;
-
-        let inv_den = 1.0 / (dot00 * dot11 - dot01 * dot01);
-        let u = (dot11 * dot02 - dot01 * dot12) * inv_den;
-        let v = (dot00 * dot12 - dot01 * dot02) * inv_den;
-
-        (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
+        let tol = -epsilon;
+        cross1 >= tol && cross2 >= tol && cross3 >= tol
     }
 
-    ///面をSingleIdの集合に変換する関数
-    pub fn single_ids(&self, z: u8)
-    //-> Result<impl Iterator<Item = SingleId>, Error>
-    {
-        todo!()
+    fn triangle_area_2d(a: Vec2, b: Vec2, c: Vec2) -> f64 {
+        ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)).abs() / 2.0
     }
 
-    ///面をRangeIdの集合に変換する関数
-    pub fn range_ids(&self, z: u8)
-    //-> Result<impl Iterator<Item = RangeId>, Error>
-    {
-        todo!()
+    // ================================================================
+    //  公開アクセサ
+    // ================================================================
+
+    pub fn points(&self) -> &[Coordinate] {
+        &self.points
+    }
+
+    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let triangles = self.triangulate()?;
+        let mut all_ids = std::collections::HashSet::new();
+        for triangle in triangles {
+            for id in triangle.single_ids(z)? {
+                all_ids.insert(id);
+            }
+        }
+        Ok(all_ids.into_iter())
     }
 }

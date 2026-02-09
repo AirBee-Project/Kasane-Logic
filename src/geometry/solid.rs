@@ -30,8 +30,6 @@ impl Solid {
 
     /// 立体が閉じていることを確認する
     fn is_close(&self) -> Result<(), Error> {
-        // 座標をビット列に変換してハッシュマップのキーにする
-        // 浮動小数点はEqが実装されていないため、bit列に変換する
         let to_bits = |c: &Coordinate| -> [u64; 3] {
             [
                 c.as_latitude().to_bits(),
@@ -91,15 +89,20 @@ impl Solid {
         Ok(())
     }
 
+    ///表面を三角形に分割して返す
     pub fn triangulate(&self) -> Result<Vec<Triangle>, Error> {
         let mut all_triangles = Vec::new();
-
         for surface in &self.surfaces {
             let mut triangles = surface.triangulate()?;
             all_triangles.append(&mut triangles);
         }
 
         Ok(all_triangles)
+    }
+
+    ///表面を順番に返す
+    pub fn surfaces(&self) -> &[Polygon] {
+        &self.surfaces
     }
 
     ///立体をSingleIdの集合に変換する関数
