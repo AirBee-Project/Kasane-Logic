@@ -8,22 +8,23 @@ pub struct Solid {
 
 impl Solid {
     pub fn new(surfaces: Vec<Surface>) -> Result<Self, Error> {
+        //面があることを確認する
         if surfaces.is_empty() {
-            return Err(Error::NoSurfaces);
+            return Err(Error::EmptySolid);
         }
 
         let solid = Self { surfaces };
 
-        // 閉じているか検証
-        solid.validate_closure()?;
+        solid.is_close()?;
 
         Ok(solid)
     }
 
-    /// Solidが閉じているか検証
-    fn validate_closure(&self) -> Result<(), Error> {
-        // Coordinate を [u64; 3] に変換する関数
-        let to_key = |c: &Coordinate| -> [u64; 3] {
+    /// 立体が閉じていることを確認する
+    fn is_close(&self) -> Result<(), Error> {
+        // 座標をビット列に変換してハッシュマップのキーにする
+        // 浮動小数点はEqが実装されていないため、bit列に変換する
+        let to_bits = |c: &Coordinate| -> [u64; 3] {
             [
                 c.as_latitude().to_bits(),
                 c.as_longitude().to_bits(),
@@ -31,44 +32,54 @@ impl Solid {
             ]
         };
 
-        let mut edge_counts: HashMap<([u64; 3], [u64; 3]), usize> = HashMap::new();
+        #[derive(Debug, Default)]
+        struct EdgeStats {
+            forward_count: usize,  // A -> B の出現回数
+            backward_count: usize, // B -> A の出現回数
+        }
 
-        for surface in &self.surfaces {
+        let mut edge_map: HashMap<([u64; 3], [u64; 3]), EdgeStats> = HashMap::new();
+
+        for (surface_idx, surface) in self.surfaces.iter().enumerate() {
             let points = surface.points();
 
-            // 閉じたリングなので、最後の点（= 最初の点）を除外
-            // points.len() - 1 までループ
             for i in 0..points.len() - 1 {
-                let p1 = &points[i];
-                let p2 = &points[i + 1];
+                let p1_bits = to_bits(&points[i]);
+                let p2_bits = to_bits(&points[i + 1]);
 
-                let k1 = to_key(p1);
-                let k2 = to_key(p2);
+                if p1_bits == p2_bits {
+                    return Err(Error::DegenerateEdge(surface_idx));
+                }
 
-                // エッジを正規化（小さい方が先）
-                let key = if k1 < k2 { (k1, k2) } else { (k2, k1) };
+                let key = if p1_bits < p2_bits {
+                    (p1_bits, p2_bits)
+                } else {
+                    (p2_bits, p1_bits)
+                };
 
-                *edge_counts.entry(key).or_insert(0) += 1;
+                let stats = edge_map.entry(key).or_default();
+
+                if p1_bits < p2_bits {
+                    stats.forward_count += 1;
+                } else {
+                    stats.backward_count += 1;
+                }
             }
         }
 
-        // 全てのエッジがちょうど2回使われているか検証
-        for (_, count) in edge_counts {
-            match count {
-                1 => return Err(Error::NotClosedSolid),
-                2 => continue, // OK
-                _ => return Err(Error::NonManifoldSolid(count)),
+        //全体を検証する
+        for (_, stats) in edge_map {
+            // 穴が開いている
+            if stats.forward_count == 0 || stats.backward_count == 0 {
+                return Err(Error::OpenHoleDetected);
+            }
+
+            // 面の向きが不整合である
+            if stats.forward_count > 1 || stats.backward_count > 1 {
+                return Err(Error::NonManifoldEdge);
             }
         }
 
         Ok(())
-    }
-
-    pub fn surfaces(&self) -> &[Surface] {
-        &self.surfaces
-    }
-
-    pub fn surface_count(&self) -> usize {
-        self.surfaces.len()
     }
 }

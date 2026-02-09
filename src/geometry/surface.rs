@@ -7,6 +7,7 @@ pub struct Surface {
 
 impl Surface {
     pub fn new(coords: Vec<Coordinate>) -> Result<Self, Error> {
+        //4点以上で構成されていることを確認
         if coords.len() < 4 {
             return Err(Error::TooFewPoints(coords.len()));
         }
@@ -14,10 +15,12 @@ impl Surface {
         let first = coords.first().unwrap();
         let last = coords.last().unwrap();
 
+        //閉じていることを確認
         if first != last {
             return Err(Error::NotClosedRing);
         }
 
+        //平面であることを確認
         if !Self::is_planar(&coords)? {
             return Err(Error::NotPlanar);
         }
@@ -25,21 +28,18 @@ impl Surface {
         Ok(Self { polygon: coords })
     }
 
-    /// 厳密な平面性チェック（体積 = 0）
+    ///完全な面であることを検証する関数
     fn is_planar(coords: &[Coordinate]) -> Result<bool, Error> {
         if coords.len() < 4 {
-            return Ok(true); // 3点以下は常に平面
+            return Ok(true);
         }
 
-        // 最初の3点で平面を定義
         let p0 = &coords[0];
         let p1 = &coords[1];
         let p2 = &coords[2];
 
-        // 平面の法線ベクトルを計算
         let normal = Self::compute_normal(p0, p1, p2)?;
 
-        // 残りの全点が同じ平面上にあるかチェック
         for i in 3..coords.len() {
             let pi = &coords[i];
 
@@ -84,12 +84,9 @@ impl Surface {
             return Err(Error::CollinearPoints);
         }
 
-        // 正規化
         Ok((nx / len, ny / len, nz / len))
     }
 
-    /// 点から平面までの距離を計算
-    /// 平面方程式: n·(p - p0) = 0
     fn point_to_plane_distance(
         point: &Coordinate,
         plane_point: &Coordinate,
@@ -97,15 +94,14 @@ impl Surface {
     ) -> f64 {
         let (nx, ny, nz) = normal;
 
-        // ベクトル plane_point -> point
         let dx = point.as_longitude() - plane_point.as_longitude();
         let dy = point.as_latitude() - plane_point.as_latitude();
         let dz = point.as_altitude() - plane_point.as_altitude();
 
-        // 法線方向への射影（符号付き距離）
         nx * dx + ny * dy + nz * dz
     }
 
+    ///面を構成する点を借用する関数
     pub fn points(&self) -> &[Coordinate] {
         &self.polygon
     }

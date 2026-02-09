@@ -273,13 +273,6 @@ impl Coordinate {
         let e2: Ecef = (*other).into();
         e1.distance(&e2)
     }
-
-    /// 別の座標とほぼ同じ位置かチェック (浮動小数点の誤差許容)
-    pub fn approx_eq(&self, other: &Coordinate, epsilon: f64) -> bool {
-        (self.latitude - other.latitude).abs() < epsilon
-            && (self.longitude - other.longitude).abs() < epsilon
-            && (self.altitude - other.altitude).abs() < epsilon
-    }
 }
 
 impl From<Coordinate> for Ecef {
