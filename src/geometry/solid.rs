@@ -213,14 +213,6 @@ impl Solid {
             if stats.forward.len() > 1 || stats.backward.len() > 1 {
                 return Err(Error::NonManifoldEdge);
             }
-
-            // 正確に1回ずつ出現していることを確認
-            if stats.forward.len() != 1 || stats.backward.len() != 1 {
-                return Err(Error::InvalidEdgeTopology {
-                    forward: stats.forward.len(),
-                    backward: stats.backward.len(),
-                });
-            }
         }
 
         Ok(())

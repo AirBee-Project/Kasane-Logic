@@ -48,15 +48,9 @@ pub enum Error {
     /// 保持する値は実際の頂点数。
     TooFewPoints(usize),
 
-    /// ポリゴンの始点と終点が一致していない（閉じていない）。
-    NotClosedRing,
-
     /// ポリゴンの頂点が一直線上に並んでおり、面を定義できない（共線）。
     /// 法線ベクトルの計算不能時に発生。
     CollinearPoints,
-
-    /// ポリゴンの頂点が同一平面上にない（ねじれている）。
-    NotPlanar,
 
     /// Solid（立体）が空である（面が含まれていない）。
     EmptySolid,
@@ -77,10 +71,6 @@ pub enum Error {
     DisconnectedSolid,
     DegenerateSolid,
     GeometricIntersection,
-    InvalidEdgeTopology {
-        forward: usize,
-        backward: usize,
-    },
 }
 
 impl fmt::Display for Error {
@@ -138,17 +128,11 @@ impl fmt::Display for Error {
                     n
                 )
             }
-            Error::NotClosedRing => {
-                write!(f, "Polygon ring is not closed (first point != last point)")
-            }
             Error::CollinearPoints => {
                 write!(
                     f,
                     "Polygon points are collinear (cannot compute normal vector)"
                 )
-            }
-            Error::NotPlanar => {
-                write!(f, "Polygon vertices are not on the same plane")
             }
             Error::EmptySolid => {
                 write!(f, "Solid must have at least one surface")
@@ -186,13 +170,6 @@ impl fmt::Display for Error {
             }
             Error::GeometricIntersection => {
                 write!(f, "Solid has geometric intersections between surfaces")
-            }
-            Error::InvalidEdgeTopology { forward, backward } => {
-                write!(
-                    f,
-                    "Invalid edge topology (forward: {}, backward: {})",
-                    forward, backward
-                )
             }
         }
     }
