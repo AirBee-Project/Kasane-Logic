@@ -5,25 +5,53 @@ use std::fmt;
 #[derive(Debug, PartialEq)]
 pub enum Error {
     /// ズームレベルが有効範囲（0..=31）外であることを示す。
-    ZOutOfRange { z: u8 },
+    ZOutOfRange {
+        z: u8,
+    },
 
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
-    FOutOfRange { z: u8, f: i32 },
+    FOutOfRange {
+        z: u8,
+        f: i32,
+    },
 
     /// X 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    XOutOfRange { z: u8, x: u32 },
+    XOutOfRange {
+        z: u8,
+        x: u32,
+    },
 
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    YOutOfRange { z: u8, y: u32 },
+    YOutOfRange {
+        z: u8,
+        y: u32,
+    },
 
     /// 緯度が有効範囲外であることを表す。
-    LatitudeOutOfRange { latitude: f64 },
+    LatitudeOutOfRange {
+        latitude: f64,
+    },
 
     /// 経度が有効範囲外であることを表す。
-    LongitudeOutOfRange { longitude: f64 },
+    LongitudeOutOfRange {
+        longitude: f64,
+    },
 
     /// 高度が有効範囲外であることを表す。
-    AltitudeOutOfRange { altitude: f64 },
+    AltitudeOutOfRange {
+        altitude: f64,
+    },
+
+    TooFewPoints(usize),
+    NotClosedRing,
+    NotPlanar,
+    CollinearPoints,
+    AllPointsIdentical,
+    AllPointsCollinear,
+    EmptySolid,
+    NoSurfaces,
+    NotClosedSolid,
+    NonManifoldSolid(usize),
 }
 
 impl fmt::Display for Error {
@@ -74,6 +102,16 @@ impl fmt::Display for Error {
                     altitude
                 )
             }
+            Error::TooFewPoints(n) => write!(f, "Too few points: {} (need at least 3)", n),
+            Error::NotClosedRing => write!(f, "Ring is not closed"),
+            Error::NotPlanar => write!(f, "Points do not form a planar surface"),
+            Error::CollinearPoints => write!(f, "Points are collinear"),
+            Error::AllPointsIdentical => write!(f, "All points are identical"),
+            Error::AllPointsCollinear => write!(f, "All points are collinear"),
+            Error::EmptySolid => write!(f, "EmptySolid"),
+            Error::NoSurfaces => write!(f, "NoSurfaces"),
+            Error::NotClosedSolid => write!(f, "NotClosedSolid"),
+            Error::NonManifoldSolid(_) => write!(f, "NonManifoldSolid"),
         }
     }
 }

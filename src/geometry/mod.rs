@@ -14,3 +14,7 @@ pub mod ecef;
 
 /// 線分、三角形、円などの幾何形状から空間IDへの変換。
 pub mod shapes;
+
+pub mod surface;
+
+pub mod solid;
