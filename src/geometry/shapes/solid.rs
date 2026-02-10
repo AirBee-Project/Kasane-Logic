@@ -53,24 +53,6 @@ impl Solid {
             .collect()
     }
 
-    /// 指定されたズームレベル `z` における、この [Solid] の表面を覆う [SingleId] の集合を返す。
-    pub fn surface_single_ids(&self, z: u8) -> Result<Vec<SingleId>, Error> {
-        // HashSetで重複を除去
-        let mut unique_ids = HashSet::new();
-
-        for polygon in &self.polygons {
-            let triangles = polygon.triangulate();
-            for triangle in triangles {
-                let ids_iter = triangle.single_ids(z)?;
-                for id in ids_iter {
-                    unique_ids.insert(id);
-                }
-            }
-        }
-
-        Ok(unique_ids.into_iter().collect())
-    }
-
     /// 閉じていないエッジの数を数える内部ヘルパー関数
     fn count_open_edges(polygons: &[Polygon], epsilon: f64) -> usize {
         // エッジの出現回数を記録するマップ
@@ -107,6 +89,34 @@ impl Solid {
         // 奇数回出現するエッジの数をカウント
         edge_counts.values().filter(|&count| count % 2 != 0).count()
     }
+
+    /// 指定されたズームレベル `z` における、この [Solid] の表面を覆う [SingleId] の集合を返す。
+    pub fn surface_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        // HashSetで重複を除去
+        let mut unique_ids = HashSet::new();
+
+        for polygon in &self.polygons {
+            let triangles = polygon.triangulate();
+            for triangle in triangles {
+                let ids_iter = triangle.single_ids(z)?;
+                for id in ids_iter {
+                    unique_ids.insert(id);
+                }
+            }
+        }
+
+        Ok(unique_ids.into_iter())
+    }
+
+    //Todo
+
+    // pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    //     todo!()
+    // }
+
+    // pub fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    //     todo!()
+    // }
 }
 
 /// ハッシュマップのキーにするために座標を整数化するラッパー
