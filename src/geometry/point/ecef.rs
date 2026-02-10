@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::Sub};
 
 use crate::{
     SingleId,
@@ -157,6 +157,63 @@ impl Ecef {
             + (self.as_z() - other.as_z()).powi(2))
         .sqrt()
     }
+
+    ///他の[Ecef]型との外積を取る。
+    pub fn cross(&self, other: &Ecef) -> Ecef {
+        Ecef {
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
+        }
+    }
+
+    // 原点からの距離の2乗を取得する。
+    pub fn norm_squared(&self) -> f64 {
+        self.x * self.x + self.y * self.y + self.z * self.z
+    }
+
+    /// 3点以上の地点が一直線上にないことを判定する
+    /// epsilon: 直線からの許容するズレの距離（例: 0.1 なら 10cm）
+    pub fn is_not_collinear(points: &[Ecef], epsilon: f64) -> bool {
+        if points.len() < 3 {
+            return false;
+        }
+
+        let p0 = points[0];
+        let epsilon_sq = epsilon * epsilon;
+
+        let base_vec = points
+            .iter()
+            .skip(1)
+            .map(|&p| p - p0)
+            .find(|v| v.norm_squared() > epsilon_sq);
+
+        let ab = match base_vec {
+            Some(v) => v,
+            None => return false, // すべての点が p0 から epsilon 以内にある
+        };
+
+        let ab_norm_sq = ab.norm_squared();
+
+        // 他のすべての点について、直線(p0, ab)からの距離を計算
+        for &p in points.iter().skip(1) {
+            let ac = p - p0;
+            let cross_prod = ab.cross(&ac);
+            let dist_to_line_sq = cross_prod.norm_squared() / ab_norm_sq;
+            if dist_to_line_sq > epsilon_sq {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Ecefが同じ位置にあるかを判定します
+    /// 2点間の直線距離が epsilon 以内にあるかを判定します
+    pub fn eq_epsilon(&self, other: &Ecef, epsilon: f64) -> bool {
+        let distance_squared = self.distance(other);
+        distance_squared < epsilon * epsilon
+    }
 }
 
 impl TryFrom<Ecef> for Coordinate {
@@ -193,3 +250,29 @@ impl TryFrom<Ecef> for Coordinate {
 }
 
 impl Point for Ecef {}
+
+// Ecef - Ecef の実装
+impl Sub for Ecef {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
+    }
+}
+
+// 参照 (&Ecef - &Ecef) も実装しておくと便利です
+impl<'a, 'b> Sub<&'b Ecef> for &'a Ecef {
+    type Output = Ecef;
+
+    fn sub(self, other: &'b Ecef) -> Self::Output {
+        Ecef {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
+    }
+}
