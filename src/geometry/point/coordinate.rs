@@ -273,6 +273,13 @@ impl Coordinate {
         let e2: Ecef = (*other).into();
         e1.distance(&e2)
     }
+
+    /// [Coordinate]が同じ位置にあるかを判定します
+    /// 2点間の直線距離が epsilon 以内にあるかを判定します
+    pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
+        let distance_squared = self.distance(other);
+        distance_squared < epsilon * epsilon
+    }
 }
 
 impl From<Coordinate> for Ecef {

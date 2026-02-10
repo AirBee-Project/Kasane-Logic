@@ -19,6 +19,7 @@ pub use spatial_id::{
     single_id::SingleId,
 };
 
+pub use geometry::shapes::polygon::Polygon;
 pub use geometry::shapes::triangle;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
