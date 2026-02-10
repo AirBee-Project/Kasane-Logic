@@ -1,12 +1,25 @@
 use crate::{Coordinate, Ecef, triangle::Triangle};
 
 #[derive(Debug, Clone)]
+/// 3次元空間における多角形（ポリゴン）を表す型。
+///
+/// 頂点リスト（[Coordinate] のVec）によって定義される平面的な領域を表現する。
+/// 生成時に頂点の重複排除などが行われ、幾何計算に適した状態に保たれる。
 pub struct Polygon {
-    pub vertices: Vec<Coordinate>,
+    vertices: Vec<Coordinate>,
 }
 
 impl Polygon {
-    /// Polygon 生成
+    /// 頂点座標のリストから新しい [Polygon] を作成。
+    ///
+    /// # 処理内容
+    /// - 連続して重複している頂点（`epsilon` 以内の距離）を1つに統合。
+    /// - 始点と終点が重複している場合（閉じたリング）、終点を削除して開いた頂点リストに正規化。
+    /// - 処理によって点の数が3未満だった場合は`Vec<Coordinate>`を空にする。
+    ///
+    /// # 引数
+    /// - `raw_points` - ポリゴンを構成する頂点のリスト。
+    /// - `epsilon` - 同一点とみなす許容誤差（メートル単位）。
     pub fn new(raw_points: Vec<Coordinate>, epsilon: f64) -> Self {
         if raw_points.is_empty() {
             return Self { vertices: vec![] };
@@ -30,10 +43,19 @@ impl Polygon {
             }
         }
 
+        if vertices.len() < 3 {
+            return Self { vertices: vec![] };
+        }
+
         Self { vertices }
     }
 
-    /// 三角形分割（Ecefのベクトル演算機能を活用）
+    /// [Polygon]を構成する点を返す。
+    pub fn vertices(&self) -> &Vec<Coordinate> {
+        &self.vertices
+    }
+
+    /// [Polygon] 全体を三角形分割し、構成する [Triangle] のリストを返します。
     pub fn triangulate(&self) -> Vec<Triangle> {
         let n = self.vertices.len();
         if n < 3 {

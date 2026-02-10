@@ -25,6 +25,11 @@ pub enum Error {
 
     /// 高度が有効範囲外であることを表す。
     AltitudeOutOfRange { altitude: f64 },
+
+    SolidNotWatertight {
+        /// 問題のあるエッジの数（奇数回しか出現しなかったエッジの数）
+        open_edge_count: usize,
+    },
 }
 
 impl fmt::Display for Error {
@@ -73,6 +78,13 @@ impl fmt::Display for Error {
                     f,
                     "Altitude '{}' is out of range (valid: -33,554,432.0..=33,554,432.0)",
                     altitude
+                )
+            }
+            Error::SolidNotWatertight { open_edge_count } => {
+                write!(
+                    f,
+                    "Solid is not watertight (closed). Found {} open edges.",
+                    open_edge_count
                 )
             }
         }
