@@ -1,11 +1,11 @@
 use std::fmt;
 
 use crate::{
-    SingleId,
+    Ecef, SingleId,
     error::Error,
     geometry::{
         constants::{WGS84_A, WGS84_E2},
-        ecef::Ecef,
+        point::Point,
     },
     spatial_id::constants::MAX_ZOOM_LEVEL,
 };
@@ -317,3 +317,5 @@ impl Default for Coordinate {
         }
     }
 }
+
+impl Point for Coordinate {}

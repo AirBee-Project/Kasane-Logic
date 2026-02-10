@@ -26,7 +26,7 @@
 //! }
 //! ```
 
-use crate::{FlexId, Segment, error::Error, geometry::coordinate::Coordinate};
+use crate::{Coordinate, FlexId, Segment, error::Error};
 
 pub(crate) mod collection;
 pub mod constants;

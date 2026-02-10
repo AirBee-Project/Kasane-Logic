@@ -6,19 +6,8 @@
 /// 地理空間座標の計算で使用される各種の代表的な定数。
 pub mod constants;
 
-/// 緯度・経度・高度で定義される `Coordinate` 型。
-pub mod coordinate;
-
-/// 地心直交座標系で定義される `Ecef` 型。
-pub mod ecef;
-
-/// 線分、三角形、円などの幾何形状から空間IDへの変換。
-pub mod shapes;
-
-pub mod solid;
-
-pub mod triangle;
-
 pub mod helpers;
 
-pub mod polygon;
+pub mod point;
+
+pub mod shapes;

@@ -10,9 +10,7 @@ mod spatial_id;
 pub use roaring::RoaringTreemap;
 
 pub use error::Error;
-pub use geometry::{
-    coordinate::Coordinate, ecef::Ecef, shapes::line::line, shapes::sphere::sphere,
-};
+pub use geometry::point::{Point, coordinate::Coordinate, ecef::Ecef};
 pub use spatial_id::{
     SpatialId,
     constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
@@ -21,10 +19,7 @@ pub use spatial_id::{
     single_id::SingleId,
 };
 
-pub use geometry::polygon::Polygon;
-pub use geometry::solid::Solid;
-pub use geometry::triangle;
-pub use geometry::triangle::Triangle;
+pub use geometry::shapes::triangle;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
 pub use spatial_id::segment::Segment;

@@ -5,7 +5,7 @@ use crate::{
     error::Error,
     geometry::{
         constants::{WGS84_A, WGS84_E2, WGS84_F},
-        coordinate::Coordinate,
+        point::{Point, coordinate::Coordinate},
     },
 };
 
@@ -191,3 +191,5 @@ impl TryFrom<Ecef> for Coordinate {
         Coordinate::new(lat.to_degrees(), lon.to_degrees(), h)
     }
 }
+
+impl Point for Ecef {}

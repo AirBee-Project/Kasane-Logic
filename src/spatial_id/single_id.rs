@@ -8,8 +8,8 @@ use std::ops::RangeInclusive;
 use proptest::prelude::*;
 
 use crate::{
+    Coordinate, Ecef,
     error::Error,
-    geometry::{coordinate::Coordinate, ecef::Ecef},
     spatial_id::{
         FlexIds, Segmentation, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},

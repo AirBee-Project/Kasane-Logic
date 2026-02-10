@@ -1,6 +1,6 @@
 use crate::{
-    SingleId,
-    geometry::{constants::WGS84_A, coordinate::Coordinate, ecef::Ecef},
+    Coordinate, Ecef, SingleId,
+    geometry::constants::WGS84_A,
     spatial_id::{SpatialId, helpers::Dimension},
 };
 

@@ -5,9 +5,8 @@ use std::fmt;
 use proptest::prelude::*;
 
 use crate::{
-    SingleId,
+    Coordinate, SingleId,
     error::Error,
-    geometry::coordinate::Coordinate,
     spatial_id::{
         FlexIds, Segmentation, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},

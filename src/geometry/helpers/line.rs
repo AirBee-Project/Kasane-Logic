@@ -1,11 +1,6 @@
 use std::f64;
 
-use crate::{
-    SingleId,
-    error::Error,
-    geometry::{coordinate::Coordinate, ecef::Ecef},
-    spatial_id::constants::MAX_ZOOM_LEVEL,
-};
+use crate::{Coordinate, Ecef, SingleId, error::Error, spatial_id::constants::MAX_ZOOM_LEVEL};
 
 /// 指定された 2 点で構成される直線を覆う空間 ID を列挙する。
 pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
