@@ -75,7 +75,7 @@ where
         return RoaringTreemap::new();
     }
 
-    // 小さい順に並べる（最重要）
+    // 小さい順に並べる
     vec.sort_by_key(|s| s.len());
 
     // 最小だけ clone

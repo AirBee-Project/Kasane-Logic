@@ -6,7 +6,11 @@ use roaring::RoaringTreemap;
 
 use crate::{
     FlexId, FlexIdRank, RangeId, Segment, SingleId,
-    spatial_id::{FlexIds, collection::scanner::Scanner, helpers::fast_intersect},
+    spatial_id::{
+        FlexIds,
+        collection::{RECYCLE_RANK_MAX, scanner::Scanner},
+        helpers::fast_intersect,
+    },
 };
 
 #[derive(Clone, Debug, Default)]
@@ -34,8 +38,6 @@ impl Scanner for SetOnMemory {
 }
 
 impl SetOnMemory {
-    const RECYCLE_RANK_MAX: usize = 1024;
-
     pub fn new() -> Self {
         SetOnMemory {
             f: BTreeMap::new(),
@@ -48,8 +50,7 @@ impl SetOnMemory {
     }
 
     pub fn insert<T: FlexIds>(&mut self, target: &T) {
-        let ref_self = &*self;
-        let scanner = ref_self.flex_id_scan_plan(target.clone());
+        let scanner = self.flex_id_scan_plan(target.clone());
         //削除が必要なIDを貯めて最後に削除する
         let mut need_delete_ranks = RoaringTreemap::new();
         let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
@@ -184,8 +185,7 @@ impl SetOnMemory {
     /// 指定されたID集合を削除する
     pub fn remove<T: FlexIds>(&mut self, target: &T) {
         for flex_id in target.flex_ids() {
-            let ref_self = &*self;
-            let scanner = ref_self.flex_id_scan_plan(target.clone());
+            let scanner = self.flex_id_scan_plan(target.clone());
 
             let mut need_delete_ranks: Vec<FlexIdRank> = Vec::new();
             let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
@@ -225,8 +225,7 @@ impl SetOnMemory {
 
     ///指定した領域を取得してSetを返す
     pub fn get<T: FlexIds>(&self, target: &T) -> Self {
-        let ref_self = &*self;
-        let scanner = ref_self.flex_id_scan_plan(target.clone());
+        let scanner = self.flex_id_scan_plan(target.clone());
         let mut result = Self::new();
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
@@ -267,7 +266,7 @@ impl SetOnMemory {
 
     ///Rankをreturnするためのメソット
     fn return_rank(&mut self, rank: u64) {
-        if self.recycle_rank.len() < Self::RECYCLE_RANK_MAX {
+        if self.recycle_rank.len() < RECYCLE_RANK_MAX {
             self.recycle_rank.push(rank);
         }
     }
@@ -278,7 +277,7 @@ impl SetOnMemory {
         //特定の次元から削除する
         let dimension_remove =
             |btree: &mut BTreeMap<Segment, RoaringTreemap>, segment: &Segment, rank: FlexIdRank| {
-                if let Some(mut entry) = btree.get_mut(segment) {
+                if let Some(entry) = btree.get_mut(segment) {
                     entry.remove(rank);
                     if entry.is_empty() {
                         btree.remove(segment);

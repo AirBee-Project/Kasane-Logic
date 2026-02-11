@@ -5,3 +5,8 @@ pub mod table;
 pub mod scanner;
 
 pub type FlexIdRank = u64;
+pub type ValueRank = u64;
+
+/// Rankを貯めておく個数
+/// `FlexId`と`Value`で統一。
+pub const RECYCLE_RANK_MAX: usize = 1024;

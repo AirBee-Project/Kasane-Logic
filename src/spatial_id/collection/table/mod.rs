@@ -1,15 +1,14 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    hash::Hash,
-};
+use std::collections::{BTreeMap, HashMap};
 
 use roaring::RoaringTreemap;
 
 use crate::{
     FlexId, FlexIdRank, Segment,
-    spatial_id::{FlexIds, collection::scanner::Scanner},
+    spatial_id::{
+        FlexIds,
+        collection::{RECYCLE_RANK_MAX, ValueRank, scanner::Scanner},
+    },
 };
-pub type ValueRank = u64;
 
 pub struct TableOnMemory<V> {
     f: BTreeMap<Segment, RoaringTreemap>,
@@ -41,8 +40,6 @@ impl<V> Scanner for TableOnMemory<V> {
 }
 
 impl<V> TableOnMemory<V> {
-    const RECYCLE_RANK_MAX: usize = 1024;
-
     ///初期化する
     pub fn new() -> Self {
         Self {
@@ -78,7 +75,7 @@ impl<V> TableOnMemory<V> {
 
     ///Rankをreturnするためのメソット
     fn return_rank(&mut self, rank: u64) {
-        if self.recycle_rank.len() < Self::RECYCLE_RANK_MAX {
+        if self.recycle_rank.len() < RECYCLE_RANK_MAX {
             self.recycle_rank.push(rank);
         }
     }
@@ -97,7 +94,7 @@ impl<V> TableOnMemory<V> {
 
     ///Rankをreturnするためのメソット
     fn return_value_rank(&mut self, rank: u64) {
-        if self.value_recycle_rank.len() < Self::RECYCLE_RANK_MAX {
+        if self.value_recycle_rank.len() < RECYCLE_RANK_MAX {
             self.value_recycle_rank.push(rank);
         }
     }
