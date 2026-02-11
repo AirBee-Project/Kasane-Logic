@@ -1,6 +1,7 @@
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
-use crate::{Coordinate, Ecef, Error, SingleId};
+use crate::{Coordinate, Ecef, Error, RangeId, SingleId};
 use std::collections::{HashMap, HashSet};
+use std::result;
 
 /// 立体を表す型。
 ///
@@ -110,9 +111,33 @@ impl Solid {
 
     //Todo
 
-    // pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-    //     todo!()
-    // }
+    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let surface: Vec<SingleId> = self.surface_single_ids(z)?.collect();
+        let existence_range = surface.iter().fold(None, |acc, s| {
+            match acc {
+                None => Some((s.as_f(), s.as_x(), s.as_y(), s.as_f(), s.as_x(), s.as_y())), // 最初の要素を初期値にする
+                Some((min_f, min_x, min_y, max_f, max_x, max_y)) => Some((
+                    min_f.min(s.as_f()),
+                    min_x.min(s.as_x()),
+                    min_y.min(s.as_y()),
+                    max_f.max(s.as_f()),
+                    max_x.max(s.as_x()),
+                    max_y.max(s.as_y()),
+                )),
+            }
+        });
+        let result = existence_range.unwrap();
+        let cuboid: Vec<SingleId> = RangeId::new(
+            z,
+            [result.0, result.3],
+            [result.1, result.4],
+            [result.2, result.5],
+        )?
+        .single_ids()
+        .collect();
+
+        Ok(surface.into_iter())
+    }
 
     // pub fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
     //     todo!()
