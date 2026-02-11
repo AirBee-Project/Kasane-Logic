@@ -5,7 +5,10 @@ use std::{
 
 use roaring::RoaringTreemap;
 
-use crate::{FlexId, FlexIdRank, Segment, spatial_id::FlexIds};
+use crate::{
+    FlexId, FlexIdRank, Segment,
+    spatial_id::{FlexIds, collection::scanner::Scanner},
+};
 pub type ValueRank = u64;
 
 pub struct TableOnMemory<V> {
@@ -21,6 +24,20 @@ pub struct TableOnMemory<V> {
     reverse: HashMap<ValueRank, V>,
     value_next_rank: u64,
     value_recycle_rank: Vec<u64>,
+}
+
+impl<V> Scanner for TableOnMemory<V> {
+    fn f(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+        &self.f
+    }
+
+    fn x(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+        &self.x
+    }
+
+    fn y(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+        &self.y
+    }
 }
 
 impl<V> TableOnMemory<V> {

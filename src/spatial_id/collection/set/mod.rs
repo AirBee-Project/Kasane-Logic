@@ -19,21 +19,17 @@ pub struct SetOnMemory {
     recycle_rank: Vec<u64>,
 }
 
-impl<'a> Scanner<'a> for &'a SetOnMemory {
-    fn f(&self) -> &'a BTreeMap<Segment, RoaringTreemap> {
+impl Scanner for SetOnMemory {
+    fn f(&self) -> &BTreeMap<Segment, RoaringTreemap> {
         &self.f
     }
 
-    fn x(&self) -> &'a BTreeMap<Segment, RoaringTreemap> {
+    fn x(&self) -> &BTreeMap<Segment, RoaringTreemap> {
         &self.x
     }
 
-    fn y(&self) -> &'a BTreeMap<Segment, RoaringTreemap> {
+    fn y(&self) -> &BTreeMap<Segment, RoaringTreemap> {
         &self.y
-    }
-
-    fn main(&self) -> &'a HashMap<FlexIdRank, FlexId> {
-        &self.main
     }
 }
 
