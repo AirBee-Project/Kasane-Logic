@@ -1,15 +1,12 @@
 use std::collections::{BTreeMap, HashMap, btree_map::Entry};
 
-pub mod scanner;
 pub mod tests;
 
-use roaring::{RoaringBitmap, RoaringTreemap};
+use roaring::RoaringTreemap;
 
 use crate::{
-    Error, FlexId, FlexIdRank, MAX_ZOOM_LEVEL, RangeId, Segment, SingleId,
-    spatial_id::{
-        FlexIds, collection::set::scanner::FlexIdScanPlan, flex_id, helpers::fast_intersect,
-    },
+    FlexId, FlexIdRank, RangeId, Segment, SingleId,
+    spatial_id::{FlexIds, collection::scanner::Scanner, helpers::fast_intersect},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -20,6 +17,24 @@ pub struct SetOnMemory {
     main: HashMap<FlexIdRank, FlexId>,
     next_rank: u64,
     recycle_rank: Vec<u64>,
+}
+
+impl<'a> Scanner<'a> for &'a SetOnMemory {
+    fn f(&self) -> &'a BTreeMap<Segment, RoaringTreemap> {
+        &self.f
+    }
+
+    fn x(&self) -> &'a BTreeMap<Segment, RoaringTreemap> {
+        &self.x
+    }
+
+    fn y(&self) -> &'a BTreeMap<Segment, RoaringTreemap> {
+        &self.y
+    }
+
+    fn main(&self) -> &'a HashMap<FlexIdRank, FlexId> {
+        &self.main
+    }
 }
 
 impl SetOnMemory {
@@ -37,8 +52,8 @@ impl SetOnMemory {
     }
 
     pub fn insert<T: FlexIds>(&mut self, target: &T) {
-        let scanner = self.scanner(target.clone());
-
+        let ref_self = &*self;
+        let scanner = ref_self.flex_id_scan_plan(target.clone());
         //削除が必要なIDを貯めて最後に削除する
         let mut need_delete_ranks = RoaringTreemap::new();
         let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
@@ -173,7 +188,8 @@ impl SetOnMemory {
     /// 指定されたID集合を削除する
     pub fn remove<T: FlexIds>(&mut self, target: &T) {
         for flex_id in target.flex_ids() {
-            let scanner = self.scanner(flex_id.clone());
+            let ref_self = &*self;
+            let scanner = ref_self.flex_id_scan_plan(target.clone());
 
             let mut need_delete_ranks: Vec<FlexIdRank> = Vec::new();
             let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
@@ -213,7 +229,8 @@ impl SetOnMemory {
 
     ///指定した領域を取得してSetを返す
     pub fn get<T: FlexIds>(&self, target: &T) -> Self {
-        let scanner = self.scanner(target.clone());
+        let ref_self = &*self;
+        let scanner = ref_self.flex_id_scan_plan(target.clone());
         let mut result = Self::new();
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
@@ -280,11 +297,6 @@ impl SetOnMemory {
         dimension_remove(&mut self.y, flex_id.as_y(), rank);
         self.return_rank(rank);
         flex_id
-    }
-
-    ///Setの中からFlexIdを効率的にスキャンするようにする
-    pub fn scanner<T: FlexIds>(&'_ self, target: T) -> FlexIdScanPlan<'_> {
-        FlexIdScanPlan::new(self, target)
     }
 
     pub fn as_flex_id(&self, rank: &FlexIdRank) -> Option<&FlexId> {

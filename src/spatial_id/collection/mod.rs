@@ -1,3 +1,7 @@
 pub mod set;
-pub type FlexIdRank = u64;
 pub mod table;
+
+///集合の中から関連のある空間IDを検索する
+pub mod scanner;
+
+pub type FlexIdRank = u64;
