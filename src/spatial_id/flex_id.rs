@@ -1,4 +1,5 @@
 use crate::RangeId;
+use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::segment::SegmentRelation;
 use crate::spatial_id::{Block, BlockSegments};
 use crate::spatial_id::{FlexIds, segment::Segment};
@@ -57,6 +58,19 @@ impl FlexId {
     /// Yインデックスのセグメントを参照する。
     pub(crate) fn as_y(&self) -> &Segment {
         &self.y
+    }
+
+    /// このブロックの体積（最小単位ボクセルの数）を返す。
+    pub fn volume(&self) -> u128 {
+        let (fz, _) = self.f.to_f();
+        let (xz, _) = self.x.to_xy();
+        let (yz, _) = self.y.to_xy();
+
+        let f_len = 1u128 << (MAX_ZOOM_LEVEL as u8 - fz);
+        let x_len = 1u128 << (MAX_ZOOM_LEVEL as u8 - xz);
+        let y_len = 1u128 << (MAX_ZOOM_LEVEL as u8 - yz);
+
+        f_len * x_len * y_len
     }
 
     ///[FlexId]同士の関連を[FlexIdRelation]として返す。
