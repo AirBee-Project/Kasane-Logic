@@ -2,7 +2,6 @@ use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
 use crate::spatial_id::SpatialId;
 use crate::{Coordinate, Ecef, Error, RangeId, SingleId};
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::result;
 
 /// 立体を表す型。
 ///
@@ -180,8 +179,8 @@ impl Solid {
                 if move_result.is_ok() {
                     // 条件：cuboidに含まれる かつ surfaceに含まれない
                     if cuboid_set.contains(&neighbor) && !surface_set.contains(&neighbor) {
-                        cuboid_set.remove(&neighbor); // 処理済みとして削除
-                        open_list.push_back(neighbor); // 次の起点として追加
+                        cuboid_set.remove(&neighbor);
+                        open_list.push_back(neighbor);
                     }
                 }
             }
