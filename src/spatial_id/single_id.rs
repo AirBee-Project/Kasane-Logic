@@ -489,7 +489,6 @@ impl SingleId {
 
     #[cfg(any(test, feature = "random"))]
     /// 外部から渡された乱数生成器を使用して、特定のズームレベルの[SingleId]を作成する
-    ///
     pub fn random_using<R: Rng>(rng: &mut R) -> Self {
         Self::random_within_using(rng, 0..=MAX_ZOOM_LEVEL as u8)
     }

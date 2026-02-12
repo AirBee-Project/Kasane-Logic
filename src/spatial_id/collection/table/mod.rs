@@ -1,16 +1,16 @@
-use std::{
-    collections::{BTreeMap, HashMap, btree_map::Entry},
-    hash::Hash,
-};
-
-use roaring::RoaringTreemap;
+pub mod tests;
 
 use crate::{
-    FlexId, FlexIdRank, RangeId, Segment,
+    FlexId, FlexIdRank, RangeId, Segment, SingleId,
     spatial_id::{
         BlockSegmentation, FlexIds,
         collection::{RECYCLE_RANK_MAX, ValueRank, core::SpatialCore, scanner::Scanner},
     },
+};
+use roaring::RoaringTreemap;
+use std::{
+    collections::{BTreeMap, HashMap, btree_map::Entry},
+    hash::Hash,
 };
 
 pub struct TableOnMemory<V: Ord> {
@@ -69,6 +69,7 @@ where
 
         for flex_id_scanner in scanner.scan() {
             if let Some(parent_rank) = flex_id_scanner.parent() {
+                // Coreから直接 ValueRank を取得 (O(1))
                 let (parent_flex_id, parent_value_rank) =
                     self.core.get_entry(&parent_rank).unwrap();
 
@@ -88,6 +89,12 @@ where
                         .push(splited);
                 }
                 need_delete_ranks.insert(parent_rank);
+
+                need_insert
+                    .entry(value.clone())
+                    .or_default()
+                    .push(flex_id_scanner.flex_id().clone());
+
                 continue;
             }
 
@@ -142,6 +149,16 @@ where
             let range_id = flex_id.range_id();
             let val = self.reverse.get(val_rank).unwrap();
             (range_id, val)
+        })
+    }
+
+    pub fn single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> {
+        self.range_ids().flat_map(|(range_id, val)| {
+            range_id
+                .single_ids()
+                .collect::<Vec<SingleId>>()
+                .into_iter()
+                .map(move |single_id| (single_id, val))
         })
     }
 

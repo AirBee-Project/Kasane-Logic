@@ -11,6 +11,7 @@ pub mod union;
 
 ///粒度を合わせてSingleIdで比較するためのヘルパー関数
 /// テスト以外では使用しないため、ここに定義
+#[cfg(any(test))]
 pub fn to_flat_set(set: &SetOnMemory, target_z: u8) -> HashSet<SingleId> {
     let mut result = HashSet::new();
     for single_id in set.single_ids() {
@@ -69,7 +70,7 @@ pub fn arb_small_set(max_len: usize) -> impl Strategy<Value = SetOnMemory> {
     use proptest::prop_oneof;
     let z_range = 0u8..=4;
 
-    // SingleId と RangeId を半々の確率で選ぶ戦略
+    // SingleId と RangeId を半々の確率で選ぶ
     let elem_strategy = prop_oneof![
         SingleId::arb_within(z_range.clone()).prop_map(TestElem::Single),
         RangeId::arb_within(z_range).prop_map(TestElem::Range),
