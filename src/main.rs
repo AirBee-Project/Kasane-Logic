@@ -1,24 +1,16 @@
-use kasane_logic::{RangeId, SetOnMemory, SingleId};
+use std::collections::btree_map::Range;
+
+use kasane_logic::{RangeId, SetOnMemory, SingleId, TableOnMemory};
 
 fn main() {
-    let mut set1 = SetOnMemory::new();
-    let mut set2 = SetOnMemory::new();
+    let mut table1: TableOnMemory<String> = TableOnMemory::new();
 
-    {
-        let id1 = RangeId::new(5, [3, 4], [3, 3], [1, 4]).unwrap();
-        let id2 = SingleId::new(4, 2, 1, 1).unwrap();
-        set1.insert(&id1);
-        set1.insert(&id2);
-    }
+    let id1 = SingleId::new(5, 10, 1, 3).unwrap();
 
-    {
-        let id1 = SingleId::new(3, 1, 0, 0).unwrap();
-        set2.insert(&id1);
-    }
+    table1.insert(&id1, &"neko".to_string());
 
-    let set3 = set1.intersection(&set2);
-
-    for range_id in set3.range_ids() {
-        println!("{},", range_id);
+    for ele in table1.range_ids() {
+        println!("{},", ele.0);
+        println!("{},", ele.1);
     }
 }

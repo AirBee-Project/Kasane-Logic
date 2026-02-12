@@ -7,7 +7,7 @@ use std::{
 use roaring::RoaringTreemap;
 
 use crate::{
-    FlexId, FlexIdRank, Segment,
+    FlexId, FlexIdRank, RangeId, Segment,
     spatial_id::{
         FlexIds,
         collection::{RECYCLE_RANK_MAX, ValueRank, scanner::Scanner},
@@ -179,7 +179,13 @@ where
         }
     }
 
-    pub fn remove<T: FlexIds>(&mut self, target: T) {}
+    pub fn range_ids(&self) -> impl Iterator<Item = (RangeId, &V)> {
+        self.main.iter().map(|(_, (flex_id, value_rank))| {
+            let range_id = flex_id.range_id();
+            let value = self.reverse.get(value_rank).unwrap();
+            (range_id, value)
+        })
+    }
 
     pub unsafe fn join_insert_unchecked<T: FlexIds>(&mut self, target: T, value: &V) {
         match self.find_value(value) {
