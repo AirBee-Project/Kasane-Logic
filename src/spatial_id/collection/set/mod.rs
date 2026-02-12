@@ -119,37 +119,35 @@ impl SetOnMemory {
     }
 
     pub fn remove<T: Block>(&mut self, target: &T) {
-        for flex_id in target.flex_ids() {
-            let scanner = self.flex_id_scan_plan(target.clone());
+        let mut need_delete_ranks: Vec<FlexIdRank> = Vec::new();
+        let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
 
-            let mut need_delete_ranks: Vec<FlexIdRank> = Vec::new();
-            let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
+        let scanner = self.flex_id_scan_plan(target.clone());
 
-            for scan_result in scanner.scan() {
-                if let Some(parent_rank) = scan_result.parent() {
-                    if let Some(parent_flex_id) = self.core.get_flex_id(&parent_rank) {
-                        let diff = parent_flex_id.difference(&flex_id);
-                        need_delete_ranks.push(parent_rank);
+        for scan_result in scanner.scan() {
+            if let Some(parent_rank) = scan_result.parent() {
+                if let Some(parent_flex_id) = self.core.get_flex_id(&parent_rank) {
+                    let diff = parent_flex_id.difference(&scan_result.flex_id());
+                    need_delete_ranks.push(parent_rank);
+                    need_insert_flex_ids.extend(diff);
+                }
+            } else {
+                let children_ranks = scan_result.children();
+                need_delete_ranks.extend(children_ranks);
+                for partial_overlap_rank in scan_result.partial_overlaps() {
+                    if let Some(base_flex_id) = self.core.get_flex_id(&partial_overlap_rank) {
+                        let diff = base_flex_id.difference(&scan_result.flex_id());
+                        need_delete_ranks.push(partial_overlap_rank);
                         need_insert_flex_ids.extend(diff);
-                    }
-                } else {
-                    let children_ranks = scan_result.children();
-                    need_delete_ranks.extend(children_ranks);
-                    for partial_overlap_rank in scan_result.partial_overlaps() {
-                        if let Some(base_flex_id) = self.core.get_flex_id(&partial_overlap_rank) {
-                            let diff = base_flex_id.difference(&flex_id);
-                            need_delete_ranks.push(partial_overlap_rank);
-                            need_insert_flex_ids.extend(diff);
-                        }
                     }
                 }
             }
-            for rank in need_delete_ranks {
-                self.remove_from_rank(rank);
-            }
-            for insert_id in need_insert_flex_ids {
-                unsafe { self.join_insert_unchecked(insert_id) };
-            }
+        }
+        for rank in need_delete_ranks {
+            self.remove_from_rank(rank);
+        }
+        for insert_id in need_insert_flex_ids {
+            unsafe { self.join_insert_unchecked(insert_id) };
         }
     }
 
