@@ -1,6 +1,7 @@
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
-use crate::{Coordinate, Ecef, Error, SingleId};
-use std::collections::{HashMap, HashSet};
+use crate::spatial_id::SpatialId;
+use crate::{Coordinate, Ecef, Error, RangeId, SingleId};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// 立体を表す型。
 ///
@@ -110,9 +111,82 @@ impl Solid {
 
     //Todo
 
-    // pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-    //     todo!()
-    // }
+    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
+        let existence_range = surface_set.iter().fold(None, |acc, s| {
+            match acc {
+                None => Some((s.as_f(), s.as_x(), s.as_y(), s.as_f(), s.as_x(), s.as_y())), // 最初の要素を初期値にする
+                Some((min_f, min_x, min_y, max_f, max_x, max_y)) => Some((
+                    min_f.min(s.as_f()),
+                    min_x.min(s.as_x()),
+                    min_y.min(s.as_y()),
+                    max_f.max(s.as_f()),
+                    max_x.max(s.as_x()),
+                    max_y.max(s.as_y()),
+                )),
+            }
+        });
+        let result = existence_range.unwrap();
+        let mut cuboid_set: HashSet<SingleId> = RangeId::new(
+            z,
+            [result.0, result.3],
+            [result.1, result.4],
+            [result.2, result.5],
+        )?
+        .single_ids()
+        .collect();
+        let mut open_list: VecDeque<SingleId> = VecDeque::new();
+
+        cuboid_set.retain(|id| {
+            let is_boundary = id.as_f() == result.0
+                || id.as_f() == result.3
+                || id.as_x() == result.1
+                || id.as_x() == result.4
+                || id.as_y() == result.2
+                || id.as_y() == result.5;
+
+            if is_boundary && !surface_set.contains(id) {
+                open_list.push_back(id.clone());
+                false
+            } else {
+                true
+            }
+        });
+        let directions = [
+            (1, 0, 0),
+            (-1, 0, 0),
+            (0, 1, 0),
+            (0, -1, 0),
+            (0, 0, 1),
+            (0, 0, -1),
+        ];
+        while let Some(current) = open_list.pop_front() {
+            for (df, dx, dy) in directions {
+                let mut neighbor = current.clone();
+
+                // 各方向に移動を試みる
+                // move_x は循環するため Ok 固定、move_f と move_y は範囲外ならエラーになる
+                let move_result = if df != 0 {
+                    neighbor.move_f(df)
+                } else if dx != 0 {
+                    neighbor.move_x(dx);
+                    Ok(())
+                } else {
+                    neighbor.move_y(dy)
+                };
+
+                // 移動が成功（範囲内）した場合のみ判定
+                if move_result.is_ok() {
+                    // 条件：cuboidに含まれる かつ surfaceに含まれない
+                    if cuboid_set.contains(&neighbor) && !surface_set.contains(&neighbor) {
+                        cuboid_set.remove(&neighbor);
+                        open_list.push_back(neighbor);
+                    }
+                }
+            }
+        }
+        Ok(cuboid_set.into_iter())
+    }
 
     // pub fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
     //     todo!()
