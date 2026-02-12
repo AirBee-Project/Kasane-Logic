@@ -17,7 +17,7 @@ pub struct SpatialCore<T> {
     x: BTreeMap<Segment, RoaringTreemap>,
     y: BTreeMap<Segment, RoaringTreemap>,
 
-    main: HashMap<FlexIdRank, (FlexId, T)>,
+    main: BTreeMap<FlexIdRank, (FlexId, T)>,
 
     next_rank: u64,
     recycle_rank: Vec<u64>,
@@ -29,7 +29,7 @@ impl<T> Default for SpatialCore<T> {
             f: BTreeMap::new(),
             x: BTreeMap::new(),
             y: BTreeMap::new(),
-            main: HashMap::new(),
+            main: BTreeMap::new(),
             next_rank: 0,
             recycle_rank: Vec::new(),
         }
