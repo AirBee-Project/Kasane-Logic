@@ -1,3 +1,4 @@
+pub mod core; // 新規追加
 pub mod set;
 pub mod table;
 
