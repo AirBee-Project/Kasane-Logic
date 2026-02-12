@@ -50,10 +50,14 @@ impl SetOnMemory {
     }
 
     pub fn insert<T: FlexIds>(&mut self, target: &T) {
+        //Targetに対するスキャンをする
         let scanner = self.flex_id_scan_plan(target.clone());
+
         //削除が必要なIDを貯めて最後に削除する
         let mut need_delete_ranks = RoaringTreemap::new();
-        let mut need_insert_flex_ids: Vec<FlexId> = Vec::new();
+
+        //挿入が必要なIDを貯めて最後に挿入する
+        let mut need_insert: Vec<FlexId> = Vec::new();
 
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
@@ -69,13 +73,13 @@ impl SetOnMemory {
 
             //競合解消が不要な場合は次のFLexIDへ行く
             if partial_overlaps.is_empty() {
-                need_insert_flex_ids.push(flex_id_scanner.flex_id().clone());
+                need_insert.push(flex_id_scanner.flex_id().clone());
                 continue;
             }
 
             //Setを作成して競合を解消する
             let mut shave_set = Self::new();
-            unsafe { shave_set.uncheck_insert(flex_id_scanner.flex_id().clone()) };
+            unsafe { shave_set.insert_unchecked(flex_id_scanner.flex_id().clone()) };
 
             //SetからPartial Overlapsを順番に削除する
             //この時は常に自分を削る
@@ -86,7 +90,7 @@ impl SetOnMemory {
             }
 
             //削って競合がなくなったSetを挿入する
-            need_insert_flex_ids.extend(shave_set.as_flex_ids().cloned());
+            need_insert.extend(shave_set.as_flex_ids().cloned());
         }
 
         //削除が必要なものを削除する
@@ -95,21 +99,21 @@ impl SetOnMemory {
         }
 
         //挿入するべきものを挿入する
-        for need_insert_flex_id in need_insert_flex_ids {
-            unsafe { self.join_uncheck_insert(need_insert_flex_id) };
+        for need_insert_flex_id in need_insert {
+            unsafe { self.join_insert_unchecked(need_insert_flex_id) };
         }
     }
 
     ///なんのチェックもせず、挿入する
     ///整合性を破壊する可能性があるため、注意して使用すること
     /// 隣にあるIDと結合されることがある
-    pub unsafe fn join_uncheck_insert<T: FlexIds>(&mut self, target: T) {
+    pub unsafe fn join_insert_unchecked<T: FlexIds>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
             match self.find(flex_id.f_sibling()) {
                 Some(v) => match flex_id.f_parent() {
                     Some(parent) => {
                         self.remove_from_rank(v);
-                        unsafe { self.join_uncheck_insert(parent) };
+                        unsafe { self.join_insert_unchecked(parent) };
                         continue;
                     }
                     None => {}
@@ -121,7 +125,7 @@ impl SetOnMemory {
             match self.find(flex_id.x_sibling()) {
                 Some(v) => {
                     self.remove_from_rank(v);
-                    unsafe { self.join_uncheck_insert(flex_id.x_parent().unwrap()) };
+                    unsafe { self.join_insert_unchecked(flex_id.x_parent().unwrap()) };
                     continue;
                 }
                 None => {}
@@ -131,28 +135,20 @@ impl SetOnMemory {
             match self.find(flex_id.y_sibling()) {
                 Some(v) => {
                     self.remove_from_rank(v);
-                    unsafe { self.join_uncheck_insert(flex_id.y_parent().unwrap()) };
+                    unsafe { self.join_insert_unchecked(flex_id.y_parent().unwrap()) };
                     continue;
                 }
                 None => {}
             }
 
             // 結合相手がいなければ、そのまま挿入
-            unsafe { self.uncheck_insert(flex_id) };
+            unsafe { self.insert_unchecked(flex_id) };
         }
-    }
-
-    ///Targetと全く同じ形のFlexIdを見つけ、そのFlexIdRankを返す
-    pub fn find(&self, target: FlexId) -> Option<FlexIdRank> {
-        let f = self.f.get(target.as_f())?;
-        let x = self.x.get(target.as_x())?;
-        let y = self.y.get(target.as_y())?;
-        fast_intersect([f, x, y]).iter().next().clone()
     }
 
     ///なんのチェックもせず、挿入する
     ///整合性を破壊する可能性があるため、注意して使用すること
-    pub unsafe fn uncheck_insert<T: FlexIds>(&mut self, target: T) {
+    pub unsafe fn insert_unchecked<T: FlexIds>(&mut self, target: T) {
         //ある次元のBTreeMapに対して挿入を行う操作
         let dimension_insert =
             |btree: &mut BTreeMap<Segment, RoaringTreemap>, segment: Segment, rank: FlexIdRank| {
@@ -213,7 +209,7 @@ impl SetOnMemory {
                 self.remove_from_rank(rank);
             }
             for insert_id in need_insert_flex_ids {
-                unsafe { self.join_uncheck_insert(insert_id) };
+                unsafe { self.join_insert_unchecked(insert_id) };
             }
         }
     }
@@ -230,14 +226,14 @@ impl SetOnMemory {
         for flex_id_scanner in scanner.scan() {
             //もし、親に包まれていた場合はそのほかパターンを考える必要がない
             if flex_id_scanner.parent().is_some() {
-                unsafe { result.join_uncheck_insert(flex_id_scanner.flex_id()) };
+                unsafe { result.join_insert_unchecked(flex_id_scanner.flex_id()) };
                 continue;
             }
 
             //子を全て追加する
             for child_rank in flex_id_scanner.children() {
                 let flex_id = self.as_flex_id(&child_rank).unwrap();
-                unsafe { result.join_uncheck_insert(flex_id.clone()) };
+                unsafe { result.join_insert_unchecked(flex_id.clone()) };
             }
 
             //partial_overlapの重なりがある部分を全て追加する
@@ -246,7 +242,7 @@ impl SetOnMemory {
                 let intersection = overlap_flex_id
                     .intersection(&flex_id_scanner.flex_id())
                     .unwrap();
-                unsafe { result.join_uncheck_insert(intersection) };
+                unsafe { result.join_insert_unchecked(intersection) };
             }
         }
         result
