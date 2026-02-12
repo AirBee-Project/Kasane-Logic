@@ -1,31 +1,3 @@
-//! # 空間 ID の種類
-//! 本ライブラリが扱う空間 ID は 2 種類です。いずれも IPA が定める標準的な空間 ID 形状に準拠しており、相互変換も可能です。ユースケースに応じてパフォーマンス特性が異なるため、両者を使い分けることを推奨します。
-//!
-//! [`SpaceID`] トレイトは、すべての空間 ID 型が満たすべき基礎的な性質を定義します。
-//!
-//! ## `SingleId`
-//! `SingleId` は各次元が単一値で表現される標準的な空間 ID です。分散した位置を扱う場合や、単純なアルゴリズム設計で有用です。
-//!
-//! ```ignore
-//! pub struct SingleId {
-//!     z: u8,
-//!     f: i64,
-//!     x: u64,
-//!     y: u64,
-//! }
-//! ```
-//! ## `RangeId`
-//! `RangeId` は各次元のインデックスを 2 つの値による区間で表現します。連続した広い範囲を一度に扱えるため、`SingleId` より高いパフォーマンスを発揮する場面があります。
-//!
-//! ```ignore
-//! pub struct RangeId {
-//!     z: u8,
-//!     f: [i64; 2],
-//!     x: [u64; 2],
-//!     y: [u64; 2],
-//! }
-//! ```
-
 use crate::{Coordinate, FlexId, Segment, error::Error};
 
 pub(crate) mod collection;
@@ -62,27 +34,37 @@ pub trait SpatialId {
     fn vertices(&self) -> [Coordinate; 8];
 }
 
-//SetにはFlexIds Traitを実装しなければ、今回の実装は成り立つ
-//SingleID,RangeID,FlexIDにしかこのTraitを実装しない
-pub trait FlexIds: Clone {
-    fn segmentation(&self) -> Segmentation;
-    fn flex_ids(&self) -> Vec<FlexId> {
-        let Segmentation { f, x, y } = self.segmentation();
-        let mut out = Vec::new();
-        for f in f {
-            for x in &x {
-                for y in &y {
-                    out.push(FlexId::new(f.clone(), x.clone(), y.clone()));
-                }
-            }
-        }
-        out
+/// 領域を構成するセグメントの集合を提供するトレイト
+pub trait BlockSegmentation: Clone {
+    fn segmentation(&self) -> BlockSegments;
+}
+
+/// FlexIdの集合として振る舞えるトレイト
+/// Segmentationを実装している型には自動的に実装されます。
+pub trait FlexIds {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId>;
+}
+
+impl<T: BlockSegmentation> FlexIds for T {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> {
+        let BlockSegments { f, x, y } = self.segmentation();
+        f.into_iter().flat_map(move |f_seg| {
+            let x = x.clone();
+            let y = y.clone();
+            x.into_iter().flat_map(move |x_seg| {
+                let y = y.clone();
+                let f_seg = f_seg.clone();
+                y.into_iter()
+                    .map(move |y_seg| FlexId::new(f_seg.clone(), x_seg.clone(), y_seg.clone()))
+            })
+        })
     }
 }
 
-///RangeIDやSingleIDやFlexIDを最適分割したもの
-pub struct Segmentation {
-    f: Vec<Segment>,
-    x: Vec<Segment>,
-    y: Vec<Segment>,
+/// RangeIDやSingleIDやFlexIDを最適分割したもの
+/// 必ず一続きの領域（直方体状の空間）を表す
+pub struct BlockSegments {
+    pub f: Vec<Segment>,
+    pub x: Vec<Segment>,
+    pub y: Vec<Segment>,
 }

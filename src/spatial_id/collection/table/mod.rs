@@ -8,7 +8,7 @@ use roaring::RoaringTreemap;
 use crate::{
     FlexId, FlexIdRank, RangeId, Segment,
     spatial_id::{
-        FlexIds,
+        BlockSegmentation, FlexIds,
         collection::{RECYCLE_RANK_MAX, ValueRank, core::SpatialCore, scanner::Scanner},
     },
 };
@@ -60,7 +60,7 @@ where
     }
 
     ///値を挿入する
-    pub fn insert<T: FlexIds>(&mut self, target: &T, value: &V) {
+    pub fn insert<T: BlockSegmentation>(&mut self, target: &T, value: &V) {
         let scanner = self.flex_id_scan_plan(target.clone());
         let mut need_delete_ranks = RoaringTreemap::new();
         let mut need_insert: HashMap<V, Vec<FlexId>> = HashMap::new();
@@ -145,7 +145,7 @@ where
         })
     }
 
-    pub unsafe fn join_insert_unchecked<T: FlexIds>(&mut self, target: T, value: &V) {
+    pub unsafe fn join_insert_unchecked<T: BlockSegmentation>(&mut self, target: T, value: &V) {
         match self.find_value(value) {
             Some(target_val_rank) => {
                 let target_val_rank = target_val_rank.clone();
@@ -196,7 +196,7 @@ where
         }
     }
 
-    pub unsafe fn insert_unchecked<T: FlexIds>(&mut self, target: T, value: &V) {
+    pub unsafe fn insert_unchecked<T: BlockSegmentation>(&mut self, target: T, value: &V) {
         let value_rank = match self.find_value(value) {
             Some(rank) => rank,
             None => self.fetch_value_rank(),

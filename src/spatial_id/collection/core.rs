@@ -60,20 +60,12 @@ impl<T> SpatialCore<T> {
         self.main.is_empty()
     }
 
-    pub fn contains_rank(&self, rank: &FlexIdRank) -> bool {
-        self.main.contains_key(rank)
-    }
-
     pub fn get_entry(&self, rank: &FlexIdRank) -> Option<&(FlexId, T)> {
         self.main.get(rank)
     }
 
     pub fn get_flex_id(&self, rank: &FlexIdRank) -> Option<&FlexId> {
         self.main.get(rank).map(|(f, _)| f)
-    }
-
-    pub fn get_meta(&self, rank: &FlexIdRank) -> Option<&T> {
-        self.main.get(rank).map(|(_, m)| m)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&FlexIdRank, &(FlexId, T))> {

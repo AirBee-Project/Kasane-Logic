@@ -1,6 +1,4 @@
-use std::collections::btree_map::Range;
-
-use kasane_logic::{RangeId, SetOnMemory, SingleId, TableOnMemory};
+use kasane_logic::{RangeId, TableOnMemory};
 
 fn main() {
     let mut table1: TableOnMemory<String> = TableOnMemory::new();
@@ -10,6 +8,8 @@ fn main() {
     println!("{}", id1);
 
     table1.insert(&id1, &"neko".to_string());
+
+    table1.insert(&id1, &"inu".to_string());
 
     for ele in table1.range_ids() {
         println!("{},", ele.0);

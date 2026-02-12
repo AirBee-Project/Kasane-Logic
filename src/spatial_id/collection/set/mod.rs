@@ -6,7 +6,7 @@ pub mod tests;
 use crate::{
     FlexId, FlexIdRank, RangeId, Segment, SingleId,
     spatial_id::{
-        FlexIds,
+        BlockSegmentation, FlexIds,
         collection::{core::SpatialCore, scanner::Scanner},
     },
 };
@@ -37,7 +37,7 @@ impl SetOnMemory {
         }
     }
 
-    pub fn insert<T: FlexIds>(&mut self, target: &T) {
+    pub fn insert<T: BlockSegmentation>(&mut self, target: &T) {
         let scanner = self.flex_id_scan_plan(target.clone());
         let mut need_delete_ranks = RoaringTreemap::new();
         let mut need_insert: Vec<FlexId> = Vec::new();
@@ -63,7 +63,7 @@ impl SetOnMemory {
                 shave_set.remove(flex_id);
             }
 
-            need_insert.extend(shave_set.as_flex_ids().cloned());
+            need_insert.extend(shave_set.flex_ids().cloned());
         }
 
         for nend_delete_rank in need_delete_ranks {
@@ -75,7 +75,7 @@ impl SetOnMemory {
         }
     }
 
-    pub unsafe fn join_insert_unchecked<T: FlexIds>(&mut self, target: T) {
+    pub unsafe fn join_insert_unchecked<T: BlockSegmentation>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
             let check_and_join = |this: &mut Self,
                                   neighbor_rank: Option<FlexIdRank>,
@@ -111,14 +111,14 @@ impl SetOnMemory {
         }
     }
 
-    pub unsafe fn insert_unchecked<T: FlexIds>(&mut self, target: T) {
+    pub unsafe fn insert_unchecked<T: BlockSegmentation>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
             // ダミーの () を渡す
             self.core.insert_entry(flex_id, ());
         }
     }
 
-    pub fn remove<T: FlexIds>(&mut self, target: &T) {
+    pub fn remove<T: BlockSegmentation>(&mut self, target: &T) {
         for flex_id in target.flex_ids() {
             let scanner = self.flex_id_scan_plan(target.clone());
 
@@ -157,7 +157,7 @@ impl SetOnMemory {
         self.core.len()
     }
 
-    pub fn get<T: FlexIds>(&self, target: &T) -> Self {
+    pub fn get<T: BlockSegmentation>(&self, target: &T) -> Self {
         let scanner = self.flex_id_scan_plan(target.clone());
         let mut result = Self::new();
         for flex_id_scanner in scanner.scan() {
@@ -186,16 +186,12 @@ impl SetOnMemory {
         self.core.remove_entry(rank).unwrap().0
     }
 
-    pub fn as_flex_id(&self, rank: &FlexIdRank) -> Option<&FlexId> {
-        self.core.get_flex_id(rank)
-    }
-
-    pub fn as_flex_ids(&self) -> impl Iterator<Item = &FlexId> {
+    fn flex_ids(&self) -> impl Iterator<Item = &FlexId> {
         self.core.iter().map(|(_, (v, _))| v)
     }
 
     pub fn join(&mut self, target: &Self) {
-        for flex_id in target.as_flex_ids() {
+        for flex_id in target.flex_ids() {
             self.insert(flex_id);
         }
     }
@@ -204,12 +200,12 @@ impl SetOnMemory {
         let mut result;
         if self.size() > target.size() {
             result = self.clone();
-            for flex_id in target.as_flex_ids() {
+            for flex_id in target.flex_ids() {
                 result.insert(flex_id);
             }
         } else {
             result = target.clone();
-            for flex_id in self.as_flex_ids() {
+            for flex_id in self.flex_ids() {
                 result.insert(flex_id);
             }
         }
@@ -219,12 +215,12 @@ impl SetOnMemory {
     pub fn intersection(&self, target: &Self) -> Self {
         let mut result = Self::new();
         if self.size() > target.size() {
-            for flex_id in target.as_flex_ids() {
+            for flex_id in target.flex_ids() {
                 let intersect = self.get(flex_id);
                 result.join(&intersect);
             }
         } else {
-            for flex_id in self.as_flex_ids() {
+            for flex_id in self.flex_ids() {
                 let intersect = target.get(flex_id);
                 result.join(&intersect);
             }
@@ -234,7 +230,7 @@ impl SetOnMemory {
 
     pub fn difference(&self, target: &Self) -> Self {
         let mut result = self.clone();
-        for flex_id in target.as_flex_ids() {
+        for flex_id in target.flex_ids() {
             result.remove(flex_id);
         }
         result
@@ -283,5 +279,11 @@ impl SetOnMemory {
         }
         let diff2 = target.difference(self);
         diff2.is_empty()
+    }
+}
+
+impl FlexIds for SetOnMemory {
+    fn flex_ids(&self) -> impl Iterator<Item = FlexId> {
+        self.flex_ids().cloned()
     }
 }
