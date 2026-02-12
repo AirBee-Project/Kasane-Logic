@@ -6,7 +6,7 @@ pub mod tests;
 use crate::{
     FlexId, FlexIdRank, RangeId, Segment, SingleId,
     spatial_id::{
-        BlockSegmentation, FlexIds,
+        Block, FlexIds,
         collection::{core::SpatialCore, scanner::Scanner},
     },
 };
@@ -37,7 +37,7 @@ impl SetOnMemory {
         }
     }
 
-    pub fn insert<T: BlockSegmentation>(&mut self, target: &T) {
+    pub fn insert<T: Block>(&mut self, target: &T) {
         let scanner = self.flex_id_scan_plan(target.clone());
         let mut need_delete_ranks = RoaringTreemap::new();
         let mut need_insert: Vec<FlexId> = Vec::new();
@@ -75,7 +75,7 @@ impl SetOnMemory {
         }
     }
 
-    pub unsafe fn join_insert_unchecked<T: BlockSegmentation>(&mut self, target: T) {
+    pub unsafe fn join_insert_unchecked<T: Block>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
             let check_and_join = |this: &mut Self,
                                   neighbor_rank: Option<FlexIdRank>,
@@ -111,14 +111,14 @@ impl SetOnMemory {
         }
     }
 
-    pub unsafe fn insert_unchecked<T: BlockSegmentation>(&mut self, target: T) {
+    pub unsafe fn insert_unchecked<T: Block>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
             // ダミーの () を渡す
             self.core.insert_entry(flex_id, ());
         }
     }
 
-    pub fn remove<T: BlockSegmentation>(&mut self, target: &T) {
+    pub fn remove<T: Block>(&mut self, target: &T) {
         for flex_id in target.flex_ids() {
             let scanner = self.flex_id_scan_plan(target.clone());
 
@@ -157,7 +157,7 @@ impl SetOnMemory {
         self.core.len()
     }
 
-    pub fn get<T: BlockSegmentation>(&self, target: &T) -> Self {
+    pub fn get<T: Block>(&self, target: &T) -> Self {
         let scanner = self.flex_id_scan_plan(target.clone());
         let mut result = Self::new();
         for flex_id_scanner in scanner.scan() {

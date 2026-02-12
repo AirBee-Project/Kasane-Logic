@@ -35,7 +35,7 @@ pub trait SpatialId {
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト
-pub trait BlockSegmentation: Clone {
+pub trait Block: Clone {
     fn segmentation(&self) -> BlockSegments;
 }
 
@@ -45,7 +45,7 @@ pub trait FlexIds {
     fn flex_ids(&self) -> impl Iterator<Item = FlexId>;
 }
 
-impl<T: BlockSegmentation> FlexIds for T {
+impl<T: Block> FlexIds for T {
     fn flex_ids(&self) -> impl Iterator<Item = FlexId> {
         let BlockSegments { f, x, y } = self.segmentation();
         f.into_iter().flat_map(move |f_seg| {

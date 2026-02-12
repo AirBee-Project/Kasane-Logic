@@ -1,5 +1,8 @@
 use roaring::RoaringTreemap;
-use std::collections::{BTreeMap, HashMap, btree_map::Entry};
+use std::{
+    collections::{BTreeMap, HashMap, btree_map::Entry},
+    hash::Hash,
+};
 
 use crate::{
     FlexId, FlexIdRank, Segment,

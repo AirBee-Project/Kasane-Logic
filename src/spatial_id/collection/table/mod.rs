@@ -3,8 +3,12 @@ pub mod tests;
 use crate::{
     FlexId, FlexIdRank, RangeId, Segment, SingleId,
     spatial_id::{
-        BlockSegmentation, FlexIds,
-        collection::{RECYCLE_RANK_MAX, ValueRank, core::SpatialCore, scanner::Scanner},
+        Block, FlexIds,
+        collection::{
+            RECYCLE_RANK_MAX, ValueRank,
+            core::SpatialCore,
+            scanner::{self, Scanner},
+        },
     },
 };
 use roaring::RoaringTreemap;
@@ -60,7 +64,7 @@ where
     }
 
     ///値を挿入する
-    pub fn insert<T: BlockSegmentation>(&mut self, target: &T, value: &V) {
+    pub fn insert<T: Block>(&mut self, target: &T, value: &V) {
         let scanner = self.flex_id_scan_plan(target.clone());
         let mut need_delete_ranks = RoaringTreemap::new();
         let mut need_insert: HashMap<V, Vec<FlexId>> = HashMap::new();
@@ -162,7 +166,99 @@ where
         })
     }
 
-    pub unsafe fn join_insert_unchecked<T: BlockSegmentation>(&mut self, target: T, value: &V) {
+    pub fn get<T: Block>(&self, target: &T) -> Self {
+        let scanner = self.flex_id_scan_plan(target.clone());
+        let mut result = Self::new();
+        for flex_id_scanner in scanner.scan() {
+            if let Some(parent_rank) = flex_id_scanner.parent() {
+                let parent_value_rank = self.core.get_entry(&parent_rank).unwrap().1;
+                let parent_rank = self.reverse.get(&parent_value_rank).unwrap();
+                unsafe { result.join_insert_unchecked(flex_id_scanner.flex_id(), parent_rank) };
+                continue;
+            }
+
+            for child_rank in flex_id_scanner.children() {
+                let child = self.core.get_entry(&child_rank).unwrap();
+                let child_value = self.reverse.get(&child.1).unwrap();
+                unsafe { result.join_insert_unchecked(child.0.clone(), child_value) };
+            }
+
+            for partial_overlap_rank in flex_id_scanner.partial_overlaps() {
+                let overlap = self.core.get_entry(&partial_overlap_rank).unwrap();
+                let overlap_value = self.reverse.get(&overlap.1).unwrap();
+                let intersection = overlap.0.intersection(&flex_id_scanner.flex_id()).unwrap();
+                unsafe { result.join_insert_unchecked(intersection, overlap_value) };
+            }
+        }
+        result
+    }
+
+    pub fn remove<T: Block>(&mut self, target: &T) {
+        let scanner = self.flex_id_scan_plan(target.clone());
+
+        let mut need_delete_ranks = RoaringTreemap::new();
+        let mut need_insert: HashMap<V, Vec<FlexId>> = HashMap::new();
+
+        for flex_id_scanner in scanner.scan() {
+            if let Some(parent_rank) = flex_id_scanner.parent() {
+                let (parent_flex_id, parent_value_rank) =
+                    self.core.get_entry(&parent_rank).unwrap();
+
+                need_delete_ranks.insert(parent_rank);
+
+                let parent_splited = parent_flex_id.difference(&flex_id_scanner.flex_id());
+                let parent_value = self.reverse.get(parent_value_rank).unwrap();
+
+                for splited in parent_splited {
+                    need_insert
+                        .entry(parent_value.clone())
+                        .or_default()
+                        .push(splited);
+                }
+
+                continue;
+            }
+
+            need_delete_ranks |= flex_id_scanner.children();
+
+            let partial_overlaps = flex_id_scanner.partial_overlaps();
+
+            if !partial_overlaps.is_empty() {
+                need_delete_ranks |= partial_overlaps.clone();
+
+                for partial_overlap_rank in partial_overlaps {
+                    let (partial_overlap_flex_id, overlap_val_rank) =
+                        self.core.get_entry(&partial_overlap_rank).unwrap();
+
+                    // 相手 - 自分 = 残すべき部分
+                    let overlap_splited =
+                        partial_overlap_flex_id.difference(&flex_id_scanner.flex_id());
+
+                    let overlap_value = self.reverse.get(overlap_val_rank).unwrap().clone();
+
+                    for splited in overlap_splited {
+                        need_insert
+                            .entry(overlap_value.clone())
+                            .or_default()
+                            .push(splited);
+                    }
+                }
+            }
+        }
+
+        // 1. 削除実行
+        for nend_delete_rank in need_delete_ranks {
+            self.remove_from_rank(nend_delete_rank);
+        }
+
+        // 2. 再挿入実行（削られた既存データの残骸を戻す）
+        for (value, flex_ids) in need_insert {
+            for flex_id in flex_ids {
+                unsafe { self.join_insert_unchecked(flex_id, &value) };
+            }
+        }
+    }
+    pub unsafe fn join_insert_unchecked<T: Block>(&mut self, target: T, value: &V) {
         match self.find_value(value) {
             Some(target_val_rank) => {
                 let target_val_rank = target_val_rank.clone();
@@ -213,7 +309,7 @@ where
         }
     }
 
-    pub unsafe fn insert_unchecked<T: BlockSegmentation>(&mut self, target: T, value: &V) {
+    pub unsafe fn insert_unchecked<T: Block>(&mut self, target: T, value: &V) {
         let value_rank = match self.find_value(value) {
             Some(rank) => rank,
             None => self.fetch_value_rank(),

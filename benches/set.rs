@@ -27,7 +27,7 @@ fn build_set_from_ids(ids: &[SingleId]) -> SetOnMemory {
 fn bench_set_operations(c: &mut Criterion) {
     let mut group = c.benchmark_group("Set Operations");
     group.sample_size(10);
-    let sizes = (1000..=100000).step_by(1000);
+    let sizes = (1000..=10000).step_by(1000);
 
     for size in sizes {
         let ids_a = generate_fixed_ids(size, 12345);

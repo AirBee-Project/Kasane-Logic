@@ -1,6 +1,6 @@
 use crate::RangeId;
 use crate::spatial_id::segment::SegmentRelation;
-use crate::spatial_id::{BlockSegmentation, BlockSegments};
+use crate::spatial_id::{Block, BlockSegments};
 use crate::spatial_id::{FlexIds, segment::Segment};
 
 ///FlexIdは拡張空間IDを表す。
@@ -218,7 +218,7 @@ impl FlexId {
     }
 }
 
-impl BlockSegmentation for FlexId {
+impl Block for FlexId {
     fn segmentation(&self) -> BlockSegments {
         BlockSegments {
             f: vec![self.f.clone()],

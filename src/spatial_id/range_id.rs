@@ -8,7 +8,7 @@ use crate::{
     Coordinate, SingleId,
     error::Error,
     spatial_id::{
-        BlockSegmentation, BlockSegments, FlexIds, SpatialId,
+        Block, BlockSegments, FlexIds, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         flex_id::FlexId,
         helpers,
@@ -750,7 +750,7 @@ impl SpatialId for RangeId {
     }
 }
 
-impl BlockSegmentation for RangeId {
+impl Block for RangeId {
     fn segmentation(&self) -> BlockSegments {
         let f = Segment::split_f(self.as_z(), self.as_f()).collect();
         let x = if self.x[0] <= self.x[1] {
