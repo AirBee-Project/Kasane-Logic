@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap, btree_map::Entry},
+    hash::Hash,
     thread::panicking,
 };
 
@@ -48,7 +49,7 @@ where
 
 impl<V> TableOnMemory<V>
 where
-    V: Ord + Clone,
+    V: Ord + Clone + Hash,
 {
     ///初期化する
     pub fn new() -> Self {
@@ -75,7 +76,7 @@ where
         let mut need_delete_ranks = RoaringTreemap::new();
 
         //挿入が必要なIDとValueを貯めて最後に挿入する
-        let mut need_insert: Vec<(FlexId, &V)> = Vec::new();
+        let mut need_insert: HashMap<V, Vec<FlexId>> = HashMap::new();
 
         //既に同じValueがあるかを検索する
         let exist_same_value = self.find_value(value);
@@ -92,24 +93,155 @@ where
                         continue;
                     }
                 }
-
                 //もしも親が異なるValueを持つ場合
+                else {
+                    //親を分割
+                    let parent_splited = parent.0.difference(&flex_id_scanner.flex_id());
 
-                //親を分割
-                let parent_splited = parent.0.difference(&flex_id_scanner.flex_id());
+                    //親の持っていたValueを取得
+                    let parent_value = self.reverse.get(&parent.1).unwrap();
 
-                //分割後の親を挿入予定にする
-                for splited in parent_splited {}
+                    //分割後の親を挿入予定にする
+                    for splited in parent_splited {
+                        match need_insert.entry(parent_value.clone()) {
+                            std::collections::hash_map::Entry::Occupied(mut occupied_entry) => {
+                                let exist = occupied_entry.get_mut();
+                                exist.push(splited);
+                            }
+                            std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+                                vacant_entry.insert(vec![splited]);
+                            }
+                        }
+                    }
 
-                //親を削除する
-                need_delete_ranks.insert(parent_rank);
+                    //親を削除予定にする
+                    need_delete_ranks.insert(parent_rank);
+                }
+
+                //親を処理すれば終わり
+                continue;
             }
 
-            //必ず削除しなければならないIDを削除予定にする
+            //子は必ず削除しなければならないIDを削除予定にする
             need_delete_ranks |= flex_id_scanner.children();
 
             //競合解消が必要なIDを列挙する
             let partial_overlaps = flex_id_scanner.partial_overlaps();
+
+            //競合解消が不要な場合は次のFLexIDへ行く
+            if partial_overlaps.is_empty() {
+                match need_insert.entry(value.clone()) {
+                    std::collections::hash_map::Entry::Occupied(mut occupied_entry) => {
+                        let exist = occupied_entry.get_mut();
+                        exist.push(flex_id_scanner.flex_id().clone());
+                    }
+                    std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+                        vacant_entry.insert(vec![flex_id_scanner.flex_id().clone()]);
+                    }
+                }
+                continue;
+            }
+
+            //もともとの競合IDは削除予定にする
+            need_delete_ranks |= flex_id_scanner.partial_overlaps();
+
+            //競合解消が必要なIDをひたすら削っていく
+            //Setとは違って、相手を削る
+            for partial_overlap_rank in partial_overlaps {
+                let partial_overlap = self.main.get(&partial_overlap_rank).unwrap();
+
+                let overlap_splited = partial_overlap.0.difference(&flex_id_scanner.flex_id());
+
+                for splited in overlap_splited {
+                    match need_insert.entry(value.clone()) {
+                        std::collections::hash_map::Entry::Occupied(mut occupied_entry) => {
+                            let exist = occupied_entry.get_mut();
+                            exist.push(splited);
+                        }
+                        std::collections::hash_map::Entry::Vacant(vacant_entry) => {
+                            vacant_entry.insert(vec![splited]);
+                        }
+                    }
+                }
+            }
+        }
+
+        //削除が必要なものを削除する
+        for nend_delete_rank in need_delete_ranks {
+            self.remove_from_rank(nend_delete_rank);
+        }
+
+        //挿入が必要なものを挿入する
+        for (value, flex_ids) in need_insert {
+            for flex_id in flex_ids {
+                unsafe { self.join_insert_unchecked(flex_id, &value) };
+            }
+        }
+    }
+
+    pub fn remove<T: FlexIds>(&mut self, target: T) {}
+
+    pub unsafe fn join_insert_unchecked<T: FlexIds>(&mut self, target: T, value: &V) {
+        match self.find_value(value) {
+            //既に値が存在するので、探索する価値がある
+            Some(_) => {
+                for flex_id in target.flex_ids() {
+                    match self.find(flex_id.f_sibling()) {
+                        Some(v) => match flex_id.f_parent() {
+                            Some(parent) => {
+                                let sibling_value_rank = self.main.get(&v).unwrap().1;
+                                let sibling_value = self.reverse.get(&sibling_value_rank).unwrap();
+                                if sibling_value == value {
+                                    self.remove_from_rank(v);
+                                    unsafe { self.join_insert_unchecked(parent, value) };
+                                    continue;
+                                }
+                            }
+                            None => {}
+                        },
+                        None => {}
+                    }
+
+                    // X軸方向の結合チェック
+                    match self.find(flex_id.x_sibling()) {
+                        Some(v) => {
+                            let sibling_value_rank = self.main.get(&v).unwrap().1;
+                            let sibling_value = self.reverse.get(&sibling_value_rank).unwrap();
+                            if sibling_value == value {
+                                self.remove_from_rank(v);
+                                unsafe {
+                                    self.join_insert_unchecked(flex_id.x_parent().unwrap(), value)
+                                };
+                                continue;
+                            }
+                        }
+                        None => {}
+                    }
+
+                    // Y軸方向の結合チェック
+                    match self.find(flex_id.y_sibling()) {
+                        Some(v) => {
+                            let sibling_value_rank = self.main.get(&v).unwrap().1;
+                            let sibling_value = self.reverse.get(&sibling_value_rank).unwrap();
+                            if sibling_value == value {
+                                self.remove_from_rank(v);
+                                unsafe {
+                                    self.join_insert_unchecked(flex_id.y_parent().unwrap(), value)
+                                };
+                                continue;
+                            }
+                        }
+                        None => {}
+                    }
+
+                    // 結合相手がいなければ、そのまま挿入
+                    unsafe { self.insert_unchecked(flex_id, value) };
+                }
+            }
+            //同じValueがないので、無条件挿入
+            None => {
+                unsafe { self.insert_unchecked(target.clone(), value) };
+            }
         }
     }
 
@@ -136,6 +268,8 @@ where
 
         //ループ後にdictionaryに入れる
         let mut flex_id_ranks = RoaringTreemap::new();
+
+        //空間IDの情報を更新
         for flex_id in target.flex_ids() {
             let rank = self.fetch_rank();
 
@@ -151,13 +285,64 @@ where
             flex_id_ranks.insert(rank);
         }
 
-        //dictionaryを更新
+        //dictonaryの更新
+        match self.dictionary.entry(value.clone()) {
+            Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert((flex_id_ranks, value_rank));
+                //逆引きの更新
+                self.reverse.insert(value_rank, value.clone());
+            }
+            //既に存在する場合はそのValueを持つFlexIdを更新
+            Entry::Occupied(mut occupied_entry) => {
+                let exist = occupied_entry.get_mut();
+                exist.0 |= flex_id_ranks
+            }
+        }
     }
 
     ///既存のValueがある場合は見つけてくる
     fn find_value(&self, value: &V) -> Option<ValueRank> {
         let value_rank = self.dictionary.get(&value)?.1;
         Some(value_rank)
+    }
+
+    ///Rankを指定して削除する
+    ///存在しないRankをリクエストされた場合はPanicします
+    fn remove_from_rank(&mut self, rank: FlexIdRank) -> (FlexId, V) {
+        //特定の次元から削除する
+        let dimension_remove =
+            |btree: &mut BTreeMap<Segment, RoaringTreemap>, segment: &Segment, rank: FlexIdRank| {
+                if let Some(entry) = btree.get_mut(segment) {
+                    entry.remove(rank);
+                    if entry.is_empty() {
+                        btree.remove(segment);
+                    }
+                }
+            };
+
+        //存在しないRankをリクエストされた場合はPanicします。
+        let flex_id = self.main.remove(&rank).unwrap();
+        dimension_remove(&mut self.f, flex_id.0.as_f(), rank);
+        dimension_remove(&mut self.x, flex_id.0.as_x(), rank);
+        dimension_remove(&mut self.y, flex_id.0.as_y(), rank);
+        self.return_rank(rank);
+
+        //Value部分を削除する
+        let value = self.reverse.get(&flex_id.1).unwrap().clone();
+        let dictionary = self.dictionary.get_mut(&value).unwrap();
+        let value_rank = dictionary.1.clone();
+        dictionary.0.remove(rank);
+
+        //もしそのValueを持つ[FlexId]が存在しない場合はKeyごと削除する
+        if dictionary.0.is_empty() {
+            self.dictionary.remove(&value);
+            self.reverse.remove(&value_rank);
+        }
+
+        //recycleに使用されていたvalue-rankを返す
+        self.return_value_rank(value_rank);
+
+        return (flex_id.0, value);
     }
 
     ///新しいRankを予約するためのメソット

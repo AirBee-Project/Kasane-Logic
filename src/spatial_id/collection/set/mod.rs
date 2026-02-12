@@ -269,7 +269,7 @@ impl SetOnMemory {
 
     ///Rankを指定して削除する
     ///存在しないRankをリクエストされた場合はPanicします
-    pub fn remove_from_rank(&mut self, rank: FlexIdRank) -> FlexId {
+    fn remove_from_rank(&mut self, rank: FlexIdRank) -> FlexId {
         //特定の次元から削除する
         let dimension_remove =
             |btree: &mut BTreeMap<Segment, RoaringTreemap>, segment: &Segment, rank: FlexIdRank| {
