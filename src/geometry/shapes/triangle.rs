@@ -121,6 +121,7 @@ impl Triangle {
             .sqrt();
         const D: f64 = 8.0;
         let steps = (D * line1.max(line2).max(line3).ceil()) as usize;
+        let mut voxels: HashSet<SingleId> = HashSet::new();
         for i in (0..=steps) {
             let p1 = [0, 1, 2].map(|k| {
                 points[0][k] * (1.0 - (i as f64 / steps as f64))
@@ -135,10 +136,15 @@ impl Triangle {
                     (p1[l] * (1.0 - (j as f64 / i as f64)) + p2[l] * (j as f64 / i as f64)).floor()
                         as i32
                 });
-                let voxel = SingleId::new(z, mat_p[0], mat_p[1] as u32, mat_p[2] as u32);
+                voxels.insert(SingleId::new(
+                    z,
+                    mat_p[0],
+                    mat_p[1] as u32,
+                    mat_p[2] as u32,
+                )?);
             }
         }
-        let voxels: Vec<SingleId> = Vec::new();
+
         Ok(voxels.into_iter())
     }
 }
