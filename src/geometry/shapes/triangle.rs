@@ -138,7 +138,8 @@ impl Triangle {
                 let voxel = SingleId::new(z, mat_p[0], mat_p[1] as u32, mat_p[2] as u32);
             }
         }
-        Ok(todo!())
+        let voxels: Vec<SingleId> = Vec::new();
+        Ok(voxels.into_iter())
     }
 }
 
