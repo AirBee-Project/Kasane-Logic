@@ -172,7 +172,6 @@ impl SetOnMemory {
 
     pub unsafe fn insert_unchecked<T: Block>(&mut self, target: T) {
         for flex_id in target.flex_ids() {
-            // ダミーの () を渡す
             self.core.insert_entry(flex_id, ());
         }
     }
@@ -370,6 +369,82 @@ impl SetOnMemory {
             }
         }
         layers.into_values().flatten().collect()
+    }
+
+    pub fn optimize_range_ids(&self) -> Vec<RangeId> {
+        let singles = self.optimize_single_ids();
+        if singles.is_empty() {
+            return Vec::new();
+        }
+        let mut x_map: BTreeMap<(u8, u32, [i32; 2]), Vec<u32>> = BTreeMap::new();
+        {
+            let mut f_map: BTreeMap<(u8, u32, u32), Vec<i32>> = BTreeMap::new();
+            for id in singles {
+                f_map
+                    .entry((id.as_z(), id.as_x(), id.as_y()))
+                    .or_default()
+                    .push(id.as_f());
+            }
+            for ((z, x, y), mut fs) in f_map {
+                fs.sort_unstable();
+                for f_range in Self::merge_indices(&fs) {
+                    x_map.entry((z, y, f_range)).or_default().push(x);
+                }
+            }
+        }
+
+        let mut y_map: BTreeMap<(u8, [i32; 2], [u32; 2]), Vec<u32>> = BTreeMap::new();
+        for ((z, y, f_range), mut xs) in x_map {
+            xs.sort_unstable();
+            let xy_max = crate::spatial_id::constants::XY_MAX[z as usize];
+            // X方向のみ循環を考慮
+            for x_range in Self::merge_indices_with_wrap(&xs, xy_max) {
+                y_map.entry((z, f_range, x_range)).or_default().push(y);
+            }
+        }
+
+        let mut results = Vec::new();
+        for ((z, f_range, x_range), mut ys) in y_map {
+            ys.sort_unstable();
+            for y_range in Self::merge_indices(&ys) {
+                if let Ok(id) = RangeId::new(z, f_range, x_range, y_range) {
+                    results.push(id);
+                }
+            }
+        }
+        results
+    }
+
+    fn merge_indices<T>(indices: &[T]) -> Vec<[T; 2]>
+    where
+        T: Copy + PartialEq + std::ops::Add<Output = T> + From<u8>,
+    {
+        if indices.is_empty() {
+            return Vec::new();
+        }
+        let mut ranges = Vec::new();
+        let mut start = indices[0];
+        let mut prev = indices[0];
+
+        for &curr in &indices[1..] {
+            if curr != prev + T::from(1) {
+                ranges.push([start, prev]);
+                start = curr;
+            }
+            prev = curr;
+        }
+        ranges.push([start, prev]);
+        ranges
+    }
+
+    fn merge_indices_with_wrap(indices: &[u32], max_val: u32) -> Vec<[u32; 2]> {
+        let mut ranges = Self::merge_indices(indices);
+        if ranges.len() > 1 && ranges[0][0] == 0 && ranges.last().unwrap()[1] == max_val {
+            let first = ranges.remove(0);
+            let last = ranges.pop().unwrap();
+            ranges.push([last[0], first[1]]);
+        }
+        ranges
     }
 }
 

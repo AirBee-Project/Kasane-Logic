@@ -73,7 +73,6 @@ where
 
         for flex_id_scanner in scanner.scan() {
             if let Some(parent_rank) = flex_id_scanner.parent() {
-                // Coreから直接 ValueRank を取得 (O(1))
                 let (parent_flex_id, parent_value_rank) =
                     self.core.get_entry(&parent_rank).unwrap();
 
@@ -246,67 +245,125 @@ where
             }
         }
 
-        // 1. 削除実行
         for nend_delete_rank in need_delete_ranks {
             self.remove_from_rank(nend_delete_rank);
         }
 
-        // 2. 再挿入実行（削られた既存データの残骸を戻す）
         for (value, flex_ids) in need_insert {
             for flex_id in flex_ids {
                 unsafe { self.join_insert_unchecked(flex_id, &value) };
             }
         }
     }
+
     pub unsafe fn join_insert_unchecked<T: Block>(&mut self, target: T, value: &V) {
-        match self.find_value(value) {
-            Some(target_val_rank) => {
-                let target_val_rank = target_val_rank.clone();
+        let target_val_rank_opt = self.find_value(value);
 
-                for flex_id in target.flex_ids() {
-                    // 共通結合ロジック
-                    let check_and_join = |this: &mut Self,
-                                          neighbor_rank: Option<FlexIdRank>,
-                                          get_parent: fn(&FlexId) -> Option<FlexId>|
-                     -> bool {
-                        if let Some(v) = neighbor_rank {
-                            if let Some((_, sibling_v_rank)) = this.core.get_entry(&v) {
-                                if *sibling_v_rank == target_val_rank {
-                                    if let Some(parent) = get_parent(&flex_id) {
-                                        this.remove_from_rank(v);
-                                        unsafe { this.join_insert_unchecked(parent, value) };
-                                        return true;
-                                    }
-                                }
-                            }
+        for flex_id in target.flex_ids() {
+            let check_and_join = |this: &mut Self,
+                                  sibling: FlexId,
+                                  get_parent: fn(&FlexId) -> Option<FlexId>|
+             -> bool {
+                let target_val_rank = match target_val_rank_opt {
+                    Some(r) => r,
+                    None => return false,
+                };
+
+                if let Some(contained_ranks) = this.collect_contained_ranks(&sibling) {
+                    let all_same_value = contained_ranks.iter().all(|rank| {
+                        if let Some((_, v_rank)) = this.core.get_entry(rank) {
+                            *v_rank == target_val_rank
+                        } else {
+                            false
                         }
-                        false
-                    };
+                    });
 
-                    // F, X, Y 方向チェック
-                    if check_and_join(self, self.core.find(flex_id.f_sibling()), |id| {
-                        id.f_parent()
-                    }) {
-                        continue;
-                    }
-                    if check_and_join(self, self.core.find(flex_id.x_sibling()), |id| {
-                        id.x_parent()
-                    }) {
-                        continue;
-                    }
-                    if check_and_join(self, self.core.find(flex_id.y_sibling()), |id| {
-                        id.y_parent()
-                    }) {
-                        continue;
+                    if !all_same_value {
+                        return false;
                     }
 
-                    unsafe { self.insert_unchecked(flex_id, value) };
+                    let total_volume: u128 = contained_ranks
+                        .iter()
+                        .map(|rank| {
+                            let id = this.core.get_flex_id(rank).unwrap();
+                            id.volume()
+                        })
+                        .sum();
+
+                    if total_volume == sibling.volume() {
+                        if let Some(parent) = get_parent(&flex_id) {
+                            for rank in contained_ranks {
+                                this.remove_from_rank(rank);
+                            }
+                            unsafe { this.join_insert_unchecked(parent, value) };
+                            return true;
+                        }
+                    }
                 }
+                false
+            };
+
+            // F方向の結合チェック
+            if check_and_join(self, flex_id.f_sibling(), |id| id.f_parent()) {
+                continue;
             }
-            None => {
-                unsafe { self.insert_unchecked(target.clone(), value) };
+            // X方向の結合チェック
+            if check_and_join(self, flex_id.x_sibling(), |id| id.x_parent()) {
+                continue;
             }
+            // Y方向の結合チェック
+            if check_and_join(self, flex_id.y_sibling(), |id| id.y_parent()) {
+                continue;
+            }
+
+            // 結合できなければそのまま挿入
+            unsafe { self.insert_unchecked(flex_id, value) };
         }
+    }
+
+    /// 指定された FlexId の領域内に完全に含まれる（または一致する）全てのランクを取得する。
+    fn collect_contained_ranks(&self, target: &FlexId) -> Option<Vec<FlexIdRank>> {
+        let f_end = target.as_f().descendant_range_end()?;
+        let f_candidates = self.union_bitmaps(self.core.f(), target.as_f(), &f_end);
+
+        if f_candidates.is_empty() {
+            return None;
+        }
+
+        let x_end = target.as_x().descendant_range_end()?;
+        let x_candidates = self.union_bitmaps(self.core.x(), target.as_x(), &x_end);
+        if x_candidates.is_empty() {
+            return None;
+        }
+
+        let fx_intersection = f_candidates & x_candidates;
+        if fx_intersection.is_empty() {
+            return None;
+        }
+
+        let y_end = target.as_y().descendant_range_end()?;
+        let y_candidates = self.union_bitmaps(self.core.y(), target.as_y(), &y_end);
+
+        let intersection = fx_intersection & y_candidates;
+
+        if intersection.is_empty() {
+            None
+        } else {
+            Some(intersection.into_iter().collect())
+        }
+    }
+
+    fn union_bitmaps(
+        &self,
+        map: &BTreeMap<Segment, RoaringTreemap>,
+        start: &Segment,
+        end: &Segment,
+    ) -> RoaringTreemap {
+        let mut result = RoaringTreemap::new();
+        for (_, bitmap) in map.range(start..end) {
+            result |= bitmap;
+        }
+        result
     }
 
     pub unsafe fn insert_unchecked<T: Block>(&mut self, target: T, value: &V) {
