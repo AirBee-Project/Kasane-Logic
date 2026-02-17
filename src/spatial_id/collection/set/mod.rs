@@ -1,5 +1,5 @@
 use roaring::RoaringTreemap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub mod tests;
 
@@ -336,6 +336,40 @@ impl SetOnMemory {
         }
         let diff2 = target.difference(self);
         diff2.is_empty()
+    }
+
+    pub fn optimize_single_ids(&self) -> Vec<SingleId> {
+        let mut layers: BTreeMap<u8, BTreeSet<SingleId>> = BTreeMap::new();
+        for id in self.single_ids() {
+            layers.entry(id.as_z()).or_default().insert(id);
+        }
+        if layers.is_empty() {
+            return Vec::new();
+        }
+        let max_z = *layers.keys().next_back().unwrap();
+        for z in (1..=max_z).rev() {
+            let ids_at_current_z = match layers.remove(&z) {
+                Some(ids) => ids,
+                None => continue,
+            };
+            let mut siblings_map: BTreeMap<SingleId, Vec<SingleId>> = BTreeMap::new();
+            for id in ids_at_current_z {
+                if let Some(parent) = id.parent(1) {
+                    siblings_map.entry(parent).or_default().push(id);
+                }
+            }
+            for (parent, children) in siblings_map {
+                if children.len() == 8 {
+                    layers.entry(z - 1).or_default().insert(parent);
+                } else {
+                    let layer = layers.entry(z).or_default();
+                    for child in children {
+                        layer.insert(child);
+                    }
+                }
+            }
+        }
+        layers.into_values().flatten().collect()
     }
 }
 
