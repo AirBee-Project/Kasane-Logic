@@ -36,7 +36,7 @@ enum FlexIdRelation {
 
 impl FlexId {
     /// 新しく[FlexId]を作成する。
-    pub(crate) fn new(f: Segment, x: Segment, y: Segment) -> FlexId {
+    pub fn new(f: Segment, x: Segment, y: Segment) -> FlexId {
         FlexId { f, x, y }
     }
 

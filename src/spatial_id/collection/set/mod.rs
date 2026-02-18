@@ -242,7 +242,7 @@ impl SetOnMemory {
         self.core.remove_entry(rank).unwrap().0
     }
 
-    fn flex_ids(&self) -> impl Iterator<Item = &FlexId> {
+    pub fn flex_ids(&self) -> impl Iterator<Item = &FlexId> {
         self.core.iter().map(|(_, (v, _))| v)
     }
 

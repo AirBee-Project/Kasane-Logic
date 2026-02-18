@@ -223,12 +223,12 @@ impl Segment {
     }
 
     ///自分を含んで、順番に親を返していく
-    pub(crate) fn self_and_parents(&self) -> impl Iterator<Item = Self> {
+    pub fn self_and_parents(&self) -> impl Iterator<Item = Self> {
         std::iter::successors(Some(self.clone()), |node| node.parent())
     }
 
     ///下位セグメントを検索する場合の検索範囲の右点を返す。
-    pub(crate) fn descendant_range_end(&self) -> Option<Self> {
+    pub fn descendant_range_end(&self) -> Option<Self> {
         let mut end_segment = self.clone();
         let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
 
