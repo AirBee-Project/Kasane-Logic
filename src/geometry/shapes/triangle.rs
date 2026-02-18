@@ -101,6 +101,64 @@ impl Triangle {
         Ok(iter)
     }
 
+    pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
+        let steps_f = steps as f64;
+        let p0: Ecef = self.points[0].into();
+        let p1: Ecef = self.points[1].into();
+        let p2: Ecef = self.points[2].into();
+
+        let initial_row = vec![p0];
+
+        let iter = (1..=steps)
+            .scan(initial_row, move |prev_row, i| {
+                let i_f = i as f64;
+
+                let current_row: Vec<Ecef> = (0..=i)
+                    .map(|j| {
+                        let j_f = j as f64;
+                        let w0 = 1.0 - (i_f / steps_f);
+                        let w1 = (i_f - j_f) / steps_f;
+                        let w2 = j_f / steps_f;
+
+                        Ecef::new(
+                            p0.as_x() * w0 + p1.as_x() * w1 + p2.as_x() * w2,
+                            p0.as_y() * w0 + p1.as_y() * w1 + p2.as_y() * w2,
+                            p0.as_z() * w0 + p1.as_z() * w1 + p2.as_z() * w2,
+                        )
+                    })
+                    .collect();
+
+                let mut row_triangles = Vec::with_capacity((i * 2 - 1) as usize);
+
+                for j in 0..(i as usize) {
+                    // 下向きの三角形
+                    row_triangles.push(Triangle {
+                        points: [
+                            (*prev_row)[j].try_into().ok()?,
+                            current_row[j].try_into().ok()?,
+                            current_row[j + 1].try_into().ok()?,
+                        ],
+                    });
+
+                    if j > 0 {
+                        row_triangles.push(Triangle {
+                            points: [
+                                (*prev_row)[j - 1].try_into().ok()?,
+                                (*prev_row)[j].try_into().ok()?,
+                                current_row[j].try_into().ok()?,
+                            ],
+                        });
+                    }
+                }
+
+                *prev_row = current_row;
+
+                Some(row_triangles)
+            })
+            .flat_map(|triangles| triangles.into_iter());
+        Ok(iter)
+    }
+
     pub fn single_ids_neo(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let points: [[f64; 3]; 3] = [
             coordinate_to_matrix(self.points[0], z),
