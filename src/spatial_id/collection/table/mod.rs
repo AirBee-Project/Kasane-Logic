@@ -407,7 +407,6 @@ where
         if dictionary.0.is_empty() {
             self.dictionary.remove(&value);
             self.reverse.remove(&value_rank);
-            // 【バグ修正済み】
             self.return_value_rank(value_rank);
         }
 

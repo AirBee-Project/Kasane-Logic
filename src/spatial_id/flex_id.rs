@@ -46,17 +46,17 @@ impl FlexId {
     }
 
     /// Fインデックスのセグメントを参照する。
-    pub(crate) fn as_f(&self) -> &Segment {
+    pub fn as_f(&self) -> &Segment {
         &self.f
     }
 
     /// Xインデックスのセグメントを参照する。
-    pub(crate) fn as_x(&self) -> &Segment {
+    pub fn as_x(&self) -> &Segment {
         &self.x
     }
 
     /// Yインデックスのセグメントを参照する。
-    pub(crate) fn as_y(&self) -> &Segment {
+    pub fn as_y(&self) -> &Segment {
         &self.y
     }
 
