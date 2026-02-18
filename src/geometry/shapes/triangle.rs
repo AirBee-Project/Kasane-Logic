@@ -107,44 +107,80 @@ impl Triangle {
             coordinate_to_matrix(self.points[1], z),
             coordinate_to_matrix(self.points[2], z),
         ];
-        let line1 = (0..=2)
-            .map(|i| (points[0][i] - points[1][i]) * (points[0][i] - points[1][i]))
-            .sum::<f64>()
-            .sqrt();
-        let line2 = (0..=2)
-            .map(|i| (points[1][i] - points[2][i]) * (points[1][i] - points[2][i]))
-            .sum::<f64>()
-            .sqrt();
-        let line3 = (0..=2)
-            .map(|i| (points[2][i] - points[0][i]) * (points[2][i] - points[0][i]))
-            .sum::<f64>()
-            .sqrt();
-        const D: f64 = 8.0;
-        let steps = (D * line1.max(line2).max(line3).ceil()) as usize;
         let mut voxels: HashSet<SingleId> = HashSet::new();
-        for i in (0..=steps) {
-            let p1 = [0, 1, 2].map(|k| {
-                points[0][k] * (1.0 - (i as f64 / steps as f64))
-                    + points[1][k] * (i as f64) / (steps as f64)
-            });
-            let p2 = [0, 1, 2].map(|k| {
-                points[0][k] * (1.0 - (i as f64 / steps as f64))
-                    + points[2][k] * (i as f64) / (steps as f64)
-            });
-            for j in (0..=i) {
-                let mat_p = [0, 1, 2].map(|l| {
-                    (p1[l] * (1.0 - (j as f64 / i as f64)) + p2[l] * (j as f64 / i as f64)).floor()
-                        as i32
-                });
-                voxels.insert(SingleId::new(
-                    z,
-                    mat_p[0],
-                    mat_p[1] as u32,
-                    mat_p[2] as u32,
-                )?);
+        let vec_a = [0, 1, 2].map(|i| points[1][i] - points[0][i]);
+        let vec_b = [0, 1, 2].map(|i| points[0][i] - points[2][i]);
+        let vec_c = [0, 1, 2].map(|i| points[2][i] - points[1][i]);
+        let n = cross_product(vec_b, vec_a);
+        let ma = cross_product(n, vec_a);
+        let mb = cross_product(n, vec_b);
+        let mc = cross_product(n, vec_c);
+        let min_f = points[0][0].min(points[1][0]).min(points[2][0]).floor() as i32;
+        let max_f = points[0][0].max(points[1][0]).max(points[2][0]).floor() as i32;
+        let min_x = points[0][1].min(points[1][1]).min(points[2][1]).floor() as u32;
+        let max_x = points[0][1].max(points[1][1]).max(points[2][1]).floor() as u32;
+        let min_y = points[0][2].min(points[1][2]).min(points[2][2]).floor() as u32;
+        let max_y = points[0][2].max(points[1][2]).max(points[2][2]).floor() as u32;
+        let eight_patterns = [
+            (0.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0),
+            (0.0, 1.0, 0.0),
+            (0.0, 1.0, 1.0),
+            (1.0, 0.0, 0.0),
+            (1.0, 0.0, 1.0),
+            (1.0, 1.0, 0.0),
+            (1.0, 1.0, 1.0),
+        ];
+        for f in min_f..=max_f {
+            for x in min_x..=max_x {
+                for y in min_y..=max_y {
+                    let mut sign_before = true;
+                    for i in 0..8 {
+                        let vec_p = [
+                            f as f64 + eight_patterns[i].0 - points[0][0],
+                            x as f64 + eight_patterns[i].1 - points[0][1],
+                            y as f64 + eight_patterns[i].2 - points[0][2],
+                        ];
+                        let sign = dot_product(n, vec_p).is_sign_positive();
+                        if i == 0 || sign_before == sign {
+                            sign_before = sign;
+                        } else {
+                            for i in 0..8 {
+                                let cp = [
+                                    f as f64 + eight_patterns[i].0,
+                                    x as f64 + eight_patterns[i].1,
+                                    y as f64 + eight_patterns[i].2,
+                                ];
+                                let rel_p0 = [
+                                    cp[0] - points[0][0],
+                                    cp[1] - points[0][1],
+                                    cp[2] - points[0][2],
+                                ];
+                                let rel_p1 = [
+                                    cp[0] - points[1][0],
+                                    cp[1] - points[1][1],
+                                    cp[2] - points[1][2],
+                                ];
+                                let rel_p2 = [
+                                    cp[0] - points[2][0],
+                                    cp[1] - points[2][1],
+                                    cp[2] - points[2][2],
+                                ];
+
+                                if dot_product(ma, rel_p0) >= 0.0
+                                    && dot_product(mc, rel_p1) >= 0.0
+                                    && dot_product(mb, rel_p2) >= 0.0
+                                {
+                                    voxels.insert(unsafe { SingleId::new_unchecked(z, f, x, y) });
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
             }
         }
-
         Ok(voxels.into_iter())
     }
 }
@@ -164,4 +200,15 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let lat_rad = lat.to_radians();
     let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
     [f, x, y]
+}
+
+fn dot_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> f64 {
+    vec_a[0] * vec_b[0] + vec_a[1] * vec_b[1] + vec_a[2] * vec_b[2]
+}
+fn cross_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> [f64; 3] {
+    [
+        vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1],
+        vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2],
+        vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0],
+    ]
 }
