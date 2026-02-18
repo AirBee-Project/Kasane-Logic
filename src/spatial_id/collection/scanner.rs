@@ -17,14 +17,6 @@ pub trait Scanner: Sized {
     fn flex_id_scan_plan<T: Block>(&'_ self, target: T) -> FlexIdScanPlan<'_> {
         FlexIdScanPlan::new(self, target)
     }
-
-    ///Targetと全く同じ形のFlexIdを見つけ、そのFlexIdRankを返す
-    fn find(&self, target: FlexId) -> Option<FlexIdRank> {
-        let f = self.f().get(target.as_f())?;
-        let x = self.x().get(target.as_x())?;
-        let y = self.y().get(target.as_y())?;
-        fast_intersect([f, x, y]).iter().next().clone()
-    }
 }
 
 #[derive(Debug)]
