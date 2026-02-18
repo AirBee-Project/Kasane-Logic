@@ -127,7 +127,7 @@ impl FlexId {
     }
 
     /// [FlexId]から[FlexId]を引き、残った[FlexId]の集合を返す。
-    pub(crate) fn difference(&self, other: &FlexId) -> Vec<FlexId> {
+    pub fn difference(&self, other: &FlexId) -> Vec<FlexId> {
         let intersection = match self.intersection(other) {
             Some(i) => i,
             None => return vec![self.clone()],
