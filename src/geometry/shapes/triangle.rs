@@ -9,6 +9,7 @@ use crate::{
 };
 
 ///三角形を表す型
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle {
     points: [Coordinate; 3],
 }
@@ -134,9 +135,9 @@ impl Triangle {
                     // 下向きの三角形
                     row_triangles.push(Triangle {
                         points: [
-                            (*prev_row)[j].try_into().ok()?,
-                            current_row[j].try_into().ok()?,
-                            current_row[j + 1].try_into().ok()?,
+                            (*prev_row)[j].try_into().unwrap(),
+                            current_row[j].try_into().unwrap(),
+                            current_row[j + 1].try_into().unwrap(),
                         ],
                     });
 
@@ -159,7 +160,7 @@ impl Triangle {
         Ok(iter)
     }
 
-    pub fn single_ids_neo(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let points: [[f64; 3]; 3] = [
             coordinate_to_matrix(self.points[0], z),
             coordinate_to_matrix(self.points[1], z),
@@ -240,6 +241,17 @@ impl Triangle {
             }
         }
         Ok(voxels.into_iter())
+    }
+
+    pub fn single_ids_neo(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let steps = 0_u32;
+        let mut seen = HashSet::new();
+        let voxels = self
+            .divide(steps)?
+            .flat_map(move |tri| tri.single_ids_limited(z).ok().into_iter().flatten())
+            // 3. 重複排除用の seen も move でクロージャ内に閉じ込める
+            .filter(move |voxel| seen.insert(voxel.clone()));
+        Ok(voxels)
     }
 }
 
