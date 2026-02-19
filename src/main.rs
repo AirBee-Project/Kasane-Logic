@@ -1,6 +1,7 @@
 use kasane_logic::SingleId;
 use kasane_logic::geometry::{point::coordinate::Coordinate, shapes::triangle};
 use kasane_logic::triangle::Triangle;
+use std::collections::HashSet;
 use std::time::Instant;
 //use rand::prelude::*;
 use std::fs::File;
@@ -28,16 +29,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let yokohama = Coordinate::new(35.4660694, 139.6226196, 100.0)?;
     let ikebukuro = Coordinate::new(35.728926, 139.71038, 100.0)?;
     let shinagawa = Coordinate::new(35.630152, 139.74044000000004, 800.0)?;
-    const Z: u8 = 21;
+    const Z: u8 = 20;
     let tri = Triangle::new([tokyo, ikebukuro, shinagawa]);
+    let start_old = Instant::now();
+    let set_old: HashSet<SingleId> = tri.single_ids(Z)?.collect();
+    let duration_old = start_old.elapsed();
+    println!("従来関数実行時間: {:?}", duration_old);
     let start = Instant::now();
-    let vector: Vec<SingleId> = tri.single_ids_neo(Z)?.collect();
+    let set: HashSet<SingleId> = tri.single_ids_neo(Z)?.collect();
     let duration = start.elapsed();
-    println!("実行時間: {:?}", duration);
-    for id in vector {
-        // SingleIDの内容を一行ずつ書き込む
+    println!("新関数実行時間: {:?}", duration);
+    //  println!("{},{}", start.to_id(z), goal.to_id(z));
+    let c1 = set.intersection(&set_old).count();
+    let c2 = set_old.difference(&set).count();
+    let c3 = set.difference(&set_old).count();
+    println!("重複要素{},旧来のみ{},新のみ{}", c1, c2, c3,);
+    for id in set {
         writeln!(file, "{},", id)?;
     }
-    //  println!("{},{}", start.to_id(z), goal.to_id(z));
+    println!(
+        "{}倍の高速化に成功",
+        duration_old.as_secs_f64() / duration.as_secs_f64()
+    );
     Ok(println!("結果を output.txt に保存しました 。"))
 }

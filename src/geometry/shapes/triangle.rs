@@ -244,7 +244,7 @@ impl Triangle {
     }
 
     pub fn single_ids_neo(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let steps = 0_u32;
+        let steps = todo!();
         let mut seen = HashSet::new();
         let voxels = self
             .divide(steps)?
