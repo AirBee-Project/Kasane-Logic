@@ -4,11 +4,7 @@ use crate::{
     FlexId, FlexIdRank, RangeId, Segment, SingleId,
     spatial_id::{
         Block, FlexIds,
-        collection::{
-            RECYCLE_RANK_MAX, ValueRank,
-            core::SpatialCore,
-            scanner::{self, Scanner},
-        },
+        collection::{RECYCLE_RANK_MAX, ValueRank, core::SpatialCore, scanner::Scanner},
     },
 };
 use roaring::RoaringTreemap;
