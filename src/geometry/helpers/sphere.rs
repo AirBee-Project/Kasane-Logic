@@ -4,20 +4,20 @@ use crate::{
     spatial_id::{SpatialId, helpers::Dimension},
 };
 
-pub fn voxel_length(z: u8, axis: Dimension<()>) -> f64 {
+pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
     let n = 2f64.powi(z as i32);
 
     match axis {
         // 赤道周長 = 2πa
-        Dimension::X(_) | Dimension::Y(_) => 2.0 * std::f64::consts::PI * WGS84_A / n,
+        Dimension::X | Dimension::Y => 2.0 * std::f64::consts::PI * WGS84_A / n,
         // F方向（高度）
-        Dimension::F(_) => 2f64.powi(25 - z as i32),
+        Dimension::F => 2f64.powi(25 - z as i32),
     }
 }
 
 /// 指定された中心点と半径で定義される球状領域を覆う空間 ID を列挙する。
 pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = SingleId> {
-    let voxel_diag_half = voxel_length(z, Dimension::X(())) * 3.0_f64.sqrt() / 2.0;
+    let voxel_diag_half = voxel_length(z, Dimension::X) * 3.0_f64.sqrt() / 2.0;
     let center_ecef: Ecef = (*center).into();
 
     // 球の8頂点 → 探索範囲推定

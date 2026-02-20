@@ -25,6 +25,6 @@ pub use geometry::shapes::triangle;
 pub use spatial_id::Block;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
-pub use spatial_id::collection::table::TableOnMemory;
+// pub use spatial_id::collection::table::TableOnMemory;
 pub use spatial_id::helpers::fast_intersect;
 pub use spatial_id::segment::Segment;
