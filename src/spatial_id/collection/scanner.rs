@@ -4,7 +4,7 @@ use roaring::RoaringTreemap;
 
 use crate::{
     FlexId, FlexIdRank, Segment,
-    spatial_id::{Block, helpers::fast_intersect},
+    spatial_id::{HyperRect, helpers::fast_intersect},
 };
 
 ///このTraitを実装していると、効率的に関連のある[FlexId]をスキャンする関数などを提供する
@@ -14,7 +14,7 @@ pub trait Scanner: Sized {
     fn y(&self) -> &BTreeMap<Segment, RoaringTreemap>;
 
     ///[FlexIdScanPlan]型を返す
-    fn flex_id_scan_plan<T: Block>(&'_ self, target: T) -> FlexIdScanPlan<'_> {
+    fn flex_id_scan_plan<T: HyperRect>(&'_ self, target: T) -> FlexIdScanPlan<'_> {
         FlexIdScanPlan::new(self, target)
     }
 }
@@ -28,7 +28,7 @@ pub struct FlexIdScanPlan<'a> {
 }
 
 impl<'a> FlexIdScanPlan<'a> {
-    pub fn new<T: Block, S: Scanner>(scanner: &'a S, target: T) -> Self {
+    pub fn new<T: HyperRect, S: Scanner>(scanner: &'a S, target: T) -> Self {
         let segmentation = target.segmentation();
         Self {
             f: segmentation

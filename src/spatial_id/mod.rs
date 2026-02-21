@@ -35,8 +35,9 @@ pub trait SpatialId {
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト
-pub trait Block: Clone {
-    fn segmentation(&self) -> BlockSegments;
+/// HyperRectはその空間IDが各次元方向に連続で直方体であることを保証している
+pub trait HyperRect: Clone {
+    fn segmentation(&self) -> HyperRectSegments;
 }
 
 /// FlexIdの集合として振る舞えるトレイト
@@ -45,9 +46,9 @@ pub trait FlexIds {
     fn flex_ids(&self) -> impl Iterator<Item = FlexId>;
 }
 
-impl<T: Block> FlexIds for T {
+impl<T: HyperRect> FlexIds for T {
     fn flex_ids(&self) -> impl Iterator<Item = FlexId> {
-        let BlockSegments { f, x, y } = self.segmentation();
+        let HyperRectSegments { f, x, y } = self.segmentation();
         f.into_iter().flat_map(move |f_seg| {
             let x = x.clone();
             let y = y.clone();
@@ -63,7 +64,7 @@ impl<T: Block> FlexIds for T {
 
 /// RangeIDやSingleIDやFlexIDを最適分割したもの
 /// 必ず一続きの領域（直方体状の空間）を表す
-pub struct BlockSegments {
+pub struct HyperRectSegments {
     pub f: Vec<Segment>,
     pub x: Vec<Segment>,
     pub y: Vec<Segment>,

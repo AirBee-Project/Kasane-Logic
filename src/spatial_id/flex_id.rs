@@ -1,8 +1,8 @@
 use crate::RangeId;
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::segment::SegmentRelation;
-use crate::spatial_id::{Block, BlockSegments};
 use crate::spatial_id::{FlexIds, segment::Segment};
+use crate::spatial_id::{HyperRect, HyperRectSegments};
 
 ///FlexIdは拡張空間IDを表す。
 ///
@@ -232,9 +232,9 @@ impl FlexId {
     }
 }
 
-impl Block for FlexId {
-    fn segmentation(&self) -> BlockSegments {
-        BlockSegments {
+impl HyperRect for FlexId {
+    fn segmentation(&self) -> HyperRectSegments {
+        HyperRectSegments {
             f: vec![self.f.clone()],
             x: vec![self.x.clone()],
             y: vec![self.y.clone()],

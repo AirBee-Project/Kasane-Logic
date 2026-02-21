@@ -10,3 +10,5 @@ pub struct CollectionCore<T> {
     segment: BTreeMap<(Dimension, Segment), RoaringTreemap>,
     main: BTreeMap<FlexIdRank, (FlexId, T)>,
 }
+
+impl<T> CollectionCore<T> {}

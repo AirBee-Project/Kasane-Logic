@@ -22,7 +22,7 @@ pub use spatial_id::{
 pub use geometry::shapes::polygon::Polygon;
 pub use geometry::shapes::solid::Solid;
 pub use geometry::shapes::triangle;
-pub use spatial_id::Block;
+pub use spatial_id::HyperRect;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
 // pub use spatial_id::collection::table::TableOnMemory;

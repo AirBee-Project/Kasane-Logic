@@ -11,7 +11,7 @@ use crate::{
     Coordinate, Ecef,
     error::Error,
     spatial_id::{
-        Block, BlockSegments, FlexIds, SpatialId,
+        HyperRect, HyperRectSegments, FlexIds, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         flex_id::FlexId,
         helpers,
@@ -783,13 +783,13 @@ impl SpatialId for SingleId {
     }
 }
 
-impl Block for SingleId {
-    fn segmentation(&self) -> BlockSegments {
+impl HyperRect for SingleId {
+    fn segmentation(&self) -> HyperRectSegments {
         let f_segment = Segment::from_f(self.as_z(), self.as_f());
         let x_segment = Segment::from_xy(self.as_z(), self.as_x());
         let y_segment = Segment::from_xy(self.as_z(), self.as_y());
 
-        BlockSegments {
+        HyperRectSegments {
             f: vec![f_segment],
             x: vec![x_segment],
             y: vec![y_segment],
