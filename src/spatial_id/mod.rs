@@ -1,3 +1,5 @@
+use std::ops::RangeBounds;
+
 use crate::{Coordinate, FlexId, Segment, error::Error};
 
 pub(crate) mod collection;
@@ -32,6 +34,9 @@ pub trait SpatialId {
 
     //頂点をの座標を求める関数
     fn vertices(&self) -> [Coordinate; 8];
+
+    // //時間に関する設定をする関数
+    // fn set_unixtime<R: RangeBounds<u64>>(&mut self, range: R) -> Result<(), Error>;
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト

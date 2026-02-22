@@ -43,9 +43,9 @@ impl Ecef {
     ///
     /// let ecef = Ecef::new(10.0, 20.0, 30.0);
     ///
-    /// assert_eq!(ecef.as_x(), 10.0);
-    /// assert_eq!(ecef.as_y(), 20.0);
-    /// assert_eq!(ecef.as_z(), 30.0);
+    /// assert_eq!(ecef.x(), 10.0);
+    /// assert_eq!(ecef.y(), 20.0);
+    /// assert_eq!(ecef.z(), 30.0);
     /// ```
     pub fn new(x: f64, y: f64, z: f64) -> Ecef {
         Ecef { x, y, z }
@@ -57,9 +57,9 @@ impl Ecef {
     /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(1.0, 0.0, 0.0);
-    /// assert_eq!(ecef.as_x(), 1.0);
+    /// assert_eq!(ecef.x(), 1.0);
     /// ```
-    pub fn as_x(&self) -> f64 {
+    pub fn x(&self) -> f64 {
         self.x
     }
 
@@ -70,9 +70,9 @@ impl Ecef {
     /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(0.0, 2.0, 0.0);
-    /// assert_eq!(ecef.as_y(), 2.0);
+    /// assert_eq!(ecef.y(), 2.0);
     /// ```
-    pub fn as_y(&self) -> f64 {
+    pub fn y(&self) -> f64 {
         self.y
     }
 
@@ -83,9 +83,9 @@ impl Ecef {
     /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(0.0, 0.0, 3.0);
-    /// assert_eq!(ecef.as_z(), 3.0);
+    /// assert_eq!(ecef.z(), 3.0);
     /// ```
-    pub fn as_z(&self) -> f64 {
+    pub fn z(&self) -> f64 {
         self.z
     }
 
@@ -98,7 +98,7 @@ impl Ecef {
     /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
     /// ecef.set_x(5.0);
     ///
-    /// assert_eq!(ecef.as_x(), 5.0);
+    /// assert_eq!(ecef.x(), 5.0);
     /// ```
     pub fn set_x(&mut self, x: f64) {
         self.x = x;
@@ -113,7 +113,7 @@ impl Ecef {
     /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
     /// ecef.set_y(6.0);
     ///
-    /// assert_eq!(ecef.as_y(), 6.0);
+    /// assert_eq!(ecef.y(), 6.0);
     /// ```
     pub fn set_y(&mut self, y: f64) {
         self.y = y;
@@ -128,7 +128,7 @@ impl Ecef {
     /// let mut ecef = Ecef::new(0.0, 0.0, 0.0);
     /// ecef.set_z(7.0);
     ///
-    /// assert_eq!(ecef.as_z(), 7.0);
+    /// assert_eq!(ecef.z(), 7.0);
     /// ```
     pub fn set_z(&mut self, z: f64) {
         self.z = z;
@@ -152,9 +152,9 @@ impl Ecef {
     /// assert_eq!(a.distance(&b), 5.0);
     /// ```
     pub fn distance(&self, other: &Ecef) -> f64 {
-        ((self.as_x() - other.as_x()).powi(2)
-            + (self.as_y() - other.as_y()).powi(2)
-            + (self.as_z() - other.as_z()).powi(2))
+        ((self.x() - other.x()).powi(2)
+            + (self.y() - other.y()).powi(2)
+            + (self.z() - other.z()).powi(2))
         .sqrt()
     }
 

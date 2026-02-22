@@ -9,21 +9,21 @@ pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     }
     let ecef_a: Ecef = a.into();
     let ecef_b: Ecef = b.into();
-    let dx = ecef_a.as_x() - ecef_b.as_x();
-    let dy = ecef_a.as_y() - ecef_b.as_y();
-    let dz = ecef_a.as_z() - ecef_b.as_z();
+    let dx = ecef_a.x() - ecef_b.x();
+    let dy = ecef_a.y() - ecef_b.y();
+    let dz = ecef_a.z() - ecef_b.z();
     let distance = (dx * dx + dy * dy + dz * dz).sqrt();
     let (v1, v2) = (a.to_single_id(z)?, b.to_single_id(z)?);
-    let diff = ((v1.as_f() - v2.as_f()).abs()
-        + (v1.as_x() as i32 - v2.as_x() as i32).abs()
-        + (v1.as_y() as i32 - v2.as_y() as i32).abs()) as f64;
+    let diff = ((v1.f() - v2.f()).abs()
+        + (v1.x() as i32 - v2.x() as i32).abs()
+        + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
     let devide_num = 5 + (diff / 120.0 + distance / 2000.0).floor() as u16;
     let mut coordinates = Vec::new();
     for i in 0..=devide_num {
         let t = i as f64 / devide_num as f64;
-        let x = ecef_a.as_x() * (1.0 - t) + ecef_b.as_x() * t;
-        let y = ecef_a.as_y() * (1.0 - t) + ecef_b.as_y() * t;
-        let z_pos = ecef_a.as_z() * (1.0 - t) + ecef_b.as_z() * t;
+        let x = ecef_a.x() * (1.0 - t) + ecef_b.x() * t;
+        let y = ecef_a.y() * (1.0 - t) + ecef_b.y() * t;
+        let z_pos = ecef_a.z() * (1.0 - t) + ecef_b.z() * t;
         let coo: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
         coordinates.push(coo);
     }

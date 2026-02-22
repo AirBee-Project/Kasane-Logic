@@ -11,7 +11,7 @@ use crate::{
     Coordinate, Ecef,
     error::Error,
     spatial_id::{
-        HyperRect, HyperRectSegments, FlexIds, SpatialId,
+        FlexIds, HyperRect, HyperRectSegments, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         flex_id::FlexId,
         helpers,
@@ -124,9 +124,9 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// ```
-    pub fn as_z(&self) -> u8 {
+    pub fn z(&self) -> u8 {
         self.z
     }
 
@@ -135,9 +135,9 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_f(), 3i32);
+    /// assert_eq!(id.f(), 3i32);
     /// ```
-    pub fn as_f(&self) -> i32 {
+    pub fn f(&self) -> i32 {
         self.f
     }
 
@@ -146,9 +146,9 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_x(), 2u32);
+    /// assert_eq!(id.x(), 2u32);
     /// ```
-    pub fn as_x(&self) -> u32 {
+    pub fn x(&self) -> u32 {
         self.x
     }
 
@@ -157,9 +157,9 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_y(), 10u32);
+    /// assert_eq!(id.y(), 10u32);
     /// ```
-    pub fn as_y(&self) -> u32 {
+    pub fn y(&self) -> u32 {
         self.y
     }
 
@@ -179,7 +179,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(5, 3, 2, 10).unwrap();
     /// id.set_f(4).unwrap();
-    /// assert_eq!(id.as_f(), 4);
+    /// assert_eq!(id.f(), 4);
     /// ```
     ///
     /// 範囲外の検知:
@@ -219,7 +219,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(5, 3, 2, 10).unwrap();
     /// id.set_x(4).unwrap();
-    /// assert_eq!(id.as_x(), 4);
+    /// assert_eq!(id.x(), 4);
     /// ```
     ///
     /// 範囲外の検知
@@ -258,7 +258,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(5, 3, 2, 10).unwrap();
     /// id.set_y(8).unwrap();
-    /// assert_eq!(id.as_y(), 8);
+    /// assert_eq!(id.y(), 8);
     /// ```
     ///
     /// 範囲外の検知
@@ -301,10 +301,10 @@ impl SingleId {
     ///
     /// // 最初の要素を確認（f, x, y の下限側）
     /// let first = &children[0];
-    /// assert_eq!(first.as_z(), 4);
-    /// assert_eq!(first.as_f(), 3 * 2);   // 2
-    /// assert_eq!(first.as_x(), 2 * 2);   // 6
-    /// assert_eq!(first.as_y(), 7 * 2);   // 8
+    /// assert_eq!(first.z(), 4);
+    /// assert_eq!(first.f(), 3 * 2);   // 2
+    /// assert_eq!(first.x(), 2 * 2);   // 6
+    /// assert_eq!(first.y(), 7 * 2);   // 8
     /// ```
     ///
     /// ズームレベルの範囲外
@@ -359,10 +359,10 @@ impl SingleId {
     ///
     /// let parent = id.parent(1).unwrap();
     ///
-    /// assert_eq!(parent.as_z(), 3u8);
-    /// assert_eq!(parent.as_f(), 3i32);
-    /// assert_eq!(parent.as_x(), 4u32);
-    /// assert_eq!(parent.as_y(), 7u32);
+    /// assert_eq!(parent.z(), 3u8);
+    /// assert_eq!(parent.f(), 3i32);
+    /// assert_eq!(parent.x(), 4u32);
+    /// assert_eq!(parent.y(), 7u32);
     /// ```
     ///
     /// Fが負の場合の挙動
@@ -372,10 +372,10 @@ impl SingleId {
     ///
     /// let parent = id.parent(1).unwrap();
     ///
-    /// assert_eq!(parent.as_z(), 3u8);
-    /// assert_eq!(parent.as_f(), -1i32);
-    /// assert_eq!(parent.as_x(), 4u32);
-    /// assert_eq!(parent.as_y(), 6u32);
+    /// assert_eq!(parent.z(), 3u8);
+    /// assert_eq!(parent.f(), -1i32);
+    /// assert_eq!(parent.x(), 4u32);
+    /// assert_eq!(parent.y(), 6u32);
     /// ```
     ///
     /// ズームレベルの範囲外:
@@ -419,10 +419,10 @@ impl SingleId {
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { SingleId::new_unchecked(5, 3, 2, 10) };
     ///
-    /// assert_eq!(id.as_z(), 5u8);
-    /// assert_eq!(id.as_f(), 3i32);
-    /// assert_eq!(id.as_x(), 2u32);
-    /// assert_eq!(id.as_y(), 10u32);
+    /// assert_eq!(id.z(), 5u8);
+    /// assert_eq!(id.f(), 3i32);
+    /// assert_eq!(id.x(), 2u32);
+    /// assert_eq!(id.y(), 10u32);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId { z, f, x, y }
@@ -528,7 +528,7 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.min_f(), -32i32);
     /// ```
     fn min_f(&self) -> i32 {
@@ -540,7 +540,7 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.max_f(), 31i32);
     /// ```
     fn max_f(&self) -> i32 {
@@ -552,7 +552,7 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u32);
     /// ```
     fn max_xy(&self) -> u32 {
@@ -572,10 +572,10 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// assert_eq!(id.as_f(), 6);
+    /// assert_eq!(id.f(), 6);
     ///
     /// let _ = id.move_f(-10).unwrap();
-    /// assert_eq!(id.as_f(), -4);
+    /// assert_eq!(id.f(), -4);
     /// ```
     ///
     /// 範囲外の検知によるエラー
@@ -584,7 +584,7 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// assert_eq!(id.as_f(), 6);
+    /// assert_eq!(id.f(), 6);
     /// assert_eq!(id.move_f(50), Err(Error::FOutOfRange { z: 4, f: 56 }));
     /// ```
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
@@ -612,10 +612,10 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// assert_eq!(id.as_x(), 9);
+    /// assert_eq!(id.x(), 9);
     ///
     /// let _ = id.move_x(-3);
-    /// assert_eq!(id.as_x(), 6);
+    /// assert_eq!(id.x(), 6);
     /// ```
     ///
     /// 循環による移動
@@ -623,10 +623,10 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// assert_eq!(id.as_x(), 9);
+    /// assert_eq!(id.x(), 9);
     ///
     /// let _ = id.move_x(100);
-    /// assert_eq!(id.as_x(), 4);
+    /// assert_eq!(id.x(), 4);
     /// ```
     fn move_x(&mut self, by: i32) {
         let new = (self.x as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
@@ -646,10 +646,10 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// assert_eq!(id.as_y(), 10);
+    /// assert_eq!(id.y(), 10);
     ///
     /// let _ = id.move_y(-3).unwrap();
-    /// assert_eq!(id.as_y(), 7);
+    /// assert_eq!(id.y(), 7);
     /// ```
     ///
     /// 範囲外の検知によるエラー
@@ -658,7 +658,7 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// assert_eq!(id.as_y(), 10);
+    /// assert_eq!(id.y(), 10);
     /// assert_eq!(id.move_y(-20), Err(Error::YOutOfRange { z: 4, y: 0 }));
     /// ```
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
@@ -765,29 +765,29 @@ impl SpatialId for SingleId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        2_i32.pow(25 - self.as_z() as u32) as f64
+        2_i32.pow(25 - self.z() as u32) as f64
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
     fn length_x(&self) -> f64 {
         let ecef: Ecef = self.center().into();
-        let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
+        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
     fn length_y(&self) -> f64 {
         let ecef: Ecef = self.center().into();
-        let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
+        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 }
 
 impl HyperRect for SingleId {
     fn segmentation(&self) -> HyperRectSegments {
-        let f_segment = Segment::from_f(self.as_z(), self.as_f());
-        let x_segment = Segment::from_xy(self.as_z(), self.as_x());
-        let y_segment = Segment::from_xy(self.as_z(), self.as_y());
+        let f_segment = Segment::from_f(self.z(), self.f());
+        let x_segment = Segment::from_xy(self.z(), self.x());
+        let y_segment = Segment::from_xy(self.z(), self.y());
 
         HyperRectSegments {
             f: vec![f_segment],

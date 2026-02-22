@@ -288,10 +288,10 @@ impl From<Coordinate> for Ecef {
     /// # use kasane_logic::{Coordinate,Ecef};
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
     /// let ecef: Ecef = coord.into();
-    /// print!("{},{},{}", ecef.as_x(), ecef.as_y(), ecef.as_z());
-    /// assert_eq!(ecef.as_x(), 3503254.6369501497);
-    /// assert_eq!(ecef.as_y(), 3083182.6924748584);
-    /// assert_eq!(ecef.as_z(), 4333089.862951963);
+    /// print!("{},{},{}", ecef.x(), ecef.y(), ecef.z());
+    /// assert_eq!(ecef.x(), 3503254.6369501497);
+    /// assert_eq!(ecef.y(), 3083182.6924748584);
+    /// assert_eq!(ecef.z(), 4333089.862951963);
     /// ```
 
     fn from(value: Coordinate) -> Self {

@@ -15,7 +15,7 @@ pub mod union;
 pub fn to_flat_set(set: &SetOnMemory, target_z: u8) -> HashSet<SingleId> {
     let mut result = HashSet::new();
     for single_id in set.single_ids() {
-        let diff = target_z - single_id.as_z();
+        let diff = target_z - single_id.z();
         let children: Vec<_> = single_id.children(diff).unwrap().collect();
         result.extend(children);
     }

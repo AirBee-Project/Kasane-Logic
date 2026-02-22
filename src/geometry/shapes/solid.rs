@@ -115,14 +115,14 @@ impl Solid {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         let existence_range = surface_set.iter().fold(None, |acc, s| {
             match acc {
-                None => Some((s.as_f(), s.as_x(), s.as_y(), s.as_f(), s.as_x(), s.as_y())), // 最初の要素を初期値にする
+                None => Some((s.f(), s.x(), s.y(), s.f(), s.x(), s.y())), // 最初の要素を初期値にする
                 Some((min_f, min_x, min_y, max_f, max_x, max_y)) => Some((
-                    min_f.min(s.as_f()),
-                    min_x.min(s.as_x()),
-                    min_y.min(s.as_y()),
-                    max_f.max(s.as_f()),
-                    max_x.max(s.as_x()),
-                    max_y.max(s.as_y()),
+                    min_f.min(s.f()),
+                    min_x.min(s.x()),
+                    min_y.min(s.y()),
+                    max_f.max(s.f()),
+                    max_x.max(s.x()),
+                    max_y.max(s.y()),
                 )),
             }
         });
@@ -138,12 +138,12 @@ impl Solid {
         let mut open_list: VecDeque<SingleId> = VecDeque::new();
 
         cuboid_set.retain(|id| {
-            let is_boundary = id.as_f() == result.0
-                || id.as_f() == result.3
-                || id.as_x() == result.1
-                || id.as_x() == result.4
-                || id.as_y() == result.2
-                || id.as_y() == result.5;
+            let is_boundary = id.f() == result.0
+                || id.f() == result.3
+                || id.x() == result.1
+                || id.x() == result.4
+                || id.y() == result.2
+                || id.y() == result.5;
 
             if is_boundary && !surface_set.contains(id) {
                 open_list.push_back(id.clone());
@@ -204,9 +204,9 @@ struct QuantizedCoord {
 impl QuantizedCoord {
     fn new(e: &Ecef, precision: f64) -> Self {
         Self {
-            x: (e.as_x() / precision).round() as i64,
-            y: (e.as_y() / precision).round() as i64,
-            z: (e.as_z() / precision).round() as i64,
+            x: (e.x() / precision).round() as i64,
+            y: (e.y() / precision).round() as i64,
+            z: (e.z() / precision).round() as i64,
         }
     }
 }
