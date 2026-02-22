@@ -9,13 +9,13 @@ pub enum Error {
     ZOutOfRange { z: u8 },
 
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
-    FOutOfRange { z: u8, f: i32 },
+    FOutOfRange { z: u8, f: i64 },
 
     /// X 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    XOutOfRange { z: u8, x: u32 },
+    XOutOfRange { z: u8, x: u64 },
 
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
-    YOutOfRange { z: u8, y: u32 },
+    YOutOfRange { z: u8, y: u64 },
 
     /// 緯度が有効範囲外であることを表す。
     LatitudeOutOfRange { latitude: f64 },

@@ -15,7 +15,7 @@ use crate::{
 /// 内部的には下記のような構造体として定義されており、空間 ID 上で扱える座標に対する制約が常に満たされる。
 ///
 /// この型は `PartialOrd` を実装していますが、これは主に `BTreeSet` や `BTreeMap`
-/// といった順序付きコレクションにおける格納および探索を目的としたものであり、。空間的な位置関係における「大小」を意味するものではない。
+/// といった順序付きコレクションにおける格納および探索を目的としたものであり、空間的な位置関係における「大小」を意味するものではない。
 /// ```
 /// pub struct Coordinate {
 ///     latitude: f64,
@@ -221,12 +221,12 @@ impl Coordinate {
     /// # use kasane_logic::{Coordinate,SingleId};
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     /// assert_eq!(
-    ///     &coord.to_single_id(24),
-    ///     &SingleId::new(24, 10, 14715409, 6646263)
+    ///     &coord.to_single_id(24).unwrap(),
+    ///     &SingleId::new(24, 10, 14715409, 6646263).unwrap()
     /// )
     /// ```
     pub fn to_single_id(&self, z: u8) -> Result<SingleId, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
+        if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
 
@@ -234,17 +234,17 @@ impl Coordinate {
         let lon = self.longitude;
         let alt = self.altitude;
 
-        //Z=25のとき高さはちょうど1m
-        let factor = 2_f64.powi(z as i32 - 25);
-        let f = (factor * alt).floor() as i32;
+        // Z=25のとき高さはちょうど1m
+        let factor = 2.0_f64.powi(z as i32 - 25);
+        let f = (factor * alt).floor() as i64;
 
-        let n = 2u64.pow(z as u32) as f64;
-        let x = ((lon + 180.0) / 360.0 * n).floor() as u32;
+        let n = 2.0_f64.powi(z as i32);
+        let x = ((lon + 180.0) / 360.0 * n).floor() as u64;
 
         let lat_rad = lat.to_radians();
         let y = ((1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0
             * n)
-            .floor() as u32;
+            .floor() as u64;
 
         Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
     }

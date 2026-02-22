@@ -243,32 +243,43 @@ impl HyperRect for FlexId {
 }
 
 impl From<FlexId> for RangeId {
+    /// `FlexId` を `RangeId` に変換します。
+    /// 各次元の異なるズームレベルのうち、最も深い（大きい）ズームレベルに合わせ、
     fn from(flex_id: FlexId) -> Self {
         let (f_z, f_dim) = flex_id.f.to_f();
         let (x_z, x_dim) = flex_id.x.to_xy();
         let (y_z, y_dim) = flex_id.y.to_xy();
 
+        // 3次元の中で最大のズームレベルを基準とする
         let max_z = f_z.max(x_z).max(y_z);
 
-        let scale_to_range = |val: i64, current_z: u8| -> [i64; 2] {
-            let diff = max_z - current_z;
-            let start = val << diff;
-            let end = start + (1_i64 << diff) - 1;
+        let f_range = {
+            let diff = max_z - f_z;
+            let start = f_dim << diff;
+            let end = if diff == 0 {
+                start
+            } else {
+                start | ((1_i64 << diff) - 1)
+            };
             [start, end]
         };
 
-        let f_range = scale_to_range(f_dim as i64, f_z);
-        let x_range = scale_to_range(x_dim as i64, x_z);
-        let y_range = scale_to_range(y_dim as i64, y_z);
+        let scale_u = |val: u64, current_z: u8| -> [u64; 2] {
+            let diff = max_z - current_z;
+            let start = val << diff;
+            let end = if diff == 0 {
+                start
+            } else {
+                start | ((1_u64 << diff) - 1)
+            };
+            [start, end]
+        };
 
-        unsafe {
-            RangeId::new_unchecked(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-            )
-        }
+        let x_range = scale_u(x_dim, x_z);
+        let y_range = scale_u(y_dim, y_z);
+
+        // バリデーション済みの Segment から生成するため new_unchecked を使用
+        unsafe { RangeId::new_unchecked(max_z, f_range, x_range, y_range) }
     }
 }
 

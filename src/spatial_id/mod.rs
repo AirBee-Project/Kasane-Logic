@@ -15,14 +15,14 @@ pub mod segment;
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
     //そのIDの各次元の最大と最小を返す
-    fn min_f(&self) -> i32;
-    fn max_f(&self) -> i32;
-    fn max_xy(&self) -> u32;
+    fn min_f(&self) -> i64;
+    fn max_f(&self) -> i64;
+    fn max_xy(&self) -> u64;
 
     //各インデックスの移動
-    fn move_f(&mut self, by: i32) -> Result<(), Error>;
-    fn move_x(&mut self, by: i32);
-    fn move_y(&mut self, by: i32) -> Result<(), Error>;
+    fn move_f(&mut self, by: i64) -> Result<(), Error>;
+    fn move_x(&mut self, by: i64);
+    fn move_y(&mut self, by: i64) -> Result<(), Error>;
 
     //各次元の長さを取得するメソット
     fn length_f(&self) -> f64;

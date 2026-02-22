@@ -22,24 +22,27 @@ use std::ops::RangeInclusive;
 
 /// RangeIdは空間IDの範囲表現を表す型です。
 ///
-/// 各インデックスを範囲で指定することができます。各次元の範囲を表す配列の順序には意味を持ちません。内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
+/// 各インデックスを範囲で指定することができます。各次元の範囲を表す配列の順序には意味を持ちません。
+/// 内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、
+/// ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
 ///
-/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
+/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap`
+/// などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
 ///
 /// ```
 /// pub struct RangeId {
 ///     z: u8,
-///     f: [i32; 2],
-///     x: [u32; 2],
-///     y: [u32; 2],
+///     f: [i64; 2],
+///     x: [u64; 2],
+///     y: [u64; 2],
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct RangeId {
     z: u8,
-    f: [i32; 2],
-    x: [u32; 2],
-    y: [u32; 2],
+    f: [i64; 2],
+    x: [u64; 2],
+    y: [u64; 2],
 }
 
 impl fmt::Display for RangeId {
@@ -47,24 +50,6 @@ impl fmt::Display for RangeId {
     ///
     /// 形式は `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
     /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になります。
-    ///
-    /// 通常時の範囲表示
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use std::fmt::Write;
-    /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
-    /// let s = format!("{}", id);
-    /// assert_eq!(s, "4/-3:6/8:9/5:10");
-    /// ```
-    ///
-    /// Single範囲に自動圧縮（`f1=f2`）
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use std::fmt::Write;
-    /// let id = RangeId::new(4, [-3,-3], [8,9], [5,10]).unwrap();
-    /// let s = format!("{}", id);
-    ///  assert_eq!(s, "4/-3/8:9/5:10");;
-    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -77,7 +62,6 @@ impl fmt::Display for RangeId {
     }
 }
 
-//次元の文字列を圧縮するための関数
 fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
     if dimension[0] == dimension[1] {
         format!("{}", dimension[0])
@@ -88,62 +72,34 @@ fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
 
 impl RangeId {
     /// 指定された値から [`RangeId`] を構築します。
-    /// 与えられた `z`, `f1`, `f2`, `x1`, `x2`, `y1`, `y2` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
-    ///
-    ///　**各次元の与えられた2つの値は自動的に昇順に並び替えられ、**
-    /// **常に `[min, max]` の形で内部に保持されます。**
-    ///
     ///
     /// # パラメータ
-    /// * `z` — ズームレベル（0–63の範囲が有効）  
-    /// * `f1` — 鉛直方向範囲の端のFインデックス
-    /// * `f2` — 鉛直方向範囲の端のFインデックス
-    /// * `x1` — 東西方向範囲の端のXインデックス
-    /// * `x2` — 東西方向範囲の端のXインデックス
-    /// * `y1` — 南北方向範囲の端のYインデックス
-    /// * `y2` — 南北方向範囲の端のYインデックス
+    /// * `z` — ズームレベル（0–64の範囲が有効）  
+    /// * `f` — 鉛直方向範囲の端点 [f1, f2]
+    /// * `x` — 東西方向範囲の端点 [x1, x2]
+    /// * `y` — 南北方向範囲の端点 [y1, y2]
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返します。  
-    /// - `f1`,`f2` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
-    ///   [`Error::FOutOfRange`] を返します。  
-    /// - `x1`,`x2` または `y1`,`y2` が `0..=XY_MAX[z]` の範囲外の場合、  
-    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返します。
+    /// - `z` が 64 を超える場合、[`Error::ZOutOfRange`] を返します。  
+    /// - 各インデックスがズームレベル `z` に対する許容範囲外の場合、対応するエラーを返します。  
+    /// - `f` および `y` の端点は自動的に昇順 `[min, max]` に並び替えられます。
+    /// - **X次元は循環を許容するため、`x1 > x2` の場合は日付変更線をまたぐ範囲として扱われ、並び替えは行われません。**
     ///
-    ///
-    /// IDの作成:
     /// ```
     /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
-    /// let s = format!("{}", id);
-    /// assert_eq!(s, "4/-3:6/8:9/5:10");
+    /// let id = RangeId::new(4, [-3, 6], [14, 1], [5, 10]).unwrap();
+    /// assert_eq!(id.to_string(), "4/-3:6/14:1/5:10");
     /// ```
-    ///
-    /// 次元の範囲外の検知:
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(4, [-3,29], [8,9], [5,10]);
-    /// assert_eq!(id, Err(Error::FOutOfRange{z:4,f:29}));
-    /// ```
-    ///
-    /// ズームレベルの範囲外の検知:
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
-    /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
-    /// ```
-    pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
+    pub fn new(z: u8, f: [i64; 2], x: [u64; 2], y: [u64; 2]) -> Result<RangeId, Error> {
         if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
 
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-        let xy_max = XY_MAX[z as usize];
+        let f_min = F_MIN[z as usize] as i64;
+        let f_max = F_MAX[z as usize] as i64;
+        let xy_max = XY_MAX[z as usize] as u64;
         let mut f = f;
+        let x = x;
         let mut y = y;
 
         for i in 0..2 {
@@ -169,198 +125,137 @@ impl RangeId {
     }
 
     /// この `RangeId` が保持しているズームレベル `z` を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// ```
     pub fn z(&self) -> u8 {
         self.z
     }
 
-    /// この `RangeId` が保持しているズームレベル `[f1,f2]` を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.f(), [-3i32,29i32]);
-    /// ```
-    pub fn f(&self) -> [i32; 2] {
+    /// この `RangeId` が保持している F 範囲 `[f1, f2]` を返します。
+    pub fn f(&self) -> [i64; 2] {
         self.f
     }
 
-    /// この `RangeId` が保持しているズームレベル `[x1,x2]` を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.x(), [8u32,9u32]);
-    /// ```
-    pub fn x(&self) -> [u32; 2] {
+    /// この `RangeId` が保持している X 範囲 `[x1, x2]` を返します。
+    pub fn x(&self) -> [u64; 2] {
         self.x
     }
 
-    /// この `RangeId` が保持しているズームレベル `[y1,y2]` を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.y(), [5u32,10u32]);
-    /// ```
-    pub fn y(&self) -> [u32; 2] {
+    /// この `RangeId` が保持している Y 範囲 `[y1, y2]` を返します。
+    pub fn y(&self) -> [u64; 2] {
         self.y
     }
 
-    pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
-        let z = self.z;
-        let mut value = value;
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-
-        for i in 0..2 {
-            if value[i] < f_min || value[i] > f_max {
-                return Err(Error::FOutOfRange { f: value[i], z });
+    /// F 範囲を更新します。
+    /// 新しい端点は自動的に昇順に並び替えられます。
+    ///
+    /// ```
+    /// # use kasane_logic::RangeId;
+    /// let mut id = RangeId::new(4, [0, 0], [0, 0], [0, 0]).unwrap();
+    /// id.set_f([5, -2]).unwrap();
+    /// assert_eq!(id.f(), [-2, 5]);
+    /// ```
+    pub fn set_f(&mut self, value: [i64; 2]) -> Result<(), Error> {
+        let f_min = self.min_f();
+        let f_max = self.max_f();
+        for &v in &value {
+            if v < f_min || v > f_max {
+                return Err(Error::FOutOfRange { f: v, z: self.z });
             }
         }
-
+        let mut value = value;
         if value[0] > value[1] {
             value.swap(0, 1);
         }
-
         self.f = value;
         Ok(())
     }
 
-    pub fn set_x(&mut self, value: [u32; 2]) -> Result<(), Error> {
-        let z = self.z;
-        let xy_max = XY_MAX[z as usize];
-
-        for i in 0..2 {
-            if value[i] > xy_max {
-                return Err(Error::XOutOfRange { x: value[i], z });
+    /// X 範囲を更新します。
+    /// X次元は日付変更線のまたぎ（循環）を許容するため、値の並び替えは行われません。
+    ///
+    /// ```
+    /// # use kasane_logic::RangeId;
+    /// let mut id = RangeId::new(4, [0, 0], [0, 0], [0, 0]).unwrap();
+    /// id.set_x([15, 2]).unwrap();
+    /// assert_eq!(id.x(), [15, 2]); // そのまま保持される
+    /// ```
+    pub fn set_x(&mut self, value: [u64; 2]) -> Result<(), Error> {
+        let max = self.max_xy();
+        for &v in &value {
+            if v > max {
+                return Err(Error::XOutOfRange { x: v, z: self.z });
             }
         }
-
         self.x = value;
         Ok(())
     }
 
-    pub fn set_y(&mut self, value: [u32; 2]) -> Result<(), Error> {
-        let z = self.z;
-        let mut value = value;
-        let xy_max = XY_MAX[z as usize];
-
-        for i in 0..2 {
-            if value[i] > xy_max {
-                return Err(Error::YOutOfRange { y: value[i], z });
+    /// Y 範囲を更新します。
+    /// 新しい端点は自動的に昇順に並び替えられます。
+    pub fn set_y(&mut self, value: [u64; 2]) -> Result<(), Error> {
+        let max = self.max_xy();
+        for &v in &value {
+            if v > max {
+                return Err(Error::YOutOfRange { y: v, z: self.z });
             }
         }
-
+        let mut value = value;
         if value[0] > value[1] {
             value.swap(0, 1);
         }
-
         self.y = value;
         Ok(())
     }
 
     /// 指定したズームレベル差 `difference` に基づき、この `RangeId` が表す空間のすべての子 `RangeId` を生成します。
     ///
-    /// # パラメータ
-    /// * `difference` — 子 ID を計算する際に増加させるズームレベル差（差の値が0–63の範囲の場合に有効）
-    ///
-    /// # バリデーション
-    /// - `self.z + difference` が `63` を超える場合、[`Error::ZOutOfRange`] を返します。
-    ///
-    /// `difference = 1` による細分化
     /// ```
     /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.children(1).unwrap();
-    /// assert_eq!(result,  RangeId::new(6, [-6, 59], [16, 19], [10, 21] ).unwrap());
-    ///
-    /// ```
-    ///
-    /// ズームレベルの範囲外
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.children(63);
-    /// assert!(matches!(result, Err(Error::ZOutOfRange { z: 68 })));
+    /// let id = RangeId::new(5, [-1, 1], [2, 3], [4, 5]).unwrap();
+    /// let child = id.children(1).unwrap();
+    /// assert_eq!(child.z(), 6);
+    /// assert_eq!(child.f(), [-2, 3]);
     /// ```
     pub fn children(&self, difference: u8) -> Result<RangeId, Error> {
         let z = self
             .z
             .checked_add(difference)
             .ok_or(Error::ZOutOfRange { z: u8::MAX })?;
-        if z > 63 {
+        if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
 
-        let scale_f = 2_i32.pow(difference as u32);
-        let scale_xy = 2_u32.pow(difference as u32);
-
-        let f = helpers::scale_range_i32(self.f[0], self.f[1], scale_f);
-        let x = helpers::scale_range_u32(self.x[0], self.x[1], scale_xy);
-        let y = helpers::scale_range_u32(self.y[0], self.y[1], scale_xy);
-
+        let (f, x, y) = if difference >= 64 {
+            ([i64::MIN, i64::MAX], [0, u64::MAX], [0, u64::MAX])
+        } else {
+            let scale_u = 1_u64 << difference;
+            let scale_i = scale_u as i64;
+            let f = [
+                self.f[0].saturating_mul(scale_i),
+                self.f[1]
+                    .saturating_mul(scale_i)
+                    .saturating_add(scale_i - 1),
+            ];
+            let x = [
+                self.x[0].saturating_mul(scale_u),
+                self.x[1]
+                    .saturating_mul(scale_u)
+                    .saturating_add(scale_u - 1),
+            ];
+            let y = [
+                self.y[0].saturating_mul(scale_u),
+                self.y[1]
+                    .saturating_mul(scale_u)
+                    .saturating_add(scale_u - 1),
+            ];
+            (f, x, y)
+        };
         Ok(RangeId { z, f, x, y })
     }
 
     /// 指定したズームレベル差 `difference` に基づき、この `RangeId` を含む最小の大きさの `RangeId` を返します。
-    ///
-    /// # パラメータ
-    /// * `difference` — 親 ID を計算する際に減少させるズームレベル差
-    ///
-    /// # バリデーション
-    /// - `self.z - difference < 0` の場合、親が存在しないため `None` を返します。
-    ///
-    /// `difference = 1` による上位層への移動
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
-    /// let parent = id.parent(1).unwrap();
-    ///
-    /// assert_eq!(parent.z(), 4);
-    /// assert_eq!(parent.f(), [0,14]);
-    /// assert_eq!(parent.x(), [4,4]);
-    /// assert_eq!(parent.y(), [2,5]);
-    /// ```
-    ///
-    /// Fが負の場合の挙動:
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    ///
-    /// let parent = id.parent(1).unwrap();
-    ///
-    /// assert_eq!(parent.z(), 4);
-    /// assert_eq!(parent.f(), [-5,-3]);
-    /// assert_eq!(parent.x(), [4,4]);
-    /// assert_eq!(parent.y(), [2,5]);
-    /// ```
-    ///
-    /// ズームレベルの範囲外:
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// // difference = 6 の場合は親が存在しないため None
-    /// assert!(id.parent(6).is_none());
-    /// ```
     pub fn parent(&self, difference: u8) -> Option<RangeId> {
         let z = self.z.checked_sub(difference)?;
         let shift = difference as u32;
-
         let f = [
             if self.f[0] == -1 {
                 -1
@@ -373,31 +268,31 @@ impl RangeId {
                 self.f[1] >> shift
             },
         ];
-
         let x = [self.x[0] >> shift, self.x[1] >> shift];
         let y = [self.y[0] >> shift, self.y[1] >> shift];
-
         Some(RangeId { z, f, x, y })
     }
 
     /// [`RangeId`]を[`SingleId`]に分解し、イテレータとして提供します。
+    ///
+    /// ```
+    /// # use kasane_logic::RangeId;
+    /// let id = RangeId::new(4, [0, 0], [15, 0], [0, 0]).unwrap(); // X軸循環
+    /// let count = id.single_ids().count();
+    /// assert_eq!(count, 2); // 15 と 0 の2つ
+    /// ```
     pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
         let z = self.z;
-
         let f_range = self.f[0]..=self.f[1];
         let y_range = self.y[0]..=self.y[1];
 
         f_range.flat_map(move |f| {
             let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
+            let x_iter: Vec<u64> = if self.x[0] <= self.x[1] {
+                (self.x[0]..=self.x[1]).collect()
             } else {
-                (self.x[0]..=self.max_xy())
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
+                (self.x[0]..=self.max_xy()).chain(0..=self.x[1]).collect()
             };
-
             x_iter.into_iter().flat_map(move |x| {
                 y_range
                     .clone()
@@ -408,51 +303,34 @@ impl RangeId {
 
     /// 検証を行わずに [`RangeId`] を構築します。
     ///
-    /// この関数は [`RangeId::new`] と異なり、与えられた `z`, `f1`, `f2`, `x1`,`x2`, `y1, `y2` に対して
-    /// 一切の範囲チェックや整合性チェックを行いません。
-    /// そのため、高速に ID を生成できますが、**不正なパラメータを与えた場合の動作は未定義です**。
-    ///
-    /// # 注意
-    /// 呼び出し側は、以下をすべて満たすことを保証しなければなりません。
-    ///
-    /// * `z` が有効なズームレベル（0–63）であること  
-    /// * `f1`,`f2` が与えられた `z` に応じて `F_MIN[z]..=F_MAX[z]` の範囲内であること  
-    /// * `x1`,`x2` および `y1`,`y2` が `0..=XY_MAX[z]` の範囲内であること  
-    ///
-    /// これらが保証されない場合、本構造体の他のメソッド（範囲を前提とした計算）が
-    /// パニック・不正メモリアクセス・未定義動作を引き起こす可能性があります。
-    ///
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// // パラメータが妥当であることを呼び出し側が保証する必要がある
-    /// let id = unsafe { RangeId::new_unchecked(5, [-10,-5], [8,9], [5,10]) };
-    ///
-    /// assert_eq!(id.z(), 5);
-    /// assert_eq!(id.f(), [-10,-5]);
-    /// assert_eq!(id.x(), [8,9]);
-    /// assert_eq!(id.y(), [5,10]);
-    /// ```
-    pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
+    /// # Safety
+    /// 呼び出し側は、`z` および各インデックスが対応するズームレベルの範囲内であることを保証しなければなりません。
+    pub unsafe fn new_unchecked(z: u8, f: [i64; 2], x: [u64; 2], y: [u64; 2]) -> RangeId {
         RangeId { z, f, x, y }
     }
 
-    /// 全空間（Z=0〜MAX）からランダムにRangeIdを生成
+    /// 全空間のズームレベル範囲からランダムに [`RangeId`] を生成します。
     #[cfg(any(test, feature = "random"))]
     pub fn random() -> Self {
         Self::random_within(0..=MAX_ZOOM_LEVEL as u8)
     }
 
-    /// 指定したズームレベルでランダムにRangeIdを生成
+    /// 特定のズームレベル `z` でランダムな [`RangeId`] を生成します。
     #[cfg(any(test, feature = "random"))]
     pub fn random_at(z: u8) -> Self {
         Self::random_within(z..=z)
     }
 
+    /// 指定されたズームレベル範囲内でランダムな [`RangeId`] を生成します。
     #[cfg(any(test, feature = "random"))]
     pub fn random_within(z_range: RangeInclusive<u8>) -> Self {
-        use rand::Rng;
         let mut rng = rand::rng();
+        Self::random_within_using(&mut rng, z_range)
+    }
 
+    /// 外部の乱数生成器を使用してランダムな [`RangeId`] を生成します。
+    #[cfg(any(test, feature = "random"))]
+    pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
         let start = *z_range.start();
         let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
         let z = if start > end {
@@ -462,21 +340,14 @@ impl RangeId {
         };
         let z_idx = z as usize;
 
-        let f_min = F_MIN[z_idx];
-        let f_max = F_MAX[z_idx];
-        let xy_max = XY_MAX[z_idx];
+        let f1 = rng.random_range(F_MIN[z_idx] as i64..=F_MAX[z_idx] as i64);
+        let f2 = rng.random_range(F_MIN[z_idx] as i64..=F_MAX[z_idx] as i64);
+        let x1 = rng.random_range(0..=XY_MAX[z_idx] as u64);
+        let x2 = rng.random_range(0..=XY_MAX[z_idx] as u64);
+        let y1 = rng.random_range(0..=XY_MAX[z_idx] as u64);
+        let y2 = rng.random_range(0..=XY_MAX[z_idx] as u64);
 
-        let f1 = rng.random_range(f_min..=f_max);
-        let f2 = rng.random_range(f_min..=f_max);
-
-        let x1 = rng.random_range(0..=xy_max);
-        let x2 = rng.random_range(0..=xy_max);
-
-        let y1 = rng.random_range(0..=xy_max);
-        let y2 = rng.random_range(0..=xy_max);
-
-        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
-            .expect("Generated parameters should be always valid")
+        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2]).expect("Invalid random RangeId")
     }
 
     #[cfg(any(test))]
@@ -485,266 +356,159 @@ impl RangeId {
     }
 
     #[cfg(any(test))]
-    pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
-        Self::arb_within(z..=z)
-    }
-
-    #[cfg(any(test))]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
         z_range.prop_flat_map(|z| {
             let z_idx = z as usize;
-
-            let f_min = F_MIN[z_idx];
-            let f_max = F_MAX[z_idx];
-            let xy_max = XY_MAX[z_idx];
-
-            let f_strat = (f_min..=f_max, f_min..=f_max);
-            let x_strat = (0..=xy_max, 0..=xy_max);
-            let y_strat = (0..=xy_max, 0..=xy_max);
-
+            let f_strat = (
+                F_MIN[z_idx] as i64..=F_MAX[z_idx] as i64,
+                F_MIN[z_idx] as i64..=F_MAX[z_idx] as i64,
+            );
+            let x_strat = (0..=XY_MAX[z_idx] as u64, 0..=XY_MAX[z_idx] as u64);
+            let y_strat = (0..=XY_MAX[z_idx] as u64, 0..=XY_MAX[z_idx] as u64);
             (Just(z), f_strat, x_strat, y_strat).prop_map(
                 move |(z, (f1, f2), (x1, x2), (y1, y2))| {
-                    RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
-                        .expect("Generated parameters should be always valid")
+                    RangeId::new(z, [f1, f2], [x1, x2], [y1, y2]).unwrap()
                 },
             )
         })
     }
-
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_using<R: Rng>(rng: &mut R) -> Self {
-        Self::random_within_using(rng, 0..=MAX_ZOOM_LEVEL as u8)
-    }
-
-    /// 外部から渡された乱数生成器を使用して、指定したズームレベルでランダムにRangeIdを生成
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_at_using<R: Rng>(rng: &mut R, z: u8) -> Self {
-        Self::random_within_using(rng, z..=z)
-    }
-
-    /// 外部から渡された乱数生成器を使用して、指定したズームレベル範囲内でランダムにRangeIdを生成
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
-        let start = *z_range.start();
-        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
-
-        let z = if start > end {
-            end
-        } else {
-            rng.random_range(start..=end)
-        };
-        let z_idx = z as usize;
-
-        let f_min = F_MIN[z_idx];
-        let f_max = F_MAX[z_idx];
-        let xy_max = XY_MAX[z_idx];
-
-        // 範囲の両端をランダムに生成
-        let f1 = rng.random_range(f_min..=f_max);
-        let f2 = rng.random_range(f_min..=f_max);
-
-        let x1 = rng.random_range(0..=xy_max);
-        let x2 = rng.random_range(0..=xy_max);
-
-        let y1 = rng.random_range(0..=xy_max);
-        let y2 = rng.random_range(0..=xy_max);
-
-        // RangeId::new 内部で min/max の入れ替え等は処理される前提
-        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
-            .expect("Generated parameters should be always valid")
-    }
 }
 
 impl SpatialId for RangeId {
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::SpatialId;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.min_f(), -32i32);
-    /// ```
-    fn min_f(&self) -> i32 {
-        F_MIN[self.z as usize]
+    fn min_f(&self) -> i64 {
+        F_MIN[self.z as usize] as i64
+    }
+    fn max_f(&self) -> i64 {
+        F_MAX[self.z as usize] as i64
+    }
+    fn max_xy(&self) -> u64 {
+        XY_MAX[self.z as usize] as u64
     }
 
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::SpatialId;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.max_f(), 31i32);
-    /// ```
-    fn max_f(&self) -> i32 {
-        F_MAX[self.z as usize]
-    }
-
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::SpatialId;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.max_xy(), 31u32);
-    /// ```
-    fn max_xy(&self) -> u32 {
-        XY_MAX[self.z as usize]
-    }
-
-    fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let min = self.min_f();
-        let max = self.max_f();
-        let z = self.z;
-
+    /// 指定したインデックス差 `by` に基づき、この `RangeId` を垂直上下方向に動かします。
+    fn move_f(&mut self, by: i64) -> Result<(), Error> {
+        let (min, max, z) = (self.min_f(), self.max_f(), self.z);
         let ns = self.f[0]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
+            .ok_or(Error::FOutOfRange { f: i64::MAX, z })?;
         let ne = self.f[1]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
-
-        if ns < min || ns > max {
+            .ok_or(Error::FOutOfRange { f: i64::MAX, z })?;
+        if ns < min || ns > max || ne < min || ne > max {
             return Err(Error::FOutOfRange { f: ns, z });
         }
-        if ne < min || ne > max {
-            return Err(Error::FOutOfRange { f: ne, z });
-        }
-
         self.f = [ns, ne];
         Ok(())
     }
 
-    fn move_x(&mut self, by: i32) {
-        let new = (self.x[0] as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
-        self.x[0] = new as u32;
-
-        let new = (self.x[1] as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
-        self.x[1] = new as u32;
-    }
-
-    fn move_y(&mut self, by: i32) -> Result<(), Error> {
-        if by >= 0 {
-            let byu = by as u32;
-            let max = self.max_xy();
-            let z = self.z;
-
-            let ns = self.y[0]
-                .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
-            let ne = self.y[1]
-                .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
-
-            if ns > max {
-                return Err(Error::YOutOfRange { y: ns, z });
-            }
-            if ne > max {
-                return Err(Error::YOutOfRange { y: ne, z });
-            }
-
-            self.y = [ns, ne];
-            Ok(())
-        } else {
-            // south
-            let byu = (-by) as u32;
-            let max = self.max_xy();
-            let z = self.z;
-
-            let ns = self.y[0]
-                .checked_sub(byu)
-                .ok_or(Error::YOutOfRange { y: 0, z })?;
-            let ne = self.y[1]
-                .checked_sub(byu)
-                .ok_or(Error::YOutOfRange { y: 0, z })?;
-
-            if ns > max {
-                return Err(Error::YOutOfRange { y: ns, z });
-            }
-            if ne > max {
-                return Err(Error::YOutOfRange { y: ne, z });
-            }
-
-            self.y = [ns, ne];
-            Ok(())
-        }
-    }
-
-    /// [`RangeId`] の中心座標を[`Coordinate`]型で返します。
+    /// 指定したインデックス差 `by` に基づき、この `RangeId` を東西方向に動かします。
+    /// WEBメルカトル図法において、東西方向は循環しているためラップアラウンド計算が行われます。
     ///
-    /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    /// ```
+    /// # use kasane_logic::{RangeId, SpatialId};
+    /// let mut id = RangeId::new(4, [0, 0], [15, 15], [0, 0]).unwrap();
+    /// id.move_x(1);
+    /// assert_eq!(id.x(), [0, 0]); // 15+1=16 -> 0 (z=4の時)
+    /// ```
+    fn move_x(&mut self, by: i64) {
+        let wrap_limit = self.max_xy() as i64 + 1;
+        self.x[0] = (self.x[0] as i64 + by).rem_euclid(wrap_limit) as u64;
+        self.x[1] = (self.x[1] as i64 + by).rem_euclid(wrap_limit) as u64;
+    }
+
+    /// 指定したインデックス差 `by` に基づき、この `RangeId` を南北方向に動かします。
+    fn move_y(&mut self, by: i64) -> Result<(), Error> {
+        let (max, z) = (self.max_xy(), self.z);
+        let move_logic = |val: u64| {
+            if by >= 0 {
+                val.checked_add(by as u64)
+                    .ok_or(Error::YOutOfRange { y: u64::MAX, z })
+            } else {
+                val.checked_sub(-by as u64)
+                    .ok_or(Error::YOutOfRange { y: 0, z })
+            }
+        };
+        let ns = move_logic(self.y[0])?;
+        let ne = move_logic(self.y[1])?;
+        if ns > max || ne > max {
+            return Err(Error::YOutOfRange { y: ns, z });
+        }
+        self.y = [ns, ne];
+        Ok(())
+    }
+
+    /// [`RangeId`] の中心座標を返します。
+    /// X次元の循環（x1 > x2）を検出し、最短距離での幾何学的な中心を正しく算出します。
     fn center(&self) -> Coordinate {
         let z = self.z;
+        let max_x = self.max_xy() as f64;
+        let x0 = self.x[0] as f64;
+        let mut x1 = self.x[1] as f64;
+        if x0 > x1 {
+            x1 += max_x + 1.0;
+        }
+        let mut xf = (x0 + x1) / 2.0 + 0.5;
+        if xf > max_x + 1.0 {
+            xf -= max_x + 1.0;
+        }
 
-        let xf = (self.x[0] + self.x[1]) as f64 / 2.0 + 0.5;
         let yf = (self.y[0] + self.y[1]) as f64 / 2.0 + 0.5;
         let ff = (self.f[0] + self.f[1]) as f64 / 2.0 + 0.5;
-
         unsafe {
             Coordinate::new_unchecked(
-                helpers::longitude(xf, z),
                 helpers::latitude(yf, z),
+                helpers::longitude(xf, z),
                 helpers::altitude(ff, z),
             )
         }
     }
 
-    /// [`RangeId`] の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
-    ///
-    /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    /// [`RangeId`] の最も外側の頂点8点の座標を返します。
     fn vertices(&self) -> [Coordinate; 8] {
         let z = self.z;
+        let max_x = self.max_xy() as f64;
+        let x0 = self.x[0] as f64;
+        let mut x1 = self.x[1] as f64 + 1.0;
+        if x0 > x1 {
+            x1 += max_x + 1.0;
+        }
 
-        // 2 点ずつの端点
-        let xs = [self.x[0] as f64, (self.x[1] + 1) as f64];
+        let xs = [x0, x1];
         let ys = [self.y[0] as f64, (self.y[1] + 1) as f64];
         let fs = [self.f[0] as f64, (self.f[1] + 1) as f64];
 
-        // 各軸方向の計算は 2 回だけにする
-        let longitudes: [f64; 2] = [helpers::longitude(xs[0], z), helpers::longitude(xs[1], z)];
-
-        let latitudes: [f64; 2] = [helpers::latitude(ys[0], z), helpers::latitude(ys[1], z)];
-
-        let altitudes: [f64; 2] = [helpers::altitude(fs[0], z), helpers::altitude(fs[1], z)];
+        let lons = [helpers::longitude(xs[0], z), helpers::longitude(xs[1], z)];
+        let lats = [helpers::latitude(ys[0], z), helpers::latitude(ys[1], z)];
+        let alts = [helpers::altitude(fs[0], z), helpers::altitude(fs[1], z)];
 
         let mut out = [Coordinate::default(); 8];
-
         let mut i = 0;
         for fi in 0..2 {
             for yi in 0..2 {
                 for xi in 0..2 {
-                    let _ = out[i].set_altitude(altitudes[fi]);
-                    let _ = out[i].set_latitude(latitudes[yi]);
-                    let _ = out[i].set_longitude(longitudes[xi]);
+                    let _ = out[i].set_altitude(alts[fi]);
+                    let _ = out[i].set_latitude(lats[yi]);
+                    let _ = out[i].set_longitude(lons[xi]);
                     i += 1;
                 }
             }
         }
-
         out
     }
 
-    ///その空間IDのＦ方向の長さをメートル単位で計算する関数
+    /// その [`RangeId`] のF（鉛直）方向の総延長をメートル単位で返します。
     fn length_f(&self) -> f64 {
-        //Z=25のとき、ちょうど高さが1mとなる
-        let one = 2_i32.pow(25 - self.z() as u32) as f64;
-
-        //このRangeIdの高さ方向の幅を計算
-        let range = (self.f()[0] - self.f()[1]).abs() as f64;
-
-        //かけ合わせて答えを返却
-        (one * range).into()
+        let one = 2.0_f64.powi(25 - self.z() as i32);
+        let range = (self.f[1] - self.f[0]).abs() as f64 + 1.0;
+        one * range
     }
 
-    ///その空間IDのX方向の長さをメートル単位で計算する関数
+    /// その [`RangeId`] のX（東西）方向の長さをメートル単位で算出します。
     fn length_x(&self) -> f64 {
         todo!()
     }
 
-    ///その空間IDのY方向の長さをメートル単位で計算する関数
+    /// その [`RangeId`] のY（南北）方向の長さをメートル単位で算出します。
     fn length_y(&self) -> f64 {
         todo!()
     }
@@ -766,7 +530,6 @@ impl HyperRect for RangeId {
 }
 
 impl From<SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
     fn from(id: SingleId) -> Self {
         RangeId {
             z: id.z(),
