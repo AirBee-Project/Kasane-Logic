@@ -8,9 +8,8 @@ use crate::{
     Coordinate, SingleId,
     error::Error,
     spatial_id::{
-        FlexIds, HyperRect, HyperRectSegments, SpatialId,
+        HyperRect, HyperRectSegments, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        flex_id::FlexId,
         helpers,
         segment::Segment,
     },
@@ -43,6 +42,7 @@ pub struct RangeId {
     f: [i64; 2],
     x: [u64; 2],
     y: [u64; 2],
+    t: [u64; 2],
 }
 
 impl fmt::Display for RangeId {
@@ -51,6 +51,8 @@ impl fmt::Display for RangeId {
     /// 形式は `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
     /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になります。
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let is_full_range = self.t == [0, u64::MAX];
+
         write!(
             f,
             "{}/{}/{}/{}",
@@ -58,7 +60,13 @@ impl fmt::Display for RangeId {
             format_dimension(self.f),
             format_dimension(self.x),
             format_dimension(self.y),
-        )
+        )?;
+
+        if !is_full_range {
+            write!(f, "_1/{}:{}", self.t[0], self.t[1])?;
+        }
+
+        Ok(())
     }
 }
 
@@ -121,7 +129,13 @@ impl RangeId {
             y.swap(0, 1);
         }
 
-        Ok(RangeId { z, f, x, y })
+        Ok(RangeId {
+            z,
+            f,
+            x,
+            y,
+            t: [0, u64::MAX],
+        })
     }
 
     /// この `RangeId` が保持しているズームレベル `z` を返します。
@@ -249,7 +263,14 @@ impl RangeId {
             ];
             (f, x, y)
         };
-        Ok(RangeId { z, f, x, y })
+
+        Ok(RangeId {
+            z,
+            f,
+            x,
+            y,
+            t: self.t().clone(),
+        })
     }
 
     /// 指定したズームレベル差 `difference` に基づき、この `RangeId` を含む最小の大きさの `RangeId` を返します。
@@ -270,7 +291,13 @@ impl RangeId {
         ];
         let x = [self.x[0] >> shift, self.x[1] >> shift];
         let y = [self.y[0] >> shift, self.y[1] >> shift];
-        Some(RangeId { z, f, x, y })
+        Some(RangeId {
+            z,
+            f,
+            x,
+            y,
+            t: self.t().clone(),
+        })
     }
 
     /// [`RangeId`]を[`SingleId`]に分解し、イテレータとして提供します。
@@ -306,7 +333,13 @@ impl RangeId {
     /// # Safety
     /// 呼び出し側は、`z` および各インデックスが対応するズームレベルの範囲内であることを保証しなければなりません。
     pub unsafe fn new_unchecked(z: u8, f: [i64; 2], x: [u64; 2], y: [u64; 2]) -> RangeId {
-        RangeId { z, f, x, y }
+        RangeId {
+            z,
+            f,
+            x,
+            y,
+            t: [0, u64::MAX],
+        }
     }
 
     /// 全空間のズームレベル範囲からランダムに [`RangeId`] を生成します。
@@ -512,20 +545,39 @@ impl SpatialId for RangeId {
     fn length_y(&self) -> f64 {
         todo!()
     }
+
+    fn t(&self) -> [u64; 2] {
+        self.t
+    }
+
+    fn set_t(&mut self, range: [u64; 2]) {
+        let mut t = range;
+        if t[0] > t[1] {
+            t.swap(0, 1);
+        }
+        self.t = t;
+    }
 }
 
 impl HyperRect for RangeId {
     fn segmentation(&self) -> HyperRectSegments {
-        let f = Segment::split_f(self.z(), self.f()).collect();
-        let x = if self.x[0] <= self.x[1] {
-            Segment::split_xy(self.z(), self.x()).collect()
+        let f_segments: Vec<Segment> = Segment::split_i64(self.z(), self.f()).collect();
+
+        let x_segments: Vec<Segment> = if self.x[0] <= self.x[1] {
+            Segment::split_u64(self.z(), self.x()).collect()
         } else {
-            Segment::split_xy(self.z(), [self.x[0], self.max_xy()])
-                .chain(Segment::split_xy(self.z(), [0, self.x[1]]))
+            Segment::split_u64(self.z(), [self.x[0], self.max_xy()])
+                .chain(Segment::split_u64(self.z(), [0, self.x[1]]))
                 .collect()
         };
-        let y = Segment::split_xy(self.z(), self.y()).collect();
-        HyperRectSegments { f, x, y }
+
+        let y_segments: Vec<Segment> = Segment::split_u64(self.z(), self.y()).collect();
+
+        let t_segments: Vec<Segment> = Segment::split_u64(MAX_ZOOM_LEVEL as u8, self.t()).collect();
+
+        HyperRectSegments {
+            segments: [f_segments, x_segments, y_segments, t_segments],
+        }
     }
 }
 
@@ -536,6 +588,7 @@ impl From<SingleId> for RangeId {
             f: [id.f(), id.f()],
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
+            t: id.t(),
         }
     }
 }

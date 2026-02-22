@@ -17,6 +17,9 @@ pub enum Error {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u64 },
 
+    /// Tがu64を超えてオーバーフローしたことを示す。
+    TOutOfRange { current: u64, offset: i64 },
+
     /// 緯度が有効範囲外であることを表す。
     LatitudeOutOfRange { latitude: f64 },
 
@@ -26,6 +29,7 @@ pub enum Error {
     /// 高度が有効範囲外であることを表す。
     AltitudeOutOfRange { altitude: f64 },
 
+    ///Solidの作成時に起きるエラー
     SolidNotWatertight {
         /// 問題のあるエッジの数（奇数回しか出現しなかったエッジの数）
         open_edge_count: usize,
@@ -85,6 +89,16 @@ impl fmt::Display for Error {
                     f,
                     "Solid is not watertight (closed). Found {} open edges.",
                     open_edge_count
+                )
+            }
+            Error::TOutOfRange { current, offset } => {
+                let direction = if *offset >= 0 { "add" } else { "subtract" };
+                write!(
+                    f,
+                    "Time calculation error: failed to {} offset '{}' to/from current time '{}' (resulting in overflow/underflow)",
+                    direction,
+                    offset.abs(),
+                    current
                 )
             }
         }

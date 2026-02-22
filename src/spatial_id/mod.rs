@@ -1,5 +1,3 @@
-use std::ops::RangeBounds;
-
 use crate::{Coordinate, FlexId, Segment, error::Error};
 
 pub(crate) mod collection;
@@ -35,42 +33,74 @@ pub trait SpatialId {
     //頂点をの座標を求める関数
     fn vertices(&self) -> [Coordinate; 8];
 
-    // //時間に関する設定をする関数
-    // fn set_unixtime<R: RangeBounds<u64>>(&mut self, range: R) -> Result<(), Error>;
+    //時間に関する設定をする関数
+    fn t(&self) -> [u64; 2];
+    fn set_t(&mut self, range: [u64; 2]);
+
+    //時間を移動させる関数（自動的に実装）
+    fn move_t(&mut self, by: i64) -> Result<(), Error> {
+        let current = self.t();
+        let mut next = [0u64; 2];
+
+        for i in 0..2 {
+            next[i] = if by >= 0 {
+                current[i].checked_add(by as u64)
+            } else {
+                current[i].checked_sub(by.unsigned_abs())
+            }
+            .ok_or(Error::TOutOfRange {
+                current: current[i],
+                offset: by,
+            })?;
+        }
+
+        self.set_t(next);
+        Ok(())
+    }
 }
 
-/// 領域を構成するセグメントの集合を提供するトレイト
-/// HyperRectはその空間IDが各次元方向に連続で直方体であることを保証している
+/// HyperRectはその時空間IDが各次元方向に連続で直方体（超直方体）であることを保証している
 pub trait HyperRect: Clone {
     fn segmentation(&self) -> HyperRectSegments;
 }
 
-/// FlexIdの集合として振る舞えるトレイト
-/// Segmentationを実装している型には自動的に実装されます。
 pub trait FlexIds {
     fn flex_ids(&self) -> impl Iterator<Item = FlexId>;
 }
 
 impl<T: HyperRect> FlexIds for T {
     fn flex_ids(&self) -> impl Iterator<Item = FlexId> {
-        let HyperRectSegments { f, x, y } = self.segmentation();
-        f.into_iter().flat_map(move |f_seg| {
-            let x = x.clone();
-            let y = y.clone();
-            x.into_iter().flat_map(move |x_seg| {
-                let y = y.clone();
+        let HyperRectSegments { segments } = self.segmentation();
+
+        // 0:F, 1:X, 2:Y, 3:T の順で分解
+        let [f_vec, x_vec, y_vec, t_vec] = segments;
+
+        f_vec.into_iter().flat_map(move |f_seg| {
+            let x_vec = x_vec.clone();
+            let y_vec = y_vec.clone();
+            let t_vec = t_vec.clone();
+
+            x_vec.into_iter().flat_map(move |x_seg| {
+                let y_vec = y_vec.clone();
+                let t_vec = t_vec.clone();
                 let f_seg = f_seg.clone();
-                y.into_iter()
-                    .map(move |y_seg| FlexId::new(f_seg.clone(), x_seg.clone(), y_seg.clone()))
+
+                y_vec.into_iter().flat_map(move |y_seg| {
+                    let t_vec = t_vec.clone();
+                    let f_seg = f_seg.clone();
+                    let x_seg = x_seg.clone();
+
+                    t_vec.into_iter().map(move |t_seg| {
+                        FlexId::new(f_seg.clone(), x_seg.clone(), y_seg.clone(), t_seg)
+                    })
+                })
             })
         })
     }
 }
 
 /// RangeIDやSingleIDやFlexIDを最適分割したもの
-/// 必ず一続きの領域（直方体状の空間）を表す
 pub struct HyperRectSegments {
-    pub f: Vec<Segment>,
-    pub x: Vec<Segment>,
-    pub y: Vec<Segment>,
+    /// 0: F (高度), 1: X (東西), 2: Y (南北), 3: T (時間)
+    pub segments: [Vec<Segment>; 4],
 }

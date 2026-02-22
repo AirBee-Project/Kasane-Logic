@@ -35,21 +35,25 @@ impl Segment {
     pub const ARRAY_LENGTH: usize = ((MAX_ZOOM_LEVEL + 1) * 2).div_ceil(8);
 
     /// XYのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_xy(z: u8, range: [u64; 2]) -> impl Iterator<Item = Segment> {
+    pub(crate) fn split_u64(z: u8, range: [u64; 2]) -> impl Iterator<Item = Segment> {
         let [l, r] = range;
+
+        if range == [0, u64::MAX] {
+            return Self::split_u64(0, [0, 0]);
+        };
+
         SegmentIter {
             l: l as i64,
             r: r as i64,
             cur_z: z as i8,
         }
-        .map(move |(seg_z, dim)| Segment::from_xy(seg_z, dim as u64))
+        .map(move |(seg_z, dim)| Segment::from_u64(seg_z, dim as u64))
     }
 
     /// FのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_f(z: u8, range: [i64; 2]) -> impl Iterator<Item = Segment> {
+    pub(crate) fn split_i64(z: u8, range: [i64; 2]) -> impl Iterator<Item = Segment> {
         let diff = 1i64 << z;
         let [l, r] = range;
-        // 符号を考慮した正規化計算
         SegmentIter {
             l: l.saturating_add(diff),
             r: r.saturating_add(diff),
@@ -57,12 +61,12 @@ impl Segment {
         }
         .map(move |(seg_z, dim)| {
             let original_dim = dim.saturating_sub(1i64 << seg_z);
-            Segment::from_f(seg_z, original_dim)
+            Segment::from_i64(seg_z, original_dim)
         })
     }
 
     /// XYのズームレベルと値からセグメントを作成。
-    pub(crate) fn from_xy(z: u8, mut dimension: u64) -> Self {
+    pub(crate) fn from_u64(z: u8, mut dimension: u64) -> Self {
         let mut segment = Segment([0u8; Self::ARRAY_LENGTH]);
 
         // Z=0 は常に 0 (ルート)
@@ -81,7 +85,7 @@ impl Segment {
     }
 
     /// Fのズームレベルと値からセグメントを作成。
-    pub(crate) fn from_f(z: u8, dimension: i64) -> Self {
+    pub(crate) fn from_i64(z: u8, dimension: i64) -> Self {
         let is_negative = dimension.is_negative();
         let u_dim = if is_negative {
             (dimension.abs() - 1) as u64
@@ -89,7 +93,7 @@ impl Segment {
             dimension as u64
         };
 
-        let mut segment = Self::from_xy(z, u_dim);
+        let mut segment = Self::from_u64(z, u_dim);
 
         // F次元特有：Z=0 (符号ビット) を上書き
         segment.clear_bit_pair(0);

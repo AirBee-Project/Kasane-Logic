@@ -1,8 +1,8 @@
 #[cfg(any(test, feature = "random"))]
 use rand::Rng;
-use std::fmt;
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
+use std::{collections::btree_map::Range, fmt, u64};
 
 #[cfg(any(test))]
 use proptest::prelude::*;
@@ -38,6 +38,7 @@ pub struct SingleId {
     f: i64,
     x: u64,
     y: u64,
+    t: [u64; 2],
 }
 
 impl fmt::Display for SingleId {
@@ -45,6 +46,12 @@ impl fmt::Display for SingleId {
     ///
     /// 形式は `"{z}/{f}/{x}/{y}"`。
     ///
+    /// ただし、時間範囲 `t` が全域を表す番兵値 `[0, u64::MAX]`
+    /// **ではない場合のみ**、時間部分を末尾に付加する:
+    ///
+    /// 形式は `"{z}/{f}/{x}/{y}_1/{t1}:{t2}"`。
+    ///
+    /// 時間情報がない場合:
     /// ```
     /// # use kasane_logic::SingleId;
     /// # use std::fmt::Write;
@@ -52,8 +59,27 @@ impl fmt::Display for SingleId {
     /// let s = format!("{}", id);
     /// assert_eq!(s, "4/6/9/10");
     /// ```
+    ///
+    /// 時間情報がある場合:
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// # use std::fmt::Write;
+    /// # use crate::kasane_logic::SpatialId;
+    /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
+    /// id.set_t([30,60]);
+    /// let s = format!("{}", id);
+    /// assert_eq!(s, "4/6/9/10_1/30:60");
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)
+        let is_full_range = self.t == [0, u64::MAX];
+
+        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)?;
+
+        if !is_full_range {
+            write!(f, "_1/{}:{}", self.t[0], self.t[1])?;
+        }
+
+        Ok(())
     }
 }
 
@@ -115,7 +141,13 @@ impl SingleId {
             return Err(Error::YOutOfRange { y, z });
         }
 
-        Ok(SingleId { z, f, x, y })
+        Ok(SingleId {
+            z,
+            f,
+            x,
+            y,
+            t: [0, u64::MAX],
+        })
     }
 
     /// この `SingleId` が保持しているズームレベル `z` を返します。
@@ -339,7 +371,15 @@ impl SingleId {
             let x_range = x_range.clone();
             let y_range = y_range.clone();
 
-            x_range.flat_map(move |x| y_range.clone().map(move |y| SingleId { z, f, x, y }))
+            x_range.flat_map(move |x| {
+                y_range.clone().map(move |y| SingleId {
+                    z,
+                    f,
+                    x,
+                    y,
+                    t: self.t.clone(),
+                })
+            })
         }))
     }
 
@@ -394,7 +434,13 @@ impl SingleId {
         };
         let x = self.x >> (difference as u32);
         let y = self.y >> (difference as u32);
-        Some(SingleId { z, f, x, y })
+        Some(SingleId {
+            z,
+            f,
+            x,
+            y,
+            t: self.t.clone(),
+        })
     }
 
     /// 検証を行わずに [`SingleId`] を構築します。
@@ -424,7 +470,13 @@ impl SingleId {
     /// assert_eq!(id.y(), 10u64);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: i64, x: u64, y: u64) -> SingleId {
-        SingleId { z, f, x, y }
+        SingleId {
+            z,
+            f,
+            x,
+            y,
+            t: [0, u64::MAX],
+        }
     }
 
     ///ランダムな[SingleId]を作成する
@@ -780,18 +832,34 @@ impl SpatialId for SingleId {
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
         r * 2.0 * std::f64::consts::PI / 2.0_f64.powi(self.z() as i32)
     }
+
+    fn t(&self) -> [u64; 2] {
+        self.t
+    }
+
+    fn set_t(&mut self, range: [u64; 2]) {
+        let mut t = range;
+        if t[0] > t[1] {
+            t.swap(0, 1);
+        }
+        self.t = t;
+    }
 }
 
 impl HyperRect for SingleId {
     fn segmentation(&self) -> HyperRectSegments {
-        let f_segment = Segment::from_f(self.z(), self.f());
-        let x_segment = Segment::from_xy(self.z(), self.x());
-        let y_segment = Segment::from_xy(self.z(), self.y());
+        let f_segment = Segment::from_i64(self.z(), self.f());
+        let x_segment = Segment::from_u64(self.z(), self.x());
+        let y_segment = Segment::from_u64(self.z(), self.y());
+        let t_segments: Vec<_> = Segment::split_u64(MAX_ZOOM_LEVEL as u8, self.t()).collect();
 
         HyperRectSegments {
-            f: vec![f_segment],
-            x: vec![x_segment],
-            y: vec![y_segment],
+            segments: [
+                vec![f_segment],
+                vec![x_segment],
+                vec![y_segment],
+                t_segments,
+            ],
         }
     }
 }
