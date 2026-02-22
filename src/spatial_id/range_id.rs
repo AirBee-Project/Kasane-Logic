@@ -8,7 +8,7 @@ use crate::{
     Coordinate, SingleId,
     error::Error,
     spatial_id::{
-        HyperRect, HyperRectSegments, SpatialId,
+        HyperRect, HyperRectSegments, SpatioTemporalId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         helpers,
         segment::Segment,
@@ -407,7 +407,7 @@ impl RangeId {
     }
 }
 
-impl SpatialId for RangeId {
+impl SpatioTemporalId for RangeId {
     fn min_f(&self) -> i64 {
         F_MIN[self.z as usize] as i64
     }
@@ -438,7 +438,7 @@ impl SpatialId for RangeId {
     /// WEBメルカトル図法において、東西方向は循環しているためラップアラウンド計算が行われます。
     ///
     /// ```
-    /// # use kasane_logic::{RangeId, SpatialId};
+    /// # use kasane_logic::{RangeId, SpatioTemporalId};
     /// let mut id = RangeId::new(4, [0, 0], [15, 15], [0, 0]).unwrap();
     /// id.move_x(1);
     /// assert_eq!(id.x(), [0, 0]); // 15+1=16 -> 0 (z=4の時)
@@ -472,7 +472,7 @@ impl SpatialId for RangeId {
 
     /// [`RangeId`] の中心座標を返します。
     /// X次元の循環（x1 > x2）を検出し、最短距離での幾何学的な中心を正しく算出します。
-    fn center(&self) -> Coordinate {
+    fn spatial_center(&self) -> Coordinate {
         let z = self.z;
         let max_x = self.max_xy() as f64;
         let x0 = self.x[0] as f64;
@@ -497,7 +497,7 @@ impl SpatialId for RangeId {
     }
 
     /// [`RangeId`] の最も外側の頂点8点の座標を返します。
-    fn vertices(&self) -> [Coordinate; 8] {
+    fn spatial_vertices(&self) -> [Coordinate; 8] {
         let z = self.z;
         let max_x = self.max_xy() as f64;
         let x0 = self.x[0] as f64;

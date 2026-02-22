@@ -2,7 +2,7 @@ use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::segment::SegmentRelation;
 use crate::spatial_id::{FlexIds, segment::Segment};
 use crate::spatial_id::{HyperRect, HyperRectSegments};
-use crate::{RangeId, SpatialId};
+use crate::{RangeId, SpatioTemporalId};
 
 /// FlexIdは拡張時空間IDを表す。
 ///

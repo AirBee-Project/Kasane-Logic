@@ -6,7 +6,7 @@ use crate::{Coordinate, Ecef, triangle::Triangle};
 /// 頂点リスト（[Coordinate] のVec）によって定義される平面的な領域を表現する。
 /// 生成時に頂点の重複排除などが行われ、幾何計算に適した状態に保たれる。
 pub struct Polygon {
-    vertices: Vec<Coordinate>,
+    spatial_vertices: Vec<Coordinate>,
 }
 
 impl Polygon {
@@ -22,56 +22,60 @@ impl Polygon {
     /// - `epsilon` - 同一点とみなす許容誤差（メートル単位）。
     pub fn new(raw_points: Vec<Coordinate>, epsilon: f64) -> Self {
         if raw_points.is_empty() {
-            return Self { vertices: vec![] };
+            return Self {
+                spatial_vertices: vec![],
+            };
         }
 
-        let mut vertices: Vec<Coordinate> = Vec::new();
+        let mut spatial_vertices: Vec<Coordinate> = Vec::new();
 
         for p in raw_points {
-            if let Some(last) = vertices.last() {
+            if let Some(last) = spatial_vertices.last() {
                 if !last.eq_epsilon(&p, epsilon) {
-                    vertices.push(p);
+                    spatial_vertices.push(p);
                 }
             } else {
-                vertices.push(p);
+                spatial_vertices.push(p);
             }
         }
 
-        if vertices.len() > 2 {
-            if vertices[0].eq_epsilon(vertices.last().unwrap(), epsilon) {
-                vertices.pop();
+        if spatial_vertices.len() > 2 {
+            if spatial_vertices[0].eq_epsilon(spatial_vertices.last().unwrap(), epsilon) {
+                spatial_vertices.pop();
             }
         }
 
-        if vertices.len() < 3 {
-            return Self { vertices: vec![] };
+        if spatial_vertices.len() < 3 {
+            return Self {
+                spatial_vertices: vec![],
+            };
         }
 
-        Self { vertices }
+        Self { spatial_vertices }
     }
 
     /// [Polygon]を構成する点を返す。
-    pub fn vertices(&self) -> &Vec<Coordinate> {
-        &self.vertices
+    pub fn spatial_vertices(&self) -> &Vec<Coordinate> {
+        &self.spatial_vertices
     }
 
     /// [Polygon] 全体を三角形分割し、構成する [Triangle] のリストを返します。
     pub fn triangulate(&self) -> Vec<Triangle> {
-        let n = self.vertices.len();
+        let n = self.spatial_vertices.len();
         if n < 3 {
             return vec![];
         }
 
         if n == 3 {
             return vec![Triangle::new([
-                self.vertices[0],
-                self.vertices[1],
-                self.vertices[2],
+                self.spatial_vertices[0],
+                self.spatial_vertices[1],
+                self.spatial_vertices[2],
             ])];
         }
 
         // 計算用に全て ECEF に変換
-        let ecef_points: Vec<Ecef> = self.vertices.iter().map(|&c| c.into()).collect();
+        let ecef_points: Vec<Ecef> = self.spatial_vertices.iter().map(|&c| c.into()).collect();
 
         // 投影軸の決定
         let (u_axis, v_axis) = Self::get_projection_axes(&ecef_points);
@@ -105,9 +109,9 @@ impl Polygon {
                     prev_idx, curr_idx, next_idx, &indices, &points_2d, area_sign,
                 ) {
                     result.push(Triangle::new([
-                        self.vertices[prev_idx],
-                        self.vertices[curr_idx],
-                        self.vertices[next_idx],
+                        self.spatial_vertices[prev_idx],
+                        self.spatial_vertices[curr_idx],
+                        self.spatial_vertices[next_idx],
                     ]));
                     indices.remove(i);
                     ear_found = true;
@@ -122,9 +126,9 @@ impl Polygon {
 
         if indices.len() == 3 {
             result.push(Triangle::new([
-                self.vertices[indices[0]],
-                self.vertices[indices[1]],
-                self.vertices[indices[2]],
+                self.spatial_vertices[indices[0]],
+                self.spatial_vertices[indices[1]],
+                self.spatial_vertices[indices[2]],
             ]));
         }
 

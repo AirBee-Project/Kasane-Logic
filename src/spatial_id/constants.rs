@@ -6,7 +6,7 @@ pub const MAX_ZOOM_LEVEL: usize = 64;
 /// ```
 /// # use kasane_logic::SingleId;
 /// # use kasane_logic::XY_MAX;
-/// # use kasane_logic::SpatialId;
+/// # use kasane_logic::SpatioTemporalId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
 /// assert_eq!(id.max_xy(), XY_MAX[4]);
 /// ```
@@ -81,7 +81,7 @@ pub const XY_MAX: [u64; MAX_ZOOM_LEVEL + 1] = [
 /// 各ズームレベルにおけるFインデックスの最小値
 ///
 /// ```
-/// # use kasane_logic::SpatialId;
+/// # use kasane_logic::SpatioTemporalId;
 /// # use kasane_logic::SingleId;
 /// # use kasane_logic::F_MIN;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
@@ -160,7 +160,7 @@ pub const F_MIN: [i64; MAX_ZOOM_LEVEL + 1] = [
 /// ```
 /// # use kasane_logic::F_MAX;
 /// # use kasane_logic::SingleId;
-/// # use kasane_logic::SpatialId;
+/// # use kasane_logic::SpatioTemporalId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
 /// assert_eq!(id.max_f(), F_MAX[4]);
 /// ```

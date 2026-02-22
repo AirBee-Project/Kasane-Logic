@@ -9,7 +9,7 @@ use crate::{
     },
 };
 
-/// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
+/// 地心直交座標系（ECEF: Earth-spatial_centered, Earth-Fixed）における座標を表す。
 ///
 /// 原点は地球の重心にあり、
 /// * X 軸は赤道面上で本初子午線方向

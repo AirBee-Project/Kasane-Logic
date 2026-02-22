@@ -11,7 +11,7 @@ use crate::{
     Coordinate, Ecef,
     error::Error,
     spatial_id::{
-        HyperRect, HyperRectSegments, SpatialId,
+        HyperRect, HyperRectSegments, SpatioTemporalId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         helpers,
         segment::Segment,
@@ -64,7 +64,7 @@ impl fmt::Display for SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// # use std::fmt::Write;
-    /// # use crate::kasane_logic::SpatialId;
+    /// # use crate::kasane_logic::SpatioTemporalId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// id.set_t([30,60]);
     /// let s = format!("{}", id);
@@ -572,11 +572,11 @@ impl SingleId {
     }
 }
 
-impl SpatialId for SingleId {
+impl SpatioTemporalId for SingleId {
     /// このIDのズームレベルにおける最小の F インデックスを返す
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.min_f(), -32i64);
@@ -588,7 +588,7 @@ impl SpatialId for SingleId {
     /// このIDのズームレベルにおける最大の F インデックスを返す
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.max_f(), 31i64);
@@ -600,7 +600,7 @@ impl SpatialId for SingleId {
     /// このIDのズームレベルにおける最大の XY インデックスを返す
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u64);
@@ -620,7 +620,7 @@ impl SpatialId for SingleId {
     /// 移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.f(), 6);
     ///
@@ -631,7 +631,7 @@ impl SpatialId for SingleId {
     /// 範囲外の検知によるエラー
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// # use kasane_logic::Error;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.f(), 6);
@@ -659,7 +659,7 @@ impl SpatialId for SingleId {
     /// 移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.x(), 9);
     ///
@@ -670,7 +670,7 @@ impl SpatialId for SingleId {
     /// 循環による移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.x(), 9);
     ///
@@ -694,7 +694,7 @@ impl SpatialId for SingleId {
     /// 移動
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.y(), 10);
     ///
@@ -705,7 +705,7 @@ impl SpatialId for SingleId {
     /// 範囲外の検知によるエラー
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// # use kasane_logic::Error;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.y(), 10);
@@ -736,15 +736,15 @@ impl SpatialId for SingleId {
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
-    /// let center: Coordinate = id.center();
-    /// println!("{:?}", center);
+    /// let spatial_center: Coordinate = id.spatial_center();
+    /// println!("{:?}", spatial_center);
     /// // Coordinate { latitude: -81.09321385260839, longitude: 33.75, altitude: 13631488.0 }
     /// ```
-    fn center(&self) -> Coordinate {
+    fn spatial_center(&self) -> Coordinate {
         unsafe {
             Coordinate::new_unchecked(
                 helpers::latitude(self.y as f64 + 0.5, self.z),
@@ -759,16 +759,16 @@ impl SpatialId for SingleId {
     /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatioTemporalId;
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
-    /// let vertices: [Coordinate; 8] = id.vertices();
-    /// println!("{:?}", vertices);
+    /// let spatial_vertices: [Coordinate; 8] = id.spatial_vertices();
+    /// println!("{:?}", spatial_vertices);
     ///
     ///  //[Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 14680064.0 }]
     /// ```
-    fn vertices(&self) -> [Coordinate; 8] {
+    fn spatial_vertices(&self) -> [Coordinate; 8] {
         let xs = [self.x as f64, self.x as f64 + 1.0];
         let ys = [self.y as f64, self.y as f64 + 1.0];
         let fs = [self.f as f64, self.f as f64 + 1.0];
@@ -820,7 +820,7 @@ impl SpatialId for SingleId {
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
     fn length_x(&self) -> f64 {
-        let ecef: Ecef = self.center().into();
+        let ecef: Ecef = self.spatial_center().into();
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
         // zが32以上になった際のオーバーフロー対策
         r * 2.0 * std::f64::consts::PI / 2.0_f64.powi(self.z() as i32)
@@ -828,7 +828,7 @@ impl SpatialId for SingleId {
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
     fn length_y(&self) -> f64 {
-        let ecef: Ecef = self.center().into();
+        let ecef: Ecef = self.spatial_center().into();
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
         r * 2.0 * std::f64::consts::PI / 2.0_f64.powi(self.z() as i32)
     }

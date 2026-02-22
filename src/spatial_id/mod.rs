@@ -10,8 +10,8 @@ pub(crate) mod flex_id;
 pub(crate) mod helpers;
 pub mod segment;
 
-/// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub trait SpatialId {
+/// 時空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
+pub trait SpatioTemporalId {
     //そのIDの各次元の最大と最小を返す
     fn min_f(&self) -> i64;
     fn max_f(&self) -> i64;
@@ -28,16 +28,19 @@ pub trait SpatialId {
     fn length_y(&self) -> f64;
 
     //中心点の座標を求める関数
-    fn center(&self) -> Coordinate;
+    fn spatial_center(&self) -> Coordinate;
 
     //頂点をの座標を求める関数
-    fn vertices(&self) -> [Coordinate; 8];
+    fn spatial_vertices(&self) -> [Coordinate; 8];
 
     //時間に関する設定をする関数
     fn t(&self) -> [u64; 2];
-    fn set_t(&mut self, range: [u64; 2]);
+    fn set_t(&mut self, unix_time_range: [u64; 2]);
 
-    //時間を移動させる関数（自動的に実装）
+    fn clear_t(&mut self) {
+        self.set_t([0, u64::MAX]);
+    }
+
     fn move_t(&mut self, by: i64) -> Result<(), Error> {
         let current = self.t();
         let mut next = [0u64; 2];

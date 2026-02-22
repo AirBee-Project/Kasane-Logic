@@ -1,5 +1,5 @@
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
-use crate::spatial_id::SpatialId;
+use crate::spatial_id::SpatioTemporalId;
 use crate::{Coordinate, Ecef, Error, RangeId, SingleId};
 use std::collections::{HashMap, HashSet, VecDeque};
 
@@ -28,7 +28,7 @@ impl Solid {
         let polygons: Vec<Polygon> = raw_surfaces
             .into_iter()
             .map(|coords| Polygon::new(coords, epsilon))
-            .filter(|p| !p.vertices().is_empty()) // 無効な面は除外
+            .filter(|p| !p.spatial_vertices().is_empty()) // 無効な面は除外
             .collect();
 
         if polygons.is_empty() {
@@ -60,15 +60,15 @@ impl Solid {
         let mut edge_counts: HashMap<(QuantizedCoord, QuantizedCoord), usize> = HashMap::new();
 
         for polygon in polygons {
-            let vertices = &polygon.vertices();
-            let len = vertices.len();
+            let spatial_vertices = &polygon.spatial_vertices();
+            let len = spatial_vertices.len();
             if len < 3 {
                 continue;
             }
 
             for i in 0..len {
-                let p1 = &vertices[i];
-                let p2 = &vertices[(i + 1) % len]; // 最後の点と最初の点を結ぶ
+                let p1 = &spatial_vertices[i];
+                let p2 = &spatial_vertices[(i + 1) % len]; // 最後の点と最初の点を結ぶ
 
                 // ECEF座標系で量子化
                 let e1: Ecef = (*p1).into();

@@ -12,7 +12,7 @@ pub use roaring::RoaringTreemap;
 pub use error::Error;
 pub use geometry::point::{Point, coordinate::Coordinate, ecef::Ecef};
 pub use spatial_id::{
-    SpatialId,
+    SpatioTemporalId,
     constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
     flex_id::FlexId,
     range_id::RangeId,

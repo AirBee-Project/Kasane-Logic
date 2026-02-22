@@ -1,7 +1,7 @@
 use crate::{
     Coordinate, Ecef, SingleId,
     geometry::constants::WGS84_A,
-    spatial_id::{SpatialId, helpers::Dimension},
+    spatial_id::{SpatioTemporalId, helpers::Dimension},
 };
 
 pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
@@ -16,9 +16,9 @@ pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
 }
 
 /// 指定された中心点と半径で定義される球状領域を覆う空間 ID を列挙する。
-pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = SingleId> {
+pub fn sphere(z: u8, spatial_center: &Coordinate, radius: f64) -> impl Iterator<Item = SingleId> {
     let voxel_diag_half = voxel_length(z, Dimension::X) * 3.0_f64.sqrt() / 2.0;
-    let center_ecef: Ecef = (*center).into();
+    let spatial_center_ecef: Ecef = (*spatial_center).into();
 
     // 球の8頂点 → 探索範囲推定
     let mut corners = Vec::with_capacity(8);
@@ -26,9 +26,9 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
         for &sy in &[1.0, -1.0] {
             for &sz in &[1.0, -1.0] {
                 let e = Ecef::new(
-                    center_ecef.x() + radius * sx,
-                    center_ecef.y() + radius * sy,
-                    center_ecef.z() + radius * sz,
+                    spatial_center_ecef.x() + radius * sx,
+                    spatial_center_ecef.y() + radius * sy,
+                    spatial_center_ecef.z() + radius * sz,
                 );
                 if let Ok(id) = e.to_single_id(z) {
                     corners.push(id);
@@ -51,7 +51,7 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
             })
         })
         .filter(move |id| {
-            let p: Coordinate = id.center();
-            center.distance(&p) <= radius + voxel_diag_half
+            let p: Coordinate = id.spatial_center();
+            spatial_center.distance(&p) <= radius + voxel_diag_half
         })
 }
