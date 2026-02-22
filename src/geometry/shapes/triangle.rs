@@ -11,7 +11,7 @@ use crate::{
 ///三角形を表す型
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle {
-    points: [Coordinate; 3],
+    pub points: [Coordinate; 3],
 }
 
 impl Triangle {
@@ -102,6 +102,26 @@ impl Triangle {
         Ok(iter)
     }
 
+    pub fn area(&self) -> f64 {
+        let p0: Ecef = self.points[0].into();
+        let p1: Ecef = self.points[1].into();
+        let p2: Ecef = self.points[2].into();
+        let a = [
+            p1.as_x() - p0.as_x(),
+            p1.as_y() - p0.as_y(),
+            p1.as_z() - p0.as_z(),
+        ];
+        let b = [
+            p2.as_x() - p0.as_x(),
+            p2.as_y() - p0.as_y(),
+            p2.as_z() - p0.as_z(),
+        ];
+        ((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])
+            - dot_product(a, b) * dot_product(a, b))
+        .sqrt()
+            * 0.5
+    }
+
     pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
         let steps_f = steps as f64;
         let p0: Ecef = self.points[0].into();
@@ -132,7 +152,6 @@ impl Triangle {
                 let mut row_triangles = Vec::with_capacity((i * 2 - 1) as usize);
 
                 for j in 0..(i as usize) {
-                    // 下向きの三角形
                     row_triangles.push(Triangle {
                         points: [
                             (*prev_row)[j].try_into().unwrap(),
@@ -243,13 +262,12 @@ impl Triangle {
         Ok(voxels.into_iter())
     }
 
-    pub fn single_ids_neo(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let steps = todo!();
+    pub fn single_ids_neo(&self, z: u8, s: u32) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let steps = s;
         let mut seen = HashSet::new();
         let voxels = self
             .divide(steps)?
             .flat_map(move |tri| tri.single_ids_limited(z).ok().into_iter().flatten())
-            // 3. 重複排除用の seen も move でクロージャ内に閉じ込める
             .filter(move |voxel| seen.insert(voxel.clone()));
         Ok(voxels)
     }
