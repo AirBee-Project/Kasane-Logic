@@ -7,6 +7,8 @@ mod geometry;
 /// 空間IDに関する型を定義。
 mod spatial_id;
 
+mod temporal_id;
+
 pub use roaring::RoaringTreemap;
 
 pub use error::Error;
