@@ -1,9 +1,9 @@
-use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use std::fmt::{self, Display};
 
 ///Segmentを`V-Bit`を用いて表す。
+/// Nにはこのセグメントに格納したい範囲の最大のズームレベルを格納する
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Segment([u8; Segment::ARRAY_LENGTH]);
+pub struct Segment<const N: usize>([u8; N]);
 
 /// 内部ビット表現のヘルパー
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,11 +29,11 @@ pub enum SegmentRelation {
     Disjoint,
 }
 
-impl Segment {
-    pub const ARRAY_LENGTH: usize = (MAX_ZOOM_LEVEL * 2).div_ceil(8);
+impl<const N: usize> Segment<N> {
+    pub const ARRAY_LENGTH: usize = N;
 
     ///XYのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment> {
+    pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment<N>> {
         let [l, r] = range;
         SegmentIter {
             l: l as i32,
@@ -44,7 +44,7 @@ impl Segment {
     }
 
     ///FのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment> {
+    pub(crate) fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment<N>> {
         let diff = 1i32 << z;
         let [l, r] = range;
         SegmentIter {
@@ -60,7 +60,7 @@ impl Segment {
 
     ///XYのズームレベルと値からセグメントを作成。
     pub(crate) fn from_xy(z: u8, mut dimension: u32) -> Self {
-        let mut segment = Segment([0u8; Self::ARRAY_LENGTH]);
+        let mut segment = Segment([0u8; N]);
 
         // Z=0 は常に 0 (ルート)
         segment.set_bit_pair(0, Bit::Zero);
@@ -230,7 +230,7 @@ impl Segment {
     ///下位セグメントを検索する場合の検索範囲の右点を返す。
     pub fn descendant_range_end(&self) -> Option<Self> {
         let mut end_segment = self.clone();
-        let max_z = (Self::ARRAY_LENGTH * 4) as u8 - 1;
+        let max_z = (N * 4) as u8 - 1;
 
         for z in (0..=max_z).rev() {
             let byte_index = (z / 4) as usize;
@@ -255,7 +255,7 @@ impl Segment {
     }
 
     ///セグメントからセグメントを引く。
-    pub(crate) fn difference(&self, other: &Self) -> Vec<Segment> {
+    pub(crate) fn difference(&self, other: &Self) -> Vec<Segment<N>> {
         if self == other {
             return vec![];
         }
@@ -344,7 +344,7 @@ impl Iterator for SegmentIter {
     }
 }
 
-impl Display for Segment {
+impl<const N: usize> Display for Segment<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for (i, byte) in self.0.iter().enumerate() {
             if i > 0 {
@@ -356,14 +356,14 @@ impl Display for Segment {
     }
 }
 
-impl From<[u8; Segment::ARRAY_LENGTH]> for Segment {
-    fn from(value: [u8; Segment::ARRAY_LENGTH]) -> Self {
+impl<const N: usize> From<[u8; N]> for Segment<N> {
+    fn from(value: [u8; N]) -> Self {
         Segment(value)
     }
 }
 
-impl From<Segment> for [u8; Segment::ARRAY_LENGTH] {
-    fn from(value: Segment) -> Self {
+impl<const N: usize> From<Segment<N>> for [u8; N] {
+    fn from(value: Segment<N>) -> Self {
         value.0
     }
 }

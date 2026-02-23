@@ -17,15 +17,15 @@ pub struct SetOnMemory {
 }
 
 impl Scanner for SetOnMemory {
-    fn f(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+    fn f(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
         self.core.f()
     }
 
-    fn x(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+    fn x(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
         self.core.x()
     }
 
-    fn y(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+    fn y(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
         self.core.y()
     }
 }
@@ -159,9 +159,9 @@ impl SetOnMemory {
     /// BTreeMapの範囲検索を行い、ヒットした全てのRoaringBitmapを結合（Union）して返すヘルパー
     fn union_bitmaps(
         &self,
-        map: &BTreeMap<Segment, RoaringTreemap>,
-        start: &Segment,
-        end: &Segment,
+        map: &BTreeMap<Segment<32>, RoaringTreemap>,
+        start: &Segment<32>,
+        end: &Segment<32>,
     ) -> RoaringTreemap {
         let mut result = RoaringTreemap::new();
         for (_, bitmap) in map.range(start..end) {
@@ -309,9 +309,9 @@ impl SetOnMemory {
         self.core
             .f()
             .keys()
-            .map(|s| s.to_f().0)
-            .chain(self.core.x().keys().map(|s| s.to_xy().0))
-            .chain(self.core.y().keys().map(|s| s.to_xy().0))
+            .map(|s: &Segment<32>| s.to_f().0)
+            .chain(self.core.x().keys().map(|s: &Segment<32>| s.to_xy().0))
+            .chain(self.core.y().keys().map(|s: &Segment<32>| s.to_xy().0))
             .max()
     }
 
@@ -319,9 +319,9 @@ impl SetOnMemory {
         self.core
             .f()
             .keys()
-            .map(|s| s.to_f().0)
-            .chain(self.core.x().keys().map(|s| s.to_xy().0))
-            .chain(self.core.y().keys().map(|s| s.to_xy().0))
+            .map(|s: &Segment<32>| s.to_f().0)
+            .chain(self.core.x().keys().map(|s: &Segment<32>| s.to_xy().0))
+            .chain(self.core.y().keys().map(|s: &Segment<32>| s.to_xy().0))
             .min()
     }
 

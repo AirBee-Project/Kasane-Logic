@@ -35,15 +35,15 @@ impl<V> Scanner for TableOnMemory<V>
 where
     V: Ord + Clone,
 {
-    fn f(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+    fn f(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
         self.core.f()
     }
 
-    fn x(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+    fn x(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
         self.core.x()
     }
 
-    fn y(&self) -> &BTreeMap<Segment, RoaringTreemap> {
+    fn y(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
         self.core.y()
     }
 }
@@ -355,9 +355,9 @@ where
 
     fn union_bitmaps(
         &self,
-        map: &BTreeMap<Segment, RoaringTreemap>,
-        start: &Segment,
-        end: &Segment,
+        map: &BTreeMap<Segment<32>, RoaringTreemap>,
+        start: &Segment<32>,
+        end: &Segment<32>,
     ) -> RoaringTreemap {
         let mut result = RoaringTreemap::new();
         for (_, bitmap) in map.range(start..end) {

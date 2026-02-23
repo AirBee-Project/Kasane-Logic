@@ -20,9 +20,9 @@ use crate::spatial_id::{FlexIds, segment::Segment};
 /// ```
 #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub struct FlexId {
-    f: Segment,
-    x: Segment,
-    y: Segment,
+    f: Segment<32>,
+    x: Segment<32>,
+    y: Segment<32>,
 }
 
 /// [FlexId]同士の関係を表します。
@@ -36,7 +36,7 @@ enum FlexIdRelation {
 
 impl FlexId {
     /// 新しく[FlexId]を作成する。
-    pub fn new(f: Segment, x: Segment, y: Segment) -> FlexId {
+    pub fn new(f: Segment<32>, x: Segment<32>, y: Segment<32>) -> FlexId {
         FlexId { f, x, y }
     }
 
@@ -46,17 +46,17 @@ impl FlexId {
     }
 
     /// Fインデックスのセグメントを参照する。
-    pub fn as_f(&self) -> &Segment {
+    pub fn as_f(&self) -> &Segment<32> {
         &self.f
     }
 
     /// Xインデックスのセグメントを参照する。
-    pub fn as_x(&self) -> &Segment {
+    pub fn as_x(&self) -> &Segment<32> {
         &self.x
     }
 
     /// Yインデックスのセグメントを参照する。
-    pub fn as_y(&self) -> &Segment {
+    pub fn as_y(&self) -> &Segment<32> {
         &self.y
     }
 
@@ -272,33 +272,14 @@ impl From<FlexId> for RangeId {
     }
 }
 
-impl From<FlexId>
-    for (
-        [u8; Segment::ARRAY_LENGTH],
-        [u8; Segment::ARRAY_LENGTH],
-        [u8; Segment::ARRAY_LENGTH],
-    )
-{
-    ///
+impl From<FlexId> for ([u8; 32], [u8; 32], [u8; 32]) {
     fn from(value: FlexId) -> Self {
         (value.f.into(), value.x.into(), value.y.into())
     }
 }
 
-impl
-    From<(
-        [u8; Segment::ARRAY_LENGTH],
-        [u8; Segment::ARRAY_LENGTH],
-        [u8; Segment::ARRAY_LENGTH],
-    )> for FlexId
-{
-    fn from(
-        value: (
-            [u8; Segment::ARRAY_LENGTH],
-            [u8; Segment::ARRAY_LENGTH],
-            [u8; Segment::ARRAY_LENGTH],
-        ),
-    ) -> Self {
+impl From<([u8; 32], [u8; 32], [u8; 32])> for FlexId {
+    fn from(value: ([u8; 32], [u8; 32], [u8; 32])) -> Self {
         Self {
             f: value.0.into(),
             x: value.1.into(),
