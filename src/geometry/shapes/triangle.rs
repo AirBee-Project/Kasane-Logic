@@ -22,86 +22,7 @@ impl Triangle {
         Self { points }
     }
 
-    ///[SingleId]の集合へ変換を行います。
-    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z });
-        }
-
-        let ecef_a: Ecef = self.points[0].into();
-        let ecef_b: Ecef = self.points[1].into();
-        let ecef_c: Ecef = self.points[2].into();
-
-        let min_lat_rad = self.points[0]
-            .as_latitude()
-            .abs()
-            .min(self.points[1].as_latitude().abs())
-            .min(self.points[2].as_latitude().abs())
-            .to_radians();
-
-        let d = PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-2 - z as i32);
-
-        let l1 = ((ecef_c.as_x() - ecef_b.as_x()).powi(2)
-            + (ecef_c.as_y() - ecef_b.as_y()).powi(2)
-            + (ecef_c.as_z() - ecef_b.as_z()).powi(2))
-        .sqrt();
-        let l2 = ((ecef_a.as_x() - ecef_c.as_x()).powi(2)
-            + (ecef_a.as_y() - ecef_c.as_y()).powi(2)
-            + (ecef_a.as_z() - ecef_c.as_z()).powi(2))
-        .sqrt();
-        let l3 = ((ecef_a.as_x() - ecef_b.as_x()).powi(2)
-            + (ecef_a.as_y() - ecef_b.as_y()).powi(2)
-            + (ecef_a.as_z() - ecef_b.as_z()).powi(2))
-        .sqrt();
-
-        let steps = (l1.max(l2).max(l3) / d).ceil() as usize;
-
-        let seen = Rc::new(RefCell::new(HashSet::new()));
-
-        let iter = (0..=steps).flat_map(move |i| {
-            let t = i as f64 / steps as f64;
-
-            let line1 = (
-                ecef_a.as_x() * (1.0 - t) + ecef_b.as_x() * t,
-                ecef_a.as_y() * (1.0 - t) + ecef_b.as_y() * t,
-                ecef_a.as_z() * (1.0 - t) + ecef_b.as_z() * t,
-            );
-            let line2 = (
-                ecef_a.as_x() * (1.0 - t) + ecef_c.as_x() * t,
-                ecef_a.as_y() * (1.0 - t) + ecef_c.as_y() * t,
-                ecef_a.as_z() * (1.0 - t) + ecef_c.as_z() * t,
-            );
-
-            let seen = seen.clone();
-
-            (0..=i).filter_map(move |j| {
-                let (x, y, z_pos) = if i == 0 {
-                    (ecef_a.as_x(), ecef_a.as_y(), ecef_a.as_z())
-                } else {
-                    let s = j as f64 / i as f64;
-                    (
-                        line1.0 * (1.0 - s) + line2.0 * s,
-                        line1.1 * (1.0 - s) + line2.1 * s,
-                        line1.2 * (1.0 - s) + line2.2 * s,
-                    )
-                };
-
-                if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_single_id(z) {
-                    let mut borrowed = seen.borrow_mut();
-                    if borrowed.insert(voxel_id.clone()) {
-                        Some(voxel_id)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            })
-        });
-
-        Ok(iter)
-    }
-
+    ///三角形の面積を返す
     pub fn area(&self) -> f64 {
         let p0: Ecef = self.points[0].into();
         let p1: Ecef = self.points[1].into();
@@ -121,6 +42,17 @@ impl Triangle {
         .sqrt()
             * 0.5
     }
+
+    ///三角形の3辺の長さを返す
+    /// point[0]と[1],[1]と[2],[2]と[0]の順に返す
+    pub fn sides(&self) -> [f64; 3] {
+        let p0: Ecef = self.points[0].into();
+        let p1: Ecef = self.points[1].into();
+        let p2: Ecef = self.points[2].into();
+        [p0.distance(&p1), p1.distance(&p2), p2.distance(&p0)]
+    }
+
+    ///[SingleId]の集合へ変換を行います。
 
     pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
         let steps_f = steps as f64;
@@ -262,8 +194,20 @@ impl Triangle {
         Ok(voxels.into_iter())
     }
 
-    pub fn single_ids_neo(&self, z: u8, s: u32) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let steps = s;
+    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let points: [[f64; 3]; 3] = [
+            coordinate_to_matrix(self.points[0], z),
+            coordinate_to_matrix(self.points[1], z),
+            coordinate_to_matrix(self.points[2], z),
+        ];
+        let diff_f = points[0][0].max(points[1][0]).max(points[2][0]).floor()
+            - points[0][0].min(points[1][0]).min(points[2][0]).floor();
+        let diff_x = points[0][1].max(points[1][1]).max(points[2][1]).floor()
+            - points[0][1].min(points[1][1]).min(points[2][1]).floor();
+        let diff_y = points[0][2].max(points[1][2]).max(points[2][2]).floor()
+            - points[0][2].min(points[1][2]).min(points[2][2]).floor();
+        let steps = (diff_f.max(diff_x).max(diff_y) / 8.0).ceil() as u32;
+        println!("{}", steps);
         let mut seen = HashSet::new();
         let voxels = self
             .divide(steps)?
