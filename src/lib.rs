@@ -2,7 +2,7 @@
 mod error;
 
 /// 空間ID以外の地理空間情報。
-mod geometry;
+pub mod geometry;
 
 /// 空間IDに関する型を定義。
 mod spatial_id;
