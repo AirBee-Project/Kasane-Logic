@@ -199,9 +199,9 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// ```
-    pub fn as_z(&self) -> u8 {
+    pub fn z(&self) -> u8 {
         self.z
     }
 
@@ -211,9 +211,9 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_f(), [-3i32,29i32]);
+    /// assert_eq!(id.f(), [-3i32,29i32]);
     /// ```
-    pub fn as_f(&self) -> [i32; 2] {
+    pub fn f(&self) -> [i32; 2] {
         self.f
     }
 
@@ -223,9 +223,9 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_x(), [8u32,9u32]);
+    /// assert_eq!(id.x(), [8u32,9u32]);
     /// ```
-    pub fn as_x(&self) -> [u32; 2] {
+    pub fn x(&self) -> [u32; 2] {
         self.x
     }
 
@@ -235,9 +235,9 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_y(), [5u32,10u32]);
+    /// assert_eq!(id.y(), [5u32,10u32]);
     /// ```
-    pub fn as_y(&self) -> [u32; 2] {
+    pub fn y(&self) -> [u32; 2] {
         self.y
     }
 
@@ -360,10 +360,10 @@ impl RangeId {
     /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
     /// let parent = id.spatial_parent(1).unwrap();
     ///
-    /// assert_eq!(parent.as_z(), 4);
-    /// assert_eq!(parent.as_f(), [0,14]);
-    /// assert_eq!(parent.as_x(), [4,4]);
-    /// assert_eq!(parent.as_y(), [2,5]);
+    /// assert_eq!(parent.z(), 4);
+    /// assert_eq!(parent.f(), [0,14]);
+    /// assert_eq!(parent.x(), [4,4]);
+    /// assert_eq!(parent.y(), [2,5]);
     /// ```
     ///
     /// Fが負の場合の挙動:
@@ -374,10 +374,10 @@ impl RangeId {
     ///
     /// let parent = id.spatial_parent(1).unwrap();
     ///
-    /// assert_eq!(parent.as_z(), 4);
-    /// assert_eq!(parent.as_f(), [-5,-3]);
-    /// assert_eq!(parent.as_x(), [4,4]);
-    /// assert_eq!(parent.as_y(), [2,5]);
+    /// assert_eq!(parent.z(), 4);
+    /// assert_eq!(parent.f(), [-5,-3]);
+    /// assert_eq!(parent.x(), [4,4]);
+    /// assert_eq!(parent.y(), [2,5]);
     /// ```
     ///
     /// ズームレベルの範囲外:
@@ -464,10 +464,10 @@ impl RangeId {
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { RangeId::new_unchecked(5, [-10,-5], [8,9], [5,10]) };
     ///
-    /// assert_eq!(id.as_z(), 5);
-    /// assert_eq!(id.as_f(), [-10,-5]);
-    /// assert_eq!(id.as_x(), [8,9]);
-    /// assert_eq!(id.as_y(), [5,10]);
+    /// assert_eq!(id.z(), 5);
+    /// assert_eq!(id.f(), [-10,-5]);
+    /// assert_eq!(id.x(), [8,9]);
+    /// assert_eq!(id.y(), [5,10]);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
         unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole()) }
@@ -615,7 +615,7 @@ impl SpatialId for RangeId {
     /// # use kasane_logic::Error;
     /// # use kasane_logic::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.min_f(), -32i32);
     /// ```
     fn min_f(&self) -> i32 {
@@ -628,7 +628,7 @@ impl SpatialId for RangeId {
     /// # use kasane_logic::Error;
     /// # use kasane_logic::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.max_f(), 31i32);
     /// ```
     fn max_f(&self) -> i32 {
@@ -641,7 +641,7 @@ impl SpatialId for RangeId {
     /// # use kasane_logic::Error;
     /// # use kasane_logic::SpatialId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.as_z(), 5u8);
+    /// assert_eq!(id.z(), 5u8);
     /// assert_eq!(id.max_xy(), 31u32);
     /// ```
     fn max_xy(&self) -> u32 {
@@ -783,10 +783,10 @@ impl SpatialId for RangeId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        let one = 2_i32.pow(25 - self.as_z() as u32) as f64;
+        let one = 2_i32.pow(25 - self.z() as u32) as f64;
 
         //このRangeIdの高さ方向の幅を計算
-        let range = (self.as_f()[0] - self.as_f()[1]).abs() as f64;
+        let range = (self.f()[0] - self.f()[1]).abs() as f64;
 
         //かけ合わせて答えを返却
         (one * range).into()
@@ -817,15 +817,15 @@ impl SpatialId for RangeId {
 
 impl Block for RangeId {
     fn segmentation(&self) -> BlockSegments {
-        let f = Segment::split_f(self.as_z(), self.as_f()).collect();
+        let f = Segment::split_f(self.z(), self.f()).collect();
         let x = if self.x[0] <= self.x[1] {
-            Segment::split_xy(self.as_z(), self.as_x()).collect()
+            Segment::split_xy(self.z(), self.x()).collect()
         } else {
-            Segment::split_xy(self.as_z(), [self.x[0], self.max_xy()])
-                .chain(Segment::split_xy(self.as_z(), [0, self.x[1]]))
+            Segment::split_xy(self.z(), [self.x[0], self.max_xy()])
+                .chain(Segment::split_xy(self.z(), [0, self.x[1]]))
                 .collect()
         };
-        let y = Segment::split_xy(self.as_z(), self.as_y()).collect();
+        let y = Segment::split_xy(self.z(), self.y()).collect();
         BlockSegments { f, x, y }
     }
 }
@@ -834,10 +834,10 @@ impl From<SingleId> for RangeId {
     ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
     fn from(id: SingleId) -> Self {
         RangeId {
-            z: id.as_z(),
-            f: [id.as_f(), id.as_f()],
-            x: [id.as_x(), id.as_x()],
-            y: [id.as_y(), id.as_y()],
+            z: id.z(),
+            f: [id.f(), id.f()],
+            x: [id.x(), id.x()],
+            y: [id.y(), id.y()],
             temporal_id: id.temporal_id().clone(),
         }
     }

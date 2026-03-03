@@ -80,9 +80,9 @@ impl<T> SpatialCore<T> {
     pub fn insert_entry(&mut self, flex_id: FlexId, meta: T) -> FlexIdRank {
         let rank = self.fetch_rank();
 
-        Self::dimension_insert(&mut self.f, flex_id.as_f().clone(), rank);
-        Self::dimension_insert(&mut self.x, flex_id.as_x().clone(), rank);
-        Self::dimension_insert(&mut self.y, flex_id.as_y().clone(), rank);
+        Self::dimension_insert(&mut self.f, flex_id.f().clone(), rank);
+        Self::dimension_insert(&mut self.x, flex_id.x().clone(), rank);
+        Self::dimension_insert(&mut self.y, flex_id.y().clone(), rank);
 
         self.main.insert(rank, (flex_id, meta));
 
@@ -93,9 +93,9 @@ impl<T> SpatialCore<T> {
     /// 削除された (FlexId, T) を返す
     pub fn remove_entry(&mut self, rank: FlexIdRank) -> Option<(FlexId, T)> {
         if let Some((flex_id, meta)) = self.main.remove(&rank) {
-            Self::dimension_remove(&mut self.f, flex_id.as_f(), rank);
-            Self::dimension_remove(&mut self.x, flex_id.as_x(), rank);
-            Self::dimension_remove(&mut self.y, flex_id.as_y(), rank);
+            Self::dimension_remove(&mut self.f, flex_id.f(), rank);
+            Self::dimension_remove(&mut self.x, flex_id.x(), rank);
+            Self::dimension_remove(&mut self.y, flex_id.y(), rank);
             self.return_rank(rank);
             Some((flex_id, meta))
         } else {

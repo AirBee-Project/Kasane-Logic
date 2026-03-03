@@ -323,15 +323,15 @@ where
 
     /// 指定された FlexId の領域内に完全に含まれる（または一致する）全てのランクを取得する。
     fn collect_contained_ranks(&self, target: &FlexId) -> Option<Vec<FlexIdRank>> {
-        let f_end = target.as_f().descendant_range_end()?;
-        let f_candidates = self.union_bitmaps(self.core.f(), target.as_f(), &f_end);
+        let f_end = target.f().descendant_range_end()?;
+        let f_candidates = self.union_bitmaps(self.core.f(), target.f(), &f_end);
 
         if f_candidates.is_empty() {
             return None;
         }
 
-        let x_end = target.as_x().descendant_range_end()?;
-        let x_candidates = self.union_bitmaps(self.core.x(), target.as_x(), &x_end);
+        let x_end = target.x().descendant_range_end()?;
+        let x_candidates = self.union_bitmaps(self.core.x(), target.x(), &x_end);
         if x_candidates.is_empty() {
             return None;
         }
@@ -341,8 +341,8 @@ where
             return None;
         }
 
-        let y_end = target.as_y().descendant_range_end()?;
-        let y_candidates = self.union_bitmaps(self.core.y(), target.as_y(), &y_end);
+        let y_end = target.y().descendant_range_end()?;
+        let y_candidates = self.union_bitmaps(self.core.y(), target.y(), &y_end);
 
         let intersection = fx_intersection & y_candidates;
 

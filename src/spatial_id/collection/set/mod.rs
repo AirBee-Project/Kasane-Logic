@@ -126,15 +126,15 @@ impl SetOnMemory {
 
     /// 指定された FlexId の領域内に完全に含まれる（または一致する）全てのランクを取得する。
     fn collect_contained_ranks(&self, target: &FlexId) -> Option<Vec<FlexIdRank>> {
-        let f_end = target.as_f().descendant_range_end()?;
-        let f_candidates = self.union_bitmaps(self.core.f(), target.as_f(), &f_end);
+        let f_end = target.f().descendant_range_end()?;
+        let f_candidates = self.union_bitmaps(self.core.f(), target.f(), &f_end);
 
         if f_candidates.is_empty() {
             return None;
         }
 
-        let x_end = target.as_x().descendant_range_end()?;
-        let x_candidates = self.union_bitmaps(self.core.x(), target.as_x(), &x_end);
+        let x_end = target.x().descendant_range_end()?;
+        let x_candidates = self.union_bitmaps(self.core.x(), target.x(), &x_end);
         if x_candidates.is_empty() {
             return None;
         }
@@ -144,8 +144,8 @@ impl SetOnMemory {
             return None;
         }
 
-        let y_end = target.as_y().descendant_range_end()?;
-        let y_candidates = self.union_bitmaps(self.core.y(), target.as_y(), &y_end);
+        let y_end = target.y().descendant_range_end()?;
+        let y_candidates = self.union_bitmaps(self.core.y(), target.y(), &y_end);
 
         let intersection = fx_intersection & y_candidates;
 
@@ -340,7 +340,7 @@ impl SetOnMemory {
     pub fn optimize_single_ids(&self) -> Vec<SingleId> {
         let mut layers: BTreeMap<u8, BTreeSet<SingleId>> = BTreeMap::new();
         for id in self.single_ids() {
-            layers.entry(id.as_z()).or_default().insert(id);
+            layers.entry(id.z()).or_default().insert(id);
         }
         if layers.is_empty() {
             return Vec::new();
@@ -381,9 +381,9 @@ impl SetOnMemory {
             let mut f_map: BTreeMap<(u8, u32, u32), Vec<i32>> = BTreeMap::new();
             for id in singles {
                 f_map
-                    .entry((id.as_z(), id.as_x(), id.as_y()))
+                    .entry((id.z(), id.x(), id.y()))
                     .or_default()
-                    .push(id.as_f());
+                    .push(id.f());
             }
             for ((z, x, y), mut fs) in f_map {
                 fs.sort_unstable();
