@@ -353,7 +353,7 @@ impl SetOnMemory {
             };
             let mut siblings_map: BTreeMap<SingleId, Vec<SingleId>> = BTreeMap::new();
             for id in ids_at_current_z {
-                if let Some(parent) = id.parent(1) {
+                if let Some(parent) = id.spatial_parent(1) {
                     siblings_map.entry(parent).or_default().push(id);
                 }
             }

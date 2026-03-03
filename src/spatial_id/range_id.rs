@@ -1,5 +1,5 @@
 // src/id/spatial_id/range.rs
-use std::fmt;
+use std::{collections::btree_map::Range, fmt};
 
 #[cfg(any(test))]
 use proptest::prelude::*;
@@ -8,11 +8,11 @@ use crate::{
     Coordinate, SingleId,
     error::Error,
     spatial_id::{
-        Block, BlockSegments, FlexIds, SpatialId,
+        Block, BlockSegments, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        flex_id::FlexId,
         helpers,
         segment::Segment,
+        temporal::TemporalId,
     },
 };
 #[cfg(any(test, feature = "random"))]
@@ -40,6 +40,7 @@ pub struct RangeId {
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
+    temporal_id: TemporalId,
 }
 
 impl fmt::Display for RangeId {
@@ -66,6 +67,7 @@ impl fmt::Display for RangeId {
     ///  assert_eq!(s, "4/-3/8:9/5:10");;
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //空間の情報の書き込み
         write!(
             f,
             "{}/{}/{}/{}",
@@ -73,7 +75,13 @@ impl fmt::Display for RangeId {
             format_dimension(self.f),
             format_dimension(self.x),
             format_dimension(self.y),
-        )
+        );
+
+        //時間の情報があれば書き込み
+        if !self.temporal_id.is_whole() {
+            write!(f, "_{}", self.temporal_id);
+        };
+        Ok(())
     }
 }
 
@@ -136,6 +144,17 @@ impl RangeId {
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
     pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
+        Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+    }
+
+    pub fn new_with_temporal(
+        z: u8,
+        f: [i32; 2],
+        x: [u32; 2],
+        y: [u32; 2],
+
+        temporal_id: TemporalId,
+    ) -> Result<RangeId, Error> {
         if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
         }
@@ -165,7 +184,13 @@ impl RangeId {
             y.swap(0, 1);
         }
 
-        Ok(RangeId { z, f, x, y })
+        Ok(RangeId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id,
+        })
     }
 
     /// この `RangeId` が保持しているズームレベル `z` を返します。
@@ -282,7 +307,7 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.children(1).unwrap();
+    /// let result = id.spatial_children(1).unwrap();
     /// assert_eq!(result,  RangeId::new(6, [-6, 59], [16, 19], [10, 21] ).unwrap());
     ///
     /// ```
@@ -292,10 +317,10 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.children(63);
+    /// let result = id.spatial_children(63);
     /// assert!(matches!(result, Err(Error::ZOutOfRange { z: 68 })));
     /// ```
-    pub fn children(&self, difference: u8) -> Result<RangeId, Error> {
+    pub fn spatial_children(&self, difference: u8) -> Result<RangeId, Error> {
         let z = self
             .z
             .checked_add(difference)
@@ -311,7 +336,13 @@ impl RangeId {
         let x = helpers::scale_range_u32(self.x[0], self.x[1], scale_xy);
         let y = helpers::scale_range_u32(self.y[0], self.y[1], scale_xy);
 
-        Ok(RangeId { z, f, x, y })
+        Ok(RangeId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id: self.temporal_id().clone(),
+        })
     }
 
     /// 指定したズームレベル差 `difference` に基づき、この `RangeId` を含む最小の大きさの `RangeId` を返します。
@@ -327,7 +358,7 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
-    /// let parent = id.parent(1).unwrap();
+    /// let parent = id.spatial_parent(1).unwrap();
     ///
     /// assert_eq!(parent.as_z(), 4);
     /// assert_eq!(parent.as_f(), [0,14]);
@@ -341,7 +372,7 @@ impl RangeId {
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     ///
-    /// let parent = id.parent(1).unwrap();
+    /// let parent = id.spatial_parent(1).unwrap();
     ///
     /// assert_eq!(parent.as_z(), 4);
     /// assert_eq!(parent.as_f(), [-5,-3]);
@@ -355,9 +386,9 @@ impl RangeId {
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// // difference = 6 の場合は親が存在しないため None
-    /// assert!(id.parent(6).is_none());
+    /// assert!(id.spatial_parent(6).is_none());
     /// ```
-    pub fn parent(&self, difference: u8) -> Option<RangeId> {
+    pub fn spatial_parent(&self, difference: u8) -> Option<RangeId> {
         let z = self.z.checked_sub(difference)?;
         let shift = difference as u32;
 
@@ -377,7 +408,13 @@ impl RangeId {
         let x = [self.x[0] >> shift, self.x[1] >> shift];
         let y = [self.y[0] >> shift, self.y[1] >> shift];
 
-        Some(RangeId { z, f, x, y })
+        Some(RangeId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id: self.temporal_id().clone(),
+        })
     }
 
     /// [`RangeId`]を[`SingleId`]に分解し、イテレータとして提供します。
@@ -433,7 +470,23 @@ impl RangeId {
     /// assert_eq!(id.as_y(), [5,10]);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
-        RangeId { z, f, x, y }
+        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole()) }
+    }
+
+    pub unsafe fn new_with_temporal_unchecked(
+        z: u8,
+        f: [i32; 2],
+        x: [u32; 2],
+        y: [u32; 2],
+        temporal_id: TemporalId,
+    ) -> RangeId {
+        RangeId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id,
+        }
     }
 
     /// 全空間（Z=0〜MAX）からランダムにRangeIdを生成
@@ -676,7 +729,7 @@ impl SpatialId for RangeId {
     /// [`RangeId`] の中心座標を[`Coordinate`]型で返します。
     ///
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
-    fn center(&self) -> Coordinate {
+    fn spatial_center(&self) -> Coordinate {
         let z = self.z;
 
         let xf = (self.x[0] + self.x[1]) as f64 / 2.0 + 0.5;
@@ -695,7 +748,7 @@ impl SpatialId for RangeId {
     /// [`RangeId`] の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
     ///
     /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
-    fn vertices(&self) -> [Coordinate; 8] {
+    fn spatial_vertices(&self) -> [Coordinate; 8] {
         let z = self.z;
 
         // 2 点ずつの端点
@@ -728,7 +781,7 @@ impl SpatialId for RangeId {
     }
 
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
-    fn length_f(&self) -> f64 {
+    fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
         let one = 2_i32.pow(25 - self.as_z() as u32) as f64;
 
@@ -740,13 +793,25 @@ impl SpatialId for RangeId {
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
-    fn length_x(&self) -> f64 {
+    fn length_x_meters(&self) -> f64 {
         todo!()
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
-    fn length_y(&self) -> f64 {
+    fn length_y_meters(&self) -> f64 {
         todo!()
+    }
+
+    fn temporal_id(&self) -> &TemporalId {
+        &self.temporal_id
+    }
+
+    fn move_t(&mut self, by: i128) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn length_t_seconds(&self) -> u64 {
+        self.temporal_id.length_seconds()
     }
 }
 
@@ -773,6 +838,7 @@ impl From<SingleId> for RangeId {
             f: [id.as_f(), id.as_f()],
             x: [id.as_x(), id.as_x()],
             y: [id.as_y(), id.as_y()],
+            temporal_id: id.temporal_id().clone(),
         }
     }
 }

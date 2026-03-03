@@ -17,6 +17,10 @@ pub enum Error {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
 
+    /// 時間方向が0-u64::MAXの有効範囲外であることを示す。
+    /// 0=<i×t=<u64::MAXを満たす必要がある
+    TOutOfRange { i: u64, t: u64 },
+
     /// 緯度が有効範囲外であることを表す。
     LatitudeOutOfRange { latitude: f64 },
 
@@ -86,6 +90,9 @@ impl fmt::Display for Error {
                     "Solid is not watertight (closed). Found {} open edges.",
                     open_edge_count
                 )
+            }
+            Error::TOutOfRange { i, t } => {
+                write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
             }
         }
     }

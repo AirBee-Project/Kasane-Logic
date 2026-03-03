@@ -51,7 +51,7 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
             })
         })
         .filter(move |id| {
-            let p: Coordinate = id.center();
+            let p: Coordinate = id.spatial_center();
             center.distance(&p) <= radius + voxel_diag_half
         })
 }

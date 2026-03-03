@@ -11,11 +11,11 @@ use crate::{
     Coordinate, Ecef,
     error::Error,
     spatial_id::{
-        Block, BlockSegments, FlexIds, SpatialId,
+        self, Block, BlockSegments, SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        flex_id::FlexId,
         helpers,
         segment::Segment,
+        temporal::TemporalId,
     },
 };
 
@@ -39,6 +39,7 @@ pub struct SingleId {
     f: i32,
     x: u32,
     y: u32,
+    temporal_id: TemporalId,
 }
 
 impl fmt::Display for SingleId {
@@ -54,7 +55,12 @@ impl fmt::Display for SingleId {
     /// assert_eq!(s, "4/6/9/10");
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)
+        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y);
+        //時間の情報があれば書き込み
+        if !self.temporal_id.is_whole() {
+            write!(f, "_{}", self.temporal_id);
+        }
+        Ok(())
     }
 }
 
@@ -98,6 +104,16 @@ impl SingleId {
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
     pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
+        Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+    }
+
+    pub fn new_with_temporal(
+        z: u8,
+        f: i32,
+        x: u32,
+        y: u32,
+        temporal_id: TemporalId,
+    ) -> Result<SingleId, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
         }
@@ -116,7 +132,13 @@ impl SingleId {
             return Err(Error::YOutOfRange { y, z });
         }
 
-        Ok(SingleId { z, f, x, y })
+        Ok(SingleId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id,
+        })
     }
 
     /// この `SingleId` が保持しているズームレベル `z` を返します。
@@ -295,7 +317,7 @@ impl SingleId {
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     ///
     /// // difference = 1 のため F, X, Y はそれぞれ 2 分割される
-    /// let children: Vec<_> = id.children(1).unwrap().collect();
+    /// let children: Vec<_> = id.spatial_children(1).unwrap().collect();
     ///
     /// assert_eq!(children.len(), 8); // 2 × 2 × 2
     ///
@@ -312,10 +334,13 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::Error;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    /// let result = id.children(63);
+    /// let result = id.spatial_children(63);
     /// assert!(matches!(result, Err(Error::ZOutOfRange { z: 66 })));
     /// ```
-    pub fn children(&self, difference: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    pub fn spatial_children(
+        &self,
+        difference: u8,
+    ) -> Result<impl Iterator<Item = SingleId>, Error> {
         let z = self
             .z
             .checked_add(difference)
@@ -340,7 +365,15 @@ impl SingleId {
             let x_range = x_range.clone();
             let y_range = y_range.clone();
 
-            x_range.flat_map(move |x| y_range.clone().map(move |y| SingleId { z, f, x, y }))
+            x_range.flat_map(move |x| {
+                y_range.clone().map(move |y| SingleId {
+                    z,
+                    f,
+                    x,
+                    y,
+                    temporal_id: self.temporal_id().clone(),
+                })
+            })
         }))
     }
 
@@ -357,7 +390,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     ///
-    /// let parent = id.parent(1).unwrap();
+    /// let parent = id.spatial_parent(1).unwrap();
     ///
     /// assert_eq!(parent.as_z(), 3u8);
     /// assert_eq!(parent.as_f(), 3i32);
@@ -370,7 +403,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, -1, 8, 12).unwrap();
     ///
-    /// let parent = id.parent(1).unwrap();
+    /// let parent = id.spatial_parent(1).unwrap();
     ///
     /// assert_eq!(parent.as_z(), 3u8);
     /// assert_eq!(parent.as_f(), -1i32);
@@ -384,9 +417,9 @@ impl SingleId {
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     ///
     /// // difference = 4 の場合は親が存在しないため None
-    /// assert!(id.parent(4).is_none());
+    /// assert!(id.spatial_parent(4).is_none());
     /// ```
-    pub fn parent(&self, difference: u8) -> Option<SingleId> {
+    pub fn spatial_parent(&self, difference: u8) -> Option<SingleId> {
         let z = self.z.checked_sub(difference)?;
         let f = if self.f == -1 {
             -1
@@ -395,7 +428,13 @@ impl SingleId {
         };
         let x = self.x >> (difference as u32);
         let y = self.y >> (difference as u32);
-        Some(SingleId { z, f, x, y })
+        Some(SingleId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id: self.temporal_id().clone(),
+        })
     }
 
     /// 検証を行わずに [`SingleId`] を構築します。
@@ -425,7 +464,23 @@ impl SingleId {
     /// assert_eq!(id.as_y(), 10u32);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
-        SingleId { z, f, x, y }
+        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole()) }
+    }
+
+    pub unsafe fn new_with_temporal_unchecked(
+        z: u8,
+        f: i32,
+        x: u32,
+        y: u32,
+        temporal_id: TemporalId,
+    ) -> SingleId {
+        SingleId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id,
+        }
     }
 
     ///ランダムな[SingleId]を作成する
@@ -691,11 +746,11 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
-    /// let center: Coordinate = id.center();
+    /// let center: Coordinate = id.spatial_center();
     /// println!("{:?}", center);
     /// // Coordinate { latitude: -81.09321385260839, longitude: 33.75, altitude: 13631488.0 }
     /// ```
-    fn center(&self) -> Coordinate {
+    fn spatial_center(&self) -> Coordinate {
         unsafe {
             Coordinate::new_unchecked(
                 helpers::latitude(self.y as f64 + 0.5, self.z),
@@ -714,12 +769,12 @@ impl SpatialId for SingleId {
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
-    /// let vertices: [Coordinate; 8] = id.vertices();
+    /// let vertices: [Coordinate; 8] = id.spatial_vertices();
     /// println!("{:?}", vertices);
     ///
     ///  //[Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 14680064.0 }]
     /// ```
-    fn vertices(&self) -> [Coordinate; 8] {
+    fn spatial_vertices(&self) -> [Coordinate; 8] {
         let xs = [self.x as f64, self.x as f64 + 1.0];
         let ys = [self.y as f64, self.y as f64 + 1.0];
         let fs = [self.f as f64, self.f as f64 + 1.0];
@@ -763,23 +818,35 @@ impl SpatialId for SingleId {
     }
 
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
-    fn length_f(&self) -> f64 {
+    fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
         2_i32.pow(25 - self.as_z() as u32) as f64
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
-    fn length_x(&self) -> f64 {
-        let ecef: Ecef = self.center().into();
+    fn length_x_meters(&self) -> f64 {
+        let ecef: Ecef = self.spatial_center().into();
         let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
-    fn length_y(&self) -> f64 {
-        let ecef: Ecef = self.center().into();
+    fn length_y_meters(&self) -> f64 {
+        let ecef: Ecef = self.spatial_center().into();
         let r = (ecef.as_x() * ecef.as_x() + ecef.as_y() * ecef.as_y()).sqrt();
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.as_z() as u32) as f64)
+    }
+
+    fn temporal_id(&self) -> &TemporalId {
+        &self.temporal_id
+    }
+
+    fn move_t(&mut self, by: i128) -> Result<(), Error> {
+        todo!()
+    }
+
+    fn length_t_seconds(&self) -> u64 {
+        self.temporal_id.length_seconds()
     }
 }
 
