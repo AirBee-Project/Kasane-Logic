@@ -45,9 +45,8 @@ impl TemporalId {
 
     /// 全範囲を表しているか判定する
     pub fn is_whole(&self) -> bool {
-        self.i == 1 && self.t == [0, u64::MAX]
+        self.start_unixstamp() == 0 && self.end_unixtime_exclusive() == (u64::MAX as u128) + 1
     }
-
     /// 実際の開始時刻 (Unix時間の経過秒数) を返す
     pub fn start_unixstamp(&self) -> u64 {
         self.i * self.t[0]

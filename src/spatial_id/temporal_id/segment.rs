@@ -1,7 +1,7 @@
 use crate::{Segment, TemporalId};
 
 impl TemporalId {
-    pub fn split_segments<const N: usize>(&self) -> impl Iterator<Item = Segment<N>> {
+    pub fn split_segments(&self) -> impl Iterator<Item = Segment<16>> {
         let l = (self.t[0] as i128) * (self.i as i128);
         let r = (self.t[1] as i128) * (self.i as i128) + (self.i as i128) - 1;
 
@@ -9,8 +9,8 @@ impl TemporalId {
     }
 }
 
-impl<const N: usize> From<Segment<N>> for TemporalId {
-    fn from(segment: Segment<N>) -> Self {
+impl From<Segment<16>> for TemporalId {
+    fn from(segment: Segment<16>) -> Self {
         let (z, index) = segment.to_t();
         let shift = 64 - z;
 
