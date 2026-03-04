@@ -26,6 +26,7 @@ use crate::{
 /// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
 ///
 /// ```
+/// # use kasane_logic::TemporalId;
 /// pub struct SingleId {
 ///     z: u8,
 ///     f: i32,
