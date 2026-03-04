@@ -20,9 +20,9 @@ pub mod segment;
 /// ```
 #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 pub struct FlexId {
-    f: Segment<32>,
-    x: Segment<32>,
-    y: Segment<32>,
+    f: Segment<8>,
+    x: Segment<8>,
+    y: Segment<8>,
 }
 
 /// [FlexId]同士の関係を表します。
@@ -36,7 +36,7 @@ enum FlexIdRelation {
 
 impl FlexId {
     /// 新しく[FlexId]を作成する。
-    pub fn new(f: Segment<32>, x: Segment<32>, y: Segment<32>) -> FlexId {
+    pub fn new(f: Segment<8>, x: Segment<8>, y: Segment<8>) -> FlexId {
         FlexId { f, x, y }
     }
 
@@ -46,17 +46,17 @@ impl FlexId {
     }
 
     /// Fインデックスのセグメントを参照する。
-    pub fn f(&self) -> &Segment<32> {
+    pub fn f(&self) -> &Segment<8> {
         &self.f
     }
 
     /// Xインデックスのセグメントを参照する。
-    pub fn x(&self) -> &Segment<32> {
+    pub fn x(&self) -> &Segment<8> {
         &self.x
     }
 
     /// Yインデックスのセグメントを参照する。
-    pub fn y(&self) -> &Segment<32> {
+    pub fn y(&self) -> &Segment<8> {
         &self.y
     }
 

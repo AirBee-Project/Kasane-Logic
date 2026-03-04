@@ -40,14 +40,14 @@ impl From<FlexId> for RangeId {
     }
 }
 
-impl From<FlexId> for ([u8; 32], [u8; 32], [u8; 32]) {
+impl From<FlexId> for ([u8; 8], [u8; 8], [u8; 8]) {
     fn from(value: FlexId) -> Self {
         (value.f.into(), value.x.into(), value.y.into())
     }
 }
 
-impl From<([u8; 32], [u8; 32], [u8; 32])> for FlexId {
-    fn from(value: ([u8; 32], [u8; 32], [u8; 32])) -> Self {
+impl From<([u8; 8], [u8; 8], [u8; 8])> for FlexId {
+    fn from(value: ([u8; 8], [u8; 8], [u8; 8])) -> Self {
         Self {
             f: value.0.into(),
             x: value.1.into(),

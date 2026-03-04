@@ -13,9 +13,9 @@ use crate::{
 /// T: IDに関連付けられる追加メタデータ（TableならValueRank、Setなら()）
 #[derive(Clone, Debug)]
 pub struct SpatialCore<T> {
-    f: BTreeMap<Segment<32>, RoaringTreemap>,
-    x: BTreeMap<Segment<32>, RoaringTreemap>,
-    y: BTreeMap<Segment<32>, RoaringTreemap>,
+    f: BTreeMap<Segment<8>, RoaringTreemap>,
+    x: BTreeMap<Segment<8>, RoaringTreemap>,
+    y: BTreeMap<Segment<8>, RoaringTreemap>,
 
     main: BTreeMap<FlexIdRank, (FlexId, T)>,
 
@@ -37,15 +37,15 @@ impl<T> Default for SpatialCore<T> {
 }
 
 impl<T> Scanner for SpatialCore<T> {
-    fn f(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
+    fn f(&self) -> &BTreeMap<Segment<8>, RoaringTreemap> {
         &self.f
     }
 
-    fn x(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
+    fn x(&self) -> &BTreeMap<Segment<8>, RoaringTreemap> {
         &self.x
     }
 
-    fn y(&self) -> &BTreeMap<Segment<32>, RoaringTreemap> {
+    fn y(&self) -> &BTreeMap<Segment<8>, RoaringTreemap> {
         &self.y
     }
 }
@@ -121,8 +121,8 @@ impl<T> SpatialCore<T> {
     }
 
     fn dimension_insert(
-        btree: &mut BTreeMap<Segment<32>, RoaringTreemap>,
-        segment: Segment<32>,
+        btree: &mut BTreeMap<Segment<8>, RoaringTreemap>,
+        segment: Segment<8>,
         rank: FlexIdRank,
     ) {
         match btree.entry(segment) {
@@ -138,8 +138,8 @@ impl<T> SpatialCore<T> {
     }
 
     fn dimension_remove(
-        btree: &mut BTreeMap<Segment<32>, RoaringTreemap>,
-        segment: &Segment<32>,
+        btree: &mut BTreeMap<Segment<8>, RoaringTreemap>,
+        segment: &Segment<8>,
         rank: FlexIdRank,
     ) {
         if let Some(entry) = btree.get_mut(segment) {

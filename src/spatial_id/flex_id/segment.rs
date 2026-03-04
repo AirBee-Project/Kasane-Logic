@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 ///Segmentを`V-Bit`を用いて表す。
-/// Nにはこのセグメントに格納したい範囲の最大のズームレベルを格納する
+/// Nにはこのセグメントで使用したいByte数を入力
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Segment<const N: usize>([u8; N]);
 

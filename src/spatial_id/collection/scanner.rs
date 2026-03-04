@@ -9,9 +9,9 @@ use crate::{
 
 ///このTraitを実装していると、効率的に関連のある[FlexId]をスキャンする関数などを提供する
 pub trait Scanner: Sized {
-    fn f(&self) -> &BTreeMap<Segment<32>, RoaringTreemap>;
-    fn x(&self) -> &BTreeMap<Segment<32>, RoaringTreemap>;
-    fn y(&self) -> &BTreeMap<Segment<32>, RoaringTreemap>;
+    fn f(&self) -> &BTreeMap<Segment<8>, RoaringTreemap>;
+    fn x(&self) -> &BTreeMap<Segment<8>, RoaringTreemap>;
+    fn y(&self) -> &BTreeMap<Segment<8>, RoaringTreemap>;
 
     ///[FlexIdScanPlan]型を返す
     fn flex_id_scan_plan<T: Block>(&'_ self, target: T) -> FlexIdScanPlan<'_> {
@@ -128,13 +128,13 @@ impl<'b, 'a> FlexIdScanner<'b, 'a> {
         fast_intersect([&f, &x, &y])
     }
 
-    pub fn f(&self) -> &Segment<32> {
+    pub fn f(&self) -> &Segment<8> {
         &self.f.segment
     }
-    pub fn x(&self) -> &Segment<32> {
+    pub fn x(&self) -> &Segment<8> {
         &self.x.segment
     }
-    pub fn y(&self) -> &Segment<32> {
+    pub fn y(&self) -> &Segment<8> {
         &self.y.segment
     }
 }
@@ -142,15 +142,15 @@ impl<'b, 'a> FlexIdScanner<'b, 'a> {
 #[derive(Debug)]
 ///ある[FlexId]の関連あるセグメントを調べ、キャッシュしておく型
 pub struct SegmentFamily<'a> {
-    segment: Segment<32>,
+    segment: Segment<8>,
     parents: OnceCell<RoaringTreemap>,
     children: OnceCell<RoaringTreemap>,
-    btree: &'a BTreeMap<Segment<32>, RoaringTreemap>,
+    btree: &'a BTreeMap<Segment<8>, RoaringTreemap>,
 }
 
 impl<'a> SegmentFamily<'a> {
     ///[SegmentFamily]を作成する
-    fn new(segment: Segment<32>, btree: &'a BTreeMap<Segment<32>, RoaringTreemap>) -> Self {
+    fn new(segment: Segment<8>, btree: &'a BTreeMap<Segment<8>, RoaringTreemap>) -> Self {
         Self {
             segment,
             parents: OnceCell::new(),

@@ -68,7 +68,7 @@ impl<T: Block> FlexIds for T {
 /// RangeIDやSingleIDやFlexIDを最適分割したもの
 /// 必ず一続きの領域（直方体状の空間）を表す
 pub struct BlockSegments {
-    pub f: Vec<Segment<32>>,
-    pub x: Vec<Segment<32>>,
-    pub y: Vec<Segment<32>>,
+    pub f: Vec<Segment<8>>,
+    pub x: Vec<Segment<8>>,
+    pub y: Vec<Segment<8>>,
 }
