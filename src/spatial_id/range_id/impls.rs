@@ -5,7 +5,7 @@ use crate::{
     spatial_id::{
         BlockSegments,
         constants::{F_MAX, F_MIN, XY_MAX},
-        helpers,
+        helpers::{self, format_dimension},
     },
 };
 
@@ -48,15 +48,6 @@ impl fmt::Display for RangeId {
             write!(f, "_{}", self.temporal_id)?;
         };
         Ok(())
-    }
-}
-
-//次元の文字列を圧縮するための関数
-fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
-    if dimension[0] == dimension[1] {
-        format!("{}", dimension[0])
-    } else {
-        format!("{}:{}", dimension[0], dimension[1])
     }
 }
 

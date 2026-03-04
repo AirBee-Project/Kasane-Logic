@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, fmt};
 /// Scale an inclusive range `[start, end]` by `scale` for children calculation.
 /// For integer types, result is `[start*scale, end*scale + scale - 1]`
 pub fn scale_range_i32(start: i32, end: i32, scale: i32) -> [i32; 2] {
@@ -92,11 +92,11 @@ where
     result
 }
 
-///最大公約数を求める関数
-pub fn gcd(mut a: u64, mut b: u64) -> u64 {
-    while b != 0 {
-        a %= b;
-        std::mem::swap(&mut a, &mut b);
+///次元の区間表記の文字列を圧縮するための関数
+pub fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
+    if dimension[0] == dimension[1] {
+        format!("{}", dimension[0])
+    } else {
+        format!("{}:{}", dimension[0], dimension[1])
     }
-    a
 }

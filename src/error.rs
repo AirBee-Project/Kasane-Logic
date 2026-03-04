@@ -1,5 +1,6 @@
 use std::error;
 use std::fmt;
+use std::num::NonZeroU64;
 
 /// 本クレートで発生し得るエラーを表す。
 #[derive(Debug, PartialEq)] // PartialEqはテスト等で便利ですが、f64を含む場合は注意が必要です
@@ -19,7 +20,7 @@ pub enum Error {
 
     /// 時間方向が0-u64::MAXの有効範囲外であることを示す。
     /// 0=<i×t=<u64::MAXを満たす必要がある
-    TOutOfRange { i: u64, t: u64 },
+    TOutOfRange { i: NonZeroU64, t: u64 },
 
     /// 緯度が有効範囲外であることを表す。
     LatitudeOutOfRange { latitude: f64 },

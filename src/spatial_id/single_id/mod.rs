@@ -9,12 +9,10 @@ use proptest::prelude::*;
 pub mod impls;
 
 use crate::{
-    Coordinate, Ecef, Segment,
     error::Error,
     spatial_id::{
-        Block, BlockSegments, SpatialId,
+        SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        helpers,
         temporal_id::TemporalId,
     },
 };
@@ -45,7 +43,7 @@ pub struct SingleId {
 }
 
 impl SingleId {
-    /// 指定された値から [`SingleId`] を構築します。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// 指定された値から [`SingleId`] を構築します。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す
     ///
     /// # パラメータ
     /// * `z` — ズームレベル（0–63の範囲が有効）  
@@ -54,11 +52,11 @@ impl SingleId {
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返します。  
+    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返す。  
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
-    ///   [`Error::FOutOfRange`] を返します。  
+    ///   [`Error::FOutOfRange`] を返す。  
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  
-    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返します。
+    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返す。
     ///
     ///
     /// IDの作成:

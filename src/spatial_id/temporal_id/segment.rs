@@ -1,9 +1,11 @@
+use std::num::{NonZero, NonZeroU64};
+
 use crate::{Segment, TemporalId};
 
 impl TemporalId {
     pub fn split_segments(&self) -> impl Iterator<Item = Segment<16>> {
-        let l = (self.t[0] as i128) * (self.i as i128);
-        let r = (self.t[1] as i128) * (self.i as i128) + (self.i as i128) - 1;
+        let l = (self.t[0] as i128) * (self.i.get() as i128);
+        let r = (self.t[1] as i128) * (self.i.get() as i128) + (self.i.get() as i128) - 1;
 
         TemporalSegmentIter { l, r, cur_z: 64 }.map(|(z, dim)| Segment::from_t(z, dim as u64))
     }
@@ -18,7 +20,7 @@ impl From<Segment<16>> for TemporalId {
         let end_idx = (((index as u128 + 1) << shift) - 1) as u64;
 
         Self {
-            i: 1,
+            i: NonZeroU64::new(1).unwrap(),
             t: [start_idx, end_idx],
         }
     }
