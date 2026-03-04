@@ -10,13 +10,7 @@ pub mod segment;
 /// 内部的には下記のような構造体で構成されている。
 ///
 /// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
-///
-/// ```
-/// pub struct TemporalId {
-//     i: u64,
-//     t: [u64; 2],
-// }
-/// ```
+
 pub struct TemporalId {
     ///時間間隔(秒)
     i: NonZeroU64,
