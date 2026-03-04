@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-/// SingleIdは標準的な空間 ID を表す型。
+/// SingleIdは標準的な時空間 ID を表す型。
 ///
 /// 内部的には下記のような構造体で構成されている。
 ///
@@ -31,6 +31,7 @@ use crate::{
 ///     f: i32,
 ///     x: u32,
 ///     y: u32,
+///     temporal_id: TemporalId,
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -55,10 +56,10 @@ impl fmt::Display for SingleId {
     /// assert_eq!(s, "4/6/9/10");
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y);
+        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)?;
         //時間の情報があれば書き込み
         if !self.temporal_id.is_whole() {
-            write!(f, "_{}", self.temporal_id);
+            write!(f, "_{}", self.temporal_id)?;
         }
         Ok(())
     }

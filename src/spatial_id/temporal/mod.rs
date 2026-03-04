@@ -1,6 +1,5 @@
-use std::fmt::Display;
-
 use crate::Error;
+pub mod impls;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///時間軸の起点 [1970 年 1 月 1 日 0:00] から一定の時間間隔 [任意指定 (単位：秒)] で時間軸を分割し、その時間間隔ごとに一意の識別子を付与する。
@@ -12,6 +11,7 @@ pub struct TemporalId {
 }
 
 impl TemporalId {
+    /// 新しい[TemporalId]を作成する
     pub fn new(i: u64, mut t: [u64; 2]) -> Result<Self, Error> {
         //順序を入れ替える
         if t[0] > t[1] {
@@ -27,6 +27,7 @@ impl TemporalId {
         Ok(Self { i, t })
     }
 
+    /// 0-u64::MAXを表す[TemporalId]を返す
     pub fn whole() -> Self {
         Self {
             i: u64::MAX,
@@ -35,6 +36,7 @@ impl TemporalId {
         }
     }
 
+    /// 0-u64::MAXを表している[TemporalId]かどうかを判定する
     pub fn is_whole(&self) -> bool {
         self.start_unixstamp() == 0 && self.end_unixtime() == u64::MAX
     }
@@ -67,19 +69,5 @@ impl TemporalId {
     /// 秒単位で長さを返す
     pub fn length_seconds(&self) -> u64 {
         self.end_unixtime() - self.start_unixstamp()
-    }
-}
-
-impl Display for TemporalId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}/", self.i);
-
-        if self.t[0] == self.t[1] {
-            write!(f, "{}", self.t[0]);
-        } else {
-            write!(f, "{}:{}", self.t[0], self.t[1]);
-        }
-
-        Ok(())
     }
 }

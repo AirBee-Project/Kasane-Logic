@@ -75,11 +75,11 @@ impl fmt::Display for RangeId {
             format_dimension(self.f),
             format_dimension(self.x),
             format_dimension(self.y),
-        );
+        )?;
 
         //時間の情報があれば書き込み
         if !self.temporal_id.is_whole() {
-            write!(f, "_{}", self.temporal_id);
+            write!(f, "_{}", self.temporal_id)?;
         };
         Ok(())
     }
