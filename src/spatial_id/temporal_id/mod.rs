@@ -1,5 +1,6 @@
-use crate::Error;
+use crate::{Error, spatial_id::helpers::gcd};
 pub mod impls;
+pub mod segment;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///時間軸の起点 [1970 年 1 月 1 日 0:00] から一定の時間間隔 [任意指定 (単位：秒)] で時間軸を分割し、その時間間隔ごとに一意の識別子を付与する。
@@ -69,5 +70,22 @@ impl TemporalId {
     /// 秒単位で長さを返す
     pub fn length_seconds(&self) -> u64 {
         self.end_unixtime() - self.start_unixstamp()
+    }
+
+    /// 情報を失わないまま`i`を最大にする
+    pub fn optimize_i(&mut self) {
+        let s = self.start_unixstamp();
+        let e = self.end_unixtime();
+
+        let new_i = gcd(s, e);
+
+        if new_i == 0 {
+            return;
+        }
+
+        *self = Self {
+            i: new_i,
+            t: [s / new_i, (e / new_i) - 1],
+        };
     }
 }
