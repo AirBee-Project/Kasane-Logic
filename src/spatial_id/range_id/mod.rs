@@ -69,7 +69,6 @@ impl RangeId {
     /// IDの作成:
     /// ```
     /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
     /// assert_eq!(s, "4/-3:6/8:9/5:10");

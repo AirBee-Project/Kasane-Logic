@@ -1,4 +1,4 @@
-use std::num::{NonZero, NonZeroU64};
+use std::num::NonZeroU64;
 
 use crate::Error;
 pub mod impls;
@@ -21,30 +21,87 @@ pub struct TemporalId {
 impl TemporalId {
     /// 指定された値から [`SingleId`] を構築します。
     ///
+    ///　各次元の与えられた2つの値は自動的に昇順に並び替えられ、常に `[min, max]` の形で内部に保持されます。
+    ///
     /// # パラメーター
+    /// * `i` — インターバル（0–64::MAXの範囲が有効）
+    /// * `t1` — 時間方向の開始のTインデックス
+    /// * `t2` — 時間方向の終了のTインデックス
     ///
     /// # バリテーション
-    /// i×tの値が0-u64::MAXに収まらずオーバーフローする場合は、[Error::TOutOfRange]を返す。
-    pub fn new(i: NonZeroU64, mut t: [u64; 2]) -> Result<Self, Error> {
-        // 間隔が0の場合はエラー（ゼロ除算等の原因になるため）
+    ///- i×tの値が0-u64::MAXに収まらずオーバーフローする場合は、[Error::TOutOfRange]を返す。
+    /// - iの値が0の場合は[Error::TIntervalZero]を返す。
+    ///
+    /// IDの作成（単体）:
+    /// ```
+    /// # use kasane_logic::TemporalId;
+    /// let id = TemporalId::new(60, [1,1]).unwrap();
+    /// let s = format!("{}", id);
+    /// assert_eq!(s, "60/1");
+    /// ```
+    ///
+    /// IDの作成（範囲）:
+    /// ```
+    /// # use kasane_logic::TemporalId;
+    /// let id = TemporalId::new(60, [0,60]).unwrap();
+    /// let s = format!("{}", id);
+    /// assert_eq!(s, "60/0:60");
+    /// ```
+    ///
+    /// オーバーフローの検知:
+    /// ```
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::TemporalId;
+    /// let id = TemporalId::new(3600, [0,6000000000000000000]);
+    /// assert_eq!(id, Err(Error::TOutOfRange{i:3600,t:6000000000000000000}));
+    /// ```
+    ///
+    /// i=0の検知:
+    /// ```
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::TemporalId;
+    /// let id = TemporalId::new(0, [0,60]);
+    /// assert_eq!(id, Err(Error::TIntervalZero));
+    /// ```
+    pub fn new(i: u64, mut t: [u64; 2]) -> Result<Self, Error> {
+        let i_non_zero = NonZeroU64::new(i).ok_or(Error::TIntervalZero)?;
 
         if t[0] > t[1] {
             t.swap(0, 1);
         }
 
-        let inclusive_end = (i.get() as u128) * (t[1] as u128) + (i.get() as u128) - 1;
+        let i_u128 = i_non_zero.get() as u128;
+        let inclusive_end = i_u128 * (t[1] as u128) + i_u128 - 1;
 
         if inclusive_end > u64::MAX as u128 {
-            return Err(Error::TOutOfRange { i, t: t[1] });
+            return Err(Error::TOutOfRange { i: i, t: t[1] });
         }
 
-        Ok(Self { i, t })
+        Ok(Self { i: i_non_zero, t })
     }
 
-    /// Unix時間の全範囲 (0 から u64::MAX 秒まで) を表す[TemporalId]を返す。
+    /// Unix時間の全範囲 (0 から u64::MAX 秒まで) を表す以下の[TemporalId]を返す。
+    ///
+    /// ```ignore
+    /// # use std::num::NonZero;
+    /// # use kasane_logic::TemporalId;
+    /// let result = TemporalId {
+    ///   i: NonZero::new(u64::MAX).unwrap(),
+    ///   t: [0,0],
+    /// };
+    /// ```
+    ///
+    /// IDの作成:
+    /// ```
+    /// # use kasane_logic::TemporalId;
+    ///
+    /// let id=TemporalId::whole();
+    /// assert_eq!(id.start_unixstamp(),0);
+    /// assert_eq!(id.end_unixstamp_inclusive(),u64::MAX);
+    /// ```
     pub fn whole() -> Self {
         Self {
-            i: NonZero::new(1).unwrap(),
+            i: NonZeroU64::new(1).unwrap(),
             t: [0, u64::MAX],
         }
     }
@@ -53,6 +110,7 @@ impl TemporalId {
     pub fn is_whole(&self) -> bool {
         self.start_unixstamp() == 0 && self.end_unixtime_exclusive() == (u64::MAX as u128) + 1
     }
+
     /// 実際の開始時刻 (Unix時間の経過秒数) を返す
     pub fn start_unixstamp(&self) -> u64 {
         self.i.get() * self.t[0]

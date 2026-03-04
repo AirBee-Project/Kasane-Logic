@@ -20,7 +20,10 @@ pub enum Error {
 
     /// 時間方向が0-u64::MAXの有効範囲外であることを示す。
     /// 0=<i×t=<u64::MAXを満たす必要がある
-    TOutOfRange { i: NonZeroU64, t: u64 },
+    TOutOfRange { i: u64, t: u64 },
+
+    /// 時間間隔 `i` に 0 を指定した場合のエラー。
+    TIntervalZero,
 
     /// 緯度が有効範囲外であることを表す。
     LatitudeOutOfRange { latitude: f64 },
@@ -94,6 +97,9 @@ impl fmt::Display for Error {
             }
             Error::TOutOfRange { i, t } => {
                 write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
+            }
+            Error::TIntervalZero => {
+                write!(f, "Time interval i cannot be set to 0 ")
             }
         }
     }
