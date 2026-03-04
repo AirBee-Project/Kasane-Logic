@@ -2,13 +2,10 @@ use crate::{Segment, TemporalId};
 
 impl TemporalId {
     pub fn split_segments<const N: usize>(&self) -> impl Iterator<Item = Segment<N>> {
-        let [l, r] = self.t;
-        TemporalSegmentIter {
-            l: l as i128,
-            r: r as i128,
-            cur_z: 64,
-        }
-        .map(|(z, dim)| Segment::from_t(z, dim as u64))
+        let l = (self.t[0] as i128) * (self.i as i128);
+        let r = (self.t[1] as i128) * (self.i as i128) + (self.i as i128) - 1;
+
+        TemporalSegmentIter { l, r, cur_z: 64 }.map(|(z, dim)| Segment::from_t(z, dim as u64))
     }
 }
 
@@ -16,10 +13,12 @@ impl<const N: usize> From<Segment<N>> for TemporalId {
     fn from(segment: Segment<N>) -> Self {
         let (z, index) = segment.to_t();
         let shift = 64 - z;
-        let start_idx = index << shift;
+
+        let start_idx = ((index as u128) << shift) as u64;
         let end_idx = (((index as u128 + 1) << shift) - 1) as u64;
+
         Self {
-            i: 1, // 1秒単位の解像度
+            i: 1,
             t: [start_idx, end_idx],
         }
     }
