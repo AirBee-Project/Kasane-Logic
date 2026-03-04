@@ -1,8 +1,8 @@
-use crate::RangeId;
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
-use crate::spatial_id::segment::Segment;
-use crate::spatial_id::segment::SegmentRelation;
+use crate::spatial_id::flex_id::segment::SegmentRelation;
+use crate::{RangeId, Segment};
 pub mod impls;
+pub mod segment;
 
 ///FlexIdは拡張空間IDを表す。
 ///

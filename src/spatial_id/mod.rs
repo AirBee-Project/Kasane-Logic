@@ -1,15 +1,14 @@
-use crate::{Coordinate, FlexId, Segment, error::Error, spatial_id::temporal::TemporalId};
+use crate::{Coordinate, FlexId, Segment, error::Error, spatial_id::temporal_id::TemporalId};
 
 pub(crate) mod collection;
 pub mod constants;
-pub(crate) mod range_id;
-pub(crate) mod single_id;
+pub mod single_id;
 
 //非公開のモジュール
 pub(crate) mod flex_id;
 pub(crate) mod helpers;
-pub mod segment;
-pub mod temporal;
+pub mod range_id;
+pub mod temporal_id;
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
@@ -34,10 +33,9 @@ pub trait SpatialId {
     //頂点をの座標を求める関数
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
-    //=========時間が関連するもの=========
-    fn temporal_id(&self) -> &TemporalId;
-    fn move_t(&mut self, by: i128) -> Result<(), Error>;
-    fn length_t_seconds(&self) -> u64;
+    //時間が関連するもの
+    fn temporal(&self) -> &TemporalId;
+    fn temporal_mut(&mut self) -> &mut TemporalId;
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト
