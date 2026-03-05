@@ -19,6 +19,7 @@ pub use spatial_id::Block;
 pub use spatial_id::SpatialId;
 pub use spatial_id::collection::FlexIdRank;
 pub use spatial_id::collection::set::SetOnMemory;
+pub use spatial_id::collection::set::v2::SetOnMemoryV2;
 pub use spatial_id::collection::table::TableOnMemory;
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::flex_id::FlexId;

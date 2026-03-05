@@ -2,6 +2,7 @@ use roaring::RoaringTreemap;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod tests;
+pub mod v2;
 
 use crate::{
     FlexId, FlexIdRank, RangeId, Segment, SingleId,
