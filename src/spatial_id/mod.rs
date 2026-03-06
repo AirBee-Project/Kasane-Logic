@@ -41,6 +41,7 @@ pub trait SpatialId: Block + FlexIds {
 
     //SingleIdとして書き出すもの
     fn single_ids(&self) -> impl Iterator<Item = SingleId>;
+    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId>;
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト

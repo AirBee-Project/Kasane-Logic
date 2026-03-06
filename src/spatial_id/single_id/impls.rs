@@ -297,6 +297,10 @@ impl SpatialId for SingleId {
     fn single_ids(&self) -> impl Iterator<Item = SingleId> {
         std::iter::once(self.clone())
     }
+
+    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId> {
+        std::iter::once(self.clone())
+    }
 }
 
 impl Block for SingleId {

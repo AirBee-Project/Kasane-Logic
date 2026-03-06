@@ -277,6 +277,96 @@ impl SpatialId for RangeId {
             })
         })
     }
+
+    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId> {
+        let mut regions = Vec::new();
+        let (f, x, y) = (self.f(), self.x(), self.y());
+
+        let mut stack = if x[0] <= x[1] {
+            vec![(self.z(), f[0], f[1], x[0], x[1], y[0], y[1])]
+        } else {
+            vec![
+                (self.z(), f[0], f[1], x[0], self.max_xy(), y[0], y[1]),
+                (self.z(), f[0], f[1], 0, x[1], y[0], y[1]),
+            ]
+        };
+
+        while let Some((z, f0, f1, x0, x1, y0, y1)) = stack.pop() {
+            if f0 > f1 || x0 > x1 || y0 > y1 {
+                continue;
+            }
+
+            if z == 0 {
+                regions.push((z, f0, f1, x0, x1, y0, y1));
+                continue;
+            }
+
+            let split_u = |s: u32, e: u32| {
+                let (i_s, i_e) = (s + s % 2, if e % 2 == 1 { e + 1 } else { e });
+                if i_s < i_e {
+                    [s..i_s, i_s..i_e, i_e..e + 1]
+                } else {
+                    [s..e + 1, 0..0, 0..0]
+                }
+            };
+            let split_i = |s: i32, e: i32| {
+                let (i_s, i_e) = (
+                    s + s.rem_euclid(2),
+                    if e.rem_euclid(2) == 1 { e + 1 } else { e },
+                );
+                if i_s < i_e {
+                    [s..i_s, i_s..i_e, i_e..e + 1]
+                } else {
+                    [s..e + 1, 0..0, 0..0]
+                }
+            };
+
+            let (fp, xp, yp) = (split_i(f0, f1), split_u(x0, x1), split_u(y0, y1));
+
+            for (i, fr) in fp.iter().enumerate() {
+                for (j, xr) in xp.iter().enumerate() {
+                    for (k, yr) in yp.iter().enumerate() {
+                        if i == 1 && j == 1 && k == 1 {
+                            continue;
+                        }
+
+                        // Rangeが空でなければ、出力すべき直方体領域として記録
+                        if !fr.is_empty() && !xr.is_empty() && !yr.is_empty() {
+                            regions.push((
+                                z,
+                                fr.start,
+                                fr.end - 1,
+                                xr.start,
+                                xr.end - 1,
+                                yr.start,
+                                yr.end - 1,
+                            ));
+                        }
+                    }
+                }
+            }
+
+            if !fp[1].is_empty() && !xp[1].is_empty() && !yp[1].is_empty() {
+                stack.push((
+                    z - 1,
+                    fp[1].start >> 1,
+                    (fp[1].end - 1) >> 1,
+                    xp[1].start >> 1,
+                    (xp[1].end - 1) >> 1,
+                    yp[1].start >> 1,
+                    (yp[1].end - 1) >> 1,
+                ));
+            }
+        }
+
+        regions.into_iter().flat_map(|(z, f0, f1, x0, x1, y0, y1)| {
+            (f0..=f1).flat_map(move |f| {
+                (x0..=x1).flat_map(move |x| {
+                    (y0..=y1).map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
+                })
+            })
+        })
+    }
 }
 
 impl Block for RangeId {
