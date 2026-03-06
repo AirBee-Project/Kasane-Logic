@@ -1,4 +1,5 @@
 pub mod impls;
+pub mod random;
 
 #[cfg(any(test))]
 use proptest::prelude::*;
@@ -13,10 +14,6 @@ use crate::{
         temporal_id::TemporalId,
     },
 };
-#[cfg(any(test, feature = "random"))]
-use rand::Rng;
-#[cfg(any(test, feature = "random"))]
-use std::ops::RangeInclusive;
 
 /// RangeIdは空間IDの範囲表現を表す型です。
 ///
@@ -363,32 +360,6 @@ impl RangeId {
         })
     }
 
-    /// [`RangeId`]を[`SingleId`]に分解し、イテレータとして提供します。
-    pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
-        let z = self.z;
-
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
-
-        f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
-            } else {
-                (self.x[0]..=self.max_xy())
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
-            };
-
-            x_iter.into_iter().flat_map(move |x| {
-                y_range
-                    .clone()
-                    .map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
-            })
-        })
-    }
-
     /// 検証を行わずに [`RangeId`] を構築します。
     ///
     /// この関数は [`RangeId::new`] と異なり、与えられた `z`, `f1`, `f2`, `x1`,`x2`, `y1, `y2` に対して
@@ -435,121 +406,174 @@ impl RangeId {
         }
     }
 
-    /// 全空間（Z=0〜MAX）からランダムにRangeIdを生成
-    #[cfg(any(test, feature = "random"))]
-    pub fn random() -> Self {
-        Self::random_within(0..=MAX_ZOOM_LEVEL as u8)
-    }
+    /// この `RangeId` が表す領域を、LOD（ズームレベル）の結合を考慮して
+    /// 最小個数の `SingleId` のリストに最適化します。
+    pub fn optimize_single_ids(&self) -> Vec<SingleId> {
+        let mut result = Vec::new();
+        let z = self.z;
+        let f0 = self.f[0];
+        let f1 = self.f[1];
+        let y0 = self.y[0];
+        let y1 = self.y[1];
+        let x0 = self.x[0];
+        let x1 = self.x[1];
 
-    /// 指定したズームレベルでランダムにRangeIdを生成
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_at(z: u8) -> Self {
-        Self::random_within(z..=z)
-    }
-
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_within(z_range: RangeInclusive<u8>) -> Self {
-        use rand::Rng;
-        let mut rng = rand::rng();
-
-        let start = *z_range.start();
-        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
-        let z = if start > end {
-            end
+        if x0 <= x1 {
+            // X方向が循環していない通常ケース
+            Self::optimize_region(z, f0, f1, x0, x1, y0, y1, &mut result);
         } else {
-            rng.random_range(start..=end)
-        };
-        let z_idx = z as usize;
+            // X方向が循環している（日付変更線を跨ぐ）ケース
+            let max_x = self.max_xy();
+            Self::optimize_region(z, f0, f1, x0, max_x, y0, y1, &mut result);
+            Self::optimize_region(z, f0, f1, 0, x1, y0, y1, &mut result);
+        }
 
-        let f_min = F_MIN[z_idx];
-        let f_max = F_MAX[z_idx];
-        let xy_max = XY_MAX[z_idx];
-
-        let f1 = rng.random_range(f_min..=f_max);
-        let f2 = rng.random_range(f_min..=f_max);
-
-        let x1 = rng.random_range(0..=xy_max);
-        let x2 = rng.random_range(0..=xy_max);
-
-        let y1 = rng.random_range(0..=xy_max);
-        let y2 = rng.random_range(0..=xy_max);
-
-        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
-            .expect("Generated parameters should be always valid")
+        result
     }
 
-    #[cfg(any(test))]
-    pub fn arb() -> impl Strategy<Value = Self> {
-        Self::arb_within(0..=MAX_ZOOM_LEVEL as u8)
-    }
+    /// 指定された3D領域を再帰的に上位のLODへ引き上げながら最適化するヘルパー関数
+    fn optimize_region(
+        z: u8,
+        f0: i32,
+        f1: i32,
+        x0: u32,
+        x1: u32,
+        y0: u32,
+        y1: u32,
+        result: &mut Vec<SingleId>,
+    ) {
+        if f0 > f1 || x0 > x1 || y0 > y1 {
+            return;
+        }
 
-    #[cfg(any(test))]
-    pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
-        Self::arb_within(z..=z)
-    }
+        // Z=0 の場合はこれ以上上位（Z-1）にマージできないため、そのまま全て追加
+        if z == 0 {
+            for f in f0..=f1 {
+                for x in x0..=x1 {
+                    for y in y0..=y1 {
+                        unsafe {
+                            result.push(SingleId::new_unchecked(z, f, x, y));
+                        }
+                    }
+                }
+            }
+            return;
+        }
 
-    #[cfg(any(test))]
-    pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
-        z_range.prop_flat_map(|z| {
-            let z_idx = z as usize;
+        // 上位レベルにマージ可能な「内側」の範囲を算出
+        // F(i32) は負の数も考慮して rem_euclid(2) を使用
+        let inner_f0 = f0 + f0.rem_euclid(2);
+        let inner_f1 = f1 - (1 - f1.rem_euclid(2));
 
-            let f_min = F_MIN[z_idx];
-            let f_max = F_MAX[z_idx];
-            let xy_max = XY_MAX[z_idx];
-
-            let f_strat = (f_min..=f_max, f_min..=f_max);
-            let x_strat = (0..=xy_max, 0..=xy_max);
-            let y_strat = (0..=xy_max, 0..=xy_max);
-
-            (Just(z), f_strat, x_strat, y_strat).prop_map(
-                move |(z, (f1, f2), (x1, x2), (y1, y2))| {
-                    RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
-                        .expect("Generated parameters should be always valid")
-                },
-            )
-        })
-    }
-
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_using<R: Rng>(rng: &mut R) -> Self {
-        Self::random_within_using(rng, 0..=MAX_ZOOM_LEVEL as u8)
-    }
-
-    /// 外部から渡された乱数生成器を使用して、指定したズームレベルでランダムにRangeIdを生成
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_at_using<R: Rng>(rng: &mut R, z: u8) -> Self {
-        Self::random_within_using(rng, z..=z)
-    }
-
-    /// 外部から渡された乱数生成器を使用して、指定したズームレベル範囲内でランダムにRangeIdを生成
-    #[cfg(any(test, feature = "random"))]
-    pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
-        let start = *z_range.start();
-        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
-
-        let z = if start > end {
-            end
+        // X, Y(u32) はそのまま % 2 で算出
+        let inner_x0 = x0 + (x0 % 2);
+        let inner_x1 = if x1 % 2 == 1 {
+            x1
         } else {
-            rng.random_range(start..=end)
+            x1.saturating_sub(1)
         };
-        let z_idx = z as usize;
 
-        let f_min = F_MIN[z_idx];
-        let f_max = F_MAX[z_idx];
-        let xy_max = XY_MAX[z_idx];
+        let inner_y0 = y0 + (y0 % 2);
+        let inner_y1 = if y1 % 2 == 1 {
+            y1
+        } else {
+            y1.saturating_sub(1)
+        };
 
-        // 範囲の両端をランダムに生成
-        let f1 = rng.random_range(f_min..=f_max);
-        let f2 = rng.random_range(f_min..=f_max);
+        // 内側の範囲が存在するか（幅がそれぞれ2以上あるか）判定
+        let has_inner = inner_f0 < inner_f1 && inner_x0 < inner_x1 && inner_y0 < inner_y1;
 
-        let x1 = rng.random_range(0..=xy_max);
-        let x2 = rng.random_range(0..=xy_max);
+        if !has_inner {
+            // 内側が存在しない場合は、これ以上マージできないため全要素を追加して終了
+            for f in f0..=f1 {
+                for x in x0..=x1 {
+                    for y in y0..=y1 {
+                        unsafe {
+                            result.push(SingleId::new_unchecked(z, f, x, y));
+                        }
+                    }
+                }
+            }
+            return;
+        }
 
-        let y1 = rng.random_range(0..=xy_max);
-        let y2 = rng.random_range(0..=xy_max);
+        // 内側が存在する場合、直方体を 3x3x3 の 27 個のサブ領域に分割し、
+        // 「中心（内側）」以外の 26 個の外縁部のみを SingleId として列挙する
+        let f_parts = [
+            if f0 < inner_f0 {
+                f0..=(inner_f0 - 1)
+            } else {
+                1..=0
+            },
+            inner_f0..=inner_f1, // has_innerの判定により必ず inner_f0 <= inner_f1
+            if inner_f1 < f1 {
+                (inner_f1 + 1)..=f1
+            } else {
+                1..=0
+            },
+        ];
 
-        // RangeId::new 内部で min/max の入れ替え等は処理される前提
-        RangeId::new(z, [f1, f2], [x1, x2], [y1, y2])
-            .expect("Generated parameters should be always valid")
+        let x_parts = [
+            if x0 < inner_x0 {
+                x0..=(inner_x0 - 1)
+            } else {
+                1..=0
+            },
+            inner_x0..=inner_x1,
+            if inner_x1 < x1 {
+                (inner_x1 + 1)..=x1
+            } else {
+                1..=0
+            },
+        ];
+
+        let y_parts = [
+            if y0 < inner_y0 {
+                y0..=(inner_y0 - 1)
+            } else {
+                1..=0
+            },
+            inner_y0..=inner_y1,
+            if inner_y1 < y1 {
+                (inner_y1 + 1)..=y1
+            } else {
+                1..=0
+            },
+        ];
+
+        for (i, f_range) in f_parts.iter().enumerate() {
+            for (j, x_range) in x_parts.iter().enumerate() {
+                for (k, y_range) in y_parts.iter().enumerate() {
+                    // インデックス(1, 1, 1) は内側なのでここではスキップ
+                    if i == 1 && j == 1 && k == 1 {
+                        continue;
+                    }
+
+                    // 空の範囲の場合はループが回らないので安全
+                    for f in f_range.clone() {
+                        for x in x_range.clone() {
+                            for y in y_range.clone() {
+                                unsafe {
+                                    result.push(SingleId::new_unchecked(z, f, x, y));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 内側の範囲は Z を一つ下げて（上位LODにして）再帰呼び出し
+        // ビットシフト `>> 1` を使うことで、正数・負数問わず親のインデックスに変換可能
+        Self::optimize_region(
+            z - 1,
+            inner_f0 >> 1,
+            inner_f1 >> 1,
+            inner_x0 >> 1,
+            inner_x1 >> 1,
+            inner_y0 >> 1,
+            inner_y1 >> 1,
+            result,
+        );
     }
 }

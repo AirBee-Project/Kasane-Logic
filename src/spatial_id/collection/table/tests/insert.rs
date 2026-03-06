@@ -2,7 +2,9 @@
 mod tests {
     use std::ops::Index;
 
-    use crate::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, TableOnMemory, XY_MAX};
+    use crate::{
+        F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialId, TableOnMemory, XY_MAX,
+    };
 
     #[test]
     fn first_insert_single_id() {

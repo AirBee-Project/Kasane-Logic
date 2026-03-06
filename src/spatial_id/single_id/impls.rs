@@ -293,6 +293,10 @@ impl SpatialId for SingleId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+
+    fn single_ids(&self) -> impl Iterator<Item = SingleId> {
+        std::iter::once(self.clone())
+    }
 }
 
 impl Block for SingleId {

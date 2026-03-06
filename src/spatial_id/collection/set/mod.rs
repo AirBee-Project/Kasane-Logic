@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub mod tests;
 
 use crate::{
-    FlexId, FlexIdRank, RangeId, Segment, SingleId,
+    FlexId, FlexIdRank, RangeId, Segment, SingleId, SpatialId,
     spatial_id::{
         Block, FlexIds,
         collection::{core::SpatialCore, scanner::Scanner},

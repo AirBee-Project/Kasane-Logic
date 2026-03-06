@@ -1,4 +1,6 @@
-use crate::{Coordinate, FlexId, Segment, error::Error, spatial_id::temporal_id::TemporalId};
+use crate::{
+    Coordinate, FlexId, Segment, SingleId, error::Error, spatial_id::temporal_id::TemporalId,
+};
 
 pub(crate) mod collection;
 pub mod constants;
@@ -11,7 +13,7 @@ pub mod range_id;
 pub mod temporal_id;
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub trait SpatialId {
+pub trait SpatialId: Block + FlexIds {
     //そのIDの各次元の最大と最小を返す
     fn min_f(&self) -> i32;
     fn max_f(&self) -> i32;
@@ -36,6 +38,9 @@ pub trait SpatialId {
     //時間が関連するもの
     fn temporal(&self) -> &TemporalId;
     fn temporal_mut(&mut self) -> &mut TemporalId;
+
+    //SingleIdとして書き出すもの
+    fn single_ids(&self) -> impl Iterator<Item = SingleId>;
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト

@@ -252,6 +252,31 @@ impl SpatialId for RangeId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+
+    fn single_ids(&self) -> impl Iterator<Item = SingleId> {
+        let z = self.z;
+
+        let f_range = self.f[0]..=self.f[1];
+        let y_range = self.y[0]..=self.y[1];
+
+        f_range.flat_map(move |f| {
+            let y_range = y_range.clone();
+
+            let x_iter = if self.x[0] <= self.x[1] {
+                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
+            } else {
+                (self.x[0]..=self.max_xy())
+                    .chain(0..=self.x[1])
+                    .collect::<Vec<_>>()
+            };
+
+            x_iter.into_iter().flat_map(move |x| {
+                y_range
+                    .clone()
+                    .map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
+            })
+        })
+    }
 }
 
 impl Block for RangeId {
