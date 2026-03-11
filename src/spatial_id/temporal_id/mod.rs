@@ -19,7 +19,7 @@ pub struct TemporalId {
 }
 
 impl TemporalId {
-    /// 指定された値から [`SingleId`] を構築します。
+    /// 指定された値から [`TemporalId`] を構築します。
     ///
     ///　各次元の与えられた2つの値は自動的に昇順に並び替えられ、常に `[min, max]` の形で内部に保持されます。
     ///

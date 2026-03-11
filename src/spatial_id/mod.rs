@@ -2,7 +2,7 @@ use crate::{
     Coordinate, FlexId, Segment, SingleId, error::Error, spatial_id::temporal_id::TemporalId,
 };
 
-pub(crate) mod collection;
+// pub(crate) mod collection;
 pub mod constants;
 pub mod single_id;
 
