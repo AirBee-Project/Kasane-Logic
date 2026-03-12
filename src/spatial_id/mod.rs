@@ -1,17 +1,19 @@
-use crate::{Coordinate, FlexId, Segment, error::Error};
+use crate::{
+    Coordinate, FlexId, Segment, SingleId, error::Error, spatial_id::temporal_id::TemporalId,
+};
 
-pub(crate) mod collection;
+// pub(crate) mod collection;
 pub mod constants;
-pub(crate) mod range_id;
-pub(crate) mod single_id;
+pub mod single_id;
 
 //非公開のモジュール
 pub(crate) mod flex_id;
 pub(crate) mod helpers;
-pub mod segment;
+pub mod range_id;
+pub mod temporal_id;
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub trait SpatialId {
+pub trait SpatialId: Block + FlexIds {
     //そのIDの各次元の最大と最小を返す
     fn min_f(&self) -> i32;
     fn max_f(&self) -> i32;
@@ -23,15 +25,23 @@ pub trait SpatialId {
     fn move_y(&mut self, by: i32) -> Result<(), Error>;
 
     //各次元の長さを取得するメソット
-    fn length_f(&self) -> f64;
-    fn length_x(&self) -> f64;
-    fn length_y(&self) -> f64;
+    fn length_f_meters(&self) -> f64;
+    fn length_x_meters(&self) -> f64;
+    fn length_y_meters(&self) -> f64;
 
     //中心点の座標を求める関数
-    fn center(&self) -> Coordinate;
+    fn spatial_center(&self) -> Coordinate;
 
     //頂点をの座標を求める関数
-    fn vertices(&self) -> [Coordinate; 8];
+    fn spatial_vertices(&self) -> [Coordinate; 8];
+
+    //時間が関連するもの
+    fn temporal(&self) -> &TemporalId;
+    fn temporal_mut(&mut self) -> &mut TemporalId;
+
+    //SingleIdとして書き出すもの
+    fn single_ids(&self) -> impl Iterator<Item = SingleId>;
+    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId>;
 }
 
 /// 領域を構成するセグメントの集合を提供するトレイト
@@ -64,7 +74,7 @@ impl<T: Block> FlexIds for T {
 /// RangeIDやSingleIDやFlexIDを最適分割したもの
 /// 必ず一続きの領域（直方体状の空間）を表す
 pub struct BlockSegments {
-    pub f: Vec<Segment>,
-    pub x: Vec<Segment>,
-    pub y: Vec<Segment>,
+    pub f: Vec<Segment<8>>,
+    pub x: Vec<Segment<8>>,
+    pub y: Vec<Segment<8>>,
 }

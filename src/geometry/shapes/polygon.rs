@@ -143,9 +143,9 @@ impl Polygon {
             let curr = pts[i];
             let next = pts[(i + 1) % len];
 
-            nx += (curr.as_y() - next.as_y()) * (curr.as_z() + next.as_z());
-            ny += (curr.as_z() - next.as_z()) * (curr.as_x() + next.as_x());
-            nz += (curr.as_x() - next.as_x()) * (curr.as_y() + next.as_y());
+            nx += (curr.y() - next.y()) * (curr.z() + next.z());
+            ny += (curr.z() - next.z()) * (curr.x() + next.x());
+            nz += (curr.x() - next.x()) * (curr.y() + next.y());
         }
 
         let ax = nx.abs();

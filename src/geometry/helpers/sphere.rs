@@ -26,9 +26,9 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
         for &sy in &[1.0, -1.0] {
             for &sz in &[1.0, -1.0] {
                 let e = Ecef::new(
-                    center_ecef.as_x() + radius * sx,
-                    center_ecef.as_y() + radius * sy,
-                    center_ecef.as_z() + radius * sz,
+                    center_ecef.x() + radius * sx,
+                    center_ecef.y() + radius * sy,
+                    center_ecef.z() + radius * sz,
                 );
                 if let Ok(id) = e.to_single_id(z) {
                     corners.push(id);
@@ -37,12 +37,12 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
         }
     }
 
-    let x_min = corners.iter().map(|v| v.as_x()).min().unwrap();
-    let x_max = corners.iter().map(|v| v.as_x()).max().unwrap();
-    let y_min = corners.iter().map(|v| v.as_y()).min().unwrap();
-    let y_max = corners.iter().map(|v| v.as_y()).max().unwrap();
-    let f_min = corners.iter().map(|v| v.as_f()).min().unwrap();
-    let f_max = corners.iter().map(|v| v.as_f()).max().unwrap();
+    let x_min = corners.iter().map(|v| v.x()).min().unwrap();
+    let x_max = corners.iter().map(|v| v.x()).max().unwrap();
+    let y_min = corners.iter().map(|v| v.y()).min().unwrap();
+    let y_max = corners.iter().map(|v| v.y()).max().unwrap();
+    let f_min = corners.iter().map(|v| v.f()).min().unwrap();
+    let f_max = corners.iter().map(|v| v.f()).max().unwrap();
 
     (x_min..=x_max)
         .flat_map(move |x| {
@@ -51,7 +51,7 @@ pub fn sphere(z: u8, center: &Coordinate, radius: f64) -> impl Iterator<Item = S
             })
         })
         .filter(move |id| {
-            let p: Coordinate = id.center();
+            let p: Coordinate = id.spatial_center();
             center.distance(&p) <= radius + voxel_diag_half
         })
 }

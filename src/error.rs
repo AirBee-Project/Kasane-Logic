@@ -1,5 +1,6 @@
 use std::error;
 use std::fmt;
+use std::num::NonZeroU64;
 
 /// 本クレートで発生し得るエラーを表す。
 #[derive(Debug, PartialEq)] // PartialEqはテスト等で便利ですが、f64を含む場合は注意が必要です
@@ -16,6 +17,13 @@ pub enum Error {
 
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
+
+    /// 時間方向が0-u64::MAXの有効範囲外であることを示す。
+    /// 0=<i×t=<u64::MAXを満たす必要がある
+    TOutOfRange { i: u64, t: u64 },
+
+    /// 時間間隔 `i` に 0 を指定した場合のエラー。
+    TIntervalZero,
 
     /// 緯度が有効範囲外であることを表す。
     LatitudeOutOfRange { latitude: f64 },
@@ -86,6 +94,12 @@ impl fmt::Display for Error {
                     "Solid is not watertight (closed). Found {} open edges.",
                     open_edge_count
                 )
+            }
+            Error::TOutOfRange { i, t } => {
+                write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
+            }
+            Error::TIntervalZero => {
+                write!(f, "Time interval i cannot be set to 0 ")
             }
         }
     }

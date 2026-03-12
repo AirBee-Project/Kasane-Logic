@@ -1,4 +1,4 @@
-use std::f64::consts::PI;
+use std::{f64::consts::PI, fmt};
 /// Scale an inclusive range `[start, end]` by `scale` for children calculation.
 /// For integer types, result is `[start*scale, end*scale + scale - 1]`
 pub fn scale_range_i32(start: i32, end: i32, scale: i32) -> [i32; 2] {
@@ -90,4 +90,13 @@ where
     }
 
     result
+}
+
+///次元の区間表記の文字列を圧縮するための関数
+pub fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
+    if dimension[0] == dimension[1] {
+        format!("{}", dimension[0])
+    } else {
+        format!("{}:{}", dimension[0], dimension[1])
+    }
 }
