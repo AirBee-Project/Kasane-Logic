@@ -67,7 +67,7 @@ pub use geometry::shapes::solid::Solid;
 pub use geometry::shapes::triangle;
 pub use spatial_id::Block;
 pub use spatial_id::SpatialId;
-// pub use spatial_id::collection::SpatialIdSet;
+pub use spatial_id::collection::SpatialIdSet;
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::flex_id::segment::Segment;

@@ -1,5 +1,6 @@
 triangle関数のデバッグ
 traingle.rsのimplにこれを書く
+
 ```rs
 pub fn single_ids_sumpling(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
     if z > MAX_ZOOM_LEVEL as u8 {
@@ -11,10 +12,10 @@ pub fn single_ids_sumpling(&self, z: u8) -> Result<impl Iterator<Item = SingleId
     let ecef_c: Ecef = self.points[2].into();
 
     let min_lat_rad = self.points[0]
-        .as_latitude()
+        .latitude()
         .abs()
-        .min(self.points[1].as_latitude().abs())
-        .min(self.points[2].as_latitude().abs())
+        .min(self.points[1].latitude().abs())
+        .min(self.points[2].latitude().abs())
         .to_radians();
 
     let d = PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-2 - z as i32);

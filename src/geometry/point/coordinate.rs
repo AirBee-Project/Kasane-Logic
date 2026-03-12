@@ -60,9 +60,9 @@ impl Coordinate {
     /// # use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(35.0, 139.0, 10.0).unwrap();
     ///
-    /// assert_eq!(coord.as_latitude(), 35.0);
-    /// assert_eq!(coord.as_longitude(), 139.0);
-    /// assert_eq!(coord.as_altitude(), 10.0);
+    /// assert_eq!(coord.latitude(), 35.0);
+    /// assert_eq!(coord.longitude(), 139.0);
+    /// assert_eq!(coord.altitude(), 10.0);
     /// ```
     pub fn new(latitude: f64, longitude: f64, altitude: f64) -> Result<Self, Error> {
         if !(-85.0511..=85.0511).contains(&latitude) {
@@ -111,9 +111,9 @@ impl Coordinate {
     /// ```
     /// # use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
-    /// assert_eq!(coord.as_latitude(), 43.068564);
+    /// assert_eq!(coord.latitude(), 43.068564);
     /// ```
-    pub fn as_latitude(&self) -> f64 {
+    pub fn latitude(&self) -> f64 {
         self.latitude
     }
 
@@ -126,9 +126,9 @@ impl Coordinate {
     /// ```
     /// # use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(35.4095198,136.7566027, 0.0).unwrap();
-    /// assert_eq!(coord.as_longitude(), 136.7566027);
+    /// assert_eq!(coord.longitude(), 136.7566027);
     /// ```
-    pub fn as_longitude(&self) -> f64 {
+    pub fn longitude(&self) -> f64 {
         self.longitude
     }
 
@@ -141,9 +141,9 @@ impl Coordinate {
     /// ```
     /// # use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
-    /// assert_eq!(coord.as_altitude(), 20.0);
+    /// assert_eq!(coord.altitude(), 20.0);
     /// ```
-    pub fn as_altitude(&self) -> f64 {
+    pub fn altitude(&self) -> f64 {
         self.altitude
     }
 
@@ -157,7 +157,7 @@ impl Coordinate {
     /// # use kasane_logic::Coordinate;
     /// let mut coord = Coordinate::new(35.0, 41.3507138, 30.0).unwrap();
     /// coord.set_latitude(43.068564);
-    /// assert_eq!(coord.as_latitude(), 43.068564);
+    /// assert_eq!(coord.latitude(), 43.068564);
     /// ```
     pub fn set_latitude(&mut self, latitude: f64) -> Result<(), Error> {
         if !(-85.0511..=85.0511).contains(&latitude) {
@@ -177,7 +177,7 @@ impl Coordinate {
     /// # use kasane_logic::Coordinate;
     /// let mut coord = Coordinate::new(35.4095198,130.0, 0.0).unwrap();
     /// coord.set_longitude(136.7566027);
-    /// assert_eq!(coord.as_longitude(), 136.7566027);
+    /// assert_eq!(coord.longitude(), 136.7566027);
     /// ```
     pub fn set_longitude(&mut self, longitude: f64) -> Result<(), Error> {
         if !(-180.0..=180.0).contains(&longitude) {
@@ -198,7 +198,7 @@ impl Coordinate {
     /// # use kasane_logic::Coordinate;
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, -10.0).unwrap();
     /// coord.set_altitude(20.0);
-    /// assert_eq!(coord.as_altitude(), 20.0);
+    /// assert_eq!(coord.altitude(), 20.0);
     /// ```
     pub fn set_altitude(&mut self, altitude: f64) -> Result<(), Error> {
         if !(-33_554_432.0..=33_554_432.0).contains(&altitude) {

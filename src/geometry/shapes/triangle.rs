@@ -210,9 +210,9 @@ impl Triangle {
 }
 
 fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
-    let lat = p.as_latitude();
-    let lon = p.as_longitude();
-    let alt = p.as_altitude();
+    let lat = p.latitude();
+    let lon = p.longitude();
+    let alt = p.altitude();
 
     // 空間idの高さはz=25でちょうど1mになるように定義されている
     let factor = 2_f64.powi(z as i32 - 25);
