@@ -27,16 +27,8 @@ impl Triangle {
         let p0: Ecef = self.points[0].into();
         let p1: Ecef = self.points[1].into();
         let p2: Ecef = self.points[2].into();
-        let a = [
-            p1.as_x() - p0.as_x(),
-            p1.as_y() - p0.as_y(),
-            p1.as_z() - p0.as_z(),
-        ];
-        let b = [
-            p2.as_x() - p0.as_x(),
-            p2.as_y() - p0.as_y(),
-            p2.as_z() - p0.as_z(),
-        ];
+        let a = [p1.x() - p0.x(), p1.y() - p0.y(), p1.z() - p0.z()];
+        let b = [p2.x() - p0.x(), p2.y() - p0.y(), p2.z() - p0.z()];
         ((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])
             - dot_product(a, b) * dot_product(a, b))
         .sqrt()
@@ -54,70 +46,52 @@ impl Triangle {
 
     ///[SingleId]の集合へ変換を行います。
 
-        let ecef_a: Ecef = self.points[0].into();
-        let ecef_b: Ecef = self.points[1].into();
-        let ecef_c: Ecef = self.points[2].into();
+    pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
+        let steps_f = steps as f64;
+        let p0: Ecef = self.points[0].into();
+        let p1: Ecef = self.points[1].into();
+        let p2: Ecef = self.points[2].into();
 
-        let min_lat_rad = self.points[0]
-            .as_latitude()
-            .abs()
-            .min(self.points[1].as_latitude().abs())
-            .min(self.points[2].as_latitude().abs())
-            .to_radians();
+        let initial_row = vec![p0];
 
-        let d = PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-2 - z as i32);
+        let iter = (1..=steps)
+            .scan(initial_row, move |prev_row, i| {
+                let i_f = i as f64;
 
-        let l1 = ((ecef_c.x() - ecef_b.x()).powi(2)
-            + (ecef_c.y() - ecef_b.y()).powi(2)
-            + (ecef_c.z() - ecef_b.z()).powi(2))
-        .sqrt();
-        let l2 = ((ecef_a.x() - ecef_c.x()).powi(2)
-            + (ecef_a.y() - ecef_c.y()).powi(2)
-            + (ecef_a.z() - ecef_c.z()).powi(2))
-        .sqrt();
-        let l3 = ((ecef_a.x() - ecef_b.x()).powi(2)
-            + (ecef_a.y() - ecef_b.y()).powi(2)
-            + (ecef_a.z() - ecef_b.z()).powi(2))
-        .sqrt();
+                let current_row: Vec<Ecef> = (0..=i)
+                    .map(|j| {
+                        let j_f = j as f64;
+                        let w0 = 1.0 - (i_f / steps_f);
+                        let w1 = (i_f - j_f) / steps_f;
+                        let w2 = j_f / steps_f;
 
-        let steps = (l1.max(l2).max(l3) / d).ceil() as usize;
+                        Ecef::new(
+                            p0.x() * w0 + p1.x() * w1 + p2.x() * w2,
+                            p0.y() * w0 + p1.y() * w1 + p2.y() * w2,
+                            p0.z() * w0 + p1.z() * w1 + p2.z() * w2,
+                        )
+                    })
+                    .collect();
 
-        let seen = Rc::new(RefCell::new(HashSet::new()));
+                let mut row_triangles = Vec::with_capacity((i * 2 - 1) as usize);
 
-        let iter = (0..=steps).flat_map(move |i| {
-            let t = i as f64 / steps as f64;
+                for j in 0..(i as usize) {
+                    row_triangles.push(Triangle {
+                        points: [
+                            (*prev_row)[j].try_into().unwrap(),
+                            current_row[j].try_into().unwrap(),
+                            current_row[j + 1].try_into().unwrap(),
+                        ],
+                    });
 
-            let line1 = (
-                ecef_a.x() * (1.0 - t) + ecef_b.x() * t,
-                ecef_a.y() * (1.0 - t) + ecef_b.y() * t,
-                ecef_a.z() * (1.0 - t) + ecef_b.z() * t,
-            );
-            let line2 = (
-                ecef_a.x() * (1.0 - t) + ecef_c.x() * t,
-                ecef_a.y() * (1.0 - t) + ecef_c.y() * t,
-                ecef_a.z() * (1.0 - t) + ecef_c.z() * t,
-            );
-
-            let seen = seen.clone();
-
-            (0..=i).filter_map(move |j| {
-                let (x, y, z_pos) = if i == 0 {
-                    (ecef_a.x(), ecef_a.y(), ecef_a.z())
-                } else {
-                    let s = j as f64 / i as f64;
-                    (
-                        line1.0 * (1.0 - s) + line2.0 * s,
-                        line1.1 * (1.0 - s) + line2.1 * s,
-                        line1.2 * (1.0 - s) + line2.2 * s,
-                    )
-                };
-
-                if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_single_id(z) {
-                    let mut borrowed = seen.borrow_mut();
-                    if borrowed.insert(voxel_id.clone()) {
-                        Some(voxel_id)
-                    } else {
-                        None
+                    if j > 0 {
+                        row_triangles.push(Triangle {
+                            points: [
+                                (*prev_row)[j - 1].try_into().ok()?,
+                                (*prev_row)[j].try_into().ok()?,
+                                current_row[j].try_into().ok()?,
+                            ],
+                        });
                     }
                 }
 
