@@ -25,7 +25,7 @@ impl Line {
         let dy = ecef_a.y() - ecef_b.y();
         let dz = ecef_a.z() - ecef_b.z();
         let distance = (dx * dx + dy * dy + dz * dz).sqrt();
-        let (v1, v2) = (a.to_single_id(z)?, b.to_single_id(z)?);
+        let (v1, v2) = (a.single_id(z)?, b.single_id(z)?);
         let diff = ((v1.f() - v2.f()).abs()
             + (v1.x() as i32 - v2.x() as i32).abs()
             + (v1.y() as i32 - v2.y() as i32).abs()) as f64;

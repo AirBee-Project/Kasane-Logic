@@ -27,7 +27,7 @@ impl Sphere {
                         center_ecef.y() + radius * sy,
                         center_ecef.z() + radius * sz,
                     );
-                    if let Ok(id) = e.to_single_id(z) {
+                    if let Ok(id) = e.single_id(z) {
                         corners.push(id);
                     }
                 }
