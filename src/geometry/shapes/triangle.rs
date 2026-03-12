@@ -1,12 +1,6 @@
-use std::{cell::RefCell, collections::HashSet, f64::consts::PI, rc::Rc};
+use std::collections::HashSet;
 
-use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, SingleId,
-    geometry::{
-        constants::WGS84_A,
-        point::{coordinate, ecef},
-    },
-};
+use crate::{Coordinate, Ecef, Error, SingleId};
 
 ///三角形を表す型
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -17,7 +11,7 @@ pub struct Triangle {
 impl Triangle {
     ///[Triangle]を作成する。
     ///
-    /// 3つの点が一直線上にある場合や同一の座標の場合も問題なく作成される
+    /// 3つの点が一直線上にある場合や同一の座標の場合も問題なく作成される。
     pub fn new(points: [Coordinate; 3]) -> Self {
         Self { points }
     }
@@ -45,7 +39,6 @@ impl Triangle {
     }
 
     ///[SingleId]の集合へ変換を行います。
-
     pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
         let steps_f = steps as f64;
         let p0: Ecef = self.points[0].into();
