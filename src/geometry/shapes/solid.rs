@@ -1,6 +1,6 @@
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
 use crate::spatial_id::SpatialId;
-use crate::{Coordinate, Ecef, Error, RangeId, SingleId};
+use crate::{Coordinate, Ecef, Error, Geometry, RangeId, SingleId};
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// 立体を表す型。

@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
-use crate::{Coordinate, Ecef, Error, SingleId};
+use crate::{Coordinate, Ecef, Error, Line, SingleId};
+pub mod impls;
 
 ///三角形を表す型
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -14,6 +15,15 @@ impl Triangle {
     /// 3つの点が一直線上にある場合や同一の座標の場合も問題なく作成される。
     pub fn new(points: [Coordinate; 3]) -> Self {
         Self { points }
+    }
+
+    ///[Triangle]を構成する[Line]を返す
+    pub fn lines(&self) -> [Line; 3] {
+        [
+            Line::new([self.points[0], self.points[1]]),
+            Line::new([self.points[1], self.points[2]]),
+            Line::new([self.points[2], self.points[0]]),
+        ]
     }
 
     ///三角形の面積を返す
@@ -178,28 +188,17 @@ impl Triangle {
         }
         Ok(voxels.into_iter())
     }
+}
 
-    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let points: [[f64; 3]; 3] = [
-            coordinate_to_matrix(self.points[0], z),
-            coordinate_to_matrix(self.points[1], z),
-            coordinate_to_matrix(self.points[2], z),
-        ];
-        let diff_f = points[0][0].max(points[1][0]).max(points[2][0]).floor()
-            - points[0][0].min(points[1][0]).min(points[2][0]).floor();
-        let diff_x = points[0][1].max(points[1][1]).max(points[2][1]).floor()
-            - points[0][1].min(points[1][1]).min(points[2][1]).floor();
-        let diff_y = points[0][2].max(points[1][2]).max(points[2][2]).floor()
-            - points[0][2].min(points[1][2]).min(points[2][2]).floor();
-        let steps = (diff_f.max(diff_x).max(diff_y) / 8.0).ceil() as u32;
-        println!("{}", steps);
-        let mut seen = HashSet::new();
-        let voxels = self
-            .divide(steps)?
-            .flat_map(move |tri| tri.single_ids_limited(z).ok().into_iter().flatten())
-            .filter(move |voxel| seen.insert(voxel.clone()));
-        Ok(voxels)
-    }
+fn dot_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> f64 {
+    vec_a[0] * vec_b[0] + vec_a[1] * vec_b[1] + vec_a[2] * vec_b[2]
+}
+fn cross_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> [f64; 3] {
+    [
+        vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1],
+        vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2],
+        vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0],
+    ]
 }
 
 fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
@@ -217,15 +216,4 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let lat_rad = lat.to_radians();
     let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
     [f, x, y]
-}
-
-fn dot_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> f64 {
-    vec_a[0] * vec_b[0] + vec_a[1] * vec_b[1] + vec_a[2] * vec_b[2]
-}
-fn cross_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> [f64; 3] {
-    [
-        vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1],
-        vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2],
-        vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0],
-    ]
 }
