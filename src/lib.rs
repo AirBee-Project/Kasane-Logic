@@ -2,8 +2,7 @@
 mod error;
 
 /// 空間ID以外の地理空間情報。
-pub mod geometry;
-
+mod geometry;
 /// 空間IDに関する型を定義。
 mod spatial_id;
 
@@ -13,6 +12,7 @@ pub use error::Error;
 pub use geometry::point::{Point, coordinate::Coordinate, ecef::Ecef};
 
 pub use geometry::constants::*;
+pub use geometry::shapes::line::Line;
 pub use geometry::shapes::polygon::Polygon;
 pub use geometry::shapes::solid::Solid;
 pub use geometry::shapes::triangle;

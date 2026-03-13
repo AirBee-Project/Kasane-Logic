@@ -1,18 +1,7 @@
-use crate::{Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, SingleId};
+use crate::{Coordinate, Ecef, Error, Geometry, Line, MAX_ZOOM_LEVEL, RangeId, SingleId};
 
-///直線を表す型
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Line {
-    pub points: [Coordinate; 2],
-}
-
-impl Line {
-    ///[Line]を作成する。
-    pub fn new(points: [Coordinate; 2]) -> Self {
-        Self { points }
-    }
-
-    pub fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+impl Geometry for Line {
+    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
         }
@@ -48,6 +37,10 @@ impl Line {
             voxels.extend(line_iter);
         }
         Ok(voxels.into_iter())
+    }
+
+    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
+        Ok(self.single_ids(z)?.map(|id| RangeId::from(id)))
     }
 }
 
