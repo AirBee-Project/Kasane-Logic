@@ -1,5 +1,7 @@
 use crate::{Coordinate, Ecef, triangle::Triangle};
 
+pub mod impls;
+
 #[derive(Debug, Clone)]
 /// 3次元空間における多角形（ポリゴン）を表す型。
 ///
@@ -56,7 +58,7 @@ impl Polygon {
     }
 
     /// [Polygon] 全体を三角形分割し、構成する [Triangle] のリストを返します。
-    pub fn triangulate(&self) -> Vec<Triangle> {
+    pub fn triangles(&self) -> Vec<Triangle> {
         let n = self.vertices.len();
         if n < 3 {
             return vec![];

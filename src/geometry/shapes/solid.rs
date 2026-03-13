@@ -50,7 +50,7 @@ impl Solid {
     pub fn triangulate(&self) -> Vec<Triangle> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.triangulate())
+            .flat_map(|polygon| polygon.triangles())
             .collect()
     }
 
@@ -97,7 +97,7 @@ impl Solid {
         let mut unique_ids = HashSet::new();
 
         for polygon in &self.polygons {
-            let triangles = polygon.triangulate();
+            let triangles = polygon.triangles();
             for triangle in triangles {
                 let ids_iter = triangle.single_ids(z)?;
                 for id in ids_iter {
