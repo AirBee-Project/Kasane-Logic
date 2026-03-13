@@ -1,58 +1,48 @@
-use std::f64;
+use crate::{Coordinate, Ecef, Error, Geometry, Line, MAX_ZOOM_LEVEL, RangeId, SingleId};
 
-use crate::{Coordinate, Ecef, SingleId, error::Error, spatial_id::constants::MAX_ZOOM_LEVEL};
+impl Geometry for Line {
+    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(Error::ZOutOfRange { z });
+        }
+        let a = self.points[0];
+        let b = self.points[1];
 
-/// 指定された 2 点で構成される直線を覆う空間 ID を列挙する。
-pub fn line(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
-    if z > MAX_ZOOM_LEVEL as u8 {
-        return Err(Error::ZOutOfRange { z });
+        let ecef_a: Ecef = a.into();
+        let ecef_b: Ecef = b.into();
+        let dx = ecef_a.x() - ecef_b.x();
+        let dy = ecef_a.y() - ecef_b.y();
+        let dz = ecef_a.z() - ecef_b.z();
+        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let (v1, v2) = (a.single_id(z)?, b.single_id(z)?);
+        let diff = ((v1.f() - v2.f()).abs()
+            + (v1.x() as i32 - v2.x() as i32).abs()
+            + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
+        let devide_num = 5 + (diff / 120.0 + distance / 2000.0).floor() as u16;
+        let mut coordinates = Vec::new();
+        for i in 0..=devide_num {
+            let t = i as f64 / devide_num as f64;
+            let x = ecef_a.x() * (1.0 - t) + ecef_b.x() * t;
+            let y = ecef_a.y() * (1.0 - t) + ecef_b.y() * t;
+            let z_pos = ecef_a.z() * (1.0 - t) + ecef_b.z() * t;
+            let coo: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
+            coordinates.push(coo);
+        }
+        let mut voxels: Vec<SingleId> = Vec::new();
+        for pair in coordinates.windows(2) {
+            let start = pair[0];
+            let end = pair[1];
+            let line_iter = line_dda(z, start, end)?;
+            voxels.pop();
+            voxels.extend(line_iter);
+        }
+        Ok(voxels.into_iter())
     }
-    let ecef_a: Ecef = a.into();
-    let ecef_b: Ecef = b.into();
-    let dx = ecef_a.x() - ecef_b.x();
-    let dy = ecef_a.y() - ecef_b.y();
-    let dz = ecef_a.z() - ecef_b.z();
-    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
-    let (v1, v2) = (a.to_single_id(z)?, b.to_single_id(z)?);
-    let diff = ((v1.f() - v2.f()).abs()
-        + (v1.x() as i32 - v2.x() as i32).abs()
-        + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
-    let devide_num = 5 + (diff / 120.0 + distance / 2000.0).floor() as u16;
-    let mut coordinates = Vec::new();
-    for i in 0..=devide_num {
-        let t = i as f64 / devide_num as f64;
-        let x = ecef_a.x() * (1.0 - t) + ecef_b.x() * t;
-        let y = ecef_a.y() * (1.0 - t) + ecef_b.y() * t;
-        let z_pos = ecef_a.z() * (1.0 - t) + ecef_b.z() * t;
-        let coo: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
-        coordinates.push(coo);
+
+    ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
+    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
+        Ok(self.single_ids(z)?.map(|id| RangeId::from(id)))
     }
-    let mut voxels: Vec<SingleId> = Vec::new();
-    for pair in coordinates.windows(2) {
-        let start = pair[0];
-        let end = pair[1];
-        let line_iter = line_dda(z, start, end)?;
-        voxels.pop();
-        voxels.extend(line_iter);
-    }
-    Ok(voxels.into_iter())
-}
-
-fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
-    let lat = p.latitude();
-    let lon = p.longitude();
-    let alt = p.altitude();
-
-    // 空間idの高さはz=25でちょうど1mになるように定義されている
-    let factor = 2_f64.powi(z as i32 - 25);
-    let f = factor * alt;
-
-    let n = 2u64.pow(z as u32) as f64;
-    let x = (lon + 180.0) / 360.0 * n;
-
-    let lat_rad = lat.to_radians();
-    let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
-    [f, x, y]
 }
 
 ///DDAを用いたLine関数
@@ -167,4 +157,21 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
         }
     }));
     Ok(iter)
+}
+
+fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
+    let lat = p.latitude();
+    let lon = p.longitude();
+    let alt = p.altitude();
+
+    // 空間idの高さはz=25でちょうど1mになるように定義されている
+    let factor = 2_f64.powi(z as i32 - 25);
+    let f = factor * alt;
+
+    let n = 2u64.pow(z as u32) as f64;
+    let x = (lon + 180.0) / 360.0 * n;
+
+    let lat_rad = lat.to_radians();
+    let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
+    [f, x, y]
 }

@@ -6,8 +6,8 @@
 /// 地理空間座標の計算で使用される各種の代表的な定数。
 pub mod constants;
 
-pub mod helpers;
-
 pub mod point;
 
 pub mod shapes;
+
+pub mod traits;

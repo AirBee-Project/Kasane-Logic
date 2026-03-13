@@ -51,10 +51,10 @@ pub fn altitude(f: f64, z: u8) -> f64 {
 
 #[derive(Debug, Clone, Copy)]
 ///次元を選択するEnum
-pub enum Dimension<T> {
-    F(T),
-    X(T),
-    Y(T),
+pub enum Dimension {
+    F,
+    X,
+    Y,
 }
 
 use roaring::RoaringTreemap;
