@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use crate::{
-    Coordinate, Error, Geometry, IntoCoordinates, RangeId, SingleId, Triangle,
+    Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Triangle,
     geometry::shapes::triangle::coordinate_to_matrix,
 };
 
-impl Geometry for Triangle {
+impl Shape for Triangle {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.iter_coordinates())
     }

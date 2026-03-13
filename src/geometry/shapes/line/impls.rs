@@ -1,6 +1,6 @@
-use crate::{Coordinate, Ecef, Error, Geometry, Line, MAX_ZOOM_LEVEL, RangeId, SingleId};
+use crate::{Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId};
 
-impl Geometry for Line {
+impl Shape for Line {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.points)
     }

@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 
-use crate::{Coordinate, Error, Geometry, IntoCoordinates, RangeId, SingleId, Solid, SpatialId};
+use crate::{Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId};
 
-impl Geometry for Solid {
+impl Shape for Solid {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.iter_coordinates())
     }

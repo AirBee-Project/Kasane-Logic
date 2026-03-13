@@ -1,9 +1,9 @@
 use crate::{
-    Coordinate, Ecef, Error, Geometry, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialId, Sphere,
-    WGS84_A, spatial_id::helpers::Dimension,
+    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId, SpatialId, Sphere, WGS84_A,
+    spatial_id::helpers::Dimension,
 };
 
-impl Geometry for Sphere {
+impl Shape for Sphere {
     fn center(&self) -> Coordinate {
         self.center
     }

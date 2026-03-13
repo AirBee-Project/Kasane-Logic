@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use crate::{Coordinate, Geometry, Polygon, RangeId, Triangle};
+use crate::{Coordinate, Polygon, RangeId, Shape, Triangle};
 
-impl Geometry for Polygon {
+impl Shape for Polygon {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.vertices.clone())
     }

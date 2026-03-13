@@ -1,8 +1,6 @@
 use std::{fmt, ops::Sub};
 
-use crate::{
-    Coordinate, Ecef, Error, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F, geometry::traits::Geometry,
-};
+use crate::{Coordinate, Ecef, Error, Point, WGS84_A, WGS84_E2, WGS84_F};
 
 impl fmt::Debug for Ecef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

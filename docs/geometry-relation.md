@@ -1,10 +1,9 @@
-# Trait `Geometry`
+# Geometry Relation
 
 ```mermaid
 graph TB
 
 Coordinate((Coordinate))
-Ecef((Ecef))
 Line((Line))
 Triangle((Triangle))
 Polygon((Polygon))
@@ -13,12 +12,12 @@ Sphere((Sphere))
 
 subgraph Geometry
   direction LR
-    subgraph PointTrait [Point Trait]
+    subgraph Point [Point]
         Coordinate
         Ecef
     end
 
-    subgraph NotPoint
+    subgraph Shape [Shape]
         Line
         Triangle
         Polygon
@@ -40,9 +39,11 @@ Polygon -->|"Polygon → Triangle×N"| Triangle
 Solid -->|"Solid → Polygon×N"| Polygon
 ```
 
-Geometryは「空間ID以外で定義される地理空間情報」を指す。`Geometry`では下記のメゾットを利用することができる。
+# Trait `Shape`
 
-- `3d_center`
+Shapeは「空間ID以外で定義される地理空間情報」を指す。`Shape`では下記のメゾットを利用することができる。
+
+- `center`
   - 重心を求めることができる。
 - `single_ids`
   - 指定したズームレベルの空間IDに変換することができる。
@@ -63,25 +64,22 @@ Geometryは「空間ID以外で定義される地理空間情報」を指す。`
 - `Triangle`
 - `Line`
 - `Coordinate`
-- `Ecef`
 
 例2:`Triangle`は以下の型のイテレーターに変換できる。
 
 - `Line`
 - `Coordinate`
-- `Ecef`
 
 例3:`Line`は以下の型のイテレーターに変換できる。
 
 - `Coordinate`
-- `Ecef`
 
 ---
 
 > [!NOTE]
-> `Geometry` Traitが実装されている型の関係は上記の図で表される。なお、内部的に保持している値ではなく、幾何学的な整合を優先して図が書かれているため、例外が存在する。例えば、実際には`Triangle`型は中に3つの`Coordinate`型を保持している。
+> Geometryの関係は上記の図で表される。なお、内部的に保持している値ではなく、幾何学的な整合を優先して図が書かれているため、例外が存在する。例えば、実際には`Triangle`型は中に3つの`Coordinate`型を保持している。
 
-# `Point`
+# Trait `Point`
 
 基本的に全てのGeometryは内部的には`Coordinate`の集合として表される。3次元空間上の点を表す型が持つ特徴である。現在はTrait関数は存在しないが、今後増える可能性がある。
 

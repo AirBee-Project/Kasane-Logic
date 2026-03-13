@@ -1,6 +1,5 @@
-use crate::geometry::geometry_relation::IntoTriangles;
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
-use crate::{Coordinate, Ecef, Error, Geometry, SingleId};
+use crate::{Coordinate, Ecef, Error, IntoTriangles, Shape, SingleId};
 use std::collections::{HashMap, HashSet};
 
 pub mod geometry_relation;
