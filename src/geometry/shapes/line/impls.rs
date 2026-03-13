@@ -1,10 +1,15 @@
-use crate::{Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId};
+use crate::{
+    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId,
+    Geometry,
+};
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.points)
     }
+}
 
+impl Geometry for Line {
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });

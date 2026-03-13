@@ -6,7 +6,9 @@ use std::ops::RangeInclusive;
 #[cfg(any(test))]
 use proptest::prelude::*;
 
+#[cfg(any(test, feature = "random"))]
 use crate::MAX_ZOOM_LEVEL;
+
 use crate::SingleId;
 use crate::{F_MAX, F_MIN, XY_MAX};
 

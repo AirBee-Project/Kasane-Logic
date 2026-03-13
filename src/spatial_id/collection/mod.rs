@@ -1,7 +1,5 @@
 use crate::SpatialId;
 use std::fmt::Debug;
-use std::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Sub, SubAssign};
-pub mod v1;
 
 pub trait SpatialIdSet: Sized + Eq + Default + Clone + Debug
 // --------------------------------------------------------
@@ -55,8 +53,6 @@ pub trait SpatialIdSet: Sized + Eq + Default + Clone + Debug
     fn remove<T: SpatialId>(&mut self, target: T) -> Self;
 
     ///[SpatialIdSet]内にある単位空間の数を返す。集合の大体のサイズが分かる。
-    ///
-    /// 返す数は[FlexId]か[SingleId]の数かは問われない。その集合の管理方法により内部にある[SpatialId]の管理方法は異なるため
     fn size(&self) -> usize;
 
     /// [SpatialIdSet]の内部を空にする

@@ -9,7 +9,7 @@ mod spatial_id;
 pub use roaring::RoaringTreemap;
 
 pub use error::Error;
-pub use geometry::point::{Point, coordinate::Coordinate, ecef::Ecef};
+pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 
 pub use geometry::constants::*;
 pub use geometry::shapes::line::Line;
@@ -19,6 +19,7 @@ pub use geometry::shapes::sphere::Sphere;
 
 pub use geometry::shapes::traits::*;
 pub use geometry::shapes::triangle::Triangle;
+pub use geometry::traits::Geometry;
 pub use spatial_id::Block;
 pub use spatial_id::SpatialId;
 pub use spatial_id::collection::SpatialIdSet;

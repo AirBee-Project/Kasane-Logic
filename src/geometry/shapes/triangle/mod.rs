@@ -41,7 +41,7 @@ impl Triangle {
     }
 
     ///三角形の3辺の長さを返す
-    /// point[0]と[1],[1]と[2],[2]と[0]の順に返す
+    /// point\[0\]と\[1\],\[1\]と\[2\],\[2\]と\[0\]の順に返す
     pub fn sides(&self) -> [f64; 3] {
         let p0: Ecef = self.points[0].into();
         let p1: Ecef = self.points[1].into();

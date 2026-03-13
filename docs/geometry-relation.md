@@ -1,4 +1,4 @@
-# Geometry Relation
+# Trait `Geometry`
 
 ```mermaid
 graph TB
@@ -39,12 +39,8 @@ Polygon -->|"Polygon → Triangle×N"| Triangle
 Solid -->|"Solid → Polygon×N"| Polygon
 ```
 
-# Trait `Shape`
+3次元空間上の空間ID以外の図形を表す型。以下の関数が共通して使用することができます。
 
-Shapeは「空間ID以外で定義される地理空間情報」を指す。`Shape`では下記のメゾットを利用することができる。
-
-- `center`
-  - 重心を求めることができる。
 - `single_ids`
   - 指定したズームレベルの空間IDに変換することができる。
 - `range_ids`
@@ -54,9 +50,9 @@ Shapeは「空間ID以外で定義される地理空間情報」を指す。`Sha
 - `optimze_range_ids`
   - 最小個数を保証して、`RangeId`を出力する。
 
-また、変換可能な全てのオブジェクトに対して、`Into<Box<dyn Iterator<Item = T>>> for K`を提供する。順番はなるべく意味を保つものにするが、その順序に正確な規則を保証しない。
+# Trait `Shape`
 
----
+3次元空間上の点以外を表す型。また、変換可能な全てのオブジェクトに対して、`Into<Box<dyn Iterator<Item = T>>> for K`を提供する。順番はなるべく意味を保つものにするが、その順序に正確な規則を保証しない。
 
 例1:`Solid`は以下の型のイテレーターに変換できる。
 
@@ -74,14 +70,12 @@ Shapeは「空間ID以外で定義される地理空間情報」を指す。`Sha
 
 - `Coordinate`
 
----
-
 > [!NOTE]
 > Geometryの関係は上記の図で表される。なお、内部的に保持している値ではなく、幾何学的な整合を優先して図が書かれているため、例外が存在する。例えば、実際には`Triangle`型は中に3つの`Coordinate`型を保持している。
 
 # Trait `Point`
 
-基本的に全てのGeometryは内部的には`Coordinate`の集合として表される。3次元空間上の点を表す型が持つ特徴である。現在はTrait関数は存在しないが、今後増える可能性がある。
+3次元空間上の点を表す型。
 
 ## Type `Coordinate`
 

@@ -1,4 +1,4 @@
-use std::num::{NonZero, NonZeroU64};
+use std::num::NonZeroU64;
 
 use crate::{Segment, TemporalId};
 

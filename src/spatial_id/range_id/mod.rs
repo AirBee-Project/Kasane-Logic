@@ -5,7 +5,6 @@ pub mod random;
 use proptest::prelude::*;
 
 use crate::{
-    SingleId,
     error::Error,
     spatial_id::{
         SpatialId,

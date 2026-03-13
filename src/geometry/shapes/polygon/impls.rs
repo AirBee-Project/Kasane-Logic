@@ -1,13 +1,15 @@
 use std::collections::HashSet;
 
-use crate::{Coordinate, Polygon, RangeId, Shape, Triangle};
+use crate::{Coordinate, Geometry, Polygon, RangeId, Shape, SingleId, Triangle};
 
 impl Shape for Polygon {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.vertices.clone())
     }
+}
 
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
+impl Geometry for Polygon {
+    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
         let mut unique_ids = HashSet::new();
 
         let triangles: Box<dyn Iterator<Item = Triangle>> = self.into();
@@ -22,7 +24,7 @@ impl Shape for Polygon {
     }
 
     ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
+    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, crate::Error> {
         Ok(self.single_ids(z)?.map(|id| RangeId::from(id)))
     }
 }

@@ -1,6 +1,9 @@
 use std::{fmt, ops::Sub};
 
-use crate::{Coordinate, Ecef, Error, Point, WGS84_A, WGS84_E2, WGS84_F};
+use crate::{
+    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F,
+    Geometry,
+};
 
 impl fmt::Debug for Ecef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -56,5 +59,21 @@ impl Sub for Ecef {
             y: self.y - other.y,
             z: self.z - other.z,
         }
+    }
+}
+
+impl Geometry for Ecef {
+    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(Error::ZOutOfRange { z });
+        }
+        Ok(std::iter::once(self.single_id(z)?))
+    }
+
+    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, crate::Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(Error::ZOutOfRange { z });
+        }
+        Ok(std::iter::once(RangeId::from(self.single_id(z)?)))
     }
 }

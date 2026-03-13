@@ -1,15 +1,6 @@
-use std::ops::Sub;
-
 pub mod impls;
 
-use crate::{
-    RangeId, SingleId,
-    error::Error,
-    geometry::{
-        constants::{WGS84_A, WGS84_E2, WGS84_F},
-        point::{Point, coordinate::Coordinate},
-    },
-};
+use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordinate};
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
 ///

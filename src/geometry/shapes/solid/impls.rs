@@ -1,12 +1,17 @@
 use std::collections::{HashSet, VecDeque};
 
-use crate::{Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId};
+use crate::{
+    Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
+    Geometry,
+};
 
 impl Shape for Solid {
     fn center(&self) -> Coordinate {
         Coordinate::center_gravity(self.iter_coordinates())
     }
+}
 
+impl Geometry for Solid {
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         let existence_range = surface_set.iter().fold(None, |acc, s| {

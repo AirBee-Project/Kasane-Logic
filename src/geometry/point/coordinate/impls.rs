@@ -1,4 +1,7 @@
-use crate::{Coordinate, Ecef, Point, RangeId, WGS84_A, WGS84_E2};
+use crate::{
+    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, RangeId, SingleId, WGS84_A, WGS84_E2,
+    Geometry,
+};
 use std::fmt;
 
 impl fmt::Debug for Coordinate {
@@ -55,3 +58,19 @@ impl Default for Coordinate {
 }
 
 impl Point for Coordinate {}
+
+impl Geometry for Coordinate {
+    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(Error::ZOutOfRange { z });
+        }
+        Ok(std::iter::once(self.single_id(z)?))
+    }
+
+    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, crate::Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(Error::ZOutOfRange { z });
+        }
+        Ok(std::iter::once(RangeId::from(self.single_id(z)?)))
+    }
+}

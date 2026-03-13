@@ -5,26 +5,6 @@ use crate::{Coordinate, Error, Line, Polygon, RangeId, SingleId, Triangle};
 /// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
 pub trait Shape {
     fn center(&self) -> Coordinate;
-
-    /// あるズームレベルの[SingleId]を出力する。
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
-
-    /// あるズームレベルの[RangeId]を出力する。
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error>;
-
-    /// 最小の個数の[SingleId]で出力する。
-    ///
-    /// 最小の個数を保証する。
-    fn optimze_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        self.single_ids(z)
-    }
-
-    /// 最小の個数の[RangeId]で出力する。
-    ///
-    /// 最小の個数を保証する。
-    fn optimze_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
-        self.range_ids(z)
-    }
 }
 
 /// [Coordinate] の集合へ分解可能であることを示す
