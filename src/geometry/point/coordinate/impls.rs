@@ -55,6 +55,10 @@ impl Default for Coordinate {
 }
 
 impl Geometry for Coordinate {
+    fn center(&self) -> Coordinate {
+        *self
+    }
+
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
         Ok(std::iter::once(self.single_id(z)?))
     }

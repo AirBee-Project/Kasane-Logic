@@ -4,6 +4,10 @@ use crate::{
 };
 
 impl Geometry for Sphere {
+    fn center(&self) -> Coordinate {
+        self.center
+    }
+
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });

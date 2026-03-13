@@ -1,4 +1,5 @@
 use crate::{Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, SingleId};
+pub mod geometry_relation;
 pub mod impls;
 
 ///直線を表す型

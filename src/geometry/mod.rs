@@ -11,3 +11,5 @@ pub mod point;
 pub mod shapes;
 
 pub mod traits;
+
+pub mod geometry_relation;

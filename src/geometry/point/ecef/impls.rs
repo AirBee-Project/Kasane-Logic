@@ -47,16 +47,6 @@ impl TryFrom<Ecef> for Coordinate {
     }
 }
 
-impl Geometry for Ecef {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
-        Ok(std::iter::once(self.single_id(z)?))
-    }
-
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(std::iter::once(RangeId::from(self.single_id(z)?)))
-    }
-}
-
 impl Point for Ecef {}
 
 impl Sub for Ecef {

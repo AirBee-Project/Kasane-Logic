@@ -1,7 +1,9 @@
-use crate::{Error, RangeId, SingleId};
+use crate::{Coordinate, Error, RangeId, SingleId};
 
 /// 現実空間の図形に対して共通で定義することができる性質
 pub trait Geometry {
+    fn center(&self) -> Coordinate;
+
     /// あるズームレベルの[SingleId]を出力する。
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
 

@@ -1,7 +1,9 @@
+use crate::geometry::geometry_relation::IntoTriangles;
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
 use crate::{Coordinate, Ecef, Error, Geometry, SingleId};
 use std::collections::{HashMap, HashSet};
 
+pub mod geometry_relation;
 pub mod impls;
 
 /// 立体を表す型。
@@ -49,10 +51,8 @@ impl Solid {
 
     /// [Solid] 全体を三角形分割し、構成する [Triangle] のリストを返します。
     pub fn triangles(&self) -> Vec<Triangle> {
-        self.polygons
-            .iter()
-            .flat_map(|polygon| polygon.triangles())
-            .collect()
+        let triangles: Box<dyn Iterator<Item = Triangle>> = self.into();
+        triangles.collect()
     }
 
     /// 閉じていないエッジの数を数える内部ヘルパー関数
@@ -98,7 +98,7 @@ impl Solid {
         let mut unique_ids = HashSet::new();
 
         for polygon in &self.polygons {
-            let triangles = polygon.triangles();
+            let triangles = polygon.iter_triangles();
             for triangle in triangles {
                 let ids_iter = triangle.single_ids(z)?;
                 for id in ids_iter {

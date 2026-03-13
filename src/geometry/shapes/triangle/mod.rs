@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{Coordinate, Ecef, Error, Line, SingleId};
+pub mod geometry_relation;
 pub mod impls;
 
 ///三角形を表す型
