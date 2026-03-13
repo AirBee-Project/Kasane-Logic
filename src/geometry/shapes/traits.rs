@@ -1,6 +1,8 @@
 use crate::{Coordinate, Error, Line, Polygon, RangeId, SingleId, Triangle};
 
 /// 現実空間の図形に対して共通で定義することができる性質
+///
+/// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
 pub trait Shape {
     fn center(&self) -> Coordinate;
 
@@ -27,6 +29,8 @@ pub trait Shape {
 
 /// [Coordinate] の集合へ分解可能であることを示す
 ///
+/// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
+///
 /// # Examples
 /// ```
 /// use kasane_logic::{Coordinate, IntoCoordinates, Line};
@@ -44,6 +48,8 @@ pub trait IntoCoordinates {
 }
 
 /// [Line] の集合へ分解可能であることを示す
+///
+/// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
 ///
 /// # Examples
 /// ```
@@ -64,6 +70,8 @@ pub trait IntoLines {
 
 /// [Triangle] の集合へ分解可能であることを示す
 ///
+/// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
+///
 /// # Examples
 /// ```
 /// use kasane_logic::{Coordinate, IntoTriangles, Polygon, Triangle};
@@ -83,6 +91,8 @@ pub trait IntoTriangles {
 }
 
 /// [Polygon] の集合へ分解可能であることを示す
+///
+/// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
 ///
 /// # Examples
 /// ```
