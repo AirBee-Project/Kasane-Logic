@@ -15,6 +15,7 @@ pub use geometry::constants::*;
 pub use geometry::shapes::line::Line;
 pub use geometry::shapes::polygon::Polygon;
 pub use geometry::shapes::solid::Solid;
+pub use geometry::shapes::sphere::Sphere;
 pub use geometry::shapes::triangle;
 pub use geometry::traits::Geometry;
 pub use spatial_id::Block;
