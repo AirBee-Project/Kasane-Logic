@@ -1,8 +1,6 @@
 use std::{fmt, ops::Sub};
 
-use crate::{
-    Coordinate, Ecef, Error, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F, geometry::traits::Geometry,
-};
+use crate::{Coordinate, Ecef, Error, Point, WGS84_A, WGS84_E2, WGS84_F};
 
 impl fmt::Debug for Ecef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -44,16 +42,6 @@ impl TryFrom<Ecef> for Coordinate {
         }
 
         Coordinate::new(lat.to_degrees(), lon.to_degrees(), h)
-    }
-}
-
-impl Geometry for Ecef {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
-        Ok(std::iter::once(self.single_id(z)?))
-    }
-
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(std::iter::once(RangeId::from(self.single_id(z)?)))
     }
 }
 

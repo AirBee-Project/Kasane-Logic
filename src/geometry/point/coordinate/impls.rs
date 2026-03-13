@@ -1,4 +1,4 @@
-use crate::{Coordinate, Ecef, Point, RangeId, WGS84_A, WGS84_E2, geometry::traits::Geometry};
+use crate::{Coordinate, Ecef, Point, RangeId, WGS84_A, WGS84_E2};
 use std::fmt;
 
 impl fmt::Debug for Coordinate {
@@ -51,16 +51,6 @@ impl Default for Coordinate {
             longitude: 0.0,
             altitude: 0.0,
         }
-    }
-}
-
-impl Geometry for Coordinate {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
-        Ok(std::iter::once(self.single_id(z)?))
-    }
-
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(std::iter::once(RangeId::from(self.single_id(z)?)))
     }
 }
 

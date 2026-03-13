@@ -1,11 +1,15 @@
 use std::collections::HashSet;
 
 use crate::{
-    Error, Geometry, RangeId, SingleId,
-    triangle::{Triangle, coordinate_to_matrix},
+    Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Triangle,
+    geometry::shapes::triangle::coordinate_to_matrix,
 };
 
-impl Geometry for Triangle {
+impl Shape for Triangle {
+    fn center(&self) -> Coordinate {
+        Coordinate::center_gravity(self.iter_coordinates())
+    }
+
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let points: [[f64; 3]; 3] = [
             coordinate_to_matrix(self.points[0], z),

@@ -1,12 +1,16 @@
 use std::collections::HashSet;
 
-use crate::{Geometry, Polygon, RangeId};
+use crate::{Coordinate, Polygon, RangeId, Shape, Triangle};
 
-impl Geometry for Polygon {
+impl Shape for Polygon {
+    fn center(&self) -> Coordinate {
+        Coordinate::center_gravity(self.vertices.clone())
+    }
+
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
         let mut unique_ids = HashSet::new();
 
-        let triangles = self.triangles();
+        let triangles: Box<dyn Iterator<Item = Triangle>> = self.into();
         for triangle in triangles {
             let ids_iter = triangle.single_ids(z)?;
             for id in ids_iter {

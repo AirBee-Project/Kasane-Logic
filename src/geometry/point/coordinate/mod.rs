@@ -1,12 +1,9 @@
 pub mod impls;
 
+use std::borrow::Borrow;
+
 use crate::{
-    Ecef, SingleId,
-    error::Error,
-    geometry::{
-        constants::{WGS84_A, WGS84_E2},
-        point::Point,
-    },
+    Ecef, SingleId, error::Error, geometry::point::coordinate,
     spatial_id::constants::MAX_ZOOM_LEVEL,
 };
 
@@ -269,5 +266,55 @@ impl Coordinate {
     pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
         let distance_squared = self.distance(other);
         distance_squared < epsilon * epsilon
+    }
+
+    /// 与えられた座標群の重心を計算する。
+    ///
+    /// この関数は `IntoIterator` を受け入れるため、スライス `&[Coordinate]`、
+    /// `Vec<Coordinate>`、または `iter_coords()` などのイテレータを直接渡すことができる。
+    /// 内部で `Borrow` トレイトを利用しているため、要素が実体か参照かを問わず動作する。
+    ///
+    /// 座標群が空の場合は、`Coordinate::default()` を返す。
+    ///
+    /// # パラメーター
+    /// * `coordinates` — 重心を計算する対象となる座標の集合（イテレータ、スライス、Vecなど）
+    ///
+    /// # 動作例
+    ///
+    /// スライスからの計算:
+    /// ```
+    /// # use kasane_logic::Coordinate;
+    /// let points = [
+    ///     Coordinate::new(0.0, 0.0, 10.0).unwrap(),
+    ///     Coordinate::new(10.0, 10.0, 20.0).unwrap(),
+    /// ];
+    /// let center = Coordinate::center_gravity(&points);
+    /// assert_eq!(center.latitude(), 5.0);
+    /// ```
+    pub fn center_gravity<I>(coordinates: I) -> Coordinate
+    where
+        I: IntoIterator,
+        I::Item: Borrow<Coordinate>,
+    {
+        let mut sum_lat = 0.0;
+        let mut sum_lon = 0.0;
+        let mut sum_alt = 0.0;
+        let mut count = 0usize;
+
+        for coord in coordinates {
+            let c = coord.borrow();
+            sum_lat += c.latitude;
+            sum_lon += c.longitude;
+            sum_alt += c.altitude;
+            count += 1;
+        }
+
+        if count == 0 {
+            return Self::default();
+        }
+
+        let n = count as f64;
+        // 重心は元の座標の凸包内に必ず収まるため、バリデーションをスキップ
+        unsafe { Self::new_unchecked(sum_lat / n, sum_lon / n, sum_alt / n) }
     }
 }
