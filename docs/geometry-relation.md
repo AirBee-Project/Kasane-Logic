@@ -13,7 +13,7 @@ Sphere((Sphere))
 
 subgraph Geometry
   direction LR
-    subgraph Point Trait
+    subgraph PointTrait [Point Trait]
         Coordinate
         Ecef
     end
