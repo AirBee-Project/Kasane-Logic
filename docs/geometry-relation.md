@@ -1,6 +1,6 @@
 # Trait `Geometry`
 
-```Mermaid
+```mermaid
 graph TB
 
 Coordinate((Coordinate))
