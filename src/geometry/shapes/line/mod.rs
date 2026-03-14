@@ -1,4 +1,4 @@
-use crate::{Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, SingleId};
+use crate::Coordinate;
 pub mod geometry_relation;
 pub mod impls;
 

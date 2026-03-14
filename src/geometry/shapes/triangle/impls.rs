@@ -25,7 +25,6 @@ impl Geometry for Triangle {
         let diff_y = points[0][2].max(points[1][2]).max(points[2][2]).floor()
             - points[0][2].min(points[1][2]).min(points[2][2]).floor();
         let steps = (diff_f.max(diff_x).max(diff_y) / 8.0).ceil() as u32;
-        println!("{}", steps);
         let mut seen = HashSet::new();
         let voxels = self
             .divide(steps)?

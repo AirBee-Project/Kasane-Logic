@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{Coordinate, Ecef, Error, Line, SingleId};
+use crate::{Coordinate, Ecef, Error, SingleId};
 pub mod geometry_relation;
 pub mod impls;
 
@@ -16,15 +16,6 @@ impl Triangle {
     /// 3つの点が一直線上にある場合や同一の座標の場合も問題なく作成される。
     pub fn new(points: [Coordinate; 3]) -> Self {
         Self { points }
-    }
-
-    ///[Triangle]を構成する[Line]を返す
-    pub fn lines(&self) -> [Line; 3] {
-        [
-            Line::new([self.points[0], self.points[1]]),
-            Line::new([self.points[1], self.points[2]]),
-            Line::new([self.points[2], self.points[0]]),
-        ]
     }
 
     ///三角形の面積を返す
@@ -107,7 +98,7 @@ impl Triangle {
         Ok(iter)
     }
 
-    fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    pub fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let points: [[f64; 3]; 3] = [
             coordinate_to_matrix(self.points[0], z),
             coordinate_to_matrix(self.points[1], z),
