@@ -23,7 +23,6 @@ jobs:
         with:
           channel: stable
           cache-target: release
-          # cargo-codspeed を自動インストール
           bins: cargo-codspeed
 
       - name: Build the benchmark target(s)
@@ -33,3 +32,4 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           run: cargo codspeed run
+          mode: simulation
