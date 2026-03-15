@@ -19,7 +19,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run benchmark
-        run: cargo bench -- --output-format bencher > benchmark_result.txt
+        run: cargo bench --benches -- --output-format bencher > benchmark_result.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
