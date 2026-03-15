@@ -1,6 +1,4 @@
-use crate::{
-    Coordinate, FlexId, Segment, SingleId, error::Error, spatial_id::temporal_id::TemporalId,
-};
+use crate::{Coordinate, SingleId, error::Error, spatial_id::temporal_id::TemporalId};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
