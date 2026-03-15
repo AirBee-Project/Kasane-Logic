@@ -12,30 +12,24 @@ jobs:
   benchmark:
     runs-on: ubuntu-latest
     steps:
-      # 1. ソースコードのチェックアウト（過去データとの比較のため履歴を全取得）
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 2. Rust環境のセットアップ
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # 3. 【重要】Criterionの前回データをキャッシュから復元（HTMLでの前回比較用）
       - name: Cache Criterion data
         uses: actions/cache@v4
         with:
           path: target/criterion
-          # 毎回新しいキーで保存しつつ、読み込む時は直近のデータを引っ張る
           key: criterion-${{ github.run_id }}
           restore-keys: |
             criterion-
 
-      # 4. ベンチマーク実行（テキスト出力 ＆ HTMLレポートの同時生成）
       - name: Run benchmark
         run: cargo bench --benches -- --output-format bencher > benchmark_result.txt
 
-      # 5. 【継続監視用】折れ線グラフのデータを更新してPush
       - name: Store continuous benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -47,14 +41,12 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
 
-      # 6. 最新の gh-pages ブランチを別フォルダ(gh-pages-dir)に取得
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages-dir
 
-      # 7. 【HTMLレポート用】Criterionの全データを gh-pages にコピーしてPush
       - name: Copy and Push HTML Report
         run: |
           # 過去の不完全なreportフォルダが残っていれば削除

@@ -6,6 +6,7 @@ use std::hint::black_box;
 fn big_triangle_z_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("Triangle ZoomLeveL Scaling");
 
+    //Z= 15-25までをテスト
     let inputs = 15..=25;
 
     // 東京駅 八重洲口付近
