@@ -13,18 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # 【重要】過去の履歴を取得しないと、gh-pagesへのPushや過去比較で失敗します
           fetch-depth: 0
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run benchmark
-        # 【重要】
-        # 1. ターゲット（triangle）を明示して確実に実行させます。
-        # 2. tee を外して直接リダイレクト（>）します。これにより、コンパイルエラー時に
-        #    ステップが正しく失敗し、ログで原因を特定できるようになります。
-        run: cargo bench --bench triangle -- --output-format bencher > benchmark_result.txt
+        run: cargo bench -- --output-format bencher > benchmark_result.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
@@ -33,8 +28,6 @@ jobs:
           output-file-path: benchmark_result.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
-          # データの保存先ディレクトリ（GitHub PagesのURLパスになります）
           benchmark-data-dir-path: "dev/bench"
-          # PRにコメントを残すか、エラーで失敗させるかの設定（推奨）
           comment-on-alert: true
           fail-on-alert: false
