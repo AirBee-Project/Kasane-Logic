@@ -1,22 +1,21 @@
-use codspeed_criterion_compat::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::{Coordinate, Geometry, Triangle};
 use std::hint::black_box;
 
 /// ズームレベルによる負荷の変化を計測
 fn big_triangle_z_bench(c: &mut Criterion) {
-    let mut group = c.benchmark_group("ズームレンズの変化");
+    let mut group = c.benchmark_group("ズームレンズの変化（大きな三角形）");
 
-    // CodSpeedでは1回の計測精度が高いため sample_size は無視されますが、
-    // 互換性のために残しておいて問題ありません。
-    group.sample_size(40);
-
+    //入力されるズームレベルの一覧
     let inputs = 15..=25;
 
+    //十分に大きな三角形
     let tokyo = Coordinate::new(35.681382, 139.766083, 0.0).unwrap();
     let ikebukuro = Coordinate::new(35.728926, 139.71038, 100.0).unwrap();
     let shinagawa = Coordinate::new(35.630152, 139.74044, 800.0).unwrap();
     let triangle = Triangle::new([tokyo, ikebukuro, shinagawa]);
 
+    //繰り返しで処理
     for z in inputs {
         group.bench_with_input(BenchmarkId::new("Z", z), &z, |b, &z| {
             b.iter(|| {
