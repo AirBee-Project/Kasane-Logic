@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773539663005,
+  "lastUpdate": 1773540087890,
   "repoUrl": "https://github.com/AirBee-Project/Kasane-Logic",
   "entries": {
     "Benchmark": [
@@ -175,6 +175,94 @@ window.BENCHMARK_DATA = {
             "name": "Triangle ZoomLeveL Scaling/Z/25",
             "value": 460092,
             "range": "± 1260",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "s.tomoro0726@gmail.com~",
+            "name": "Tomoro0726"
+          },
+          "committer": {
+            "email": "s.tomoro0726@gmail.com~",
+            "name": "Tomoro0726"
+          },
+          "distinct": true,
+          "id": "811215d00a521f59f3880ca4290a1bdcca093ddf",
+          "message": "HTMLが正しく変更されるようにかいりょう",
+          "timestamp": "2026-03-15T10:58:16+09:00",
+          "tree_id": "170b1b24d4b0dc70dccfea76b2941a46310454e3",
+          "url": "https://github.com/AirBee-Project/Kasane-Logic/commit/811215d00a521f59f3880ca4290a1bdcca093ddf"
+        },
+        "date": 1773540087278,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/15",
+            "value": 261,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/16",
+            "value": 259,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/17",
+            "value": 260,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/18",
+            "value": 1550,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/19",
+            "value": 1554,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/20",
+            "value": 2699,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/21",
+            "value": 2874,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/22",
+            "value": 10440,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/23",
+            "value": 28406,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/24",
+            "value": 103097,
+            "range": "± 237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/25",
+            "value": 428781,
+            "range": "± 698",
             "unit": "ns/iter"
           }
         ]
