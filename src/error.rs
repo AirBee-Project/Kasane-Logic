@@ -1,6 +1,5 @@
 use std::error;
 use std::fmt;
-use std::num::NonZeroU64;
 
 /// 本クレートで発生し得るエラーを表す。
 #[derive(Debug, PartialEq)] // PartialEqはテスト等で便利ですが、f64を含む場合は注意が必要です

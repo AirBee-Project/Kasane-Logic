@@ -10,6 +10,7 @@ use proptest::prelude::*;
 use crate::MAX_ZOOM_LEVEL;
 
 use crate::SingleId;
+#[cfg(any(test, feature = "random"))]
 use crate::{F_MAX, F_MIN, XY_MAX};
 
 impl SingleId {

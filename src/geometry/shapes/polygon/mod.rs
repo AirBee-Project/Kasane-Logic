@@ -1,4 +1,4 @@
-use crate::{Coordinate, Ecef, Triangle};
+use crate::Coordinate;
 
 pub mod geometry_relation;
 pub mod impls;

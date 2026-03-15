@@ -1,7 +1,4 @@
-use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, RangeId, SingleId, WGS84_A, WGS84_E2,
-    Geometry,
-};
+use crate::{Coordinate, Ecef, Error, Geometry, MAX_ZOOM_LEVEL, Point, RangeId, WGS84_A, WGS84_E2};
 use std::fmt;
 
 impl fmt::Debug for Coordinate {

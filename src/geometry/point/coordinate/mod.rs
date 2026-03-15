@@ -2,10 +2,7 @@ pub mod impls;
 
 use std::borrow::Borrow;
 
-use crate::{
-    Ecef, SingleId, error::Error, geometry::point::coordinate,
-    spatial_id::constants::MAX_ZOOM_LEVEL,
-};
+use crate::{Ecef, SingleId, error::Error, spatial_id::constants::MAX_ZOOM_LEVEL};
 
 /// 緯度・経度・高度を表す型。
 ///

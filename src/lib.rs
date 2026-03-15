@@ -1,3 +1,5 @@
+#![deny(dead_code)]
+
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
@@ -26,6 +28,7 @@ pub use spatial_id::collection::SpatialIdSet;
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::flex_id::segment::Segment;
+pub use spatial_id::helpers::Dimension;
 pub use spatial_id::helpers::fast_intersect;
 pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;

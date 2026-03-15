@@ -1,9 +1,6 @@
 pub mod impls;
 pub mod random;
 
-#[cfg(any(test))]
-use proptest::prelude::*;
-
 use crate::{
     error::Error,
     spatial_id::{
