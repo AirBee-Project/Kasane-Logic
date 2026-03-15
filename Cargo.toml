@@ -29,6 +29,6 @@ bench = false
 bench = false
 
 [[bench]]
-name = "triangle_small"
+name = "triangle"
 harness = false
 
