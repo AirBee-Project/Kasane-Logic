@@ -4,7 +4,7 @@ use std::hint::black_box;
 
 /// ズームレベルによる負荷の変化を計測
 fn big_triangle_z_bench(c: &mut Criterion) {
-    let mut group = c.benchmark_group("ズームレンズの変化（大きな三角形）");
+    let mut group = c.benchmark_group("ZoomLeveL Scaling (Large Triangle)");
 
     //入力されるズームレベルの一覧
     let inputs = 15..=25;
