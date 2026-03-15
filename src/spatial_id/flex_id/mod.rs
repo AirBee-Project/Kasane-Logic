@@ -25,23 +25,16 @@ pub struct FlexId {
     y: Segment<8>,
 }
 
-/// [FlexId]同士の関係を表します。
-enum FlexIdRelation {
-    /// 重なりがない。
-    Disjoint,
-
-    /// 重なりがある。
-    Related,
-}
-
 impl FlexId {
     /// 新しく[FlexId]を作成する。
     pub fn new(f: Segment<8>, x: Segment<8>, y: Segment<8>) -> FlexId {
         FlexId { f, x, y }
     }
 
-    /// [FlexId]を[RangeId]に変換する。
-    pub fn range_id(&self) -> RangeId {
+    /// [FlexId]を1つ[RangeId]に変換する。
+    /// 各次元の最小のズームレベルに合わせて変形が行われるため、効率が悪い場合がある
+    /// 合計の空間IDの数が最も少なくなるようになるためには、
+    pub fn onece_range_id(&self) -> RangeId {
         self.clone().into()
     }
 
@@ -73,21 +66,11 @@ impl FlexId {
         f_len * x_len * y_len
     }
 
-    ///[FlexId]同士の関連を[FlexIdRelation]として返す。
-    #[allow(dead_code)]
-    fn relation(&self, other: &FlexId) -> FlexIdRelation {
-        let f_relation = self.f().relation(other.f());
-        let x_relation = self.x().relation(other.x());
-        let y_relation = self.y().relation(other.y());
-
-        if f_relation == SegmentRelation::Disjoint
-            || x_relation == SegmentRelation::Disjoint
-            || y_relation == SegmentRelation::Disjoint
-        {
-            FlexIdRelation::Disjoint
-        } else {
-            FlexIdRelation::Related
-        }
+    ///[FlexId]同士の重なりがあるかないかを検証する
+    pub fn is_intersects(&self, other: &FlexId) -> bool {
+        self.f().relation(other.f()) != SegmentRelation::Disjoint
+            && self.x().relation(other.x()) != SegmentRelation::Disjoint
+            && self.y().relation(other.y()) != SegmentRelation::Disjoint
     }
 
     /// [FlexId]同士の重なり合っている部分を返す。

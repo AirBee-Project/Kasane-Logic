@@ -1,8 +1,38 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, TemporalId, XY_MAX,
-    spatial_id::helpers,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, SpatialIds,
+    TemporalId, XY_MAX, spatial_id::helpers,
 };
 use std::fmt;
+
+impl SpatialIds for SingleId {
+    type SingleIdItem<'a> = &'a SingleId;
+    type RangeIdItem<'a> = RangeId;
+    type FlexIdItem<'a> = FlexId;
+
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
+        std::iter::once(self)
+    }
+
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {
+        std::iter::once(RangeId::from(self))
+    }
+
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
+        std::iter::once(FlexId::from(self))
+    }
+
+    fn optimize_single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
+        std::iter::once(self)
+    }
+
+    fn optimize_range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {
+        std::iter::once(RangeId::from(self))
+    }
+
+    fn optimize_flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
+        std::iter::once(FlexId::from(self))
+    }
+}
 
 impl fmt::Display for SingleId {
     /// `SingleId` を文字列形式で表示する。

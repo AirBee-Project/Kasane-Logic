@@ -380,3 +380,16 @@ impl From<SingleId> for RangeId {
         }
     }
 }
+
+impl From<&SingleId> for RangeId {
+    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
+    fn from(id: &SingleId) -> Self {
+        RangeId {
+            z: id.z(),
+            f: [id.f(), id.f()],
+            x: [id.x(), id.x()],
+            y: [id.y(), id.y()],
+            temporal_id: id.temporal().clone(),
+        }
+    }
+}

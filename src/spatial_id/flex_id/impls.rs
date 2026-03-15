@@ -1,4 +1,34 @@
-use crate::{FlexId, RangeId};
+use crate::{FlexId, RangeId, Segment, SingleId, SpatialId, SpatialIds};
+
+impl SpatialIds for FlexId {
+    type SingleIdItem<'a> = SingleId;
+
+    type RangeIdItem<'a> = RangeId;
+
+    type FlexIdItem<'a> = &'a FlexId;
+
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
+        self.range_id().single_ids()
+    }
+
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {}
+
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
+        std::iter::once(self)
+    }
+
+    fn optimize_single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
+        todo!()
+    }
+
+    fn optimize_range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {
+        todo!()
+    }
+
+    fn optimize_flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
+        std::iter::once(self)
+    }
+}
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {
@@ -43,5 +73,23 @@ impl From<([u8; 8], [u8; 8], [u8; 8])> for FlexId {
             x: value.1.into(),
             y: value.2.into(),
         }
+    }
+}
+
+impl From<SingleId> for FlexId {
+    fn from(value: SingleId) -> Self {
+        let f = Segment::from_f(value.z(), value.f());
+        let x = Segment::from_xy(value.z(), value.x());
+        let y = Segment::from_xy(value.z(), value.y());
+        FlexId::new(f, x, y)
+    }
+}
+
+impl From<&SingleId> for FlexId {
+    fn from(value: &SingleId) -> Self {
+        let f = Segment::from_f(value.z(), value.f());
+        let x = Segment::from_xy(value.z(), value.x());
+        let y = Segment::from_xy(value.z(), value.y());
+        FlexId::new(f, x, y)
     }
 }

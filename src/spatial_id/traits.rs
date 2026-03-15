@@ -31,3 +31,24 @@ pub trait SpatialId {
     fn single_ids(&self) -> impl Iterator<Item = SingleId>;
     fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId>;
 }
+
+///様々な種類の空間IDのイテレーターを出せることを保証する型
+pub trait SpatialIds {
+    type SingleIdItem<'a>
+    where
+        Self: 'a;
+    type RangeIdItem<'a>
+    where
+        Self: 'a;
+    type FlexIdItem<'a>
+    where
+        Self: 'a;
+
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>>;
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>>;
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>>;
+
+    fn optimize_single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>>;
+    fn optimize_range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>>;
+    fn optimize_flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>>;
+}
