@@ -1,14 +1,4 @@
-use crate::{Block, FlexId, RangeId, spatial_id::BlockSegments};
-
-impl Block for FlexId {
-    fn segmentation(&self) -> BlockSegments {
-        BlockSegments {
-            f: vec![self.f.clone()],
-            x: vec![self.x.clone()],
-            y: vec![self.y.clone()],
-        }
-    }
-}
+use crate::{FlexId, RangeId};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {

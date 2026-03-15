@@ -1,6 +1,6 @@
 use crate::{
-    Block, Coordinate, Ecef, Error, F_MAX, F_MIN, Segment, SingleId, SpatialId, TemporalId, XY_MAX,
-    spatial_id::{BlockSegments, helpers},
+    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, TemporalId, XY_MAX,
+    spatial_id::helpers,
 };
 use std::fmt;
 
@@ -300,19 +300,5 @@ impl SpatialId for SingleId {
 
     fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId> {
         std::iter::once(self.clone())
-    }
-}
-
-impl Block for SingleId {
-    fn segmentation(&self) -> BlockSegments {
-        let f_segment = Segment::from_f(self.z(), self.f());
-        let x_segment = Segment::from_xy(self.z(), self.x());
-        let y_segment = Segment::from_xy(self.z(), self.y());
-
-        BlockSegments {
-            f: vec![f_segment],
-            x: vec![x_segment],
-            y: vec![y_segment],
-        }
     }
 }

@@ -29,7 +29,7 @@ impl<const N: usize> Segment<N> {
     }
 
     ///セグメントをズームレベルとインデックス値に変換する。
-    pub(crate) fn to_f(&self) -> (u8, i32) {
+    pub fn to_f(&self) -> (u8, i32) {
         let is_negative = self.top_bit_pair() == Bit::One;
         let mut temp = self.clone();
         temp.clear_bit_pair(0);
@@ -46,7 +46,7 @@ impl<const N: usize> Segment<N> {
     }
 
     ///XYのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment<N>> {
+    pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment<N>> {
         let [l, r] = range;
         SegmentIter {
             l: l as i32,
@@ -57,7 +57,7 @@ impl<const N: usize> Segment<N> {
     }
 
     ///FのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment<N>> {
+    pub fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment<N>> {
         let diff = 1i32 << z;
         let [l, r] = range;
         SegmentIter {

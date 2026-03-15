@@ -1,9 +1,8 @@
 use std::fmt;
 
 use crate::{
-    Block, Coordinate, Error, RangeId, Segment, SingleId, SpatialId, TemporalId,
+    Coordinate, Error, RangeId, SingleId, SpatialId, TemporalId,
     spatial_id::{
-        BlockSegments,
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
     },
@@ -366,21 +365,6 @@ impl SpatialId for RangeId {
                 })
             })
         })
-    }
-}
-
-impl Block for RangeId {
-    fn segmentation(&self) -> BlockSegments {
-        let f = Segment::split_f(self.z(), self.f()).collect();
-        let x = if self.x[0] <= self.x[1] {
-            Segment::split_xy(self.z(), self.x()).collect()
-        } else {
-            Segment::split_xy(self.z(), [self.x[0], self.max_xy()])
-                .chain(Segment::split_xy(self.z(), [0, self.x[1]]))
-                .collect()
-        };
-        let y = Segment::split_xy(self.z(), self.y()).collect();
-        BlockSegments { f, x, y }
     }
 }
 
