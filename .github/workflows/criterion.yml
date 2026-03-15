@@ -26,6 +26,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: target/criterion
+          # 毎回新しいキーで保存しつつ、読み込む時は直近のデータを引っ張る
           key: criterion-${{ github.run_id }}
           restore-keys: |
             criterion-
@@ -53,18 +54,24 @@ jobs:
           ref: gh-pages
           path: gh-pages-dir
 
-      # 7. 【HTMLレポート用】CriterionのHTMLを gh-pages にコピーしてPush
+      # 7. 【HTMLレポート用】Criterionの全データを gh-pages にコピーしてPush
       - name: Copy and Push HTML Report
         run: |
-          # 古いレポートを削除し、今回生成された新しいレポートを配置
+          # 過去の不完全なreportフォルダが残っていれば削除
           rm -rf gh-pages-dir/report
-          cp -r target/criterion/report gh-pages-dir/report
+
+          # 古い全体のデータを削除し、今回生成されたディレクトリ全体をコピー
+          rm -rf gh-pages-dir/criterion
+          cp -r target/criterion gh-pages-dir/criterion
 
           # gh-pages ブランチに Push
           cd gh-pages-dir
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add report/
+
+          # フォルダごとGitに追加
+          git add criterion/
+
           # 変更がない場合はエラーで止まらないように '|| exit 0' をつける
-          git commit -m "Update Criterion HTML report" || exit 0
+          git commit -m "Update full Criterion HTML report" || exit 0
           git push
