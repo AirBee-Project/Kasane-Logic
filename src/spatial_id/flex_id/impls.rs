@@ -1,34 +1,4 @@
-use crate::{FlexId, RangeId, Segment, SingleId, SpatialId, SpatialIds};
-
-impl SpatialIds for FlexId {
-    type SingleIdItem<'a> = SingleId;
-
-    type RangeIdItem<'a> = RangeId;
-
-    type FlexIdItem<'a> = &'a FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
-        self.range_id().single_ids()
-    }
-
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {}
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
-        std::iter::once(self)
-    }
-
-    fn optimize_single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
-        todo!()
-    }
-
-    fn optimize_range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {
-        todo!()
-    }
-
-    fn optimize_flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
-        std::iter::once(self)
-    }
-}
+use crate::{FlexId, RangeId, Segment, SingleId, SpatialId};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {

@@ -1,38 +1,9 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, SpatialIds,
-    TemporalId, XY_MAX, spatial_id::helpers,
+    Block, Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, TemporalId,
+    XY_MAX,
+    spatial_id::{flex_id, helpers, traits::SpatialIds},
 };
 use std::fmt;
-
-impl SpatialIds for SingleId {
-    type SingleIdItem<'a> = &'a SingleId;
-    type RangeIdItem<'a> = RangeId;
-    type FlexIdItem<'a> = FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
-        std::iter::once(self)
-    }
-
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {
-        std::iter::once(RangeId::from(self))
-    }
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
-        std::iter::once(FlexId::from(self))
-    }
-
-    fn optimize_single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>> {
-        std::iter::once(self)
-    }
-
-    fn optimize_range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>> {
-        std::iter::once(RangeId::from(self))
-    }
-
-    fn optimize_flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>> {
-        std::iter::once(FlexId::from(self))
-    }
-}
 
 impl fmt::Display for SingleId {
     /// `SingleId` を文字列形式で表示する。
@@ -57,42 +28,6 @@ impl fmt::Display for SingleId {
 }
 
 impl SpatialId for SingleId {
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
-    /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.min_f(), -32i32);
-    /// ```
-    fn min_f(&self) -> i32 {
-        F_MIN[self.z as usize]
-    }
-
-    /// このIDのズームレベルにおける最大の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
-    /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.max_f(), 31i32);
-    /// ```
-    fn max_f(&self) -> i32 {
-        F_MAX[self.z as usize]
-    }
-
-    /// このIDのズームレベルにおける最大の XY インデックスを返す
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::SpatialId;
-    /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.max_xy(), 31u32);
-    /// ```
-    fn max_xy(&self) -> u32 {
-        XY_MAX[self.z as usize]
-    }
-
     /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かします。
     ///
     /// # パラメータ
@@ -127,7 +62,7 @@ impl SpatialId for SingleId {
             z: self.z,
         })?;
 
-        if new < self.min_f() || new > self.max_f() {
+        if new < F_MIN[self.z() as usize] || new > F_MAX[self.z() as usize] {
             return Err(Error::FOutOfRange { f: new, z: self.z });
         }
 
@@ -163,7 +98,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.x(), 4);
     /// ```
     fn move_x(&mut self, by: i32) {
-        let new = (self.x as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
+        let new = (self.x as i32 + by).rem_euclid(XY_MAX[self.z() as usize].try_into().unwrap());
         self.x = new as u32;
     }
 
@@ -207,7 +142,7 @@ impl SpatialId for SingleId {
                 .ok_or(Error::YOutOfRange { y: 0, z: self.z })?
         };
 
-        if new > self.max_xy() {
+        if new > XY_MAX[self.z() as usize] {
             return Err(Error::YOutOfRange { y: new, z: self.z });
         }
 
@@ -323,12 +258,33 @@ impl SpatialId for SingleId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+}
 
-    fn single_ids(&self) -> impl Iterator<Item = SingleId> {
-        std::iter::once(self.clone())
+impl SpatialIds for SingleId {
+    type SingleItem<'a> = &'a SingleId;
+
+    type RangeItem<'a> = RangeId;
+
+    type FlexItem<'a> = FlexId;
+
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
+        std::iter::once(self)
     }
 
-    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId> {
-        std::iter::once(self.clone())
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
+        std::iter::once(RangeId::from(self))
+    }
+
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
+        std::iter::once(FlexId::from(self))
+    }
+
+    fn block(&self) -> Option<crate::Block> {
+        let flex_id = FlexId::from(self);
+        Some(Block {
+            f: vec![flex_id.f().clone()],
+            x: vec![flex_id.x().clone()],
+            y: vec![flex_id.y().clone()],
+        })
     }
 }

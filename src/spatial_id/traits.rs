@@ -1,12 +1,10 @@
-use crate::{Coordinate, SingleId, error::Error, spatial_id::temporal_id::TemporalId};
+use crate::{
+    Coordinate, FlexId, RangeId, Segment, SingleId, error::Error,
+    spatial_id::temporal_id::TemporalId,
+};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
-    //そのIDの各次元の最大と最小を返す
-    fn min_f(&self) -> i32;
-    fn max_f(&self) -> i32;
-    fn max_xy(&self) -> u32;
-
     //各インデックスの移動
     fn move_f(&mut self, by: i32) -> Result<(), Error>;
     fn move_x(&mut self, by: i32);
@@ -26,29 +24,27 @@ pub trait SpatialId {
     //時間が関連するもの
     fn temporal(&self) -> &TemporalId;
     fn temporal_mut(&mut self) -> &mut TemporalId;
-
-    //SingleIdとして書き出すもの
-    fn single_ids(&self) -> impl Iterator<Item = SingleId>;
-    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId>;
 }
 
-///様々な種類の空間IDのイテレーターを出せることを保証する型
+pub struct Block {
+    f: Vec<Segment<8>>,
+    x: Vec<Segment<8>>,
+    y: Vec<Segment<8>>,
+}
+
 pub trait SpatialIds {
-    type SingleIdItem<'a>
+    type SingleItem<'a>
     where
         Self: 'a;
-    type RangeIdItem<'a>
+    type RangeItem<'a>
     where
         Self: 'a;
-    type FlexIdItem<'a>
+    type FlexItem<'a>
     where
         Self: 'a;
 
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>>;
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>>;
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>>;
-
-    fn optimize_single_ids(&self) -> impl Iterator<Item = Self::SingleIdItem<'_>>;
-    fn optimize_range_ids(&self) -> impl Iterator<Item = Self::RangeIdItem<'_>>;
-    fn optimize_flex_ids(&self) -> impl Iterator<Item = Self::FlexIdItem<'_>>;
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>>;
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>>;
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>>;
+    fn block(&self) -> Option<Block>;
 }

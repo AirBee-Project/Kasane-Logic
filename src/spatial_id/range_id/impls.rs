@@ -1,10 +1,11 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, RangeId, SingleId, SpatialId, TemporalId,
+    Coordinate, Error, FlexId, RangeId, SingleId, SpatialId, TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
+        traits::SpatialIds,
     },
 };
 
@@ -51,48 +52,9 @@ impl fmt::Display for RangeId {
 }
 
 impl SpatialId for RangeId {
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::SpatialId;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.min_f(), -32i32);
-    /// ```
-    fn min_f(&self) -> i32 {
-        F_MIN[self.z as usize]
-    }
-
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::SpatialId;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.max_f(), 31i32);
-    /// ```
-    fn max_f(&self) -> i32 {
-        F_MAX[self.z as usize]
-    }
-
-    /// このIDのズームレベルにおける最小の F インデックスを返す
-    /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::SpatialId;
-    /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.max_xy(), 31u32);
-    /// ```
-    fn max_xy(&self) -> u32 {
-        XY_MAX[self.z as usize]
-    }
-
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let min = self.min_f();
-        let max = self.max_f();
+        let min = F_MIN[self.z() as usize];
+        let max = F_MAX[self.z() as usize];
         let z = self.z;
 
         let ns = self.f[0]
@@ -114,17 +76,17 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let new = (self.x[0] as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
+        let new = (self.x[0] as i32 + by).rem_euclid(XY_MAX[self.z() as usize].try_into().unwrap());
         self.x[0] = new as u32;
 
-        let new = (self.x[1] as i32 + by).rem_euclid(self.max_xy().try_into().unwrap());
+        let new = (self.x[1] as i32 + by).rem_euclid(XY_MAX[self.z() as usize].try_into().unwrap());
         self.x[1] = new as u32;
     }
 
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
             let byu = by as u32;
-            let max = self.max_xy();
+            let max = XY_MAX[self.z() as usize];
             let z = self.z;
 
             let ns = self.y[0]
@@ -146,7 +108,7 @@ impl SpatialId for RangeId {
         } else {
             // south
             let byu = (-by) as u32;
-            let max = self.max_xy();
+            let max = XY_MAX[self.z() as usize];
             let z = self.z;
 
             let ns = self.y[0]
@@ -251,121 +213,6 @@ impl SpatialId for RangeId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
-
-    fn single_ids(&self) -> impl Iterator<Item = SingleId> {
-        let z = self.z;
-
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
-
-        f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
-            } else {
-                (self.x[0]..=self.max_xy())
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
-            };
-
-            x_iter.into_iter().flat_map(move |x| {
-                y_range
-                    .clone()
-                    .map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
-            })
-        })
-    }
-
-    fn optimize_single_ids(&self) -> impl Iterator<Item = SingleId> {
-        let mut regions = Vec::new();
-        let (f, x, y) = (self.f(), self.x(), self.y());
-
-        let mut stack = if x[0] <= x[1] {
-            vec![(self.z(), f[0], f[1], x[0], x[1], y[0], y[1])]
-        } else {
-            vec![
-                (self.z(), f[0], f[1], x[0], self.max_xy(), y[0], y[1]),
-                (self.z(), f[0], f[1], 0, x[1], y[0], y[1]),
-            ]
-        };
-
-        while let Some((z, f0, f1, x0, x1, y0, y1)) = stack.pop() {
-            if f0 > f1 || x0 > x1 || y0 > y1 {
-                continue;
-            }
-
-            if z == 0 {
-                regions.push((z, f0, f1, x0, x1, y0, y1));
-                continue;
-            }
-
-            let split_u = |s: u32, e: u32| {
-                let (i_s, i_e) = (s + s % 2, if e % 2 == 1 { e + 1 } else { e });
-                if i_s < i_e {
-                    [s..i_s, i_s..i_e, i_e..e + 1]
-                } else {
-                    [s..e + 1, 0..0, 0..0]
-                }
-            };
-            let split_i = |s: i32, e: i32| {
-                let (i_s, i_e) = (
-                    s + s.rem_euclid(2),
-                    if e.rem_euclid(2) == 1 { e + 1 } else { e },
-                );
-                if i_s < i_e {
-                    [s..i_s, i_s..i_e, i_e..e + 1]
-                } else {
-                    [s..e + 1, 0..0, 0..0]
-                }
-            };
-
-            let (fp, xp, yp) = (split_i(f0, f1), split_u(x0, x1), split_u(y0, y1));
-
-            for (i, fr) in fp.iter().enumerate() {
-                for (j, xr) in xp.iter().enumerate() {
-                    for (k, yr) in yp.iter().enumerate() {
-                        if i == 1 && j == 1 && k == 1 {
-                            continue;
-                        }
-
-                        // Rangeが空でなければ、出力すべき直方体領域として記録
-                        if !fr.is_empty() && !xr.is_empty() && !yr.is_empty() {
-                            regions.push((
-                                z,
-                                fr.start,
-                                fr.end - 1,
-                                xr.start,
-                                xr.end - 1,
-                                yr.start,
-                                yr.end - 1,
-                            ));
-                        }
-                    }
-                }
-            }
-
-            if !fp[1].is_empty() && !xp[1].is_empty() && !yp[1].is_empty() {
-                stack.push((
-                    z - 1,
-                    fp[1].start >> 1,
-                    (fp[1].end - 1) >> 1,
-                    xp[1].start >> 1,
-                    (xp[1].end - 1) >> 1,
-                    yp[1].start >> 1,
-                    (yp[1].end - 1) >> 1,
-                ));
-            }
-        }
-
-        regions.into_iter().flat_map(|(z, f0, f1, x0, x1, y0, y1)| {
-            (f0..=f1).flat_map(move |f| {
-                (x0..=x1).flat_map(move |x| {
-                    (y0..=y1).map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
-                })
-            })
-        })
-    }
 }
 
 impl From<SingleId> for RangeId {
@@ -391,5 +238,46 @@ impl From<&SingleId> for RangeId {
             y: [id.y(), id.y()],
             temporal_id: id.temporal().clone(),
         }
+    }
+}
+
+impl SpatialIds for RangeId {
+    type SingleItem<'a> = SingleId;
+
+    type RangeItem<'a> = &'a RangeId;
+
+    type FlexItem<'a> = FlexId;
+
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
+        let z = self.z;
+
+        let f_range = self.f[0]..=self.f[1];
+        let y_range = self.y[0]..=self.y[1];
+
+        f_range.flat_map(move |f| {
+            let y_range = y_range.clone();
+
+            let x_iter = if self.x[0] <= self.x[1] {
+                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
+            } else {
+                (self.x[0]..=XY_MAX[z])
+                    .chain(0..=self.x[1])
+                    .collect::<Vec<_>>()
+            };
+
+            x_iter.into_iter().flat_map(move |x| {
+                y_range
+                    .clone()
+                    .map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
+            })
+        })
+    }
+
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
+        std::iter::once(self)
+    }
+
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
+        todo!()
     }
 }

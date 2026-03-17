@@ -31,5 +31,5 @@ pub use spatial_id::helpers::fast_intersect;
 pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
+pub use spatial_id::traits::Block;
 pub use spatial_id::traits::SpatialId;
-pub use spatial_id::traits::SpatialIds;
