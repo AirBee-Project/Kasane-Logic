@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773824222466,
+  "lastUpdate": 1773824864104,
   "repoUrl": "https://github.com/AirBee-Project/Kasane-Logic",
   "entries": {
     "Benchmark": [
@@ -441,6 +441,96 @@ window.BENCHMARK_DATA = {
             "name": "Triangle ZoomLeveL Scaling/Z/25",
             "value": 454163,
             "range": "± 1063",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84822898+Tomoro0726@users.noreply.github.com",
+            "name": "Tomoro Saito",
+            "username": "Tomoro0726"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66e04965d5d958c8ac10155e0a2fdc5f4e097581",
+          "message": "Merge pull request #85 from AirBee-Project/feat/geometry-relation\n\nShapeの分解実装をシンプル",
+          "timestamp": "2026-03-18T18:04:33+09:00",
+          "tree_id": "b14388aef90b0f21cb8c4ae95fef33ca1ac8e2ac",
+          "url": "https://github.com/AirBee-Project/Kasane-Logic/commit/66e04965d5d958c8ac10155e0a2fdc5f4e097581"
+        },
+        "date": 1773824863448,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/15",
+            "value": 303,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/16",
+            "value": 302,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/17",
+            "value": 302,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/18",
+            "value": 1609,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/19",
+            "value": 1616,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/20",
+            "value": 2783,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/21",
+            "value": 2965,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/22",
+            "value": 11181,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/23",
+            "value": 30998,
+            "range": "± 315",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/24",
+            "value": 110559,
+            "range": "± 10134",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle ZoomLeveL Scaling/Z/25",
+            "value": 459150,
+            "range": "± 3008",
             "unit": "ns/iter"
           }
         ]
