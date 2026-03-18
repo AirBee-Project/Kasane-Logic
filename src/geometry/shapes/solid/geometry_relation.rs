@@ -1,83 +1,56 @@
-use crate::{Coordinate, Line, Polygon, Solid, Triangle};
+use crate::{
+    Coordinate, IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Line, Polygon, Solid,
+    Triangle,
+};
 
-//[Coordinate]への変換
-impl From<Solid> for Box<dyn Iterator<Item = Coordinate>> {
-    fn from(val: Solid) -> Self {
-        (&val).into()
+impl IntoCoordinates for Solid {
+    fn into_coordinates(self) -> impl Iterator<Item = Coordinate> {
+        self.polygons
+            .into_iter()
+            .flat_map(|polygon| polygon.into_coordinates())
+    }
+
+    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
+        self.polygons
+            .iter()
+            .flat_map(|polygon| polygon.iter_coordinates())
     }
 }
 
-impl From<&Solid> for Box<dyn Iterator<Item = Coordinate>> {
-    fn from(val: &Solid) -> Self {
-        let coords_iter = val.polygons.clone().into_iter().flat_map(|polygon| {
-            let coords: Box<dyn Iterator<Item = Coordinate>> = polygon.into();
-            coords
-        });
+impl IntoLines for Solid {
+    fn into_lines(self) -> impl Iterator<Item = Line> {
+        self.polygons
+            .into_iter()
+            .flat_map(|polygon| polygon.into_lines())
+    }
 
-        Box::new(coords_iter)
+    fn iter_lines(&self) -> impl Iterator<Item = Line> {
+        self.polygons
+            .iter()
+            .flat_map(|polygon| polygon.iter_lines())
     }
 }
 
-impl<'a> From<&'a Solid> for Box<dyn Iterator<Item = &'a Coordinate> + 'a> {
-    fn from(val: &'a Solid) -> Self {
-        let coords_iter = val.polygons.iter().flat_map(|polygon| {
-            let coords: Box<dyn Iterator<Item = &'a Coordinate> + 'a> = polygon.into();
-            coords
-        });
-        Box::new(coords_iter)
+impl IntoTriangles for Solid {
+    fn into_triangles(self) -> impl Iterator<Item = Triangle> {
+        self.polygons
+            .into_iter()
+            .flat_map(|polygon| polygon.into_triangles())
+    }
+
+    fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
+        self.polygons
+            .iter()
+            .flat_map(|polygon| polygon.iter_triangles())
     }
 }
 
-//[Line]への変換
-impl From<Solid> for Box<dyn Iterator<Item = Line>> {
-    fn from(val: Solid) -> Self {
-        let iter = val.polygons.into_iter().flat_map(|polygon| {
-            let triangles: Box<dyn Iterator<Item = Triangle>> = polygon.into();
-            triangles.flat_map(|triangle| {
-                let lines: Box<dyn Iterator<Item = Line>> = triangle.into();
-                lines
-            })
-        });
-        Box::new(iter)
+impl IntoPolygons for Solid {
+    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
+        self.polygons.into_iter()
     }
-}
 
-impl From<&Solid> for Box<dyn Iterator<Item = Line>> {
-    fn from(val: &Solid) -> Self {
-        let copy = val.clone();
-        copy.into()
-    }
-}
-
-//[Triangle]への変換
-impl From<Solid> for Box<dyn Iterator<Item = Triangle>> {
-    fn from(val: Solid) -> Self {
-        let iter = val.polygons.into_iter().flat_map(|polygon| {
-            let triangles: Box<dyn Iterator<Item = Triangle>> = polygon.into();
-            triangles.into_iter()
-        });
-        Box::new(iter)
-    }
-}
-
-impl From<&Solid> for Box<dyn Iterator<Item = Triangle>> {
-    fn from(val: &Solid) -> Self {
-        let copy = val.clone();
-        copy.into()
-    }
-}
-
-//[Triangle]への変換
-impl From<Solid> for Box<dyn Iterator<Item = Polygon>> {
-    fn from(val: Solid) -> Self {
-        let iter = val.polygons.into_iter();
-        Box::new(iter)
-    }
-}
-
-impl From<&Solid> for Box<dyn Iterator<Item = Polygon>> {
-    fn from(val: &Solid) -> Self {
-        let copy = val.clone();
-        copy.into()
+    fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
+        self.polygons.clone().into_iter()
     }
 }

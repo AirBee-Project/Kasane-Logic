@@ -51,8 +51,7 @@ impl Solid {
 
     /// [Solid] 全体を三角形分割し、構成する [Triangle] のリストを返します。
     pub fn triangles(&self) -> Vec<Triangle> {
-        let triangles: Box<dyn Iterator<Item = Triangle>> = self.into();
-        triangles.collect()
+        self.iter_triangles().collect()
     }
 
     /// 閉じていないエッジの数を数える内部ヘルパー関数
