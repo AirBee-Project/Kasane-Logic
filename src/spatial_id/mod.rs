@@ -1,4 +1,3 @@
-use crate::{FlexId, Segment};
 
 pub(crate) mod collection;
 pub mod constants;

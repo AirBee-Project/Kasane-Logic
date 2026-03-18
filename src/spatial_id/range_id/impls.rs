@@ -193,7 +193,7 @@ impl SpatialId for RangeId {
         let range = (self.f()[0] - self.f()[1]).abs() as f64;
 
         //かけ合わせて答えを返却
-        (one * range).into()
+        (one * range)
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数

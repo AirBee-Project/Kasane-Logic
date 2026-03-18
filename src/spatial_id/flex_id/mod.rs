@@ -1,6 +1,6 @@
+use crate::Segment;
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::flex_id::segment::SegmentRelation;
-use crate::{RangeId, Segment};
 pub mod impls;
 pub mod segment;
 

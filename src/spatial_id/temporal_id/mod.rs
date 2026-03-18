@@ -74,7 +74,7 @@ impl TemporalId {
         let inclusive_end = i_u128 * (t[1] as u128) + i_u128 - 1;
 
         if inclusive_end > u64::MAX as u128 {
-            return Err(Error::TOutOfRange { i: i, t: t[1] });
+            return Err(Error::TOutOfRange { i, t: t[1] });
         }
 
         Ok(Self { i: i_non_zero, t })
@@ -146,7 +146,7 @@ impl TemporalId {
         }
 
         while new_i > u64::MAX as u128 {
-            if new_i % 2 == 0 {
+            if new_i.is_multiple_of(2) {
                 new_i /= 2;
             } else {
                 return;

@@ -1,8 +1,7 @@
 use std::{fmt, ops::Sub};
 
 use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F,
-    Geometry,
+    Coordinate, Ecef, Error, Geometry, MAX_ZOOM_LEVEL, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F,
 };
 
 impl fmt::Debug for Ecef {

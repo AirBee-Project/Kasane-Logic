@@ -120,7 +120,7 @@ impl Ecef {
     /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換する。
     pub fn single_id(&self, z: u8) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
-        Ok(coordinate.single_id(z)?)
+        coordinate.single_id(z)
     }
 
     /// この ECEF 座標を、指定されたズームレベルの [`RangeId`] に変換する。
