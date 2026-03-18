@@ -1,7 +1,7 @@
 use crate::{
-    Block, Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, TemporalId,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, TemporalId,
     XY_MAX,
-    spatial_id::{flex_id, helpers, traits::SpatialIds},
+    spatial_id::{helpers, traits::SpatialIds},
 };
 use std::fmt;
 
@@ -277,14 +277,5 @@ impl SpatialIds for SingleId {
 
     fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
         std::iter::once(FlexId::from(self))
-    }
-
-    fn block(&self) -> Option<crate::Block> {
-        let flex_id = FlexId::from(self);
-        Some(Block {
-            f: vec![flex_id.f().clone()],
-            x: vec![flex_id.x().clone()],
-            y: vec![flex_id.y().clone()],
-        })
     }
 }

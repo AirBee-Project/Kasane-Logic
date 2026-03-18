@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, FlexId, RangeId, SingleId, SpatialId, TemporalId,
+    Coordinate, Error, FlexId, RangeId, Segment, SingleId, SpatialId, TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
@@ -260,7 +260,7 @@ impl SpatialIds for RangeId {
             let x_iter = if self.x[0] <= self.x[1] {
                 (self.x[0]..=self.x[1]).collect::<Vec<_>>()
             } else {
-                (self.x[0]..=XY_MAX[z])
+                (self.x[0]..=XY_MAX[z as usize])
                     .chain(0..=self.x[1])
                     .collect::<Vec<_>>()
             };
@@ -278,6 +278,25 @@ impl SpatialIds for RangeId {
     }
 
     fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        todo!()
+        let f_segments = Segment::<8>::split_f(self.z, self.f());
+        let x_segments = Segment::<8>::split_xy(self.z, self.x());
+        let y_segments = Segment::<8>::split_xy(self.z, self.y());
+
+        // segmentsがイテレーターの場合、内側のループで何度も使うために
+        // Vecなどにcollectしておくか、Clone可能である必要があります。
+        let f_list: Vec<_> = f_segments.collect();
+        let x_list: Vec<_> = x_segments.collect();
+        let y_list: Vec<_> = y_segments.collect();
+
+        f_list.into_iter().flat_map(move |(f_zoom, f_idx)| {
+            x_list.clone().into_iter().flat_map({
+                let value = y_list.clone();
+                move |(x_zoom, x_idx)| {
+                    value.clone().into_iter().map(move |(y_zoom, y_idx)| {
+                        FlexId::new(f_zoom, f_idx, x_zoom, x_idx, y_zoom, y_idx)
+                    })
+                }
+            })
+        })
     }
 }

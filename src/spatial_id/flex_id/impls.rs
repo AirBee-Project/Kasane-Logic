@@ -48,18 +48,26 @@ impl From<([u8; 8], [u8; 8], [u8; 8])> for FlexId {
 
 impl From<SingleId> for FlexId {
     fn from(value: SingleId) -> Self {
-        let f = Segment::from_f(value.z(), value.f());
-        let x = Segment::from_xy(value.z(), value.x());
-        let y = Segment::from_xy(value.z(), value.y());
-        FlexId::new(f, x, y)
+        FlexId::new(
+            value.z(),
+            value.f(),
+            value.z(),
+            value.x(),
+            value.z(),
+            value.y(),
+        )
     }
 }
 
 impl From<&SingleId> for FlexId {
     fn from(value: &SingleId) -> Self {
-        let f = Segment::from_f(value.z(), value.f());
-        let x = Segment::from_xy(value.z(), value.x());
-        let y = Segment::from_xy(value.z(), value.y());
-        FlexId::new(f, x, y)
+        FlexId::new(
+            value.z(),
+            value.f(),
+            value.z(),
+            value.x(),
+            value.z(),
+            value.y(),
+        )
     }
 }

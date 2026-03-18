@@ -12,7 +12,7 @@ pub mod segment;
 ///
 ///
 /// ```ignore
-/// pub struct RangeId {
+/// pub struct FlexId {
 ///     f: Segment,
 ///     x: Segment,
 ///     y: Segment,
@@ -27,15 +27,18 @@ pub struct FlexId {
 
 impl FlexId {
     /// 新しく[FlexId]を作成する。
-    pub fn new(f: Segment<8>, x: Segment<8>, y: Segment<8>) -> FlexId {
+    pub fn new(
+        f_zoomlevel: u8,
+        f_index: i32,
+        x_zoomlevel: u8,
+        x_index: u32,
+        y_zoomlevel: u8,
+        y_index: u32,
+    ) -> FlexId {
+        let f = Segment::from_f(f_zoomlevel, f_index);
+        let x = Segment::from_xy(x_zoomlevel, x_index);
+        let y = Segment::from_xy(y_zoomlevel, y_index);
         FlexId { f, x, y }
-    }
-
-    /// [FlexId]を1つ[RangeId]に変換する。
-    /// 各次元の最小のズームレベルに合わせて変形が行われるため、効率が悪い場合がある
-    /// 合計の空間IDの数が最も少なくなるようになるためには、
-    pub fn onece_range_id(&self) -> RangeId {
-        self.clone().into()
     }
 
     /// Fインデックスのセグメントを参照する。
@@ -189,28 +192,28 @@ impl FlexId {
 
     ///Fセグメントを親セグメントにした[FlexId]を返す。
     pub fn f_parent(&self) -> Option<FlexId> {
-        Some(FlexId::new(
-            self.f().parent()?,
-            self.x().clone(),
-            self.y().clone(),
-        ))
+        Some(FlexId {
+            f: self.f().parent()?,
+            x: self.x().clone(),
+            y: self.y().clone(),
+        })
     }
 
     ///Xセグメントを親セグメントにした[FlexId]を返す。
     pub fn x_parent(&self) -> Option<FlexId> {
-        Some(FlexId::new(
-            self.f().clone(),
-            self.x().parent()?,
-            self.y().clone(),
-        ))
+        Some(FlexId {
+            f: self.f().clone(),
+            x: self.x().parent()?,
+            y: self.y().clone(),
+        })
     }
 
     ///Yセグメントを親セグメントにした[FlexId]を返す。
     pub fn y_parent(&self) -> Option<FlexId> {
-        Some(FlexId::new(
-            self.f().clone(),
-            self.x().clone(),
-            self.y().parent()?,
-        ))
+        Some(FlexId {
+            f: self.f().clone(),
+            x: self.x().clone(),
+            y: self.y().parent()?,
+        })
     }
 }

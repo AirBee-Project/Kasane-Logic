@@ -26,12 +26,6 @@ pub trait SpatialId {
     fn temporal_mut(&mut self) -> &mut TemporalId;
 }
 
-pub struct Block {
-    f: Vec<Segment<8>>,
-    x: Vec<Segment<8>>,
-    y: Vec<Segment<8>>,
-}
-
 pub trait SpatialIds {
     type SingleItem<'a>
     where
@@ -46,5 +40,4 @@ pub trait SpatialIds {
     fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>>;
     fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>>;
     fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>>;
-    fn block(&self) -> Option<Block>;
 }
