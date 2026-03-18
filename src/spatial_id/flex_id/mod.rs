@@ -1,6 +1,7 @@
 use crate::Segment;
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::flex_id::segment::SegmentRelation;
+use crate::spatial_id::temporal_id::TemporalId;
 pub mod impls;
 pub mod segment;
 
@@ -23,6 +24,7 @@ pub struct FlexId {
     f: Segment<8>,
     x: Segment<8>,
     y: Segment<8>,
+    temporal_id: TemporalId,
 }
 
 impl FlexId {
@@ -35,24 +37,61 @@ impl FlexId {
         y_zoomlevel: u8,
         y_index: u32,
     ) -> FlexId {
+        Self::new_with_temporal(
+            f_zoomlevel,
+            f_index,
+            x_zoomlevel,
+            x_index,
+            y_zoomlevel,
+            y_index,
+            TemporalId::whole(),
+        )
+    }
+
+    pub fn new_with_temporal(
+        f_zoomlevel: u8,
+        f_index: i32,
+        x_zoomlevel: u8,
+        x_index: u32,
+        y_zoomlevel: u8,
+        y_index: u32,
+        temporal_id: TemporalId,
+    ) -> FlexId {
         let f = Segment::from_f(f_zoomlevel, f_index);
         let x = Segment::from_xy(x_zoomlevel, x_index);
         let y = Segment::from_xy(y_zoomlevel, y_index);
-        FlexId { f, x, y }
+        FlexId {
+            f,
+            x,
+            y,
+            temporal_id,
+        }
+    }
+
+    pub fn f(&self) -> (u8, i32) {
+        self.f_segment().to_f()
+    }
+
+    pub fn x(&self) -> (u8, u32) {
+        self.x_segment().to_xy()
+    }
+
+    pub fn y(&self) -> (u8, u32) {
+        self.y_segment().to_xy()
     }
 
     /// Fインデックスのセグメントを参照する。
-    pub fn f(&self) -> &Segment<8> {
+    pub fn f_segment(&self) -> &Segment<8> {
         &self.f
     }
 
     /// Xインデックスのセグメントを参照する。
-    pub fn x(&self) -> &Segment<8> {
+    pub fn x_segment(&self) -> &Segment<8> {
         &self.x
     }
 
     /// Yインデックスのセグメントを参照する。
-    pub fn y(&self) -> &Segment<8> {
+    pub fn y_segment(&self) -> &Segment<8> {
         &self.y
     }
 
@@ -71,35 +110,35 @@ impl FlexId {
 
     ///[FlexId]同士の重なりがあるかないかを検証する
     pub fn is_intersects(&self, other: &FlexId) -> bool {
-        self.f().relation(other.f()) != SegmentRelation::Disjoint
-            && self.x().relation(other.x()) != SegmentRelation::Disjoint
-            && self.y().relation(other.y()) != SegmentRelation::Disjoint
+        self.f_segment().relation(other.f_segment()) != SegmentRelation::Disjoint
+            && self.x_segment().relation(other.x_segment()) != SegmentRelation::Disjoint
+            && self.y_segment().relation(other.y_segment()) != SegmentRelation::Disjoint
     }
 
     /// [FlexId]同士の重なり合っている部分を返す。
     pub fn intersection(&self, other: &FlexId) -> Option<FlexId> {
-        let f = match self.f().relation(other.f()) {
-            SegmentRelation::Equal => self.f(),
-            SegmentRelation::Ancestor => other.f(),
-            SegmentRelation::Descendant => self.f(),
+        let f = match self.f_segment().relation(other.f_segment()) {
+            SegmentRelation::Equal => self.f_segment(),
+            SegmentRelation::Ancestor => other.f_segment(),
+            SegmentRelation::Descendant => self.f_segment(),
             SegmentRelation::Disjoint => {
                 return None;
             }
         };
 
-        let x = match self.x().relation(other.x()) {
-            SegmentRelation::Equal => self.x(),
-            SegmentRelation::Ancestor => other.x(),
-            SegmentRelation::Descendant => self.x(),
+        let x = match self.x_segment().relation(other.x_segment()) {
+            SegmentRelation::Equal => self.x_segment(),
+            SegmentRelation::Ancestor => other.x_segment(),
+            SegmentRelation::Descendant => self.x_segment(),
             SegmentRelation::Disjoint => {
                 return None;
             }
         };
 
-        let y = match self.y().relation(other.y()) {
-            SegmentRelation::Equal => self.y(),
-            SegmentRelation::Ancestor => other.y(),
-            SegmentRelation::Descendant => self.y(),
+        let y = match self.y_segment().relation(other.y_segment()) {
+            SegmentRelation::Equal => self.y_segment(),
+            SegmentRelation::Ancestor => other.y_segment(),
+            SegmentRelation::Descendant => self.y_segment(),
             SegmentRelation::Disjoint => {
                 return None;
             }
@@ -109,6 +148,7 @@ impl FlexId {
             f: f.clone(),
             x: x.clone(),
             y: y.clone(),
+            temporal_id: self.temporal_id.clone(),
         })
     }
 
@@ -125,30 +165,33 @@ impl FlexId {
 
         let mut result = Vec::new();
 
-        let f_diffs = self.f().difference(&intersection.f);
+        let f_diffs = self.f_segment().difference(&intersection.f);
         for f_seg in f_diffs {
             result.push(FlexId {
                 f: f_seg,
                 x: self.x.clone(),
                 y: self.y.clone(),
+                temporal_id: self.temporal_id.clone(),
             });
         }
 
-        let x_diffs = self.x().difference(&intersection.x);
+        let x_diffs = self.x_segment().difference(&intersection.x);
         for x_seg in x_diffs {
             result.push(FlexId {
                 f: intersection.f.clone(),
                 x: x_seg,
                 y: self.y.clone(),
+                temporal_id: self.temporal_id.clone(),
             });
         }
 
-        let y_diffs = self.y().difference(&intersection.y);
+        let y_diffs = self.y_segment().difference(&intersection.y);
         for y_seg in y_diffs {
             result.push(FlexId {
                 f: intersection.f.clone(),
                 x: intersection.x.clone(),
                 y: y_seg,
+                temporal_id: self.temporal_id.clone(),
             });
         }
 
@@ -158,12 +201,12 @@ impl FlexId {
     ///[FlexId]が相手のFlexIdを含むかどうかを判定する。
     #[allow(dead_code)]
     fn contains(&self, other: &FlexId) -> bool {
-        self.f().relation(other.f()) != SegmentRelation::Disjoint
-            && self.f().relation(other.f()) != SegmentRelation::Descendant
-            && self.x().relation(other.x()) != SegmentRelation::Disjoint
-            && self.x().relation(other.x()) != SegmentRelation::Descendant
-            && self.y().relation(other.y()) != SegmentRelation::Disjoint
-            && self.y().relation(other.y()) != SegmentRelation::Descendant
+        self.f_segment().relation(other.f_segment()) != SegmentRelation::Disjoint
+            && self.f_segment().relation(other.f_segment()) != SegmentRelation::Descendant
+            && self.x_segment().relation(other.x_segment()) != SegmentRelation::Disjoint
+            && self.x_segment().relation(other.x_segment()) != SegmentRelation::Descendant
+            && self.y_segment().relation(other.y_segment()) != SegmentRelation::Disjoint
+            && self.y_segment().relation(other.y_segment()) != SegmentRelation::Descendant
     }
     ///Fセグメントが兄弟で、他が同じなFlexIdを返す
     pub fn f_sibling(&self) -> FlexId {
@@ -171,6 +214,7 @@ impl FlexId {
             f: self.f.sibling(),
             x: self.x.clone(),
             y: self.y.clone(),
+            temporal_id: self.temporal_id.clone(),
         }
     }
     ///Xセグメントが兄弟で、他が同じなFlexIdを返す
@@ -179,6 +223,7 @@ impl FlexId {
             f: self.f.clone(),
             x: self.x.sibling(),
             y: self.y.clone(),
+            temporal_id: self.temporal_id.clone(),
         }
     }
     ///Yセグメントが兄弟で、他が同じなFlexIdを返す
@@ -187,33 +232,37 @@ impl FlexId {
             f: self.f.clone(),
             x: self.x.clone(),
             y: self.y.sibling(),
+            temporal_id: self.temporal_id.clone(),
         }
     }
 
     ///Fセグメントを親セグメントにした[FlexId]を返す。
     pub fn f_parent(&self) -> Option<FlexId> {
         Some(FlexId {
-            f: self.f().parent()?,
-            x: self.x().clone(),
-            y: self.y().clone(),
+            f: self.f_segment().parent()?,
+            x: self.x_segment().clone(),
+            y: self.y_segment().clone(),
+            temporal_id: self.temporal_id.clone(),
         })
     }
 
     ///Xセグメントを親セグメントにした[FlexId]を返す。
     pub fn x_parent(&self) -> Option<FlexId> {
         Some(FlexId {
-            f: self.f().clone(),
-            x: self.x().parent()?,
-            y: self.y().clone(),
+            f: self.f_segment().clone(),
+            x: self.x_segment().parent()?,
+            y: self.y_segment().clone(),
+            temporal_id: self.temporal_id.clone(),
         })
     }
 
     ///Yセグメントを親セグメントにした[FlexId]を返す。
     pub fn y_parent(&self) -> Option<FlexId> {
         Some(FlexId {
-            f: self.f().clone(),
-            x: self.x().clone(),
-            y: self.y().parent()?,
+            f: self.f_segment().clone(),
+            x: self.x_segment().clone(),
+            y: self.y_segment().parent()?,
+            temporal_id: self.temporal_id.clone(),
         })
     }
 }

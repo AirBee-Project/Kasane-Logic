@@ -52,6 +52,18 @@ impl fmt::Display for RangeId {
 }
 
 impl SpatialId for RangeId {
+    fn f_min(&self) -> i32 {
+        F_MIN[self.z() as usize]
+    }
+
+    fn f_max(&self) -> i32 {
+        F_MAX[self.z() as usize]
+    }
+
+    fn xy_max(&self) -> u32 {
+        XY_MAX[self.z() as usize]
+    }
+
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
         let min = F_MIN[self.z() as usize];
         let max = F_MAX[self.z() as usize];

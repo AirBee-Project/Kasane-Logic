@@ -2,6 +2,14 @@ use crate::{Coordinate, error::Error, spatial_id::temporal_id::TemporalId};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
+    //そのIDの各次元インデックス値の最大と最小を返す
+    fn f_min(&self) -> i32;
+    fn f_max(&self) -> i32;
+    fn xy_max(&self) -> u32;
+    fn xy_min(&self) -> u32 {
+        0
+    }
+
     //各インデックスの移動
     fn move_f(&mut self, by: i32) -> Result<(), Error>;
     fn move_x(&mut self, by: i32);

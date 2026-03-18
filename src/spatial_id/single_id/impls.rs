@@ -28,6 +28,18 @@ impl fmt::Display for SingleId {
 }
 
 impl SpatialId for SingleId {
+    fn f_min(&self) -> i32 {
+        F_MIN[self.z() as usize]
+    }
+
+    fn f_max(&self) -> i32 {
+        F_MAX[self.z() as usize]
+    }
+
+    fn xy_max(&self) -> u32 {
+        XY_MAX[self.z() as usize]
+    }
+
     /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かします。
     ///
     /// # パラメータ
