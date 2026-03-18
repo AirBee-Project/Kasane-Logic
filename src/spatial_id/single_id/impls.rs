@@ -74,7 +74,7 @@ impl SpatialId for SingleId {
             z: self.z,
         })?;
 
-        if new < F_MIN[self.z() as usize] || new > F_MAX[self.z() as usize] {
+        if new < self.f_min() || new > self.f_max() {
             return Err(Error::FOutOfRange { f: new, z: self.z });
         }
 
@@ -110,7 +110,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.x(), 4);
     /// ```
     fn move_x(&mut self, by: i32) {
-        let new = (self.x as i32 + by).rem_euclid(XY_MAX[self.z() as usize].try_into().unwrap());
+        let new = (self.x as i32 + by).rem_euclid(self.xy_max().try_into().unwrap());
         self.x = new as u32;
     }
 
@@ -149,12 +149,13 @@ impl SpatialId for SingleId {
                 z: self.z,
             })?
         } else {
-            self.y
-                .checked_sub(-by as u32)
-                .ok_or(Error::YOutOfRange { y: 0, z: self.z })?
+            self.y.checked_sub(-by as u32).ok_or(Error::YOutOfRange {
+                y: self.xy_min(),
+                z: self.z,
+            })?
         };
 
-        if new > XY_MAX[self.z() as usize] {
+        if new > self.xy_max() {
             return Err(Error::YOutOfRange { y: new, z: self.z });
         }
 

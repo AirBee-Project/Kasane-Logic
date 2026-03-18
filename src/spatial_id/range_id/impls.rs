@@ -65,8 +65,8 @@ impl SpatialId for RangeId {
     }
 
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let min = F_MIN[self.z() as usize];
-        let max = F_MAX[self.z() as usize];
+        let min = self.f_min();
+        let max = self.f_max();
         let z = self.z;
 
         let ns = self.f[0]
@@ -88,17 +88,17 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let new = (self.x[0] as i32 + by).rem_euclid(XY_MAX[self.z() as usize].try_into().unwrap());
+        let new = (self.x[0] as i32 + by).rem_euclid(self.xy_max().try_into().unwrap());
         self.x[0] = new as u32;
 
-        let new = (self.x[1] as i32 + by).rem_euclid(XY_MAX[self.z() as usize].try_into().unwrap());
+        let new = (self.x[1] as i32 + by).rem_euclid(self.xy_max().try_into().unwrap());
         self.x[1] = new as u32;
     }
 
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
             let byu = by as u32;
-            let max = XY_MAX[self.z() as usize];
+            let max = self.xy_max();
             let z = self.z;
 
             let ns = self.y[0]
@@ -120,15 +120,17 @@ impl SpatialId for RangeId {
         } else {
             // south
             let byu = (-by) as u32;
-            let max = XY_MAX[self.z() as usize];
+            let max = self.xy_max();
             let z = self.z;
 
-            let ns = self.y[0]
-                .checked_sub(byu)
-                .ok_or(Error::YOutOfRange { y: 0, z })?;
-            let ne = self.y[1]
-                .checked_sub(byu)
-                .ok_or(Error::YOutOfRange { y: 0, z })?;
+            let ns = self.y[0].checked_sub(byu).ok_or(Error::YOutOfRange {
+                y: self.xy_min(),
+                z,
+            })?;
+            let ne = self.y[1].checked_sub(byu).ok_or(Error::YOutOfRange {
+                y: self.xy_min(),
+                z,
+            })?;
 
             if ns > max {
                 return Err(Error::YOutOfRange { y: ns, z });

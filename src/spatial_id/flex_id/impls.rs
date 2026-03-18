@@ -109,7 +109,7 @@ impl SpatialId for FlexId {
             z,
         })?;
 
-        if new_f < F_MIN[z as usize] || new_f > F_MAX[z as usize] {
+        if new_f < self.f_min() || new_f > self.f_max() {
             return Err(Error::FOutOfRange { f: new_f, z });
         }
 
