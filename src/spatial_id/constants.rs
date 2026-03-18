@@ -8,7 +8,7 @@ pub const MAX_ZOOM_LEVEL: usize = 30;
 /// # use kasane_logic::XY_MAX;
 /// # use kasane_logic::SpatialId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-/// assert_eq!(id.max_xy(), XY_MAX[4]);
+/// assert_eq!(15, XY_MAX[4]);
 /// ```
 pub const XY_MAX: [u32; MAX_ZOOM_LEVEL + 1] = [
     0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767, 65535, 131071,
@@ -23,7 +23,7 @@ pub const XY_MAX: [u32; MAX_ZOOM_LEVEL + 1] = [
 /// # use kasane_logic::SingleId;
 /// # use kasane_logic::F_MIN;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-/// assert_eq!(id.min_f(), F_MIN[4]);
+/// assert_eq!(-16, F_MIN[4]);
 /// ```
 pub const F_MIN: [i32; MAX_ZOOM_LEVEL + 1] = [
     -1,
@@ -66,7 +66,7 @@ pub const F_MIN: [i32; MAX_ZOOM_LEVEL + 1] = [
 /// # use kasane_logic::SingleId;
 /// # use kasane_logic::SpatialId;
 /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-/// assert_eq!(id.max_f(), F_MAX[4]);
+/// assert_eq!(15, F_MAX[4]);
 /// ```
 pub const F_MAX: [i32; MAX_ZOOM_LEVEL + 1] = [
     0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767, 65535, 131071,

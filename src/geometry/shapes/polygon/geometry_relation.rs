@@ -1,37 +1,37 @@
 use crate::{Coordinate, Ecef, Line, Polygon, Triangle};
 
 //[Coordinate]への変換
-impl Into<Box<dyn Iterator<Item = Coordinate>>> for Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = Coordinate>> {
-        let iter = self.vertices.into_iter();
+impl From<Polygon> for Box<dyn Iterator<Item = Coordinate>> {
+    fn from(val: Polygon) -> Self {
+        let iter = val.vertices.into_iter();
         Box::new(iter)
     }
 }
 
-impl Into<Box<dyn Iterator<Item = Coordinate>>> for &Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = Coordinate>> {
-        let iter = <Vec<Coordinate> as Clone>::clone(&self.vertices).into_iter();
+impl From<&Polygon> for Box<dyn Iterator<Item = Coordinate>> {
+    fn from(val: &Polygon) -> Self {
+        let iter = <Vec<Coordinate> as Clone>::clone(&val.vertices).into_iter();
         Box::new(iter)
     }
 }
 
-impl<'a> Into<Box<dyn Iterator<Item = &'a Coordinate> + 'a>> for &'a Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = &'a Coordinate> + 'a> {
-        let iter = self.vertices.iter();
+impl<'a> From<&'a Polygon> for Box<dyn Iterator<Item = &'a Coordinate> + 'a> {
+    fn from(val: &'a Polygon) -> Self {
+        let iter = val.vertices.iter();
         Box::new(iter)
     }
 }
 
 //[Line]への変換
-impl Into<Box<dyn Iterator<Item = Line>>> for Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = Line>> {
-        (&self).into()
+impl From<Polygon> for Box<dyn Iterator<Item = Line>> {
+    fn from(val: Polygon) -> Self {
+        (&val).into()
     }
 }
 
-impl Into<Box<dyn Iterator<Item = Line>>> for &Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = Line>> {
-        let triangles: Box<dyn Iterator<Item = Triangle>> = self.into();
+impl From<&Polygon> for Box<dyn Iterator<Item = Line>> {
+    fn from(val: &Polygon) -> Self {
+        let triangles: Box<dyn Iterator<Item = Triangle>> = val.into();
         let lines_iter = triangles.flat_map(|triangle| {
             let lines: Box<dyn Iterator<Item = Line>> = triangle.into();
             lines
@@ -41,15 +41,15 @@ impl Into<Box<dyn Iterator<Item = Line>>> for &Polygon {
 }
 
 //[Triangle]への変換
-impl Into<Box<dyn Iterator<Item = Triangle>>> for Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = Triangle>> {
-        (&self).into()
+impl From<Polygon> for Box<dyn Iterator<Item = Triangle>> {
+    fn from(val: Polygon) -> Self {
+        (&val).into()
     }
 }
 
-impl Into<Box<dyn Iterator<Item = Triangle>>> for &Polygon {
-    fn into(self) -> Box<dyn Iterator<Item = Triangle>> {
-        let n = self.vertices.len();
+impl From<&Polygon> for Box<dyn Iterator<Item = Triangle>> {
+    fn from(val: &Polygon) -> Self {
+        let n = val.vertices.len();
         if n < 3 {
             return Box::new(std::iter::empty());
         }
@@ -57,16 +57,16 @@ impl Into<Box<dyn Iterator<Item = Triangle>>> for &Polygon {
         if n == 3 {
             return Box::new(
                 vec![Triangle::new([
-                    self.vertices[0],
-                    self.vertices[1],
-                    self.vertices[2],
+                    val.vertices[0],
+                    val.vertices[1],
+                    val.vertices[2],
                 ])]
                 .into_iter(),
             );
         }
 
         // 計算用に全て ECEF に変換
-        let ecef_points: Vec<Ecef> = self.vertices.iter().map(|&c| c.into()).collect();
+        let ecef_points: Vec<Ecef> = val.vertices.iter().map(|&c| c.into()).collect();
 
         // 投影軸の決定
         let (u_axis, v_axis) = get_projection_axes(&ecef_points);
@@ -100,9 +100,9 @@ impl Into<Box<dyn Iterator<Item = Triangle>>> for &Polygon {
                     prev_idx, curr_idx, next_idx, &indices, &points_2d, area_sign,
                 ) {
                     result.push(Triangle::new([
-                        self.vertices[prev_idx],
-                        self.vertices[curr_idx],
-                        self.vertices[next_idx],
+                        val.vertices[prev_idx],
+                        val.vertices[curr_idx],
+                        val.vertices[next_idx],
                     ]));
                     indices.remove(i);
                     ear_found = true;
@@ -117,9 +117,9 @@ impl Into<Box<dyn Iterator<Item = Triangle>>> for &Polygon {
 
         if indices.len() == 3 {
             result.push(Triangle::new([
-                self.vertices[indices[0]],
-                self.vertices[indices[1]],
-                self.vertices[indices[2]],
+                val.vertices[indices[0]],
+                val.vertices[indices[1]],
+                val.vertices[indices[2]],
             ]));
         }
 

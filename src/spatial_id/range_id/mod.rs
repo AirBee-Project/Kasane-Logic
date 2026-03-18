@@ -2,9 +2,9 @@ pub mod impls;
 pub mod random;
 
 use crate::{
+    SpatialId,
     error::Error,
     spatial_id::{
-        SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         helpers,
         temporal_id::TemporalId,

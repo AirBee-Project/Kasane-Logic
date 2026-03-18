@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
-    Geometry,
+    Coordinate, Error, Geometry, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
+    SpatialIds,
 };
 
 impl Shape for Solid {
@@ -176,13 +176,11 @@ impl Geometry for Solid {
                         && nx <= max_x
                         && ny >= min_y
                         && ny <= max_y
-                    {
-                        if !surface_coords.contains(&(nf, nx, ny))
+                        && !surface_coords.contains(&(nf, nx, ny))
                             && outside_set.insert((nf, nx, ny))
                         {
                             open_list.push_back(neighbor);
                         }
-                    }
                 }
             }
         }

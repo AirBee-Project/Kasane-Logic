@@ -25,6 +25,6 @@ impl Geometry for Polygon {
 
     ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
     fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, crate::Error> {
-        Ok(self.single_ids(z)?.map(|id| RangeId::from(id)))
+        Ok(self.single_ids(z)?.map(RangeId::from))
     }
 }

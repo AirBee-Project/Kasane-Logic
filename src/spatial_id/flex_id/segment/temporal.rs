@@ -14,7 +14,7 @@ impl<const N: usize> Segment<N> {
 
         // それ以外の場合は指定されたズームレベルまでビットを埋める
         for cur_z in (1..=z).rev() {
-            let bit = if dimension % 2 == 0 {
+            let bit = if dimension.is_multiple_of(2) {
                 Bit::Zero
             } else {
                 Bit::One
@@ -37,7 +37,7 @@ impl<const N: usize> Segment<N> {
 
                 match masked {
                     0b10 => {
-                        index = index << 1;
+                        index <<= 1;
                         z += 1;
                     }
                     0b11 => {

@@ -13,7 +13,7 @@ impl<const N: usize> Segment<N> {
 
                 match masked {
                     0b10 => {
-                        index = index * 2;
+                        index *= 2;
                         z += 1;
                     }
                     0b11 => {
@@ -29,7 +29,7 @@ impl<const N: usize> Segment<N> {
     }
 
     ///セグメントをズームレベルとインデックス値に変換する。
-    pub(crate) fn to_f(&self) -> (u8, i32) {
+    pub fn to_f(&self) -> (u8, i32) {
         let is_negative = self.top_bit_pair() == Bit::One;
         let mut temp = self.clone();
         temp.clear_bit_pair(0);
@@ -46,18 +46,18 @@ impl<const N: usize> Segment<N> {
     }
 
     ///XYのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = Segment<N>> {
+    pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = (u8, u32)> {
         let [l, r] = range;
         SegmentIter {
             l: l as i32,
             r: r as i32,
             cur_z: z as i8,
         }
-        .map(|(z, dim)| Segment::from_xy(z, dim as u32))
+        .map(|(z, dim)| (z, dim as u32))
     }
 
     ///FのズームレベルとRangeから最適配置のセグメントを作成。
-    pub(crate) fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = Segment<N>> {
+    pub fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = (u8, i32)> {
         let diff = 1i32 << z;
         let [l, r] = range;
         SegmentIter {
@@ -67,7 +67,7 @@ impl<const N: usize> Segment<N> {
         }
         .map(move |(seg_z, dim)| {
             let original_dim = dim - (1i32 << seg_z);
-            Segment::from_f(seg_z, original_dim)
+            (z, original_dim)
         })
     }
 
@@ -79,7 +79,7 @@ impl<const N: usize> Segment<N> {
         segment.set_bit_pair(0, Bit::Zero);
 
         for cur_z in (1..=z).rev() {
-            let bit = if dimension % 2 == 0 {
+            let bit = if dimension.is_multiple_of(2) {
                 Bit::Zero
             } else {
                 Bit::One

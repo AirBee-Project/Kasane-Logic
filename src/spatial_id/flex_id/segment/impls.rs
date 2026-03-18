@@ -1,4 +1,4 @@
-use std::fmt::{self, Display};
+use std::fmt::{self, Debug, Display};
 
 use crate::Segment;
 
@@ -11,6 +11,12 @@ impl<const N: usize> Display for Segment<N> {
             write!(f, "{:08b}", byte)?;
         }
         Ok(())
+    }
+}
+
+impl<const N: usize> Debug for Segment<N> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
     }
 }
 

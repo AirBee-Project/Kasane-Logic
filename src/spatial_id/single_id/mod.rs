@@ -2,9 +2,9 @@ pub mod impls;
 pub mod random;
 
 use crate::{
+    SpatialId,
     error::Error,
     spatial_id::{
-        SpatialId,
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         temporal_id::TemporalId,
     },
@@ -184,8 +184,8 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::FOutOfRange { z: 3, f: 999 })));
     /// ```
     pub fn set_f(&mut self, value: i32) -> Result<(), Error> {
-        let min = self.min_f();
-        let max = self.max_f();
+        let min = F_MIN[self.z() as usize];
+        let max = F_MAX[self.z() as usize];
         if value < min || value > max {
             return Err(Error::FOutOfRange {
                 f: value,
@@ -224,7 +224,7 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::XOutOfRange { z: 3, x: 999 })));
     /// ```
     pub fn set_x(&mut self, value: u32) -> Result<(), Error> {
-        let max = self.max_xy();
+        let max = XY_MAX[self.z() as usize];
         if value > max {
             return Err(Error::XOutOfRange {
                 x: value,
@@ -263,7 +263,7 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::YOutOfRange { z: 3, y: 999 })));
     /// ```
     pub fn set_y(&mut self, value: u32) -> Result<(), Error> {
-        let max = self.max_xy();
+        let max = XY_MAX[self.z() as usize];
         if value > max {
             return Err(Error::YOutOfRange {
                 y: value,

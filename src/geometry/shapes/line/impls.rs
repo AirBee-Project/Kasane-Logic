@@ -1,7 +1,4 @@
-use crate::{
-    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId,
-    Geometry,
-};
+use crate::{Coordinate, Ecef, Error, Geometry, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId};
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
@@ -50,7 +47,7 @@ impl Geometry for Line {
 
     ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
     fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(self.single_ids(z)?.map(|id| RangeId::from(id)))
+        Ok(self.single_ids(z)?.map(RangeId::from))
     }
 }
 
