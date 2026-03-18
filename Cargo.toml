@@ -19,6 +19,8 @@ proptest = "1.10.0"
 rand_chacha = "0.9.0"
 criterion = { version = "4.4.1", package = "codspeed-criterion-compat" }
 codspeed = "4.4.1"
+divan = "0.1.21"
+
 
 
 [[bin]]
@@ -30,5 +32,9 @@ bench = false
 
 [[bench]]
 name = "triangle"
+harness = false
+
+[[bench]]
+name = "triangle_memory"
 harness = false
 
