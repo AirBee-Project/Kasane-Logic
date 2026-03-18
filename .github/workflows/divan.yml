@@ -19,32 +19,20 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # Divan は実行ごとに確定値が出るためキャッシュは必須ではありませんが、
-      # ビルド時間の短縮のために Rust のキャッシュを利用します
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
 
       - name: Run Divan Benchmark
         run: |
-          # 1. ログを消し(-q)、JSON形式、色なし、文字化け回避を指定
-          # 2. --bench [ベンチマーク名] は自身のファイル名に合わせて書き換えてください
-          cargo bench -q --bench triangle_memory -- --format json --color never > divan_result.json
+          cargo bench --bench triangle_memory > result.json
 
       - name: Store and Graph Results
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          # Divan 形式を直接指定（これにより時間とメモリの両方が抽出されます）
           tool: "divan"
           output-file-path: divan_result.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # グラフを保存するディレクトリ
           benchmark-data-dir-path: "dev/bench/divan"
-          # PRに結果をコメントする
           comment-on-alert: true
-          # 劣化検知（必要に応じて true に）
           fail-on-alert: false
-          # GitHub Pages への自動プッシュを有効化
           auto-push: true
-
-      # Divan には Criterion のような巨大な HTML レポート機能はありませんが、
-      # github-action-benchmark が生成する index.html がそのままダッシュボードになります
