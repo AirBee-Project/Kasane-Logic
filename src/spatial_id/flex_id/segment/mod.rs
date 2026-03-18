@@ -4,7 +4,7 @@ pub mod temporal;
 
 ///Segmentを`V-Bit`を用いて表す。
 /// Nにはこのセグメントで使用したいByte数を入力
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Segment<const N: usize>([u8; N]);
 
 /// 内部ビット表現のヘルパー

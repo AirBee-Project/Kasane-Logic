@@ -1,7 +1,7 @@
-use crate::SpatialId;
+use crate::SpatialIds;
 use std::{fmt::Debug, ops::RangeInclusive};
 
-pub trait SpatialIdSet: Sized + Eq + Default + Clone + Debug
+pub trait SpatialIdSet: Sized + Eq + Default + Clone + Debug + SpatialIds
 // --------------------------------------------------------
 // [1] 両方消費パターン (Self OP Self)
 // --------------------------------------------------------
@@ -43,14 +43,14 @@ pub trait SpatialIdSet: Sized + Eq + Default + Clone + Debug
         Self::default()
     }
 
-    ///[SpatialId]を[SpatialIdSet]に挿入する
-    fn insert<T: SpatialId>(&mut self, target: T);
+    ///[SpatialIds]を[SpatialIdSet]に挿入する
+    fn insert<T: SpatialIds>(&mut self, target: T);
 
-    ///[SpatialId]と重なる領域を取得する
-    fn get<T: SpatialId>(&self, target: T) -> Self;
+    ///[SpatialIds]と重なる領域を取得する
+    fn get<T: SpatialIds>(&self, target: T) -> Self;
 
-    ///[SpatialId]と重なる領域を[SpatialIdSet]から削除し、取得する
-    fn remove<T: SpatialId>(&mut self, target: T) -> Self;
+    ///[SpatialIds]と重なる領域を[SpatialIdSet]から削除し、取得する
+    fn remove<T: SpatialIds>(&mut self, target: T) -> Self;
 
     ///[SpatialIdSet]内にある単位空間の数を返す。集合の大体のサイズが分かる。
     fn size(&self) -> usize;
@@ -64,21 +64,21 @@ pub trait SpatialIdSet: Sized + Eq + Default + Clone + Debug
 
 ///[SpatialId]に割り当てられた値を管理する
 /// また、値側にも自動でインデックスを張り、高速なフィルターを提供する
-pub trait SpatialIdTable<V>
+pub trait SpatialIdTable<V>: Sized + Eq + Default + Clone + Debug + SpatialIds
 where
     V: Ord + Eq,
 {
     ///新しい[SpatialIdTable]を作成する
     fn new() -> Self;
 
-    ///[SpatialId]を[SpatialIdSet]に挿入する
-    fn insert<T: SpatialId>(&mut self, target: T, value: V);
+    ///[SpatialIds]を[SpatialIdSet]に挿入する
+    fn insert<T: SpatialIds>(&mut self, target: T, value: V);
 
-    ///[SpatialId]と重なる領域を取得する
-    fn get<T: SpatialId>(&self, target: T) -> Self;
+    ///[SpatialIds]と重なる領域を取得する
+    fn get<T: SpatialIds>(&self, target: T) -> Self;
 
-    ///[SpatialId]と重なる領域を[SpatialIdSet]から削除し、取得する
-    fn remove<T: SpatialId>(&mut self, target: T) -> Self;
+    ///[SpatialIds]と重なる領域を[SpatialIdSet]から削除し、取得する
+    fn remove<T: SpatialIds>(&mut self, target: T) -> Self;
 
     ///等しい値の[SpatialId]を取り出して、[Some(SpatialIdSet)]に格納して取り出す。
     /// 当該の値が存在しない場合は[None]を返す。
@@ -97,11 +97,6 @@ where
     /// [SpatialIdSet]の内部が空かどうかを判定する
     fn is_empty(&self) -> bool;
 }
-
-//現状の問題点
-//Setを入力値として使うことができない
-//SpatialIdsのようなTraitを実装しないといけない
-//それは空間的範囲の意味を変化させないまま、
 
 //相互変換について
 //SingleIdやRangeIdをKeyとしたHashMapやBTreeMapへの変換に対応したほうが良いのではないか?

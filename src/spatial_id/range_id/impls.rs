@@ -266,9 +266,9 @@ impl SpatialIds for RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                y_range
-                    .clone()
-                    .map(move |y| unsafe { SingleId::new_unchecked(z, f, x, y) })
+                y_range.clone().map(move |y| unsafe {
+                    SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
+                })
             })
         })
     }

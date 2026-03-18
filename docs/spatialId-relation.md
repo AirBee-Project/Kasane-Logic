@@ -17,11 +17,9 @@ SingleId((SingleId))-->|1|FlexId((FlexId))
 FlexId((FlexId))-->|1|RangeId((RangeId))
 
 RangeId((RangeId))-->|F×X×Y|SingleId((SingleId))
-RangeId((RangeId))-->|最適分割|SingleId((SingleId))
 
 RangeId((RangeId))-->|2log F×2log X×2log Y|FlexId((FlexId))
 FlexId((FlexId))-->|F×X×Y|SingleId((SingleId))
-FlexId((FlexId))-->|2log F×2log X×2log Y|SingleId((SingleId))
 ```
 
 ## `From<T>`
@@ -37,9 +35,9 @@ FlexId((FlexId))-->|2log F×2log X×2log Y|SingleId((SingleId))
 1:多の変換を行う。下記の変換を実装している。
 
 - `impl Iterator<Item = SingleId> for RangeId`
-  - `SingleId`の個数が最小となるように変換
-- `imple Iterator<Item = SingleId> for FlexId`
-  - `SingleId`の個数が最小となるように変換
+  - 共通ズームレベルで`F×X×Y`の全展開を行う
+- `impl Iterator<Item = SingleId> for FlexId`
+  - 各軸の最大ズームに合わせて`F×X×Y`の全展開を行う
 - `impl Iterator<Item = FlexId> for RangeId`
   - `2log F×2log X×2log Y`になるように変換
 

@@ -1,7 +1,13 @@
-use crate::{FlexId, RangeId, SingleId};
+use crate::{FlexId, RangeId, SingleId, SpatialIds};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {
+        RangeId::from(&flex_id)
+    }
+}
+
+impl From<&FlexId> for RangeId {
+    fn from(flex_id: &FlexId) -> Self {
         let (f_z, f_dim) = flex_id.f.to_f();
         let (x_z, x_dim) = flex_id.x.to_xy();
         let (y_z, y_dim) = flex_id.y.to_xy();
@@ -69,5 +75,28 @@ impl From<&SingleId> for FlexId {
             value.z(),
             value.y(),
         )
+    }
+}
+
+impl SpatialIds for FlexId {
+    type SingleItem<'a> = SingleId;
+
+    type RangeItem<'a> = RangeId;
+
+    type FlexItem<'a> = &'a FlexId;
+
+    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
+        //Todo:最小個数になるように改良
+        let range_id = RangeId::from(self);
+        let items: Vec<_> = range_id.single_ids().collect();
+        items.into_iter()
+    }
+
+    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
+        std::iter::once(RangeId::from(self))
+    }
+
+    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
+        std::iter::once(self)
     }
 }
