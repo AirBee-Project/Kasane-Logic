@@ -98,7 +98,8 @@ name = "kasane-logic"
 version = "0.1.3"
 dependencies = [
  "cargo-husky",
- "memori",
+ "memori 0.0.3",
+ "memori 0.0.4",
  "proptest",
  "rand",
  "rand_chacha",
@@ -128,6 +129,17 @@ name = "memori"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5ba7ef351181c32353107836d9583f36ac24eb25ec3c63b7c66c6fa51914b7"
+dependencies = [
+ "perf-event",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "memori"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc427864bb2c071f02ecb0d3f057749394b6659335312ee9406938e6e0b83224"
 dependencies = [
  "perf-event",
  "serde",

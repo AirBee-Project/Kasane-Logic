@@ -8,7 +8,7 @@ fn main() {
         .add_bench(
             "Z",
             "Zの変化によるスケーリング",
-            Bench::Scaling(vec![18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]),
+            Bench::Scaling(vec![18, 19, 20, 21, 22, 23, 24, 25, 26]),
         )
         .add_function("通常の三角形関数", |z| {
             let tokyo_station = Coordinate::new(35.681000, 139.767000, 0.0).unwrap();
