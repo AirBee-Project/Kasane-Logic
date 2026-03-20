@@ -3,17 +3,17 @@
     {
       "name": "Line Function Long(Tokyo-Nagoya)",
       "mainJsonPath": "Line Function Long(Tokyo-Nagoya)/main.json",
-      "maxHistoryNumber": 1
+      "maxHistoryNumber": 2
     },
     {
       "name": "Line Function Short (Marunouchi South Exit-KITTE)",
       "mainJsonPath": "Line Function Short (Marunouchi South Exit-KITTE)/main.json",
-      "maxHistoryNumber": 1
+      "maxHistoryNumber": 2
     },
     {
       "name": "Triangle Function",
       "mainJsonPath": "Triangle Function/main.json",
-      "maxHistoryNumber": 3
+      "maxHistoryNumber": 4
     }
   ]
 }
