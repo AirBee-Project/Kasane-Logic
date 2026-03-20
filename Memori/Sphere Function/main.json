@@ -1,0 +1,19 @@
+{
+  "name": "Sphere Function",
+  "description": null,
+  "functions": [
+    "Sphere Function"
+  ],
+  "patterns": [
+    {
+      "name": "Representative Value",
+      "description": "バージョンの変化で負荷が変化していないことを確認",
+      "patternType": "instant"
+    },
+    {
+      "name": "ZoomLevel Scaling",
+      "description": "ズームレベルが+1されると、最大でも8倍の負荷",
+      "patternType": "scaling"
+    }
+  ]
+}
