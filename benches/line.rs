@@ -13,7 +13,7 @@ fn main() {
         .add_bench(
             "ZoomLevel Scaling",
             "ズームレベルが+1されると、最大でも8倍の負荷",
-            Bench::Scaling(vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]),
+            Bench::Scaling(vec![15,16, 17, 18, 19, 20, 21, 22, 23, 24, 25]),
         )
         .add_function("Line Function Long distance(Tokyo-Nagoya)", |z| {
             let tokyo_station = Coordinate::new(35.681236, 139.767125, 0.0).unwrap();
@@ -36,7 +36,7 @@ fn main() {
         .add_bench(
             "ZoomLevel Scaling",
             "ズームレベルが+1されると、最大でも8倍の負荷",
-            Bench::Scaling(vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]),
+            Bench::Scaling(vec![15,16, 17, 18, 19, 20, 21, 22, 23, 24, 25]),
         )
         .add_function("Line Function Short distance", |z| {
             let point_a = Coordinate::new(35.681000, 139.767000, 0.0).unwrap();
