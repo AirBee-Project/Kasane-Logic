@@ -7,6 +7,6 @@ on:
 
 jobs:
   memori:
-    uses: tomoro0726/memori/.github/workflows/memori-publish.yml@main
+    uses: Tomoro0726/Memori/blob/master/.github/workflows/memori-publish.yml
     with:
       pages_branch: "memori"
