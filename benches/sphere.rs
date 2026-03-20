@@ -7,7 +7,7 @@ fn main() {
     let mut func = Func::new("Sphere Function")
         .add_bench(
             "Representative Value",
-            "バージョンの変化で負荷が変化していないことを確認する",
+            "バージョンの変化で負荷が変化していないことを確認",
             Bench::Instant(25),
         )
         .add_bench(
