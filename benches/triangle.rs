@@ -6,8 +6,8 @@ use memori::{Bench, Func};
 fn main() {
     let mut func = Func::new("Triangle関数の可視化")
         .add_bench(
-            "Z",
-            "Zの変化によるスケーリング",
+            "ZoomLevel Scaling",
+            "ズームレベルが+1されると、最大でも8倍の負荷になることを検証",
             Bench::Scaling(vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]),
         )
         .add_function("通常の三角形関数", |z| {
