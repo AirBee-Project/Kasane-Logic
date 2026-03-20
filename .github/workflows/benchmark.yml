@@ -1,12 +1,12 @@
 name: Memori Benchmark
-
 on:
   push:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   memori:
     uses: Tomoro0726/Memori/.github/workflows/memori-publish.yml@master
-    with:
-      pages_branch: "memori"
