@@ -10,7 +10,7 @@ fn main() {
             "ズームレベルが+1されると、最大でも8倍の負荷になることを検証",
             Bench::Scaling(vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]),
         )
-        .add_function("通常の三角形関数", |z| {
+        .add_function("Triangle Function", |z| {
             let tokyo_station = Coordinate::new(35.681000, 139.767000, 0.0).unwrap();
             let point_b = Coordinate::new(35.681200, 139.767200, 10.0).unwrap();
             let point_c = Coordinate::new(35.680700, 139.767050, 5.0).unwrap();
