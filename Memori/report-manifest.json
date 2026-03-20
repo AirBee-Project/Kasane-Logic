@@ -1,0 +1,9 @@
+{
+  "functions": [
+    {
+      "name": "Triangle Function",
+      "mainJsonPath": "Triangle Function/main.json",
+      "maxHistoryNumber": 1
+    }
+  ]
+}
