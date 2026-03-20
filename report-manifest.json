@@ -1,0 +1,9 @@
+{
+  "functions": [
+    {
+      "name": "Triangle関数の可視化",
+      "mainJsonPath": "Triangle関数の可視化/main.json",
+      "maxHistoryNumber": 1
+    }
+  ]
+}

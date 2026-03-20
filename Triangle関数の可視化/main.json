@@ -1,0 +1,14 @@
+{
+  "name": "Triangle関数の可視化",
+  "description": null,
+  "functions": [
+    "通常の三角形関数"
+  ],
+  "patterns": [
+    {
+      "name": "Z",
+      "description": "Zの変化によるスケーリング",
+      "patternType": "scaling"
+    }
+  ]
+}
