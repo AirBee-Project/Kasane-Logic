@@ -99,7 +99,7 @@ version = "0.1.3"
 dependencies = [
  "cargo-husky",
  "memori 0.0.3",
- "memori 0.0.4",
+ "memori 0.0.5",
  "proptest",
  "rand",
  "rand_chacha",
@@ -137,9 +137,9 @@ dependencies = [
 
 [[package]]
 name = "memori"
-version = "0.0.4"
+version = "0.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc427864bb2c071f02ecb0d3f057749394b6659335312ee9406938e6e0b83224"
+checksum = "b4f7c5cc893e03f189e4b8220398865f430d6d39c1bf46a85d0adf6889504219"
 dependencies = [
  "perf-event",
  "serde",

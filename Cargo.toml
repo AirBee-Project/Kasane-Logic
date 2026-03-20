@@ -18,7 +18,7 @@ cargo-husky = "1.5.0"
 rand = "0.9.2"
 proptest = "1.10.0"
 rand_chacha = "0.9.0"
-memori = "0.0.4"
+memori = "0.0.5"
 
 
 [[bin]]
