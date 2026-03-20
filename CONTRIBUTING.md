@@ -17,3 +17,11 @@
 4. **GitHub に push**
 5. **Pull Request**
    - タイトルはブランチ名を参照し、`[種別] #<issue番号> 短い説明`issue 番号は issue が存在する場合
+
+# ベンチマーク
+
+`/target/memori/report.html`に結果が出力される。
+
+```sh
+cargo bench
+```
