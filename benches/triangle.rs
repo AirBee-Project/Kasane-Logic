@@ -4,10 +4,10 @@ use kasane_logic::{Coordinate, Geometry, Triangle};
 use memori::{Bench, Func};
 
 fn main() {
-    let mut func = Func::new("Triangle関数の可視化")
+    let mut func = Func::new("Triangle Function")
         .add_bench(
             "ZoomLevel Scaling",
-            "ズームレベルが+1されると、最大でも8倍の負荷になることを検証",
+            "ズームレベルが+1されると、最大でも8倍の負荷",
             Bench::Scaling(vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]),
         )
         .add_function("Triangle Function", |z| {
