@@ -1,0 +1,142 @@
+{
+  "Z": {
+    "patternType": "scaling",
+    "description": "Zの変化によるスケーリング",
+    "results": {
+      "通常の三角形関数": [
+        {
+          "input": 16,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 1,
+            "allocBytes": 24,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 17,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 1,
+            "allocBytes": 24,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 18,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 3,
+            "allocBytes": 144,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 19,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 3,
+            "allocBytes": 144,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 20,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 7,
+            "allocBytes": 1192,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 21,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 7,
+            "allocBytes": 1192,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 22,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 13,
+            "allocBytes": 10472,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 23,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 27,
+            "allocBytes": 20956,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 24,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 80,
+            "allocBytes": 62836,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 25,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 291,
+            "allocBytes": 274932,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 26,
+          "measurement": {
+            "cycles": 0,
+            "instructions": null,
+            "timeNs": 0,
+            "allocCount": 1039,
+            "allocBytes": 1179328,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        }
+      ]
+    }
+  }
+}
