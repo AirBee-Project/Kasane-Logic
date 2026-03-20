@@ -1,0 +1,142 @@
+{
+  "ZoomLevel Scaling": {
+    "patternType": "scaling",
+    "description": "ズームレベルが+1されると、最大でも8倍の負荷になることを検証",
+    "results": {
+      "Triangle Function": [
+        {
+          "input": 16,
+          "measurement": {
+            "cycles": 1323,
+            "instructions": null,
+            "timeNs": 481,
+            "allocCount": 1,
+            "allocBytes": 24,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 17,
+          "measurement": {
+            "cycles": 1372,
+            "instructions": null,
+            "timeNs": 491,
+            "allocCount": 1,
+            "allocBytes": 24,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 18,
+          "measurement": {
+            "cycles": 4189,
+            "instructions": null,
+            "timeNs": 1652,
+            "allocCount": 3,
+            "allocBytes": 144,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 19,
+          "measurement": {
+            "cycles": 4214,
+            "instructions": null,
+            "timeNs": 1663,
+            "allocCount": 3,
+            "allocBytes": 144,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 20,
+          "measurement": {
+            "cycles": 6884,
+            "instructions": null,
+            "timeNs": 2745,
+            "allocCount": 7,
+            "allocBytes": 1192,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 21,
+          "measurement": {
+            "cycles": 7325,
+            "instructions": null,
+            "timeNs": 2915,
+            "allocCount": 7,
+            "allocBytes": 1192,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 22,
+          "measurement": {
+            "cycles": 26509,
+            "instructions": null,
+            "timeNs": 10770,
+            "allocCount": 13,
+            "allocBytes": 10472,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 23,
+          "measurement": {
+            "cycles": 72741,
+            "instructions": null,
+            "timeNs": 29666,
+            "allocCount": 27,
+            "allocBytes": 20956,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 24,
+          "measurement": {
+            "cycles": 264453,
+            "instructions": null,
+            "timeNs": 108082,
+            "allocCount": 80,
+            "allocBytes": 62836,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 25,
+          "measurement": {
+            "cycles": 1099045,
+            "instructions": null,
+            "timeNs": 449350,
+            "allocCount": 291,
+            "allocBytes": 274932,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        },
+        {
+          "input": 26,
+          "measurement": {
+            "cycles": 4653702,
+            "instructions": null,
+            "timeNs": 1902949,
+            "allocCount": 1039,
+            "allocBytes": 1179328,
+            "deallocCount": 0,
+            "deallocBytes": 0
+          }
+        }
+      ]
+    }
+  }
+}
