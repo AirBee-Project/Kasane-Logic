@@ -125,9 +125,9 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "memori"
-version = "0.0.8"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b7f2864281919e2356c310351adfdecde25a54c17cbe8713cfba06e07011f7d"
+checksum = "de7d444dc1bbcdaf97c7a076e7eeac31b2a4695b699684178469b40ddbbf074a"
 dependencies = [
  "perf-event",
  "serde",
