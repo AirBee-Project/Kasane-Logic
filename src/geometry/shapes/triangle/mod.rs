@@ -47,54 +47,80 @@ impl Triangle {
         let p1: Ecef = self.points[1].into();
         let p2: Ecef = self.points[2].into();
 
-        let initial_row = vec![p0];
+        // [最適化1] 最初の頂点を1度だけ変換しておく
+        let initial_pt: Coordinate = p0
+            .try_into()
+            .unwrap_or_else(|_| panic!("Failed to convert initial point"));
+
+        // [最適化2] 毎行のアロケーションを避けるため、2つのバッファを用意して使い回す
+        let initial_row = vec![initial_pt];
+        let current_row_buf = Vec::with_capacity((steps + 1) as usize);
+
+        // [最適化3] 行内で一定となるステップ値（P2 - P1）/ steps を事前計算
+        let step_x = (p2.x() - p1.x()) / steps_f;
+        let step_y = (p2.y() - p1.y()) / steps_f;
+        let step_z = (p2.z() - p1.z()) / steps_f;
 
         let iter = (1..=steps)
-            .scan(initial_row, move |prev_row, i| {
-                let i_f = i as f64;
+            .scan(
+                (initial_row, current_row_buf),
+                move |(prev_row, current_row), i| {
+                    let i_f = i as f64;
 
-                let current_row: Vec<Ecef> = (0..=i)
-                    .map(|j| {
+                    // バッファをクリアして再利用（メモリ割り当てが発生しない）
+                    current_row.clear();
+
+                    // [最適化3] 行の始点 (j = 0 のときの座標) を計算
+                    let w0 = 1.0 - (i_f / steps_f);
+                    let w1_base = i_f / steps_f;
+                    let start_x = p0.x() * w0 + p1.x() * w1_base;
+                    let start_y = p0.y() * w0 + p1.y() * w1_base;
+                    let start_z = p0.z() * w0 + p1.z() * w1_base;
+
+                    // [最適化1] 頂点の「生成時」にのみ1回だけ型変換を行う
+                    for j in 0..=i {
                         let j_f = j as f64;
-                        let w0 = 1.0 - (i_f / steps_f);
-                        let w1 = (i_f - j_f) / steps_f;
-                        let w2 = j_f / steps_f;
+                        let ecef = Ecef::new(
+                            start_x + step_x * j_f,
+                            start_y + step_y * j_f,
+                            start_z + step_z * j_f,
+                        );
 
-                        Ecef::new(
-                            p0.x() * w0 + p1.x() * w1 + p2.x() * w2,
-                            p0.y() * w0 + p1.y() * w1 + p2.y() * w2,
-                            p0.z() * w0 + p1.z() * w1 + p2.z() * w2,
-                        )
-                    })
-                    .collect();
+                        let pt: Coordinate = ecef.try_into().ok()?;
+                        current_row.push(pt);
+                    }
 
-                let mut row_triangles = Vec::with_capacity((i * 2 - 1) as usize);
+                    let mut row_triangles = Vec::with_capacity((i * 2 - 1) as usize);
 
-                for j in 0..(i as usize) {
-                    row_triangles.push(Triangle {
-                        points: [
-                            (*prev_row)[j].try_into().unwrap(),
-                            current_row[j].try_into().unwrap(),
-                            current_row[j + 1].try_into().unwrap(),
-                        ],
-                    });
-
-                    if j > 0 {
+                    // 変換済みの頂点を Clone (または Copy) で流用するため変換コストはゼロ
+                    for j in 0..(i as usize) {
                         row_triangles.push(Triangle {
                             points: [
-                                (*prev_row)[j - 1].try_into().ok()?,
-                                (*prev_row)[j].try_into().ok()?,
-                                current_row[j].try_into().ok()?,
+                                prev_row[j].clone(),
+                                current_row[j].clone(),
+                                current_row[j + 1].clone(),
                             ],
                         });
+
+                        if j > 0 {
+                            row_triangles.push(Triangle {
+                                points: [
+                                    prev_row[j - 1].clone(),
+                                    prev_row[j].clone(),
+                                    current_row[j].clone(),
+                                ],
+                            });
+                        }
                     }
-                }
 
-                *prev_row = current_row;
+                    // [最適化2] 次のイテレーションのためにバッファをスワップ
+                    std::mem::swap(prev_row, current_row);
 
-                Some(row_triangles)
-            })
+                    Some(row_triangles)
+                },
+            )
             .flat_map(|triangles| triangles.into_iter());
+
         Ok(iter)
     }
 

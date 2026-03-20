@@ -1,7 +1,10 @@
 use std::hint::black_box;
 
 use kasane_logic::{Coordinate, Geometry, Line};
-use memori::{Bench, Func};
+use memori::{Bench, Func, TrackingAllocator};
+
+#[global_allocator]
+static ALLOC: TrackingAllocator = TrackingAllocator;
 
 fn main() {
     let mut long = Func::new("Line Function Long(Tokyo-Nagoya)")

@@ -1,7 +1,10 @@
 use std::hint::black_box;
 
 use kasane_logic::{Coordinate, Geometry, Triangle};
-use memori::{Bench, Func};
+use memori::{Bench, Func, TrackingAllocator};
+
+#[global_allocator]
+static ALLOC: TrackingAllocator = TrackingAllocator;
 
 fn main() {
     let mut func = Func::new("Triangle Function")
