@@ -6,6 +6,11 @@ use memori::{Bench, Func};
 fn main() {
     let mut func = Func::new("Triangle Function")
         .add_bench(
+            "Representative Value",
+            "バージョンの変化で負荷が変化していないことを確認する",
+            Bench::Instant(25),
+        )
+        .add_bench(
             "ZoomLevel Scaling",
             "ズームレベルが+1されると、最大でも8倍の負荷",
             Bench::Scaling(vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]),
