@@ -21,8 +21,6 @@ pub use geometry::shapes::sphere::Sphere;
 pub use geometry::shapes::traits::*;
 pub use geometry::shapes::triangle::Triangle;
 pub use geometry::traits::Geometry;
-pub use spatial_id::collection::traits::SpatialIdSet;
-pub use spatial_id::collection::traits::SpatialIdTable;
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::flex_id::segment::Segment;
@@ -33,3 +31,15 @@ pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
 pub use spatial_id::traits::SpatialId;
 pub use spatial_id::traits::SpatialIds;
+
+pub use spatial_id::collection::traits::SpatialIdSet;
+pub use spatial_id::collection::traits::SpatialIdTable;
+
+//VBitを用いたCollection系統>
+pub use spatial_id::collection::v_bit::core::flex_id_rank::FlexIdRank;
+pub use spatial_id::collection::v_bit::core::flex_id_rank_list::FlexIdRankList;
+pub use spatial_id::collection::v_bit::core::scanner::FlexIdScanPlan;
+pub use spatial_id::collection::v_bit::set::VBitSet;
+pub use spatial_id::traits::Segmentation;
+
+//<VBitを用いたCollection系統

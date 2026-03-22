@@ -1,10 +1,14 @@
 use crate::Segment;
 use crate::spatial_id::constants::MAX_ZOOM_LEVEL;
 use crate::spatial_id::flex_id::segment::SegmentRelation;
-use crate::spatial_id::temporal_id::TemporalId;
 pub mod impls;
 pub mod segment;
 
+/// # Warning!!!
+/// この空間IDには[TemporalId]が実装されていません。他のIDから変換が行われた場合は時間に関する情報が失われます。注意してください。
+///
+///---
+///
 ///FlexIdは拡張空間IDを表す。
 ///
 /// 各インデックスを[Segment]を用いて表すことで、各次元で独立のズームレベルを持つことが可能です。
@@ -24,7 +28,7 @@ pub struct FlexId {
     f: Segment<8>,
     x: Segment<8>,
     y: Segment<8>,
-    temporal_id: TemporalId,
+    // temporal_id: TemporalId,
 }
 
 impl FlexId {
@@ -44,8 +48,17 @@ impl FlexId {
             x_index,
             y_zoomlevel,
             y_index,
-            TemporalId::whole(),
+            // TemporalId::whole(),
         )
+    }
+
+    pub fn new_from_segments(f: Segment<8>, x: Segment<8>, y: Segment<8>) -> Self {
+        FlexId {
+            f,
+            x,
+            y,
+            // temporal_id: TemporalId::whole(),
+        }
     }
 
     pub fn new_with_temporal(
@@ -55,7 +68,7 @@ impl FlexId {
         x_index: u32,
         y_zoomlevel: u8,
         y_index: u32,
-        temporal_id: TemporalId,
+        // temporal_id: TemporalId,
     ) -> FlexId {
         let f = Segment::from_f(f_zoomlevel, f_index);
         let x = Segment::from_xy(x_zoomlevel, x_index);
@@ -64,7 +77,7 @@ impl FlexId {
             f,
             x,
             y,
-            temporal_id,
+            // temporal_id,
         }
     }
 
@@ -148,7 +161,7 @@ impl FlexId {
             f: f.clone(),
             x: x.clone(),
             y: y.clone(),
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         })
     }
 
@@ -171,7 +184,7 @@ impl FlexId {
                 f: f_seg,
                 x: self.x.clone(),
                 y: self.y.clone(),
-                temporal_id: self.temporal_id.clone(),
+                // temporal_id: self.temporal_id.clone(),
             });
         }
 
@@ -181,7 +194,7 @@ impl FlexId {
                 f: intersection.f.clone(),
                 x: x_seg,
                 y: self.y.clone(),
-                temporal_id: self.temporal_id.clone(),
+                // temporal_id: self.temporal_id.clone(),
             });
         }
 
@@ -191,7 +204,7 @@ impl FlexId {
                 f: intersection.f.clone(),
                 x: intersection.x.clone(),
                 y: y_seg,
-                temporal_id: self.temporal_id.clone(),
+                // temporal_id: self.temporal_id.clone(),
             });
         }
 
@@ -214,7 +227,7 @@ impl FlexId {
             f: self.f.sibling(),
             x: self.x.clone(),
             y: self.y.clone(),
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         }
     }
     ///Xセグメントが兄弟で、他が同じなFlexIdを返す
@@ -223,7 +236,7 @@ impl FlexId {
             f: self.f.clone(),
             x: self.x.sibling(),
             y: self.y.clone(),
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         }
     }
     ///Yセグメントが兄弟で、他が同じなFlexIdを返す
@@ -232,7 +245,7 @@ impl FlexId {
             f: self.f.clone(),
             x: self.x.clone(),
             y: self.y.sibling(),
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         }
     }
 
@@ -242,7 +255,7 @@ impl FlexId {
             f: self.f_segment().parent()?,
             x: self.x_segment().clone(),
             y: self.y_segment().clone(),
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         })
     }
 
@@ -252,7 +265,7 @@ impl FlexId {
             f: self.f_segment().clone(),
             x: self.x_segment().parent()?,
             y: self.y_segment().clone(),
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         })
     }
 
@@ -262,7 +275,7 @@ impl FlexId {
             f: self.f_segment().clone(),
             x: self.x_segment().clone(),
             y: self.y_segment().parent()?,
-            temporal_id: self.temporal_id.clone(),
+            // temporal_id: self.temporal_id.clone(),
         })
     }
 }

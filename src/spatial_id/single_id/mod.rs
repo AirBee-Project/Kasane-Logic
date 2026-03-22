@@ -45,7 +45,7 @@ impl SingleId {
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返す。  
+    /// - `z` が 30 を超える場合、[`Error::ZOutOfRange`] を返す。  
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
     ///   [`Error::FOutOfRange`] を返す。  
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  

@@ -227,6 +227,20 @@ impl SpatialId for RangeId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+
+    fn segmentation(&self) -> crate::Segmentation {
+        let f = Segment::<8>::split_f(self.z(), self.f)
+            .map(|(z, index)| Segment::from_f(z, index))
+            .collect();
+        let x = Segment::<8>::split_xy(self.z(), self.x)
+            .map(|(z, index)| Segment::from_xy(z, index))
+            .collect();
+        let y = Segment::<8>::split_xy(self.z(), self.y)
+            .map(|(z, index)| Segment::from_xy(z, index))
+            .collect();
+
+        crate::Segmentation { f, x, y }
+    }
 }
 
 impl From<SingleId> for RangeId {

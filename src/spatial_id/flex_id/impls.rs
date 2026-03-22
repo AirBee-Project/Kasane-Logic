@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, SpatialIds,
-    TemporalId, XY_MAX, spatial_id::helpers,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, Segmentation, SingleId, SpatialId,
+    SpatialIds, TemporalId, XY_MAX, spatial_id::helpers,
 };
 
 impl From<FlexId> for RangeId {
@@ -52,7 +52,7 @@ impl From<([u8; 8], [u8; 8], [u8; 8])> for FlexId {
             f: value.0.into(),
             x: value.1.into(),
             y: value.2.into(),
-            temporal_id: TemporalId::whole(),
+            // temporal_id: TemporalId::whole(),
         }
     }
 }
@@ -66,7 +66,7 @@ impl From<SingleId> for FlexId {
             value.x(),
             value.z(),
             value.y(),
-            value.temporal().clone(),
+            // value.temporal().clone(),
         )
     }
 }
@@ -80,7 +80,7 @@ impl From<&SingleId> for FlexId {
             value.x(),
             value.z(),
             value.y(),
-            value.temporal().clone(),
+            // value.temporal().clone(),
         )
     }
 }
@@ -215,11 +215,21 @@ impl SpatialId for FlexId {
     }
 
     fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+        // &self.temporal_id
+        todo!()
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {
-        &mut self.temporal_id
+        // &mut self.temporal_id
+        todo!()
+    }
+
+    fn segmentation(&self) -> crate::Segmentation {
+        Segmentation {
+            f: vec![self.f.clone()],
+            x: vec![self.x.clone()],
+            y: vec![self.y.clone()],
+        }
     }
 }
 

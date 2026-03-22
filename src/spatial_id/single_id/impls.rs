@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, TemporalId,
-    XY_MAX,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, Segmentation, SingleId, SpatialId,
+    TemporalId, XY_MAX,
     spatial_id::{helpers, traits::SpatialIds},
 };
 use std::fmt;
@@ -270,6 +270,15 @@ impl SpatialId for SingleId {
 
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
+    }
+
+    fn segmentation(&self) -> crate::Segmentation {
+        let flex_id = FlexId::from(self);
+        Segmentation {
+            f: vec![flex_id.f_segment().clone()],
+            x: vec![flex_id.x_segment().clone()],
+            y: vec![flex_id.y_segment().clone()],
+        }
     }
 }
 
