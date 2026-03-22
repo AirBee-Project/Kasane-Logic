@@ -1,4 +1,4 @@
-use crate::{Coordinate, Segment, error::Error, spatial_id::temporal_id::TemporalId};
+use crate::{Coordinate, Segment, error::Error};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
@@ -27,7 +27,9 @@ pub trait SpatialId {
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
     //時間が関連するもの
+    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId;
+    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId;
 
     //Segmentへの分解
@@ -50,6 +52,7 @@ pub trait SpatialIds {
     fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>>;
 }
 
+#[derive(Debug)]
 pub struct Segmentation {
     pub f: Vec<Segment<8>>,
     pub x: Vec<Segment<8>>,

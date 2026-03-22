@@ -1,6 +1,6 @@
 use crate::{
     Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, Segmentation, SingleId, SpatialId,
-    SpatialIds, TemporalId, XY_MAX, spatial_id::helpers,
+    SpatialIds, XY_MAX, spatial_id::helpers,
 };
 
 impl From<FlexId> for RangeId {
@@ -34,6 +34,7 @@ impl From<&FlexId> for RangeId {
                 [f_range[0] as i32, f_range[1] as i32],
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
+                #[cfg(feature = "temporal")]
                 flex_id.temporal().clone(),
             )
         }
@@ -214,14 +215,14 @@ impl SpatialId for FlexId {
         out
     }
 
+    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
-        // &self.temporal_id
-        todo!()
+        &self.temporal_id
     }
 
+    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
-        // &mut self.temporal_id
-        todo!()
+        &mut self.temporal_id
     }
 
     fn segmentation(&self) -> crate::Segmentation {

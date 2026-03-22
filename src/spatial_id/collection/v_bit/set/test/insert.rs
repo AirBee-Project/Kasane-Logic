@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialIdSet, SpatialIds, VBitSet, XY_MAX,
+        F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialId, SpatialIdSet, SpatialIds,
+        VBitSet, XY_MAX,
     };
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
@@ -254,7 +255,7 @@ mod tests {
         //Setの新規作成
         let mut set = VBitSet::default();
 
-        //SingleIdの作成と挿入
+        //RangeIdの作成と挿入
         let range_id = RangeId::new(4, [0, F_MAX[4]], [0, XY_MAX[4]], [0, XY_MAX[4]]).unwrap();
 
         set.insert(range_id.clone());

@@ -54,24 +54,24 @@ impl SpatialIdSet for VBitSet {
         let mut result = Self::default();
 
         for flex_id_scanner in scan_plan.scan() {
-            //Parent
+            // Parent
             if flex_id_scanner.parent().is_some() {
                 unsafe { result.join_insert_unchecked(flex_id_scanner.flex_id()) };
                 continue;
             }
 
-            //Children
-            let _ = flex_id_scanner.children().iter().map(|f| {
+            // Children (forループに変更)
+            for f in flex_id_scanner.children().iter() {
                 let flex_id = self.core.find(&f).unwrap().0.clone();
                 unsafe { result.join_insert_unchecked(flex_id) };
-            });
+            }
 
-            //Partial Overlap
-            let _ = flex_id_scanner.partial_overlaps().iter().map(|f| {
+            // Partial Overlap (forループに変更)
+            for f in flex_id_scanner.partial_overlaps().iter() {
                 let flex_id = self.core.find(&f).unwrap().0.clone();
                 let intersection = flex_id.intersection(&flex_id_scanner.flex_id()).unwrap();
                 unsafe { result.join_insert_unchecked(intersection) };
-            });
+            }
         }
         result
     }
@@ -80,41 +80,37 @@ impl SpatialIdSet for VBitSet {
         let scan_plan = self.core.scan_plan(target);
         let mut result = Self::default();
 
-        //削除すべきFlexIdRank
         let mut need_remove = Vec::new();
-        //挿入すべきFlexId
         let mut need_insert = Vec::new();
 
         for flex_id_scanner in scan_plan.scan() {
-            //Parent
+            // Parent
             if flex_id_scanner.parent().is_some() {
                 unsafe { result.join_insert_unchecked(flex_id_scanner.flex_id()) };
                 continue;
             }
 
-            //Children
-            let _ = flex_id_scanner.children().iter().map(|f| {
+            // Children (forループに変更)
+            for f in flex_id_scanner.children().iter() {
                 let flex_id = self.core.find(&f).unwrap().0.clone();
-                need_remove.push(f);
+                need_remove.push(f.clone()); // ※fは参照なので実体をpushする
                 unsafe { result.join_insert_unchecked(flex_id) };
-            });
+            }
 
-            //Partial Overlap
-            let _ = flex_id_scanner.partial_overlaps().iter().map(|f| {
-                need_remove.push(f);
+            // Partial Overlap (forループに変更)
+            for f in flex_id_scanner.partial_overlaps().iter() {
+                need_remove.push(f.clone()); // ※fは参照なので実体をpushする
                 let partial_overlap = self.core.find(&f).unwrap().0.clone();
                 for flex_id in partial_overlap.difference(&flex_id_scanner.flex_id()) {
                     need_insert.push(flex_id);
                 }
-            });
+            }
         }
 
-        //need_removeを削除する
         for flex_id_rank in need_remove {
             self.core.remove(&flex_id_rank);
         }
 
-        //need_insertを挿入する
         for flex_id in need_insert {
             self.core.insert(flex_id, ());
         }

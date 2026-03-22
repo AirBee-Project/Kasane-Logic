@@ -2,12 +2,10 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId,
     error::Error,
     spatial_id::{
         constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         helpers,
-        temporal_id::TemporalId,
     },
 };
 
@@ -31,6 +29,7 @@ pub struct RangeId {
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
+    #[cfg(feature = "temporal")]
     temporal_id: TemporalId,
 }
 
@@ -83,7 +82,36 @@ impl RangeId {
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
     pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
-        Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+        if z as usize > MAX_ZOOM_LEVEL {
+            return Err(Error::ZOutOfRange { z });
+        }
+
+        let f_min = F_MIN[z as usize];
+        let f_max = F_MAX[z as usize];
+        let xy_max = XY_MAX[z as usize];
+        let mut f = f;
+        let mut y = y;
+
+        for i in 0..2 {
+            if f[i] < f_min || f[i] > f_max {
+                return Err(Error::FOutOfRange { f: f[i], z });
+            }
+            if x[i] > xy_max {
+                return Err(Error::XOutOfRange { x: x[i], z });
+            }
+            if y[i] > xy_max {
+                return Err(Error::YOutOfRange { y: y[i], z });
+            }
+        }
+
+        if f[0] > f[1] {
+            f.swap(0, 1);
+        }
+        if y[0] > y[1] {
+            y.swap(0, 1);
+        }
+
+        Ok(RangeId { z, f, x, y })
     }
 
     pub fn new_with_temporal(
@@ -91,8 +119,7 @@ impl RangeId {
         f: [i32; 2],
         x: [u32; 2],
         y: [u32; 2],
-
-        temporal_id: TemporalId,
+        #[cfg(feature = "temporal")] temporal_id: TemporalId,
     ) -> Result<RangeId, Error> {
         if z as usize > MAX_ZOOM_LEVEL {
             return Err(Error::ZOutOfRange { z });
@@ -128,6 +155,7 @@ impl RangeId {
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id,
         })
     }
@@ -280,6 +308,7 @@ impl RangeId {
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id: self.temporal().clone(),
         })
     }
@@ -352,6 +381,7 @@ impl RangeId {
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id: self.temporal().clone(),
         })
     }
@@ -383,7 +413,14 @@ impl RangeId {
     /// assert_eq!(id.y(), [5,10]);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
-        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole()) }
+        #[cfg(not(feature = "temporal"))]
+        unsafe {
+            Self::new_with_temporal_unchecked(z, f, x, y)
+        }
+        #[cfg(feature = "temporal")]
+        unsafe {
+            Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole())
+        }
     }
 
     pub unsafe fn new_with_temporal_unchecked(
@@ -391,13 +428,14 @@ impl RangeId {
         f: [i32; 2],
         x: [u32; 2],
         y: [u32; 2],
-        temporal_id: TemporalId,
+        #[cfg(feature = "temporal")] temporal_id: TemporalId,
     ) -> RangeId {
         RangeId {
             z,
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id,
         }
     }

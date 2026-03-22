@@ -73,9 +73,27 @@ impl<T> VBitCore<T> {
     }
 
     pub fn remove(&mut self, flex_id_rank: &FlexIdRank) -> Option<(FlexId, T)> {
-        self.main.remove(&flex_id_rank)
-    }
+        let (flex_id, value) = self.main.remove(flex_id_rank)?;
 
+        let remove_from_dim = |btree: &mut BTreeMap<Segment<8>, FlexIdRankList>,
+                               segment: &Segment<8>| {
+            if let std::collections::btree_map::Entry::Occupied(mut entry) =
+                btree.entry(segment.clone())
+            {
+                let list = entry.get_mut();
+                list.remove(flex_id_rank.clone());
+                if list.is_empty() {
+                    entry.remove_entry();
+                }
+            }
+        };
+
+        remove_from_dim(&mut self.f, flex_id.f_segment());
+        remove_from_dim(&mut self.x, flex_id.x_segment());
+        remove_from_dim(&mut self.y, flex_id.y_segment());
+
+        Some((flex_id, value))
+    }
     pub fn f(&self) -> &BTreeMap<Segment<8>, FlexIdRankList> {
         &self.f
     }

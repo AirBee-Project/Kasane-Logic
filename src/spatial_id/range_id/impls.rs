@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, FlexId, RangeId, Segment, SingleId, SpatialId, TemporalId,
+    Coordinate, Error, FlexId, RangeId, Segment, SingleId, SpatialId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
@@ -44,6 +44,7 @@ impl fmt::Display for RangeId {
         )?;
 
         //時間の情報があれば書き込み
+        #[cfg(feature = "temporal")]
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
         };
@@ -88,11 +89,9 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let new = (self.x[0] as i32 + by).rem_euclid(self.xy_max().try_into().unwrap());
-        self.x[0] = new as u32;
-
-        let new = (self.x[1] as i32 + by).rem_euclid(self.xy_max().try_into().unwrap());
-        self.x[1] = new as u32;
+        let max_len = (self.xy_max() + 1) as i32;
+        self.x[0] = ((self.x[0] as i32 + by).rem_euclid(max_len)) as u32;
+        self.x[1] = ((self.x[1] as i32 + by).rem_euclid(max_len)) as u32;
     }
 
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
@@ -220,10 +219,12 @@ impl SpatialId for RangeId {
         todo!()
     }
 
+    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
+    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
@@ -251,6 +252,7 @@ impl From<SingleId> for RangeId {
             f: [id.f(), id.f()],
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
+            #[cfg(feature = "temporal")]
             temporal_id: id.temporal().clone(),
         }
     }
@@ -264,6 +266,7 @@ impl From<&SingleId> for RangeId {
             f: [id.f(), id.f()],
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
+            #[cfg(feature = "temporal")]
             temporal_id: id.temporal().clone(),
         }
     }
@@ -294,8 +297,12 @@ impl SpatialIds for RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                y_range.clone().map(move |y| unsafe {
-                    SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
+                y_range.clone().map(move |y: u32| unsafe {
+                    // #[cfg(not(feature = "temporal"))]
+                    SingleId::new_unchecked(z, f, x, y)
+
+                    // #[cfg(feature = "temporal")]
+                    // SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
                 })
             })
         })
