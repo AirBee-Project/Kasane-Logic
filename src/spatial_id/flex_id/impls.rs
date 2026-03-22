@@ -120,7 +120,8 @@ impl SpatialId for FlexId {
 
     fn move_x(&mut self, by: i32) {
         let (z, x) = self.x_segment().to_xy();
-        let wrapped = (x as i32 + by).rem_euclid(XY_MAX[z as usize] as i32);
+        let max_len = (XY_MAX[z as usize] + 1) as i32;
+        let wrapped = (x as i32 + by).rem_euclid(max_len);
         self.x = crate::Segment::from_xy(z, wrapped as u32);
     }
 

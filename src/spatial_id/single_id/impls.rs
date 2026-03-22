@@ -111,7 +111,8 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.x(), 4);
     /// ```
     fn move_x(&mut self, by: i32) {
-        let new = (self.x as i32 + by).rem_euclid(self.xy_max().try_into().unwrap());
+        let max_len = (self.xy_max() + 1) as i32;
+        let new = (self.x as i32 + by).rem_euclid(max_len);
         self.x = new as u32;
     }
 

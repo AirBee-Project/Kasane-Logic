@@ -230,13 +230,27 @@ impl SpatialId for RangeId {
     }
 
     fn segmentation(&self) -> crate::Segmentation {
-        let f = Segment::<8>::split_f(self.z(), self.f)
+        let f = Segment::<8>::split_f(self.z, self.f)
             .map(|(z, index)| Segment::from_f(z, index))
             .collect();
-        let x = Segment::<8>::split_xy(self.z(), self.x)
-            .map(|(z, index)| Segment::from_xy(z, index))
-            .collect();
-        let y = Segment::<8>::split_xy(self.z(), self.y)
+
+        let x = if self.x[0] <= self.x[1] {
+            Segment::<8>::split_xy(self.z, self.x)
+                .map(|(z, index)| Segment::from_xy(z, index))
+                .collect()
+        } else {
+            let mut xs: Vec<_> =
+                Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
+                    .map(|(z, index)| Segment::from_xy(z, index))
+                    .collect();
+            xs.extend(
+                Segment::<8>::split_xy(self.z, [0, self.x[1]])
+                    .map(|(z, index)| Segment::from_xy(z, index)),
+            );
+            xs
+        };
+
+        let y = Segment::<8>::split_xy(self.z, self.y)
             .map(|(z, index)| Segment::from_xy(z, index))
             .collect();
 
@@ -313,14 +327,19 @@ impl SpatialIds for RangeId {
     }
 
     fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        let f_segments = Segment::<8>::split_f(self.z, self.f());
-        let x_segments = Segment::<8>::split_xy(self.z, self.x());
-        let y_segments = Segment::<8>::split_xy(self.z, self.y());
+        let f_segments = Segment::<8>::split_f(self.z, self.f);
 
-        // segmentsがイテレーターの場合、内側のループで何度も使うために
-        // Vecなどにcollectしておくか、Clone可能である必要があります。
+        let x_list: Vec<_> = if self.x[0] <= self.x[1] {
+            Segment::<8>::split_xy(self.z, self.x).collect()
+        } else {
+            Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
+                .chain(Segment::<8>::split_xy(self.z, [0, self.x[1]]))
+                .collect()
+        };
+
+        let y_segments = Segment::<8>::split_xy(self.z, self.y);
+
         let f_list: Vec<_> = f_segments.collect();
-        let x_list: Vec<_> = x_segments.collect();
         let y_list: Vec<_> = y_segments.collect();
 
         f_list.into_iter().flat_map(move |(f_zoom, f_idx)| {

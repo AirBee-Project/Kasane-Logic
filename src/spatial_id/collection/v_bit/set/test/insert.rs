@@ -1,8 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialId, SpatialIdSet, SpatialIds,
-        VBitSet, XY_MAX,
+        F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialIdSet, SpatialIds, VBitSet, XY_MAX,
     };
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
@@ -45,6 +44,15 @@ mod tests {
 
         answer.sort();
         single_ids.sort();
+
+        for ele in answer.clone() {
+            print!("{},", ele);
+        }
+        println!("");
+
+        for ele in single_ids.clone() {
+            print!("{},", ele);
+        }
 
         //並び替えれば全く同じになる
         assert_eq!(answer, single_ids);
