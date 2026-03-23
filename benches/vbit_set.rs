@@ -1,15 +1,18 @@
 use kasane_logic::{SingleId, SpatialIdSet, SpatialIds, VBitSet};
-use memori::{Bench, Func};
+use memori::{Bench, Func, TrackingAllocator};
 use std::fs;
 use std::hint::black_box;
 use std::path::Path;
+
+#[global_allocator]
+static ALLOC: TrackingAllocator = TrackingAllocator;
 
 fn main() {
     let data: &'static [SingleId] = load(Path::new("benches/data/sample1.txt")).leak();
 
     let percentages: Vec<usize> = (0..=10).map(|i| i * 10).collect();
 
-    let mut func = Func::new("Triangle Function")
+    let mut func = Func::new("VBitSet Insert")
         .add_bench(
             "新宿区の建物データ",
             "データ量を徐々に増やして増加を確認",

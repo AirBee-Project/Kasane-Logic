@@ -12,8 +12,7 @@ impl VBitSet {
     unsafe fn join_insert_unchecked(&mut self, flex_id: FlexId) {
         let check_and_remove =
             |core: &mut VBitCore<()>, sibling: FlexId, parent: FlexId| -> Option<FlexId> {
-                if core.contains(&sibling) {
-                    core.remove(&sibling.flex_id_rank());
+                if core.remove(&sibling.flex_id_rank()).is_some() {
                     Some(parent)
                 } else {
                     None
