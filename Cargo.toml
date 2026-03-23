@@ -40,3 +40,7 @@ harness = false
 name = "sphere"
 harness = false
 
+[[bench]]
+name = "vbit_set"
+harness = false
+
