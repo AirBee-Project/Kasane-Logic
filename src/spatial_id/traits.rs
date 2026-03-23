@@ -1,7 +1,7 @@
 use crate::{Coordinate, Segment, error::Error};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub trait SpatialId {
+pub trait SpatialId: SpatialIds {
     //そのIDの各次元インデックス値の最大と最小を返す
     fn f_min(&self) -> i32;
     fn f_max(&self) -> i32;
