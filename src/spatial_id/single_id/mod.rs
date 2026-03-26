@@ -2,12 +2,8 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId,
     error::Error,
-    spatial_id::{
-        constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        temporal_id::TemporalId,
-    },
+    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
@@ -23,6 +19,7 @@ use crate::{
 ///     f: i32,
 ///     x: u32,
 ///     y: u32,
+//      #[cfg(feature = "temporal")]
 ///     temporal_id: TemporalId,
 /// }
 /// ```
@@ -32,6 +29,7 @@ pub struct SingleId {
     f: i32,
     x: u32,
     y: u32,
+    #[cfg(feature = "temporal")]
     temporal_id: TemporalId,
 }
 
@@ -45,7 +43,7 @@ impl SingleId {
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返す。  
+    /// - `z` が  を超える場合、[`Error::ZOutOfRange`] を返す。  
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
     ///   [`Error::FOutOfRange`] を返す。  
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  
@@ -75,7 +73,7 @@ impl SingleId {
     /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
     /// ```
     pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
-        Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+        Self::new_with_temporal(z, f, x, y)
     }
 
     pub fn new_with_temporal(
@@ -83,7 +81,7 @@ impl SingleId {
         f: i32,
         x: u32,
         y: u32,
-        temporal_id: TemporalId,
+        #[cfg(feature = "temporal")] temporal_id: TemporalId,
     ) -> Result<SingleId, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
@@ -108,6 +106,7 @@ impl SingleId {
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id,
         })
     }
@@ -342,6 +341,7 @@ impl SingleId {
                     f,
                     x,
                     y,
+                    #[cfg(feature = "temporal")]
                     temporal_id: self.temporal().clone(),
                 })
             })
@@ -404,6 +404,7 @@ impl SingleId {
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id: self.temporal().clone(),
         })
     }
@@ -435,7 +436,7 @@ impl SingleId {
     /// assert_eq!(id.y(), 10u32);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
-        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole()) }
+        SingleId { z, f, x, y }
     }
 
     pub unsafe fn new_with_temporal_unchecked(
@@ -443,13 +444,14 @@ impl SingleId {
         f: i32,
         x: u32,
         y: u32,
-        temporal_id: TemporalId,
+        #[cfg(feature = "temporal")] temporal_id: TemporalId,
     ) -> SingleId {
         SingleId {
             z,
             f,
             x,
             y,
+            #[cfg(feature = "temporal")]
             temporal_id,
         }
     }

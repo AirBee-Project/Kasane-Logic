@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, SingleId, SpatialId, SpatialIds,
-    TemporalId, XY_MAX, spatial_id::helpers,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, Segmentation, SingleId, SpatialId,
+    SpatialIds, XY_MAX, spatial_id::helpers,
 };
 
 impl From<FlexId> for RangeId {
@@ -34,6 +34,7 @@ impl From<&FlexId> for RangeId {
                 [f_range[0] as i32, f_range[1] as i32],
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
+                #[cfg(feature = "temporal")]
                 flex_id.temporal().clone(),
             )
         }
@@ -52,7 +53,7 @@ impl From<([u8; 8], [u8; 8], [u8; 8])> for FlexId {
             f: value.0.into(),
             x: value.1.into(),
             y: value.2.into(),
-            temporal_id: TemporalId::whole(),
+            // temporal_id: TemporalId::whole(),
         }
     }
 }
@@ -66,7 +67,7 @@ impl From<SingleId> for FlexId {
             value.x(),
             value.z(),
             value.y(),
-            value.temporal().clone(),
+            // value.temporal().clone(),
         )
     }
 }
@@ -80,7 +81,7 @@ impl From<&SingleId> for FlexId {
             value.x(),
             value.z(),
             value.y(),
-            value.temporal().clone(),
+            // value.temporal().clone(),
         )
     }
 }
@@ -119,7 +120,8 @@ impl SpatialId for FlexId {
 
     fn move_x(&mut self, by: i32) {
         let (z, x) = self.x_segment().to_xy();
-        let wrapped = (x as i32 + by).rem_euclid(XY_MAX[z as usize] as i32);
+        let max_len = (XY_MAX[z as usize] + 1) as i32;
+        let wrapped = (x as i32 + by).rem_euclid(max_len);
         self.x = crate::Segment::from_xy(z, wrapped as u32);
     }
 
@@ -214,12 +216,22 @@ impl SpatialId for FlexId {
         out
     }
 
+    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
+    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
+    }
+
+    fn segmentation(&self) -> crate::Segmentation {
+        Segmentation {
+            f: vec![self.f.clone()],
+            x: vec![self.x.clone()],
+            y: vec![self.y.clone()],
+        }
     }
 }
 

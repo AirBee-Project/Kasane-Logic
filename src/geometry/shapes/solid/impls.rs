@@ -14,6 +14,11 @@ impl Shape for Solid {
 impl Geometry for Solid {
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
+
+        if surface_set.is_empty() {
+            return Ok(HashSet::new().into_iter());
+        }
+
         let existence_range = surface_set.iter().fold(None, |acc, s| {
             match acc {
                 None => Some((s.f(), s.x(), s.y(), s.f(), s.x(), s.y())), // 最初の要素を初期値にする
@@ -177,10 +182,10 @@ impl Geometry for Solid {
                         && ny >= min_y
                         && ny <= max_y
                         && !surface_coords.contains(&(nf, nx, ny))
-                            && outside_set.insert((nf, nx, ny))
-                        {
-                            open_list.push_back(neighbor);
-                        }
+                        && outside_set.insert((nf, nx, ny))
+                    {
+                        open_list.push_back(neighbor);
+                    }
                 }
             }
         }

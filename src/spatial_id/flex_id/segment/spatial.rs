@@ -67,7 +67,7 @@ impl<const N: usize> Segment<N> {
         }
         .map(move |(seg_z, dim)| {
             let original_dim = dim - (1i32 << seg_z);
-            (z, original_dim)
+            (seg_z, original_dim)
         })
     }
 
