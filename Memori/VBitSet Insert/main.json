@@ -1,0 +1,14 @@
+{
+  "name": "VBitSet Insert",
+  "description": null,
+  "functions": [
+    "VBitSet Insert"
+  ],
+  "patterns": [
+    {
+      "name": "新宿区の建物データ",
+      "description": "データ量を徐々に増やして増加を確認",
+      "patternType": "scaling"
+    }
+  ]
+}
