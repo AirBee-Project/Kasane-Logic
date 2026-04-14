@@ -1,6 +1,5 @@
-use std::borrow::Borrow;
 
-use crate::{Coordinate, FlexId, SingleId, error::Error};
+use crate::{Coordinate, FlexId, SingleId, TemporalId, error::Error};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
 pub trait SpatialId {
@@ -29,26 +28,30 @@ pub trait SpatialId {
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
     //時間が関連するもの
-    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId;
-    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId;
 }
 
 ///[SingleId]の集合であることを保証するTrait
-pub trait SingleIds {
-    type Item<'a>: Borrow<SingleId> + 'a
+pub trait IntoSingleIds {
+    type IntoIter: Iterator<Item = SingleId>;
+    fn into_single_ids(self) -> Self::IntoIter;
+}
+pub trait IterSingleIds {
+    type Iter<'a>: Iterator<Item = SingleId> + 'a
     where
         Self: 'a;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::Item<'_>>;
+    fn iter_single_ids(&self) -> Self::Iter<'_>;
 }
 
 ///[FlexId]の集合であることを保証するTrait
-pub trait FlexIds {
-    type Item<'a>: Borrow<FlexId> + 'a
+pub trait IntoFlexIds {
+    type IntoIter: Iterator<Item = FlexId>;
+    fn into_flex_ids(self) -> Self::IntoIter;
+}
+pub trait IterFlexIds {
+    type Iter<'a>: Iterator<Item = FlexId> + 'a
     where
         Self: 'a;
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::Item<'_>>;
+    fn iter_flex_ids(&self) -> Self::Iter<'_>;
 }

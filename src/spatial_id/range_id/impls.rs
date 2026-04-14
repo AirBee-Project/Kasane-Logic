@@ -1,7 +1,8 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, FlexId, FlexIds, RangeId, Segment, SingleId, SingleIds, SpatialId,
+    Coordinate, Error, RangeId, SpatialId,
+    TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
@@ -43,7 +44,7 @@ impl fmt::Display for RangeId {
         )?;
 
         //時間の情報があれば書き込み
-        #[cfg(feature = "temporal")]
+
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
         };
@@ -218,107 +219,11 @@ impl SpatialId for RangeId {
         todo!()
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
-    }
-}
-
-impl From<SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
-    fn from(id: SingleId) -> Self {
-        RangeId {
-            z: id.z(),
-            f: [id.f(), id.f()],
-            x: [id.x(), id.x()],
-            y: [id.y(), id.y()],
-            #[cfg(feature = "temporal")]
-            temporal_id: id.temporal().clone(),
-        }
-    }
-}
-
-impl From<&SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
-    fn from(id: &SingleId) -> Self {
-        RangeId {
-            z: id.z(),
-            f: [id.f(), id.f()],
-            x: [id.x(), id.x()],
-            y: [id.y(), id.y()],
-            #[cfg(feature = "temporal")]
-            temporal_id: id.temporal().clone(),
-        }
-    }
-}
-
-impl SingleIds for RangeId {
-    type Item<'a> = SingleId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::Item<'_>> {
-        let z = self.z;
-
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
-
-        f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
-            } else {
-                (self.x[0]..=XY_MAX[z as usize])
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
-            };
-
-            x_iter.into_iter().flat_map(move |x| {
-                y_range.clone().map(move |y: u32| unsafe {
-                    // #[cfg(not(feature = "temporal"))]
-                    SingleId::new_unchecked(z, f, x, y)
-
-                    // #[cfg(feature = "temporal")]
-                    // SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
-                })
-            })
-        })
-    }
-}
-
-impl FlexIds for RangeId {
-    type Item<'a> = FlexId;
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::Item<'_>> {
-        // 1. 各軸のセグメントを事前に収集（再利用するため）
-        let f_list: Vec<_> = Segment::<8>::split_f(self.z, self.f).collect();
-
-        let x_list: Vec<_> = if self.x[0] <= self.x[1] {
-            Segment::<8>::split_xy(self.z, self.x).collect()
-        } else {
-            Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                .chain(Segment::<8>::split_xy(self.z, [0, self.x[1]]))
-                .collect()
-        };
-
-        let y_list: Vec<_> = Segment::<8>::split_xy(self.z, self.y).collect();
-
-        // 2. 組み合わせ（直積）の生成
-        // f_list の各要素に対して、x_list と y_list を掛け合わせる
-        f_list.into_iter().flat_map(move |(f_z, f_i)| {
-            // ループごとに x_list を clone して nested loop を回す
-            let y_list_inner = y_list.clone();
-            x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
-                // y_list も同様に clone して一番内側の loop を回す
-                y_list_inner
-                    .clone()
-                    .into_iter()
-                    .map(move |(y_z, y_i)| FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap())
-            })
-        })
     }
 }

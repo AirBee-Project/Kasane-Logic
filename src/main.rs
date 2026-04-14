@@ -1,11 +1,11 @@
-use kasane_logic::{FlexId, FlexIds, RangeId, VBitTree};
+use kasane_logic::{FlexId, IntoFlexIds, RangeId, VBitTree};
 
 fn main() {
     let mut test = VBitTree::new();
 
     let id: Vec<FlexId> = RangeId::new(4, [-3, 10], [8, 9], [5, 10])
         .unwrap()
-        .flex_ids()
+        .into_flex_ids()
         .collect();
 
     for ele in id {

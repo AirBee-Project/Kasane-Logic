@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Coordinate, Error, Geometry, IntoCoordinates, RangeId, Shape, SingleId, SingleIds, Solid,
+    Coordinate, Error, Geometry, IntoCoordinates, RangeId, Shape, SingleId, IntoSingleIds, Solid,
     SpatialId,
 };
 
@@ -39,11 +39,11 @@ impl Geometry for Solid {
             [result.1, result.4],
             [result.2, result.5],
         )?
-        .single_ids()
+        .into_single_ids()
         .collect();
         let mut open_list: VecDeque<SingleId> = VecDeque::new();
 
-        cuboid_set.retain(|id| {
+        cuboid_set.retain(|id: &SingleId| {
             let is_boundary = id.f() == result.0
                 || id.f() == result.3
                 || id.x() == result.1
