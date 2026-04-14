@@ -51,33 +51,33 @@ impl FlexId {
         y_index: u32,
         #[cfg(feature = "temporal")] temporal_id: TemporalId,
     ) -> Result<FlexId, Error> {
-        if f_zoomlevel <= MAX_ZOOM_LEVEL as u8 {
+        if f_zoomlevel > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z: f_zoomlevel });
         }
 
-        if x_zoomlevel <= MAX_ZOOM_LEVEL as u8 {
+        if x_zoomlevel > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z: x_zoomlevel });
         }
 
-        if y_zoomlevel <= MAX_ZOOM_LEVEL as u8 {
+        if y_zoomlevel > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z: y_zoomlevel });
         }
 
-        if F_MIN[f_zoomlevel as usize] <= f_index && f_index <= F_MAX[f_zoomlevel as usize] {
+        if f_index < F_MIN[f_zoomlevel as usize] || f_index > F_MAX[f_zoomlevel as usize] {
             return Err(Error::FOutOfRange {
                 z: f_zoomlevel,
                 f: f_index,
             });
         }
 
-        if 0 <= x_index && x_index <= XY_MAX[x_zoomlevel as usize] {
+        if x_index > XY_MAX[x_zoomlevel as usize] {
             return Err(Error::XOutOfRange {
                 z: x_zoomlevel,
                 x: x_index,
             });
         }
 
-        if 0 <= y_index && y_index <= XY_MAX[y_zoomlevel as usize] {
+        if y_index > XY_MAX[y_zoomlevel as usize] {
             return Err(Error::YOutOfRange {
                 z: y_zoomlevel,
                 y: y_index,
