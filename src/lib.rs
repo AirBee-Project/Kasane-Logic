@@ -27,7 +27,7 @@ pub use spatial_id::helpers::fast_intersect;
 pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
-pub use spatial_id::traits::{IntoFlexIds, IterFlexIds, IntoSingleIds, IterSingleIds, SpatialId};
+pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialId};
 
 pub use spatial_id::collection::traits::SpatialIdSet;
 pub use spatial_id::collection::traits::SpatialIdTable;

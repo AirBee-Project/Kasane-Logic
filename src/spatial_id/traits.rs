@@ -1,4 +1,3 @@
-
 use crate::{Coordinate, FlexId, SingleId, TemporalId, error::Error};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
