@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Coordinate, Error, Geometry, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
-    SpatialIds,
+    Coordinate, Error, Geometry, IntoCoordinates, RangeId, Shape, SingleId, SingleIds, Solid,
+    SpatialId,
 };
 
 impl Shape for Solid {

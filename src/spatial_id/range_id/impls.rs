@@ -1,11 +1,10 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, FlexId, RangeId, Segment, SingleId, SpatialId,
+    Coordinate, Error, FlexId, FlexIds, RangeId, Segment, SingleId, SingleIds, SpatialId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
-        traits::SpatialIds,
     },
 };
 
@@ -228,34 +227,6 @@ impl SpatialId for RangeId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
-
-    fn segmentation(&self) -> crate::Segmentation {
-        let f = Segment::<8>::split_f(self.z, self.f)
-            .map(|(z, index)| Segment::from_f(z, index))
-            .collect();
-
-        let x = if self.x[0] <= self.x[1] {
-            Segment::<8>::split_xy(self.z, self.x)
-                .map(|(z, index)| Segment::from_xy(z, index))
-                .collect()
-        } else {
-            let mut xs: Vec<_> =
-                Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                    .map(|(z, index)| Segment::from_xy(z, index))
-                    .collect();
-            xs.extend(
-                Segment::<8>::split_xy(self.z, [0, self.x[1]])
-                    .map(|(z, index)| Segment::from_xy(z, index)),
-            );
-            xs
-        };
-
-        let y = Segment::<8>::split_xy(self.z, self.y)
-            .map(|(z, index)| Segment::from_xy(z, index))
-            .collect();
-
-        crate::Segmentation { f, x, y }
-    }
 }
 
 impl From<SingleId> for RangeId {
@@ -286,14 +257,10 @@ impl From<&SingleId> for RangeId {
     }
 }
 
-impl SpatialIds for RangeId {
-    type SingleItem<'a> = SingleId;
+impl SingleIds for RangeId {
+    type Item<'a> = SingleId;
 
-    type RangeItem<'a> = &'a RangeId;
-
-    type FlexItem<'a> = FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
+    fn single_ids(&self) -> impl Iterator<Item = Self::Item<'_>> {
         let z = self.z;
 
         let f_range = self.f[0]..=self.f[1];
@@ -321,13 +288,14 @@ impl SpatialIds for RangeId {
             })
         })
     }
+}
 
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
-        std::iter::once(self)
-    }
+impl FlexIds for RangeId {
+    type Item<'a> = FlexId;
 
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        let f_segments = Segment::<8>::split_f(self.z, self.f);
+    fn flex_ids(&self) -> impl Iterator<Item = Self::Item<'_>> {
+        // 1. 各軸のセグメントを事前に収集（再利用するため）
+        let f_list: Vec<_> = Segment::<8>::split_f(self.z, self.f).collect();
 
         let x_list: Vec<_> = if self.x[0] <= self.x[1] {
             Segment::<8>::split_xy(self.z, self.x).collect()
@@ -337,19 +305,19 @@ impl SpatialIds for RangeId {
                 .collect()
         };
 
-        let y_segments = Segment::<8>::split_xy(self.z, self.y);
+        let y_list: Vec<_> = Segment::<8>::split_xy(self.z, self.y).collect();
 
-        let f_list: Vec<_> = f_segments.collect();
-        let y_list: Vec<_> = y_segments.collect();
-
-        f_list.into_iter().flat_map(move |(f_zoom, f_idx)| {
-            x_list.clone().into_iter().flat_map({
-                let value = y_list.clone();
-                move |(x_zoom, x_idx)| {
-                    value.clone().into_iter().map(move |(y_zoom, y_idx)| {
-                        FlexId::new(f_zoom, f_idx, x_zoom, x_idx, y_zoom, y_idx)
-                    })
-                }
+        // 2. 組み合わせ（直積）の生成
+        // f_list の各要素に対して、x_list と y_list を掛け合わせる
+        f_list.into_iter().flat_map(move |(f_z, f_i)| {
+            // ループごとに x_list を clone して nested loop を回す
+            let y_list_inner = y_list.clone();
+            x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
+                // y_list も同様に clone して一番内側の loop を回す
+                y_list_inner
+                    .clone()
+                    .into_iter()
+                    .map(move |(y_z, y_i)| FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap())
             })
         })
     }

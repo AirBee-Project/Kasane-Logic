@@ -1,4 +1,3 @@
-
 pub(crate) mod collection;
 pub mod constants;
 pub mod single_id;

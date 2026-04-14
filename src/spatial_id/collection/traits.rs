@@ -1,4 +1,4 @@
-use crate::{SpatialId, SpatialIds};
+use crate::SpatialId;
 use std::{
     fmt::Debug,
     ops::{
@@ -7,7 +7,7 @@ use std::{
     },
 };
 
-pub trait SpatialIdSet: Sized + Default + Eq + Clone + Debug + SpatialIds
+pub trait SpatialIdSet: Sized + Default + Eq + Clone + Debug
 // --------------------------------------------------------
 // [1] 両方消費パターン (Self OP Self)
 // --------------------------------------------------------
@@ -70,7 +70,7 @@ where
 
 ///[SpatialId]に割り当てられた値を管理する
 /// また、値側にも自動でインデックスを張り、高速なフィルターを提供する
-pub trait SpatialIdTable<V>: Sized + Eq + Default + Clone + Debug + SpatialIds
+pub trait SpatialIdTable<V>: Sized + Eq + Default + Clone + Debug
 where
     V: Ord + Eq,
     for<'a> &'a Self::Set: BitOr<&'a Self::Set, Output = Self::Set>

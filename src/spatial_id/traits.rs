@@ -1,7 +1,9 @@
-use crate::{Coordinate, Segment, error::Error};
+use std::borrow::Borrow;
+
+use crate::{Coordinate, FlexId, SingleId, error::Error};
 
 /// 空間 ID が備えるべき基礎的な性質および移動操作を定義するトレイト。
-pub trait SpatialId: SpatialIds {
+pub trait SpatialId {
     //そのIDの各次元インデックス値の最大と最小を返す
     fn f_min(&self) -> i32;
     fn f_max(&self) -> i32;
@@ -31,30 +33,22 @@ pub trait SpatialId: SpatialIds {
     fn temporal(&self) -> &TemporalId;
     #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId;
-
-    //Segmentへの分解
-    fn segmentation(&self) -> Segmentation;
 }
 
-pub trait SpatialIds {
-    type SingleItem<'a>
-    where
-        Self: 'a;
-    type RangeItem<'a>
-    where
-        Self: 'a;
-    type FlexItem<'a>
+///[SingleId]の集合であることを保証するTrait
+pub trait SingleIds {
+    type Item<'a>: Borrow<SingleId> + 'a
     where
         Self: 'a;
 
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>>;
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>>;
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>>;
+    fn single_ids(&self) -> impl Iterator<Item = Self::Item<'_>>;
 }
 
-#[derive(Debug)]
-pub struct Segmentation {
-    pub f: Vec<Segment<8>>,
-    pub x: Vec<Segment<8>>,
-    pub y: Vec<Segment<8>>,
+///[FlexId]の集合であることを保証するTrait
+pub trait FlexIds {
+    type Item<'a>: Borrow<FlexId> + 'a
+    where
+        Self: 'a;
+
+    fn flex_ids(&self) -> impl Iterator<Item = Self::Item<'_>>;
 }

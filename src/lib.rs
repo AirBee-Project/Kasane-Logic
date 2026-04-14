@@ -1,5 +1,3 @@
-#![deny(dead_code)]
-
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
@@ -29,17 +27,7 @@ pub use spatial_id::helpers::fast_intersect;
 pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
-pub use spatial_id::traits::SpatialId;
-pub use spatial_id::traits::SpatialIds;
+pub use spatial_id::traits::{FlexIds, SingleIds, SpatialId};
 
 pub use spatial_id::collection::traits::SpatialIdSet;
 pub use spatial_id::collection::traits::SpatialIdTable;
-
-//VBitを用いたCollection系統>
-pub use spatial_id::collection::v_bit::core::flex_id_rank::FlexIdRank;
-pub use spatial_id::collection::v_bit::core::flex_id_rank_list::FlexIdRankList;
-pub use spatial_id::collection::v_bit::core::scanner::FlexIdScanPlan;
-pub use spatial_id::collection::v_bit::set::VBitSet;
-pub use spatial_id::traits::Segmentation;
-
-//<VBitを用いたCollection系統
