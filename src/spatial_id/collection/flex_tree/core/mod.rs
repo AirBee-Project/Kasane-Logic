@@ -7,7 +7,7 @@ mod node;
 mod overlap;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
-#[derive(PartialEq, Clone)]
+#[derive(Clone, Default)]
 pub struct FlexTreeCore<V>
 where
     V: PartialEq + Clone,
@@ -26,6 +26,21 @@ where
             lower_root: None,
             upper_root: None,
         }
+    }
+
+    ///クリアする
+    pub fn clear(&mut self) {
+        self.lower_root = None;
+        self.upper_root = None;
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.lower_root.is_none() && self.upper_root.is_none()
+    }
+
+    pub fn count(&self) -> usize {
+        //Todo:型の内部に個数をキャッシュしてO(1)で求められるようにする
+        self.iter().count()
     }
 
     /// [FlexTreeCore]に空間IDを挿入する

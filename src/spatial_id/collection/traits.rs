@@ -1,10 +1,7 @@
 use crate::SpatialId;
 use std::{
     fmt::Debug,
-    ops::{
-        BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, RangeInclusive, Sub,
-        SubAssign,
-    },
+    ops::{BitAnd, BitOr, BitXor, RangeInclusive, Sub},
 };
 
 pub trait SpatialIdSet: Sized + Default + Eq + Clone + Debug
@@ -15,34 +12,6 @@ pub trait SpatialIdSet: Sized + Default + Eq + Clone + Debug
 + BitAnd<Output = Self>         // A & B (Intersection)
 + Sub<Output = Self>            // A - B (Difference)
 + BitXor<Output = Self>         // A ^ B (Symmetric Difference)
-
-// --------------------------------------------------------
-// [2] 片方消費パターン (Self OP &Self)
-// --------------------------------------------------------
-+ for<'a> BitOr<&'a Self, Output = Self>
-+ for<'a> BitAnd<&'a Self, Output = Self>
-+ for<'a> Sub<&'a Self, Output = Self>
-+ for<'a> BitXor<&'a Self, Output = Self>
-
-// --------------------------------------------------------
-// [3] 破壊的代入パターン (Self OP= Self / &Self)
-// --------------------------------------------------------
-+ BitOrAssign<Self>
-+ BitAndAssign<Self>
-+ SubAssign<Self>
-+ BitXorAssign<Self>
-+ for<'a> BitOrAssign<&'a Self>
-+ for<'a> BitAndAssign<&'a Self>
-+ for<'a> SubAssign<&'a Self>
-+ for<'a> BitXorAssign<&'a Self>
-where
-//     // --------------------------------------------------------
-//     // [4] 非破壊パターン (&Self OP &Self)
-//     // --------------------------------------------------------
-    for<'a> &'a Self: BitOr<&'a Self, Output = Self>
-        + BitAnd<&'a Self, Output = Self>
-        + Sub<&'a Self, Output = Self>
-        + BitXor<&'a Self, Output = Self>,
 {
     ///新しい[SpatialIdSet]を作成する
     fn new() -> Self {

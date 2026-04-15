@@ -30,3 +30,4 @@ pub use spatial_id::collection::traits::SpatialIdSet;
 pub use spatial_id::collection::traits::SpatialIdTable;
 
 pub use spatial_id::collection::flex_tree::core::FlexTreeCore;
+pub use spatial_id::collection::flex_tree::set::FlexTreeSet;
