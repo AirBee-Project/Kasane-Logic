@@ -1,11 +1,11 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, FlexId, RangeId, Segment, SingleId, SpatialId,
+    Coordinate, Error, RangeId, SpatialId,
+    TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
-        traits::SpatialIds,
     },
 };
 
@@ -44,7 +44,7 @@ impl fmt::Display for RangeId {
         )?;
 
         //時間の情報があれば書き込み
-        #[cfg(feature = "temporal")]
+
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
         };
@@ -219,138 +219,11 @@ impl SpatialId for RangeId {
         todo!()
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
-    }
-
-    fn segmentation(&self) -> crate::Segmentation {
-        let f = Segment::<8>::split_f(self.z, self.f)
-            .map(|(z, index)| Segment::from_f(z, index))
-            .collect();
-
-        let x = if self.x[0] <= self.x[1] {
-            Segment::<8>::split_xy(self.z, self.x)
-                .map(|(z, index)| Segment::from_xy(z, index))
-                .collect()
-        } else {
-            let mut xs: Vec<_> =
-                Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                    .map(|(z, index)| Segment::from_xy(z, index))
-                    .collect();
-            xs.extend(
-                Segment::<8>::split_xy(self.z, [0, self.x[1]])
-                    .map(|(z, index)| Segment::from_xy(z, index)),
-            );
-            xs
-        };
-
-        let y = Segment::<8>::split_xy(self.z, self.y)
-            .map(|(z, index)| Segment::from_xy(z, index))
-            .collect();
-
-        crate::Segmentation { f, x, y }
-    }
-}
-
-impl From<SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
-    fn from(id: SingleId) -> Self {
-        RangeId {
-            z: id.z(),
-            f: [id.f(), id.f()],
-            x: [id.x(), id.x()],
-            y: [id.y(), id.y()],
-            #[cfg(feature = "temporal")]
-            temporal_id: id.temporal().clone(),
-        }
-    }
-}
-
-impl From<&SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
-    fn from(id: &SingleId) -> Self {
-        RangeId {
-            z: id.z(),
-            f: [id.f(), id.f()],
-            x: [id.x(), id.x()],
-            y: [id.y(), id.y()],
-            #[cfg(feature = "temporal")]
-            temporal_id: id.temporal().clone(),
-        }
-    }
-}
-
-impl SpatialIds for RangeId {
-    type SingleItem<'a> = SingleId;
-
-    type RangeItem<'a> = &'a RangeId;
-
-    type FlexItem<'a> = FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
-        let z = self.z;
-
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
-
-        f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
-            } else {
-                (self.x[0]..=XY_MAX[z as usize])
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
-            };
-
-            x_iter.into_iter().flat_map(move |x| {
-                y_range.clone().map(move |y: u32| unsafe {
-                    // #[cfg(not(feature = "temporal"))]
-                    SingleId::new_unchecked(z, f, x, y)
-
-                    // #[cfg(feature = "temporal")]
-                    // SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
-                })
-            })
-        })
-    }
-
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
-        std::iter::once(self)
-    }
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        let f_segments = Segment::<8>::split_f(self.z, self.f);
-
-        let x_list: Vec<_> = if self.x[0] <= self.x[1] {
-            Segment::<8>::split_xy(self.z, self.x).collect()
-        } else {
-            Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                .chain(Segment::<8>::split_xy(self.z, [0, self.x[1]]))
-                .collect()
-        };
-
-        let y_segments = Segment::<8>::split_xy(self.z, self.y);
-
-        let f_list: Vec<_> = f_segments.collect();
-        let y_list: Vec<_> = y_segments.collect();
-
-        f_list.into_iter().flat_map(move |(f_zoom, f_idx)| {
-            x_list.clone().into_iter().flat_map({
-                let value = y_list.clone();
-                move |(x_zoom, x_idx)| {
-                    value.clone().into_iter().map(move |(y_zoom, y_idx)| {
-                        FlexId::new(f_zoom, f_idx, x_zoom, x_idx, y_zoom, y_idx)
-                    })
-                }
-            })
-        })
     }
 }

@@ -1,45 +1,38 @@
-#![deny(dead_code)]
-
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
 /// 空間ID以外の地理空間情報。
-mod geometry;
+pub mod geometry;
 /// 空間IDに関する型を定義。
-mod spatial_id;
-
-pub use roaring::RoaringTreemap;
+pub mod spatial_id;
 
 pub use error::Error;
-pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 
-pub use geometry::constants::*;
+// geometry
+pub use geometry::constants::{WGS84_A, WGS84_B, WGS84_E2, WGS84_F, WGS84_INV_F};
+pub use geometry::point::coordinate::Coordinate;
+pub use geometry::point::ecef::Ecef;
+pub use geometry::point::traits::Point;
 pub use geometry::shapes::line::Line;
 pub use geometry::shapes::polygon::Polygon;
 pub use geometry::shapes::solid::Solid;
 pub use geometry::shapes::sphere::Sphere;
-pub use geometry::shapes::traits::*;
+pub use geometry::shapes::traits::{
+    IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Shape,
+};
 pub use geometry::shapes::triangle::Triangle;
-pub use geometry::traits::Geometry;
+pub use geometry::traits::{ToFlexIds, ToRangeIds, ToSingleIds};
+
+// spatial_id
+pub use spatial_id::collection::flex_tree::core::FlexTreeCore;
+pub use spatial_id::collection::flex_tree::map::FlexTreeMap;
+pub use spatial_id::collection::flex_tree::set::FlexTreeSet;
+pub use spatial_id::collection::traits::{SpatialIdSet, SpatialIdTable};
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::flex_id::segment::Segment;
-pub use spatial_id::helpers::Dimension;
-pub use spatial_id::helpers::fast_intersect;
+pub use spatial_id::helpers::{Dimension, Side};
 pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
-pub use spatial_id::traits::SpatialId;
-pub use spatial_id::traits::SpatialIds;
-
-pub use spatial_id::collection::traits::SpatialIdSet;
-pub use spatial_id::collection::traits::SpatialIdTable;
-
-//VBitを用いたCollection系統>
-pub use spatial_id::collection::v_bit::core::flex_id_rank::FlexIdRank;
-pub use spatial_id::collection::v_bit::core::flex_id_rank_list::FlexIdRankList;
-pub use spatial_id::collection::v_bit::core::scanner::FlexIdScanPlan;
-pub use spatial_id::collection::v_bit::set::VBitSet;
-pub use spatial_id::traits::Segmentation;
-
-//<VBitを用いたCollection系統
+pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialId};

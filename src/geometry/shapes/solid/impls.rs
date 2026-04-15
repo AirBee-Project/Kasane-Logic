@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Coordinate, Error, Geometry, IntoCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
-    SpatialIds,
+    Coordinate, Error, IntoCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid, SpatialId,
+    geometry::traits::{ToRangeIds, ToSingleIds},
 };
 
 impl Shape for Solid {
@@ -11,7 +11,7 @@ impl Shape for Solid {
     }
 }
 
-impl Geometry for Solid {
+impl ToSingleIds for Solid {
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
 
@@ -39,11 +39,11 @@ impl Geometry for Solid {
             [result.1, result.4],
             [result.2, result.5],
         )?
-        .single_ids()
+        .into_single_ids()
         .collect();
         let mut open_list: VecDeque<SingleId> = VecDeque::new();
 
-        cuboid_set.retain(|id| {
+        cuboid_set.retain(|id: &SingleId| {
             let is_boundary = id.f() == result.0
                 || id.f() == result.3
                 || id.x() == result.1
@@ -93,7 +93,9 @@ impl Geometry for Solid {
         }
         Ok(cuboid_set.into_iter())
     }
+}
 
+impl ToRangeIds for Solid {
     fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         if surface_set.is_empty() {

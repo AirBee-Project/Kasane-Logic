@@ -4,7 +4,6 @@ use std::fmt;
 /// 本クレートで発生し得るエラーを表す。
 #[derive(Debug, PartialEq)] // PartialEqはテスト等で便利ですが、f64を含む場合は注意が必要です
 pub enum Error {
-    // --- 既存の座標・ズームレベルエラー ---
     /// ズームレベルが有効範囲（0..=31）外であることを示す。
     ZOutOfRange { z: u8 },
 

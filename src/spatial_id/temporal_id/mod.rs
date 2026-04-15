@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use crate::Error;
 pub mod impls;
-pub mod segment;
+pub mod ops;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///[TemporalId]は時間IDの区間表現を表す型。
@@ -19,6 +19,11 @@ pub struct TemporalId {
 }
 
 impl TemporalId {
+    pub const MAX: TemporalId = TemporalId {
+        i: NonZeroU64::new(1).unwrap(),
+        t: [0, u64::MAX],
+    };
+
     /// 指定された値から [`TemporalId`] を構築します。
     ///
     ///　各次元の与えられた2つの値は自動的に昇順に並び替えられ、常に `[min, max]` の形で内部に保持されます。

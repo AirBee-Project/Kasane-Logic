@@ -1,7 +1,10 @@
+pub mod constructor;
+pub mod convert;
 pub mod impls;
 pub mod random;
 
 use crate::{
+    SpatialId, TemporalId,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
@@ -19,7 +22,7 @@ use crate::{
 ///     f: i32,
 ///     x: u32,
 ///     y: u32,
-//      #[cfg(feature = "temporal")]
+//
 ///     temporal_id: TemporalId,
 /// }
 /// ```
@@ -29,88 +32,10 @@ pub struct SingleId {
     f: i32,
     x: u32,
     y: u32,
-    #[cfg(feature = "temporal")]
     temporal_id: TemporalId,
 }
 
 impl SingleId {
-    /// 指定された値から [`SingleId`] を構築します。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す
-    ///
-    /// # パラメータ
-    /// * `z` — ズームレベル（0–63の範囲が有効）  
-    /// * `f` — Fインデックス（鉛直方向）
-    /// * `x` — Xインデックス（東西方向）
-    /// * `y` — Yインデックス（南北方向）
-    ///
-    /// # バリデーション
-    /// - `z` が  を超える場合、[`Error::ZOutOfRange`] を返す。  
-    /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
-    ///   [`Error::FOutOfRange`] を返す。  
-    /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  
-    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返す。
-    ///
-    ///
-    /// IDの作成:
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// let id = SingleId::new(5, 3, 2, 10).unwrap();
-    /// assert_eq!(id.to_string(), "5/3/2/10".to_string());
-    /// ```
-    ///
-    /// 次元の範囲外の検知:
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
-    /// let id = SingleId::new(3, 3, 2, 10);
-    /// assert_eq!(id, Err(Error::YOutOfRange{z:3,y:10}));
-    /// ```
-    ///
-    /// ズームレベルの範囲外の検知:
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
-    /// let id = SingleId::new(68, 3, 2, 10);
-    /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
-    /// ```
-    pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
-        Self::new_with_temporal(z, f, x, y)
-    }
-
-    pub fn new_with_temporal(
-        z: u8,
-        f: i32,
-        x: u32,
-        y: u32,
-        #[cfg(feature = "temporal")] temporal_id: TemporalId,
-    ) -> Result<SingleId, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z });
-        }
-
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-        let xy_max = XY_MAX[z as usize];
-
-        if f < f_min || f > f_max {
-            return Err(Error::FOutOfRange { f, z });
-        }
-        if x > xy_max {
-            return Err(Error::XOutOfRange { x, z });
-        }
-        if y > xy_max {
-            return Err(Error::YOutOfRange { y, z });
-        }
-
-        Ok(SingleId {
-            z,
-            f,
-            x,
-            y,
-            #[cfg(feature = "temporal")]
-            temporal_id,
-        })
-    }
-
     /// この `SingleId` が保持しているズームレベル `z` を返します。
     ///
     /// ```
@@ -341,7 +266,7 @@ impl SingleId {
                     f,
                     x,
                     y,
-                    #[cfg(feature = "temporal")]
+
                     temporal_id: self.temporal().clone(),
                 })
             })
@@ -404,55 +329,8 @@ impl SingleId {
             f,
             x,
             y,
-            #[cfg(feature = "temporal")]
+
             temporal_id: self.temporal().clone(),
         })
-    }
-
-    /// 検証を行わずに [`SingleId`] を構築します。
-    ///
-    /// この関数は [`SingleId::new`] と異なり、与えられた `z`, `f`, `x`, `y` に対して
-    /// 一切の範囲チェックや整合性チェックを行いません。
-    /// そのため、高速に ID を生成できますが、**不正なパラメータを与えた場合の動作は未定義です**。
-    ///
-    /// # 注意
-    /// 呼び出し側は、以下をすべて満たすことを保証しなければなりません。
-    ///
-    /// * `z` が有効なズームレベル（0–63）であること  
-    /// * `f` が与えられた `z` に応じて `F_MIN[z]..=F_MAX[z]` の範囲内であること  
-    /// * `x` および `y` が `0..=XY_MAX[z]` の範囲内であること  
-    ///
-    /// これらが保証されない場合、本構造体の他のメソッド（範囲を前提とした計算）が
-    /// パニック・不正メモリアクセス・未定義動作を引き起こす可能性があります。
-    ///
-    /// ```
-    /// # use kasane_logic::SingleId;
-    /// // パラメータが妥当であることを呼び出し側が保証する必要がある
-    /// let id = unsafe { SingleId::new_unchecked(5, 3, 2, 10) };
-    ///
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.f(), 3i32);
-    /// assert_eq!(id.x(), 2u32);
-    /// assert_eq!(id.y(), 10u32);
-    /// ```
-    pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
-        SingleId { z, f, x, y }
-    }
-
-    pub unsafe fn new_with_temporal_unchecked(
-        z: u8,
-        f: i32,
-        x: u32,
-        y: u32,
-        #[cfg(feature = "temporal")] temporal_id: TemporalId,
-    ) -> SingleId {
-        SingleId {
-            z,
-            f,
-            x,
-            y,
-            #[cfg(feature = "temporal")]
-            temporal_id,
-        }
     }
 }

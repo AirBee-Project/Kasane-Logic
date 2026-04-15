@@ -49,47 +49,26 @@ pub fn altitude(f: f64, z: u8) -> f64 {
     33_554_432.0 * (f / n)
 }
 
-#[derive(Debug, Clone, Copy)]
 ///次元を選択するEnum
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(C)]
 pub enum Dimension {
-    F,
-    X,
-    Y,
+    F = 0,
+    X = 1,
+    Y = 2,
 }
 
-use roaring::RoaringTreemap;
+///上下,左右などの2分岐の概念を表すEnum
 
-///[RoaringTreemap]が大量にあったときに、最も高速に積集合を求める関数
-pub fn fast_intersect<'a, I>(sets: I) -> RoaringTreemap
-where
-    I: IntoIterator<Item = &'a RoaringTreemap>,
-{
-    let mut vec: Vec<&RoaringTreemap> = sets.into_iter().collect();
-
-    if vec.is_empty() {
-        return RoaringTreemap::new();
-    }
-
-    // 空集合があれば即終了
-    if vec.iter().any(|s| s.is_empty()) {
-        return RoaringTreemap::new();
-    }
-
-    // 小さい順に並べる
-    vec.sort_by_key(|s| s.len());
-
-    // 最小だけ clone
-    let mut result = vec[0].clone();
-
-    // 破壊的 AND
-    for s in &vec[1..] {
-        result &= *s;
-        if result.is_empty() {
-            break;
-        }
-    }
-
-    result
+/// 座標軸で小さい側:[Side::Lower]
+/// 座標軸で大きい側:[Side::Upper]
+#[derive(Debug, PartialEq, Clone, Copy)]
+#[repr(C)]
+pub enum Side {
+    /// 座標が小さい方 (Left, Down, Low-F)
+    Lower = 0,
+    /// 座標が大きい方 (Right, Up, High-F)
+    Upper = 1,
 }
 
 ///次元の区間表記の文字列を圧縮するための関数

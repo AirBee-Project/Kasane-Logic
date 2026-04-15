@@ -1,7 +1,6 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, Segmentation, SingleId, SpatialId,
-    XY_MAX,
-    spatial_id::{helpers, traits::SpatialIds},
+    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, TemporalId,
+    XY_MAX, spatial_id::helpers,
 };
 use std::fmt;
 
@@ -20,7 +19,7 @@ impl fmt::Display for SingleId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)?;
         //時間の情報があれば書き込み
-        #[cfg(feature = "temporal")]
+
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
         }
@@ -266,42 +265,11 @@ impl SpatialId for SingleId {
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
-    }
-
-    fn segmentation(&self) -> crate::Segmentation {
-        let flex_id = FlexId::from(self);
-        Segmentation {
-            f: vec![flex_id.f_segment().clone()],
-            x: vec![flex_id.x_segment().clone()],
-            y: vec![flex_id.y_segment().clone()],
-        }
-    }
-}
-
-impl SpatialIds for SingleId {
-    type SingleItem<'a> = &'a SingleId;
-
-    type RangeItem<'a> = RangeId;
-
-    type FlexItem<'a> = FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
-        std::iter::once(self)
-    }
-
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
-        std::iter::once(RangeId::from(self))
-    }
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        std::iter::once(FlexId::from(self))
     }
 }

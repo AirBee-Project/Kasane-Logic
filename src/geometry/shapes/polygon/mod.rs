@@ -40,10 +40,9 @@ impl Polygon {
             }
         }
 
-        if vertices.len() > 2
-            && vertices[0].eq_epsilon(vertices.last().unwrap(), epsilon) {
-                vertices.pop();
-            }
+        if vertices.len() > 2 && vertices[0].eq_epsilon(vertices.last().unwrap(), epsilon) {
+            vertices.pop();
+        }
 
         if vertices.len() < 3 {
             return Self { vertices: vec![] };

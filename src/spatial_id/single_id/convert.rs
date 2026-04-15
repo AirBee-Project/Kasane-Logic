@@ -1,0 +1,31 @@
+use crate::{FlexId, IntoFlexIds, IterFlexIds, SingleId, IntoSingleIds, IterSingleIds};
+
+impl IntoFlexIds for SingleId {
+    type IntoIter = std::iter::Once<FlexId>;
+    fn into_flex_ids(self) -> Self::IntoIter {
+        std::iter::once(unsafe {
+            FlexId::new_unchecked(self.z(), self.f(), self.z(), self.x(), self.z(), self.y())
+        })
+    }
+}
+
+impl IterFlexIds for SingleId {
+    type Iter<'a> = std::iter::Once<FlexId>;
+    fn iter_flex_ids(&self) -> Self::Iter<'_> {
+        self.clone().into_flex_ids()
+    }
+}
+
+impl IntoSingleIds for SingleId {
+    type IntoIter = std::iter::Once<SingleId>;
+    fn into_single_ids(self) -> Self::IntoIter {
+        std::iter::once(self)
+    }
+}
+
+impl IterSingleIds for SingleId {
+    type Iter<'a> = std::iter::Once<SingleId>;
+    fn iter_single_ids(&self) -> Self::Iter<'_> {
+        self.clone().into_single_ids()
+    }
+}

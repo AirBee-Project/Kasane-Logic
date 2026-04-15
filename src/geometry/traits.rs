@@ -1,24 +1,16 @@
 use crate::{Error, RangeId, SingleId};
 
-///3次元空間上の空間ID以外の図形を表す
-pub trait Geometry {
+///SingleIdsがネイティブで実装されているもの
+pub trait ToSingleIds {
     /// あるズームレベルの[SingleId]を出力する。
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
+}
 
+///RangeIdsがネイティブで実装されているもの
+pub trait ToRangeIds {
     /// あるズームレベルの[RangeId]を出力する。
     fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error>;
-
-    /// 最小の個数の[SingleId]で出力する。
-    ///
-    /// 最小の個数を保証する。
-    fn optimze_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        self.single_ids(z)
-    }
-
-    /// 最小の個数の[RangeId]で出力する。
-    ///
-    /// 最小の個数を保証する。
-    fn optimze_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
-        self.range_ids(z)
-    }
 }
+
+///FlexIdsがネイティブで実装されているもの
+pub trait ToFlexIds {}
