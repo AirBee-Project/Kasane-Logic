@@ -1,31 +1,27 @@
 use crate::{Dimension, FlexId, Side};
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum KDNode {
+pub enum Node {
     Branch {
         axis: Dimension,
-        lower_child: Option<Box<KDNode>>,
-        upper_child: Option<Box<KDNode>>,
+        lower_child: Option<Box<Node>>,
+        upper_child: Option<Box<Node>>,
     },
     Leaf,
 }
 
-impl KDNode {
-    /// ツリーに FlexId を挿入する
+impl Node {
     pub fn insert(&mut self, target: FlexId, passed_f_z: u8, passed_x_z: u8, passed_y_z: u8) {
-        // 1. 終了判定: ターゲットがこのノードの領域全体を覆い尽くしている場合
         if passed_f_z >= target.f_zoomlevel()
             && passed_x_z >= target.x_zoomlevel()
             && passed_y_z >= target.y_zoomlevel()
         {
-            // これより下の細かい枝（既にあるものも含む）をすべて刈り取り、
-            // 「ここは完全に埋まった」という1つの大きなLeafにする
-            *self = KDNode::Leaf;
+            *self = Node::Leaf;
             return;
         }
 
         match self {
-            KDNode::Branch {
+            Node::Branch {
                 axis,
                 lower_child,
                 upper_child,
@@ -47,17 +43,10 @@ impl KDNode {
                     Dimension::X => (passed_f_z, passed_x_z + 1, passed_y_z),
                     Dimension::Y => (passed_f_z, passed_x_z, passed_y_z + 1),
                 };
-
-                // ==========================================
-                // 【修正の核心】
-                // ターゲットがこの次元をすでに「カバー」している場合、
-                // 空間の両側（LowerとUpper）にまたがっているため、両方に挿入する！
-                // ==========================================
                 if passed_z >= target_z {
                     Self::insert_into_child(lower_child, *axis, target.clone(), nf, nx, ny);
                     Self::insert_into_child(upper_child, *axis, target, nf, nx, ny);
                 } else {
-                    // まだカバーしていないので、対象となる片方の道にだけ進む
                     let fork = Self::forking(&target, axis, &passed_z);
                     match fork {
                         Side::Lower => {
@@ -68,30 +57,23 @@ impl KDNode {
                         }
                     }
                 }
-
-                // ボトムアップの自動結合（マージ）
                 let can_merge = match (lower_child.as_deref(), upper_child.as_deref()) {
-                    (Some(KDNode::Leaf), Some(KDNode::Leaf)) => true,
+                    (Some(Node::Leaf), Some(Node::Leaf)) => true,
                     _ => false,
                 };
 
                 if can_merge {
-                    *self = KDNode::Leaf;
+                    *self = Node::Leaf;
                 }
             }
-            KDNode::Leaf => {
-                // 【行き止まりバグの真実】
-                // 既存の Leaf にぶつかったということは、「この空間は既にカバー済み」ということ。
-                // したがって、これ以上細かい（または同じ）範囲を追加しても意味がないため、
-                // ここで「何もしない（捨てる）」のが数学的に正しい挙動です。
+            Node::Leaf => {
                 return;
             }
         }
     }
 
-    /// 子ノードへの挿入処理をカプセル化したヘルパー関数
     fn insert_into_child(
-        child_opt: &mut Option<Box<KDNode>>,
+        child_opt: &mut Option<Box<Node>>,
         current_axis: Dimension,
         target: FlexId,
         nf: u8,
@@ -102,23 +84,20 @@ impl KDNode {
             Some(child) => {
                 child.insert(target, nf, nx, ny);
             }
-            None => {
-                // 道がない場合は next_dimension で次の軸を決定して木を伸ばす
-                match Self::next_dimension(current_axis, &target, nf, nx, ny) {
-                    Some(next_axis) => {
-                        let mut new_branch = KDNode::Branch {
-                            axis: next_axis,
-                            lower_child: None,
-                            upper_child: None,
-                        };
-                        new_branch.insert(target, nf, nx, ny);
-                        *child_opt = Some(Box::new(new_branch));
-                    }
-                    None => {
-                        *child_opt = Some(Box::new(KDNode::Leaf));
-                    }
+            None => match Self::next_dimension(current_axis, &target, nf, nx, ny) {
+                Some(next_axis) => {
+                    let mut new_branch = Node::Branch {
+                        axis: next_axis,
+                        lower_child: None,
+                        upper_child: None,
+                    };
+                    new_branch.insert(target, nf, nx, ny);
+                    *child_opt = Some(Box::new(new_branch));
                 }
-            }
+                None => {
+                    *child_opt = Some(Box::new(Node::Leaf));
+                }
+            },
         }
     }
 
@@ -129,18 +108,14 @@ impl KDNode {
             Dimension::Y => (target.y_zoomlevel(), target.y_index()),
         };
 
-        // 呼び出し元で passed_z >= target_z のケースを除外しているため、
-        // ここでは絶対にアンダーフローやパニックは起きません。
         let shift = target_z - 1 - passed_z;
         let bit = (index >> shift) & 1;
 
         if bit == 0 { Side::Lower } else { Side::Upper }
     }
 
-    /// もう通り過ぎた各次元のズームレベルが引数になっている
-    /// 次にどこの次元に行くべきかを判断する
     pub fn next_dimension(
-        current_axis: Dimension, // &self の代わりに Dimension を受け取る
+        current_axis: Dimension,
         target: &FlexId,
         passed_f_z: u8,
         passed_x_z: u8,
@@ -150,7 +125,6 @@ impl KDNode {
         let x_passed = passed_x_z >= target.x_zoomlevel();
         let y_passed = passed_y_z >= target.y_zoomlevel();
 
-        // 全ての次元がPassできていたらNoneを返す
         if f_passed && x_passed && y_passed {
             return None;
         }
@@ -188,7 +162,7 @@ impl KDNode {
 
     pub fn collect_leaves(&self, results: &mut Vec<FlexId>, current_id: FlexId) {
         match self {
-            KDNode::Branch {
+            Node::Branch {
                 axis,
                 lower_child,
                 upper_child,
@@ -212,7 +186,7 @@ impl KDNode {
                     child.collect_leaves(results, next_id);
                 }
             }
-            KDNode::Leaf => {
+            Node::Leaf => {
                 results.push(current_id);
             }
         }

@@ -31,4 +31,4 @@ pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingle
 pub use spatial_id::collection::traits::SpatialIdSet;
 pub use spatial_id::collection::traits::SpatialIdTable;
 
-pub use spatial_id::collection::radix::KDTree;
+pub use spatial_id::collection::flex_tree::core::FlexTree;

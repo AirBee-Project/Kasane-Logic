@@ -2,7 +2,7 @@ use std::num::NonZeroU64;
 
 use crate::Error;
 pub mod impls;
-pub mod segment;
+pub mod ops;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///[TemporalId]は時間IDの区間表現を表す型。
