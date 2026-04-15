@@ -1,14 +1,23 @@
-use crate::{Dimension, FlexId, IntoFlexIds};
+use crate::{
+    Dimension, FlexId, IntoFlexIds, spatial_id::collection::flex_tree::core::convert::LeavesIter,
+};
 use node::Node;
+mod convert;
 mod node;
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct FlexTree {
-    pub lower_root: Option<Box<Node>>,
-    pub upper_root: Option<Box<Node>>,
+#[derive(PartialEq, Clone)]
+pub struct FlexTree<V>
+where
+    V: PartialEq + Clone,
+{
+    pub lower_root: Option<Box<Node<V>>>,
+    pub upper_root: Option<Box<Node<V>>>,
 }
 
-impl FlexTree {
+impl<V> FlexTree<V>
+where
+    V: PartialEq + Clone,
+{
     /// 新しい空のツリーを作成する
     pub fn new() -> Self {
         Self {
@@ -17,7 +26,7 @@ impl FlexTree {
         }
     }
 
-    pub fn insert<T: IntoFlexIds>(&mut self, target: T) {
+    pub fn insert<T: IntoFlexIds>(&mut self, target: T, value: V) {
         for flex_id in target.into_flex_ids() {
             let root = match flex_id.f_index().is_negative() {
                 true => &mut self.lower_root,
@@ -33,22 +42,22 @@ impl FlexTree {
             }
 
             if let Some(kd_node) = root {
-                kd_node.insert(flex_id, 0, 0, 0);
+                kd_node.insert(flex_id, value.clone(), 0, 0, 0);
             }
         }
     }
 
-    pub fn output(&self) -> Vec<FlexId> {
-        let mut results = Vec::new();
-
-        if let Some(lower) = &self.lower_root {
-            lower.collect_leaves(&mut results, FlexId::LOWER_MAX);
-        }
+    pub fn iter_leaves(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
+        let mut stack = Vec::new();
 
         if let Some(upper) = &self.upper_root {
-            upper.collect_leaves(&mut results, FlexId::UPPER_MAX);
+            stack.push((upper.as_ref(), FlexId::UPPER_MAX));
         }
 
-        results
+        if let Some(lower) = &self.lower_root {
+            stack.push((lower.as_ref(), FlexId::LOWER_MAX));
+        }
+
+        LeavesIter { stack }
     }
 }

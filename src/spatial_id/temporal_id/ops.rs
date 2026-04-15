@@ -4,7 +4,6 @@ impl TemporalId {
     /// 2つのTemporalIdの重なる時間範囲（Intersection）を計算して返します。
     /// 重なりがない場合は None を返します。
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
-        // 1. 各々の絶対時間の開始と終了を u128 で取得
         let s1 = self.start_unixstamp() as u128;
         let e1 = self.end_unixtime_exclusive();
 

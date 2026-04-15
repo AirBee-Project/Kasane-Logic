@@ -7,11 +7,11 @@ fn main() {
     let id2 = RangeId::new(4, [3, 6], [2, 2], [1, 9]).unwrap();
     let id3 = SingleId::new(2, 0, 1, 1).unwrap();
 
-    test.insert(id);
-    test.insert(id2);
-    test.insert(id3);
+    test.insert(id, ());
+    test.insert(id2, ());
+    test.insert(id3, ());
 
-    for ele in test.output() {
+    for (ele, _) in test.iter_leaves() {
         let a = RangeId::from(ele);
         println!("{},", a);
     }

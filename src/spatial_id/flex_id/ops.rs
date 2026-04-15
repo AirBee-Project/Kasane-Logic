@@ -6,31 +6,23 @@ impl FlexId {
     pub fn difference(&self, other: &FlexId) -> impl Iterator<Item = FlexId> {
         let mut results = Vec::new();
 
-        // 1. 交差（Intersection）を取得する
         let intersect = match self.intersection(other) {
             Some(i) => i,
             None => {
-                // まったく重なっていなければ、自分がそのまま丸ごと残る
                 results.push(self.clone());
                 return results.into_iter();
             }
         };
 
-        // 2. 自分と交差領域が完全に一致する場合、差分は空（完全にくり抜かれた）
         if self == &intersect {
             return results.into_iter();
         }
 
-        // 3. 空間的に分割しながら差分（外側の削りカス）を抽出していく
         let mut current = self.clone();
 
-        // F軸の分割：交差領域の解像度に達するまで自分を割り続ける
         while current.f_zoomlevel < intersect.f_zoomlevel {
             let lower = current.f_split(Side::Lower).unwrap();
             let upper = current.f_split(Side::Upper).unwrap();
-
-            // 交差領域が含まれる方（intersectと交差する方）を次に進め、
-            // 含まれない方（外側）は差分の一部として結果リストに退避する
             if lower.intersection(&intersect).is_some() {
                 results.push(upper);
                 current = lower;
@@ -68,9 +60,6 @@ impl FlexId {
             }
         }
 
-        // 4. この時点で、current の「空間（F, X, Y）」は intersect と完全に一致している状態。
-        // つまり空間の差分はすべて results に退避された。
-        // 最後に、同じ空間位置における「時間（TemporalId）」の差分を計算して適用する。
         for t_diff in current.temporal().difference(other.temporal()) {
             results.push(FlexId {
                 f_zoomlevel: current.f_zoomlevel,
@@ -83,7 +72,6 @@ impl FlexId {
             });
         }
 
-        // イテレータとして返す
         results.into_iter()
     }
 

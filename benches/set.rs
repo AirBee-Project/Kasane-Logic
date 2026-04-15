@@ -25,10 +25,10 @@ fn main() {
             let mut vbit_set = FlexTree::new();
 
             for single_id in subset {
-                vbit_set.insert(single_id.clone());
+                vbit_set.insert(single_id.clone(), ());
             }
 
-            black_box(vbit_set.output().len())
+            black_box(vbit_set.iter_leaves().count())
         });
 
     func.run_and_save().unwrap();

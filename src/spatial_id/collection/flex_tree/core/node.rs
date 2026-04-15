@@ -1,22 +1,37 @@
 use crate::{Dimension, FlexId, Side};
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum Node {
+#[derive(PartialEq, Clone)]
+pub enum Node<V>
+where
+    V: PartialEq + Clone,
+{
     Branch {
         axis: Dimension,
-        lower_child: Option<Box<Node>>,
-        upper_child: Option<Box<Node>>,
+        lower_child: Option<Box<Node<V>>>,
+        upper_child: Option<Box<Node<V>>>,
     },
-    Leaf,
+    Leaf {
+        value: V,
+    },
 }
 
-impl Node {
-    pub fn insert(&mut self, target: FlexId, passed_f_z: u8, passed_x_z: u8, passed_y_z: u8) {
+impl<V> Node<V>
+where
+    V: PartialEq + Clone,
+{
+    pub fn insert(
+        &mut self,
+        target: FlexId,
+        value: V,
+        passed_f_z: u8,
+        passed_x_z: u8,
+        passed_y_z: u8,
+    ) {
         if passed_f_z >= target.f_zoomlevel()
             && passed_x_z >= target.x_zoomlevel()
             && passed_y_z >= target.y_zoomlevel()
         {
-            *self = Node::Leaf;
+            *self = Node::Leaf { value };
             return;
         }
 
@@ -37,52 +52,94 @@ impl Node {
                     Dimension::Y => target.y_zoomlevel(),
                 };
 
-                // 各次元の次に渡すズームレベル
                 let (nf, nx, ny) = match axis {
                     Dimension::F => (passed_f_z + 1, passed_x_z, passed_y_z),
                     Dimension::X => (passed_f_z, passed_x_z + 1, passed_y_z),
                     Dimension::Y => (passed_f_z, passed_x_z, passed_y_z + 1),
                 };
+
+                // ターゲットがこの次元をカバーしているなら両側に渡す
                 if passed_z >= target_z {
-                    Self::insert_into_child(lower_child, *axis, target.clone(), nf, nx, ny);
-                    Self::insert_into_child(upper_child, *axis, target, nf, nx, ny);
+                    Self::insert_into_child(
+                        lower_child,
+                        *axis,
+                        target.clone(),
+                        value.clone(),
+                        nf,
+                        nx,
+                        ny,
+                    );
+                    Self::insert_into_child(upper_child, *axis, target, value, nf, nx, ny);
                 } else {
                     let fork = Self::forking(&target, axis, &passed_z);
                     match fork {
                         Side::Lower => {
-                            Self::insert_into_child(lower_child, *axis, target, nf, nx, ny)
+                            Self::insert_into_child(lower_child, *axis, target, value, nf, nx, ny)
                         }
                         Side::Upper => {
-                            Self::insert_into_child(upper_child, *axis, target, nf, nx, ny)
+                            Self::insert_into_child(upper_child, *axis, target, value, nf, nx, ny)
                         }
                     }
                 }
-                let can_merge = match (lower_child.as_deref(), upper_child.as_deref()) {
-                    (Some(Node::Leaf), Some(Node::Leaf)) => true,
-                    _ => false,
-                };
 
-                if can_merge {
-                    *self = Node::Leaf;
+                let mut merge_value = None;
+                if let (Some(Node::Leaf { value: v1 }), Some(Node::Leaf { value: v2 })) =
+                    (lower_child.as_deref(), upper_child.as_deref())
+                {
+                    // 左右のLeafが「等しい値」を持っている時だけマージ可能とする
+                    if v1 == v2 {
+                        merge_value = Some(v1.clone());
+                    }
+                }
+
+                if let Some(v) = merge_value {
+                    *self = Node::Leaf { value: v };
                 }
             }
-            Node::Leaf => {
-                return;
+
+            Node::Leaf {
+                value: existing_value,
+            } => {
+                if *existing_value == value {
+                    return;
+                }
+
+                let old_val = existing_value.clone();
+
+                let start_axis = if passed_f_z < target.f_zoomlevel() {
+                    Dimension::F
+                } else if passed_x_z < target.x_zoomlevel() {
+                    Dimension::X
+                } else {
+                    Dimension::Y
+                };
+
+                *self = Node::Branch {
+                    axis: start_axis,
+                    lower_child: Some(Box::new(Node::Leaf {
+                        value: old_val.clone(),
+                    })),
+                    upper_child: Some(Box::new(Node::Leaf { value: old_val })),
+                };
+
+                self.insert(target, value, passed_f_z, passed_x_z, passed_y_z);
             }
         }
     }
 
+    /// 子ノードへの挿入処理をカプセル化したヘルパー関数
     fn insert_into_child(
-        child_opt: &mut Option<Box<Node>>,
+        child_opt: &mut Option<Box<Node<V>>>,
         current_axis: Dimension,
         target: FlexId,
+        value: V,
         nf: u8,
         nx: u8,
         ny: u8,
     ) {
         match child_opt {
             Some(child) => {
-                child.insert(target, nf, nx, ny);
+                child.insert(target, value, nf, nx, ny);
             }
             None => match Self::next_dimension(current_axis, &target, nf, nx, ny) {
                 Some(next_axis) => {
@@ -91,11 +148,12 @@ impl Node {
                         lower_child: None,
                         upper_child: None,
                     };
-                    new_branch.insert(target, nf, nx, ny);
+                    new_branch.insert(target, value, nf, nx, ny);
                     *child_opt = Some(Box::new(new_branch));
                 }
                 None => {
-                    *child_opt = Some(Box::new(Node::Leaf));
+                    // 全次元通過したら値付きのLeafを作る
+                    *child_opt = Some(Box::new(Node::Leaf { value }));
                 }
             },
         }
@@ -160,35 +218,9 @@ impl Node {
         }
     }
 
-    pub fn collect_leaves(&self, results: &mut Vec<FlexId>, current_id: FlexId) {
-        match self {
-            Node::Branch {
-                axis,
-                lower_child,
-                upper_child,
-            } => {
-                // 左に進む場合
-                if let Some(child) = lower_child {
-                    let next_id = match axis {
-                        Dimension::F => current_id.f_split(Side::Lower).unwrap(),
-                        Dimension::X => current_id.x_split(Side::Lower).unwrap(),
-                        Dimension::Y => current_id.y_split(Side::Lower).unwrap(),
-                    };
-                    child.collect_leaves(results, next_id);
-                }
-                // 右に進む場合
-                if let Some(child) = upper_child {
-                    let next_id = match axis {
-                        Dimension::F => current_id.f_split(Side::Upper).unwrap(),
-                        Dimension::X => current_id.x_split(Side::Upper).unwrap(),
-                        Dimension::Y => current_id.y_split(Side::Upper).unwrap(),
-                    };
-                    child.collect_leaves(results, next_id);
-                }
-            }
-            Node::Leaf => {
-                results.push(current_id);
-            }
+    pub fn iter_leaves(&self, root_id: FlexId) -> super::convert::LeavesIter<'_, V> {
+        super::convert::LeavesIter {
+            stack: vec![(self, root_id)],
         }
     }
 }
