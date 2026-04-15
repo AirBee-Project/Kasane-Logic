@@ -86,7 +86,6 @@ where
                 if let (Some(Node::Leaf { value: v1 }), Some(Node::Leaf { value: v2 })) =
                     (lower_child.as_deref(), upper_child.as_deref())
                 {
-                    // 左右のLeafが「等しい値」を持っている時だけマージ可能とする
                     if v1 == v2 {
                         merge_value = Some(v1.clone());
                     }

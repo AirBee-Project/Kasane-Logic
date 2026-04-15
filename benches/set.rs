@@ -1,4 +1,4 @@
-use kasane_logic::{FlexTree, SingleId, SpatialIdSet};
+use kasane_logic::{FlexTreeCore, SingleId, SpatialIdSet};
 use memori::{Bench, Func, TrackingAllocator};
 use std::fs;
 use std::hint::black_box;
@@ -22,7 +22,7 @@ fn main() {
             let target_len = (data.len() * pct) / 100;
             let subset = &data[..target_len];
 
-            let mut vbit_set = FlexTree::new();
+            let mut vbit_set = FlexTreeCore::new();
 
             for single_id in subset {
                 vbit_set.insert(single_id.clone(), ());

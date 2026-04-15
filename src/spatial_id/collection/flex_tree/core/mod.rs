@@ -1,26 +1,26 @@
 use crate::{
-    Dimension, FlexId, IntoFlexIds, IterFlexIds,
-    spatial_id::collection::flex_tree::core::convert::LeavesIter,
+    Dimension, FlexId, IterFlexIds, spatial_id::collection::flex_tree::core::convert::LeavesIter,
 };
 use node::Node;
 mod convert;
 mod node;
 mod overlap;
 
+/// 拡張空間IDとそれに紐づいたValueを保存するための型
 #[derive(PartialEq, Clone)]
-pub struct FlexTree<V>
+pub struct FlexTreeCore<V>
 where
     V: PartialEq + Clone,
 {
-    pub lower_root: Option<Box<Node<V>>>,
-    pub upper_root: Option<Box<Node<V>>>,
+    lower_root: Option<Box<Node<V>>>,
+    upper_root: Option<Box<Node<V>>>,
 }
 
-impl<V> FlexTree<V>
+impl<V> FlexTreeCore<V>
 where
     V: PartialEq + Clone,
 {
-    /// 新しい空のツリーを作成する
+    /// 新しい空の[FlexTreeCore]を作成する
     pub fn new() -> Self {
         Self {
             lower_root: None,
@@ -28,6 +28,7 @@ where
         }
     }
 
+    /// [FlexTreeCore]に空間IDを挿入する
     pub fn insert<S>(&mut self, target: S, value: V)
     where
         S: IterFlexIds,
@@ -52,6 +53,7 @@ where
         }
     }
 
+    /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
         S: IterFlexIds,
@@ -61,6 +63,30 @@ where
             .flat_map(move |item| self.overlap(item))
     }
 
+    /// [FlexTreeCore]からTargetが示す領域を切り取って返す
+    pub fn remove<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
+    where
+        S: IterFlexIds,
+    {
+        let mut actual_removed = Vec::new();
+
+        for t_id in target.iter_flex_ids() {
+            let affected_leaves: Vec<(FlexId, V)> = self.overlap_remove(&t_id).collect();
+
+            for (leaf_id, value) in affected_leaves {
+                for remnant_id in leaf_id.difference(&t_id) {
+                    self.insert(remnant_id, value.clone());
+                }
+                if let Some(intersect_id) = leaf_id.intersection(&t_id) {
+                    actual_removed.push((intersect_id, value));
+                }
+            }
+        }
+
+        actual_removed.into_iter()
+    }
+
+    /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         let mut stack = Vec::new();
 

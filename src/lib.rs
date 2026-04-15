@@ -6,8 +6,6 @@ mod geometry;
 /// 空間IDに関する型を定義。
 mod spatial_id;
 
-pub use roaring::RoaringTreemap;
-
 pub use error::Error;
 pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 
@@ -31,4 +29,4 @@ pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingle
 pub use spatial_id::collection::traits::SpatialIdSet;
 pub use spatial_id::collection::traits::SpatialIdTable;
 
-pub use spatial_id::collection::flex_tree::core::FlexTree;
+pub use spatial_id::collection::flex_tree::core::FlexTreeCore;
