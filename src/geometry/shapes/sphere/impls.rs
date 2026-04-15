@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, Ecef, Error, Geometry, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId, SpatialId, Sphere,
-    WGS84_A, spatial_id::helpers::Dimension,
+    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId, SpatialId, Sphere, WGS84_A,
+    geometry::traits::ToSingleIds, spatial_id::helpers::Dimension,
 };
 
 impl Shape for Sphere {
@@ -9,7 +9,7 @@ impl Shape for Sphere {
     }
 }
 
-impl Geometry for Sphere {
+impl ToSingleIds for Sphere {
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
@@ -55,11 +55,6 @@ impl Geometry for Sphere {
                 let p: Coordinate = id.spatial_center();
                 center.distance(&p) <= radius + voxel_diag_half
             }))
-    }
-
-    ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(self.single_ids(z)?.map(RangeId::from))
     }
 }
 

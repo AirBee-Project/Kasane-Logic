@@ -1,4 +1,7 @@
-use crate::{Coordinate, Ecef, Error, Geometry, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId};
+use crate::{
+    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId,
+    geometry::traits::ToSingleIds,
+};
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
@@ -6,7 +9,7 @@ impl Shape for Line {
     }
 }
 
-impl Geometry for Line {
+impl ToSingleIds for Line {
     fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
@@ -43,11 +46,6 @@ impl Geometry for Line {
             voxels.extend(line_iter);
         }
         Ok(voxels.into_iter())
-    }
-
-    ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(self.single_ids(z)?.map(RangeId::from))
     }
 }
 

@@ -1,5 +1,5 @@
-use crate::Geometry;
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
+use crate::geometry::traits::ToSingleIds;
 use crate::{Coordinate, Ecef, Error, IntoTriangles, SingleId};
 use std::collections::{HashMap, HashSet};
 

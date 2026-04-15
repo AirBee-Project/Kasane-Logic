@@ -14,7 +14,6 @@ pub mod prelude {
     pub use crate::geometry::shapes::traits::{
         IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Shape,
     };
-    pub use crate::geometry::traits::Geometry;
     pub use crate::spatial_id::collection::traits::{SpatialIdSet, SpatialIdTable};
     pub use crate::spatial_id::traits::{
         IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialId,
@@ -35,8 +34,6 @@ pub use geometry::shapes::{
     traits::{IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Shape},
     triangle::Triangle,
 };
-#[doc(hidden)]
-pub use geometry::traits::Geometry;
 #[doc(hidden)]
 pub use spatial_id::collection::flex_tree::{
     core::FlexTreeCore, map::FlexTreeMap, set::FlexTreeSet,
