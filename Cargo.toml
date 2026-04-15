@@ -39,3 +39,7 @@ harness = false
 name = "sphere"
 harness = false
 
+[[bench]]
+name = "set"
+harness = false
+
