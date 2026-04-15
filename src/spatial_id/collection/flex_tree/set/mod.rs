@@ -37,7 +37,7 @@ impl FlexTreeSet {
         self.inner.clear();
     }
 
-    pub fn is_empty(&mut self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
