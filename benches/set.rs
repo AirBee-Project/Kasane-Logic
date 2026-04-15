@@ -28,7 +28,7 @@ fn main() {
                 vbit_set.insert(single_id.clone(), ());
             }
 
-            black_box(vbit_set.iter_leaves().count())
+            black_box(vbit_set.iter().count())
         });
 
     func.run_and_save().unwrap();

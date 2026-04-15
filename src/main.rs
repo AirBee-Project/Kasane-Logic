@@ -11,7 +11,7 @@ fn main() {
     test.insert(id2, ());
     test.insert(id3, ());
 
-    for (ele, _) in test.iter_leaves() {
+    for (ele, _) in test.iter() {
         let a = RangeId::from(ele);
         println!("{},", a);
     }

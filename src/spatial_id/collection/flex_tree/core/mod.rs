@@ -1,9 +1,11 @@
 use crate::{
-    Dimension, FlexId, IntoFlexIds, spatial_id::collection::flex_tree::core::convert::LeavesIter,
+    Dimension, FlexId, IntoFlexIds, IterFlexIds,
+    spatial_id::collection::flex_tree::core::convert::LeavesIter,
 };
 use node::Node;
 mod convert;
 mod node;
+mod overlap;
 
 #[derive(PartialEq, Clone)]
 pub struct FlexTree<V>
@@ -26,8 +28,11 @@ where
         }
     }
 
-    pub fn insert<T: IntoFlexIds>(&mut self, target: T, value: V) {
-        for flex_id in target.into_flex_ids() {
+    pub fn insert<S>(&mut self, target: S, value: V)
+    where
+        S: IterFlexIds,
+    {
+        for flex_id in target.iter_flex_ids() {
             let root = match flex_id.f_index().is_negative() {
                 true => &mut self.lower_root,
                 false => &mut self.upper_root,
@@ -47,7 +52,16 @@ where
         }
     }
 
-    pub fn iter_leaves(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
+    pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    where
+        S: IterFlexIds,
+    {
+        target
+            .iter_flex_ids()
+            .flat_map(move |item| self.overlap(item))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         let mut stack = Vec::new();
 
         if let Some(upper) = &self.upper_root {
