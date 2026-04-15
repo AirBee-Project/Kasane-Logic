@@ -120,7 +120,7 @@ impl Node {
             Axis::F => {
                 let target_z = target.f_zoomlevel();
                 if *passed_z >= target_z {
-                    return Bit::Zero;
+                    panic!()
                 }
                 let shift = target_z - 1 - passed_z;
                 let bit = (target.f_index() as u32 >> shift) & 1;
@@ -129,15 +129,21 @@ impl Node {
             Axis::X => {
                 let target_z = target.x_zoomlevel();
                 if *passed_z >= target_z {
+                    panic!()
+                }
+                if target_z == 0 {
                     return Bit::Zero;
                 }
                 let shift = target_z - 1 - passed_z;
-                let bit = (target.x_index() >> shift) & 1;
+                let bit = (target.y_index() >> shift) & 1;
                 if bit == 0 { Bit::Zero } else { Bit::One }
             }
             Axis::Y => {
                 let target_z = target.y_zoomlevel();
                 if *passed_z >= target_z {
+                    panic!()
+                }
+                if target_z == 0 {
                     return Bit::Zero;
                 }
                 let shift = target_z - 1 - passed_z;
