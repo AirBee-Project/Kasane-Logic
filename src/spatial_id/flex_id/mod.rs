@@ -3,7 +3,7 @@ pub mod convert;
 pub mod impls;
 pub mod segment;
 
-use crate::TemporalId;
+use crate::{MAX_ZOOM_LEVEL, Side, SpatialId, TemporalId};
 
 #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 ///拡張空間ID
@@ -18,6 +18,26 @@ pub struct FlexId {
 }
 
 impl FlexId {
+    pub const UPPER_MAX: FlexId = FlexId {
+        f_zoomlevel: 0,
+        f_index: 0,
+        x_zoomlevel: 0,
+        x_index: 0,
+        y_zoomlevel: 0,
+        y_index: 0,
+        temporal_id: TemporalId::MAX,
+    };
+
+    pub const LOWER_MAX: FlexId = FlexId {
+        f_zoomlevel: 0,
+        f_index: -1,
+        x_zoomlevel: 0,
+        x_index: 0,
+        y_zoomlevel: 0,
+        y_index: 0,
+        temporal_id: TemporalId::MAX,
+    };
+
     pub fn f_zoomlevel(&self) -> u8 {
         self.f_zoomlevel
     }
@@ -25,7 +45,7 @@ impl FlexId {
         self.x_zoomlevel
     }
     pub fn y_zoomlevel(&self) -> u8 {
-        self.f_zoomlevel
+        self.y_zoomlevel
     }
     pub fn f_index(&self) -> i32 {
         self.f_index
@@ -35,5 +55,62 @@ impl FlexId {
     }
     pub fn y_index(&self) -> u32 {
         self.y_index
+    }
+
+    ///F方向で二つに切り分ける
+    pub fn f_split(&self, side: Side) -> Option<FlexId> {
+        if self.f_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
+            return None;
+        } else {
+            return Some(unsafe {
+                FlexId::new_with_temporal_unchecked(
+                    self.f_zoomlevel() + 1,
+                    self.f_index() * 2 + side as i32,
+                    self.x_zoomlevel(),
+                    self.x_index(),
+                    self.y_zoomlevel(),
+                    self.y_index(),
+                    self.temporal().clone(),
+                )
+            });
+        }
+    }
+
+    ///X方向で二つに切り分ける
+    pub fn x_split(&self, side: Side) -> Option<FlexId> {
+        if self.x_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
+            return None;
+        } else {
+            return Some(unsafe {
+                FlexId::new_with_temporal_unchecked(
+                    self.f_zoomlevel(),
+                    self.f_index(),
+                    self.x_zoomlevel() + 1,
+                    self.x_index() * 2 + side as u32,
+                    self.y_zoomlevel(),
+                    self.y_index(),
+                    self.temporal().clone(),
+                )
+            });
+        }
+    }
+
+    ///Y方向で二つに切り分ける
+    pub fn y_split(&self, side: Side) -> Option<FlexId> {
+        if self.y_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
+            return None;
+        } else {
+            return Some(unsafe {
+                FlexId::new_with_temporal_unchecked(
+                    self.f_zoomlevel(),
+                    self.f_index(),
+                    self.x_zoomlevel(),
+                    self.x_index(),
+                    self.y_zoomlevel() + 1,
+                    self.y_index() * 2 + side as u32,
+                    self.temporal().clone(),
+                )
+            });
+        }
     }
 }

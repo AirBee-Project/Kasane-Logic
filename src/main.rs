@@ -1,7 +1,7 @@
-use kasane_logic::{FlexId, IntoFlexIds, RangeId, VBitTree};
+use kasane_logic::{FlexId, IntoFlexIds, KDTree, RangeId};
 
 fn main() {
-    let mut test = VBitTree::new();
+    let mut test = KDTree::new();
 
     let id = RangeId::new(5, [-3, 10], [0, 9], [5, 10]).unwrap();
 

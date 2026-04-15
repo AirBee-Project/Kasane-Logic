@@ -1,4 +1,4 @@
-use crate::FlexId;
+use crate::{FlexId, Side};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Axis {
@@ -7,105 +7,97 @@ pub enum Axis {
     Y,
 }
 
-///左右や上下を表す
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Bit {
-    Zero,
-    One,
-}
-
 #[derive(Debug, PartialEq, Clone)]
-pub enum Node {
+pub enum KDNode {
     Branch {
         axis: Axis,
-        zero_child: Option<Box<Node>>,
-        one_child: Option<Box<Node>>,
+        lower_child: Option<Box<KDNode>>,
+        upper_child: Option<Box<KDNode>>,
     },
-    Leaf {
-        flex_id: FlexId,
-    },
+    Leaf,
 }
 
-impl Node {
-    /// ツリーに FlexId を挿入する
-    /// passed_f_z, passed_x_z, passed_y_z: 現在のノードが評価している各次元の通過済みズームレベル
+impl KDNode {
     pub fn insert(&mut self, target: FlexId, passed_f_z: u8, passed_x_z: u8, passed_y_z: u8) {
         if passed_f_z >= target.f_zoomlevel()
             && passed_x_z >= target.x_zoomlevel()
             && passed_y_z >= target.y_zoomlevel()
         {
-            *self = Node::Leaf { flex_id: target };
+            // すでにこのノードがBranchだったとしても、Leafに上書きすることで
+            // この範囲以下の細かい枝をすべて切り落とし（Pruning）、1つの大きなLeafに統合する
+            *self = KDNode::Leaf;
             return;
         }
 
         match self {
-            Node::Branch {
+            KDNode::Branch {
                 axis,
-                zero_child,
-                one_child,
+                lower_child,
+                upper_child,
             } => {
-                // 1. 現在の軸の通過済みズームレベルを取得
+                // --- 既存のBranchロジック ---
                 let passed_z = match axis {
                     Axis::F => passed_f_z,
                     Axis::X => passed_x_z,
                     Axis::Y => passed_y_z,
                 };
 
-                // 2. ターゲットの分岐方向 (0 or 1) を決定
                 let fork = Self::forking(&target, axis, &passed_z);
 
-                // 3. 次の階層に渡すための、ズームレベルをインクリメントした値
-                let next_f_z = if *axis == Axis::F {
-                    passed_f_z + 1
-                } else {
-                    passed_f_z
-                };
-                let next_x_z = if *axis == Axis::X {
-                    passed_x_z + 1
-                } else {
-                    passed_x_z
-                };
-                let next_y_z = if *axis == Axis::Y {
-                    passed_y_z + 1
-                } else {
-                    passed_y_z
+                // 各次元のnext_zを計算
+                let (nf, nx, ny) = match axis {
+                    Axis::F => (passed_f_z + 1, passed_x_z, passed_y_z),
+                    Axis::X => (passed_f_z, passed_x_z + 1, passed_y_z),
+                    Axis::Y => (passed_f_z, passed_x_z, passed_y_z + 1),
                 };
 
-                // 4. 進むべき子ノードの「書き換え可能な参照」を特定する
                 let target_child = match fork {
-                    Bit::Zero => zero_child,
-                    Bit::One => one_child,
+                    Side::Lower => lower_child,
+                    Side::Upper => upper_child,
                 };
 
-                // 5. 道があるなら進み、無いなら作る
                 match target_child {
-                    Some(child) => {
-                        // 【道がある場合】そのまま再帰的に深く潜る
-                        child.insert(target, next_f_z, next_x_z, next_y_z);
-                    }
-                    None => {
-                        // ※判定には「次」のズームレベルを渡すのがポイント！
-                        match Self::next_dimension(*axis, &target, next_f_z, next_x_z, next_y_z) {
-                            Some(next_axis) => {
-                                // まだ続きがあるなら新しい Branch を作る
-                                let mut new_branch = Node::Branch {
-                                    axis: next_axis,
-                                    zero_child: None,
-                                    one_child: None,
-                                };
-                                new_branch.insert(target, next_f_z, next_x_z, next_y_z);
-                                *target_child = Some(Box::new(new_branch));
-                            }
-                            None => {
-                                // 全ての次元を通過したなら、ここは終点（Leaf）になる
-                                *target_child = Some(Box::new(Node::Leaf { flex_id: target }));
-                            }
+                    Some(child) => child.insert(target, nf, nx, ny),
+                    None => match Self::next_dimension(*axis, &target, nf, nx, ny) {
+                        Some(next_axis) => {
+                            let mut new_branch = KDNode::Branch {
+                                axis: next_axis,
+                                lower_child: None,
+                                upper_child: None,
+                            };
+                            new_branch.insert(target, nf, nx, ny);
+                            *target_child = Some(Box::new(new_branch));
                         }
-                    }
+                        None => {
+                            *target_child = Some(Box::new(KDNode::Leaf));
+                        }
+                    },
                 }
             }
-            Node::Leaf { flex_id: _ } => {
-                return;
+            KDNode::Leaf => {
+                // 【ここが修正ポイント：行き止まりバグの解消】
+                // 冒頭の終了判定を抜けてきたということは、まだ深く潜る必要がある。
+                // つまり、このLeafをBranchに分割（Split）しなければならない。
+
+                // 次に進むべき軸を決定する（F -> X -> Y の優先順位で未達成のものを探す）
+                let start_axis = if passed_f_z < target.f_zoomlevel() {
+                    Axis::F
+                } else if passed_x_z < target.x_zoomlevel() {
+                    Axis::X
+                } else {
+                    Axis::Y
+                };
+
+                // 自分自身を Branch に作り変える
+                *self = KDNode::Branch {
+                    axis: start_axis,
+                    lower_child: None,
+                    upper_child: None,
+                };
+
+                // Branch になった自分自身に対して、再度 insert を呼び出す
+                // 次の再帰では上の「KDNode::Branch」アームに入ることになる
+                self.insert(target, passed_f_z, passed_x_z, passed_y_z);
             }
         }
     }
@@ -116,7 +108,7 @@ impl Node {
         axis: &Axis,
         //現在の次元の通過済みのズームレベル
         passed_z: &u8,
-    ) -> Bit {
+    ) -> Side {
         match axis {
             Axis::F => {
                 let target_z = target.f_zoomlevel();
@@ -124,8 +116,8 @@ impl Node {
                     panic!()
                 }
                 let shift = target_z - 1 - passed_z;
-                let bit = (target.f_index() as u32 >> shift) & 1;
-                if bit == 0 { Bit::Zero } else { Bit::One }
+                let side = (target.f_index() as u32 >> shift) & 1;
+                if side == 0 { Side::Lower } else { Side::Upper }
             }
             Axis::X => {
                 let target_z = target.x_zoomlevel();
@@ -133,11 +125,11 @@ impl Node {
                     panic!()
                 }
                 if target_z == 0 {
-                    return Bit::Zero;
+                    return Side::Lower;
                 }
                 let shift = target_z - 1 - passed_z;
-                let bit = (target.x_index() >> shift) & 1;
-                if bit == 0 { Bit::Zero } else { Bit::One }
+                let side = (target.x_index() >> shift) & 1;
+                if side == 0 { Side::Lower } else { Side::Upper }
             }
             Axis::Y => {
                 let target_z = target.y_zoomlevel();
@@ -145,11 +137,11 @@ impl Node {
                     panic!()
                 }
                 if target_z == 0 {
-                    return Bit::Zero;
+                    return Side::Lower;
                 }
                 let shift = target_z - 1 - passed_z;
-                let bit = (target.y_index() >> shift) & 1;
-                if bit == 0 { Bit::Zero } else { Bit::One }
+                let side = (target.y_index() >> shift) & 1;
+                if side == 0 { Side::Lower } else { Side::Upper }
             }
         }
     }
@@ -203,26 +195,34 @@ impl Node {
         }
     }
 
-    /// 再帰的にツリーを巡回し、末端のLeaf（FlexId）を配列に収集する
-    pub fn collect_leaves(&self, results: &mut Vec<FlexId>) {
+    pub fn collect_leaves(&self, results: &mut Vec<FlexId>, current_id: FlexId) {
         match self {
-            Node::Branch {
-                zero_child,
-                one_child,
-                ..
+            KDNode::Branch {
+                axis,
+                lower_child,
+                upper_child,
             } => {
-                // 左(Zero)の枝があれば潜る
-                if let Some(child) = zero_child {
-                    child.collect_leaves(results);
+                // 左に進む場合
+                if let Some(child) = lower_child {
+                    let next_id = match axis {
+                        Axis::F => current_id.f_split(Side::Lower).unwrap(),
+                        Axis::X => current_id.x_split(Side::Lower).unwrap(),
+                        Axis::Y => current_id.y_split(Side::Lower).unwrap(),
+                    };
+                    child.collect_leaves(results, next_id);
                 }
-                // 右(One)の枝があれば潜る
-                if let Some(child) = one_child {
-                    child.collect_leaves(results);
+                // 右に進む場合
+                if let Some(child) = upper_child {
+                    let next_id = match axis {
+                        Axis::F => current_id.f_split(Side::Upper).unwrap(),
+                        Axis::X => current_id.x_split(Side::Upper).unwrap(),
+                        Axis::Y => current_id.y_split(Side::Upper).unwrap(),
+                    };
+                    child.collect_leaves(results, next_id);
                 }
             }
-            Node::Leaf { flex_id } => {
-                // 葉に到達したら、結果配列に追加する（FlexIdはClone可能である必要があります）
-                results.push(flex_id.clone());
+            KDNode::Leaf => {
+                results.push(current_id);
             }
         }
     }
