@@ -1,6 +1,5 @@
 use crate::{
-    Dimension, FlexId, IntoFlexIds, IterFlexIds,
-    spatial_id::collection::flex_tree::core::convert::LeavesIter,
+    Dimension, FlexId, IterFlexIds, spatial_id::collection::flex_tree::core::convert::LeavesIter,
 };
 use node::Node;
 mod convert;

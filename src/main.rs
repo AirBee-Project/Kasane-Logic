@@ -1,4 +1,4 @@
-use kasane_logic::{FlexTreeCore, FlexTreeSet, RangeId, SingleId};
+use kasane_logic::{FlexTreeSet, RangeId, SingleId};
 
 fn main() {
     let mut test = FlexTreeSet::new();
@@ -16,7 +16,7 @@ fn main() {
     test.insert(id);
     test.insert(id2);
 
-    test.remove(&id3);
+    let _ = test.remove(&id3).count();
 
     for ele in test.iter() {
         let a = RangeId::from(ele);

@@ -1,4 +1,4 @@
-use crate::{FlexId, FlexTreeCore, IntoFlexIds, IterFlexIds};
+use crate::{FlexId, FlexTreeCore, IterFlexIds};
 pub mod convert;
 pub mod ops;
 

@@ -18,13 +18,13 @@ pub trait SpatialIdSet: Sized + Default + Eq + Clone + Debug
         Self::default()
     }
 
-    ///[SpatialIds]を[SpatialIdSet]に挿入する
+    ///[SpatialId]を[SpatialIdSet]に挿入する
     fn insert<T: SpatialId>(&mut self, target: T);
 
-    ///[SpatialIds]と重なる領域を取得する
+    ///[SpatialId]と重なる領域を取得する
     fn get<T: SpatialId>(&self, target: T) -> Self;
 
-    ///[SpatialIds]と重なる領域を[SpatialIdSet]から削除し、取得する
+    ///[SpatialId]と重なる領域を[SpatialIdSet]から削除し、取得する
     fn remove<T: SpatialId>(&mut self, target: T) -> Self;
 
     ///[SpatialIdSet]内にある単位空間の数を返す。集合の大体のサイズが分かる。
@@ -52,13 +52,13 @@ where
     ///新しい[SpatialIdTable]を作成する
     fn new() -> Self;
 
-    ///[SpatialIds]を[SpatialIdSet]に挿入する
+    ///[SpatialId]を[SpatialIdSet]に挿入する
     fn insert<T: SpatialId>(&mut self, target: T, value: V);
 
-    ///[SpatialIds]と重なる領域を取得する
+    ///[SpatialId]と重なる領域を取得する
     fn get<T: SpatialId>(&self, target: T) -> Self;
 
-    ///[SpatialIds]と重なる領域を[SpatialIdSet]から削除し、取得する
+    ///[SpatialId]と重なる領域を[SpatialIdSet]から削除し、取得する
     fn remove<T: SpatialId>(&mut self, target: T) -> Self;
 
     ///等しい値の[SpatialId]を取り出して、[Some(Self::Set)]に格納して取り出す。
