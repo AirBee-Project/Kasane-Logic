@@ -30,8 +30,6 @@ impl Node {
     /// ツリーに FlexId を挿入する
     /// passed_f_z, passed_x_z, passed_y_z: 現在のノードが評価している各次元の通過済みズームレベル
     pub fn insert(&mut self, target: FlexId, passed_f_z: u8, passed_x_z: u8, passed_y_z: u8) {
-        // 安全対策: 既にターゲットの解像度に達しているのに Branch に来た場合は
-        // 「既に細かい子ノードが存在している（重なっている）」ため、挿入をキャンセルする
         if passed_f_z >= target.f_zoomlevel()
             && passed_x_z >= target.x_zoomlevel()
             && passed_y_z >= target.y_zoomlevel()
@@ -43,7 +41,7 @@ impl Node {
         match self {
             Node::Branch {
                 axis,
-                zero_child, // Rust特有: 値を奪わず、ミュータブルな参照として受け取る
+                zero_child,
                 one_child,
             } => {
                 // 1. 現在の軸の通過済みズームレベルを取得
@@ -73,7 +71,7 @@ impl Node {
                     passed_y_z
                 };
 
-                // 4. 進むべき子ノードの「書き換え可能な参照」を特定する (todo! の解消)
+                // 4. 進むべき子ノードの「書き換え可能な参照」を特定する
                 let target_child = match fork {
                     Bit::Zero => zero_child,
                     Bit::One => one_child,
@@ -86,7 +84,6 @@ impl Node {
                         child.insert(target, next_f_z, next_x_z, next_y_z);
                     }
                     None => {
-                        // 【道がない場合】次にどの次元（Axis）に進むべきか判断
                         // ※判定には「次」のズームレベルを渡すのがポイント！
                         match Self::next_dimension(*axis, &target, next_f_z, next_x_z, next_y_z) {
                             Some(next_axis) => {
@@ -108,14 +105,18 @@ impl Node {
                 }
             }
             Node::Leaf { flex_id: _ } => {
-                // 仮にLeafに到達したならば、挿入するべき位置にはそれ以上のサイズの拡張空間IDがあるということなのでreturnしてOK
                 return;
             }
         }
     }
 
-    /// 拡張空間IDと次元とその次元の通過済みのズームレベルを渡すと、次のその次元における分岐方向を教えてくれる
-    pub fn forking(target: &FlexId, axis: &Axis, passed_z: &u8) -> Bit {
+    pub fn forking(
+        target: &FlexId,
+        //現在の次元
+        axis: &Axis,
+        //現在の次元の通過済みのズームレベル
+        passed_z: &u8,
+    ) -> Bit {
         match axis {
             Axis::F => {
                 let target_z = target.f_zoomlevel();
@@ -135,7 +136,7 @@ impl Node {
                     return Bit::Zero;
                 }
                 let shift = target_z - 1 - passed_z;
-                let bit = (target.y_index() >> shift) & 1;
+                let bit = (target.x_index() >> shift) & 1;
                 if bit == 0 { Bit::Zero } else { Bit::One }
             }
             Axis::Y => {
