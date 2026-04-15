@@ -46,10 +46,10 @@ impl SpatialId for FlexId {
     }
 
     fn temporal(&self) -> &TemporalId {
-        todo!()
+        &self.temporal_id
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {
-        todo!()
+        &mut self.temporal_id
     }
 }
