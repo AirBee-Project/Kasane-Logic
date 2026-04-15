@@ -1,4 +1,7 @@
-use crate::{Dimension, FlexId, Side, spatial_id::collection::flex_tree::core::node::Node};
+use crate::{
+    Dimension, FlexId, FlexTreeCore, IntoFlexIds, IterFlexIds, Side,
+    spatial_id::collection::flex_tree::core::node::Node,
+};
 
 pub struct LeavesIter<'a, V>
 where
@@ -46,5 +49,33 @@ where
         }
 
         None
+    }
+}
+
+impl<V> IntoFlexIds for FlexTreeCore<V>
+where
+    V: PartialEq + Clone,
+{
+    type IntoIter = std::vec::IntoIter<FlexId>;
+
+    fn into_flex_ids(self) -> Self::IntoIter {
+        self.iter()
+            .map(|(flex_id, _value)| flex_id)
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+}
+
+impl<V> IterFlexIds for FlexTreeCore<V>
+where
+    V: PartialEq + Clone,
+{
+    type Iter<'a>
+        = Box<dyn Iterator<Item = FlexId> + 'a>
+    where
+        Self: 'a;
+
+    fn iter_flex_ids(&self) -> Self::Iter<'_> {
+        Box::new(self.iter().map(|(flex_id, _value)| flex_id))
     }
 }

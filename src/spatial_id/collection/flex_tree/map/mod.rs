@@ -1,4 +1,5 @@
-use crate::{FlexId, FlexTreeCore, IterFlexIds};
+use crate::{FlexId, FlexTreeCore, IntoFlexIds, IterFlexIds};
+pub mod convert;
 
 pub struct FlexTreeMap<V>
 where
