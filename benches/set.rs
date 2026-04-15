@@ -25,7 +25,7 @@ fn main() {
             let mut vbit_set = KDTree::new();
 
             for single_id in subset {
-                vbit_set.insert(single_id.into());
+                vbit_set.insert(single_id.clone());
             }
 
             black_box(vbit_set.output().len())

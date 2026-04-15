@@ -1,9 +1,4 @@
-use std::vec;
-
-use crate::{
-    FlexId,
-    spatial_id::collection::radix::node::{Axis, KDNode},
-};
+use crate::{Dimension, FlexId, IntoFlexIds, spatial_id::collection::radix::node::KDNode};
 
 pub mod convert;
 pub mod node;
@@ -22,19 +17,26 @@ impl KDTree {
         }
     }
 
-    pub fn insert(&mut self, target: FlexId) {
-        //lowerとupperどちらに所属するのかを判定する
-        let root = match target.f_index().is_negative() {
-            true => &mut self.lower_root,
-            false => &mut self.upper_root,
-        };
+    pub fn insert<T: IntoFlexIds>(&mut self, target: T) {
+        for flex_id in target.into_flex_ids() {
+            //lowerとupperどちらに所属するのかを判定する
+            let root = match flex_id.f_index().is_negative() {
+                true => &mut self.lower_root,
+                false => &mut self.upper_root,
+            };
 
-        if root.is_none() {
-            *root = Some(Box::new(KDNode::Leaf));
-        }
+            // KDTree の insert 内
+            if root.is_none() {
+                *root = Some(Box::new(KDNode::Branch {
+                    axis: Dimension::F,
+                    lower_child: None,
+                    upper_child: None,
+                }));
+            }
 
-        if let Some(kd_node) = root {
-            kd_node.insert(target, 0, 0, 0);
+            if let Some(kd_node) = root {
+                kd_node.insert(flex_id, 0, 0, 0);
+            }
         }
     }
 
