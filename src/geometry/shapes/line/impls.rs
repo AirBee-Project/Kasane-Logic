@@ -1,5 +1,5 @@
 use crate::{
-    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId,
+    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, Shape, SingleId,
     geometry::traits::CoverSingleIds,
 };
 

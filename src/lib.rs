@@ -43,8 +43,6 @@ pub use geometry::constants::{WGS84_A, WGS84_B, WGS84_E2, WGS84_F, WGS84_INV_F};
 #[doc(inline)]
 pub use spatial_id::flex_id::FlexId;
 #[doc(inline)]
-pub use spatial_id::flex_id::segment::Segment;
-#[doc(inline)]
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;

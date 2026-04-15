@@ -1,7 +1,7 @@
 use std::{fmt, ops::Sub};
 
 use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F,
+    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, WGS84_A, WGS84_E2, WGS84_F,
     geometry::traits::CoverSingleIds,
 };
 

@@ -1,4 +1,4 @@
-use crate::{Error, RangeId, SingleId};
+use crate::{Error, FlexId, RangeId, SingleId};
 
 ///SingleIdsがネイティブで実装されているもの
 pub trait CoverSingleIds {
@@ -13,4 +13,6 @@ pub trait CoverRangeIds {
 }
 
 ///FlexIdsがネイティブで実装されているもの
-pub trait CoverFlexIds {}
+pub trait CoverFlexIds {
+    fn cover_flex_ids(&self, z: u8) -> Result<impl Iterator<Item = FlexId>, Error>;
+}

@@ -216,10 +216,4 @@ where
             }
         }
     }
-
-    pub fn iter_leaves(&self, root_id: FlexId) -> super::convert::LeavesIter<'_, V> {
-        super::convert::LeavesIter {
-            stack: vec![(self, root_id)],
-        }
-    }
 }

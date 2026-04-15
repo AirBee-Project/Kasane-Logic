@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    Coordinate, IntoTriangles, Polygon, RangeId, Shape, SingleId, geometry::traits::CoverSingleIds,
+    Coordinate, IntoTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Polygon {

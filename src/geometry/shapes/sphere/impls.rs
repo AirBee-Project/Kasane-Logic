@@ -1,5 +1,5 @@
 use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId, SpatialId, Sphere, WGS84_A,
+    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialId, Sphere, WGS84_A,
     geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
 };
 
