@@ -8,6 +8,8 @@ pub mod spatial_id;
 
 #[doc(inline)]
 pub use error::Error;
+#[doc(inline)]
+pub use error::{GeometryError, SpatialIdError};
 
 // geometry: types
 #[doc(inline)]

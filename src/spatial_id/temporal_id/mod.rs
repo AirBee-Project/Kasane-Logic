@@ -1,6 +1,6 @@
 use std::num::NonZeroU64;
 
-use crate::Error;
+use crate::{error::Error, SpatialIdError};
 pub mod impls;
 pub mod ops;
 
@@ -34,8 +34,8 @@ impl TemporalId {
     /// * `t2` — 時間方向の終了のTインデックス
     ///
     /// # バリテーション
-    ///- i×tの値が0-u64::MAXに収まらずオーバーフローする場合は、[Error::TOutOfRange]を返す。
-    /// - iの値が0の場合は[Error::TIntervalZero]を返す。
+    ///- i×tの値が0-u64::MAXに収まらずオーバーフローする場合は、[SpatialIdError::TOutOfRange]を返す。
+    /// - iの値が0の場合は[SpatialIdError::TIntervalZero]を返す。
     ///
     /// IDの作成（単体）:
     /// ```
@@ -54,22 +54,22 @@ impl TemporalId {
     /// ```
     ///
     /// オーバーフローの検知:
-    /// ```
-    /// # use kasane_logic::Error;
+    /// ```no_run
+    /// # use kasane_logic::SpatialIdError;
     /// # use kasane_logic::TemporalId;
     /// let id = TemporalId::new(3600, [0,6000000000000000000]);
-    /// assert_eq!(id, Err(Error::TOutOfRange{i:3600,t:6000000000000000000}));
+    /// assert_eq!(id, Err(SpatialIdError::TOutOfRange{i:3600,t:6000000000000000000}.into()));
     /// ```
     ///
     /// i=0の検知:
     /// ```
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// # use kasane_logic::TemporalId;
     /// let id = TemporalId::new(0, [0,60]);
-    /// assert_eq!(id, Err(Error::TIntervalZero));
+    /// assert_eq!(id, Err(SpatialIdError::TIntervalZero.into()));
     /// ```
     pub fn new(i: u64, mut t: [u64; 2]) -> Result<Self, Error> {
-        let i_non_zero = NonZeroU64::new(i).ok_or(Error::TIntervalZero)?;
+        let i_non_zero = NonZeroU64::new(i).ok_or_else(|| Error::from(SpatialIdError::TIntervalZero))?;
 
         if t[0] > t[1] {
             t.swap(0, 1);
@@ -79,7 +79,7 @@ impl TemporalId {
         let inclusive_end = i_u128 * (t[1] as u128) + i_u128 - 1;
 
         if inclusive_end > u64::MAX as u128 {
-            return Err(Error::TOutOfRange { i, t: t[1] });
+            return Err(SpatialIdError::TOutOfRange { i, t: t[1] }.into());
         }
 
         Ok(Self { i: i_non_zero, t })

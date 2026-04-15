@@ -1,6 +1,6 @@
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
 use crate::geometry::traits::CoverSingleIds;
-use crate::{Coordinate, Ecef, Error, IntoTriangles, SingleId};
+use crate::{Coordinate, Ecef, Error, GeometryError, IntoTriangles, SingleId};
 use std::collections::{HashMap, HashSet};
 
 pub mod geometry_relation;
@@ -22,7 +22,7 @@ impl Solid {
     /// # 処理内容
     /// - 各面を[Polygon] に変換。
     /// - 閉合性の検証。
-    /// - 穴がある場合は [Error::SolidNotWatertight] を返します。
+    /// - 穴がある場合は [GeometryError::SolidNotWatertight] を返します。
     ///
     /// # 引数
     /// -  `raw_surfaces` - 各面の頂点リストの集合（LOD2の `lod2MultiSurface` などを想定）
@@ -35,15 +35,16 @@ impl Solid {
             .collect();
 
         if polygons.is_empty() {
-            return Err(Error::SolidNotWatertight { open_edge_count: 0 });
+            return Err(GeometryError::SolidNotWatertight { open_edge_count: 0 }.into());
         }
 
         // 閉合性チェック
         let open_edges = Self::count_open_edges(&polygons, epsilon);
         if open_edges > 0 {
-            return Err(Error::SolidNotWatertight {
+            return Err(GeometryError::SolidNotWatertight {
                 open_edge_count: open_edges,
-            });
+            }
+            .into());
         }
 
         Ok(Self { polygons })

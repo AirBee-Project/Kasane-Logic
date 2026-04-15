@@ -1,4 +1,4 @@
-use crate::{Error, F_MAX, F_MIN, FlexId, MAX_ZOOM_LEVEL, TemporalId, XY_MAX};
+use crate::{Error, F_MAX, F_MIN, FlexId, MAX_ZOOM_LEVEL, SpatialIdError, TemporalId, XY_MAX};
 
 impl FlexId {
     pub fn new(
@@ -49,36 +49,39 @@ impl FlexId {
         temporal_id: TemporalId,
     ) -> Result<FlexId, Error> {
         if f_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z: f_zoomlevel });
+            return Err(SpatialIdError::ZOutOfRange { z: f_zoomlevel }.into());
         }
 
         if x_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z: x_zoomlevel });
+            return Err(SpatialIdError::ZOutOfRange { z: x_zoomlevel }.into());
         }
 
         if y_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z: y_zoomlevel });
+            return Err(SpatialIdError::ZOutOfRange { z: y_zoomlevel }.into());
         }
 
         if f_index < F_MIN[f_zoomlevel as usize] || f_index > F_MAX[f_zoomlevel as usize] {
-            return Err(Error::FOutOfRange {
+            return Err(SpatialIdError::FOutOfRange {
                 z: f_zoomlevel,
                 f: f_index,
-            });
+            }
+            .into());
         }
 
         if x_index > XY_MAX[x_zoomlevel as usize] {
-            return Err(Error::XOutOfRange {
+            return Err(SpatialIdError::XOutOfRange {
                 z: x_zoomlevel,
                 x: x_index,
-            });
+            }
+            .into());
         }
 
         if y_index > XY_MAX[y_zoomlevel as usize] {
-            return Err(Error::YOutOfRange {
+            return Err(SpatialIdError::YOutOfRange {
                 z: y_zoomlevel,
                 y: y_index,
-            });
+            }
+            .into());
         }
 
         Ok(FlexId {

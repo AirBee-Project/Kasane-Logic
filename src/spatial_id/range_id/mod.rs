@@ -4,7 +4,7 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId, TemporalId,
+    SpatialId, SpatialIdError, TemporalId,
     error::Error,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
@@ -92,7 +92,7 @@ impl RangeId {
 
         for i in 0..2 {
             if value[i] < f_min || value[i] > f_max {
-                return Err(Error::FOutOfRange { f: value[i], z });
+                return Err(SpatialIdError::FOutOfRange { f: value[i], z }.into());
             }
         }
 
@@ -110,7 +110,7 @@ impl RangeId {
 
         for i in 0..2 {
             if value[i] > xy_max {
-                return Err(Error::XOutOfRange { x: value[i], z });
+                return Err(SpatialIdError::XOutOfRange { x: value[i], z }.into());
             }
         }
 
@@ -125,7 +125,7 @@ impl RangeId {
 
         for i in 0..2 {
             if value[i] > xy_max {
-                return Err(Error::YOutOfRange { y: value[i], z });
+                return Err(SpatialIdError::YOutOfRange { y: value[i], z }.into());
             }
         }
 
@@ -143,7 +143,7 @@ impl RangeId {
     /// * `difference` — 子 ID を計算する際に増加させるズームレベル差（差の値が0–63の範囲の場合に有効）
     ///
     /// # バリデーション
-    /// - `self.z + difference` が `63` を超える場合、[`Error::ZOutOfRange`] を返します。
+    /// - `self.z + difference` が `63` を超える場合、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
     /// `difference = 1` による細分化
     /// ```
@@ -157,19 +157,18 @@ impl RangeId {
     ///
     /// ズームレベルの範囲外
     /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::{Error, RangeId, SpatialIdError};
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_children(63);
-    /// assert!(matches!(result, Err(Error::ZOutOfRange { z: 68 })));
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z: 68 }))));
     /// ```
     pub fn spatial_children(&self, difference: u8) -> Result<RangeId, Error> {
         let z = self
             .z
             .checked_add(difference)
-            .ok_or(Error::ZOutOfRange { z: u8::MAX })?;
+            .ok_or(SpatialIdError::ZOutOfRange { z: u8::MAX })?;
         if z > 63 {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
         let scale_f = 2_i32.pow(difference as u32);

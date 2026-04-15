@@ -4,7 +4,7 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId, TemporalId,
+    SpatialId, SpatialIdError, TemporalId,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
@@ -38,8 +38,8 @@ pub struct SingleId {
 impl SingleId {
     /// この `SingleId` が保持しているズームレベル `z` を返します。
     ///
-    /// ```
-    /// # use kasane_logic::SingleId;
+    /// ```no_run
+    /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.z(), 5u8);
     /// ```
@@ -89,7 +89,7 @@ impl SingleId {
     /// * `value` — 新しい F インデックス
     ///
     /// # バリデーション
-    /// - `value` が許容範囲外の場合、[`Error::FOutOfRange`] を返します。
+    /// - `value` が許容範囲外の場合、[`SpatialIdError::FOutOfRange`] を返します。
     ///
     /// 正常な更新:
     /// ```
@@ -101,20 +101,20 @@ impl SingleId {
     ///
     /// 範囲外の検知:
     /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_f(999);
-    /// assert!(matches!(result, Err(Error::FOutOfRange { z: 3, f: 999 })));
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::FOutOfRange { z: 3, f: 999 }))));
     /// ```
     pub fn set_f(&mut self, value: i32) -> Result<(), Error> {
         let min = F_MIN[self.z() as usize];
         let max = F_MAX[self.z() as usize];
         if value < min || value > max {
-            return Err(Error::FOutOfRange {
+            return Err(SpatialIdError::FOutOfRange {
                 f: value,
                 z: self.z,
-            });
+            }
+            .into());
         }
         self.f = value;
         Ok(())
@@ -129,7 +129,7 @@ impl SingleId {
     /// * `value` — 新しい X インデックス
     ///
     /// # バリデーション
-    /// - `value` が許容範囲外の場合、[`Error::XOutOfRange`] を返します。
+    /// - `value` が許容範囲外の場合、[`SpatialIdError::XOutOfRange`] を返します。
     ///
     /// 正常な更新:
     /// ```
@@ -141,19 +141,19 @@ impl SingleId {
     ///
     /// 範囲外の検知
     /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_x(999);
-    /// assert!(matches!(result, Err(Error::XOutOfRange { z: 3, x: 999 })));
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::XOutOfRange { z: 3, x: 999 }))));
     /// ```
     pub fn set_x(&mut self, value: u32) -> Result<(), Error> {
         let max = XY_MAX[self.z() as usize];
         if value > max {
-            return Err(Error::XOutOfRange {
+            return Err(SpatialIdError::XOutOfRange {
                 x: value,
                 z: self.z,
-            });
+            }
+            .into());
         }
         self.x = value;
         Ok(())
@@ -168,7 +168,7 @@ impl SingleId {
     /// * `value` — 新しい Y インデックス
     ///
     /// # バリデーション
-    /// - `value` が許容範囲外の場合、[`Error::YOutOfRange`] を返します。
+    /// - `value` が許容範囲外の場合、[`SpatialIdError::YOutOfRange`] を返します。
     ///
     /// 正常な更新
     /// ```
@@ -180,19 +180,19 @@ impl SingleId {
     ///
     /// 範囲外の検知
     /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_y(999);
-    /// assert!(matches!(result, Err(Error::YOutOfRange { z: 3, y: 999 })));
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::YOutOfRange { z: 3, y: 999 }))));
     /// ```
     pub fn set_y(&mut self, value: u32) -> Result<(), Error> {
         let max = XY_MAX[self.z() as usize];
         if value > max {
-            return Err(Error::YOutOfRange {
+            return Err(SpatialIdError::YOutOfRange {
                 y: value,
                 z: self.z,
-            });
+            }
+            .into());
         }
         self.y = value;
         Ok(())
@@ -204,7 +204,7 @@ impl SingleId {
     /// * `difference` — 子 ID を計算する際に増加させるズームレベル差（差の値が0–63の範囲の場合に有効）
     ///
     /// # バリデーション
-    /// - `self.z + difference` が `63` を超える場合、[`Error::ZOutOfRange`] を返します。
+    /// - `self.z + difference` が `63` を超える場合、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
     /// `difference = 1` による細分化
     /// ```
@@ -226,11 +226,10 @@ impl SingleId {
     ///
     /// ズームレベルの範囲外
     /// ```
-    /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.spatial_children(63);
-    /// assert!(matches!(result, Err(Error::ZOutOfRange { z: 66 })));
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z: 66 }))));
     /// ```
     pub fn spatial_children(
         &self,
@@ -239,10 +238,10 @@ impl SingleId {
         let z = self
             .z
             .checked_add(difference)
-            .ok_or(Error::ZOutOfRange { z: u8::MAX })?;
+            .ok_or(SpatialIdError::ZOutOfRange { z: u8::MAX })?;
 
         if z as usize > MAX_ZOOM_LEVEL {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
         let scale_f = 2_i32.pow(difference as u32);

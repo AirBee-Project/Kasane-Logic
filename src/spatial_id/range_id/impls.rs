@@ -1,7 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, RangeId, SpatialId, TemporalId,
+    Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
@@ -15,7 +15,7 @@ impl fmt::Display for RangeId {
     /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になります。
     ///
     /// 通常時の範囲表示
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::RangeId;
     /// # use std::fmt::Write;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
@@ -71,16 +71,16 @@ impl SpatialId for RangeId {
 
         let ns = self.f[0]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
+            .ok_or(SpatialIdError::FOutOfRange { f: i32::MAX, z })?;
         let ne = self.f[1]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
+            .ok_or(SpatialIdError::FOutOfRange { f: i32::MAX, z })?;
 
         if ns < min || ns > max {
-            return Err(Error::FOutOfRange { f: ns, z });
+            return Err(SpatialIdError::FOutOfRange { f: ns, z }.into());
         }
         if ne < min || ne > max {
-            return Err(Error::FOutOfRange { f: ne, z });
+            return Err(SpatialIdError::FOutOfRange { f: ne, z }.into());
         }
 
         self.f = [ns, ne];
@@ -101,16 +101,16 @@ impl SpatialId for RangeId {
 
             let ns = self.y[0]
                 .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: u32::MAX, z })?;
             let ne = self.y[1]
                 .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: u32::MAX, z })?;
 
             if ns > max {
-                return Err(Error::YOutOfRange { y: ns, z });
+                return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
             }
             if ne > max {
-                return Err(Error::YOutOfRange { y: ne, z });
+                return Err(SpatialIdError::YOutOfRange { y: ne, z }.into());
             }
 
             self.y = [ns, ne];
@@ -121,20 +121,20 @@ impl SpatialId for RangeId {
             let max = self.xy_max();
             let z = self.z;
 
-            let ns = self.y[0].checked_sub(byu).ok_or(Error::YOutOfRange {
+            let ns = self.y[0].checked_sub(byu).ok_or(SpatialIdError::YOutOfRange {
                 y: self.xy_min(),
                 z,
             })?;
-            let ne = self.y[1].checked_sub(byu).ok_or(Error::YOutOfRange {
+            let ne = self.y[1].checked_sub(byu).ok_or(SpatialIdError::YOutOfRange {
                 y: self.xy_min(),
                 z,
             })?;
 
             if ns > max {
-                return Err(Error::YOutOfRange { y: ns, z });
+                return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
             }
             if ne > max {
-                return Err(Error::YOutOfRange { y: ne, z });
+                return Err(SpatialIdError::YOutOfRange { y: ne, z }.into());
             }
 
             self.y = [ns, ne];

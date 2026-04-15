@@ -1,5 +1,5 @@
 use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, WGS84_A, WGS84_E2,
+    Coordinate, Ecef, MAX_ZOOM_LEVEL, Point, SpatialIdError, WGS84_A, WGS84_E2,
     geometry::traits::CoverSingleIds,
 };
 use std::fmt;
@@ -65,7 +65,7 @@ impl CoverSingleIds for Coordinate {
         z: u8,
     ) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
         Ok(std::iter::once(self.single_id(z)?))
     }

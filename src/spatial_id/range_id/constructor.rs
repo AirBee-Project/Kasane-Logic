@@ -1,5 +1,6 @@
 use crate::{
     RangeId, TemporalId,
+    SpatialIdError,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
@@ -22,11 +23,11 @@ impl RangeId {
     /// * `y2` — 南北方向範囲の端のYインデックス
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`Error::ZOutOfRange`] を返します。  
+    /// - `z` が 63 を超える場合、[`SpatialIdError::ZOutOfRange`] を返します。  
     /// - `f1`,`f2` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
-    ///   [`Error::FOutOfRange`] を返します。  
+    ///   [`SpatialIdError::FOutOfRange`] を返します。  
     /// - `x1`,`x2` または `y1`,`y2` が `0..=XY_MAX[z]` の範囲外の場合、  
-    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返します。
+    ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返します。
     ///
     ///
     /// IDの作成:
@@ -40,17 +41,17 @@ impl RangeId {
     /// 次元の範囲外の検知:
     /// ```
     /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// let id = RangeId::new(4, [-3,29], [8,9], [5,10]);
-    /// assert_eq!(id, Err(Error::FOutOfRange{z:4,f:29}));
+    /// assert_eq!(id, Err(SpatialIdError::FOutOfRange{z:4,f:29}.into()));
     /// ```
     ///
     /// ズームレベルの範囲外の検知:
     /// ```
     /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
-    /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
+    /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
         Self::new_with_temporal(z, f, x, y, TemporalId::whole())
@@ -94,7 +95,7 @@ impl RangeId {
         temporal_id: TemporalId,
     ) -> Result<RangeId, Error> {
         if z as usize > MAX_ZOOM_LEVEL {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
         let f_min = F_MIN[z as usize];
@@ -105,13 +106,13 @@ impl RangeId {
 
         for i in 0..2 {
             if f[i] < f_min || f[i] > f_max {
-                return Err(Error::FOutOfRange { f: f[i], z });
+                return Err(SpatialIdError::FOutOfRange { f: f[i], z }.into());
             }
             if x[i] > xy_max {
-                return Err(Error::XOutOfRange { x: x[i], z });
+                return Err(SpatialIdError::XOutOfRange { x: x[i], z }.into());
             }
             if y[i] > xy_max {
-                return Err(Error::YOutOfRange { y: y[i], z });
+                return Err(SpatialIdError::YOutOfRange { y: y[i], z }.into());
             }
         }
 

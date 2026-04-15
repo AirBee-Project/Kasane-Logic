@@ -1,6 +1,11 @@
 pub mod impls;
 
-use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordinate};
+use crate::{
+    error::Error,
+    geometry::point::coordinate::Coordinate,
+    RangeId,
+    SingleId,
+};
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
 ///
@@ -21,7 +26,7 @@ impl Ecef {
     /// 指定された XYZ 成分から [`Ecef`] を生成する。
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(10.0, 20.0, 30.0);

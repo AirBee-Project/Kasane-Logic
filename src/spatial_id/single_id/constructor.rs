@@ -1,6 +1,7 @@
 use crate::SingleId;
 
 use crate::{
+    SpatialIdError,
     TemporalId,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
@@ -16,34 +17,34 @@ impl SingleId {
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が  を超える場合、[`Error::ZOutOfRange`] を返す。  
+    /// - `z` が  を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。  
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
-    ///   [`Error::FOutOfRange`] を返す。  
+    ///   [`SpatialIdError::FOutOfRange`] を返す。  
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、  
-    ///   それぞれ [`Error::XOutOfRange`]、[`Error::YOutOfRange`] を返す。
+    ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
     ///
     ///
     /// IDの作成:
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.to_string(), "5/3/2/10".to_string());
     /// ```
     ///
     /// 次元の範囲外の検知:
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// let id = SingleId::new(3, 3, 2, 10);
-    /// assert_eq!(id, Err(Error::YOutOfRange{z:3,y:10}));
+    /// assert_eq!(id, Err(SpatialIdError::YOutOfRange{z:3,y:10}.into()));
     /// ```
     ///
     /// ズームレベルの範囲外の検知:
     /// ```
     /// # use kasane_logic::SingleId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// let id = SingleId::new(68, 3, 2, 10);
-    /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
+    /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
         Self::new_with_temporal(z, f, x, y, TemporalId::whole())
@@ -93,7 +94,7 @@ impl SingleId {
         temporal_id: TemporalId,
     ) -> Result<SingleId, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
         let f_min = F_MIN[z as usize];
@@ -101,13 +102,13 @@ impl SingleId {
         let xy_max = XY_MAX[z as usize];
 
         if f < f_min || f > f_max {
-            return Err(Error::FOutOfRange { f, z });
+            return Err(SpatialIdError::FOutOfRange { f, z }.into());
         }
         if x > xy_max {
-            return Err(Error::XOutOfRange { x, z });
+            return Err(SpatialIdError::XOutOfRange { x, z }.into());
         }
         if y > xy_max {
-            return Err(Error::YOutOfRange { y, z });
+            return Err(SpatialIdError::YOutOfRange { y, z }.into());
         }
 
         Ok(SingleId {

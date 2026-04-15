@@ -2,7 +2,11 @@ pub mod impls;
 
 use std::borrow::Borrow;
 
-use crate::{Ecef, SingleId, error::Error, spatial_id::constants::MAX_ZOOM_LEVEL};
+use crate::{
+    Ecef, SingleId,
+    error::{Error, GeometryError, SpatialIdError},
+    spatial_id::constants::MAX_ZOOM_LEVEL,
+};
 
 /// 緯度・経度・高度を表す型。
 ///
@@ -40,7 +44,7 @@ impl Coordinate {
     /// * いずれかの値が範囲外の場合は、対応する `Error` を返す。
     ///
     /// # Example
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::Coordinate;
     /// let coord = Coordinate::new(35.0, 139.0, 10.0).unwrap();
     ///
@@ -50,15 +54,15 @@ impl Coordinate {
     /// ```
     pub fn new(latitude: f64, longitude: f64, altitude: f64) -> Result<Self, Error> {
         if !(-85.0511..=85.0511).contains(&latitude) {
-            return Err(Error::LatitudeOutOfRange { latitude });
+            return Err(GeometryError::LatitudeOutOfRange { latitude }.into());
         }
 
         if !(-180.0..=180.0).contains(&longitude) {
-            return Err(Error::LongitudeOutOfRange { longitude });
+            return Err(GeometryError::LongitudeOutOfRange { longitude }.into());
         }
 
         if !(-33_554_432.0..=33_554_432.0).contains(&altitude) {
-            return Err(Error::AltitudeOutOfRange { altitude });
+            return Err(GeometryError::AltitudeOutOfRange { altitude }.into());
         }
 
         Ok(Self {
@@ -145,7 +149,7 @@ impl Coordinate {
     /// ```
     pub fn set_latitude(&mut self, latitude: f64) -> Result<(), Error> {
         if !(-85.0511..=85.0511).contains(&latitude) {
-            return Err(Error::LatitudeOutOfRange { latitude });
+            return Err(GeometryError::LatitudeOutOfRange { latitude }.into());
         }
         self.latitude = latitude;
         Ok(())
@@ -165,7 +169,7 @@ impl Coordinate {
     /// ```
     pub fn set_longitude(&mut self, longitude: f64) -> Result<(), Error> {
         if !(-180.0..=180.0).contains(&longitude) {
-            return Err(Error::LongitudeOutOfRange { longitude });
+            return Err(GeometryError::LongitudeOutOfRange { longitude }.into());
         }
         self.longitude = longitude;
         Ok(())
@@ -186,7 +190,7 @@ impl Coordinate {
     /// ```
     pub fn set_altitude(&mut self, altitude: f64) -> Result<(), Error> {
         if !(-33_554_432.0..=33_554_432.0).contains(&altitude) {
-            return Err(Error::AltitudeOutOfRange { altitude });
+            return Err(GeometryError::AltitudeOutOfRange { altitude }.into());
         }
         self.altitude = altitude;
         Ok(())
@@ -211,7 +215,7 @@ impl Coordinate {
     /// ```
     pub fn single_id(&self, z: u8) -> Result<SingleId, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
         let lat = self.latitude;

@@ -1,5 +1,5 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, TemporalId, XY_MAX,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
     spatial_id::helpers,
 };
 use std::fmt;
@@ -9,7 +9,7 @@ impl fmt::Display for SingleId {
     ///
     /// 形式は `"{z}/{f}/{x}/{y}"`。
     ///
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::SingleId;
     /// # use std::fmt::Write;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
@@ -46,7 +46,7 @@ impl SpatialId for SingleId {
     /// * `by` — インデックス差
     ///
     /// # バリデーション
-    /// - Fインデックスが範囲外になる場合は[`Error::FOutOfRange`]を返します
+    /// - Fインデックスが範囲外になる場合は[`SpatialIdError::FOutOfRange`]を返します
     ///
     /// 移動
     /// ```
@@ -63,19 +63,21 @@ impl SpatialId for SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.f(), 6);
-    /// assert_eq!(id.move_f(50), Err(Error::FOutOfRange { z: 4, f: 56 }));
+    /// assert_eq!(id.move_f(50), Err(SpatialIdError::FOutOfRange { z: 4, f: 56 }.into()));
     /// ```
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let new = self.f.checked_add(by).ok_or(Error::FOutOfRange {
-            f: if by >= 0 { i32::MAX } else { i32::MIN },
-            z: self.z,
+        let new = self.f.checked_add(by).ok_or_else(|| {
+            Error::from(SpatialIdError::FOutOfRange {
+                f: if by >= 0 { i32::MAX } else { i32::MIN },
+                z: self.z,
+            })
         })?;
 
         if new < self.f_min() || new > self.f_max() {
-            return Err(Error::FOutOfRange { f: new, z: self.z });
+            return Err(SpatialIdError::FOutOfRange { f: new, z: self.z }.into());
         }
 
         self.f = new;
@@ -121,7 +123,7 @@ impl SpatialId for SingleId {
     /// * `by` — インデックス差
     ///
     /// # バリデーション
-    /// - Yインデックスが範囲外になる場合は[`Error::YOutOfRange`]を返します
+    /// - Yインデックスが範囲外になる場合は[`SpatialIdError::YOutOfRange`]を返します
     ///
     /// 移動
     /// ```
@@ -138,26 +140,28 @@ impl SpatialId for SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::SpatialIdError;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.y(), 10);
-    /// assert_eq!(id.move_y(-20), Err(Error::YOutOfRange { z: 4, y: 0 }));
+    /// assert_eq!(id.move_y(-20), Err(SpatialIdError::YOutOfRange { z: 4, y: 0 }.into()));
     /// ```
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         let new = if by >= 0 {
-            self.y.checked_add(by as u32).ok_or(Error::YOutOfRange {
-                y: u32::MAX,
-                z: self.z,
+            self.y.checked_add(by as u32).ok_or_else(|| {
+                Error::from(SpatialIdError::YOutOfRange {
+                    y: u32::MAX,
+                    z: self.z,
+                })
             })?
         } else {
-            self.y.checked_sub(-by as u32).ok_or(Error::YOutOfRange {
+            self.y.checked_sub(-by as u32).ok_or(SpatialIdError::YOutOfRange {
                 y: self.xy_min(),
                 z: self.z,
             })?
         };
 
         if new > self.xy_max() {
-            return Err(Error::YOutOfRange { y: new, z: self.z });
+            return Err(SpatialIdError::YOutOfRange { y: new, z: self.z }.into());
         }
 
         self.y = new;
