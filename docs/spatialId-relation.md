@@ -30,7 +30,9 @@ FlexId((FlexId))-->|F×X×Y|SingleId((SingleId))
 - `impl From<SingleId> for FlexId`
 - `impl From<FlexId> for RangeId`
 
-## `IntoSingleIds` / `IterSingleIds` / `IntoFlexIds` / `IterFlexIds` トレイト
+## 変換系 Trait
+
+### `IntoSingleIds` / `IterSingleIds` / `IntoFlexIds` / `IterFlexIds`
 
 1:多の変換を行う。下記の変換を実装している。
 

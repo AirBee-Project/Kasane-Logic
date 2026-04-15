@@ -2,7 +2,7 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::{
     Coordinate, Error, IntoCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid, SpatialId,
-    geometry::traits::{ToRangeIds, ToSingleIds},
+    geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 
 impl Shape for Solid {
@@ -11,8 +11,8 @@ impl Shape for Solid {
     }
 }
 
-impl ToSingleIds for Solid {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+impl CoverSingleIds for Solid {
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
 
         if surface_set.is_empty() {
@@ -95,8 +95,8 @@ impl ToSingleIds for Solid {
     }
 }
 
-impl ToRangeIds for Solid {
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
+impl CoverRangeIds for Solid {
+    fn cover_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         if surface_set.is_empty() {
             return Ok(Vec::new().into_iter());

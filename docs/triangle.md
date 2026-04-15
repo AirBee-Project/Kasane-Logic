@@ -152,7 +152,7 @@ fn resaerch(z: u8, steps: Vec<u32>, tri: Triangle) -> Result<(), Box<dyn std::er
     let shinagawa = Coordinate::new(35.630152, 139.74044000000004, 800.0)?;
     let area = tri.area();
     let start_old = Instant::now();
-    let set_old: HashSet<SingleId> = tri.single_ids(z)?.collect();
+    let set_old: HashSet<SingleId> = tri.cover_single_ids(z)?.collect();
     let duration_old = start_old.elapsed();
     println!("従来関数実行時間: {:?}", duration_old);
     for i in steps {

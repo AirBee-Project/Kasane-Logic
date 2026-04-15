@@ -1,8 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, RangeId, SpatialId,
-    TemporalId,
+    Coordinate, Error, RangeId, SpatialId, TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},

@@ -1,6 +1,6 @@
 use crate::{
     Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId, SpatialId, Sphere, WGS84_A,
-    geometry::traits::ToSingleIds, spatial_id::helpers::Dimension,
+    geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
 };
 
 impl Shape for Sphere {
@@ -9,8 +9,8 @@ impl Shape for Sphere {
     }
 }
 
-impl ToSingleIds for Sphere {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
+impl CoverSingleIds for Sphere {
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
         }
@@ -21,7 +21,7 @@ impl ToSingleIds for Sphere {
         let voxel_diag_half = voxel_length(z, Dimension::X) * 3.0_f64.sqrt() / 2.0;
         let center_ecef: Ecef = (center).into();
 
-        // 球の8頂点 → 探索範囲推定
+        // 球の8頂点 -> 探索範囲推定
         let mut corners = Vec::with_capacity(8);
         for &sx in &[1.0, -1.0] {
             for &sy in &[1.0, -1.0] {

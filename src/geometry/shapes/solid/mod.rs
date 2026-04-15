@@ -1,5 +1,5 @@
 use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
-use crate::geometry::traits::ToSingleIds;
+use crate::geometry::traits::CoverSingleIds;
 use crate::{Coordinate, Ecef, Error, IntoTriangles, SingleId};
 use std::collections::{HashMap, HashSet};
 
@@ -99,7 +99,7 @@ impl Solid {
         for polygon in &self.polygons {
             let triangles = polygon.iter_triangles();
             for triangle in triangles {
-                let ids_iter = triangle.single_ids(z)?;
+                let ids_iter = triangle.cover_single_ids(z)?;
                 for id in ids_iter {
                     unique_ids.insert(id);
                 }

@@ -2,7 +2,7 @@ use std::{fmt, ops::Sub};
 
 use crate::{
     Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, RangeId, WGS84_A, WGS84_E2, WGS84_F,
-    geometry::traits::ToSingleIds,
+    geometry::traits::CoverSingleIds,
 };
 
 impl fmt::Debug for Ecef {
@@ -62,8 +62,11 @@ impl Sub for Ecef {
     }
 }
 
-impl ToSingleIds for Ecef {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
+impl CoverSingleIds for Ecef {
+    fn cover_single_ids(
+        &self,
+        z: u8,
+    ) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
         }

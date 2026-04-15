@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, TemporalId,
-    XY_MAX, spatial_id::helpers,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, TemporalId, XY_MAX,
+    spatial_id::helpers,
 };
 use std::fmt;
 

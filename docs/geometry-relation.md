@@ -39,16 +39,9 @@ Polygon -->|"Polygon → Triangle×N"| Triangle
 Solid -->|"Solid → Polygon×N"| Polygon
 ```
 
-3次元空間上の空間ID以外の図形を表す型。以下の関数が共通して使用することができます。
+3次元空間上の空間ID以外の図形を表す型。図形から空間 ID を返す Trait は `CoverSingleIds` / `CoverRangeIds` である。
 
-- `single_ids`
-  - 指定したズームレベルの空間IDに変換することができる。
-- `range_ids`
-  - 指定したズームレベルの空間IDの区間表現に変換することができる。
-- `optimze_single_ids`
-  - 最小個数を保証して、`SingleId`を出力する。
-- `optimze_range_ids`
-  - 最小個数を保証して、`RangeId`を出力する。
+図形から空間 ID を返すメソッドは `CoverSingleIds` / `CoverRangeIds` として実装される。
 
 # Trait `Shape`
 

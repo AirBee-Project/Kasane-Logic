@@ -1,4 +1,6 @@
-use crate::{FlexId, IntoFlexIds, IterFlexIds, RangeId, SingleId, IntoSingleIds, IterSingleIds, SpatialId};
+use crate::{
+    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
+};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {

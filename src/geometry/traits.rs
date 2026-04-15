@@ -1,16 +1,16 @@
 use crate::{Error, RangeId, SingleId};
 
 ///SingleIdsがネイティブで実装されているもの
-pub trait ToSingleIds {
+pub trait CoverSingleIds {
     /// あるズームレベルの[SingleId]を出力する。
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
 }
 
 ///RangeIdsがネイティブで実装されているもの
-pub trait ToRangeIds {
+pub trait CoverRangeIds {
     /// あるズームレベルの[RangeId]を出力する。
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error>;
+    fn cover_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error>;
 }
 
 ///FlexIdsがネイティブで実装されているもの
-pub trait ToFlexIds {}
+pub trait CoverFlexIds {}

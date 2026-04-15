@@ -1,6 +1,6 @@
 use crate::{
     Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId,
-    geometry::traits::ToSingleIds,
+    geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Line {
@@ -9,8 +9,8 @@ impl Shape for Line {
     }
 }
 
-impl ToSingleIds for Line {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+impl CoverSingleIds for Line {
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::ZOutOfRange { z });
         }

@@ -1,4 +1,4 @@
-use crate::{FlexId, IntoFlexIds, IterFlexIds, SingleId, IntoSingleIds, IterSingleIds};
+use crate::{FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SingleId};
 
 impl IntoFlexIds for SingleId {
     type IntoIter = std::iter::Once<FlexId>;
