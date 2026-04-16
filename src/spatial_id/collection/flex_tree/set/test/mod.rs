@@ -1,1 +1,191 @@
+#![cfg_attr(test, allow(dead_code))]
+
 pub mod insert;
+
+#[cfg(test)]
+use crate::{F_MAX, F_MIN, FlexTreeSet, RangeId, SingleId, XY_MAX};
+#[cfg(test)]
+use proptest::prelude::*;
+
+#[cfg(test)]
+const RANDOM_SET_MAX_ZOOM: u8 = 8;
+#[cfg(test)]
+const RANDOM_SET_MIN_INSERTS: usize = 4;
+#[cfg(test)]
+const RANDOM_SET_MAX_INSERTS: usize = 32;
+#[cfg(test)]
+const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 4;
+#[cfg(test)]
+const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 4;
+
+/// テスト用のランダム Set 生成で使う挿入パターン。
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(crate) enum RandomSetInsert {
+    Single(SingleId),
+    Range(RangeId),
+}
+
+#[cfg(test)]
+impl RandomSetInsert {
+    fn insert_into(&self, set: &mut FlexTreeSet) {
+        match self {
+            RandomSetInsert::Single(single_id) => set.insert(single_id.clone()),
+            RandomSetInsert::Range(range_id) => set.insert(range_id.clone()),
+        }
+    }
+
+    fn estimated_single_count(&self) -> usize {
+        match self {
+            RandomSetInsert::Single(_) => 1,
+            RandomSetInsert::Range(range_id) => {
+                let f = range_id.f();
+                let x = range_id.x();
+                let y = range_id.y();
+
+                let f_len = (f[1] - f[0] + 1) as usize;
+                let x_len = (x[1] - x[0] + 1) as usize;
+                let y_len = (y[1] - y[0] + 1) as usize;
+
+                f_len.saturating_mul(x_len).saturating_mul(y_len)
+            }
+        }
+    }
+}
+
+/// 演算子テスト向けのランダム Set ケース。
+///
+/// 失敗時に追跡しやすいよう、挿入データ列を保持します。
+///
+/// # 使い方
+/// ランダムな [`FlexTreeSet`] が必要なときは、まず [`arb_random_set_case`] で
+/// `RandomSetCase` を生成し、`build_set()` で `FlexTreeSet` を構築します。
+///
+/// ```ignore
+/// # use kasane_logic::FlexTreeSet;
+/// # use proptest::prelude::*;
+/// # use kasane_logic::spatial_id::collection::flex_tree::set::test::arb_random_set_case;
+/// proptest! {
+///     #[test]
+///     fn random_set_example(case in arb_random_set_case()) {
+///         let set: FlexTreeSet = case.build_set();
+///
+///         // 例: 空でないことを期待する（失敗時は case の内容で再現しやすい）
+///         prop_assert!(!set.is_empty(), "{}", case.debug_summary());
+///     }
+/// }
+/// ```
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub(crate) struct RandomSetCase {
+    pub inserts: Vec<RandomSetInsert>,
+    pub estimated_single_count: usize,
+}
+
+#[cfg(test)]
+impl RandomSetCase {
+    /// ケースから [`FlexTreeSet`] を構築します。
+    pub fn build_set(&self) -> FlexTreeSet {
+        let mut set = FlexTreeSet::new();
+        for insert in &self.inserts {
+            insert.insert_into(&mut set);
+        }
+        set
+    }
+
+    /// 失敗時ログ向けの要約文字列。
+    pub fn debug_summary(&self) -> String {
+        format!(
+            "insert_count={}, estimated_single_count={}, inserts={:#?}",
+            self.inserts.len(),
+            self.estimated_single_count,
+            self.inserts
+        )
+    }
+}
+
+#[cfg(test)]
+fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
+    (0..=max_zoom).prop_flat_map(|z| {
+        let idx = z as usize;
+
+        let f_min = F_MIN[idx];
+        let f_max = F_MAX[idx];
+        let xy_max = XY_MAX[idx];
+
+        let span_f_max = (f_max - f_min).min(RANDOM_SET_MAX_RANGE_SPAN_F).max(0) as u32;
+        let span_xy_max = xy_max.min(RANDOM_SET_MAX_RANGE_SPAN_XY);
+
+        (
+            Just(z),
+            f_min..=f_max,
+            0..=span_f_max,
+            0..=xy_max,
+            0..=span_xy_max,
+            0..=xy_max,
+            0..=span_xy_max,
+        )
+            .prop_map(
+                move |(z, f_start, f_span, x_start, x_span, y_start, y_span)| {
+                    let idx = z as usize;
+                    let f_end = (f_start + f_span as i32).min(F_MAX[idx]);
+                    let x_end = x_start.saturating_add(x_span).min(XY_MAX[idx]);
+                    let y_end = y_start.saturating_add(y_span).min(XY_MAX[idx]);
+
+                    RangeId::new(z, [f_start, f_end], [x_start, x_end], [y_start, y_end])
+                        .expect("Generated compact range must be valid")
+                },
+            )
+    })
+}
+
+/// 演算子テスト向けに、処理可能なサイズに抑えたランダム Set ケースを生成する戦略です。
+///
+/// - 挿入回数は `RANDOM_SET_MIN_INSERTS..=RANDOM_SET_MAX_INSERTS` でランダム
+/// - `SingleId` と小さな `RangeId` を混ぜて生成
+/// - 失敗時は [`RandomSetCase`] の `Debug` 出力で再現しやすい
+///
+/// # どれを使えばよいか
+/// ランダムな Set を作る入口は、この [`arb_random_set_case`] を使ってください。
+/// `RandomSetInsert` や `insert_into` は内部部品で、通常は直接使う必要はありません。
+///
+/// # テストテンプレート
+/// ```
+/// # use kasane_logic::spatial_id::collection::flex_tree::set::test::arb_random_set_case;
+/// # use proptest::prelude::*;
+/// proptest! {
+///     #[test]
+///     fn operator_test_template(case in arb_random_set_case()) {
+///         let set = case.build_set();
+///
+///         // ここで演算子テストを書く
+///         // 失敗時に case.debug_summary() をメッセージへ出すと追跡しやすい
+///         prop_assert!(set.count() > 0, "{}", case.debug_summary());
+///     }
+/// }
+/// ```
+#[cfg(test)]
+pub(crate) fn arb_random_set_case() -> impl Strategy<Value = RandomSetCase> {
+    let single = SingleId::arb_within(0..=RANDOM_SET_MAX_ZOOM).prop_map(RandomSetInsert::Single);
+    let range = arb_compact_range_id(RANDOM_SET_MAX_ZOOM).prop_map(RandomSetInsert::Range);
+
+    let insert = prop_oneof![
+        // 単一ID多め。全体の展開サイズを抑えつつ多様性を確保する。
+        4 => single,
+        1 => range,
+    ];
+
+    (RANDOM_SET_MIN_INSERTS..=RANDOM_SET_MAX_INSERTS)
+        .prop_flat_map(move |insert_count| prop::collection::vec(insert.clone(), insert_count))
+        .prop_map(|inserts| {
+            let estimated_single_count = inserts
+                .iter()
+                .map(RandomSetInsert::estimated_single_count)
+                .sum();
+
+            RandomSetCase {
+                inserts,
+                estimated_single_count,
+            }
+        })
+}
