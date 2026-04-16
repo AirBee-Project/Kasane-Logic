@@ -1,6 +1,7 @@
+use crate::spatial_id::collection::flex_tree::core::split_child_id;
 use crate::{
-    Dimension, FlexId, FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, Side,
-    SingleId, spatial_id::collection::flex_tree::core::node::Node,
+    FlexId, FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, Side, SingleId,
+    spatial_id::collection::flex_tree::core::node::Node,
 };
 
 pub struct LeavesIter<'a, V>
@@ -25,20 +26,12 @@ where
                     upper_child,
                 } => {
                     if let Some(child) = upper_child {
-                        let next_id = match axis {
-                            Dimension::F => current_id.f_split(Side::Upper).unwrap(),
-                            Dimension::X => current_id.x_split(Side::Upper).unwrap(),
-                            Dimension::Y => current_id.y_split(Side::Upper).unwrap(),
-                        };
+                        let next_id = split_child_id(&current_id, *axis, Side::Upper);
                         self.stack.push((child.as_ref(), next_id));
                     }
 
                     if let Some(child) = lower_child {
-                        let next_id = match axis {
-                            Dimension::F => current_id.f_split(Side::Lower).unwrap(),
-                            Dimension::X => current_id.x_split(Side::Lower).unwrap(),
-                            Dimension::Y => current_id.y_split(Side::Lower).unwrap(),
-                        };
+                        let next_id = split_child_id(&current_id, *axis, Side::Lower);
                         self.stack.push((child.as_ref(), next_id));
                     }
                 }

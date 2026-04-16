@@ -1,5 +1,5 @@
 use crate::{
-    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, SingleId,
+    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId,
     spatial_id::collection::flex_tree::core::convert::LeavesIter,
 };
 use node::Node;
@@ -178,6 +178,13 @@ where
 
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
+        LeavesIter {
+            stack: self.root_node_stack(),
+        }
+    }
+
+    /// 走査開始点として上下ルートノードを ID 付きで収集する。
+    pub(super) fn root_node_stack(&self) -> Vec<(&Node<V>, FlexId)> {
         let mut stack = Vec::new();
 
         if let Some(upper) = &self.upper_root {
@@ -188,6 +195,15 @@ where
             stack.push((lower.as_ref(), FlexId::LOWER_MAX));
         }
 
-        LeavesIter { stack }
+        stack
+    }
+}
+
+/// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
+pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
+    match axis {
+        Dimension::F => current_id.f_split(side).unwrap(),
+        Dimension::X => current_id.x_split(side).unwrap(),
+        Dimension::Y => current_id.y_split(side).unwrap(),
     }
 }
