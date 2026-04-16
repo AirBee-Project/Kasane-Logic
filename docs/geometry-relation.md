@@ -43,6 +43,8 @@ Solid -->|"Solid → Polygon×N"| Polygon
 
 図形から空間 ID を返すメソッドは `CoverSingleIds` / `CoverRangeIds` として実装される。
 
+`CoverRangeIds` の実装は、`CoverSingleIds` の出力を単純に `RangeId` へ変換して返すラッパー実装であってはならない。実装内部で `RangeId` を直接構築する処理を持ち、(最適でなくても) `RangeId` の表現を活かした出力を行うこと。
+
 # Trait `Shape`
 
 3次元空間上の点以外を表す型。
