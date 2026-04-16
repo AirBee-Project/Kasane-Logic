@@ -1,5 +1,6 @@
 #![cfg_attr(test, allow(dead_code))]
 
+pub mod equal;
 pub mod insert;
 pub mod intersection;
 

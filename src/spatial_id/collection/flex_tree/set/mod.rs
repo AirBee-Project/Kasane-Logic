@@ -1,4 +1,6 @@
-use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId};
+use std::collections::HashSet;
+
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId};
 pub mod convert;
 pub mod ops;
 pub mod test;
@@ -7,6 +9,19 @@ pub mod test;
 pub struct FlexTreeSet {
     inner: FlexTreeCore<()>,
 }
+
+impl PartialEq for FlexTreeSet {
+    fn eq(&self, other: &Self) -> bool {
+        let common_z = self
+            .max_zoomlevel()
+            .unwrap_or(0)
+            .max(other.max_zoomlevel().unwrap_or(0));
+
+        self.normalized_single_ids_at_zoom(common_z) == other.normalized_single_ids_at_zoom(common_z)
+    }
+}
+
+impl Eq for FlexTreeSet {}
 
 impl FlexTreeSet {
     pub fn new() -> Self {
@@ -56,5 +71,26 @@ impl FlexTreeSet {
 
     pub fn iter(&self) -> impl Iterator<Item = FlexId> {
         self.inner.iter().map(|(flex_id, _)| flex_id)
+    }
+
+    fn normalized_single_ids_at_zoom(&self, target_z: u8) -> HashSet<SingleId> {
+        let mut normalized = HashSet::new();
+
+        for flex_id in self.iter() {
+            let range = RangeId::from(&flex_id);
+            let expanded = if range.z() == target_z {
+                range
+            } else {
+                range
+                    .spatial_children_at_zoom(target_z)
+                    .expect("target_z must be >= range.z")
+            };
+
+            for single_id in expanded.into_single_ids() {
+                normalized.insert(single_id);
+            }
+        }
+
+        normalized
     }
 }

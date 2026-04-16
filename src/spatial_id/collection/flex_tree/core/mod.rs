@@ -8,7 +8,7 @@ mod node;
 mod overlap;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub struct FlexTreeCore<V>
 where
     V: PartialEq + Clone,

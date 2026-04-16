@@ -1,6 +1,6 @@
 use crate::{Dimension, FlexId, Side};
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Eq)]
 pub enum Node<V>
 where
     V: PartialEq + Clone,
