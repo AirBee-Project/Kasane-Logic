@@ -1,6 +1,7 @@
 use crate::{FlexId, FlexTreeCore, IterFlexIds};
 pub mod convert;
 pub mod ops;
+pub mod test;
 
 #[derive(Default)]
 pub struct FlexTreeSet {
