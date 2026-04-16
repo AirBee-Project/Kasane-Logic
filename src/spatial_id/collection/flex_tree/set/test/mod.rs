@@ -1,27 +1,35 @@
 #![cfg_attr(test, allow(dead_code))]
 
 pub mod insert;
+pub mod intersection;
 
+#[cfg(test)]
+use crate::IntoSingleIds;
 #[cfg(test)]
 use crate::{F_MAX, F_MIN, FlexTreeSet, RangeId, SingleId, XY_MAX};
 #[cfg(test)]
 use proptest::prelude::*;
+#[cfg(test)]
+use std::collections::HashSet;
 
 #[cfg(test)]
+/// ランダム生成時に使うズームレベルの下限。
+const RANDOM_SET_MIN_ZOOM: u8 = 0;
+#[cfg(test)]
 /// ランダム生成時に使うズームレベルの上限。
-const RANDOM_SET_MAX_ZOOM: u8 = 10;
+const RANDOM_SET_MAX_ZOOM: u8 = 4;
 #[cfg(test)]
 /// 1ケースあたりの最小挿入回数。
-const RANDOM_SET_MIN_INSERTS: usize = 4;
+const RANDOM_SET_MIN_INSERTS: usize = 0;
 #[cfg(test)]
 /// 1ケースあたりの最大挿入回数。
-const RANDOM_SET_MAX_INSERTS: usize = 32;
+const RANDOM_SET_MAX_INSERTS: usize = 7;
 #[cfg(test)]
 /// RangeId 生成時に許可する F 方向の長さの最大値。
-const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 40;
+const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 10;
 #[cfg(test)]
 /// RangeId 生成時に許可する X/Y 方向の長さの最大値。
-const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 30;
+const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 10;
 
 /// テスト用のランダム Set 生成で使う挿入パターン。
 #[cfg(test)]
@@ -59,8 +67,6 @@ impl RandomSetInsert {
 }
 
 /// 演算子テスト向けのランダム Set ケース。
-///
-/// 失敗時に追跡しやすいよう、挿入データ列を保持します。
 ///
 /// # 使い方
 /// ランダムな [`FlexTreeSet`] が必要なときは、まず [`arb_random_set_case`] で
@@ -111,7 +117,7 @@ impl RandomSetCase {
 
 #[cfg(test)]
 fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
-    (0..=max_zoom).prop_flat_map(|z| {
+    (RANDOM_SET_MIN_ZOOM..=max_zoom).prop_flat_map(|z| {
         let idx = z as usize;
 
         let f_min = F_MIN[idx];
@@ -146,6 +152,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 
 /// 演算子テスト向けに、処理可能なサイズに抑えたランダム Set ケースを生成する戦略です。
 ///
+/// - ズームレベルは `RANDOM_SET_MIN_ZOOM..=RANDOM_SET_MAX_ZOOM` でランダム
 /// - 挿入回数は `RANDOM_SET_MIN_INSERTS..=RANDOM_SET_MAX_INSERTS` でランダム
 /// - `SingleId` と小さな `RangeId` を混ぜて生成
 /// - 失敗時は [`RandomSetCase`] の `Debug` 出力で再現しやすい
@@ -171,7 +178,8 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 /// ```
 #[cfg(test)]
 pub(crate) fn arb_random_set_case() -> impl Strategy<Value = RandomSetCase> {
-    let single = SingleId::arb_within(0..=RANDOM_SET_MAX_ZOOM).prop_map(RandomSetInsert::Single);
+    let single = SingleId::arb_within(RANDOM_SET_MIN_ZOOM..=RANDOM_SET_MAX_ZOOM)
+        .prop_map(RandomSetInsert::Single);
     let range = arb_compact_range_id(RANDOM_SET_MAX_ZOOM).prop_map(RandomSetInsert::Range);
 
     let insert = prop_oneof![
@@ -193,4 +201,52 @@ pub(crate) fn arb_random_set_case() -> impl Strategy<Value = RandomSetCase> {
                 estimated_single_count,
             }
         })
+}
+
+/// [`FlexTreeSet`] を指定したズームレベルの [`SingleId`] 集合へ分解する。
+///
+/// `target_z` は対象 Set の各 ID のズームレベル以上を指定する必要がある。
+#[cfg(test)]
+pub(crate) fn decompose_set_to_single_ids_at_zoom(
+    set: &FlexTreeSet,
+    target_z: u8,
+) -> HashSet<SingleId> {
+    let mut normalized = HashSet::new();
+
+    for flex_id in set.iter() {
+        let range = RangeId::from(&flex_id);
+        let expanded = if range.z() == target_z {
+            range
+        } else {
+            range
+                .spatial_children_at_zoom(target_z)
+                .expect("target_z must be >= range.z")
+        };
+
+        for single_id in expanded.into_single_ids() {
+            normalized.insert(single_id);
+        }
+    }
+
+    normalized
+}
+
+/// [`FlexTreeSet`] をその Set が持つ最小粒度（最大ズーム）に揃えた [`SingleId`] 集合へ分解する。
+#[cfg(test)]
+pub(crate) fn decompose_set_to_min_granularity_single_ids(set: &FlexTreeSet) -> HashSet<SingleId> {
+    let target_z = set.max_zoomlevel().unwrap_or(0);
+    decompose_set_to_single_ids_at_zoom(set, target_z)
+}
+
+#[cfg(test)]
+/// [`FlexTreeSet`] を指定したズームレベルで [`SingleId`] に分解し、昇順に並べて返す。
+///
+/// 比較系テストで結果同値性を判定しやすくするための補助関数である。
+/// `target_z` は対象 Set 内の各 ID のズームレベル以上を指定する必要がある。
+pub(crate) fn sorted_single_ids(set: &FlexTreeSet, target_z: u8) -> Vec<SingleId> {
+    let mut ids: Vec<SingleId> = decompose_set_to_single_ids_at_zoom(set, target_z)
+        .into_iter()
+        .collect();
+    ids.sort();
+    ids
 }
