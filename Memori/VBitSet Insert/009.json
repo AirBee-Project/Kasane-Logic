@@ -1,0 +1,154 @@
+{
+  "新宿区の建物データ": {
+    "patternType": "scaling",
+    "description": "データ量を徐々に増やして増加を確認",
+    "comment": "8668a30 - Merge pull request #95 from AirBee-Project/refactor/flex-tree",
+    "results": {
+      "VBitSet Insert": [
+        {
+          "input": 0,
+          "measurement": {
+            "cycles": 104,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 0,
+            "allocBytes": 0,
+            "deallocCount": 0,
+            "deallocBytes": 0,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 10,
+          "measurement": {
+            "cycles": 237198,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1031,
+            "allocBytes": 25272,
+            "deallocCount": 1031,
+            "deallocBytes": 25272,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 20,
+          "measurement": {
+            "cycles": 431964,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1610,
+            "allocBytes": 39912,
+            "deallocCount": 1610,
+            "deallocBytes": 39912,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 30,
+          "measurement": {
+            "cycles": 612456,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 2048,
+            "allocBytes": 50424,
+            "deallocCount": 2048,
+            "deallocBytes": 50424,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 40,
+          "measurement": {
+            "cycles": 804362,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 2468,
+            "allocBytes": 60504,
+            "deallocCount": 2468,
+            "deallocBytes": 60504,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 50,
+          "measurement": {
+            "cycles": 993278,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 2832,
+            "allocBytes": 69240,
+            "deallocCount": 2832,
+            "deallocBytes": 69240,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 60,
+          "measurement": {
+            "cycles": 1175590,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 3142,
+            "allocBytes": 76680,
+            "deallocCount": 3142,
+            "deallocBytes": 76680,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 70,
+          "measurement": {
+            "cycles": 1357044,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 3411,
+            "allocBytes": 83136,
+            "deallocCount": 3411,
+            "deallocBytes": 83136,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 80,
+          "measurement": {
+            "cycles": 1547520,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 3677,
+            "allocBytes": 89520,
+            "deallocCount": 3677,
+            "deallocBytes": 89520,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 90,
+          "measurement": {
+            "cycles": 1712880,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 3906,
+            "allocBytes": 95016,
+            "deallocCount": 3906,
+            "deallocBytes": 95016,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 100,
+          "measurement": {
+            "cycles": 1873248,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 4129,
+            "allocBytes": 100368,
+            "deallocCount": 4129,
+            "deallocBytes": 100368,
+            "netBytes": 0
+          }
+        }
+      ]
+    }
+  }
+}
