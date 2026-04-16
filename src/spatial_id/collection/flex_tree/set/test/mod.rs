@@ -8,15 +8,20 @@ use crate::{F_MAX, F_MIN, FlexTreeSet, RangeId, SingleId, XY_MAX};
 use proptest::prelude::*;
 
 #[cfg(test)]
-const RANDOM_SET_MAX_ZOOM: u8 = 8;
+/// ランダム生成時に使うズームレベルの上限。
+const RANDOM_SET_MAX_ZOOM: u8 = 5;
 #[cfg(test)]
+/// 1ケースあたりの最小挿入回数。
 const RANDOM_SET_MIN_INSERTS: usize = 4;
 #[cfg(test)]
+/// 1ケースあたりの最大挿入回数。
 const RANDOM_SET_MAX_INSERTS: usize = 32;
 #[cfg(test)]
-const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 4;
+/// RangeId 生成時に許可する F 方向の長さの最大値。
+const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 40;
 #[cfg(test)]
-const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 4;
+/// RangeId 生成時に許可する X/Y 方向の長さの最大値。
+const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 30;
 
 /// テスト用のランダム Set 生成で使う挿入パターン。
 #[cfg(test)]
