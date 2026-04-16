@@ -35,7 +35,7 @@ pub use geometry::shapes::traits::{
     IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Shape,
 };
 #[doc(inline)]
-pub use geometry::traits::{CoverFlexIds, CoverRangeIds, CoverSingleIds};
+pub use geometry::traits::{CoverRangeIds, CoverSingleIds};
 
 // geometry: constants
 #[doc(inline)]
