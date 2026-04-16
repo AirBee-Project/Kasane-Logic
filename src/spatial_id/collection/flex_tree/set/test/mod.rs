@@ -1,8 +1,10 @@
 #![cfg_attr(test, allow(dead_code))]
 
+pub mod difference;
 pub mod equal;
 pub mod insert;
 pub mod intersection;
+pub mod union;
 
 #[cfg(test)]
 use crate::IntoSingleIds;
