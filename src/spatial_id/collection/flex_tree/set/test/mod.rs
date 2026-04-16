@@ -9,7 +9,7 @@ use proptest::prelude::*;
 
 #[cfg(test)]
 /// ランダム生成時に使うズームレベルの上限。
-const RANDOM_SET_MAX_ZOOM: u8 = 5;
+const RANDOM_SET_MAX_ZOOM: u8 = 10;
 #[cfg(test)]
 /// 1ケースあたりの最小挿入回数。
 const RANDOM_SET_MIN_INSERTS: usize = 4;
