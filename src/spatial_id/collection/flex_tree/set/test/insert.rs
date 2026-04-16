@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        F_MAX, F_MIN, FlexTreeSet, IntoSingleIds, MAX_ZOOM_LEVEL, RangeId, SingleId, XY_MAX,
+        F_MAX, F_MIN, FlexId, FlexTreeSet, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds,
+        MAX_ZOOM_LEVEL, RangeId, SingleId, XY_MAX,
     };
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
@@ -180,5 +181,88 @@ mod tests {
 
         //含まれるIDは生成したSingleIdと一致するはず
         assert_eq!(single_id_b, single_ids.first().unwrap().clone())
+    }
+
+    ///2つのIDを挿入するテスト
+    ///AとBが兄弟の場合にRangeIdとして帰ってくるのかを検証する
+    #[test]
+    fn multiple_insert_single_id_join() {
+        //Setの新規作成
+        let mut set = FlexTreeSet::default();
+
+        //SingleIdの作成と挿入
+        let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
+        let single_id_b = SingleId::new(4, 3, 2, 0).unwrap();
+
+        set.insert(single_id_a.clone());
+        set.insert(single_id_b.clone());
+
+        //SetからRangeIdを取り出す
+        let flex_ids: Vec<FlexId> = set.into_flex_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, flex_ids.len());
+
+        let answer: Vec<FlexId> = RangeId::new(4, [3, 3], [2, 2], [0, 1])
+            .unwrap()
+            .into_flex_ids()
+            .collect();
+
+        //含まれるIDは生成したFlexIdと一致するはず
+        assert_eq!(flex_ids.first(), answer.first())
+    }
+
+    ///2つのIDを挿入するテスト
+    ///AとBが隣り合っているが、兄弟ではない場合に分かれて帰ってくるか
+    #[test]
+    fn multiple_insert_single_id_no_join() {
+        //Setの新規作成
+        let mut set = FlexTreeSet::default();
+
+        //SingleIdの作成と挿入
+        let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
+        let single_id_b = SingleId::new(4, 3, 2, 2).unwrap();
+
+        set.insert(single_id_a.clone());
+        set.insert(single_id_b.clone());
+
+        //SetからRangeIdを取り出す
+        let mut single_ids: Vec<SingleId> = set.into_single_ids().collect();
+
+        //長さは2になるはず
+        assert_eq!(2, single_ids.len());
+
+        //答え
+        let mut answer = vec![single_id_a, single_id_b];
+
+        single_ids.sort();
+        answer.sort();
+
+        //含まれるIDは生成したSingleIdと一致するはず
+        assert_eq!(single_ids, answer)
+    }
+
+    ///RangeIdを挿入したときに、大きなIDになって帰ってくるか
+    #[test]
+    fn first_insert_range_id_join() {
+        //Setの新規作成
+        let mut set = FlexTreeSet::default();
+
+        //RangeIdの作成と挿入
+        let range_id = RangeId::new(4, [0, F_MAX[4]], [0, XY_MAX[4]], [0, XY_MAX[4]]).unwrap();
+
+        set.insert(range_id.clone());
+
+        //SetからSingleidを取り出す
+        let single_ids: Vec<SingleId> = set.iter_single_ids().collect();
+
+        //長さは1になるはず
+        assert_eq!(1, single_ids.len());
+
+        //地表面より上の全てのID=0/0/0/0と一致するはず
+        assert_eq!(
+            *single_ids.first().unwrap(),
+            SingleId::new(0, 0, 0, 0).unwrap()
+        )
     }
 }
