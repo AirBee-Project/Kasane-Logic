@@ -1,5 +1,5 @@
 use crate::{
-    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, SingleId,
+    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId,
     spatial_id::collection::flex_tree::core::convert::LeavesIter,
 };
 use node::Node;
@@ -15,6 +15,8 @@ where
 {
     lower_root: Option<Box<Node<V>>>,
     upper_root: Option<Box<Node<V>>>,
+    lower_count: usize,
+    upper_count: usize,
 }
 
 impl<V> FlexTreeCore<V>
@@ -26,6 +28,8 @@ where
         Self {
             lower_root: None,
             upper_root: None,
+            lower_count: 0,
+            upper_count: 0,
         }
     }
 
@@ -33,6 +37,8 @@ where
     pub fn clear(&mut self) {
         self.lower_root = None;
         self.upper_root = None;
+        self.lower_count = 0;
+        self.upper_count = 0;
     }
 
     pub fn is_empty(&self) -> bool {
@@ -40,8 +46,7 @@ where
     }
 
     pub fn count(&self) -> usize {
-        //Todo:型の内部に個数をキャッシュしてO(1)で求められるようにする
-        self.iter().count()
+        self.lower_count + self.upper_count
     }
 
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。
@@ -118,22 +123,7 @@ where
         S: IterFlexIds,
     {
         for flex_id in target.iter_flex_ids() {
-            let root = match flex_id.f_index().is_negative() {
-                true => &mut self.lower_root,
-                false => &mut self.upper_root,
-            };
-
-            if root.is_none() {
-                *root = Some(Box::new(Node::Branch {
-                    axis: Dimension::F,
-                    lower_child: None,
-                    upper_child: None,
-                }));
-            }
-
-            if let Some(kd_node) = root {
-                kd_node.insert(flex_id, value.clone(), 0, 0, 0);
-            }
+            self.insert_flex_id(flex_id, value.clone());
         }
     }
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
@@ -165,7 +155,7 @@ where
 
             for (leaf_id, value) in affected_leaves {
                 for remnant_id in leaf_id.difference(&t_id) {
-                    self.insert(remnant_id, value.clone());
+                    self.insert_flex_id(remnant_id, value.clone());
                 }
                 if let Some(intersect_id) = leaf_id.intersection(&t_id) {
                     actual_removed.push((intersect_id, value));
@@ -178,6 +168,13 @@ where
 
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
+        LeavesIter {
+            stack: self.root_node_stack(),
+        }
+    }
+
+    /// 走査開始点として上下ルートノードを ID 付きで収集する。
+    pub(super) fn root_node_stack(&self) -> Vec<(&Node<V>, FlexId)> {
         let mut stack = Vec::new();
 
         if let Some(upper) = &self.upper_root {
@@ -188,6 +185,46 @@ where
             stack.push((lower.as_ref(), FlexId::LOWER_MAX));
         }
 
-        LeavesIter { stack }
+        stack
+    }
+
+    /// 1つの FlexId を対応する上下ルートへ挿入する内部ユーティリティである。
+    fn insert_flex_id(&mut self, flex_id: FlexId, value: V) {
+        let (root, count) = if flex_id.f_index().is_negative() {
+            (&mut self.lower_root, &mut self.lower_count)
+        } else {
+            (&mut self.upper_root, &mut self.upper_count)
+        };
+
+        if root.is_none() {
+            *root = Some(Box::new(Node::Branch {
+                axis: Dimension::F,
+                lower_child: None,
+                upper_child: None,
+            }));
+        }
+
+        if let Some(kd_node) = root {
+            let delta = kd_node.insert(flex_id, value, 0, 0, 0);
+            Self::apply_delta(count, delta);
+        }
+    }
+
+    /// 葉ノード数差分を count キャッシュへ反映する。
+    fn apply_delta(count: &mut usize, delta: isize) {
+        if delta >= 0 {
+            *count += delta as usize;
+        } else {
+            *count -= (-delta) as usize;
+        }
+    }
+}
+
+/// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
+pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
+    match axis {
+        Dimension::F => current_id.f_split(side).unwrap(),
+        Dimension::X => current_id.x_split(side).unwrap(),
+        Dimension::Y => current_id.y_split(side).unwrap(),
     }
 }
