@@ -1,4 +1,4 @@
-use kasane_logic::{FlexTreeCore, SingleId, SpatialIdSet};
+use kasane_logic::{FlexTreeCore, SingleId};
 use memori::{Bench, Func, TrackingAllocator};
 use std::fs;
 use std::hint::black_box;
