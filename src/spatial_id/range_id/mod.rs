@@ -7,7 +7,7 @@ use crate::{
     SpatialId, SpatialIdError, TemporalId,
     error::Error,
     spatial_id::{
-        constants::{F_MAX, F_MIN, XY_MAX},
+        constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
         helpers,
     },
 };
@@ -33,6 +33,52 @@ pub struct RangeId {
     x: [u32; 2],
     y: [u32; 2],
     temporal_id: TemporalId,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Error, RangeId, SpatialIdError};
+
+    #[test]
+    fn children_at_zoom_works() {
+        let id = RangeId::new(5, [-3, 29], [8, 9], [5, 10]).unwrap();
+
+        let result = id.spatial_children_at_zoom(6).unwrap();
+
+        assert_eq!(
+            result,
+            RangeId::new(6, [-6, 59], [16, 19], [10, 21]).unwrap()
+        );
+    }
+
+    #[test]
+    fn parent_at_zoom_works() {
+        let id = RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap();
+
+        let parent = id.spatial_parent_at_zoom(4).unwrap();
+
+        assert_eq!(parent.z(), 4);
+        assert_eq!(parent.f(), [0, 14]);
+        assert_eq!(parent.x(), [4, 4]);
+        assert_eq!(parent.y(), [2, 5]);
+    }
+
+    #[test]
+    fn zoom_direction_mismatch_returns_error() {
+        let id = RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap();
+
+        let result = id.spatial_parent_at_zoom(6);
+
+        assert!(matches!(
+            result,
+            Err(Error::SpatialId(
+                SpatialIdError::ZoomLevelTransitionOutOfRange {
+                    current_z: 5,
+                    target_z: 6
+                }
+            ))
+        ));
+    }
 }
 
 impl RangeId {
@@ -137,40 +183,46 @@ impl RangeId {
         Ok(())
     }
 
-    /// 指定したズームレベル差 `difference` に基づき、この `RangeId` が表す空間のすべての子 `RangeId` を生成します。
+    /// 指定したズームレベル `target_z` に細分化した、この `RangeId` を含むすべての子 `RangeId` を生成します。
     ///
     /// # パラメータ
-    /// * `difference` — 子 ID を計算する際に増加させるズームレベル差（差の値が0–63の範囲の場合に有効）
+    /// * `target_z` — 生成したい子 `RangeId` のズームレベル
     ///
     /// # バリデーション
-    /// - `self.z + difference` が `63` を超える場合、[`SpatialIdError::ZOutOfRange`] を返します。
+    /// - `target_z` が現在のズームレベルより浅い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返します。
+    /// - `target_z` が本クレートで扱える最大ズームレベルを超える場合は、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
-    /// `difference = 1` による細分化
+    /// 1段深いズームへの細分化
     /// ```
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.spatial_children(1).unwrap();
+    /// let result = id.spatial_children_at_zoom(6).unwrap();
     /// assert_eq!(result,  RangeId::new(6, [-6, 59], [16, 19], [10, 21] ).unwrap());
     ///
     /// ```
     ///
-    /// ズームレベルの範囲外
+    /// 現在より浅いズームを指定した場合
     /// ```
     /// # use kasane_logic::{Error, RangeId, SpatialIdError};
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.spatial_children(63);
-    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z: 68 }))));
+    /// let result = id.spatial_children_at_zoom(4);
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 4 }))));
     /// ```
-    pub fn spatial_children(&self, difference: u8) -> Result<RangeId, Error> {
-        let z = self
-            .z
-            .checked_add(difference)
-            .ok_or(SpatialIdError::ZOutOfRange { z: u8::MAX })?;
-        if z > 63 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
+    pub fn spatial_children_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
+        if target_z < self.z {
+            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
+                current_z: self.z,
+                target_z,
+            }
+            .into());
         }
 
+        if target_z as usize > MAX_ZOOM_LEVEL {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
+        }
+
+        let difference = target_z - self.z;
         let scale_f = 2_i32.pow(difference as u32);
         let scale_xy = 2_u32.pow(difference as u32);
 
@@ -179,7 +231,7 @@ impl RangeId {
         let y = helpers::scale_range_u32(self.y[0], self.y[1], scale_xy);
 
         Ok(RangeId {
-            z,
+            z: target_z,
             f,
             x,
             y,
@@ -188,20 +240,21 @@ impl RangeId {
         })
     }
 
-    /// 指定したズームレベル差 `difference` に基づき、この `RangeId` を含む最小の大きさの `RangeId` を返します。
+    /// 指定したズームレベル `target_z` に縮約した、この `RangeId` の親 `RangeId` を返します。
     ///
     /// # パラメータ
-    /// * `difference` — 親 ID を計算する際に減少させるズームレベル差
+    /// * `target_z` — 取得したい親 `RangeId` のズームレベル
     ///
     /// # バリデーション
-    /// - `self.z - difference < 0` の場合、親が存在しないため `None` を返します。
+    /// - `target_z` が現在のズームレベルより深い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返します。
+    /// - `target_z` が本クレートで扱える最大ズームレベルを超える場合は、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
-    /// `difference = 1` による上位層への移動
+    /// 1段浅いズームへの縮約
     /// ```
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
-    /// let parent = id.spatial_parent(1).unwrap();
+    /// let parent = id.spatial_parent_at_zoom(4).unwrap();
     ///
     /// assert_eq!(parent.z(), 4);
     /// assert_eq!(parent.f(), [0,14]);
@@ -215,7 +268,7 @@ impl RangeId {
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     ///
-    /// let parent = id.spatial_parent(1).unwrap();
+    /// let parent = id.spatial_parent_at_zoom(4).unwrap();
     ///
     /// assert_eq!(parent.z(), 4);
     /// assert_eq!(parent.f(), [-5,-3]);
@@ -223,17 +276,27 @@ impl RangeId {
     /// assert_eq!(parent.y(), [2,5]);
     /// ```
     ///
-    /// ズームレベルの範囲外:
+    /// 現在より深いズームを指定した場合:
     /// ```
-    /// # use kasane_logic::RangeId;
-    /// # use kasane_logic::Error;
+    /// # use kasane_logic::{Error, RangeId, SpatialIdError};
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// // difference = 6 の場合は親が存在しないため None
-    /// assert!(id.spatial_parent(6).is_none());
+    /// let result = id.spatial_parent_at_zoom(6);
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 6 }))));
     /// ```
-    pub fn spatial_parent(&self, difference: u8) -> Option<RangeId> {
-        let z = self.z.checked_sub(difference)?;
-        let shift = difference as u32;
+    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
+        if target_z > self.z {
+            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
+                current_z: self.z,
+                target_z,
+            }
+            .into());
+        }
+
+        if target_z as usize > MAX_ZOOM_LEVEL {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
+        }
+
+        let shift = (self.z - target_z) as u32;
 
         let f = [
             if self.f[0] == -1 {
@@ -251,8 +314,8 @@ impl RangeId {
         let x = [self.x[0] >> shift, self.x[1] >> shift];
         let y = [self.y[0] >> shift, self.y[1] >> shift];
 
-        Some(RangeId {
-            z,
+        Ok(RangeId {
+            z: target_z,
             f,
             x,
             y,

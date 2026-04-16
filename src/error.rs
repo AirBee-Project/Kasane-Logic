@@ -35,6 +35,11 @@ pub enum SpatialIdError {
     /// ズームレベルが有効範囲（0..=31）外であることを示す。
     ZOutOfRange { z: u8 },
 
+    /// ある操作に対して、現在のズームレベルと要求されたズームレベルの上下関係が不正であることを示す。
+    ///
+    /// たとえば、より深いズームレベルを要求する操作に対して浅いズームレベルを指定した場合などに使う。
+    ZoomLevelTransitionOutOfRange { current_z: u8, target_z: u8 },
+
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
     FOutOfRange { z: u8, f: i32 },
 
@@ -113,6 +118,16 @@ impl fmt::Display for SpatialIdError {
         match self {
             SpatialIdError::ZOutOfRange { z } => {
                 write!(f, "ZoomLevel '{}' is out of range (valid: 0..=60)", z)
+            }
+            SpatialIdError::ZoomLevelTransitionOutOfRange {
+                current_z,
+                target_z,
+            } => {
+                write!(
+                    f,
+                    "Target zoom level '{}' is invalid for current zoom level '{}'",
+                    target_z, current_z
+                )
             }
             SpatialIdError::FOutOfRange { z, f: fv } => {
                 write!(

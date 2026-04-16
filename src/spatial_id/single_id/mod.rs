@@ -35,6 +35,53 @@ pub struct SingleId {
     temporal_id: TemporalId,
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::{Error, SingleId, SpatialIdError};
+
+    #[test]
+    fn children_at_zoom_works() {
+        let id = SingleId::new(3, 3, 2, 7).unwrap();
+
+        let children: Vec<_> = id.spatial_children_at_zoom(4).unwrap().collect();
+
+        assert_eq!(children.len(), 8);
+        assert_eq!(children.first().unwrap().z(), 4);
+        assert_eq!(children.first().unwrap().f(), 6);
+        assert_eq!(children.first().unwrap().x(), 4);
+        assert_eq!(children.first().unwrap().y(), 14);
+    }
+
+    #[test]
+    fn parent_at_zoom_works() {
+        let id = SingleId::new(4, 6, 9, 14).unwrap();
+
+        let parent = id.spatial_parent_at_zoom(3).unwrap();
+
+        assert_eq!(parent.z(), 3u8);
+        assert_eq!(parent.f(), 3i32);
+        assert_eq!(parent.x(), 4u32);
+        assert_eq!(parent.y(), 7u32);
+    }
+
+    #[test]
+    fn zoom_direction_mismatch_returns_error() {
+        let id = SingleId::new(3, 3, 2, 7).unwrap();
+
+        let result = id.spatial_children_at_zoom(2);
+
+        assert!(matches!(
+            result,
+            Err(Error::SpatialId(
+                SpatialIdError::ZoomLevelTransitionOutOfRange {
+                    current_z: 3,
+                    target_z: 2
+                }
+            ))
+        ));
+    }
+}
+
 impl SingleId {
     /// この `SingleId` が保持しているズームレベル `z` を返します。
     ///
@@ -198,21 +245,22 @@ impl SingleId {
         Ok(())
     }
 
-    /// 指定したズームレベル差 `difference` に基づき、この `SingleId` が表す空間のすべての子 `SingleId` を生成します。
+    /// 指定したズームレベル `target_z` に細分化した、この `SingleId` を含むすべての子 `SingleId` を生成します。
     ///
     /// # パラメータ
-    /// * `difference` — 子 ID を計算する際に増加させるズームレベル差（差の値が0–63の範囲の場合に有効）
+    /// * `target_z` — 生成したい子 `SingleId` のズームレベル
     ///
     /// # バリデーション
-    /// - `self.z + difference` が `63` を超える場合、[`SpatialIdError::ZOutOfRange`] を返します。
+    /// - `target_z` が現在のズームレベルより浅い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返します。
+    /// - `target_z` が本クレートで扱える最大ズームレベルを超える場合は、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
-    /// `difference = 1` による細分化
+    /// 1段深いズームへの細分化
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     ///
-    /// // difference = 1 のため F, X, Y はそれぞれ 2 分割される
-    /// let children: Vec<_> = id.spatial_children(1).unwrap().collect();
+    /// // target_z = 4 のため F, X, Y はそれぞれ 2 分割される
+    /// let children: Vec<_> = id.spatial_children_at_zoom(4).unwrap().collect();
     ///
     /// assert_eq!(children.len(), 8); // 2 × 2 × 2
     ///
@@ -224,25 +272,30 @@ impl SingleId {
     /// assert_eq!(first.y(), 7 * 2);   // 8
     /// ```
     ///
-    /// ズームレベルの範囲外
+    /// 現在より浅いズームを指定した場合
     /// ```
     /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    /// let result = id.spatial_children(63);
-    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z: 66 }))));
+    /// let result = id.spatial_children_at_zoom(2);
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 2 }))));
     /// ```
-    pub fn spatial_children(
+    pub fn spatial_children_at_zoom(
         &self,
-        difference: u8,
+        target_z: u8,
     ) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let z = self
-            .z
-            .checked_add(difference)
-            .ok_or(SpatialIdError::ZOutOfRange { z: u8::MAX })?;
-
-        if z as usize > MAX_ZOOM_LEVEL {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        if target_z < self.z {
+            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
+                current_z: self.z,
+                target_z,
+            }
+            .into());
         }
+
+        if target_z as usize > MAX_ZOOM_LEVEL {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
+        }
+
+        let difference = target_z - self.z;
 
         let scale_f = 2_i32.pow(difference as u32);
         let scale_xy = 2_u32.pow(difference as u32);
@@ -261,7 +314,7 @@ impl SingleId {
 
             x_range.flat_map(move |x| {
                 y_range.clone().map(move |y| SingleId {
-                    z,
+                    z: target_z,
                     f,
                     x,
                     y,
@@ -272,20 +325,21 @@ impl SingleId {
         }))
     }
 
-    /// 指定したズームレベル差 `difference` に基づき、この `SingleId` の親 `SingleId` を返します。
+    /// 指定したズームレベル `target_z` に縮約した、この `SingleId` の親 `SingleId` を返します。
     ///
     /// # パラメータ
-    /// * `difference` — 親 ID を計算する際に減少させるズームレベル差
+    /// * `target_z` — 取得したい親 `SingleId` のズームレベル
     ///
     /// # バリデーション
-    /// - `self.z - difference < 0` の場合、親が存在しないため `None` を返します。
+    /// - `target_z` が現在のズームレベルより深い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返します。
+    /// - `target_z` が本クレートで扱える最大ズームレベルを超える場合は、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
-    /// `difference = 1` による上位層への移動
+    /// 1段浅いズームへの縮約
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     ///
-    /// let parent = id.spatial_parent(1).unwrap();
+    /// let parent = id.spatial_parent_at_zoom(3).unwrap();
     ///
     /// assert_eq!(parent.z(), 3u8);
     /// assert_eq!(parent.f(), 3i32);
@@ -298,7 +352,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, -1, 8, 12).unwrap();
     ///
-    /// let parent = id.spatial_parent(1).unwrap();
+    /// let parent = id.spatial_parent_at_zoom(3).unwrap();
     ///
     /// assert_eq!(parent.z(), 3u8);
     /// assert_eq!(parent.f(), -1i32);
@@ -306,16 +360,27 @@ impl SingleId {
     /// assert_eq!(parent.y(), 6u32);
     /// ```
     ///
-    /// ズームレベルの範囲外:
+    /// 現在より深いズームを指定した場合:
     /// ```
-    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    ///
-    /// // difference = 4 の場合は親が存在しないため None
-    /// assert!(id.spatial_parent(4).is_none());
+    /// let result = id.spatial_parent_at_zoom(4);
+    /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 4 }))));
     /// ```
-    pub fn spatial_parent(&self, difference: u8) -> Option<SingleId> {
-        let z = self.z.checked_sub(difference)?;
+    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<SingleId, Error> {
+        if target_z > self.z {
+            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
+                current_z: self.z,
+                target_z,
+            }
+            .into());
+        }
+
+        if target_z as usize > MAX_ZOOM_LEVEL {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
+        }
+
+        let difference = self.z - target_z;
         let f = if self.f == -1 {
             -1
         } else {
@@ -323,8 +388,9 @@ impl SingleId {
         };
         let x = self.x >> (difference as u32);
         let y = self.y >> (difference as u32);
-        Some(SingleId {
-            z,
+
+        Ok(SingleId {
+            z: target_z,
             f,
             x,
             y,
