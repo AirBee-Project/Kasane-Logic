@@ -1,5 +1,6 @@
 use crate::{
-    Dimension, FlexId, IterFlexIds, spatial_id::collection::flex_tree::core::convert::LeavesIter,
+    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, SingleId,
+    spatial_id::collection::flex_tree::core::convert::LeavesIter,
 };
 use node::Node;
 mod convert;
@@ -65,6 +66,50 @@ where
                     .max(flex_id.y_zoomlevel())
             })
             .max()
+    }
+
+    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出します。
+    ///
+    /// 返される `SingleId` はすべて同じズームレベルを持ち、その値は [`max_zoomlevel`](Self::max_zoomlevel)
+    /// と一致します。値 `V` は各 `SingleId` に対応づけたまま返します。
+    ///
+    /// 空の木では空のイテレータを返します。
+    ///
+    /// # 例
+    /// ```
+    /// # use kasane_logic::{FlexTreeCore, RangeId, SingleId};
+    /// let mut core = FlexTreeCore::new();
+    /// core.insert(SingleId::new(3, 3, 2, 7).unwrap(), 10);
+    /// core.insert(RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap(), 20);
+    ///
+    /// let max_z = core.max_zoomlevel().unwrap();
+    /// let exported: Vec<_> = core.flat_single_ids().collect();
+    ///
+    /// assert!(exported.iter().all(|(single_id, _)| single_id.z() == max_z));
+    /// ```
+    pub fn flat_single_ids(&self) -> std::vec::IntoIter<(SingleId, V)> {
+        let Some(max_zoomlevel) = self.max_zoomlevel() else {
+            return Vec::new().into_iter();
+        };
+
+        let mut exported = Vec::new();
+
+        for (flex_id, value) in self.iter() {
+            let range = RangeId::from(&flex_id);
+            let normalized = if range.z() == max_zoomlevel {
+                range
+            } else {
+                range
+                    .spatial_children_at_zoom(max_zoomlevel)
+                    .expect("target max zoomlevel must be valid")
+            };
+
+            for single_id in normalized.into_single_ids() {
+                exported.push((single_id, value.clone()));
+            }
+        }
+
+        exported.into_iter()
     }
 
     /// [FlexTreeCore]に空間IDを挿入する

@@ -1,4 +1,4 @@
-use crate::{FlexId, FlexTreeCore, IterFlexIds};
+use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId};
 pub mod convert;
 pub mod ops;
 pub mod test;
@@ -32,6 +32,18 @@ impl FlexTreeSet {
 
     pub fn count(&self) -> usize {
         self.inner.count()
+    }
+
+    pub fn max_zoomlevel(&self) -> Option<u8> {
+        self.inner.max_zoomlevel()
+    }
+
+    pub fn flat_single_ids(&self) -> std::vec::IntoIter<SingleId> {
+        self.inner
+            .flat_single_ids()
+            .map(|(single_id, _)| single_id)
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     pub fn clear(&mut self) {
