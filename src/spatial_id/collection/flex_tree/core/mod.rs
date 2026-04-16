@@ -43,6 +43,30 @@ where
         self.iter().count()
     }
 
+    /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。
+    ///
+    /// ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
+    /// 空の木では [`None`] を返します。
+    ///
+    /// # 例
+    /// ```
+    /// # use kasane_logic::{FlexTreeCore, RangeId};
+    /// let mut core = FlexTreeCore::new();
+    /// core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
+    /// assert_eq!(core.max_zoomlevel(), Some(4));
+    /// ```
+    pub fn max_zoomlevel(&self) -> Option<u8> {
+        //Todo:全探索にならない実装をしたほうが良い
+        self.iter()
+            .map(|(flex_id, _)| {
+                flex_id
+                    .f_zoomlevel()
+                    .max(flex_id.x_zoomlevel())
+                    .max(flex_id.y_zoomlevel())
+            })
+            .max()
+    }
+
     /// [FlexTreeCore]に空間IDを挿入する
     pub fn insert<S>(&mut self, target: S, value: V)
     where
