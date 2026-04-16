@@ -108,8 +108,20 @@ where
 
     /// 上下ルートをまとめて走査し、対象と重なる葉ノードを削除して収集する。
     fn prune_root_nodes(this: &mut Self, target: &FlexId, removed: &mut Vec<(FlexId, V)>) {
-        Self::prune_node(&mut this.lower_root, target, FlexId::LOWER_MAX, removed);
-        Self::prune_node(&mut this.upper_root, target, FlexId::UPPER_MAX, removed);
+        Self::prune_node(
+            &mut this.lower_root,
+            target,
+            FlexId::LOWER_MAX,
+            removed,
+            &mut this.lower_count,
+        );
+        Self::prune_node(
+            &mut this.upper_root,
+            target,
+            FlexId::UPPER_MAX,
+            removed,
+            &mut this.upper_count,
+        );
     }
 
     /// 対象領域と重なる部分木のみを再帰的に剪定して削除要素を収集する。
@@ -118,6 +130,7 @@ where
         target: &FlexId,
         current_id: FlexId,
         removed: &mut Vec<(FlexId, V)>,
+        root_count: &mut usize,
     ) {
         if current_id.intersection(target).is_none() {
             return;
@@ -138,11 +151,12 @@ where
                 target,
                 &current_id,
                 removed,
+                root_count,
             ),
             Node::Leaf { .. } => false,
         };
 
-        Self::restore_or_collect(node_opt, node, should_keep, current_id, removed);
+        Self::restore_or_collect(node_opt, node, should_keep, current_id, removed, root_count);
     }
 
     /// 分岐ノードの子を再帰的に剪定し、子が残っているかどうかを返す。
@@ -153,9 +167,26 @@ where
         target: &FlexId,
         current_id: &FlexId,
         removed: &mut Vec<(FlexId, V)>,
+        root_count: &mut usize,
     ) -> bool {
-        Self::prune_child(lower_child, axis, Side::Lower, target, current_id, removed);
-        Self::prune_child(upper_child, axis, Side::Upper, target, current_id, removed);
+        Self::prune_child(
+            lower_child,
+            axis,
+            Side::Lower,
+            target,
+            current_id,
+            removed,
+            root_count,
+        );
+        Self::prune_child(
+            upper_child,
+            axis,
+            Side::Upper,
+            target,
+            current_id,
+            removed,
+            root_count,
+        );
 
         lower_child.is_some() || upper_child.is_some()
     }
@@ -168,10 +199,11 @@ where
         target: &FlexId,
         current_id: &FlexId,
         removed: &mut Vec<(FlexId, V)>,
+        root_count: &mut usize,
     ) {
         if child.is_some() {
             let next_id = split_child_id(current_id, axis, side);
-            Self::prune_node(child, target, next_id, removed);
+            Self::prune_node(child, target, next_id, removed, root_count);
         }
     }
 
@@ -182,6 +214,7 @@ where
         should_keep: bool,
         current_id: FlexId,
         removed: &mut Vec<(FlexId, V)>,
+        root_count: &mut usize,
     ) {
         if should_keep {
             *node_opt = Some(node);
@@ -190,6 +223,7 @@ where
 
         if let Node::Leaf { value } = *node {
             removed.push((current_id, value));
+            *root_count -= 1;
         }
     }
 }

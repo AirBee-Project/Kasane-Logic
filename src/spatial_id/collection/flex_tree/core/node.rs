@@ -19,7 +19,7 @@ impl<V> Node<V>
 where
     V: PartialEq + Clone,
 {
-    /// 指定された空間IDと値を現在ノード配下へ挿入し、必要なら分岐や統合を行う。
+    /// 指定された空間IDと値を現在ノード配下へ挿入し、葉ノード数の差分を返す。
     pub fn insert(
         &mut self,
         target: FlexId,
@@ -27,10 +27,15 @@ where
         passed_f_z: u8,
         passed_x_z: u8,
         passed_y_z: u8,
-    ) {
+    ) -> isize {
         if Self::is_terminal_depth(&target, passed_f_z, passed_x_z, passed_y_z) {
+            let delta = match self {
+                Node::Leaf { value: existing } if existing == &value => 0,
+                Node::Leaf { .. } => 0,
+                Node::Branch { .. } => 1 - Self::subtree_leaf_count(self) as isize,
+            };
             *self = Node::Leaf { value };
-            return;
+            return delta;
         }
 
         match self {
@@ -39,7 +44,7 @@ where
                 lower_child,
                 upper_child,
             } => {
-                if let Some(merged) = Self::insert_into_branch(
+                let mut delta = Self::insert_into_branch(
                     *axis,
                     lower_child,
                     upper_child,
@@ -48,16 +53,22 @@ where
                     passed_f_z,
                     passed_x_z,
                     passed_y_z,
-                ) {
+                );
+
+                if let Some(merged) = Self::mergeable_leaf_value(lower_child, upper_child) {
+                    // 2つのLeafを1つに統合するため、葉ノード数差分は -1。
+                    delta -= 1;
                     *self = Node::Leaf { value: merged };
                 }
+
+                delta
             }
 
             Node::Leaf {
                 value: existing_value,
             } => {
                 if *existing_value == value {
-                    return;
+                    return 0;
                 }
 
                 let old_value = existing_value.clone();
@@ -72,7 +83,11 @@ where
                     upper_child: Some(Box::new(Node::Leaf { value: old_value })),
                 };
 
-                self.insert(target, value, passed_f_z, passed_x_z, passed_y_z);
+                // Leaf1個を子Leaf2個へ展開するので +1。
+                let split_delta = 1;
+                let recurse_delta = self.insert(target, value, passed_f_z, passed_x_z, passed_y_z);
+
+                split_delta + recurse_delta
             }
         }
     }
@@ -84,7 +99,7 @@ where
             && passed_y_z >= target.y_zoomlevel()
     }
 
-    /// Branchノードでの挿入方針を決定し、必要なら子挿入後に葉ノードへ統合する。
+    /// Branchノードでの挿入方針を決定し、子ノード側で生じた葉ノード数差分を返す。
     fn insert_into_branch(
         axis: Dimension,
         lower_child: &mut Option<Box<Node<V>>>,
@@ -94,26 +109,36 @@ where
         passed_f_z: u8,
         passed_x_z: u8,
         passed_y_z: u8,
-    ) -> Option<V> {
+    ) -> isize {
         let passed_z = Self::passed_zoom(axis, passed_f_z, passed_x_z, passed_y_z);
         let target_z = Self::target_zoom(axis, &target);
         let (nf, nx, ny) = Self::next_passed_depth(axis, passed_f_z, passed_x_z, passed_y_z);
 
+        let mut delta = 0;
+
         if passed_z >= target_z {
-            Self::insert_into_child(lower_child, axis, target.clone(), value.clone(), nf, nx, ny);
-            Self::insert_into_child(upper_child, axis, target, value, nf, nx, ny);
+            delta += Self::insert_into_child(
+                lower_child,
+                axis,
+                target.clone(),
+                value.clone(),
+                nf,
+                nx,
+                ny,
+            );
+            delta += Self::insert_into_child(upper_child, axis, target, value, nf, nx, ny);
         } else {
             match Self::forking(&target, &axis, &passed_z) {
                 Side::Lower => {
-                    Self::insert_into_child(lower_child, axis, target, value, nf, nx, ny)
+                    delta += Self::insert_into_child(lower_child, axis, target, value, nf, nx, ny);
                 }
                 Side::Upper => {
-                    Self::insert_into_child(upper_child, axis, target, value, nf, nx, ny)
+                    delta += Self::insert_into_child(upper_child, axis, target, value, nf, nx, ny);
                 }
             }
         }
 
-        Self::mergeable_leaf_value(lower_child, upper_child)
+        delta
     }
 
     /// 現在軸に対応する通過ズーム値を返す。
@@ -180,7 +205,7 @@ where
         }
     }
 
-    /// 子ノードを生成または再帰利用し、与えられた target を挿入する。
+    /// 子ノードを生成または再帰利用し、葉ノード数差分を返しながら target を挿入する。
     fn insert_into_child(
         child_opt: &mut Option<Box<Node<V>>>,
         current_axis: Dimension,
@@ -189,11 +214,9 @@ where
         nf: u8,
         nx: u8,
         ny: u8,
-    ) {
+    ) -> isize {
         match child_opt {
-            Some(child) => {
-                child.insert(target, value, nf, nx, ny);
-            }
+            Some(child) => child.insert(target, value, nf, nx, ny),
             None => match Self::next_dimension(current_axis, &target, nf, nx, ny) {
                 Some(next_axis) => {
                     let mut new_branch = Node::Branch {
@@ -201,14 +224,38 @@ where
                         lower_child: None,
                         upper_child: None,
                     };
-                    new_branch.insert(target, value, nf, nx, ny);
+                    let delta = new_branch.insert(target, value, nf, nx, ny);
                     *child_opt = Some(Box::new(new_branch));
+                    delta
                 }
                 None => {
                     // 全次元通過したら値付きのLeafを作る
                     *child_opt = Some(Box::new(Node::Leaf { value }));
+                    1
                 }
             },
+        }
+    }
+
+    /// 現在ノード配下の葉ノード数を再帰的に返す。
+    fn subtree_leaf_count(node: &Node<V>) -> usize {
+        match node {
+            Node::Leaf { .. } => 1,
+            Node::Branch {
+                lower_child,
+                upper_child,
+                ..
+            } => {
+                let lower = lower_child
+                    .as_deref()
+                    .map(Self::subtree_leaf_count)
+                    .unwrap_or(0);
+                let upper = upper_child
+                    .as_deref()
+                    .map(Self::subtree_leaf_count)
+                    .unwrap_or(0);
+                lower + upper
+            }
         }
     }
 
