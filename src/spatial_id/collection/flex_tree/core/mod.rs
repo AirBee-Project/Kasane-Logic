@@ -67,15 +67,21 @@ where
             }
         }
     }
-
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
-        S: IterFlexIds,
+        S: IterFlexIds + 'a,
+        V: Clone + 'a,
     {
-        target
-            .iter_flex_ids()
-            .flat_map(move |item| self.overlap(item))
+        target.iter_flex_ids().flat_map(move |item| {
+            self.overlap(item.clone())
+                .filter_map(move |(overlap_id, val)| {
+                    overlap_id
+                        // ここで安全に元の item を参照できる
+                        .intersection(&item)
+                        .map(|intersected_id| (intersected_id, val.clone()))
+                })
+        })
     }
 
     /// [FlexTreeCore]からTargetが示す領域を切り取って返す

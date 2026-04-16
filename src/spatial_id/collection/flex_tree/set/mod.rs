@@ -3,7 +3,7 @@ pub mod convert;
 pub mod ops;
 pub mod test;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct FlexTreeSet {
     inner: FlexTreeCore<()>,
 }
