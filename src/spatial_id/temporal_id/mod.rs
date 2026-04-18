@@ -9,7 +9,7 @@ pub mod ops;
 ///
 /// 内部的には下記のような構造体で構成されている。
 ///
-/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
+/// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の時間的な「大小」を意味するものではない。
 
 pub struct TemporalId {
     ///時間間隔(秒)
@@ -17,6 +17,9 @@ pub struct TemporalId {
     ///時間インデックス [開始, 終了]
     t: [u64; 2],
 }
+
+/// よく使われる時間間隔の定数表である。
+const COMMON_TEMPORAL_FACTORS: [u64; 11] = [86400, 3600, 1800, 900, 600, 300, 60, 30, 10, 5, 1];
 
 impl TemporalId {
     pub const MAX: TemporalId = TemporalId {
@@ -29,7 +32,7 @@ impl TemporalId {
     ///　各次元の与えられた2つの値は自動的に昇順に並び替えられ、常に `[min, max]` の形で内部に保持されます。
     ///
     /// # パラメーター
-    /// * `i` — インターバル（0–64::MAXの範囲が有効）
+    /// * `i` — インターバル（1–u64::MAXの範囲が有効）
     /// * `t1` — 時間方向の開始のTインデックス
     /// * `t2` — 時間方向の終了のTインデックス
     ///
@@ -89,12 +92,10 @@ impl TemporalId {
 
     /// Unix時間の全範囲 (0 から u64::MAX 秒まで) を表す以下の[TemporalId]を返す。
     ///
-    /// ```ignore
+    /// ```
     /// # use kasane_logic::TemporalId;
-    /// let result = TemporalId {
-    ///   i: u64::MAX,
-    ///   t: [0,0],
-    /// };
+    /// let result = TemporalId::whole();
+    /// assert!(result.is_whole());
     /// ```
     ///
     /// IDの作成:
@@ -145,7 +146,10 @@ impl TemporalId {
         let s = self.start_unixstamp() as u128;
         let e = self.end_unixtime_exclusive();
 
-        let mut new_i = Self::gcd(s, e);
+        let common_factor = Self::common_temporal_factor(s, e) as u128;
+        let reduced_s = s / common_factor;
+        let reduced_e = e / common_factor;
+        let mut new_i = common_factor * Self::gcd(reduced_s, reduced_e);
 
         if new_i == 0 {
             return;
@@ -163,7 +167,7 @@ impl TemporalId {
 
         *self = Self {
             i: new_i_u64,
-            t: [(s / new_i) as u64, (e / new_i) as u64 - 1],
+            t: [(s / new_i) as u64, (e / new_i - 1) as u64],
         };
     }
 
@@ -174,5 +178,83 @@ impl TemporalId {
             std::mem::swap(&mut a, &mut b);
         }
         a
+    }
+
+    /// 共通しやすい時間間隔のうち、両端に共通して掛かっている最大の因子を返す。
+    fn common_temporal_factor(a: u128, b: u128) -> u64 {
+        for factor in COMMON_TEMPORAL_FACTORS {
+            let factor = factor as u128;
+            if a.is_multiple_of(factor) && b.is_multiple_of(factor) {
+                return factor as u64;
+            }
+        }
+
+        1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TemporalId;
+
+    /// 固定秒数に揃う区間が optimize_i で正しくまとめられることを検証する。
+    #[test]
+    fn optimize_i_collapses_fixed_second_range() {
+        let mut temporal = TemporalId::new(1, [120, 179]).unwrap();
+
+        temporal.optimize_i();
+
+        assert_eq!(temporal.start_unixstamp(), 120);
+        assert_eq!(temporal.end_unixstamp_inclusive(), 179);
+        assert_eq!(temporal.length_seconds(), 60);
+    }
+
+    /// 全範囲に対して optimize_i が不変であることを検証する。
+    #[test]
+    fn optimize_i_keeps_whole_range_unchanged() {
+        let mut temporal = TemporalId::whole();
+
+        temporal.optimize_i();
+
+        assert!(temporal.is_whole());
+        assert_eq!(temporal.start_unixstamp(), 0);
+        assert_eq!(temporal.end_unixstamp_inclusive(), u64::MAX);
+    }
+
+    /// end_unixtime_exclusive が u64::MAX + 1 になる区間で optimize_i が panic しないことを検証する。
+    #[test]
+    fn optimize_i_does_not_panic_at_u64_max_boundary() {
+        let mut temporal = TemporalId::new(1, [1, u64::MAX]).unwrap();
+
+        temporal.optimize_i();
+
+        assert_eq!(temporal.start_unixstamp(), 1);
+        assert_eq!(temporal.end_unixstamp_inclusive(), u64::MAX);
+    }
+
+    /// 共通の時間単位を使う区間でも optimize_i が意味を保つことを検証する。
+    #[test]
+    fn optimize_i_keeps_common_unit_range_stable() {
+        let mut temporal = TemporalId::new(60, [5, 14]).unwrap();
+
+        temporal.optimize_i();
+
+        assert_eq!(temporal.start_unixstamp(), 300);
+        assert_eq!(temporal.end_unixstamp_inclusive(), 899);
+        assert_eq!(temporal.length_seconds(), 600);
+    }
+
+    /// end_unixtime_exclusive が u64::MAX + 1 になるケースで optimize_i が
+    /// panic せずに、範囲を保持することを検証する回帰テスト。
+    #[test]
+    fn optimize_i_no_panic_when_end_is_u64_max_plus_one() {
+        let mut temporal = TemporalId::new(1, [1, u64::MAX]).unwrap();
+        let start_before = temporal.start_unixstamp();
+        let end_before = temporal.end_unixstamp_inclusive();
+
+        temporal.optimize_i();
+
+        assert_eq!(temporal.start_unixstamp(), start_before);
+        assert_eq!(temporal.end_unixstamp_inclusive(), end_before);
     }
 }
