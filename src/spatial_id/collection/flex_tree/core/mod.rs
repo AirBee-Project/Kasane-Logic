@@ -1,6 +1,6 @@
 use crate::{
     Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId,
-    spatial_id::collection::flex_tree::core::convert::LeavesIter,
+    spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
 use node::Node;
 mod convert;
@@ -117,6 +117,44 @@ where
         exported.into_iter()
     }
 
+    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として参照付きで書き出します。
+    pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
+        let Some(max_zoomlevel) = self.max_zoomlevel() else {
+            return Box::new(std::iter::empty());
+        };
+
+        Box::new(self.iter_ref().flat_map(move |(flex_id, value)| {
+            let range = RangeId::from(&flex_id);
+            let normalized = if range.z() == max_zoomlevel {
+                range
+            } else {
+                range
+                    .spatial_children_at_zoom(max_zoomlevel)
+                    .expect("target max zoomlevel must be valid")
+            };
+
+            normalized
+                .into_single_ids()
+                .map(move |single_id| (single_id, value))
+        }))
+    }
+
+    /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueへの参照を全て取り出す。
+    pub fn get_ref<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: 'a,
+    {
+        target.iter_flex_ids().flat_map(move |item| {
+            self.overlap_ref(item.clone())
+                .filter_map(move |(overlap_id, val)| {
+                    overlap_id
+                        .intersection(&item)
+                        .map(|intersected_id| (intersected_id, val))
+                })
+        })
+    }
+
     /// [FlexTreeCore]に空間IDを挿入する
     pub fn insert<S>(&mut self, target: S, value: V)
     where
@@ -169,6 +207,13 @@ where
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         LeavesIter {
+            stack: self.root_node_stack(),
+        }
+    }
+
+    /// [FlexTreeCore]から全ての[FlexId]とValueへの参照を取り出す。
+    pub fn iter_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+        LeavesIterRef {
             stack: self.root_node_stack(),
         }
     }

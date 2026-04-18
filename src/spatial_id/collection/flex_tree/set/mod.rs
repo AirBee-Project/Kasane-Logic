@@ -55,7 +55,9 @@ impl FlexTreeSet {
     }
 
     pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> {
-        self.inner.flat_single_ids().map(|(single_id, _)| single_id)
+        self.inner
+            .flat_single_ids_ref()
+            .map(|(single_id, _)| single_id)
     }
 
     pub fn clear(&mut self) {

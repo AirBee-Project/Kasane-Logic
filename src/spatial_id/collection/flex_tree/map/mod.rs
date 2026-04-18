@@ -24,11 +24,11 @@ where
         self.inner.insert(target, value);
     }
 
-    pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: IterFlexIds,
     {
-        self.inner.get(target)
+        self.inner.get_ref(target)
     }
 
     pub fn remove<S: IterFlexIds>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)> {
@@ -43,8 +43,8 @@ where
         self.inner.max_zoomlevel()
     }
 
-    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
-        self.inner.flat_single_ids()
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> {
+        self.inner.flat_single_ids_ref()
     }
 
     pub fn clear(&mut self) {
@@ -55,7 +55,7 @@ where
         self.inner.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> {
-        self.inner.iter()
+    pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> {
+        self.inner.iter_ref()
     }
 }
