@@ -167,7 +167,7 @@ impl TemporalId {
 
         *self = Self {
             i: new_i_u64,
-            t: [(s / new_i) as u64, (e / new_i) as u64 - 1],
+            t: [(s / new_i) as u64, (e / new_i - 1) as u64],
         };
     }
 
@@ -231,5 +231,19 @@ mod tests {
         assert_eq!(temporal.start_unixstamp(), 300);
         assert_eq!(temporal.end_unixstamp_inclusive(), 899);
         assert_eq!(temporal.length_seconds(), 600);
+    }
+
+    /// end_unixtime_exclusive が u64::MAX + 1 になるケースで optimize_i が
+    /// panic せず、範囲を保持することを検証する回帰テスト。
+    #[test]
+    fn optimize_i_no_panic_when_end_is_u64_max_plus_one() {
+        let mut temporal = TemporalId::new(1, [1, u64::MAX]).unwrap();
+        let start_before = temporal.start_unixstamp();
+        let end_before = temporal.end_unixstamp_inclusive();
+
+        temporal.optimize_i();
+
+        assert_eq!(temporal.start_unixstamp(), start_before);
+        assert_eq!(temporal.end_unixstamp_inclusive(), end_before);
     }
 }
