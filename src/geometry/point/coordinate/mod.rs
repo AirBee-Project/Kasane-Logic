@@ -21,6 +21,7 @@ use crate::{
 ///     altitude: f64,
 /// }
 /// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Coordinate {
     latitude: f64,

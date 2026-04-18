@@ -90,6 +90,7 @@ dependencies = [
  "proptest",
  "rand",
  "rand_chacha",
+ "serde",
 ]
 
 [[package]]

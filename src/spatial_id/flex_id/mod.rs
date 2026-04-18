@@ -5,6 +5,7 @@ pub mod ops;
 
 use crate::{MAX_ZOOM_LEVEL, Side, SpatialId, TemporalId};
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
 ///拡張空間ID
 pub struct FlexId {
