@@ -154,10 +154,12 @@ impl SpatialId for SingleId {
                 })
             })?
         } else {
-            self.y.checked_sub(-by as u32).ok_or(SpatialIdError::YOutOfRange {
-                y: self.xy_min(),
-                z: self.z,
-            })?
+            self.y
+                .checked_sub(-by as u32)
+                .ok_or(SpatialIdError::YOutOfRange {
+                    y: self.xy_min(),
+                    z: self.z,
+                })?
         };
 
         if new > self.xy_max() {

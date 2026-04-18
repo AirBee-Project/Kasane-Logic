@@ -1,6 +1,5 @@
 use crate::{
-    RangeId, TemporalId,
-    SpatialIdError,
+    RangeId, SpatialIdError, TemporalId,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
@@ -54,7 +53,7 @@ impl RangeId {
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
-        Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+        Self::new_with_temporal(z, f, x, y, TemporalId::WHOLE)
     }
 
     /// 検証を行わずに [`RangeId`] を構築します。
@@ -84,7 +83,7 @@ impl RangeId {
     /// assert_eq!(id.y(), [5,10]);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
-        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::whole()) }
+        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::WHOLE) }
     }
 
     pub fn new_with_temporal(

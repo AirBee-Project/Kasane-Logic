@@ -18,7 +18,12 @@ mod tests {
         assert_eq!(removed[0].1, 10);
         assert_eq!(map.count(), map.iter().count());
         assert!(map.get(&first).next().is_none());
-        assert_eq!(map.get(&second).map(|(_, value)| *value).collect::<Vec<_>>(), vec![20]);
+        assert_eq!(
+            map.get(&second)
+                .map(|(_, value)| *value)
+                .collect::<Vec<_>>(),
+            vec![20]
+        );
     }
 
     /// 値が削除された後に、iter() が残った要素だけを返すことを検証する。
@@ -32,7 +37,10 @@ mod tests {
         ]);
 
         let _ = map.remove(&first).collect::<Vec<_>>();
-        let remaining: Vec<_> = map.iter().map(|(flex_id, value)| (flex_id, *value)).collect();
+        let remaining: Vec<_> = map
+            .iter()
+            .map(|(flex_id, value)| (flex_id, *value))
+            .collect();
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].1, 20);
     }

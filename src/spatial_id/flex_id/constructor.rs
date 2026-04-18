@@ -16,7 +16,7 @@ impl FlexId {
             x_index,
             y_zoomlevel,
             y_index,
-            TemporalId::whole(),
+            TemporalId::WHOLE,
         )
     }
 
@@ -35,7 +35,7 @@ impl FlexId {
             x_index,
             y_zoomlevel,
             y_index,
-            temporal_id: TemporalId::whole(),
+            temporal_id: TemporalId::WHOLE,
         }
     }
 

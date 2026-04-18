@@ -1,8 +1,7 @@
 use crate::SingleId;
 
 use crate::{
-    SpatialIdError,
-    TemporalId,
+    SpatialIdError, TemporalId,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
@@ -47,7 +46,7 @@ impl SingleId {
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
-        Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+        Self::new_with_temporal(z, f, x, y, TemporalId::WHOLE)
     }
 
     /// 検証を行わずに [`SingleId`] を構築します。
@@ -82,7 +81,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalId::whole(),
+            temporal_id: TemporalId::WHOLE,
         }
     }
 
