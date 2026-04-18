@@ -12,6 +12,30 @@ where
     stack: Vec<(&'a Node<V>, FlexId)>,
 }
 
+/// 重なり合う領域のみを参照付きで遅延評価で探索するイテレータ
+pub struct OverlapIterRef<'a, V>
+where
+    V: Clone + PartialEq,
+{
+    target: FlexId,
+    stack: Vec<(&'a Node<V>, FlexId)>,
+}
+
+/// 子ノードが存在する場合に、対応する分割 ID と一緒にスタックへ積む。
+fn push_child<'a, V>(
+    stack: &mut Vec<(&'a Node<V>, FlexId)>,
+    axis: Dimension,
+    side: Side,
+    child: Option<&'a Node<V>>,
+    current_id: &FlexId,
+) where
+    V: PartialEq + Clone,
+{
+    if let Some(child) = child {
+        stack.push((child, split_child_id(current_id, axis, side)));
+    }
+}
+
 impl<'a, V> OverlapIter<'a, V>
 where
     V: PartialEq + Clone,
@@ -24,33 +48,8 @@ where
         upper_child: &'a Option<Box<Node<V>>>,
         current_id: &FlexId,
     ) {
-        Self::push_child(
-            &mut self.stack,
-            axis,
-            Side::Upper,
-            upper_child.as_deref(),
-            current_id,
-        );
-        Self::push_child(
-            &mut self.stack,
-            axis,
-            Side::Lower,
-            lower_child.as_deref(),
-            current_id,
-        );
-    }
-
-    /// 子ノードが存在する場合に、対応する分割 ID と一緒にスタックへ積む。
-    fn push_child(
-        stack: &mut Vec<(&'a Node<V>, FlexId)>,
-        axis: Dimension,
-        side: Side,
-        child: Option<&'a Node<V>>,
-        current_id: &FlexId,
-    ) {
-        if let Some(child) = child {
-            stack.push((child, split_child_id(current_id, axis, side)));
-        }
+        push_child(&mut self.stack, axis, Side::Upper, upper_child.as_deref(), current_id);
+        push_child(&mut self.stack, axis, Side::Lower, lower_child.as_deref(), current_id);
     }
 }
 
@@ -85,6 +84,38 @@ where
     }
 }
 
+impl<'a, V> Iterator for OverlapIterRef<'a, V>
+where
+    V: PartialEq + Clone,
+{
+    type Item = (FlexId, &'a V);
+
+    /// スタックを深さ優先でたどり、target と重なる葉ノードだけを順次返す。
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((node, current_id)) = self.stack.pop() {
+            if current_id.intersection(&self.target).is_none() {
+                continue;
+            }
+
+            match node {
+                Node::Branch {
+                    axis,
+                    lower_child,
+                    upper_child,
+                } => {
+                    push_child(&mut self.stack, *axis, Side::Upper, upper_child.as_deref(), &current_id);
+                    push_child(&mut self.stack, *axis, Side::Lower, lower_child.as_deref(), &current_id);
+                }
+                Node::Leaf { value } => {
+                    return Some((current_id, value));
+                }
+            }
+        }
+
+        None
+    }
+}
+
 impl<V> FlexTreeCore<V>
 where
     V: Clone + PartialEq,
@@ -92,6 +123,14 @@ where
     ///Targetと重なっている[FlexId]とValueを全て取得する関数
     pub fn overlap(&self, target: FlexId) -> impl Iterator<Item = (FlexId, V)> + '_ {
         OverlapIter {
+            target,
+            stack: self.root_node_stack(),
+        }
+    }
+
+    ///Targetと重なっている[FlexId]とそのValueへの参照を全て取得する関数
+    pub fn overlap_ref(&self, target: FlexId) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+        OverlapIterRef {
             target,
             stack: self.root_node_stack(),
         }
