@@ -1,5 +1,5 @@
 use crate::{
-    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId,
+    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
 use node::Node;
@@ -161,6 +161,9 @@ where
         S: IterFlexIds,
     {
         for flex_id in target.iter_flex_ids() {
+            if !flex_id.temporal().is_whole() {
+                panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
+            }
             self.insert_flex_id(flex_id, value.clone());
         }
     }

@@ -27,7 +27,7 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: 0,
         y_index: 0,
-        temporal_id: TemporalId::MAX,
+        temporal_id: TemporalId::WHOLE,
     };
 
     pub const LOWER_MAX: FlexId = FlexId {
@@ -37,7 +37,7 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: 0,
         y_index: 0,
-        temporal_id: TemporalId::MAX,
+        temporal_id: TemporalId::WHOLE,
     };
 
     pub fn f_zoomlevel(&self) -> u8 {

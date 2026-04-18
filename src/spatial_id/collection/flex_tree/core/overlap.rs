@@ -48,8 +48,20 @@ where
         upper_child: &'a Option<Box<Node<V>>>,
         current_id: &FlexId,
     ) {
-        push_child(&mut self.stack, axis, Side::Upper, upper_child.as_deref(), current_id);
-        push_child(&mut self.stack, axis, Side::Lower, lower_child.as_deref(), current_id);
+        push_child(
+            &mut self.stack,
+            axis,
+            Side::Upper,
+            upper_child.as_deref(),
+            current_id,
+        );
+        push_child(
+            &mut self.stack,
+            axis,
+            Side::Lower,
+            lower_child.as_deref(),
+            current_id,
+        );
     }
 }
 
@@ -103,8 +115,20 @@ where
                     lower_child,
                     upper_child,
                 } => {
-                    push_child(&mut self.stack, *axis, Side::Upper, upper_child.as_deref(), &current_id);
-                    push_child(&mut self.stack, *axis, Side::Lower, lower_child.as_deref(), &current_id);
+                    push_child(
+                        &mut self.stack,
+                        *axis,
+                        Side::Upper,
+                        upper_child.as_deref(),
+                        &current_id,
+                    );
+                    push_child(
+                        &mut self.stack,
+                        *axis,
+                        Side::Lower,
+                        lower_child.as_deref(),
+                        &current_id,
+                    );
                 }
                 Node::Leaf { value } => {
                     return Some((current_id, value));

@@ -22,7 +22,19 @@ pub struct TemporalId {
 const COMMON_TEMPORAL_FACTORS: [u64; 11] = [86400, 3600, 1800, 900, 600, 300, 60, 30, 10, 5, 1];
 
 impl TemporalId {
-    pub const MAX: TemporalId = TemporalId {
+    /// Unix時間の全範囲を表す [`TemporalId`] の標準定数です。
+    ///
+    /// 現時点では、時空間IDの多くの公開APIはこの値のみを受け付けます。
+    /// `TemporalId` を明示的に全範囲へ揃えたい場合はこの定数を使います。
+    ///
+    /// ```
+    /// # use kasane_logic::TemporalId;
+    /// let whole = TemporalId::WHOLE;
+    /// assert!(whole.is_whole());
+    /// assert_eq!(whole.start_unixstamp(), 0);
+    /// assert_eq!(whole.end_unixstamp_inclusive(), u64::MAX);
+    /// ```
+    pub const WHOLE: TemporalId = TemporalId {
         i: 1,
         t: [0, u64::MAX],
     };
@@ -88,29 +100,6 @@ impl TemporalId {
         }
 
         Ok(Self { i, t })
-    }
-
-    /// Unix時間の全範囲 (0 から u64::MAX 秒まで) を表す以下の[TemporalId]を返す。
-    ///
-    /// ```
-    /// # use kasane_logic::TemporalId;
-    /// let result = TemporalId::whole();
-    /// assert!(result.is_whole());
-    /// ```
-    ///
-    /// IDの作成:
-    /// ```
-    /// # use kasane_logic::TemporalId;
-    ///
-    /// let id=TemporalId::whole();
-    /// assert_eq!(id.start_unixstamp(),0);
-    /// assert_eq!(id.end_unixstamp_inclusive(),u64::MAX);
-    /// ```
-    pub fn whole() -> Self {
-        Self {
-            i: 1,
-            t: [0, u64::MAX],
-        }
     }
 
     /// 全範囲を表しているか判定する
@@ -212,7 +201,7 @@ mod tests {
     /// 全範囲に対して optimize_i が不変であることを検証する。
     #[test]
     fn optimize_i_keeps_whole_range_unchanged() {
-        let mut temporal = TemporalId::whole();
+        let mut temporal = TemporalId::WHOLE;
 
         temporal.optimize_i();
 

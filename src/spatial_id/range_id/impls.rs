@@ -121,14 +121,18 @@ impl SpatialId for RangeId {
             let max = self.xy_max();
             let z = self.z;
 
-            let ns = self.y[0].checked_sub(byu).ok_or(SpatialIdError::YOutOfRange {
-                y: self.xy_min(),
-                z,
-            })?;
-            let ne = self.y[1].checked_sub(byu).ok_or(SpatialIdError::YOutOfRange {
-                y: self.xy_min(),
-                z,
-            })?;
+            let ns = self.y[0]
+                .checked_sub(byu)
+                .ok_or(SpatialIdError::YOutOfRange {
+                    y: self.xy_min(),
+                    z,
+                })?;
+            let ne = self.y[1]
+                .checked_sub(byu)
+                .ok_or(SpatialIdError::YOutOfRange {
+                    y: self.xy_min(),
+                    z,
+                })?;
 
             if ns > max {
                 return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());

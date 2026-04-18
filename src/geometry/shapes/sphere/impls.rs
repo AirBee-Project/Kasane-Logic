@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, Ecef, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialId, SpatialIdError, Sphere,
-    WGS84_A, geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
+    Coordinate, Ecef, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialId, SpatialIdError, Sphere, WGS84_A,
+    geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
 };
 
 impl Shape for Sphere {

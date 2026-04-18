@@ -24,7 +24,10 @@ mod tests {
         assert_eq!(flex_id.y_zoomlevel(), 4);
         assert_eq!(flex_id.y_index(), 1);
         assert!(table.value_get(&10).next().is_none());
-        assert_eq!(table.value_get(&20).collect::<Vec<_>>(), vec![FlexId::from(second)]);
+        assert_eq!(
+            table.value_get(&20).collect::<Vec<_>>(),
+            vec![FlexId::from(second)]
+        );
         assert_eq!(table.count(), table.iter().count());
     }
 
