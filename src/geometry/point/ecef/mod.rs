@@ -1,11 +1,6 @@
 pub mod impls;
 
-use crate::{
-    error::Error,
-    geometry::point::coordinate::Coordinate,
-    RangeId,
-    SingleId,
-};
+use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordinate};
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
 ///
@@ -15,6 +10,7 @@ use crate::{
 /// * Z 軸は北極方向
 ///
 /// 単位はすべてメートル。
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Ecef {
     x: f64,

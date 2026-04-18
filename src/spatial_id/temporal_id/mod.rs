@@ -4,6 +4,7 @@ use crate::{error::Error, SpatialIdError};
 pub mod impls;
 pub mod ops;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///[TemporalId]は時間IDの区間表現を表す型。
 ///

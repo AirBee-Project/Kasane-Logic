@@ -50,6 +50,7 @@ pub fn altitude(f: f64, z: u8) -> f64 {
 }
 
 ///次元を選択するEnum
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(C)]
 pub enum Dimension {
@@ -62,6 +63,7 @@ pub enum Dimension {
 
 /// 座標軸で小さい側:[Side::Lower]
 /// 座標軸で大きい側:[Side::Upper]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(C)]
 pub enum Side {
