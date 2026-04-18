@@ -1,6 +1,7 @@
 use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId};
 pub mod convert;
 pub mod export;
+pub mod test;
 
 #[derive(Default, Clone)]
 pub struct FlexTreeMap<V>
