@@ -5,7 +5,6 @@ pub mod convert;
 use crate::{FlexId, FlexTreeCore, FlexTreeSet, IterFlexIds, SingleId};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
-/// 内部で正規化された FlexTreeCore と、値からの逆引きインデックスを保持します。
 #[derive(Default, Clone)]
 pub struct FlexTreeTable<V>
 where
@@ -31,7 +30,7 @@ impl<V> FlexTreeTable<V>
 where
     V: PartialEq + Ord + Clone,
 {
-    /// 空の FlexTreeTable を作成します。
+    /// 空の[FlexTreeTable]を作成します。
     pub fn new() -> Self {
         Self {
             inner: FlexTreeCore::default(),
@@ -42,7 +41,7 @@ where
         }
     }
 
-    /// 空間に値を挿入（または上書き）します。
+    /// 空間に値を挿入します。
     pub fn insert<S: IterFlexIds + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
@@ -120,7 +119,7 @@ where
         results.into_iter()
     }
 
-    /// 保持している FlexId (Leaf) の総数を返します。
+    /// 保持している[FlexId]の総数を返します。
     pub fn count(&self) -> usize {
         self.inner.count()
     }
@@ -130,7 +129,7 @@ where
         self.inner.max_zoomlevel()
     }
 
-    /// 最下層の SingleId レベルまで展開したイテレータを返します。
+    /// 最下層の[SingleId]レベルまで展開したイテレータを返します。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> + '_ {
         self.inner.flat_single_ids().map(|(single_id, rank)| {
             let value = self.reverse_dictionary.get(&rank).unwrap().clone();
@@ -138,25 +137,51 @@ where
         })
     }
 
-    /// 特定の値（value）を持つすべての空間領域（FlexId）を返します。
-    /// 逆引きインデックスを使用するため、ツリー全体を探索せずに O(log N) で即座に結果を返します。
-    pub fn value_find(&self, value: V) -> Option<impl Iterator<Item = FlexId> + '_> {
-        let rank = self.dictionary.get(&value)?;
-        let set = self.value_index.get(rank)?;
-        // 正規化された FlexTreeSet のイテレータをそのまま返す
-        Some(set.iter())
+    /// 特定の値を持つすべての全ての[FlexId]を返します。
+    pub fn value_find(&self, value: V) -> impl Iterator<Item = FlexId> + '_ {
+        // 見つかった値に対応する集合だけを遅延展開して返す。
+        self.dictionary
+            .get(&value)
+            .and_then(|rank| self.value_index.get(rank))
+            .into_iter()
+            .flat_map(|set| set.iter())
     }
 
-    /// 範囲条件（BTreeMap の RangeBounds）に一致するすべての値の空間領域を返します。
-    pub fn value_range<R: RangeBounds<V>>(&self, range: R) -> impl Iterator<Item = FlexId> + '_ {
-        self.dictionary
-            .range(range)
-            .filter_map(move |(_val, rank)| self.value_index.get(rank))
-            .flat_map(|set| set.iter())
+    /// 範囲条件に一致する全ての値の[FlexId]と値のペアを返します。
+    pub fn value_range<R: RangeBounds<V>>(
+        &self,
+        range: R,
+    ) -> impl Iterator<Item = (FlexId, V)> + '_ {
+        self.dictionary.range(range).flat_map(move |(val, rank)| {
+            let set = self.value_index.get(rank).expect("Index mismatch");
+            let val_clone = val.clone();
+            set.iter().map(move |flex_id| (flex_id, val_clone.clone()))
+        })
     }
 
     /// テーブルが空かどうかを返します
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// テーブルに保持されている全ての空間と値のペアを返します。
+    pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
+        self.inner.iter().map(move |(flex_id, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch")
+                .clone();
+            (flex_id, value)
+        })
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = V> + '_ {
+        self.dictionary.keys().cloned()
+    }
+
+    #[deprecated(note = "use values() instead")]
+    pub fn iter_value(&self) -> impl Iterator<Item = V> + '_ {
+        self.values()
     }
 }
