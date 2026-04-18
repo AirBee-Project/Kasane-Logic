@@ -1,7 +1,16 @@
+#[cfg(not(feature = "temporal_id"))]
+mod disabled;
+#[cfg(not(feature = "temporal_id"))]
+pub use disabled::TemporalId;
+
+#[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};
+#[cfg(feature = "temporal_id")]
 pub mod impls;
+#[cfg(feature = "temporal_id")]
 pub mod ops;
 
+#[cfg(feature = "temporal_id")]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -19,8 +28,10 @@ pub struct TemporalId {
 }
 
 /// よく使われる時間間隔の定数表である。
+#[cfg(feature = "temporal_id")]
 const COMMON_TEMPORAL_FACTORS: [u64; 11] = [86400, 3600, 1800, 900, 600, 300, 60, 30, 10, 5, 1];
 
+#[cfg(feature = "temporal_id")]
 impl TemporalId {
     /// Unix時間の全範囲を表す [`TemporalId`] の標準定数です。
     ///
@@ -182,7 +193,7 @@ impl TemporalId {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "temporal_id"))]
 mod tests {
     use super::TemporalId;
 

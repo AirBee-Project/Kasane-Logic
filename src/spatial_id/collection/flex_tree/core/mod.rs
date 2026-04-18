@@ -161,7 +161,7 @@ where
         S: IterFlexIds,
     {
         for flex_id in target.iter_flex_ids() {
-            if !flex_id.temporal().is_whole() {
+            if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
                 panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
             }
             self.insert_flex_id(flex_id, value.clone());
@@ -182,6 +182,18 @@ where
                         .map(|intersected_id| (intersected_id, val.clone()))
                 })
         })
+    }
+
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn insert_accepts_non_whole_temporal_ids() {
+        let mut core = FlexTreeCore::new();
+        let temporal = TemporalId::new(60, [0, 0]).unwrap();
+        let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
+
+        core.insert(id, ());
+
+        assert_eq!(core.count(), 1);
     }
 
     /// [FlexTreeCore]からTargetが示す領域を切り取って返す
