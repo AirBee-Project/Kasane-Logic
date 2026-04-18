@@ -1,4 +1,4 @@
-use crate::{error::Error, SpatialIdError};
+use crate::{SpatialIdError, error::Error};
 pub mod impls;
 pub mod ops;
 
