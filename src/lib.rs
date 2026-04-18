@@ -59,6 +59,9 @@ pub use spatial_id::collection::flex_tree::map::FlexTreeMap;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::FlexTreeSet;
 
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::table::FlexTreeTable;
+
 // spatial_id: traits
 #[doc(inline)]
 pub use spatial_id::helpers::{Dimension, Side};

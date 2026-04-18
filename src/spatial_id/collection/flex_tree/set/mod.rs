@@ -17,7 +17,8 @@ impl PartialEq for FlexTreeSet {
             .unwrap_or(0)
             .max(other.max_zoomlevel().unwrap_or(0));
 
-        self.normalized_single_ids_at_zoom(common_z) == other.normalized_single_ids_at_zoom(common_z)
+        self.normalized_single_ids_at_zoom(common_z)
+            == other.normalized_single_ids_at_zoom(common_z)
     }
 }
 
@@ -53,7 +54,7 @@ impl FlexTreeSet {
         self.inner.max_zoomlevel()
     }
 
-    pub fn flat_single_ids(&self) -> std::vec::IntoIter<SingleId> {
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> {
         self.inner
             .flat_single_ids()
             .map(|(single_id, _)| single_id)

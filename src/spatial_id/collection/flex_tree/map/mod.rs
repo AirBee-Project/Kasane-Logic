@@ -1,6 +1,7 @@
 use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId};
 pub mod convert;
 
+#[derive(Default, Clone)]
 pub struct FlexTreeMap<V>
 where
     V: PartialEq + Clone,
@@ -41,7 +42,7 @@ where
         self.inner.max_zoomlevel()
     }
 
-    pub fn flat_single_ids(&self) -> std::vec::IntoIter<(SingleId, V)> {
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
         self.inner.flat_single_ids()
     }
 

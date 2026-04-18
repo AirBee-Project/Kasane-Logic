@@ -92,7 +92,7 @@ where
     ///
     /// assert!(exported.iter().all(|(single_id, _)| single_id.z() == max_z));
     /// ```
-    pub fn flat_single_ids(&self) -> std::vec::IntoIter<(SingleId, V)> {
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Vec::new().into_iter();
         };
