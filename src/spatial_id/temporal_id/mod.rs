@@ -1,10 +1,9 @@
-use std::num::NonZeroU64;
-
 use crate::{error::Error, SpatialIdError};
 pub mod impls;
 pub mod ops;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///[TemporalId]は時間IDの区間表現を表す型。
 ///
@@ -14,14 +13,14 @@ pub mod ops;
 
 pub struct TemporalId {
     ///時間間隔(秒)
-    i: NonZeroU64,
+    i: u64,
     ///時間インデックス [開始, 終了]
     t: [u64; 2],
 }
 
 impl TemporalId {
     pub const MAX: TemporalId = TemporalId {
-        i: NonZeroU64::new(1).unwrap(),
+        i: 1,
         t: [0, u64::MAX],
     };
 
@@ -70,29 +69,30 @@ impl TemporalId {
     /// assert_eq!(id, Err(SpatialIdError::TIntervalZero.into()));
     /// ```
     pub fn new(i: u64, mut t: [u64; 2]) -> Result<Self, Error> {
-        let i_non_zero = NonZeroU64::new(i).ok_or_else(|| Error::from(SpatialIdError::TIntervalZero))?;
+        if i == 0 {
+            return Err(SpatialIdError::TIntervalZero.into());
+        }
 
         if t[0] > t[1] {
             t.swap(0, 1);
         }
 
-        let i_u128 = i_non_zero.get() as u128;
+        let i_u128 = i as u128;
         let inclusive_end = i_u128 * (t[1] as u128) + i_u128 - 1;
 
         if inclusive_end > u64::MAX as u128 {
             return Err(SpatialIdError::TOutOfRange { i, t: t[1] }.into());
         }
 
-        Ok(Self { i: i_non_zero, t })
+        Ok(Self { i, t })
     }
 
     /// Unix時間の全範囲 (0 から u64::MAX 秒まで) を表す以下の[TemporalId]を返す。
     ///
     /// ```ignore
-    /// # use std::num::NonZero;
     /// # use kasane_logic::TemporalId;
     /// let result = TemporalId {
-    ///   i: NonZero::new(u64::MAX).unwrap(),
+    ///   i: u64::MAX,
     ///   t: [0,0],
     /// };
     /// ```
@@ -107,7 +107,7 @@ impl TemporalId {
     /// ```
     pub fn whole() -> Self {
         Self {
-            i: NonZeroU64::new(1).unwrap(),
+            i: 1,
             t: [0, u64::MAX],
         }
     }
@@ -119,20 +119,20 @@ impl TemporalId {
 
     /// 実際の開始時刻 (Unix時間の経過秒数) を返す
     pub fn start_unixstamp(&self) -> u64 {
-        self.i.get() * self.t[0]
+        self.i * self.t[0]
     }
 
     /// 区間が包含する「最後の1秒」の時刻 (Inclusive) を返す。
     /// 仕様により、この値は必ず 0 から u64::MAX の間に収まります。
     pub fn end_unixstamp_inclusive(&self) -> u64 {
         // new() でチェック済みのためダウンキャストは安全
-        ((self.i.get() as u128) * (self.t[1] as u128) + (self.i.get() as u128) - 1) as u64
+        ((self.i as u128) * (self.t[1] as u128) + (self.i as u128) - 1) as u64
     }
 
     /// 次の区間の開始時刻、すなわち「終了時刻の直後」 (Exclusive) を返す。
     /// u64::MAXまでカバーしている場合、戻り値は (u64::MAX + 1) となるため u128 で返します。
     pub fn end_unixtime_exclusive(&self) -> u128 {
-        (self.i.get() as u128) * ((self.t[1] as u128) + 1)
+        (self.i as u128) * ((self.t[1] as u128) + 1)
     }
 
     /// 秒単位で長さを返す
@@ -162,7 +162,7 @@ impl TemporalId {
         let new_i_u64 = new_i as u64;
 
         *self = Self {
-            i: NonZeroU64::new(new_i_u64).expect("Optimized interval cannot be zero"),
+            i: new_i_u64,
             t: [(s / new_i) as u64, (e / new_i) as u64 - 1],
         };
     }
