@@ -6,6 +6,7 @@ pub mod geometry;
 /// 空間IDに関する型を定義。
 pub mod spatial_id;
 
+// `temporal_id` feature を有効にすると、時空間IDの公開APIを時間対応で使えます。
 #[doc(inline)]
 pub use error::Error;
 #[doc(inline)]
