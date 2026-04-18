@@ -1,4 +1,28 @@
+use std::fmt;
+
 use crate::{FlexId, SpatialId, TemporalId};
+
+impl fmt::Display for FlexId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //空間の情報の書き込み
+        write!(
+            f,
+            "{}/{}|{}/{}|{}/{}",
+            self.f_zoomlevel,
+            self.f_index,
+            self.x_zoomlevel,
+            self.x_index,
+            self.y_zoomlevel,
+            self.y_index
+        )?;
+
+        //時間の情報があれば書き込み
+        if !self.temporal_id.is_whole() {
+            write!(f, "_{}", self.temporal_id)?;
+        };
+        Ok(())
+    }
+}
 
 impl SpatialId for FlexId {
     fn f_min(&self) -> i32 {
