@@ -221,6 +221,17 @@ mod tests {
         assert_eq!(temporal.end_unixstamp_inclusive(), u64::MAX);
     }
 
+    /// end_unixtime_exclusive が u64::MAX + 1 になる区間で optimize_i が panic しないことを検証する。
+    #[test]
+    fn optimize_i_does_not_panic_at_u64_max_boundary() {
+        let mut temporal = TemporalId::new(1, [1, u64::MAX]).unwrap();
+
+        temporal.optimize_i();
+
+        assert_eq!(temporal.start_unixstamp(), 1);
+        assert_eq!(temporal.end_unixstamp_inclusive(), u64::MAX);
+    }
+
     /// 共通の時間単位を使う区間でも optimize_i が意味を保つことを検証する。
     #[test]
     fn optimize_i_keeps_common_unit_range_stable() {
