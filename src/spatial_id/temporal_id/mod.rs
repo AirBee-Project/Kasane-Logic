@@ -245,7 +245,7 @@ mod tests {
     }
 
     /// end_unixtime_exclusive が u64::MAX + 1 になるケースで optimize_i が
-    /// panic せず、範囲を保持することを検証する回帰テスト。
+    /// panic せずに、範囲を保持することを検証する回帰テスト。
     #[test]
     fn optimize_i_no_panic_when_end_is_u64_max_plus_one() {
         let mut temporal = TemporalId::new(1, [1, u64::MAX]).unwrap();
