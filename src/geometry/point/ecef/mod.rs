@@ -11,6 +11,7 @@ use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordi
 ///
 /// 単位はすべてメートル。
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Ecef {
     x: f64,
