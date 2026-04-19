@@ -141,6 +141,14 @@ impl TemporalId {
         self.end_unixtime_exclusive() - (self.start_unixstamp() as u128)
     }
 
+    pub fn i(&self) -> u64 {
+        self.i
+    }
+
+    pub fn t(&self) -> [u64; 2] {
+        self.t
+    }
+
     /// 情報を失わないまま `i`（時間間隔）を最大化します。
     pub fn optimize_i(&mut self) {
         let s = self.start_unixstamp() as u128;

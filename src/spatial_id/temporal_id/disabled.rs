@@ -34,6 +34,14 @@ impl TemporalId {
         self.end_unixtime_exclusive()
     }
 
+    pub fn i(&self) -> u64 {
+        1
+    }
+
+    pub fn t(&self) -> [u64; 2] {
+        [0, u64::MAX]
+    }
+
     pub fn optimize_i(&mut self) {}
 
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
