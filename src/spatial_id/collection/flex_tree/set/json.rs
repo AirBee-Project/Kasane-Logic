@@ -31,7 +31,6 @@ struct OutputId {
 #[derive(Serialize)]
 struct OutputData {
     name: &'static str,
-    value: Vec<()>,
     ids: Vec<OutputId>,
 }
 
@@ -84,11 +83,7 @@ impl FlexTreeSet {
                 description: "",
             },
             option: OutputOption {},
-            data: vec![OutputData {
-                name: "",
-                value: Vec::new(),
-                ids,
-            }],
+            data: vec![OutputData { name: "", ids }],
         };
 
         serde_json::to_string(&root).unwrap()
