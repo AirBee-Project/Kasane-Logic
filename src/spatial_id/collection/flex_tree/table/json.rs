@@ -62,26 +62,35 @@ where
             }
         }
 
-        let ids: Vec<_> = self.iter().map(|(flex_id, val)| {
-            let range_id = RangeId::from(&flex_id);
-            let f = range_id.f();
-            let x = range_id.x();
-            let y = range_id.y();
-            let temp = range_id.temporal();
+        let ids: Vec<_> = self
+            .iter()
+            .map(|(flex_id, val)| {
+                let range_id = RangeId::from(&flex_id);
+                let f = range_id.f();
+                let x = range_id.x();
+                let y = range_id.y();
+                let temp = range_id.temporal();
 
-            OutputId {
-                z: range_id.z(),
-                f: if f[0] == f[1] { vec![f[0]] } else { f.to_vec() },
-                x: if x[0] == x[1] { vec![x[0]] } else { x.to_vec() },
-                y: if y[0] == y[1] { vec![y[0]] } else { y.to_vec() },
-                i: if !temp.is_whole() { Some(temp.i()) } else { None },
-                t: if !temp.is_whole() {
-                    let t = temp.t();
-                    Some(if t[0] == t[1] { vec![t[0]] } else { t.to_vec() })
-                } else { None },
-                ref_idx: unique_values.iter().position(|&v| v == val),
-            }
-        }).collect();
+                OutputId {
+                    z: range_id.z(),
+                    f: if f[0] == f[1] { vec![f[0]] } else { f.to_vec() },
+                    x: if x[0] == x[1] { vec![x[0]] } else { x.to_vec() },
+                    y: if y[0] == y[1] { vec![y[0]] } else { y.to_vec() },
+                    i: if !temp.is_whole() {
+                        Some(temp.i())
+                    } else {
+                        None
+                    },
+                    t: if !temp.is_whole() {
+                        let t = temp.t();
+                        Some(if t[0] == t[1] { vec![t[0]] } else { t.to_vec() })
+                    } else {
+                        None
+                    },
+                    ref_idx: unique_values.iter().position(|&v| v == val),
+                }
+            })
+            .collect();
 
         let root = OutputRoot {
             schema: "https://airbee-project.github.io/schemas/json/v1.0.json",
@@ -100,5 +109,3 @@ where
         serde_json::to_string(&root).unwrap()
     }
 }
-
-

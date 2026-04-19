@@ -10,8 +10,10 @@ fn main() {
     let id3 = SingleId::new(2, 0, 1, 1).unwrap();
 
     table.insert(id1, "Neko".to_string());
+    table.insert(id2, "Neko".to_string());
+    table.insert(id3, "A".to_string());
 
     let json = table.to_json();
 
-    fs::write("oput.json", json).expect("Unable to write file");
+    fs::write("oput3.json", json).expect("Unable to write file");
 }
