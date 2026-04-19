@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::ops::RangeBounds;
 pub mod convert;
+pub mod json;
 pub mod test;
 
 use crate::{FlexId, FlexTreeCore, FlexTreeSet, IntoSingleIds, IterFlexIds, RangeId, SingleId};
