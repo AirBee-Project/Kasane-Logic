@@ -9,6 +9,7 @@
 //! 詳細な図と説明は次のドキュメントを参照:
 //! [docs/geometry-relation.md](https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md)
 
+pub mod cylinder;
 pub mod line;
 pub mod polygon;
 pub mod solid;

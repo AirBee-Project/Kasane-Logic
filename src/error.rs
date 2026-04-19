@@ -37,6 +37,11 @@ pub enum Error {
         /// 問題のあるエッジの数（奇数回しか出現しなかったエッジの数）
         open_edge_count: usize,
     },
+
+    RadiusNegative {
+        ///半径が負であることを表す
+        radius: f64,
+    },
 }
 
 impl fmt::Display for Error {
@@ -99,6 +104,9 @@ impl fmt::Display for Error {
             }
             Error::TIntervalZero => {
                 write!(f, "Time interval i cannot be set to 0 ")
+            }
+            Error::RadiusNegative { radius } => {
+                write!(f, "Radius need to be positive (radius = {}).", radius)
             }
         }
     }

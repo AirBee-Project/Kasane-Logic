@@ -14,6 +14,7 @@ pub use error::Error;
 pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 
 pub use geometry::constants::*;
+pub use geometry::shapes::cylinder::Cylinder;
 pub use geometry::shapes::line::Line;
 pub use geometry::shapes::polygon::Polygon;
 pub use geometry::shapes::solid::Solid;
