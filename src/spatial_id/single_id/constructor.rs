@@ -16,7 +16,7 @@ impl SingleId {
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が  を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、
@@ -116,7 +116,7 @@ impl SingleId {
     /// * `temporal_id` — [TemporalId](時間ID)
     ///
     /// # バリデーション
-    /// - `z` が  を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
     /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、
