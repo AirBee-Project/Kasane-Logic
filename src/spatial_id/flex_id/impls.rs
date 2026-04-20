@@ -80,7 +80,7 @@ impl SpatialId for FlexId {
             })?
         } else {
             self.y_index
-                .checked_sub(-by as u32)
+                .checked_sub(by.unsigned_abs())
                 .ok_or(SpatialIdError::YOutOfRange {
                     y: self.y_min(),
                     z: self.y_zoomlevel,

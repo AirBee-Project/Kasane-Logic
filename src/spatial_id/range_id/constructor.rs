@@ -53,7 +53,42 @@ impl RangeId {
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
-        Self::new_with_temporal(z, f, x, y, TemporalId::WHOLE)
+        if z as usize > MAX_ZOOM_LEVEL {
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        }
+
+        let f_min = F_MIN[z as usize];
+        let f_max = F_MAX[z as usize];
+        let xy_max = XY_MAX[z as usize];
+        let mut f = f;
+        let mut y = y;
+
+        for i in 0..2 {
+            if f[i] < f_min || f[i] > f_max {
+                return Err(SpatialIdError::FOutOfRange { f: f[i], z }.into());
+            }
+            if x[i] > xy_max {
+                return Err(SpatialIdError::XOutOfRange { x: x[i], z }.into());
+            }
+            if y[i] > xy_max {
+                return Err(SpatialIdError::YOutOfRange { y: y[i], z }.into());
+            }
+        }
+
+        if f[0] > f[1] {
+            f.swap(0, 1);
+        }
+        if y[0] > y[1] {
+            y.swap(0, 1);
+        }
+
+        Ok(RangeId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id: TemporalId::WHOLE,
+        })
     }
 
     /// 検証を行わずに [`RangeId`] を構築します。
@@ -83,9 +118,16 @@ impl RangeId {
     /// assert_eq!(id.y(), [5,10]);
     /// ```
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
-        unsafe { Self::new_with_temporal_unchecked(z, f, x, y, TemporalId::WHOLE) }
+        RangeId {
+            z,
+            f,
+            x,
+            y,
+            temporal_id: TemporalId::WHOLE,
+        }
     }
 
+    #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
         z: u8,
         f: [i32; 2],
@@ -131,6 +173,7 @@ impl RangeId {
         })
     }
 
+    #[cfg(feature = "temporal_id")]
     pub unsafe fn new_with_temporal_unchecked(
         z: u8,
         f: [i32; 2],

@@ -121,7 +121,7 @@ impl SpatialId for RangeId {
             Ok(())
         } else {
             // south
-            let byu = (-by) as u32;
+            let byu = by.unsigned_abs();
             let max = self.y_max();
             let z = self.z;
 
@@ -156,8 +156,8 @@ impl SpatialId for RangeId {
 
         unsafe {
             Coordinate::new_unchecked(
-                helpers::longitude(xf, z),
                 helpers::latitude(yf, z),
+                helpers::longitude(xf, z),
                 helpers::altitude(ff, z),
             )
         }
@@ -216,7 +216,7 @@ impl SpatialId for RangeId {
         let ecef: crate::Ecef = self.spatial_center().into();
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
         let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
-        let count = (self.x()[1] - self.x()[0] + 1) as f64;
+        let count = self.x()[0].abs_diff(self.x()[1]) as f64 + 1.0;
 
         one * count
     }
@@ -227,7 +227,7 @@ impl SpatialId for RangeId {
         let ecef: crate::Ecef = self.spatial_center().into();
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
         let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
-        let count = (self.y()[1] - self.y()[0] + 1) as f64;
+        let count = self.y()[0].abs_diff(self.y()[1]) as f64 + 1.0;
 
         one * count
     }

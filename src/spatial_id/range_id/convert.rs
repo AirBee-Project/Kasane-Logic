@@ -68,8 +68,17 @@ impl IntoSingleIds for RangeId {
 
             x_iter.into_iter().flat_map(move |x| {
                 let t_id = t_id.clone();
-                y_range.clone().map(move |y: u32| unsafe {
-                    SingleId::new_with_temporal_unchecked(z, f, x, y, t_id.clone())
+                y_range.clone().map(move |y: u32| {
+                    #[cfg(feature = "temporal_id")]
+                    {
+                        unsafe { SingleId::new_with_temporal_unchecked(z, f, x, y, t_id.clone()) }
+                    }
+
+                    #[cfg(not(feature = "temporal_id"))]
+                    {
+                        let _ = &t_id;
+                        unsafe { SingleId::new_unchecked(z, f, x, y) }
+                    }
                 })
             })
         });
@@ -96,8 +105,24 @@ impl IterSingleIds for RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                y_range.clone().map(move |y: u32| unsafe {
-                    SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
+                y_range.clone().map(move |y: u32| {
+                    #[cfg(feature = "temporal_id")]
+                    {
+                        unsafe {
+                            SingleId::new_with_temporal_unchecked(
+                                z,
+                                f,
+                                x,
+                                y,
+                                self.temporal_id.clone(),
+                            )
+                        }
+                    }
+
+                    #[cfg(not(feature = "temporal_id"))]
+                    {
+                        unsafe { SingleId::new_unchecked(z, f, x, y) }
+                    }
                 })
             })
         });

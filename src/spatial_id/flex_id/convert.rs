@@ -26,14 +26,29 @@ impl From<&FlexId> for RangeId {
         let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel);
         let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel);
 
-        unsafe {
-            RangeId::new_with_temporal_unchecked(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-                flex_id.temporal().clone(),
-            )
+        #[cfg(feature = "temporal_id")]
+        {
+            unsafe {
+                RangeId::new_with_temporal_unchecked(
+                    max_z,
+                    [f_range[0] as i32, f_range[1] as i32],
+                    [x_range[0] as u32, x_range[1] as u32],
+                    [y_range[0] as u32, y_range[1] as u32],
+                    flex_id.temporal().clone(),
+                )
+            }
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            unsafe {
+                RangeId::new_unchecked(
+                    max_z,
+                    [f_range[0] as i32, f_range[1] as i32],
+                    [x_range[0] as u32, x_range[1] as u32],
+                    [y_range[0] as u32, y_range[1] as u32],
+                )
+            }
         }
     }
 }
@@ -46,16 +61,15 @@ impl From<SingleId> for FlexId {
 
 impl From<&SingleId> for FlexId {
     fn from(value: &SingleId) -> Self {
-        FlexId::new_with_temporal(
-            value.z(),
-            value.f(),
-            value.z(),
-            value.x(),
-            value.z(),
-            value.y(),
-            value.temporal().clone(),
-        )
-        .unwrap()
+        FlexId {
+            f_zoomlevel: value.z(),
+            f_index: value.f(),
+            x_zoomlevel: value.z(),
+            x_index: value.x(),
+            y_zoomlevel: value.z(),
+            y_index: value.y(),
+            temporal_id: value.temporal().clone(),
+        }
     }
 }
 

@@ -19,7 +19,6 @@ impl fmt::Display for SingleId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)?;
         //時間の情報があれば書き込み
-
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
         }
@@ -159,7 +158,7 @@ impl SpatialId for SingleId {
             })?
         } else {
             self.y
-                .checked_sub(-by as u32)
+                .checked_sub(by.unsigned_abs())
                 .ok_or(SpatialIdError::YOutOfRange {
                     y: self.y_min(),
                     z: self.z,
