@@ -60,7 +60,11 @@ impl SpatialId for RangeId {
         F_MAX[self.z() as usize]
     }
 
-    fn xy_max(&self) -> u32 {
+    fn x_max(&self) -> u32 {
+        XY_MAX[self.z() as usize]
+    }
+
+    fn y_max(&self) -> u32 {
         XY_MAX[self.z() as usize]
     }
 
@@ -88,7 +92,7 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = (self.xy_max() + 1) as i32;
+        let max_len = (self.x_max() + 1) as i32;
         self.x[0] = ((self.x[0] as i32 + by).rem_euclid(max_len)) as u32;
         self.x[1] = ((self.x[1] as i32 + by).rem_euclid(max_len)) as u32;
     }
@@ -96,7 +100,7 @@ impl SpatialId for RangeId {
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
             let byu = by as u32;
-            let max = self.xy_max();
+            let max = self.y_max();
             let z = self.z;
 
             let ns = self.y[0]
@@ -118,21 +122,15 @@ impl SpatialId for RangeId {
         } else {
             // south
             let byu = (-by) as u32;
-            let max = self.xy_max();
+            let max = self.y_max();
             let z = self.z;
 
             let ns = self.y[0]
                 .checked_sub(byu)
-                .ok_or(SpatialIdError::YOutOfRange {
-                    y: self.xy_min(),
-                    z,
-                })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: self.y_min(), z })?;
             let ne = self.y[1]
                 .checked_sub(byu)
-                .ok_or(SpatialIdError::YOutOfRange {
-                    y: self.xy_min(),
-                    z,
-                })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: self.y_min(), z })?;
 
             if ns > max {
                 return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
@@ -203,10 +201,10 @@ impl SpatialId for RangeId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        let one = 2_i32.pow(25 - self.z() as u32) as f64;
+        let one = 2_f64.powi(25 - self.z() as i32);
 
-        //このRangeIdの高さ方向の幅を計算
-        let range = (self.f()[0] - self.f()[1]).abs() as f64;
+        //このRangeIdが表すセル数を計算（両端含む）
+        let range = (self.f()[1] - self.f()[0] + 1) as f64;
 
         //かけ合わせて答えを返却
         one * range
@@ -214,12 +212,24 @@ impl SpatialId for RangeId {
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
     fn length_x_meters(&self) -> f64 {
-        todo!()
+        //Todo:正確な実装ではないので将来的に置換
+        let ecef: crate::Ecef = self.spatial_center().into();
+        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
+        let count = (self.x()[1] - self.x()[0] + 1) as f64;
+
+        one * count
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
     fn length_y_meters(&self) -> f64 {
-        todo!()
+        //Todo:正確な実装ではないので将来的に置換
+        let ecef: crate::Ecef = self.spatial_center().into();
+        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
+        let count = (self.y()[1] - self.y()[0] + 1) as f64;
+
+        one * count
     }
 
     fn temporal(&self) -> &TemporalId {
