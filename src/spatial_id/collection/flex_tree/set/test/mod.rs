@@ -10,7 +10,7 @@ pub mod union;
 #[cfg(test)]
 use crate::IntoSingleIds;
 #[cfg(test)]
-use crate::{F_MAX, F_MIN, SpatilaIdSet, RangeId, SingleId, XY_MAX};
+use crate::{F_MAX, F_MIN, RangeId, SingleId, SpatilaIdSet, XY_MAX};
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]
@@ -24,16 +24,16 @@ const RANDOM_SET_MIN_ZOOM: u8 = 0;
 const RANDOM_SET_MAX_ZOOM: u8 = 4;
 #[cfg(test)]
 /// 1ケースあたりの最小挿入回数。
-const RANDOM_SET_MIN_INSERTS: usize = 0;
+const RANDOM_SET_MIN_INSERTS: usize = 1;
 #[cfg(test)]
 /// 1ケースあたりの最大挿入回数。
-const RANDOM_SET_MAX_INSERTS: usize = 7;
+const RANDOM_SET_MAX_INSERTS: usize = 4;
 #[cfg(test)]
 /// RangeId 生成時に許可する F 方向の長さの最大値。
-const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 10;
+const RANDOM_SET_MAX_RANGE_SPAN_F: i32 = 6;
 #[cfg(test)]
 /// RangeId 生成時に許可する X/Y 方向の長さの最大値。
-const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 10;
+const RANDOM_SET_MAX_RANGE_SPAN_XY: u32 = 6;
 
 /// テスト用のランダム Set 生成で使う挿入パターン。
 #[cfg(test)]

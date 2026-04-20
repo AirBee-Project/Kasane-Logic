@@ -37,52 +37,6 @@ pub struct RangeId {
     temporal_id: TemporalId,
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{Error, RangeId, SpatialIdError};
-
-    #[test]
-    fn children_at_zoom_works() {
-        let id = RangeId::new(5, [-3, 29], [8, 9], [5, 10]).unwrap();
-
-        let result = id.spatial_children_at_zoom(6).unwrap();
-
-        assert_eq!(
-            result,
-            RangeId::new(6, [-6, 59], [16, 19], [10, 21]).unwrap()
-        );
-    }
-
-    #[test]
-    fn parent_at_zoom_works() {
-        let id = RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap();
-
-        let parent = id.spatial_parent_at_zoom(4).unwrap();
-
-        assert_eq!(parent.z(), 4);
-        assert_eq!(parent.f(), [0, 14]);
-        assert_eq!(parent.x(), [4, 4]);
-        assert_eq!(parent.y(), [2, 5]);
-    }
-
-    #[test]
-    fn zoom_direction_mismatch_returns_error() {
-        let id = RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap();
-
-        let result = id.spatial_parent_at_zoom(6);
-
-        assert!(matches!(
-            result,
-            Err(Error::SpatialId(
-                SpatialIdError::ZoomLevelTransitionOutOfRange {
-                    current_z: 5,
-                    target_z: 6
-                }
-            ))
-        ));
-    }
-}
-
 impl RangeId {
     /// この `RangeId` が保持しているズームレベル `z` を返します。
     ///

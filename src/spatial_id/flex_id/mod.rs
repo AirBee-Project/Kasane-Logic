@@ -3,11 +3,11 @@ pub mod convert;
 pub mod impls;
 pub mod ops;
 
-use crate::{MAX_ZOOM_LEVEL, Side, SpatialId, TemporalId};
+use crate::{MAX_ZOOM_LEVEL, Side, TemporalId};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
 ///拡張空間ID
 pub struct FlexId {
     f_zoomlevel: u8,
@@ -64,6 +64,7 @@ impl FlexId {
         if self.f_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
             return None;
         } else {
+            #[cfg(feature = "temporal_id")]
             return Some(unsafe {
                 FlexId::new_with_temporal_unchecked(
                     self.f_zoomlevel() + 1,
@@ -72,7 +73,19 @@ impl FlexId {
                     self.x_index(),
                     self.y_zoomlevel(),
                     self.y_index(),
-                    self.temporal().clone(),
+                    self.temporal_id.clone(),
+                )
+            });
+
+            #[cfg(not(feature = "temporal_id"))]
+            return Some(unsafe {
+                FlexId::new_unchecked(
+                    self.f_zoomlevel() + 1,
+                    self.f_index() * 2 + side as i32,
+                    self.x_zoomlevel(),
+                    self.x_index(),
+                    self.y_zoomlevel(),
+                    self.y_index(),
                 )
             });
         }
@@ -83,6 +96,7 @@ impl FlexId {
         if self.x_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
             return None;
         } else {
+            #[cfg(feature = "temporal_id")]
             return Some(unsafe {
                 FlexId::new_with_temporal_unchecked(
                     self.f_zoomlevel(),
@@ -94,6 +108,18 @@ impl FlexId {
                     self.temporal().clone(),
                 )
             });
+
+            #[cfg(not(feature = "temporal_id"))]
+            return Some(unsafe {
+                FlexId::new_unchecked(
+                    self.f_zoomlevel(),
+                    self.f_index(),
+                    self.x_zoomlevel() + 1,
+                    self.x_index() * 2 + side as u32,
+                    self.y_zoomlevel(),
+                    self.y_index(),
+                )
+            });
         }
     }
 
@@ -102,6 +128,7 @@ impl FlexId {
         if self.y_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
             return None;
         } else {
+            #[cfg(feature = "temporal_id")]
             return Some(unsafe {
                 FlexId::new_with_temporal_unchecked(
                     self.f_zoomlevel(),
@@ -110,7 +137,19 @@ impl FlexId {
                     self.x_index(),
                     self.y_zoomlevel() + 1,
                     self.y_index() * 2 + side as u32,
-                    self.temporal().clone(),
+                    self.temporal_id.clone(),
+                )
+            });
+
+            #[cfg(not(feature = "temporal_id"))]
+            return Some(unsafe {
+                FlexId::new_unchecked(
+                    self.f_zoomlevel(),
+                    self.f_index(),
+                    self.x_zoomlevel(),
+                    self.x_index(),
+                    self.y_zoomlevel() + 1,
+                    self.y_index() * 2 + side as u32,
                 )
             });
         }
