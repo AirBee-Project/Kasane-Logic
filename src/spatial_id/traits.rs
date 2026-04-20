@@ -108,7 +108,7 @@ pub trait SpatialId:
         0
     }
 
-    /// ズームレベルにおける最大のXインデックスを返す。
+    /// ズームレベルにおける最大のYインデックスを返す。
     ///
     /// ```
     /// # use kasane_logic::RangeId;
