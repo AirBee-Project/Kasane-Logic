@@ -137,7 +137,7 @@ impl FlexId {
                     self.x_index(),
                     self.y_zoomlevel() + 1,
                     self.y_index() * 2 + side as u32,
-                    self.temporal().clone(),
+                    self.temporal_id.clone(),
                 )
             });
 
