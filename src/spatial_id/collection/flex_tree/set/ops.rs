@@ -1,11 +1,11 @@
 use std::ops::{BitAnd, BitOr, Sub};
 
-use crate::FlexTreeSet;
+use crate::SpatilaIdSet;
 
-impl BitOr<&FlexTreeSet> for &FlexTreeSet {
-    type Output = FlexTreeSet;
+impl BitOr<&SpatilaIdSet> for &SpatilaIdSet {
+    type Output = SpatilaIdSet;
 
-    fn bitor(self, rhs: &FlexTreeSet) -> Self::Output {
+    fn bitor(self, rhs: &SpatilaIdSet) -> Self::Output {
         let (first, second) = if self.count() >= rhs.count() {
             (self, rhs)
         } else {
@@ -22,17 +22,17 @@ impl BitOr<&FlexTreeSet> for &FlexTreeSet {
     }
 }
 
-impl BitAnd<&FlexTreeSet> for &FlexTreeSet {
-    type Output = FlexTreeSet;
+impl BitAnd<&SpatilaIdSet> for &SpatilaIdSet {
+    type Output = SpatilaIdSet;
 
-    fn bitand(self, rhs: &FlexTreeSet) -> Self::Output {
+    fn bitand(self, rhs: &SpatilaIdSet) -> Self::Output {
         let (smaller, larger) = if self.count() <= rhs.count() {
             (self, rhs)
         } else {
             (rhs, self)
         };
 
-        let mut output = FlexTreeSet::new();
+        let mut output = SpatilaIdSet::new();
 
         for flex_id in smaller.iter() {
             for intersect_id in larger.get(&flex_id) {
@@ -44,12 +44,12 @@ impl BitAnd<&FlexTreeSet> for &FlexTreeSet {
     }
 }
 
-impl Sub<&FlexTreeSet> for &FlexTreeSet {
-    type Output = FlexTreeSet;
+impl Sub<&SpatilaIdSet> for &SpatilaIdSet {
+    type Output = SpatilaIdSet;
 
-    fn sub(self, rhs: &FlexTreeSet) -> Self::Output {
+    fn sub(self, rhs: &SpatilaIdSet) -> Self::Output {
         if self.is_empty() {
-            return FlexTreeSet::new();
+            return SpatilaIdSet::new();
         }
 
         if rhs.is_empty() {
@@ -73,8 +73,8 @@ impl Sub<&FlexTreeSet> for &FlexTreeSet {
     }
 }
 
-impl BitOr for FlexTreeSet {
-    type Output = FlexTreeSet;
+impl BitOr for SpatilaIdSet {
+    type Output = SpatilaIdSet;
 
     fn bitor(mut self, rhs: Self) -> Self::Output {
         for flex_id in rhs.iter() {
@@ -84,16 +84,16 @@ impl BitOr for FlexTreeSet {
     }
 }
 
-impl BitAnd for FlexTreeSet {
-    type Output = FlexTreeSet;
+impl BitAnd for SpatilaIdSet {
+    type Output = SpatilaIdSet;
 
     fn bitand(self, rhs: Self) -> Self::Output {
         &self & &rhs
     }
 }
 
-impl Sub for FlexTreeSet {
-    type Output = FlexTreeSet;
+impl Sub for SpatilaIdSet {
+    type Output = SpatilaIdSet;
 
     fn sub(mut self, rhs: Self) -> Self::Output {
         if rhs.count() <= self.count() {

@@ -1,26 +1,26 @@
 # FlexTree の Set / Map / Table の違い
 
-このドキュメントは、`FlexTreeSet`、`FlexTreeMap`、`FlexTreeTable` の違いを、保持する値と役割に絞って整理したものである。
+このドキュメントは、`SpatilaIdSet`、`SpatilaIdMap`、`SpatilaIdTable` の違いを、保持する値と役割に絞って整理したものである。
 
-## `FlexTreeSet`
+## `SpatilaIdSet`
 
-`FlexTreeSet` は、空間 ID の集合を表す型である。
+`SpatilaIdSet` は、空間 ID の集合を表す型である。
 
 - 保持する値: 空間 ID そのものだけである。値に相当する要素は持たない。
 - 役割: 「どの空間が存在するか」を表すための型である。
 - 向いている用途: 領域の有無を判定したい場合や、重なり・和・差・共通部分のような集合演算を行いたい場合である。
 
-## `FlexTreeMap`
+## `SpatilaIdMap`
 
-`FlexTreeMap` は、空間 ID に値を対応付ける型である。
+`SpatilaIdMap` は、空間 ID に値を対応付ける型である。
 
 - 保持する値: 各空間 ID にひとつの値を保持する。
 - 役割: 「この空間には何が入っているか」を表すための型である。
 - 向いている用途: 空間ごとに属性や状態を直接持たせたい場合である。
 
-## `FlexTreeTable`
+## `SpatilaIdTable`
 
-`FlexTreeTable` は、値と空間 ID の対応関係をまとめて管理する型である。
+`SpatilaIdTable` は、値と空間 ID の対応関係をまとめて管理する型である。
 
 - 保持する値: 空間 ID と値の対応に加えて、値ごとの索引も内部に保持する。
 - 役割: 「同じ値を持つ空間群をまとめて扱う」ための型である。
@@ -28,10 +28,10 @@
 
 ## 使い分け
 
-- 位置だけが重要なら `FlexTreeSet` を使う。
-- 空間ごとに 1 つの値を持たせたいなら `FlexTreeMap` を使う。
-- 値から空間を引きたい、または値の一覧管理も必要なら `FlexTreeTable` を使う。
+- 位置だけが重要なら `SpatilaIdSet` を使う。
+- 空間ごとに 1 つの値を持たせたいなら `SpatilaIdMap` を使う。
+- 値から空間を引きたい、または値の一覧管理も必要なら `SpatilaIdTable` を使う。
 
 ## 補足
 
-`FlexTreeSet` は空間の集合、`FlexTreeMap` は空間に値を載せる写像、`FlexTreeTable` は値を軸にした逆引きも含む対応表である。見た目は似ていても、保持している情報量と検索の主軸が異なる。
+`SpatilaIdSet` は空間の集合、`SpatilaIdMap` は空間に値を載せる写像、`SpatilaIdTable` は値を軸にした逆引きも含む対応表である。見た目は似ていても、保持している情報量と検索の主軸が異なる。

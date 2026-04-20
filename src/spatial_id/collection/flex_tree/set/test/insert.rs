@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        F_MAX, F_MIN, FlexId, FlexTreeSet, IntoFlexIds, IntoSingleIds, IterSingleIds,
+        F_MAX, F_MIN, FlexId, SpatilaIdSet, IntoFlexIds, IntoSingleIds, IterSingleIds,
         MAX_ZOOM_LEVEL, RangeId, SingleId, XY_MAX,
     };
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
     fn first_insert_single_id() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(3, 3, 3, 3).unwrap();
@@ -27,7 +27,7 @@ mod tests {
     #[test]
     fn first_insert_range_id() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //RangeIdの作成と挿入
         let range_id = RangeId::new(4, [-4, 5], [2, 10], [3, 3]).unwrap();
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn first_insert_single_id_largest() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(0, 0, 0, 0).unwrap();
@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn first_insert_range_id_largest() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //RangeIdの作成と挿入
         let range_id = RangeId::new(0, [-1, 0], [0, 0], [0, 0]).unwrap();
@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn first_insert_single_id_smallest() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(MAX_ZOOM_LEVEL as u8, 10, 10, 10).unwrap();
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn first_insert_single_id_smallest_edge_start() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(MAX_ZOOM_LEVEL as u8, F_MIN[MAX_ZOOM_LEVEL], 0, 0).unwrap();
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn first_insert_single_id_smallest_edge_end() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(
@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn multiple_insert_single_id_overlap() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
@@ -188,7 +188,7 @@ mod tests {
     #[test]
     fn multiple_insert_single_id_join() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn multiple_insert_single_id_no_join() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //SingleIdの作成と挿入
         let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
@@ -246,7 +246,7 @@ mod tests {
     #[test]
     fn first_insert_range_id_join() {
         //Setの新規作成
-        let mut set = FlexTreeSet::default();
+        let mut set = SpatilaIdSet::default();
 
         //RangeIdの作成と挿入
         let range_id = RangeId::new(4, [0, F_MAX[4]], [0, XY_MAX[4]], [0, XY_MAX[4]]).unwrap();

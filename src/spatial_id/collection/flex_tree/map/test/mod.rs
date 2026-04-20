@@ -6,7 +6,7 @@ pub mod query;
 pub mod remove;
 
 #[cfg(test)]
-use crate::{FlexTreeMap, RangeId, SingleId};
+use crate::{SpatilaIdMap, RangeId, SingleId};
 
 #[cfg(test)]
 #[derive(Clone, Debug)]
@@ -17,7 +17,7 @@ pub(crate) enum MapEntry {
 
 #[cfg(test)]
 impl MapEntry {
-    fn insert_into(&self, map: &mut FlexTreeMap<i32>) {
+    fn insert_into(&self, map: &mut SpatilaIdMap<i32>) {
         match self {
             MapEntry::Single(single_id, value) => map.insert(single_id.clone(), *value),
             MapEntry::Range(range_id, value) => map.insert(range_id.clone(), *value),
@@ -26,8 +26,8 @@ impl MapEntry {
 }
 
 #[cfg(test)]
-pub(crate) fn build_map(entries: &[MapEntry]) -> FlexTreeMap<i32> {
-    let mut map = FlexTreeMap::new();
+pub(crate) fn build_map(entries: &[MapEntry]) -> SpatilaIdMap<i32> {
+    let mut map = SpatilaIdMap::new();
     for entry in entries {
         entry.insert_into(&mut map);
     }

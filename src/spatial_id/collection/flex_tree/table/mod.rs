@@ -4,11 +4,11 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{FlexId, FlexTreeCore, FlexTreeSet, IntoSingleIds, IterFlexIds, RangeId, SingleId};
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatilaIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Default, Clone)]
-pub struct FlexTreeTable<V>
+pub struct SpatilaIdTable<V>
 where
     V: PartialEq + Ord + Clone,
 {
@@ -22,17 +22,17 @@ where
     reverse_dictionary: BTreeMap<usize, V>,
 
     // 逆引きインデックス (Rank -> その値が存在する空間の集合)
-    value_index: BTreeMap<usize, FlexTreeSet>,
+    value_index: BTreeMap<usize, SpatilaIdSet>,
 
     // 次に発行する一意なID（Rank）
     current_rank: usize,
 }
 
-impl<V> FlexTreeTable<V>
+impl<V> SpatilaIdTable<V>
 where
     V: PartialEq + Ord + Clone,
 {
-    /// 空の[FlexTreeTable]を作成します。
+    /// 空の[SpatilaIdTable]を作成します。
     pub fn new() -> Self {
         Self {
             inner: FlexTreeCore::default(),
@@ -80,7 +80,7 @@ where
         let set = self
             .value_index
             .entry(rank)
-            .or_insert_with(FlexTreeSet::new);
+            .or_insert_with(SpatilaIdSet::new);
         set.insert(target);
     }
 

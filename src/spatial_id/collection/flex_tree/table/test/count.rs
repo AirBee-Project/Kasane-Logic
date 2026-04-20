@@ -3,7 +3,7 @@ mod tests {
     use super::super::{TableEntry, build_table};
     use crate::{RangeId, SingleId};
 
-    fn assert_count_consistent(table: &crate::FlexTreeTable<i32>) {
+    fn assert_count_consistent(table: &crate::SpatilaIdTable<i32>) {
         assert_eq!(table.count(), table.iter().count());
     }
 
