@@ -56,7 +56,7 @@ where
     ///
     /// # 例
     /// ```
-    /// # use kasane_logic::{FlexTreeCore, RangeId};
+    /// # use kasane_logic::{kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore, RangeId, SingleId};
     /// let mut core = FlexTreeCore::new();
     /// core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
     /// assert_eq!(core.max_zoomlevel(), Some(4));
@@ -82,7 +82,7 @@ where
     ///
     /// # 例
     /// ```
-    /// # use kasane_logic::{FlexTreeCore, RangeId, SingleId};
+    /// # use kasane_logic::{kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore, RangeId, SingleId};
     /// let mut core = FlexTreeCore::new();
     /// core.insert(SingleId::new(3, 3, 2, 7).unwrap(), 10);
     /// core.insert(RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap(), 20);
