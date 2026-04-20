@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::{RandomSetInsert, arb_random_set_case};
-    use crate::{SpatilaIdSet, RangeId, SingleId};
+    use crate::{RangeId, SingleId, SpatilaIdSet};
     use proptest::prelude::*;
 
     fn assert_count_consistent(set: &SpatilaIdSet) {

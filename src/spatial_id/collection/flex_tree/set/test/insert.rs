@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        F_MAX, F_MIN, FlexId, SpatilaIdSet, IntoFlexIds, IntoSingleIds, IterSingleIds,
-        MAX_ZOOM_LEVEL, RangeId, SingleId, XY_MAX,
+        F_MAX, F_MIN, FlexId, IntoFlexIds, IntoSingleIds, IterSingleIds, MAX_ZOOM_LEVEL, RangeId,
+        SingleId, SpatilaIdSet, XY_MAX,
     };
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
