@@ -2,11 +2,11 @@
 mod tests {
     use super::super::{arb_random_set_case, decompose_set_to_single_ids_at_zoom};
     use crate::{
-        FlexTreeSet, SingleId, spatial_id::collection::flex_tree::set::test::sorted_single_ids,
+        SpatilaIdSet, SingleId, spatial_id::collection::flex_tree::set::test::sorted_single_ids,
     };
     use proptest::prelude::*;
 
-    fn expected_intersection_single_ids(lhs: &FlexTreeSet, rhs: &FlexTreeSet) -> Vec<SingleId> {
+    fn expected_intersection_single_ids(lhs: &SpatilaIdSet, rhs: &SpatilaIdSet) -> Vec<SingleId> {
         let common_z = lhs
             .max_zoomlevel()
             .unwrap_or(0)
@@ -20,9 +20,9 @@ mod tests {
     }
 
     fn expected_intersection_of_three_single_ids(
-        a: &FlexTreeSet,
-        b: &FlexTreeSet,
-        c: &FlexTreeSet,
+        a: &SpatilaIdSet,
+        b: &SpatilaIdSet,
+        c: &SpatilaIdSet,
     ) -> Vec<SingleId> {
         let common_z = a
             .max_zoomlevel()
@@ -46,12 +46,12 @@ mod tests {
     /// 2つの Set の交差演算が交換法則（A∩B = B∩A）を満たすことを固定ケースで検証する。
     #[test]
     fn intersection_commutative_for_small_cases() {
-        let mut lhs = FlexTreeSet::new();
+        let mut lhs = SpatilaIdSet::new();
         lhs.insert(SingleId::new(4, 3, 2, 1).unwrap());
         lhs.insert(SingleId::new(4, 3, 2, 2).unwrap());
         lhs.insert(SingleId::new(4, 4, 4, 4).unwrap());
 
-        let mut rhs = FlexTreeSet::new();
+        let mut rhs = SpatilaIdSet::new();
         rhs.insert(SingleId::new(4, 3, 2, 2).unwrap());
         rhs.insert(SingleId::new(4, 4, 4, 4).unwrap());
         rhs.insert(SingleId::new(4, 5, 5, 5).unwrap());
@@ -72,17 +72,17 @@ mod tests {
     /// 3つの Set の交差演算結果が手計算した期待値と一致することを固定ケースで検証する。
     #[test]
     fn intersection_of_three_sets_matches_expected() {
-        let mut a = FlexTreeSet::new();
+        let mut a = SpatilaIdSet::new();
         a.insert(SingleId::new(4, 3, 2, 1).unwrap());
         a.insert(SingleId::new(4, 3, 2, 2).unwrap());
         a.insert(SingleId::new(4, 4, 4, 4).unwrap());
 
-        let mut b = FlexTreeSet::new();
+        let mut b = SpatilaIdSet::new();
         b.insert(SingleId::new(4, 3, 2, 2).unwrap());
         b.insert(SingleId::new(4, 4, 4, 4).unwrap());
         b.insert(SingleId::new(4, 5, 5, 5).unwrap());
 
-        let mut c = FlexTreeSet::new();
+        let mut c = SpatilaIdSet::new();
         c.insert(SingleId::new(4, 3, 2, 2).unwrap());
         c.insert(SingleId::new(4, 6, 6, 6).unwrap());
 

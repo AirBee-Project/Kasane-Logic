@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-use crate::{FlexTreeMap, RangeId, SpatialId};
+use crate::{RangeId, SpatialId, SpatilaIdMap};
 
 #[cfg(feature = "serde")]
 #[derive(Serialize)]
@@ -49,7 +49,7 @@ struct OutputRoot<'a, V> {
 }
 
 #[cfg(feature = "serde")]
-impl<V> FlexTreeMap<V>
+impl<V> SpatilaIdMap<V>
 where
     V: PartialEq + Clone + Serialize,
 {

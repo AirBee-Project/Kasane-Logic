@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
     use super::super::{MapEntry, build_map};
-    use crate::{FlexTreeMap, IterSingleIds, RangeId, SingleId};
+    use crate::{IterSingleIds, RangeId, SingleId, SpatilaIdMap};
 
     /// 同じターゲットへ再挿入したときに、古い値が新しい値へ置き換わることを検証する。
     #[test]
     fn insert_same_target_replaces_previous_value() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
-        let mut map = FlexTreeMap::new();
+        let mut map = SpatilaIdMap::new();
 
         map.insert(target.clone(), 10);
         map.insert(target.clone(), 20);

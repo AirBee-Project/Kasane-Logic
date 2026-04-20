@@ -1,4 +1,4 @@
-use kasane_logic::{FlexTreeCore, SingleId};
+use kasane_logic::{SingleId, SpatilaIdSet};
 use memori::{Bench, Func, TrackingAllocator};
 use std::fs;
 use std::hint::black_box;
@@ -22,10 +22,10 @@ fn main() {
             let target_len = (data.len() * pct) / 100;
             let subset = &data[..target_len];
 
-            let mut vbit_set = FlexTreeCore::new();
+            let mut vbit_set = SpatilaIdSet::new();
 
             for single_id in subset {
-                vbit_set.insert(single_id.clone(), ());
+                vbit_set.insert(single_id.clone());
             }
 
             black_box(vbit_set.iter().count())

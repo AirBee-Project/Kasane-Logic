@@ -1,9 +1,9 @@
 use std::fs;
 
-use kasane_logic::{FlexTreeTable, RangeId, SingleId};
+use kasane_logic::{RangeId, SingleId, SpatilaIdTable};
 
 fn main() {
-    let mut table = FlexTreeTable::new();
+    let mut table = SpatilaIdTable::new();
 
     let id1 = RangeId::new(5, [-3, 10], [0, 9], [5, 10]).unwrap();
     let id2 = RangeId::new(4, [3, 6], [2, 2], [1, 9]).unwrap();

@@ -1,6 +1,6 @@
-use crate::{FlexTreeCore, FlexTreeSet, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds};
+use crate::{FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatilaIdSet};
 
-impl IntoFlexIds for FlexTreeSet {
+impl IntoFlexIds for SpatilaIdSet {
     type IntoIter = <FlexTreeCore<()> as IntoFlexIds>::IntoIter;
 
     fn into_flex_ids(self) -> Self::IntoIter {
@@ -8,7 +8,7 @@ impl IntoFlexIds for FlexTreeSet {
     }
 }
 
-impl IterFlexIds for FlexTreeSet {
+impl IterFlexIds for SpatilaIdSet {
     type Iter<'a>
         = <FlexTreeCore<()> as IterFlexIds>::Iter<'a>
     where
@@ -19,7 +19,7 @@ impl IterFlexIds for FlexTreeSet {
     }
 }
 
-impl IntoSingleIds for FlexTreeSet {
+impl IntoSingleIds for SpatilaIdSet {
     type IntoIter = <FlexTreeCore<()> as IntoSingleIds>::IntoIter;
 
     fn into_single_ids(self) -> Self::IntoIter {
@@ -27,7 +27,7 @@ impl IntoSingleIds for FlexTreeSet {
     }
 }
 
-impl IterSingleIds for FlexTreeSet {
+impl IterSingleIds for SpatilaIdSet {
     type Iter<'a>
         = <FlexTreeCore<()> as IterSingleIds>::Iter<'a>
     where
