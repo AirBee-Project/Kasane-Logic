@@ -36,7 +36,11 @@ impl SpatialId for SingleId {
         F_MAX[self.z() as usize]
     }
 
-    fn xy_max(&self) -> u32 {
+    fn x_max(&self) -> u32 {
+        XY_MAX[self.z() as usize]
+    }
+
+    fn y_max(&self) -> u32 {
         XY_MAX[self.z() as usize]
     }
 
@@ -112,7 +116,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.x(), 13);
     /// ```
     fn move_x(&mut self, by: i32) {
-        let max_len = (self.xy_max() + 1) as i32;
+        let max_len = (self.x_max() + 1) as i32;
         let new = (self.x as i32 + by).rem_euclid(max_len);
         self.x = new as u32;
     }
@@ -157,12 +161,12 @@ impl SpatialId for SingleId {
             self.y
                 .checked_sub(-by as u32)
                 .ok_or(SpatialIdError::YOutOfRange {
-                    y: self.xy_min(),
+                    y: self.y_min(),
                     z: self.z,
                 })?
         };
 
-        if new > self.xy_max() {
+        if new > self.y_max() {
             return Err(SpatialIdError::YOutOfRange { y: new, z: self.z }.into());
         }
 
@@ -213,7 +217,7 @@ impl SpatialId for SingleId {
         let ys = [self.y as f64, self.y as f64 + 1.0];
         let fs = [self.f as f64, self.f as f64 + 1.0];
 
-        // 各端点の値を前計算しておく（計算コスト削減）
+        // 各端点の値を前計算しておく
         let lon2 = [
             helpers::longitude(xs[0], self.z),
             helpers::longitude(xs[1], self.z),
@@ -227,7 +231,7 @@ impl SpatialId for SingleId {
             helpers::altitude(fs[1], self.z),
         ];
 
-        // 結果配列（Default を利用）
+        // 結果配列
         let mut out = [Coordinate::default(); 8];
 
         let mut i = 0;
@@ -254,7 +258,7 @@ impl SpatialId for SingleId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        2_i32.pow(25 - self.z() as u32) as f64
+        2_f64.powi(25 - self.z() as i32)
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
