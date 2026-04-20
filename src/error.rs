@@ -55,6 +55,8 @@ pub enum SpatialIdError {
 
     /// 時間間隔 `i` に 0 を指定した場合のエラー。
     TIntervalZero,
+    /// 文字列表現を空間 ID として解釈できないことを示す。
+    ParseSpatialIdFormat { kind: &'static str, input: String },
 }
 
 impl From<GeometryError> for Error {
@@ -155,6 +157,9 @@ impl fmt::Display for SpatialIdError {
             }
             SpatialIdError::TIntervalZero => {
                 write!(f, "Time interval i cannot be set to 0 ")
+            }
+            SpatialIdError::ParseSpatialIdFormat { kind, input } => {
+                write!(f, "{} '{}' has invalid display format", kind, input)
             }
         }
     }

@@ -4,6 +4,7 @@ use crate::{
     Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
     spatial_id::helpers,
 };
+use std::str::FromStr;
 
 impl fmt::Display for FlexId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -176,4 +177,91 @@ impl SpatialId for FlexId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+}
+
+/// 文字列表現から [`FlexId`] を復元する。
+///
+/// 形式は [`Display`](std::fmt::Display) が出力する
+/// `"{f_zoom}/{f}|{x_zoom}/{x}|{y_zoom}/{y}"`。
+/// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受け付け。
+///
+/// ```
+/// # use kasane_logic::FlexId;
+/// let id: FlexId = "5/3|2/3|10/1".parse().unwrap();
+/// assert_eq!(id.f_zoomlevel(), 5);
+/// assert_eq!(id.f_index(), 3);
+/// assert_eq!(id.x_zoomlevel(), 2);
+/// assert_eq!(id.x_index(), 3);
+/// assert_eq!(id.y_zoomlevel(), 10);
+/// assert_eq!(id.y_index(), 1);
+/// ```
+impl FromStr for FlexId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (body, temporal_text) = match s.split_once('_') {
+            Some((body, temporal_text)) => (body, Some(temporal_text)),
+            None => (s, None),
+        };
+
+        let mut parts = body.split('|');
+        let f_part = parts.next().ok_or_else(|| parse_error(s))?;
+        let x_part = parts.next().ok_or_else(|| parse_error(s))?;
+        let y_part = parts.next().ok_or_else(|| parse_error(s))?;
+        if parts.next().is_some() {
+            return Err(parse_error(s));
+        }
+
+        let (f_zoom_text, f_index_text) = f_part.split_once('/').ok_or_else(|| parse_error(s))?;
+        let (x_zoom_text, x_index_text) = x_part.split_once('/').ok_or_else(|| parse_error(s))?;
+        let (y_zoom_text, y_index_text) = y_part.split_once('/').ok_or_else(|| parse_error(s))?;
+
+        let f_zoomlevel = f_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let f_index = f_index_text.parse::<i32>().map_err(|_| parse_error(s))?;
+        let x_zoomlevel = x_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let x_index = x_index_text.parse::<u32>().map_err(|_| parse_error(s))?;
+        let y_zoomlevel = y_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let y_index = y_index_text.parse::<u32>().map_err(|_| parse_error(s))?;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            let temporal_id = match temporal_text {
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
+            };
+            return FlexId::new_with_temporal(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+                temporal_id,
+            );
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            if temporal_text.is_some() {
+                return Err(parse_error(s));
+            }
+            FlexId::new(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+            )
+        }
+    }
+}
+
+/// [`FlexId`] の文字列表現として解釈できない入力を表すエラーを生成します。
+fn parse_error(input: &str) -> Error {
+    SpatialIdError::ParseSpatialIdFormat {
+        kind: "FlexId",
+        input: input.to_string(),
+    }
+    .into()
 }

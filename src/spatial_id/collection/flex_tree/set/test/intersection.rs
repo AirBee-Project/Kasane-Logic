@@ -2,7 +2,7 @@
 mod tests {
     use super::super::{arb_random_set_case, decompose_set_to_single_ids_at_zoom};
     use crate::{
-        SpatilaIdSet, SingleId, spatial_id::collection::flex_tree::set::test::sorted_single_ids,
+        SingleId, SpatilaIdSet, spatial_id::collection::flex_tree::set::test::sorted_single_ids,
     };
     use proptest::prelude::*;
 

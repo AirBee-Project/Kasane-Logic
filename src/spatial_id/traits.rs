@@ -1,6 +1,7 @@
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
+    str::FromStr,
 };
 
 use crate::{Coordinate, FlexId, SingleId, TemporalId, error::Error};
@@ -21,6 +22,7 @@ pub trait SpatialId:
     + Hash
     + Ord
     + PartialOrd
+    + FromStr
 {
     /// ズームレベルにおける最小のFインデックスを返す。
     ///

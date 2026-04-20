@@ -3,6 +3,7 @@ use crate::{
     spatial_id::helpers,
 };
 use std::fmt;
+use std::str::FromStr;
 
 impl fmt::Display for SingleId {
     /// `SingleId` を文字列形式で表示する。
@@ -281,4 +282,68 @@ impl SpatialId for SingleId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+}
+
+/// 文字列表現から [`SingleId`] を復元する。
+///
+/// 形式は [`Display`](std::fmt::Display) が出力する `"{z}/{f}/{x}/{y}"`
+/// で、`temporal_id` feature が有効な場合のみ末尾に `_TemporalId` を付ける。
+///
+/// ```
+/// # use kasane_logic::SingleId;
+/// let id: SingleId = "5/3/2/10".parse().unwrap();
+/// assert_eq!(id.z(), 5);
+/// assert_eq!(id.f(), 3);
+/// assert_eq!(id.x(), 2);
+/// assert_eq!(id.y(), 10);
+/// ```
+impl FromStr for SingleId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (body, temporal_text) = match s.split_once('_') {
+            Some((body, temporal_text)) => (body, Some(temporal_text)),
+            None => (s, None),
+        };
+
+        let mut parts = body.split('/');
+        let z_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let f_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let x_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let y_text = parts.next().ok_or_else(|| parse_error(s))?;
+        if parts.next().is_some() {
+            return Err(parse_error(s));
+        }
+
+        let z = z_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let f = f_text.parse::<i32>().map_err(|_| parse_error(s))?;
+        let x = x_text.parse::<u32>().map_err(|_| parse_error(s))?;
+        let y = y_text.parse::<u32>().map_err(|_| parse_error(s))?;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            let temporal_id = match temporal_text {
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
+            };
+            return SingleId::new_with_temporal(z, f, x, y, temporal_id);
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            if temporal_text.is_some() {
+                return Err(parse_error(s));
+            }
+            SingleId::new(z, f, x, y)
+        }
+    }
+}
+
+/// [`SingleId`] の文字列表現として解釈できないことを表すエラーを生成します。
+fn parse_error(input: &str) -> Error {
+    SpatialIdError::ParseSpatialIdFormat {
+        kind: "SingleId",
+        input: input.to_string(),
+    }
+    .into()
 }

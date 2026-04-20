@@ -6,7 +6,7 @@ pub mod query;
 pub mod remove;
 
 #[cfg(test)]
-use crate::{SpatilaIdMap, RangeId, SingleId};
+use crate::{RangeId, SingleId, SpatilaIdMap};
 
 #[cfg(test)]
 #[derive(Clone, Debug)]

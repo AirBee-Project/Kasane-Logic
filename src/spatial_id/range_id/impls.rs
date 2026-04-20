@@ -7,6 +7,7 @@ use crate::{
         helpers::{self, format_dimension},
     },
 };
+use std::str::FromStr;
 
 impl fmt::Display for RangeId {
     /// `RangeId` を文字列形式で表示します。
@@ -239,4 +240,92 @@ impl SpatialId for RangeId {
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+}
+
+/// 文字列表現から [`RangeId`] を復元します。
+///
+/// 形式は [`Display`](std::fmt::Display) が出力する
+/// `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
+/// 単体範囲は `:` を省略した `"{z}/{f}/{x}/{y}"` 形式でもパース可能。
+/// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受けつける。
+///
+/// ```
+/// # use kasane_logic::RangeId;
+/// let id: RangeId = "4/-3:6/8:9/5:10".parse().unwrap();
+/// assert_eq!(id.z(), 4);
+/// assert_eq!(id.f(), [-3, 6]);
+/// assert_eq!(id.x(), [8, 9]);
+/// assert_eq!(id.y(), [5, 10]);
+/// ```
+impl FromStr for RangeId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (body, temporal_text) = match s.split_once('_') {
+            Some((body, temporal_text)) => (body, Some(temporal_text)),
+            None => (s, None),
+        };
+
+        let mut parts = body.split('/');
+        let z_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let f_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let x_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let y_text = parts.next().ok_or_else(|| parse_error(s))?;
+        if parts.next().is_some() {
+            return Err(parse_error(s));
+        }
+
+        let z = z_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let f = parse_i32_dimension(f_text, s)?;
+        let x = parse_u32_dimension(x_text, s)?;
+        let y = parse_u32_dimension(y_text, s)?;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            let temporal_id = match temporal_text {
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
+            };
+            return RangeId::new_with_temporal(z, f, x, y, temporal_id);
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            if temporal_text.is_some() {
+                return Err(parse_error(s));
+            }
+            RangeId::new(z, f, x, y)
+        }
+    }
+}
+
+/// `"start:end"` または単体値の文字列を [`i32`] の範囲へ変換します。
+fn parse_i32_dimension(text: &str, input: &str) -> Result<[i32; 2], Error> {
+    match text.split_once(':') {
+        Some((start, end)) => Ok([
+            start.parse::<i32>().map_err(|_| parse_error(input))?,
+            end.parse::<i32>().map_err(|_| parse_error(input))?,
+        ]),
+        None => Ok([text.parse::<i32>().map_err(|_| parse_error(input))?; 2]),
+    }
+}
+
+/// `"start:end"` または単体値の文字列を [`u32`] の範囲へ変換します。
+fn parse_u32_dimension(text: &str, input: &str) -> Result<[u32; 2], Error> {
+    match text.split_once(':') {
+        Some((start, end)) => Ok([
+            start.parse::<u32>().map_err(|_| parse_error(input))?,
+            end.parse::<u32>().map_err(|_| parse_error(input))?,
+        ]),
+        None => Ok([text.parse::<u32>().map_err(|_| parse_error(input))?; 2]),
+    }
+}
+
+/// [`RangeId`] の文字列として解釈できない入力を表すエラーを生成します。
+fn parse_error(input: &str) -> Error {
+    SpatialIdError::ParseSpatialIdFormat {
+        kind: "RangeId",
+        input: input.to_string(),
+    }
+    .into()
 }
