@@ -354,4 +354,86 @@ impl SingleId {
             temporal_id: self.temporal().clone(),
         })
     }
+
+    /// この [`SingleId`] の 6 近傍を列挙します。
+    ///
+    /// 近傍は `f` / `x` / `y` の各軸について `±1` だけ動かした 6 個です。
+    /// `x` は循環するため常に有効ですが、`f` と `y` が範囲外になる方向は除外されます。
+    /// そのため、境界上の [`SingleId`] では 6 個未満になることがあります。
+    ///
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(4, 6, 9, 10).unwrap();
+    /// let neighbors: Vec<_> = id.spatial_neighbors_6().collect();
+    /// assert_eq!(neighbors.len(), 6);
+    /// ```
+    pub fn spatial_neighbors_6(&self) -> impl Iterator<Item = SingleId> + '_ {
+        const OFFSETS: [(i32, i32, i32); 6] = [
+            (1, 0, 0),
+            (-1, 0, 0),
+            (0, 1, 0),
+            (0, -1, 0),
+            (0, 0, 1),
+            (0, 0, -1),
+        ];
+
+        OFFSETS.into_iter().filter_map(move |(df, dx, dy)| {
+            let mut neighbor = self.clone();
+
+            if df != 0 && neighbor.move_f(df).is_err() {
+                return None;
+            }
+
+            if dx != 0 {
+                neighbor.move_x(dx);
+            }
+
+            if dy != 0 && neighbor.move_y(dy).is_err() {
+                return None;
+            }
+
+            Some(neighbor)
+        })
+    }
+
+    /// この [`SingleId`] の 26 近傍を列挙します。
+    ///
+    /// 近傍は `f` / `x` / `y` の各軸について `-1, 0, 1` の組み合わせから
+    /// 自身を除いた 26 個です。`x` は循環するため常に有効ですが、`f` と `y` が
+    /// 範囲外になる方向は除外されます。
+    /// そのため、境界上の [`SingleId`] では 26 個未満になることがあります。
+    ///
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(4, 6, 9, 10).unwrap();
+    /// let neighbors: Vec<_> = id.spatial_neighbors_26().collect();
+    /// assert_eq!(neighbors.len(), 26);
+    /// ```
+    pub fn spatial_neighbors_26(&self) -> impl Iterator<Item = SingleId> + '_ {
+        (-1..=1).flat_map(move |df| {
+            (-1..=1).flat_map(move |dy| {
+                (-1..=1).filter_map(move |dx| {
+                    if df == 0 && dx == 0 && dy == 0 {
+                        return None;
+                    }
+
+                    let mut neighbor = self.clone();
+
+                    if df != 0 && neighbor.move_f(df).is_err() {
+                        return None;
+                    }
+
+                    if dx != 0 {
+                        neighbor.move_x(dx);
+                    }
+
+                    if dy != 0 && neighbor.move_y(dy).is_err() {
+                        return None;
+                    }
+
+                    Some(neighbor)
+                })
+            })
+        })
+    }
 }

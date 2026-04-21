@@ -184,18 +184,6 @@ where
         })
     }
 
-    #[cfg(feature = "temporal_id")]
-    #[test]
-    fn insert_accepts_non_whole_temporal_ids() {
-        let mut core = FlexTreeCore::new();
-        let temporal = TemporalId::new(60, [0, 0]).unwrap();
-        let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
-
-        core.insert(id, ());
-
-        assert_eq!(core.count(), 1);
-    }
-
     /// [FlexTreeCore]からTargetが示す領域を切り取って返す
     pub fn remove<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
     where
@@ -286,5 +274,22 @@ pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -
         Dimension::F => current_id.f_split(side).unwrap(),
         Dimension::X => current_id.x_split(side).unwrap(),
         Dimension::Y => current_id.y_split(side).unwrap(),
+    }
+}
+
+#[cfg(all(test, feature = "temporal_id"))]
+mod tests {
+    use super::FlexTreeCore;
+    use crate::{SingleId, TemporalId};
+
+    #[test]
+    fn insert_accepts_non_whole_temporal_ids() {
+        let mut core = FlexTreeCore::new();
+        let temporal = TemporalId::new(60, [0, 0]).unwrap();
+        let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
+
+        core.insert(id, ());
+
+        assert_eq!(core.count(), 1);
     }
 }

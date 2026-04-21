@@ -3,7 +3,7 @@ pub mod convert;
 pub mod impls;
 pub mod ops;
 
-use crate::{MAX_ZOOM_LEVEL, Side, TemporalId};
+use crate::{MAX_ZOOM_LEVEL, Side, SpatialId, TemporalId};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
