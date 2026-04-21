@@ -26,19 +26,17 @@ impl FromStr for TemporalId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (i_str, t_str) = s.split_once('/').ok_or_else(|| {
-            SpatialIdError::ParseSpatialIdFormat {
+            Error::from(SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            }
-            .into()
+            })
         })?;
 
         let i = i_str.parse::<u64>().map_err(|_| {
-            SpatialIdError::ParseSpatialIdFormat {
+            Error::from(SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            }
-            .into()
+            })
         })?;
 
         let (start_str, end_str) = match t_str.split_once(':') {
@@ -47,18 +45,16 @@ impl FromStr for TemporalId {
         };
 
         let start = start_str.parse::<u64>().map_err(|_| {
-            SpatialIdError::ParseSpatialIdFormat {
+            Error::from(SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            }
-            .into()
+            })
         })?;
         let end = end_str.parse::<u64>().map_err(|_| {
-            SpatialIdError::ParseSpatialIdFormat {
+            Error::from(SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            }
-            .into()
+            })
         })?;
 
         TemporalId::new(i, [start, end])

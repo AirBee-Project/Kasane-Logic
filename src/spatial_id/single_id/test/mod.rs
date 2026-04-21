@@ -43,4 +43,30 @@ mod tests {
             ))
         ));
     }
+
+    #[test]
+    fn six_neighbors_are_generated() {
+        let id = SingleId::new(4, 6, 9, 10).unwrap();
+        let neighbors: Vec<_> = id.spatial_neighbors_6().collect();
+
+        assert_eq!(neighbors.len(), 6);
+        assert!(neighbors.contains(&SingleId::new(4, 7, 9, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 9, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 10, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 8, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 9, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 9, 9).unwrap()));
+    }
+
+    #[test]
+    fn twenty_six_neighbors_are_generated() {
+        let id = SingleId::new(4, 6, 9, 10).unwrap();
+        let neighbors: Vec<_> = id.spatial_neighbors_26().collect();
+
+        assert_eq!(neighbors.len(), 26);
+        assert!(neighbors.contains(&SingleId::new(4, 7, 10, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 8, 9).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 10, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 8, 9).unwrap()));
+    }
 }
