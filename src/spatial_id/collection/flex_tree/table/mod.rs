@@ -7,7 +7,7 @@ pub mod test;
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatilaIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct SpatilaIdTable<V>
 where
     V: PartialEq + Ord + Clone,

@@ -6,7 +6,7 @@ pub mod json;
 pub mod ops;
 pub mod test;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct SpatilaIdSet {
     inner: FlexTreeCore<()>,
 }

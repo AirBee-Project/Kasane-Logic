@@ -4,7 +4,7 @@ pub mod export;
 pub mod json;
 pub mod test;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct SpatilaIdMap<V>
 where
     V: PartialEq + Clone,
