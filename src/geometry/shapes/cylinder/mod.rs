@@ -1,3 +1,6 @@
+pub mod geometry_relation;
+//pub mod impls;
+
 use crate::{Coordinate, Error};
 #[derive(Debug, Clone)]
 /// 3次元空間における円柱を表す型。

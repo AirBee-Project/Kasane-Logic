@@ -1,4 +1,4 @@
-use crate::{Coordinate, Line, Polygon, Triangle};
+use crate::{Coordinate, Line, Polygon, Solid, Triangle};
 
 /// 現実空間の図形に対して共通で定義することができる性質
 ///
@@ -97,4 +97,9 @@ pub trait IntoTriangles {
 pub trait IntoPolygons {
     fn into_polygons(self) -> impl Iterator<Item = Polygon>;
     fn iter_polygons(&self) -> impl Iterator<Item = Polygon>;
+}
+
+pub trait IntoSolids {
+    fn into_solids(self) -> impl Iterator<Item = Solid>;
+    fn iter_solids(&self) -> impl Iterator<Item = Solid>;
 }
