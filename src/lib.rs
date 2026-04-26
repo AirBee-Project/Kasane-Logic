@@ -21,6 +21,7 @@ pub use geometry::shapes::solid::Solid;
 pub use geometry::shapes::sphere::Sphere;
 pub use geometry::shapes::traits::*;
 pub use geometry::shapes::triangle::Triangle;
+pub use geometry::shapes::spatial_vector::SpatialVector;
 pub use geometry::traits::Geometry;
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::flex_id::FlexId;

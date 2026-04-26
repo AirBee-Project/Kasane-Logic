@@ -2,7 +2,7 @@ pub mod geometry_relation;
 //pub mod impls;
 
 use crate::{Coordinate, Error};
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
 /// 中心線及び半径によって定義される立体的な領域を表現する。

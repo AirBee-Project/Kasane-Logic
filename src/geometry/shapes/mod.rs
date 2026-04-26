@@ -11,6 +11,7 @@
 
 pub mod cylinder;
 pub mod line;
+pub mod spatial_vector;
 pub mod polygon;
 pub mod solid;
 pub mod sphere;
