@@ -1,7 +1,6 @@
 use super::SpatialVector;
-use crate::Ecef;
+use crate::{Coordinate, Ecef};
 use std::ops::{Add, Sub};
-
 
 impl SpatialVector {
     /// 内積（ドット積）を計算する。
@@ -49,6 +48,23 @@ impl SpatialVector {
             x: self.x * scalar,
             y: self.y * scalar,
             z: self.z * scalar,
+        }
+    }
+
+    pub fn create_orthonormal_basis(&self) -> [Self; 2] {
+        if self.x == 0.0 && self.y == 0.0 {
+            return [Self::new(1.0, 0.0, 0.0), Self::new(0.0, 1.0, 0.0)];
+        } else {
+            return [
+                Self::new(-self.y, self.x, 0.0).normalize().unwrap(),
+                Self::new(
+                    -self.z * self.x,
+                    -self.z * self.y,
+                    self.x * self.x + self.y * self.y,
+                )
+                .normalize()
+                .unwrap(),
+            ];
         }
     }
 }
@@ -106,5 +122,12 @@ impl Sub for SpatialVector {
             y: self.y - other.y,
             z: self.z - other.z,
         }
+    }
+}
+
+impl From<Coordinate> for SpatialVector {
+    fn from(coord: Coordinate) -> Self {
+        let ecef: Ecef = coord.into();
+        ecef.into()
     }
 }
