@@ -1,4 +1,7 @@
-use crate::{Coordinate, Cylinder, Ecef, IntoSolids, Solid, SpatialVector};
+use crate::{
+    Coordinate, Cylinder, Ecef, IntoCoordinates, IntoLines, IntoPolygons, IntoSolids,
+    IntoTriangles, Line, Polygon, Solid, SpatialVector, Triangle,
+};
 use std::f64::consts::PI;
 
 impl IntoSolids for Cylinder {
@@ -49,5 +52,41 @@ impl IntoSolids for Cylinder {
     }
     fn iter_solids(&self) -> impl Iterator<Item = Solid> {
         self.clone().into_solids()
+    }
+}
+
+impl IntoPolygons for Cylinder {
+    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
+        self.into_solids().flat_map(|s| s.into_polygons())
+    }
+    fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
+        self.iter_solids().flat_map(|s| s.into_polygons())
+    }
+}
+
+impl IntoTriangles for Cylinder {
+    fn into_triangles(self) -> impl Iterator<Item = Triangle> {
+        self.into_solids().flat_map(|s| s.into_triangles())
+    }
+    fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
+        self.iter_solids().flat_map(|s| s.into_triangles())
+    }
+}
+
+impl IntoLines for Cylinder {
+    fn into_lines(self) -> impl Iterator<Item = Line> {
+        self.into_solids().flat_map(|s| s.into_lines())
+    }
+    fn iter_lines(&self) -> impl Iterator<Item = Line> {
+        self.iter_solids().flat_map(|s| s.into_lines())
+    }
+}
+
+impl IntoCoordinates for Cylinder {
+    fn into_coordinates(self) -> impl Iterator<Item = Coordinate> {
+        self.into_solids().flat_map(|s| s.into_coordinates())
+    }
+    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
+        self.iter_solids().flat_map(|s| s.into_coordinates())
     }
 }
