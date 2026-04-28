@@ -6,6 +6,17 @@ use std::f64::consts::PI;
 
 impl IntoSolids for Cylinder {
     fn into_solids(self) -> impl Iterator<Item = Solid> {
+        let polygons = self.into_polygons().collect();
+        let solid = Solid::new(polygons, 1e-10).unwrap();
+        std::iter::once(solid)
+    }
+    fn iter_solids(&self) -> impl Iterator<Item = Solid> {
+        self.clone().into_solids()
+    }
+}
+
+impl IntoPolygons for Cylinder {
+    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
         let vecs: [SpatialVector; 2] = self.points.map(|p| p.into());
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
@@ -28,36 +39,32 @@ impl IntoSolids for Cylinder {
             let v_curr = vertices[i as usize];
             let v_next = vertices[next_i as usize];
 
-            vec![
-                to_coord(v_curr[0]),
-                to_coord(v_next[0]),
-                to_coord(v_next[1]),
-                to_coord(v_curr[1]),
-            ]
+            Polygon::new(
+                vec![
+                    to_coord(v_curr[0]),
+                    to_coord(v_next[0]),
+                    to_coord(v_next[1]),
+                    to_coord(v_curr[1]),
+                ],
+                1e-10,
+            )
         });
 
         // 側面を全て集める
-        let mut raw_surfaces: Vec<Vec<Coordinate>> = side_surfaces.collect();
+        let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
-        raw_surfaces.push(vertices.iter().rev().map(|v| to_coord(v[0])).collect());
+        raw_surfaces.push(Polygon::new(
+            vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
+            1e-10,
+        ));
         // 上面
-        raw_surfaces.push(vertices.iter().map(|v| to_coord(v[1])).collect());
+        raw_surfaces.push(Polygon::new(
+            vertices.iter().map(|v| to_coord(v[1])).collect(),
+            1e-10,
+        ));
 
-        // Solidを作成 (許容誤差epsilonは適宜調整、ここでは 1e-6 を仮置き)
-        let solid = Solid::new(raw_surfaces, 1e-10).unwrap();
-
-        // イテレータとして返す
-        std::iter::once(solid)
-    }
-    fn iter_solids(&self) -> impl Iterator<Item = Solid> {
-        self.clone().into_solids()
-    }
-}
-
-impl IntoPolygons for Cylinder {
-    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
-        self.into_solids().flat_map(|s| s.into_polygons())
+        raw_surfaces.into_iter()
     }
     fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
         self.iter_solids().flat_map(|s| s.into_polygons())

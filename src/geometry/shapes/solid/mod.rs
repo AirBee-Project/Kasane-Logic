@@ -1,6 +1,5 @@
-use crate::Geometry;
-use crate::geometry::shapes::{polygon::Polygon, triangle::Triangle};
-use crate::{Coordinate, Ecef, Error, IntoTriangles, SingleId};
+use crate::geometry::shapes::polygon::Polygon;
+use crate::{Ecef, Error, Geometry, IntoTriangles, SingleId, Triangle};
 use std::collections::{HashMap, HashSet};
 
 pub mod geometry_relation;
@@ -25,28 +24,29 @@ impl Solid {
     /// - 穴がある場合は [Error::SolidNotWatertight] を返します。
     ///
     /// # 引数
-    /// -  `raw_surfaces` - 各面の頂点リストの集合（LOD2の `lod2MultiSurface` などを想定）
+    /// -  `polygons` - 立体を構成する面のリスト。
     /// - `epsilon` - 同一点とみなす許容誤差（メートル単位）。
-    pub fn new(raw_surfaces: Vec<Vec<Coordinate>>, epsilon: f64) -> Result<Self, Error> {
-        let polygons: Vec<Polygon> = raw_surfaces
+    pub fn new(polygons: Vec<Polygon>, epsilon: f64) -> Result<Self, Error> {
+        let filtered_polygons: Vec<Polygon> = polygons
             .into_iter()
-            .map(|coords| Polygon::new(coords, epsilon))
             .filter(|p| !p.vertices().is_empty()) // 無効な面は除外
             .collect();
 
-        if polygons.is_empty() {
+        if filtered_polygons.is_empty() {
             return Err(Error::SolidNotWatertight { open_edge_count: 0 });
         }
 
         // 閉合性チェック
-        let open_edges = Self::count_open_edges(&polygons, epsilon);
+        let open_edges = Self::count_open_edges(&filtered_polygons, epsilon);
         if open_edges > 0 {
             return Err(Error::SolidNotWatertight {
                 open_edge_count: open_edges,
             });
         }
 
-        Ok(Self { polygons })
+        Ok(Self {
+            polygons: filtered_polygons,
+        })
     }
 
     /// [Solid] 全体を三角形分割し、構成する [Triangle] のリストを返します。
