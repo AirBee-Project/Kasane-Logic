@@ -67,7 +67,7 @@ impl IntoPolygons for Cylinder {
         raw_surfaces.into_iter()
     }
     fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
-        self.iter_solids().flat_map(|s| s.into_polygons())
+        self.clone().into_polygons()
     }
 }
 
@@ -76,7 +76,7 @@ impl IntoTriangles for Cylinder {
         self.into_solids().flat_map(|s| s.into_triangles())
     }
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
-        self.iter_solids().flat_map(|s| s.into_triangles())
+        self.clone().into_solids().flat_map(|s| s.into_triangles())
     }
 }
 
@@ -85,7 +85,7 @@ impl IntoLines for Cylinder {
         self.into_solids().flat_map(|s| s.into_lines())
     }
     fn iter_lines(&self) -> impl Iterator<Item = Line> {
-        self.iter_solids().flat_map(|s| s.into_lines())
+        self.clone().into_solids().flat_map(|s| s.into_lines())
     }
 }
 
@@ -94,6 +94,8 @@ impl IntoCoordinates for Cylinder {
         self.into_solids().flat_map(|s| s.into_coordinates())
     }
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
-        self.iter_solids().flat_map(|s| s.into_coordinates())
+        self.clone()
+            .into_solids()
+            .flat_map(|s| s.into_coordinates())
     }
 }
