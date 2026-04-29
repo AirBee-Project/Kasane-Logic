@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-use crate::{RangeId, SpatialId, SpatilaIdSet};
+use crate::{RangeId, SpatialId, SpatialIdSet};
 
 #[cfg(feature = "serde")]
 #[derive(Serialize)]
@@ -45,7 +45,7 @@ struct OutputRoot {
 }
 
 #[cfg(feature = "serde")]
-impl SpatilaIdSet {
+impl SpatialIdSet {
     pub fn to_json(&self) -> String {
         let ids: Vec<_> = self
             .iter()

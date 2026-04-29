@@ -56,12 +56,12 @@ pub use spatial_id::temporal_id::TemporalId;
 #[doc(inline)]
 pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatilaIdMap;
+pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::set::SpatilaIdSet;
+pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
 
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::table::SpatilaIdTable;
+pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
 // spatial_id: traits
 #[doc(inline)]

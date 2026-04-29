@@ -1,4 +1,4 @@
-use kasane_logic::{SingleId, SpatilaIdSet};
+use kasane_logic::{SingleId, SpatialIdSet};
 use memori::{Bench, Func, TrackingAllocator};
 use std::fs;
 use std::hint::black_box;
@@ -22,7 +22,7 @@ fn main() {
             let target_len = (data.len() * pct) / 100;
             let subset = &data[..target_len];
 
-            let mut vbit_set = SpatilaIdSet::new();
+            let mut vbit_set = SpatialIdSet::new();
 
             for single_id in subset {
                 vbit_set.insert(single_id.clone());

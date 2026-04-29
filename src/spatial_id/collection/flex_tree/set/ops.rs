@@ -1,11 +1,11 @@
 use std::ops::{BitAnd, BitOr, Sub};
 
-use crate::SpatilaIdSet;
+use crate::SpatialIdSet;
 
-impl BitOr<&SpatilaIdSet> for &SpatilaIdSet {
-    type Output = SpatilaIdSet;
+impl BitOr<&SpatialIdSet> for &SpatialIdSet {
+    type Output = SpatialIdSet;
 
-    fn bitor(self, rhs: &SpatilaIdSet) -> Self::Output {
+    fn bitor(self, rhs: &SpatialIdSet) -> Self::Output {
         let (first, second) = if self.count() >= rhs.count() {
             (self, rhs)
         } else {
@@ -22,17 +22,17 @@ impl BitOr<&SpatilaIdSet> for &SpatilaIdSet {
     }
 }
 
-impl BitAnd<&SpatilaIdSet> for &SpatilaIdSet {
-    type Output = SpatilaIdSet;
+impl BitAnd<&SpatialIdSet> for &SpatialIdSet {
+    type Output = SpatialIdSet;
 
-    fn bitand(self, rhs: &SpatilaIdSet) -> Self::Output {
+    fn bitand(self, rhs: &SpatialIdSet) -> Self::Output {
         let (smaller, larger) = if self.count() <= rhs.count() {
             (self, rhs)
         } else {
             (rhs, self)
         };
 
-        let mut output = SpatilaIdSet::new();
+        let mut output = SpatialIdSet::new();
 
         for flex_id in smaller.iter() {
             for intersect_id in larger.get(&flex_id) {
@@ -44,12 +44,12 @@ impl BitAnd<&SpatilaIdSet> for &SpatilaIdSet {
     }
 }
 
-impl Sub<&SpatilaIdSet> for &SpatilaIdSet {
-    type Output = SpatilaIdSet;
+impl Sub<&SpatialIdSet> for &SpatialIdSet {
+    type Output = SpatialIdSet;
 
-    fn sub(self, rhs: &SpatilaIdSet) -> Self::Output {
+    fn sub(self, rhs: &SpatialIdSet) -> Self::Output {
         if self.is_empty() {
-            return SpatilaIdSet::new();
+            return SpatialIdSet::new();
         }
 
         if rhs.is_empty() {
@@ -73,8 +73,8 @@ impl Sub<&SpatilaIdSet> for &SpatilaIdSet {
     }
 }
 
-impl BitOr for SpatilaIdSet {
-    type Output = SpatilaIdSet;
+impl BitOr for SpatialIdSet {
+    type Output = SpatialIdSet;
 
     fn bitor(mut self, rhs: Self) -> Self::Output {
         for flex_id in rhs.iter() {
@@ -84,16 +84,16 @@ impl BitOr for SpatilaIdSet {
     }
 }
 
-impl BitAnd for SpatilaIdSet {
-    type Output = SpatilaIdSet;
+impl BitAnd for SpatialIdSet {
+    type Output = SpatialIdSet;
 
     fn bitand(self, rhs: Self) -> Self::Output {
         &self & &rhs
     }
 }
 
-impl Sub for SpatilaIdSet {
-    type Output = SpatilaIdSet;
+impl Sub for SpatialIdSet {
+    type Output = SpatialIdSet;
 
     fn sub(mut self, rhs: Self) -> Self::Output {
         if rhs.count() <= self.count() {

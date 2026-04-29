@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
     use super::super::{RandomSetInsert, arb_random_set_case};
-    use crate::{RangeId, SingleId, SpatilaIdSet};
+    use crate::{RangeId, SingleId, SpatialIdSet};
     use proptest::prelude::*;
 
-    fn assert_count_consistent(set: &SpatilaIdSet) {
+    fn assert_count_consistent(set: &SpatialIdSet) {
         assert_eq!(set.count(), set.iter().count());
     }
 
-    fn remove_insert_pattern(set: &mut SpatilaIdSet, insert: &RandomSetInsert) {
+    fn remove_insert_pattern(set: &mut SpatialIdSet, insert: &RandomSetInsert) {
         match insert {
             RandomSetInsert::Single(single_id) => {
                 let _ = set.remove(single_id).collect::<Vec<_>>();
@@ -22,7 +22,7 @@ mod tests {
     /// 挿入後の Set で count() と実際の要素数が一致することを固定ケースで検証する。
     #[test]
     fn count_matches_iter_count_fixed_insert_case() {
-        let mut set = SpatilaIdSet::new();
+        let mut set = SpatialIdSet::new();
         set.insert(SingleId::new(4, 3, 2, 1).unwrap());
         set.insert(SingleId::new(4, 3, 2, 2).unwrap());
         set.insert(RangeId::new(3, [0, 1], [1, 2], [3, 3]).unwrap());
@@ -33,7 +33,7 @@ mod tests {
     /// 削除後の Set で count() と実際の要素数が一致することを固定ケースで検証する。
     #[test]
     fn count_matches_iter_count_fixed_remove_case() {
-        let mut set = SpatilaIdSet::new();
+        let mut set = SpatialIdSet::new();
         let remove_target = SingleId::new(4, 3, 2, 2).unwrap();
 
         set.insert(SingleId::new(4, 3, 2, 1).unwrap());

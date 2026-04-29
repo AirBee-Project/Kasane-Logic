@@ -6,7 +6,7 @@ pub mod query;
 pub mod remove;
 
 #[cfg(test)]
-use crate::{RangeId, SingleId, SpatilaIdMap};
+use crate::{RangeId, SingleId, SpatialIdMap};
 
 #[cfg(test)]
 #[derive(Clone, Debug)]
@@ -17,7 +17,7 @@ pub(crate) enum MapEntry {
 
 #[cfg(test)]
 impl MapEntry {
-    fn insert_into(&self, map: &mut SpatilaIdMap<i32>) {
+    fn insert_into(&self, map: &mut SpatialIdMap<i32>) {
         match self {
             MapEntry::Single(single_id, value) => map.insert(single_id.clone(), *value),
             MapEntry::Range(range_id, value) => map.insert(range_id.clone(), *value),
@@ -26,8 +26,8 @@ impl MapEntry {
 }
 
 #[cfg(test)]
-pub(crate) fn build_map(entries: &[MapEntry]) -> SpatilaIdMap<i32> {
-    let mut map = SpatilaIdMap::new();
+pub(crate) fn build_map(entries: &[MapEntry]) -> SpatialIdMap<i32> {
+    let mut map = SpatialIdMap::new();
     for entry in entries {
         entry.insert_into(&mut map);
     }

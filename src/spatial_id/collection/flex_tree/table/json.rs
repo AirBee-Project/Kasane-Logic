@@ -1,7 +1,7 @@
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-use crate::{RangeId, SpatialId, SpatilaIdTable};
+use crate::{RangeId, SpatialId, SpatialIdTable};
 
 #[cfg(feature = "serde")]
 #[derive(Serialize)]
@@ -49,7 +49,7 @@ struct OutputRoot<'a, V> {
 }
 
 #[cfg(feature = "serde")]
-impl<V> SpatilaIdTable<V>
+impl<V> SpatialIdTable<V>
 where
     V: PartialEq + Ord + Clone + Serialize,
 {

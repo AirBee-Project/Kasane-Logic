@@ -2,11 +2,11 @@
 mod tests {
     use super::super::{arb_random_set_case, decompose_set_to_single_ids_at_zoom};
     use crate::{
-        SingleId, SpatilaIdSet, spatial_id::collection::flex_tree::set::test::sorted_single_ids,
+        SingleId, SpatialIdSet, spatial_id::collection::flex_tree::set::test::sorted_single_ids,
     };
     use proptest::prelude::*;
 
-    fn expected_difference_single_ids(lhs: &SpatilaIdSet, rhs: &SpatilaIdSet) -> Vec<SingleId> {
+    fn expected_difference_single_ids(lhs: &SpatialIdSet, rhs: &SpatialIdSet) -> Vec<SingleId> {
         let common_z = lhs
             .max_zoomlevel()
             .unwrap_or(0)
@@ -20,9 +20,9 @@ mod tests {
     }
 
     fn expected_difference_of_three_single_ids(
-        a: &SpatilaIdSet,
-        b: &SpatilaIdSet,
-        c: &SpatilaIdSet,
+        a: &SpatialIdSet,
+        b: &SpatialIdSet,
+        c: &SpatialIdSet,
     ) -> Vec<SingleId> {
         let common_z = a
             .max_zoomlevel()
@@ -42,11 +42,11 @@ mod tests {
     /// 差集合演算が非可換であり、A-B と B-A がそれぞれ期待値と一致することを固定ケースで検証する。
     #[test]
     fn difference_non_commutative_for_small_cases() {
-        let mut lhs = SpatilaIdSet::new();
+        let mut lhs = SpatialIdSet::new();
         lhs.insert(SingleId::new(4, 3, 2, 1).unwrap());
         lhs.insert(SingleId::new(4, 3, 2, 2).unwrap());
 
-        let mut rhs = SpatilaIdSet::new();
+        let mut rhs = SpatialIdSet::new();
         rhs.insert(SingleId::new(4, 3, 2, 2).unwrap());
         rhs.insert(SingleId::new(4, 4, 4, 4).unwrap());
 
@@ -72,15 +72,15 @@ mod tests {
     /// 3つの Set で (A-B)-C が A-(B∪C) の期待値と一致することを固定ケースで検証する。
     #[test]
     fn difference_of_three_sets_matches_expected() {
-        let mut a = SpatilaIdSet::new();
+        let mut a = SpatialIdSet::new();
         a.insert(SingleId::new(4, 3, 2, 1).unwrap());
         a.insert(SingleId::new(4, 3, 2, 2).unwrap());
         a.insert(SingleId::new(4, 4, 4, 4).unwrap());
 
-        let mut b = SpatilaIdSet::new();
+        let mut b = SpatialIdSet::new();
         b.insert(SingleId::new(4, 3, 2, 2).unwrap());
 
-        let mut c = SpatilaIdSet::new();
+        let mut c = SpatialIdSet::new();
         c.insert(SingleId::new(4, 4, 4, 4).unwrap());
 
         let ab = &a - &b;

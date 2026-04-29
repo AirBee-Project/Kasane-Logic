@@ -10,7 +10,7 @@ pub mod union;
 #[cfg(test)]
 use crate::IntoSingleIds;
 #[cfg(test)]
-use crate::{F_MAX, F_MIN, RangeId, SingleId, SpatilaIdSet, XY_MAX};
+use crate::{F_MAX, F_MIN, RangeId, SingleId, SpatialIdSet, XY_MAX};
 #[cfg(test)]
 use proptest::prelude::*;
 #[cfg(test)]
@@ -45,7 +45,7 @@ pub(crate) enum RandomSetInsert {
 
 #[cfg(test)]
 impl RandomSetInsert {
-    fn insert_into(&self, set: &mut SpatilaIdSet) {
+    fn insert_into(&self, set: &mut SpatialIdSet) {
         match self {
             RandomSetInsert::Single(single_id) => set.insert(single_id.clone()),
             RandomSetInsert::Range(range_id) => set.insert(range_id.clone()),
@@ -73,17 +73,17 @@ impl RandomSetInsert {
 /// 演算子テスト向けのランダム Set ケース。
 ///
 /// # 使い方
-/// ランダムな [`SpatilaIdSet`] が必要なときは、まず [`arb_random_set_case`] で
-/// `RandomSetCase` を生成し、`build_set()` で `SpatilaIdSet` を構築します。
+/// ランダムな [`SpatialIdSet`] が必要なときは、まず [`arb_random_set_case`] で
+/// `RandomSetCase` を生成し、`build_set()` で `SpatialIdSet` を構築します。
 ///
 /// ```ignore
-/// # use kasane_logic::SpatilaIdSet;
+/// # use kasane_logic::SpatialIdSet;
 /// # use proptest::prelude::*;
 /// # use kasane_logic::spatial_id::collection::flex_tree::set::test::arb_random_set_case;
 /// proptest! {
 ///     #[test]
 ///     fn random_set_example(case in arb_random_set_case()) {
-///         let set: SpatilaIdSet = case.build_set();
+///         let set: SpatialIdSet = case.build_set();
 ///
 ///         // 例: 空でないことを期待する（失敗時は case の内容で再現しやすい）
 ///         prop_assert!(!set.is_empty(), "{}", case.debug_summary());
@@ -99,9 +99,9 @@ pub(crate) struct RandomSetCase {
 
 #[cfg(test)]
 impl RandomSetCase {
-    /// ケースから [`SpatilaIdSet`] を構築します。
-    pub fn build_set(&self) -> SpatilaIdSet {
-        let mut set = SpatilaIdSet::new();
+    /// ケースから [`SpatialIdSet`] を構築します。
+    pub fn build_set(&self) -> SpatialIdSet {
+        let mut set = SpatialIdSet::new();
         for insert in &self.inserts {
             insert.insert_into(&mut set);
         }
@@ -207,12 +207,12 @@ pub(crate) fn arb_random_set_case() -> impl Strategy<Value = RandomSetCase> {
         })
 }
 
-/// [`SpatilaIdSet`] を指定したズームレベルの [`SingleId`] 集合へ分解する。
+/// [`SpatialIdSet`] を指定したズームレベルの [`SingleId`] 集合へ分解する。
 ///
 /// `target_z` は対象 Set の各 ID のズームレベル以上を指定する必要がある。
 #[cfg(test)]
 pub(crate) fn decompose_set_to_single_ids_at_zoom(
-    set: &SpatilaIdSet,
+    set: &SpatialIdSet,
     target_z: u8,
 ) -> HashSet<SingleId> {
     let mut normalized = HashSet::new();
@@ -235,19 +235,19 @@ pub(crate) fn decompose_set_to_single_ids_at_zoom(
     normalized
 }
 
-/// [`SpatilaIdSet`] をその Set が持つ最小粒度（最大ズーム）に揃えた [`SingleId`] 集合へ分解する。
+/// [`SpatialIdSet`] をその Set が持つ最小粒度（最大ズーム）に揃えた [`SingleId`] 集合へ分解する。
 #[cfg(test)]
-pub(crate) fn decompose_set_to_min_granularity_single_ids(set: &SpatilaIdSet) -> HashSet<SingleId> {
+pub(crate) fn decompose_set_to_min_granularity_single_ids(set: &SpatialIdSet) -> HashSet<SingleId> {
     let target_z = set.max_zoomlevel().unwrap_or(0);
     decompose_set_to_single_ids_at_zoom(set, target_z)
 }
 
 #[cfg(test)]
-/// [`SpatilaIdSet`] を指定したズームレベルで [`SingleId`] に分解し、昇順に並べて返す。
+/// [`SpatialIdSet`] を指定したズームレベルで [`SingleId`] に分解し、昇順に並べて返す。
 ///
 /// 比較系テストで結果同値性を判定しやすくするための補助関数である。
 /// `target_z` は対象 Set 内の各 ID のズームレベル以上を指定する必要がある。
-pub(crate) fn sorted_single_ids(set: &SpatilaIdSet, target_z: u8) -> Vec<SingleId> {
+pub(crate) fn sorted_single_ids(set: &SpatialIdSet, target_z: u8) -> Vec<SingleId> {
     let mut ids: Vec<SingleId> = decompose_set_to_single_ids_at_zoom(set, target_z)
         .into_iter()
         .collect();

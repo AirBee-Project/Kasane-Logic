@@ -7,11 +7,11 @@ pub mod ops;
 pub mod test;
 
 #[derive(Default, Clone, Debug)]
-pub struct SpatilaIdSet {
+pub struct SpatialIdSet {
     inner: FlexTreeCore<()>,
 }
 
-impl PartialEq for SpatilaIdSet {
+impl PartialEq for SpatialIdSet {
     fn eq(&self, other: &Self) -> bool {
         let common_z = self
             .max_zoomlevel()
@@ -23,11 +23,11 @@ impl PartialEq for SpatilaIdSet {
     }
 }
 
-impl Eq for SpatilaIdSet {}
+impl Eq for SpatialIdSet {}
 
-impl SpatilaIdSet {
+impl SpatialIdSet {
     pub fn new() -> Self {
-        SpatilaIdSet::default()
+        SpatialIdSet::default()
     }
 
     pub fn insert<S: IterFlexIds>(&mut self, target: S) {

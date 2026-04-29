@@ -3,7 +3,7 @@ mod tests {
     use super::super::{MapEntry, build_map};
     use crate::{RangeId, SingleId};
 
-    fn assert_count_consistent(map: &crate::SpatilaIdMap<i32>) {
+    fn assert_count_consistent(map: &crate::SpatialIdMap<i32>) {
         assert_eq!(map.count(), map.iter().count());
     }
 

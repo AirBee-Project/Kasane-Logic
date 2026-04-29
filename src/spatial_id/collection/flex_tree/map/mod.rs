@@ -5,14 +5,14 @@ pub mod json;
 pub mod test;
 
 #[derive(Default, Clone, Debug)]
-pub struct SpatilaIdMap<V>
+pub struct SpatialIdMap<V>
 where
     V: PartialEq + Clone,
 {
     inner: FlexTreeCore<V>,
 }
 
-impl<V> SpatilaIdMap<V>
+impl<V> SpatialIdMap<V>
 where
     V: PartialEq + Clone,
 {
