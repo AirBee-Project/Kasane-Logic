@@ -1,5 +1,6 @@
 use crate::{Coordinate, Ecef};
 use std::ops::{Add, Sub};
+pub mod impls;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間におけるベクトルを表す型。
