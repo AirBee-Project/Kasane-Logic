@@ -13,7 +13,6 @@ pub mod cylinder;
 pub mod line;
 pub mod polygon;
 pub mod solid;
-pub mod spatial_vector;
 pub mod sphere;
 pub mod traits;
 pub mod triangle;
