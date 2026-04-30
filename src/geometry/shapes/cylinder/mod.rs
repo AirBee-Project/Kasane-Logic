@@ -7,16 +7,21 @@ use crate::{Coordinate, Error};
 ///
 /// 中心線及び半径によって定義される立体的な領域を表現する。
 pub struct Cylinder {
-    pub points: [Coordinate; 2], //向きに明確な意味を持たせるならstart,endを別に定義する方がいい？
-    pub radius: f64,
+    pub start: Coordinate,
+    pub end: Coordinate, //向きに明確な意味を持たせるならstart,endを別に定義する方がいい？
+    pub radius_m: f64,
 }
 
 impl Cylinder {
-    pub fn new(points: [Coordinate; 2], radius: f64) -> Result<Self, Error> {
-        if radius > 0.0 {
-            Ok(Cylinder { points, radius })
+    pub fn new(start: Coordinate, end: Coordinate, radius_m: f64) -> Result<Self, Error> {
+        if radius_m > 0.0 {
+            Ok(Cylinder {
+                start,
+                end,
+                radius_m,
+            })
         } else {
-            Err(Error::RadiusNegative { radius: radius })
+            Err(Error::RadiusNegative { radius: radius_m })
         }
     }
 }

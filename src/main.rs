@@ -2,14 +2,12 @@ use kasane_logic::Coordinate;
 use kasane_logic::Cylinder;
 use kasane_logic::Geometry;
 use kasane_logic::IntoSolids;
-use kasane_logic::{RangeId, SingleId, VBitSet};
-use std::fs::OpenOptions;
 use std::io::Write;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0)?;
     let tokyo_dash = Coordinate::new(35.6813, 139.764, 500.0)?;
-    let c = Cylinder::new([tokyo, tokyo_dash], 6.0)?;
+    let c = Cylinder::new(tokyo, tokyo_dash, 6.0)?;
     let s = c.into_solids().next().unwrap();
     let ids = s.single_ids(25).unwrap();
 

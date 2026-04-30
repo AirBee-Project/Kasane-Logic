@@ -2,7 +2,7 @@ use crate::{Coordinate, Cylinder, Error, Geometry, IntoSolids, RangeId, Shape, S
 
 impl Shape for Cylinder {
     fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(&self.points)
+        Coordinate::center_gravity(&[self.start, self.end])
     }
 }
 

@@ -17,11 +17,11 @@ impl IntoSolids for Cylinder {
 
 impl IntoPolygons for Cylinder {
     fn into_polygons(self) -> impl Iterator<Item = Polygon> {
-        let vecs: [SpatialVector; 2] = self.points.map(|p| p.into());
+        let vecs: [SpatialVector; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
             .create_orthonormal_basis()
-            .map(|v| v.scale(self.radius));
+            .map(|v| v.scale(self.radius_m));
         let divide_num = 100_u32;
         let vertices: Vec<_> = (0..divide_num)
             .map(|i| {
