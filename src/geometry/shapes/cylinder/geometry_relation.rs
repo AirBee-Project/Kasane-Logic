@@ -1,6 +1,6 @@
 use crate::{
     Coordinate, Cylinder, Ecef, IntoCoordinates, IntoLines, IntoPolygons, IntoSolids,
-    IntoTriangles, Line, Polygon, Solid, SpatialVector, Triangle,
+    IntoTriangles, Line, Polygon, Solid, Triangle, Vec3,
 };
 use std::f64::consts::PI;
 
@@ -17,7 +17,7 @@ impl IntoSolids for Cylinder {
 
 impl IntoPolygons for Cylinder {
     fn into_polygons(self) -> impl Iterator<Item = Polygon> {
-        let vecs: [SpatialVector; 2] = [self.start.into(), self.end.into()];
+        let vecs: [Vec3; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
             .create_orthonormal_basis()
@@ -31,7 +31,7 @@ impl IntoPolygons for Cylinder {
             })
             .collect();
 
-        let to_coord = |v: SpatialVector| Coordinate::try_from(Ecef::from(v)).unwrap();
+        let to_coord = |v: Vec3| Coordinate::try_from(Ecef::from(v)).unwrap();
 
         // 側面の頂点リスト（イテレータ）を作成
         let side_surfaces = (0..divide_num).map(|i| {

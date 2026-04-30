@@ -12,4 +12,4 @@ pub mod shapes;
 
 pub mod traits;
 
-pub mod spatial_vector;
+pub mod vec3;

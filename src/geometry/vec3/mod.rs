@@ -5,25 +5,25 @@ use std::ops::{Add, Sub};
 /// 3次元空間におけるベクトルを表す型。
 ///
 /// X, Y, Z の各成分によって定義される。
-pub struct SpatialVector {
+pub struct Vec3 {
     pub x: f64,
     pub y: f64,
     pub z: f64,
 }
 
-impl SpatialVector {
-    /// 新しい `SpatialVector` を生成する。
+impl Vec3 {
+    /// 新しい `Vec3` を生成する。
     pub fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
     /// 内積（ドット積）を計算する。
-    pub fn dot(&self, other: &SpatialVector) -> f64 {
+    pub fn dot(&self, other: &Vec3) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    /// 他の `SpatialVector` との外積（クロス積）を計算する。
-    pub fn cross(&self, other: &SpatialVector) -> SpatialVector {
-        SpatialVector {
+    /// 他の `Vec3` との外積（クロス積）を計算する。
+    pub fn cross(&self, other: &Vec3) -> Vec3 {
+        Vec3 {
             x: self.y * other.z - self.z * other.y,
             y: self.z * other.x - self.x * other.z,
             z: self.x * other.y - self.y * other.x,
@@ -42,12 +42,12 @@ impl SpatialVector {
 
     /// 同じ向きの単位ベクトル（ノルムが1のベクトル）を計算して返す。
     /// ゼロベクトルの場合は計算できないため `None` を返す。
-    pub fn normalize(&self) -> Option<SpatialVector> {
+    pub fn normalize(&self) -> Option<Vec3> {
         let n = self.norm();
         if n == 0.0 {
             None
         } else {
-            Some(SpatialVector {
+            Some(Vec3 {
                 x: self.x / n,
                 y: self.y / n,
                 z: self.z / n,
@@ -56,8 +56,8 @@ impl SpatialVector {
     }
 
     /// ベクトルを定数倍（スカラー倍）した新しいベクトルを返す。
-    pub fn scale(&self, scalar: f64) -> SpatialVector {
-        SpatialVector {
+    pub fn scale(&self, scalar: f64) -> Vec3 {
+        Vec3 {
             x: self.x * scalar,
             y: self.y * scalar,
             z: self.z * scalar,
@@ -82,9 +82,9 @@ impl SpatialVector {
     }
 }
 
-impl From<[f64; 3]> for SpatialVector {
+impl From<[f64; 3]> for Vec3 {
     fn from(arr: [f64; 3]) -> Self {
-        SpatialVector {
+        Vec3 {
             x: arr[0],
             y: arr[1],
             z: arr[2],
@@ -92,15 +92,15 @@ impl From<[f64; 3]> for SpatialVector {
     }
 }
 
-impl From<SpatialVector> for [f64; 3] {
-    fn from(vec: SpatialVector) -> Self {
+impl From<Vec3> for [f64; 3] {
+    fn from(vec: Vec3) -> Self {
         [vec.x, vec.y, vec.z]
     }
 }
 
-impl From<Ecef> for SpatialVector {
+impl From<Ecef> for Vec3 {
     fn from(ecef: Ecef) -> Self {
-        SpatialVector {
+        Vec3 {
             x: ecef.x(),
             y: ecef.y(),
             z: ecef.z(),
@@ -108,17 +108,17 @@ impl From<Ecef> for SpatialVector {
     }
 }
 
-impl From<SpatialVector> for Ecef {
-    fn from(vec: SpatialVector) -> Self {
+impl From<Vec3> for Ecef {
+    fn from(vec: Vec3) -> Self {
         Ecef::new(vec.x, vec.y, vec.z)
     }
 }
 
-impl Add for SpatialVector {
+impl Add for Vec3 {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
-        SpatialVector {
+        Vec3 {
             x: self.x + other.x,
             y: self.y + other.y,
             z: self.z + other.z,
@@ -126,11 +126,11 @@ impl Add for SpatialVector {
     }
 }
 
-impl Sub for SpatialVector {
+impl Sub for Vec3 {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
-        SpatialVector {
+        Vec3 {
             x: self.x - other.x,
             y: self.y - other.y,
             z: self.z - other.z,
@@ -138,7 +138,7 @@ impl Sub for SpatialVector {
     }
 }
 
-impl From<Coordinate> for SpatialVector {
+impl From<Coordinate> for Vec3 {
     fn from(coord: Coordinate) -> Self {
         let ecef: Ecef = coord.into();
         ecef.into()
