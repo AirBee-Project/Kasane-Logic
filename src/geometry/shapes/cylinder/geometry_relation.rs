@@ -1,19 +1,22 @@
 use crate::{
-    Coordinate, Cylinder, Ecef, IterCoordinates, IterLines, IterPolygons, IterSolids,
-    IterTriangles, Line, Polygon, Solid, Triangle, Vec3,
+    Coordinate, Cylinder, Ecef, IntoCoordinates, IntoLines, IntoPolygons, IntoSolids,
+    IntoTriangles, Line, Polygon, Solid, Triangle, Vec3,
 };
 use std::f64::consts::PI;
 
-impl IterSolids for Cylinder {
-    fn iter_solids(&self) -> impl Iterator<Item = Solid> {
-        let polygons = self.iter_polygons().collect();
+impl IntoSolids for Cylinder {
+    fn into_solids(self) -> impl Iterator<Item = Solid> {
+        let polygons = self.into_polygons().collect();
         let solid = Solid::new(polygons, 1e-10).unwrap();
         std::iter::once(solid)
     }
+    fn iter_solids(&self) -> impl Iterator<Item = Solid> {
+        self.clone().into_solids()
+    }
 }
 
-impl IterPolygons for Cylinder {
-    fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
+impl IntoPolygons for Cylinder {
+    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
         let vecs: [Vec3; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
@@ -63,34 +66,36 @@ impl IterPolygons for Cylinder {
 
         raw_surfaces.into_iter()
     }
+    fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
+        self.clone().into_polygons()
+    }
 }
 
-impl IterTriangles for Cylinder {
+impl IntoTriangles for Cylinder {
+    fn into_triangles(self) -> impl Iterator<Item = Triangle> {
+        self.into_solids().flat_map(|s| s.into_triangles())
+    }
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
-        let triangles: Vec<Triangle> = self
-            .iter_solids()
-            .flat_map(|solid| solid.iter_triangles().collect::<Vec<_>>())
-            .collect();
-        triangles.into_iter()
+        self.clone().into_solids().flat_map(|s| s.into_triangles())
     }
 }
 
-impl IterLines for Cylinder {
+impl IntoLines for Cylinder {
+    fn into_lines(self) -> impl Iterator<Item = Line> {
+        self.into_solids().flat_map(|s| s.into_lines())
+    }
     fn iter_lines(&self) -> impl Iterator<Item = Line> {
-        let lines: Vec<Line> = self
-            .iter_solids()
-            .flat_map(|solid| solid.iter_lines().collect::<Vec<_>>())
-            .collect();
-        lines.into_iter()
+        self.clone().into_solids().flat_map(|s| s.into_lines())
     }
 }
 
-impl IterCoordinates for Cylinder {
+impl IntoCoordinates for Cylinder {
+    fn into_coordinates(self) -> impl Iterator<Item = Coordinate> {
+        self.into_solids().flat_map(|s| s.into_coordinates())
+    }
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
-        let coordinates: Vec<Coordinate> = self
-            .iter_solids()
-            .flat_map(|solid| solid.iter_coordinates().collect::<Vec<_>>())
-            .collect();
-        coordinates.into_iter()
+        self.clone()
+            .into_solids()
+            .flat_map(|s| s.into_coordinates())
     }
 }

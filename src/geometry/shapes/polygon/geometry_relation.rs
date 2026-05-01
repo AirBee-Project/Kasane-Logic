@@ -1,23 +1,36 @@
-use crate::{Coordinate, Ecef, IterCoordinates, IterLines, IterTriangles, Line, Polygon, Triangle};
+use crate::{Coordinate, Ecef, IntoCoordinates, IntoLines, IntoTriangles, Line, Polygon, Triangle};
 
-impl IterCoordinates for Polygon {
+impl IntoCoordinates for Polygon {
+    fn into_coordinates(self) -> impl Iterator<Item = Coordinate> {
+        self.vertices.into_iter()
+    }
+
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.vertices.clone().into_iter()
     }
 }
 
-impl IterLines for Polygon {
+impl IntoLines for Polygon {
+    fn into_lines(self) -> impl Iterator<Item = Line> {
+        let triangles: Vec<Triangle> = self.into_triangles().collect();
+        triangles
+            .into_iter()
+            .flat_map(|triangle| triangle.into_lines())
+    }
+
     fn iter_lines(&self) -> impl Iterator<Item = Line> {
         let triangles: Vec<Triangle> = self.iter_triangles().collect();
-        let lines: Vec<Line> = triangles
+        triangles
             .into_iter()
-            .flat_map(|triangle| triangle.iter_lines().collect::<Vec<_>>())
-            .collect();
-        lines.into_iter()
+            .flat_map(|triangle| triangle.into_lines())
     }
 }
 
-impl IterTriangles for Polygon {
+impl IntoTriangles for Polygon {
+    fn into_triangles(self) -> impl Iterator<Item = Triangle> {
+        self.iter_triangles().collect::<Vec<_>>().into_iter()
+    }
+
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
         let n = self.vertices.len();
         if n < 3 {
