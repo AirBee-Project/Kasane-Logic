@@ -60,8 +60,6 @@ pub enum Dimension {
     Y = 2,
 }
 
-///上下,左右などの2分岐の概念を表すEnum
-
 /// 座標軸で小さい側:[Side::Lower]
 /// 座標軸で大きい側:[Side::Upper]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

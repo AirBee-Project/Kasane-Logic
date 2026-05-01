@@ -5,7 +5,7 @@ use crate::{
 
 impl Shape for Cylinder {
     fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(&[self.start, self.end])
+        Coordinate::center_gravity([self.start, self.end])
     }
 }
 

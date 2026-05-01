@@ -20,15 +20,8 @@ where
     V: PartialEq + Clone,
 {
     /// 指定された空間IDと値を現在ノード配下へ挿入し、葉ノード数の差分を返す。
-    pub fn insert(
-        &mut self,
-        target: FlexId,
-        value: V,
-        passed_f_z: u8,
-        passed_x_z: u8,
-        passed_y_z: u8,
-    ) -> isize {
-        if Self::is_terminal_depth(&target, passed_f_z, passed_x_z, passed_y_z) {
+    pub fn insert(&mut self, target: FlexId, value: V, passed: (u8, u8, u8)) -> isize {
+        if Self::is_terminal_depth(&target, passed) {
             let delta = match self {
                 Node::Leaf { value: existing } if existing == &value => 0,
                 Node::Leaf { .. } => 0,
@@ -44,16 +37,7 @@ where
                 lower_child,
                 upper_child,
             } => {
-                let mut delta = Self::insert_into_branch(
-                    *axis,
-                    lower_child,
-                    upper_child,
-                    target,
-                    value,
-                    passed_f_z,
-                    passed_x_z,
-                    passed_y_z,
-                );
+                let mut delta = Self::insert_into_branch(*axis, lower_child, upper_child, target, value, passed);
 
                 if let Some(merged) = Self::mergeable_leaf_value(lower_child, upper_child) {
                     // 2つのLeafを1つに統合するため、葉ノード数差分は -1。
@@ -72,8 +56,7 @@ where
                 }
 
                 let old_value = existing_value.clone();
-                let start_axis =
-                    Self::start_axis_for_target(&target, passed_f_z, passed_x_z, passed_y_z);
+                let start_axis = Self::start_axis_for_target(&target, passed);
 
                 *self = Node::Branch {
                     axis: start_axis,
@@ -85,7 +68,7 @@ where
 
                 // Leaf1個を子Leaf2個へ展開するので +1。
                 let split_delta = 1;
-                let recurse_delta = self.insert(target, value, passed_f_z, passed_x_z, passed_y_z);
+                let recurse_delta = self.insert(target, value, passed);
 
                 split_delta + recurse_delta
             }
@@ -93,10 +76,10 @@ where
     }
 
     /// 現在の通過深度が target の全次元ズームに到達しているかを判定する。
-    fn is_terminal_depth(target: &FlexId, passed_f_z: u8, passed_x_z: u8, passed_y_z: u8) -> bool {
-        passed_f_z >= target.f_zoomlevel()
-            && passed_x_z >= target.x_zoomlevel()
-            && passed_y_z >= target.y_zoomlevel()
+    fn is_terminal_depth(target: &FlexId, passed: (u8, u8, u8)) -> bool {
+        passed.0 >= target.f_zoomlevel()
+            && passed.1 >= target.x_zoomlevel()
+            && passed.2 >= target.y_zoomlevel()
     }
 
     /// Branchノードでの挿入方針を決定し、子ノード側で生じた葉ノード数差分を返す。
@@ -106,13 +89,11 @@ where
         upper_child: &mut Option<Box<Node<V>>>,
         target: FlexId,
         value: V,
-        passed_f_z: u8,
-        passed_x_z: u8,
-        passed_y_z: u8,
+        passed: (u8, u8, u8),
     ) -> isize {
-        let passed_z = Self::passed_zoom(axis, passed_f_z, passed_x_z, passed_y_z);
+        let passed_z = Self::passed_zoom(axis, passed.0, passed.1, passed.2);
         let target_z = Self::target_zoom(axis, &target);
-        let (nf, nx, ny) = Self::next_passed_depth(axis, passed_f_z, passed_x_z, passed_y_z);
+        let next_passed = Self::next_passed_depth(axis, passed.0, passed.1, passed.2);
 
         let mut delta = 0;
 
@@ -122,18 +103,16 @@ where
                 axis,
                 target.clone(),
                 value.clone(),
-                nf,
-                nx,
-                ny,
+                next_passed,
             );
-            delta += Self::insert_into_child(upper_child, axis, target, value, nf, nx, ny);
+            delta += Self::insert_into_child(upper_child, axis, target, value, next_passed);
         } else {
             match Self::forking(&target, &axis, &passed_z) {
                 Side::Lower => {
-                    delta += Self::insert_into_child(lower_child, axis, target, value, nf, nx, ny);
+                    delta += Self::insert_into_child(lower_child, axis, target, value, next_passed);
                 }
                 Side::Upper => {
-                    delta += Self::insert_into_child(upper_child, axis, target, value, nf, nx, ny);
+                    delta += Self::insert_into_child(upper_child, axis, target, value, next_passed);
                 }
             }
         }
@@ -180,10 +159,9 @@ where
     ) -> Option<V> {
         if let (Some(Node::Leaf { value: v1 }), Some(Node::Leaf { value: v2 })) =
             (lower_child.as_deref(), upper_child.as_deref())
+            && v1 == v2
         {
-            if v1 == v2 {
-                return Some(v1.clone());
-            }
+            return Some(v1.clone());
         }
 
         None
@@ -192,13 +170,11 @@ where
     /// target を追跡するために次に展開を開始すべき軸を返す。
     fn start_axis_for_target(
         target: &FlexId,
-        passed_f_z: u8,
-        passed_x_z: u8,
-        _passed_y_z: u8,
+        passed: (u8, u8, u8),
     ) -> Dimension {
-        if passed_f_z < target.f_zoomlevel() {
+        if passed.0 < target.f_zoomlevel() {
             Dimension::F
-        } else if passed_x_z < target.x_zoomlevel() {
+        } else if passed.1 < target.x_zoomlevel() {
             Dimension::X
         } else {
             Dimension::Y
@@ -211,20 +187,18 @@ where
         current_axis: Dimension,
         target: FlexId,
         value: V,
-        nf: u8,
-        nx: u8,
-        ny: u8,
+        passed: (u8, u8, u8),
     ) -> isize {
         match child_opt {
-            Some(child) => child.insert(target, value, nf, nx, ny),
-            None => match Self::next_dimension(current_axis, &target, nf, nx, ny) {
+            Some(child) => child.insert(target, value, passed),
+            None => match Self::next_dimension(current_axis, &target, passed.0, passed.1, passed.2) {
                 Some(next_axis) => {
                     let mut new_branch = Node::Branch {
                         axis: next_axis,
                         lower_child: None,
                         upper_child: None,
                     };
-                    let delta = new_branch.insert(target, value, nf, nx, ny);
+                    let delta = new_branch.insert(target, value, passed);
                     *child_opt = Some(Box::new(new_branch));
                     delta
                 }

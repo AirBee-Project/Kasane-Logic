@@ -1,6 +1,6 @@
 use crate::RangeId;
 
-#[cfg(any(test))]
+#[cfg(test)]
 use proptest::prelude::Strategy;
 #[cfg(any(test, feature = "random"))]
 use rand::Rng;
@@ -87,7 +87,7 @@ impl RangeId {
     }
 
     /// `proptest` 用に、全ズーム範囲から [`RangeId`] を生成する戦略を返します。
-    #[cfg(any(test))]
+    #[cfg(test)]
     pub fn arb() -> impl Strategy<Value = Self> {
         use crate::MAX_ZOOM_LEVEL;
 
@@ -95,7 +95,7 @@ impl RangeId {
     }
 
     /// `proptest` 用に、指定ズームの [`RangeId`] を生成する戦略を返します。
-    #[cfg(any(test))]
+    #[cfg(test)]
     pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
         Self::arb_within(z..=z)
     }
@@ -103,7 +103,7 @@ impl RangeId {
     /// `proptest` 用に、指定ズーム範囲の [`RangeId`] を生成する戦略を返します。
     ///
     /// `z_range` の終端は `MAX_ZOOM_LEVEL` でクリップされ、`start > end` の場合は `end` のみを使います。
-    #[cfg(any(test))]
+    #[cfg(test)]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
         use crate::MAX_ZOOM_LEVEL;
 

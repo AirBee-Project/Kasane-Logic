@@ -128,7 +128,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
         let f_max = F_MAX[idx];
         let xy_max = XY_MAX[idx];
 
-        let span_f_max = (f_max - f_min).min(RANDOM_SET_MAX_RANGE_SPAN_F).max(0) as u32;
+        let span_f_max = (f_max - f_min).clamp(0, RANDOM_SET_MAX_RANGE_SPAN_F) as u32;
         let span_xy_max = xy_max.min(RANDOM_SET_MAX_RANGE_SPAN_XY);
 
         (
@@ -170,7 +170,6 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 /// # use kasane_logic::spatial_id::collection::flex_tree::set::test::arb_random_set_case;
 /// # use proptest::prelude::*;
 /// proptest! {
-///     #[test]
 ///     fn operator_test_template(case in arb_random_set_case()) {
 ///         let set = case.build_set();
 ///

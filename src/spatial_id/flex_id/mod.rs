@@ -62,96 +62,108 @@ impl FlexId {
     ///F方向で二つに切り分ける
     pub fn f_split(&self, side: Side) -> Option<FlexId> {
         if self.f_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
-            return None;
+            None
         } else {
             #[cfg(feature = "temporal_id")]
-            return Some(unsafe {
-                FlexId::new_with_temporal_unchecked(
-                    self.f_zoomlevel() + 1,
-                    self.f_index() * 2 + side as i32,
-                    self.x_zoomlevel(),
-                    self.x_index(),
-                    self.y_zoomlevel(),
-                    self.y_index(),
-                    self.temporal_id.clone(),
-                )
-            });
+            {
+                Some(unsafe {
+                    FlexId::new_with_temporal_unchecked(
+                        self.f_zoomlevel() + 1,
+                        self.f_index() * 2 + side as i32,
+                        self.x_zoomlevel(),
+                        self.x_index(),
+                        self.y_zoomlevel(),
+                        self.y_index(),
+                        self.temporal_id.clone(),
+                    )
+                })
+            }
 
             #[cfg(not(feature = "temporal_id"))]
-            return Some(unsafe {
-                FlexId::new_unchecked(
-                    self.f_zoomlevel() + 1,
-                    self.f_index() * 2 + side as i32,
-                    self.x_zoomlevel(),
-                    self.x_index(),
-                    self.y_zoomlevel(),
-                    self.y_index(),
-                )
-            });
+            {
+                Some(unsafe {
+                    FlexId::new_unchecked(
+                        self.f_zoomlevel() + 1,
+                        self.f_index() * 2 + side as i32,
+                        self.x_zoomlevel(),
+                        self.x_index(),
+                        self.y_zoomlevel(),
+                        self.y_index(),
+                    )
+                })
+            }
         }
     }
 
     ///X方向で二つに切り分ける
     pub fn x_split(&self, side: Side) -> Option<FlexId> {
         if self.x_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
-            return None;
+            None
         } else {
             #[cfg(feature = "temporal_id")]
-            return Some(unsafe {
-                FlexId::new_with_temporal_unchecked(
-                    self.f_zoomlevel(),
-                    self.f_index(),
-                    self.x_zoomlevel() + 1,
-                    self.x_index() * 2 + side as u32,
-                    self.y_zoomlevel(),
-                    self.y_index(),
-                    self.temporal().clone(),
-                )
-            });
+            {
+                Some(unsafe {
+                    FlexId::new_with_temporal_unchecked(
+                        self.f_zoomlevel(),
+                        self.f_index(),
+                        self.x_zoomlevel() + 1,
+                        self.x_index() * 2 + side as u32,
+                        self.y_zoomlevel(),
+                        self.y_index(),
+                        self.temporal_id.clone(),
+                    )
+                })
+            }
 
             #[cfg(not(feature = "temporal_id"))]
-            return Some(unsafe {
-                FlexId::new_unchecked(
-                    self.f_zoomlevel(),
-                    self.f_index(),
-                    self.x_zoomlevel() + 1,
-                    self.x_index() * 2 + side as u32,
-                    self.y_zoomlevel(),
-                    self.y_index(),
-                )
-            });
+            {
+                Some(unsafe {
+                    FlexId::new_unchecked(
+                        self.f_zoomlevel(),
+                        self.f_index(),
+                        self.x_zoomlevel() + 1,
+                        self.x_index() * 2 + side as u32,
+                        self.y_zoomlevel(),
+                        self.y_index(),
+                    )
+                })
+            }
         }
     }
 
     ///Y方向で二つに切り分ける
     pub fn y_split(&self, side: Side) -> Option<FlexId> {
         if self.y_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
-            return None;
+            None
         } else {
             #[cfg(feature = "temporal_id")]
-            return Some(unsafe {
-                FlexId::new_with_temporal_unchecked(
-                    self.f_zoomlevel(),
-                    self.f_index(),
-                    self.x_zoomlevel(),
-                    self.x_index(),
-                    self.y_zoomlevel() + 1,
-                    self.y_index() * 2 + side as u32,
-                    self.temporal_id.clone(),
-                )
-            });
+            {
+                Some(unsafe {
+                    FlexId::new_with_temporal_unchecked(
+                        self.f_zoomlevel(),
+                        self.f_index(),
+                        self.x_zoomlevel(),
+                        self.x_index(),
+                        self.y_zoomlevel() + 1,
+                        self.y_index() * 2 + side as u32,
+                        self.temporal_id.clone(),
+                    )
+                })
+            }
 
             #[cfg(not(feature = "temporal_id"))]
-            return Some(unsafe {
-                FlexId::new_unchecked(
-                    self.f_zoomlevel(),
-                    self.f_index(),
-                    self.x_zoomlevel(),
-                    self.x_index(),
-                    self.y_zoomlevel() + 1,
-                    self.y_index() * 2 + side as u32,
-                )
-            });
+            {
+                Some(unsafe {
+                    FlexId::new_unchecked(
+                        self.f_zoomlevel(),
+                        self.f_index(),
+                        self.x_zoomlevel(),
+                        self.x_index(),
+                        self.y_zoomlevel() + 1,
+                        self.y_index() * 2 + side as u32,
+                    )
+                })
+            }
         }
     }
 }

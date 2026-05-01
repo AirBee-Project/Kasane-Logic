@@ -56,6 +56,8 @@ impl FlexId {
         })
     }
 
+    /// # Safety
+    /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であることを保証しなければなりません。
     pub unsafe fn new_unchecked(
         f_zoomlevel: u8,
         f_index: i32,
@@ -75,6 +77,8 @@ impl FlexId {
         }
     }
 
+    /// # Safety
+    /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であることを保証しなければなりません。
     #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
         f_zoomlevel: u8,
@@ -133,6 +137,8 @@ impl FlexId {
         })
     }
 
+    /// # Safety
+    /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であること、および `temporal_id` が有効な値であることを保証しなければなりません。
     #[cfg(feature = "temporal_id")]
     pub unsafe fn new_with_temporal_unchecked(
         f_zoomlevel: u8,

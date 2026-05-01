@@ -3,7 +3,7 @@ use rand::Rng;
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
 
-#[cfg(any(test))]
+#[cfg(test)]
 use proptest::prelude::*;
 
 #[cfg(any(test, feature = "random"))]
@@ -48,13 +48,13 @@ impl SingleId {
     }
 
     /// `proptest` 用に、全ズーム範囲から [`SingleId`] を生成する戦略を返します。
-    #[cfg(any(test))]
+    #[cfg(test)]
     pub fn arb() -> impl Strategy<Value = Self> {
         Self::arb_within(0..=MAX_ZOOM_LEVEL as u8)
     }
 
     /// `proptest` 用に、指定ズームの [`SingleId`] を生成する戦略を返します。
-    #[cfg(any(test))]
+    #[cfg(test)]
     pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
         Self::arb_within(z..=z)
     }
@@ -62,7 +62,7 @@ impl SingleId {
     /// `proptest` 用に、指定ズーム範囲の [`SingleId`] を生成する戦略を返します。
     ///
     /// `z_range` の終端は `MAX_ZOOM_LEVEL` でクリップされ、`start > end` の場合は `end` のみを使います。
-    #[cfg(any(test))]
+    #[cfg(test)]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
         let start = *z_range.start();
         let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);

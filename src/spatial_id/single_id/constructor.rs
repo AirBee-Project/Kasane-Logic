@@ -96,6 +96,9 @@ impl SingleId {
     /// assert_eq!(id.x(), 2u32);
     /// assert_eq!(id.y(), 10u32);
     /// ```
+    ///
+    /// # Safety
+    /// 呼び出し側は、`z` / `f` / `x` / `y` が各ズームレベルの有効範囲内であることを保証しなければなりません。
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId {
             z,
@@ -194,6 +197,9 @@ impl SingleId {
     /// assert_eq!(id.x(), 2u32);
     /// assert_eq!(id.y(), 10u32);
     /// ```
+    ///
+    /// # Safety
+    /// 呼び出し側は、`z` / `f` / `x` / `y` が各ズームレベルの有効範囲内であることに加え、`temporal_id` が有効な値であることを保証しなければなりません。
     #[cfg(feature = "temporal_id")]
     pub unsafe fn new_with_temporal_unchecked(
         z: u8,

@@ -94,23 +94,15 @@ impl Triangle {
 
                     let mut row_triangles = Vec::with_capacity((i * 2 - 1) as usize);
 
-                    // 変換済みの頂点を Clone (または Copy) で流用するため変換コストはゼロ
+                    // 変換済みの頂点を Copy で流用するため変換コストはゼロ
                     for j in 0..(i as usize) {
                         row_triangles.push(Triangle {
-                            points: [
-                                prev_row[j].clone(),
-                                current_row[j].clone(),
-                                current_row[j + 1].clone(),
-                            ],
+                            points: [prev_row[j], current_row[j], current_row[j + 1]],
                         });
 
                         if j > 0 {
                             row_triangles.push(Triangle {
-                                points: [
-                                    prev_row[j - 1].clone(),
-                                    prev_row[j].clone(),
-                                    current_row[j].clone(),
-                                ],
+                                points: [prev_row[j - 1], prev_row[j], current_row[j]],
                             });
                         }
                     }
@@ -160,21 +152,21 @@ impl Triangle {
             for x in min_x..=max_x {
                 for y in min_y..=max_y {
                     let mut sign_before = true;
-                    for i in 0..8 {
+                    for (i, pattern) in eight_patterns.iter().enumerate() {
                         let vec_p = [
-                            f as f64 + eight_patterns[i].0 - points[0][0],
-                            x as f64 + eight_patterns[i].1 - points[0][1],
-                            y as f64 + eight_patterns[i].2 - points[0][2],
+                            f as f64 + pattern.0 - points[0][0],
+                            x as f64 + pattern.1 - points[0][1],
+                            y as f64 + pattern.2 - points[0][2],
                         ];
                         let sign = dot_product(n, vec_p).is_sign_positive();
                         if i == 0 || sign_before == sign {
                             sign_before = sign;
                         } else {
-                            for i in 0..8 {
+                            for pattern in eight_patterns {
                                 let cp = [
-                                    f as f64 + eight_patterns[i].0,
-                                    x as f64 + eight_patterns[i].1,
-                                    y as f64 + eight_patterns[i].2,
+                                    f as f64 + pattern.0,
+                                    x as f64 + pattern.1,
+                                    y as f64 + pattern.2,
                                 ];
                                 let rel_p0 = [
                                     cp[0] - points[0][0],
