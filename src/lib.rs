@@ -9,11 +9,14 @@ pub mod spatial_id;
 // `temporal_id` feature を有効にすると、時空間IDの公開APIを時間対応で使えます。
 #[doc(inline)]
 pub use error::Error;
+#[doc(inline)]
 pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 
 #[doc(inline)]
 pub use error::{GeometryError, SpatialIdError};
+#[doc(inline)]
 pub use geometry::shapes::cylinder::Cylinder;
+#[doc(inline)]
 pub use geometry::vec3::Vec3;
 
 // geometry: types
