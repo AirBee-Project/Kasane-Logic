@@ -13,14 +13,10 @@ pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 
 #[doc(inline)]
 pub use error::{GeometryError, SpatialIdError};
-pub use geometry::constants::*;
 pub use geometry::shapes::cylinder::Cylinder;
+pub use geometry::vec3::Vec3;
 
 // geometry: types
-#[doc(inline)]
-pub use geometry::point::coordinate::Coordinate;
-#[doc(inline)]
-pub use geometry::point::ecef::Ecef;
 #[doc(inline)]
 pub use geometry::shapes::line::Line;
 #[doc(inline)]
@@ -34,10 +30,8 @@ pub use geometry::shapes::triangle::Triangle;
 
 // geometry: traits
 #[doc(inline)]
-pub use geometry::point::traits::Point;
-#[doc(inline)]
 pub use geometry::shapes::traits::{
-    IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Shape,
+    IntoCoordinates, IntoLines, IntoPolygons, IntoSolids, IntoTriangles, Shape,
 };
 #[doc(inline)]
 pub use geometry::traits::{CoverRangeIds, CoverSingleIds};

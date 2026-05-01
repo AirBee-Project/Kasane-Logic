@@ -1,4 +1,4 @@
-use crate::{Coordinate, Error};
+use crate::{Coordinate, Error, GeometryError};
 pub mod impls;
 
 ///球体を表す型
@@ -15,7 +15,7 @@ impl Sphere {
         if radius_m > 0.0 {
             Ok(Sphere { center, radius_m })
         } else {
-            Err(Error::RadiusNegative { radius: radius_m })
+            Err(GeometryError::RadiusNegative { radius: radius_m }.into())
         }
     }
 }

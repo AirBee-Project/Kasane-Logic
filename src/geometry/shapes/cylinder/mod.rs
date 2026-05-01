@@ -1,7 +1,7 @@
 pub mod geometry_relation;
 pub mod impls;
 
-use crate::{Coordinate, Error};
+use crate::{Coordinate, Error, GeometryError};
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -21,7 +21,7 @@ impl Cylinder {
                 radius_m,
             })
         } else {
-            Err(Error::RadiusNegative { radius: radius_m })
+            Err(GeometryError::RadiusNegative { radius: radius_m }.into())
         }
     }
 }

@@ -27,6 +27,9 @@ pub enum GeometryError {
         /// 問題のあるエッジの数（奇数回しか出現しなかったエッジの数）
         open_edge_count: usize,
     },
+
+    ///半径が負であることを表す
+    RadiusNegative { radius: f64 },
 }
 
 /// SpatialId 関連で発生するエラー。
@@ -110,6 +113,9 @@ impl fmt::Display for GeometryError {
                     "Solid is not watertight (closed). Found {} open edges.",
                     open_edge_count
                 )
+            }
+            GeometryError::RadiusNegative { radius } => {
+                write!(f, "Radius need to be positive (radius = {}).", radius)
             }
         }
     }
