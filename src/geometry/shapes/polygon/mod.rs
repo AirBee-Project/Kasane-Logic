@@ -3,6 +3,8 @@ use crate::Coordinate;
 pub mod geometry_relation;
 pub mod impls;
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone)]
 /// 3次元空間における多角形（ポリゴン）を表す型。
 ///

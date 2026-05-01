@@ -1,212 +1,166 @@
+use std::fmt;
+
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, RangeId, Segmentation, SingleId, SpatialId,
-    SpatialIds, XY_MAX, spatial_id::helpers,
+    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
+    spatial_id::helpers,
 };
+use std::str::FromStr;
 
-impl From<FlexId> for RangeId {
-    fn from(flex_id: FlexId) -> Self {
-        RangeId::from(&flex_id)
-    }
-}
+impl fmt::Display for FlexId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        //空間の情報の書き込み
+        write!(
+            f,
+            "{}/{}|{}/{}|{}/{}",
+            self.f_zoomlevel,
+            self.f_index,
+            self.x_zoomlevel,
+            self.x_index,
+            self.y_zoomlevel,
+            self.y_index
+        )?;
 
-impl From<&FlexId> for RangeId {
-    fn from(flex_id: &FlexId) -> Self {
-        let (f_z, f_dim) = flex_id.f.to_f();
-        let (x_z, x_dim) = flex_id.x.to_xy();
-        let (y_z, y_dim) = flex_id.y.to_xy();
-
-        let max_z = f_z.max(x_z).max(y_z);
-
-        let scale_to_range = |val: i64, current_z: u8| -> [i64; 2] {
-            let diff = max_z - current_z;
-            let start = val << diff;
-            let end = start + (1_i64 << diff) - 1;
-            [start, end]
+        //時間の情報があれば書き込み
+        if !self.temporal_id.is_whole() {
+            write!(f, "_{}", self.temporal_id)?;
         };
-
-        let f_range = scale_to_range(f_dim as i64, f_z);
-        let x_range = scale_to_range(x_dim as i64, x_z);
-        let y_range = scale_to_range(y_dim as i64, y_z);
-
-        unsafe {
-            RangeId::new_with_temporal_unchecked(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-                #[cfg(feature = "temporal")]
-                flex_id.temporal().clone(),
-            )
-        }
-    }
-}
-
-impl From<FlexId> for ([u8; 8], [u8; 8], [u8; 8]) {
-    fn from(value: FlexId) -> Self {
-        (value.f.into(), value.x.into(), value.y.into())
-    }
-}
-
-impl From<([u8; 8], [u8; 8], [u8; 8])> for FlexId {
-    fn from(value: ([u8; 8], [u8; 8], [u8; 8])) -> Self {
-        Self {
-            f: value.0.into(),
-            x: value.1.into(),
-            y: value.2.into(),
-            // temporal_id: TemporalId::whole(),
-        }
-    }
-}
-
-impl From<SingleId> for FlexId {
-    fn from(value: SingleId) -> Self {
-        FlexId::new_with_temporal(
-            value.z(),
-            value.f(),
-            value.z(),
-            value.x(),
-            value.z(),
-            value.y(),
-            // value.temporal().clone(),
-        )
-    }
-}
-
-impl From<&SingleId> for FlexId {
-    fn from(value: &SingleId) -> Self {
-        FlexId::new_with_temporal(
-            value.z(),
-            value.f(),
-            value.z(),
-            value.x(),
-            value.z(),
-            value.y(),
-            // value.temporal().clone(),
-        )
+        Ok(())
     }
 }
 
 impl SpatialId for FlexId {
     fn f_min(&self) -> i32 {
-        let (z, _) = self.f_segment().to_f();
-        F_MIN[z as usize]
+        F_MIN[self.f_zoomlevel as usize]
     }
 
     fn f_max(&self) -> i32 {
-        let (z, _) = self.f_segment().to_f();
-        F_MAX[z as usize]
+        F_MAX[self.f_zoomlevel as usize]
     }
 
-    fn xy_max(&self) -> u32 {
-        let (x_z, _) = self.x_segment().to_xy();
-        let (y_z, _) = self.y_segment().to_xy();
-        XY_MAX[x_z as usize].max(XY_MAX[y_z as usize])
+    fn x_max(&self) -> u32 {
+        XY_MAX[self.x_zoomlevel as usize]
     }
 
-    fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let (z, f) = self.f_segment().to_f();
-        let new_f = f.checked_add(by).ok_or(Error::FOutOfRange {
-            f: if by >= 0 { i32::MAX } else { i32::MIN },
-            z,
+    fn y_max(&self) -> u32 {
+        XY_MAX[self.y_zoomlevel as usize]
+    }
+
+    fn move_f(&mut self, by: i32) -> Result<(), crate::Error> {
+        let new = self.f_index.checked_add(by).ok_or_else(|| {
+            Error::from(SpatialIdError::FOutOfRange {
+                f: if by >= 0 { i32::MAX } else { i32::MIN },
+                z: self.f_zoomlevel,
+            })
         })?;
 
-        if new_f < self.f_min() || new_f > self.f_max() {
-            return Err(Error::FOutOfRange { f: new_f, z });
+        if new < self.f_min() || new > self.f_max() {
+            return Err(SpatialIdError::FOutOfRange {
+                f: new,
+                z: self.f_zoomlevel,
+            }
+            .into());
         }
 
-        self.f = crate::Segment::from_f(z, new_f);
+        self.f_index = new;
         Ok(())
     }
 
     fn move_x(&mut self, by: i32) {
-        let (z, x) = self.x_segment().to_xy();
-        let max_len = (XY_MAX[z as usize] + 1) as i32;
-        let wrapped = (x as i32 + by).rem_euclid(max_len);
-        self.x = crate::Segment::from_xy(z, wrapped as u32);
+        let max_len = (self.x_max() + 1) as i32;
+        let new = (self.x_index as i32 + by).rem_euclid(max_len);
+        self.x_index = new as u32;
     }
 
-    fn move_y(&mut self, by: i32) -> Result<(), Error> {
-        let (z, y) = self.y_segment().to_xy();
-        let new_y = if by >= 0 {
-            y.checked_add(by as u32)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?
+    fn move_y(&mut self, by: i32) -> Result<(), crate::Error> {
+        let new = if by >= 0 {
+            self.y_index.checked_add(by as u32).ok_or_else(|| {
+                Error::from(SpatialIdError::YOutOfRange {
+                    y: u32::MAX,
+                    z: self.y_zoomlevel,
+                })
+            })?
         } else {
-            y.checked_sub((-by) as u32)
-                .ok_or(Error::YOutOfRange { y: 0, z })?
+            self.y_index
+                .checked_sub(by.unsigned_abs())
+                .ok_or(SpatialIdError::YOutOfRange {
+                    y: self.y_min(),
+                    z: self.y_zoomlevel,
+                })?
         };
 
-        if new_y > XY_MAX[z as usize] {
-            return Err(Error::YOutOfRange { y: new_y, z });
+        if new > self.y_max() {
+            return Err(SpatialIdError::YOutOfRange {
+                y: new,
+                z: self.y_zoomlevel,
+            }
+            .into());
         }
 
-        self.y = crate::Segment::from_xy(z, new_y);
+        self.y_index = new;
+
         Ok(())
     }
 
     fn length_f_meters(&self) -> f64 {
-        let (z, _) = self.f_segment().to_f();
-        2_i32.pow(25 - z as u32) as f64
+        2_f64.powi(25 - self.f_zoomlevel() as i32)
     }
 
     fn length_x_meters(&self) -> f64 {
-        let (z, _) = self.x_segment().to_xy();
         let ecef: Ecef = self.spatial_center().into();
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(z as u32) as f64)
+        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.x_zoomlevel() as u32) as f64)
     }
 
     fn length_y_meters(&self) -> f64 {
-        let (z, _) = self.y_segment().to_xy();
         let ecef: Ecef = self.spatial_center().into();
         let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(z as u32) as f64)
+        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.y_zoomlevel() as u32) as f64)
     }
 
-    fn spatial_center(&self) -> Coordinate {
-        let (f_z, f_dim) = self.f_segment().to_f();
-        let (x_z, x_dim) = self.x_segment().to_xy();
-        let (y_z, y_dim) = self.y_segment().to_xy();
-
+    fn spatial_center(&self) -> crate::Coordinate {
         unsafe {
             Coordinate::new_unchecked(
-                helpers::latitude(y_dim as f64 + 0.5, y_z),
-                helpers::longitude(x_dim as f64 + 0.5, x_z),
-                helpers::altitude(f_dim as f64 + 0.5, f_z),
+                helpers::latitude(self.y_index as f64 + 0.5, self.y_zoomlevel),
+                helpers::longitude(self.x_index as f64 + 0.5, self.x_zoomlevel),
+                helpers::altitude(self.f_index as f64 + 0.5, self.f_zoomlevel),
             )
         }
     }
 
-    fn spatial_vertices(&self) -> [Coordinate; 8] {
-        let (f_z, f_dim) = self.f_segment().to_f();
-        let (x_z, x_dim) = self.x_segment().to_xy();
-        let (y_z, y_dim) = self.y_segment().to_xy();
+    fn spatial_vertices(&self) -> [crate::Coordinate; 8] {
+        let xs = [self.x_index as f64, self.x_index as f64 + 1.0];
+        let ys = [self.y_index as f64, self.y_index as f64 + 1.0];
+        let fs = [self.f_index as f64, self.f_index as f64 + 1.0];
 
-        let longitudes = [
-            helpers::longitude(x_dim as f64, x_z),
-            helpers::longitude(x_dim as f64 + 1.0, x_z),
+        // 各端点の値を前計算しておく
+        let lon2 = [
+            helpers::longitude(xs[0], self.x_zoomlevel),
+            helpers::longitude(xs[1], self.x_zoomlevel),
         ];
-        let latitudes = [
-            helpers::latitude(y_dim as f64, y_z),
-            helpers::latitude(y_dim as f64 + 1.0, y_z),
+        let lat2 = [
+            helpers::latitude(ys[0], self.y_zoomlevel),
+            helpers::latitude(ys[1], self.y_zoomlevel),
         ];
-        let altitudes = [
-            helpers::altitude(f_dim as f64, f_z),
-            helpers::altitude(f_dim as f64 + 1.0, f_z),
+        let alt2 = [
+            helpers::altitude(fs[0], self.f_zoomlevel),
+            helpers::altitude(fs[1], self.f_zoomlevel),
         ];
 
+        // 結果配列
         let mut out = [Coordinate::default(); 8];
+
         let mut i = 0;
         for f_i in 0..2 {
             for y_i in 0..2 {
                 for x_i in 0..2 {
                     out[i]
-                        .set_longitude(longitudes[x_i])
+                        .set_longitude(lon2[x_i])
                         .expect("longitude must be within valid range");
                     out[i]
-                        .set_latitude(latitudes[y_i])
+                        .set_latitude(lat2[y_i])
                         .expect("latitude must be within valid range");
                     out[i]
-                        .set_altitude(altitudes[f_i])
+                        .set_altitude(alt2[f_i])
                         .expect("altitude must be within valid range");
                     i += 1;
                 }
@@ -216,44 +170,98 @@ impl SpatialId for FlexId {
         out
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+}
 
-    fn segmentation(&self) -> crate::Segmentation {
-        Segmentation {
-            f: vec![self.f.clone()],
-            x: vec![self.x.clone()],
-            y: vec![self.y.clone()],
+/// 文字列表現から [`FlexId`] を復元する。
+///
+/// 形式は [`Display`](std::fmt::Display) が出力する
+/// `"{f_zoom}/{f}|{x_zoom}/{x}|{y_zoom}/{y}"`。
+/// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受け付け。
+///
+/// ```
+/// # use kasane_logic::FlexId;
+/// let id: FlexId = "5/3|2/3|10/1".parse().unwrap();
+/// assert_eq!(id.f_zoomlevel(), 5);
+/// assert_eq!(id.f_index(), 3);
+/// assert_eq!(id.x_zoomlevel(), 2);
+/// assert_eq!(id.x_index(), 3);
+/// assert_eq!(id.y_zoomlevel(), 10);
+/// assert_eq!(id.y_index(), 1);
+/// ```
+impl FromStr for FlexId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (body, temporal_text) = match s.split_once('_') {
+            Some((body, temporal_text)) => (body, Some(temporal_text)),
+            None => (s, None),
+        };
+
+        let mut parts = body.split('|');
+        let f_part = parts.next().ok_or_else(|| parse_error(s))?;
+        let x_part = parts.next().ok_or_else(|| parse_error(s))?;
+        let y_part = parts.next().ok_or_else(|| parse_error(s))?;
+        if parts.next().is_some() {
+            return Err(parse_error(s));
+        }
+
+        let (f_zoom_text, f_index_text) = f_part.split_once('/').ok_or_else(|| parse_error(s))?;
+        let (x_zoom_text, x_index_text) = x_part.split_once('/').ok_or_else(|| parse_error(s))?;
+        let (y_zoom_text, y_index_text) = y_part.split_once('/').ok_or_else(|| parse_error(s))?;
+
+        let f_zoomlevel = f_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let f_index = f_index_text.parse::<i32>().map_err(|_| parse_error(s))?;
+        let x_zoomlevel = x_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let x_index = x_index_text.parse::<u32>().map_err(|_| parse_error(s))?;
+        let y_zoomlevel = y_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let y_index = y_index_text.parse::<u32>().map_err(|_| parse_error(s))?;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            let temporal_id = match temporal_text {
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
+            };
+            return FlexId::new_with_temporal(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+                temporal_id,
+            );
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            if temporal_text.is_some() {
+                return Err(parse_error(s));
+            }
+            FlexId::new(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+            )
         }
     }
 }
 
-impl SpatialIds for FlexId {
-    type SingleItem<'a> = SingleId;
-
-    type RangeItem<'a> = RangeId;
-
-    type FlexItem<'a> = &'a FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
-        //Todo:最小個数になるように改良
-        let range_id = RangeId::from(self);
-        let items: Vec<_> = range_id.single_ids().collect();
-        items.into_iter()
+/// [`FlexId`] の文字列表現として解釈できない入力を表すエラーを生成します。
+fn parse_error(input: &str) -> Error {
+    SpatialIdError::ParseSpatialIdFormat {
+        kind: "FlexId",
+        input: input.to_string(),
     }
-
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
-        std::iter::once(RangeId::from(self))
-    }
-
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        std::iter::once(self)
-    }
+    .into()
 }

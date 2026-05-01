@@ -30,25 +30,21 @@ FlexId((FlexId))-->|F×X×Y|SingleId((SingleId))
 - `impl From<SingleId> for FlexId`
 - `impl From<FlexId> for RangeId`
 
-## `Iterator<Item = T>`
+## 変換系 Trait
+
+### `IntoSingleIds` / `IterSingleIds` / `IntoFlexIds` / `IterFlexIds`
 
 1:多の変換を行う。下記の変換を実装している。
 
-- `impl Iterator<Item = SingleId> for RangeId`
+- `impl IntoSingleIds / IterSingleIds for RangeId`
   - 共通ズームレベルで`F×X×Y`の全展開を行う
-- `impl Iterator<Item = SingleId> for FlexId`
+- `impl IntoSingleIds / IterSingleIds for FlexId`
   - 各軸の最大ズームに合わせて`F×X×Y`の全展開を行う
-- `impl Iterator<Item = FlexId> for RangeId`
+- `impl IntoFlexIds / IterFlexIds for RangeId`
   - `2log F×2log X×2log Y`になるように変換
 
-`From<T>`を用いてそのまま実装するもの(出力は1つ)
+単一の要素を返すもの(出力は1つ)
 
-- `impl Iterator<Item = RangeId> for SingleId`
-- `impl Iterator<Item = FlexId> for SingleId`
-- `impl Iterator<Item = RangeId> for FlexId`
-
-意味がそのままのもの(出力は1つ)
-
-- `impl Iterator<Item = RangeId> for RangeId`
-- `impl Iterator<Item = SingleId> for SingleId`
-- `impl Iterator<Item = FlexId> for FlexId`
+- `impl IntoSingleIds / IterSingleIds for SingleId`
+- `impl IntoFlexIds / IterFlexIds for SingleId`
+- `impl IntoFlexIds / IterFlexIds for FlexId`

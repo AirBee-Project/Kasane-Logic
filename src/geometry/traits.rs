@@ -1,24 +1,14 @@
 use crate::{Error, RangeId, SingleId};
 
-///3次元空間上の空間ID以外の図形を表す
-pub trait Geometry {
-    /// あるズームレベルの[SingleId]を出力する。
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
+pub trait CoverSingleIds {
+    /// 指定されたズームレベルの[SingleId]を出力する。
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error>;
+}
 
-    /// あるズームレベルの[RangeId]を出力する。
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error>;
-
-    /// 最小の個数の[SingleId]で出力する。
+pub trait CoverRangeIds {
+    /// 指定されたズームレベルの[RangeId]を出力する。
     ///
-    /// 最小の個数を保証する。
-    fn optimze_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        self.single_ids(z)
-    }
-
-    /// 最小の個数の[RangeId]で出力する。
-    ///
-    /// 最小の個数を保証する。
-    fn optimze_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
-        self.range_ids(z)
-    }
+    /// [CoverSingleIds] の結果を単純に [RangeId] へ変換するラッパーではなく、
+    /// 実装内部で [RangeId] の出力を活かす処理を持つこと。
+    fn cover_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error>;
 }

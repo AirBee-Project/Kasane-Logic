@@ -1,6 +1,6 @@
 use std::hint::black_box;
 
-use kasane_logic::{Coordinate, Geometry, Triangle};
+use kasane_logic::{Coordinate, CoverSingleIds, Triangle};
 use memori::{Bench, Func, TrackingAllocator};
 
 #[global_allocator]
@@ -26,7 +26,7 @@ fn main() {
             let triangle = Triangle::new([tokyo_station, point_b, point_c]);
 
             let iter = triangle
-                .single_ids(*z as u8)
+                .cover_single_ids(*z as u8)
                 .expect("Failed to get iterator");
             black_box(iter.count())
         });

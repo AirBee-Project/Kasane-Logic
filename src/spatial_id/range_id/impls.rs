@@ -1,13 +1,13 @@
 use std::fmt;
 
 use crate::{
-    Coordinate, Error, FlexId, RangeId, Segment, SingleId, SpatialId,
+    Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalId,
     spatial_id::{
         constants::{F_MAX, F_MIN, XY_MAX},
         helpers::{self, format_dimension},
-        traits::SpatialIds,
     },
 };
+use std::str::FromStr;
 
 impl fmt::Display for RangeId {
     /// `RangeId` を文字列形式で表示します。
@@ -16,7 +16,7 @@ impl fmt::Display for RangeId {
     /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になります。
     ///
     /// 通常時の範囲表示
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::RangeId;
     /// # use std::fmt::Write;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
@@ -44,7 +44,7 @@ impl fmt::Display for RangeId {
         )?;
 
         //時間の情報があれば書き込み
-        #[cfg(feature = "temporal")]
+
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
         };
@@ -61,7 +61,11 @@ impl SpatialId for RangeId {
         F_MAX[self.z() as usize]
     }
 
-    fn xy_max(&self) -> u32 {
+    fn x_max(&self) -> u32 {
+        XY_MAX[self.z() as usize]
+    }
+
+    fn y_max(&self) -> u32 {
         XY_MAX[self.z() as usize]
     }
 
@@ -72,16 +76,16 @@ impl SpatialId for RangeId {
 
         let ns = self.f[0]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
+            .ok_or(SpatialIdError::FOutOfRange { f: i32::MAX, z })?;
         let ne = self.f[1]
             .checked_add(by)
-            .ok_or(Error::FOutOfRange { f: i32::MAX, z })?;
+            .ok_or(SpatialIdError::FOutOfRange { f: i32::MAX, z })?;
 
         if ns < min || ns > max {
-            return Err(Error::FOutOfRange { f: ns, z });
+            return Err(SpatialIdError::FOutOfRange { f: ns, z }.into());
         }
         if ne < min || ne > max {
-            return Err(Error::FOutOfRange { f: ne, z });
+            return Err(SpatialIdError::FOutOfRange { f: ne, z }.into());
         }
 
         self.f = [ns, ne];
@@ -89,7 +93,7 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = (self.xy_max() + 1) as i32;
+        let max_len = (self.x_max() + 1) as i32;
         self.x[0] = ((self.x[0] as i32 + by).rem_euclid(max_len)) as u32;
         self.x[1] = ((self.x[1] as i32 + by).rem_euclid(max_len)) as u32;
     }
@@ -97,45 +101,43 @@ impl SpatialId for RangeId {
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
             let byu = by as u32;
-            let max = self.xy_max();
+            let max = self.y_max();
             let z = self.z;
 
             let ns = self.y[0]
                 .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: u32::MAX, z })?;
             let ne = self.y[1]
                 .checked_add(byu)
-                .ok_or(Error::YOutOfRange { y: u32::MAX, z })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: u32::MAX, z })?;
 
             if ns > max {
-                return Err(Error::YOutOfRange { y: ns, z });
+                return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
             }
             if ne > max {
-                return Err(Error::YOutOfRange { y: ne, z });
+                return Err(SpatialIdError::YOutOfRange { y: ne, z }.into());
             }
 
             self.y = [ns, ne];
             Ok(())
         } else {
             // south
-            let byu = (-by) as u32;
-            let max = self.xy_max();
+            let byu = by.unsigned_abs();
+            let max = self.y_max();
             let z = self.z;
 
-            let ns = self.y[0].checked_sub(byu).ok_or(Error::YOutOfRange {
-                y: self.xy_min(),
-                z,
-            })?;
-            let ne = self.y[1].checked_sub(byu).ok_or(Error::YOutOfRange {
-                y: self.xy_min(),
-                z,
-            })?;
+            let ns = self.y[0]
+                .checked_sub(byu)
+                .ok_or(SpatialIdError::YOutOfRange { y: self.y_min(), z })?;
+            let ne = self.y[1]
+                .checked_sub(byu)
+                .ok_or(SpatialIdError::YOutOfRange { y: self.y_min(), z })?;
 
             if ns > max {
-                return Err(Error::YOutOfRange { y: ns, z });
+                return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
             }
             if ne > max {
-                return Err(Error::YOutOfRange { y: ne, z });
+                return Err(SpatialIdError::YOutOfRange { y: ne, z }.into());
             }
 
             self.y = [ns, ne];
@@ -155,8 +157,8 @@ impl SpatialId for RangeId {
 
         unsafe {
             Coordinate::new_unchecked(
-                helpers::longitude(xf, z),
                 helpers::latitude(yf, z),
+                helpers::longitude(xf, z),
                 helpers::altitude(ff, z),
             )
         }
@@ -200,10 +202,10 @@ impl SpatialId for RangeId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        let one = 2_i32.pow(25 - self.z() as u32) as f64;
+        let one = 2_f64.powi(25 - self.z() as i32);
 
-        //このRangeIdの高さ方向の幅を計算
-        let range = (self.f()[0] - self.f()[1]).abs() as f64;
+        //このRangeIdが表すセル数を計算（両端含む）
+        let range = (self.f()[1] - self.f()[0] + 1) as f64;
 
         //かけ合わせて答えを返却
         one * range
@@ -211,146 +213,119 @@ impl SpatialId for RangeId {
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
     fn length_x_meters(&self) -> f64 {
-        todo!()
+        //Todo:正確な実装ではないので将来的に置換
+        let ecef: crate::Ecef = self.spatial_center().into();
+        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
+        let count = self.x()[0].abs_diff(self.x()[1]) as f64 + 1.0;
+
+        one * count
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
     fn length_y_meters(&self) -> f64 {
-        todo!()
+        //Todo:正確な実装ではないので将来的に置換
+        let ecef: crate::Ecef = self.spatial_center().into();
+        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
+        let count = self.y()[0].abs_diff(self.y()[1]) as f64 + 1.0;
+
+        one * count
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal(&self) -> &TemporalId {
         &self.temporal_id
     }
 
-    #[cfg(feature = "temporal")]
     fn temporal_mut(&mut self) -> &mut TemporalId {
         &mut self.temporal_id
     }
+}
 
-    fn segmentation(&self) -> crate::Segmentation {
-        let f = Segment::<8>::split_f(self.z, self.f)
-            .map(|(z, index)| Segment::from_f(z, index))
-            .collect();
+/// 文字列表現から [`RangeId`] を復元します。
+///
+/// 形式は [`Display`](std::fmt::Display) が出力する
+/// `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
+/// 単体範囲は `:` を省略した `"{z}/{f}/{x}/{y}"` 形式でもパース可能。
+/// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受けつける。
+///
+/// ```
+/// # use kasane_logic::RangeId;
+/// let id: RangeId = "4/-3:6/8:9/5:10".parse().unwrap();
+/// assert_eq!(id.z(), 4);
+/// assert_eq!(id.f(), [-3, 6]);
+/// assert_eq!(id.x(), [8, 9]);
+/// assert_eq!(id.y(), [5, 10]);
+/// ```
+impl FromStr for RangeId {
+    type Err = Error;
 
-        let x = if self.x[0] <= self.x[1] {
-            Segment::<8>::split_xy(self.z, self.x)
-                .map(|(z, index)| Segment::from_xy(z, index))
-                .collect()
-        } else {
-            let mut xs: Vec<_> =
-                Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                    .map(|(z, index)| Segment::from_xy(z, index))
-                    .collect();
-            xs.extend(
-                Segment::<8>::split_xy(self.z, [0, self.x[1]])
-                    .map(|(z, index)| Segment::from_xy(z, index)),
-            );
-            xs
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (body, temporal_text) = match s.split_once('_') {
+            Some((body, temporal_text)) => (body, Some(temporal_text)),
+            None => (s, None),
         };
 
-        let y = Segment::<8>::split_xy(self.z, self.y)
-            .map(|(z, index)| Segment::from_xy(z, index))
-            .collect();
-
-        crate::Segmentation { f, x, y }
-    }
-}
-
-impl From<SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
-    fn from(id: SingleId) -> Self {
-        RangeId {
-            z: id.z(),
-            f: [id.f(), id.f()],
-            x: [id.x(), id.x()],
-            y: [id.y(), id.y()],
-            #[cfg(feature = "temporal")]
-            temporal_id: id.temporal().clone(),
+        let mut parts = body.split('/');
+        let z_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let f_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let x_text = parts.next().ok_or_else(|| parse_error(s))?;
+        let y_text = parts.next().ok_or_else(|| parse_error(s))?;
+        if parts.next().is_some() {
+            return Err(parse_error(s));
         }
-    }
-}
 
-impl From<&SingleId> for RangeId {
-    ///`SingleId`を[`RangeId`]に変換します。表す物理的な範囲に変化はありません。
-    fn from(id: &SingleId) -> Self {
-        RangeId {
-            z: id.z(),
-            f: [id.f(), id.f()],
-            x: [id.x(), id.x()],
-            y: [id.y(), id.y()],
-            #[cfg(feature = "temporal")]
-            temporal_id: id.temporal().clone(),
-        }
-    }
-}
+        let z = z_text.parse::<u8>().map_err(|_| parse_error(s))?;
+        let f = parse_i32_dimension(f_text, s)?;
+        let x = parse_u32_dimension(x_text, s)?;
+        let y = parse_u32_dimension(y_text, s)?;
 
-impl SpatialIds for RangeId {
-    type SingleItem<'a> = SingleId;
-
-    type RangeItem<'a> = &'a RangeId;
-
-    type FlexItem<'a> = FlexId;
-
-    fn single_ids(&self) -> impl Iterator<Item = Self::SingleItem<'_>> {
-        let z = self.z;
-
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
-
-        f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
-            } else {
-                (self.x[0]..=XY_MAX[z as usize])
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
+        #[cfg(feature = "temporal_id")]
+        {
+            let temporal_id = match temporal_text {
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
             };
+            return RangeId::new_with_temporal(z, f, x, y, temporal_id);
+        }
 
-            x_iter.into_iter().flat_map(move |x| {
-                y_range.clone().map(move |y: u32| unsafe {
-                    // #[cfg(not(feature = "temporal"))]
-                    SingleId::new_unchecked(z, f, x, y)
-
-                    // #[cfg(feature = "temporal")]
-                    // SingleId::new_with_temporal_unchecked(z, f, x, y, self.temporal_id.clone())
-                })
-            })
-        })
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            if temporal_text.is_some() {
+                return Err(parse_error(s));
+            }
+            RangeId::new(z, f, x, y)
+        }
     }
+}
 
-    fn range_ids(&self) -> impl Iterator<Item = Self::RangeItem<'_>> {
-        std::iter::once(self)
+/// `"start:end"` または単体値の文字列を [`i32`] の範囲へ変換します。
+fn parse_i32_dimension(text: &str, input: &str) -> Result<[i32; 2], Error> {
+    match text.split_once(':') {
+        Some((start, end)) => Ok([
+            start.parse::<i32>().map_err(|_| parse_error(input))?,
+            end.parse::<i32>().map_err(|_| parse_error(input))?,
+        ]),
+        None => Ok([text.parse::<i32>().map_err(|_| parse_error(input))?; 2]),
     }
+}
 
-    fn flex_ids(&self) -> impl Iterator<Item = Self::FlexItem<'_>> {
-        let f_segments = Segment::<8>::split_f(self.z, self.f);
-
-        let x_list: Vec<_> = if self.x[0] <= self.x[1] {
-            Segment::<8>::split_xy(self.z, self.x).collect()
-        } else {
-            Segment::<8>::split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                .chain(Segment::<8>::split_xy(self.z, [0, self.x[1]]))
-                .collect()
-        };
-
-        let y_segments = Segment::<8>::split_xy(self.z, self.y);
-
-        let f_list: Vec<_> = f_segments.collect();
-        let y_list: Vec<_> = y_segments.collect();
-
-        f_list.into_iter().flat_map(move |(f_zoom, f_idx)| {
-            x_list.clone().into_iter().flat_map({
-                let value = y_list.clone();
-                move |(x_zoom, x_idx)| {
-                    value.clone().into_iter().map(move |(y_zoom, y_idx)| {
-                        FlexId::new(f_zoom, f_idx, x_zoom, x_idx, y_zoom, y_idx)
-                    })
-                }
-            })
-        })
+/// `"start:end"` または単体値の文字列を [`u32`] の範囲へ変換します。
+fn parse_u32_dimension(text: &str, input: &str) -> Result<[u32; 2], Error> {
+    match text.split_once(':') {
+        Some((start, end)) => Ok([
+            start.parse::<u32>().map_err(|_| parse_error(input))?,
+            end.parse::<u32>().map_err(|_| parse_error(input))?,
+        ]),
+        None => Ok([text.parse::<u32>().map_err(|_| parse_error(input))?; 2]),
     }
+}
+
+/// [`RangeId`] の文字列として解釈できない入力を表すエラーを生成します。
+fn parse_error(input: &str) -> Error {
+    SpatialIdError::ParseSpatialIdFormat {
+        kind: "RangeId",
+        input: input.to_string(),
+    }
+    .into()
 }

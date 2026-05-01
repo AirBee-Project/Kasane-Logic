@@ -1,5 +1,5 @@
 use crate::geometry::shapes::polygon::Polygon;
-use crate::{Ecef, Error, Geometry, IntoTriangles, SingleId, Triangle};
+use crate::{CoverSingleIds as _, Ecef, Error, GeometryError, IntoTriangles, SingleId, Triangle};
 use std::collections::{HashMap, HashSet};
 
 pub mod geometry_relation;
@@ -9,6 +9,8 @@ pub mod impls;
 ///
 /// 複数の [Polygon] によって構成される閉じた領域を表現します。
 /// この型は、作成時に必ず閉合性が検証されるため、作成できている場合は「閉じている」ことが保証されます。
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone)]
 pub struct Solid {
     /// 立体を構成する面のリスト
@@ -21,7 +23,7 @@ impl Solid {
     /// # 処理内容
     /// - 各面を[Polygon] に変換。
     /// - 閉合性の検証。
-    /// - 穴がある場合は [Error::SolidNotWatertight] を返します。
+    /// - 穴がある場合は [GeometryError::SolidNotWatertight] を返します。
     ///
     /// # 引数
     /// -  `polygons` - 立体を構成する面のリスト。
@@ -33,15 +35,16 @@ impl Solid {
             .collect();
 
         if filtered_polygons.is_empty() {
-            return Err(Error::SolidNotWatertight { open_edge_count: 0 });
+            return Err(GeometryError::SolidNotWatertight { open_edge_count: 0 }.into());
         }
 
         // 閉合性チェック
         let open_edges = Self::count_open_edges(&filtered_polygons, epsilon);
         if open_edges > 0 {
-            return Err(Error::SolidNotWatertight {
+            return Err(GeometryError::SolidNotWatertight {
                 open_edge_count: open_edges,
-            });
+            }
+            .into());
         }
 
         Ok(Self {
@@ -99,7 +102,7 @@ impl Solid {
         for polygon in &self.polygons {
             let triangles = polygon.iter_triangles();
             for triangle in triangles {
-                let ids_iter = triangle.single_ids(z)?;
+                let ids_iter = triangle.cover_single_ids(z)?;
                 for id in ids_iter {
                     unique_ids.insert(id);
                 }

@@ -10,6 +10,8 @@ use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordi
 /// * Z 軸は北極方向
 ///
 /// 単位はすべてメートル。
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Ecef {
     x: f64,
@@ -21,7 +23,7 @@ impl Ecef {
     /// 指定された XYZ 成分から [`Ecef`] を生成する。
     ///
     /// # Examples
-    /// ```
+    /// ```no_run
     /// # use kasane_logic::Ecef;
     ///
     /// let ecef = Ecef::new(10.0, 20.0, 30.0);

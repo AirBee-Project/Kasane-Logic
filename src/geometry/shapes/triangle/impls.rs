@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use crate::{
-    Coordinate, Error, IntoCoordinates, RangeId, Shape, SingleId, Triangle,
-    geometry::{shapes::triangle::coordinate_to_matrix, traits::Geometry},
+    Coordinate, Error, IntoCoordinates, Shape, SingleId, Triangle,
+    geometry::{shapes::triangle::coordinate_to_matrix, traits::CoverSingleIds},
 };
 
 impl Shape for Triangle {
@@ -11,8 +11,8 @@ impl Shape for Triangle {
     }
 }
 
-impl Geometry for Triangle {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+impl CoverSingleIds for Triangle {
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let points: [[f64; 3]; 3] = [
             coordinate_to_matrix(self.points[0], z),
             coordinate_to_matrix(self.points[1], z),
@@ -31,10 +31,5 @@ impl Geometry for Triangle {
             .flat_map(move |tri| tri.single_ids_limited(z).ok().into_iter().flatten())
             .filter(move |voxel| seen.insert(voxel.clone()));
         Ok(voxels)
-    }
-
-    ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(self.single_ids(z)?.map(RangeId::from))
     }
 }

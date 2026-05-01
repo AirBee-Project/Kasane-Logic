@@ -1,5 +1,11 @@
 {
   "rust-analyzer.cargo.features": [
-    "random",
-  ]
+    "random","serde",
+  ],
+  "chat.tools.terminal.autoApprove": {
+    "cargo test": true,
+    "cargo clippy": true,
+    "cargo fmt": true,
+    "cargo check": true,
+  }
 }

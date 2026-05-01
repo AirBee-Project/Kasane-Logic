@@ -1,4 +1,7 @@
-use crate::{Coordinate, Ecef, Error, Geometry, Line, MAX_ZOOM_LEVEL, RangeId, Shape, SingleId};
+use crate::{
+    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialIdError,
+    geometry::traits::CoverSingleIds,
+};
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
@@ -6,10 +9,10 @@ impl Shape for Line {
     }
 }
 
-impl Geometry for Line {
-    fn single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+impl CoverSingleIds for Line {
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(Error::ZOutOfRange { z });
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
         let a = self.points[0];
         let b = self.points[1];
@@ -44,17 +47,12 @@ impl Geometry for Line {
         }
         Ok(voxels.into_iter())
     }
-
-    ///[SingleId]を変換しているだけなので、型の問題がなければ`fn single_ids`を使ったほうが良い
-    fn range_ids(&self, z: u8) -> Result<impl Iterator<Item = crate::RangeId>, crate::Error> {
-        Ok(self.single_ids(z)?.map(RangeId::from))
-    }
 }
 
 ///DDAを用いたLine関数
 fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
     if z > MAX_ZOOM_LEVEL as u8 {
-        return Err(Error::ZOutOfRange { z });
+        return Err(SpatialIdError::ZOutOfRange { z }.into());
     }
     let origin1 = coordinate_to_matrix(a, z);
     let origin2 = coordinate_to_matrix(b, z);
