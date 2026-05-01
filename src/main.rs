@@ -1,19 +1,20 @@
-use std::fs;
+use kasane_logic::Coordinate;
+use kasane_logic::CoverSingleIds;
+use kasane_logic::Cylinder;
+use kasane_logic::IntoSolids;
+use std::io::Write;
 
-use kasane_logic::{RangeId, SingleId, SpatialIdTable};
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0)?;
+    let tokyo_dash = Coordinate::new(35.6813, 139.764, 500.0)?;
+    let c = Cylinder::new(tokyo, tokyo_dash, 6.0)?;
+    let s = c.into_solids().next().unwrap();
+    let ids = s.cover_single_ids(25).unwrap();
 
-fn main() {
-    let mut table = SpatialIdTable::new();
+    let mut file = std::fs::File::create("output.txt")?;
+    for id in ids {
+        writeln!(file, "{},", id)?;
+    }
 
-    let id1 = RangeId::new(5, [-3, 10], [0, 9], [5, 10]).unwrap();
-    let id2 = RangeId::new(4, [3, 6], [2, 2], [1, 9]).unwrap();
-    let id3 = SingleId::new(2, 0, 1, 1).unwrap();
-
-    table.insert(id1, "Neko".to_string());
-    table.insert(id2, "Neko".to_string());
-    table.insert(id3, "A".to_string());
-
-    let json = table.to_json();
-
-    fs::write("oput3.json", json).expect("Unable to write file");
+    Ok(())
 }

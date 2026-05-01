@@ -21,7 +21,7 @@ fn main() {
         .add_function("Sphere Function", |z| {
             let tokyo_station = Coordinate::new(35.681000, 139.767000, 0.0).unwrap();
 
-            let triangle = Sphere::new(tokyo_station, 30.0);
+            let triangle = Sphere::new(tokyo_station, 30.0).unwrap();
 
             let iter = triangle
                 .cover_single_ids(*z as u8)
