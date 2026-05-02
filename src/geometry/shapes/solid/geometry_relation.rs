@@ -1,9 +1,15 @@
 use crate::{
-    Coordinate, IterCoordinates, IterLines, IterPolygons, IterTriangles, Line, Polygon, Solid,
+    Coordinate, IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Line, Polygon, Solid,
     Triangle,
 };
 
-impl IterCoordinates for Solid {
+impl IntoCoordinates for Solid {
+    fn into_coordinates(self) -> impl Iterator<Item = Coordinate> {
+        self.polygons
+            .into_iter()
+            .flat_map(|polygon| polygon.into_coordinates())
+    }
+
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.polygons
             .iter()
@@ -11,30 +17,40 @@ impl IterCoordinates for Solid {
     }
 }
 
-impl IterLines for Solid {
+impl IntoLines for Solid {
+    fn into_lines(self) -> impl Iterator<Item = Line> {
+        self.polygons
+            .into_iter()
+            .flat_map(|polygon| polygon.into_lines())
+    }
+
     fn iter_lines(&self) -> impl Iterator<Item = Line> {
-        let lines: Vec<Line> = self
-            .polygons
+        self.polygons
             .iter()
-            .flat_map(|polygon| polygon.iter_lines().collect::<Vec<_>>())
-            .collect();
-        lines.into_iter()
+            .flat_map(|polygon| polygon.iter_lines())
     }
 }
 
-impl IterTriangles for Solid {
+impl IntoTriangles for Solid {
+    fn into_triangles(self) -> impl Iterator<Item = Triangle> {
+        self.polygons
+            .into_iter()
+            .flat_map(|polygon| polygon.into_triangles())
+    }
+
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
-        let triangles: Vec<Triangle> = self
-            .polygons
+        self.polygons
             .iter()
-            .flat_map(|polygon| polygon.iter_triangles().collect::<Vec<_>>())
-            .collect();
-        triangles.into_iter()
+            .flat_map(|polygon| polygon.iter_triangles())
     }
 }
 
-impl IterPolygons for Solid {
+impl IntoPolygons for Solid {
+    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
+        self.polygons.into_iter()
+    }
+
     fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
-        self.polygons.iter().cloned()
+        self.polygons.clone().into_iter()
     }
 }
