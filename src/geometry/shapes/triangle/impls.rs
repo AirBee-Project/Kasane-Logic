@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    Coordinate, Error, IntoCoordinates, Shape, SingleId, Triangle,
+    Coordinate, Error, IterCoordinates, Shape, SingleId, Triangle,
     geometry::{shapes::triangle::coordinate_to_matrix, traits::CoverSingleIds},
 };
 

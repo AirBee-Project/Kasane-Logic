@@ -51,15 +51,13 @@ Solid -->|"Solid → Polygon×N"| Polygon
 
 分解可能な型は、次のトレイトを直接実装する。
 
-- `IntoCoordinates`
-- `IntoLines`
-- `IntoTriangles`
-- `IntoPolygons`
+- `IterCoordinates`
+- `IterLines`
+- `IterTriangles`
+- `IterPolygons`
 
-各トレイトは以下の2つのメソッドを持つ。
+各トレイトは以下の1つのメソッドを持つ。
 
-- `into_*()`
-  - 所有権を受け取り、対応する型のイテレーターを返す。
 - `iter_*()`
   - 参照を受け取り、対応する型のイテレーターを返す。
 
