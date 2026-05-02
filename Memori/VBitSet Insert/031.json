@@ -2,13 +2,13 @@
   "新宿区の建物データ": {
     "patternType": "scaling",
     "description": "データ量を徐々に増やして増加を確認",
-    "comment": "f278ee9 - Merge pull request #114 from AirBee-Project/chore/hooks",
+    "comment": "ababd6a - Merge pull request #115 from AirBee-Project/chore/merge-ci",
     "results": {
       "VBitSet Insert": [
         {
           "input": 0,
           "measurement": {
-            "cycles": 104,
+            "cycles": 88,
             "instructions": null,
             "timeNs": null,
             "allocCount": 0,
@@ -21,7 +21,7 @@
         {
           "input": 10,
           "measurement": {
-            "cycles": 197210,
+            "cycles": 447196,
             "instructions": null,
             "timeNs": null,
             "allocCount": 1031,
@@ -34,7 +34,7 @@
         {
           "input": 20,
           "measurement": {
-            "cycles": 361244,
+            "cycles": 846206,
             "instructions": null,
             "timeNs": null,
             "allocCount": 1610,
@@ -47,7 +47,7 @@
         {
           "input": 30,
           "measurement": {
-            "cycles": 516880,
+            "cycles": 1238580,
             "instructions": null,
             "timeNs": null,
             "allocCount": 2048,
@@ -60,7 +60,7 @@
         {
           "input": 40,
           "measurement": {
-            "cycles": 677898,
+            "cycles": 1631256,
             "instructions": null,
             "timeNs": null,
             "allocCount": 2468,
@@ -73,7 +73,7 @@
         {
           "input": 50,
           "measurement": {
-            "cycles": 837590,
+            "cycles": 2031490,
             "instructions": null,
             "timeNs": null,
             "allocCount": 2832,
@@ -86,7 +86,7 @@
         {
           "input": 60,
           "measurement": {
-            "cycles": 990054,
+            "cycles": 2402582,
             "instructions": null,
             "timeNs": null,
             "allocCount": 3142,
@@ -99,7 +99,7 @@
         {
           "input": 70,
           "measurement": {
-            "cycles": 1141478,
+            "cycles": 2782564,
             "instructions": null,
             "timeNs": null,
             "allocCount": 3411,
@@ -112,7 +112,7 @@
         {
           "input": 80,
           "measurement": {
-            "cycles": 1299454,
+            "cycles": 3140438,
             "instructions": null,
             "timeNs": null,
             "allocCount": 3677,
@@ -125,7 +125,7 @@
         {
           "input": 90,
           "measurement": {
-            "cycles": 1445366,
+            "cycles": 3495692,
             "instructions": null,
             "timeNs": null,
             "allocCount": 3906,
@@ -138,7 +138,7 @@
         {
           "input": 100,
           "measurement": {
-            "cycles": 1596244,
+            "cycles": 3834054,
             "instructions": null,
             "timeNs": null,
             "allocCount": 4129,

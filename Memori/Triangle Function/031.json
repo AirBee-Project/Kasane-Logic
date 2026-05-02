@@ -2,13 +2,13 @@
   "Representative Value": {
     "patternType": "instant",
     "description": "バージョンの変化で負荷が変化していないことを確認",
-    "comment": "f278ee9 - Merge pull request #114 from AirBee-Project/chore/hooks",
+    "comment": "ababd6a - Merge pull request #115 from AirBee-Project/chore/merge-ci",
     "results": {
       "Triangle Function": [
         {
           "input": 25,
           "measurement": {
-            "cycles": 515866,
+            "cycles": 668484,
             "instructions": null,
             "timeNs": null,
             "allocCount": 287,
@@ -24,13 +24,13 @@
   "ZoomLevel Scaling": {
     "patternType": "scaling",
     "description": "ズームレベルが+1されると、最大でも8倍の負荷",
-    "comment": "f278ee9 - Merge pull request #114 from AirBee-Project/chore/hooks",
+    "comment": "ababd6a - Merge pull request #115 from AirBee-Project/chore/merge-ci",
     "results": {
       "Triangle Function": [
         {
           "input": 15,
           "measurement": {
-            "cycles": 1768,
+            "cycles": 1930,
             "instructions": null,
             "timeNs": null,
             "allocCount": 2,
@@ -43,7 +43,7 @@
         {
           "input": 16,
           "measurement": {
-            "cycles": 1872,
+            "cycles": 2314,
             "instructions": null,
             "timeNs": null,
             "allocCount": 2,
@@ -56,7 +56,7 @@
         {
           "input": 17,
           "measurement": {
-            "cycles": 1534,
+            "cycles": 1924,
             "instructions": null,
             "timeNs": null,
             "allocCount": 2,
@@ -69,7 +69,7 @@
         {
           "input": 18,
           "measurement": {
-            "cycles": 3562,
+            "cycles": 4494,
             "instructions": null,
             "timeNs": null,
             "allocCount": 3,
@@ -82,7 +82,7 @@
         {
           "input": 19,
           "measurement": {
-            "cycles": 3588,
+            "cycles": 4494,
             "instructions": null,
             "timeNs": null,
             "allocCount": 3,
@@ -95,7 +95,7 @@
         {
           "input": 20,
           "measurement": {
-            "cycles": 5018,
+            "cycles": 6462,
             "instructions": null,
             "timeNs": null,
             "allocCount": 7,
@@ -108,7 +108,7 @@
         {
           "input": 21,
           "measurement": {
-            "cycles": 5226,
+            "cycles": 6744,
             "instructions": null,
             "timeNs": null,
             "allocCount": 7,
@@ -121,7 +121,7 @@
         {
           "input": 22,
           "measurement": {
-            "cycles": 14638,
+            "cycles": 18566,
             "instructions": null,
             "timeNs": null,
             "allocCount": 13,
@@ -134,7 +134,7 @@
         {
           "input": 23,
           "measurement": {
-            "cycles": 36270,
+            "cycles": 46836,
             "instructions": null,
             "timeNs": null,
             "allocCount": 27,
@@ -147,7 +147,7 @@
         {
           "input": 24,
           "measurement": {
-            "cycles": 126022,
+            "cycles": 163164,
             "instructions": null,
             "timeNs": null,
             "allocCount": 79,
@@ -160,7 +160,7 @@
         {
           "input": 25,
           "measurement": {
-            "cycles": 516958,
+            "cycles": 668188,
             "instructions": null,
             "timeNs": null,
             "allocCount": 287,

@@ -2,13 +2,13 @@
   "Representative Value": {
     "patternType": "instant",
     "description": "バージョンの変化で負荷が変化していないことを確認",
-    "comment": "f278ee9 - Merge pull request #114 from AirBee-Project/chore/hooks",
+    "comment": "ababd6a - Merge pull request #115 from AirBee-Project/chore/merge-ci",
     "results": {
       "Line Function Long distance(Tokyo-Nagoya)": [
         {
           "input": 25,
           "measurement": {
-            "cycles": 13192192,
+            "cycles": 16699746,
             "instructions": null,
             "timeNs": null,
             "allocCount": 24,
@@ -24,13 +24,13 @@
   "ZoomLevel Scaling": {
     "patternType": "scaling",
     "description": "ズームレベルが+1されると、最大でも8倍の負荷",
-    "comment": "f278ee9 - Merge pull request #114 from AirBee-Project/chore/hooks",
+    "comment": "ababd6a - Merge pull request #115 from AirBee-Project/chore/merge-ci",
     "results": {
       "Line Function Long distance(Tokyo-Nagoya)": [
         {
           "input": 15,
           "measurement": {
-            "cycles": 147264,
+            "cycles": 188346,
             "instructions": null,
             "timeNs": null,
             "allocCount": 15,
@@ -43,7 +43,7 @@
         {
           "input": 16,
           "measurement": {
-            "cycles": 154908,
+            "cycles": 197088,
             "instructions": null,
             "timeNs": null,
             "allocCount": 16,
@@ -56,7 +56,7 @@
         {
           "input": 17,
           "measurement": {
-            "cycles": 163774,
+            "cycles": 210904,
             "instructions": null,
             "timeNs": null,
             "allocCount": 16,
@@ -69,7 +69,7 @@
         {
           "input": 18,
           "measurement": {
-            "cycles": 185718,
+            "cycles": 240118,
             "instructions": null,
             "timeNs": null,
             "allocCount": 16,
@@ -82,7 +82,7 @@
         {
           "input": 19,
           "measurement": {
-            "cycles": 229164,
+            "cycles": 297486,
             "instructions": null,
             "timeNs": null,
             "allocCount": 16,
@@ -95,7 +95,7 @@
         {
           "input": 20,
           "measurement": {
-            "cycles": 314002,
+            "cycles": 413208,
             "instructions": null,
             "timeNs": null,
             "allocCount": 16,
@@ -108,7 +108,7 @@
         {
           "input": 21,
           "measurement": {
-            "cycles": 498368,
+            "cycles": 658364,
             "instructions": null,
             "timeNs": null,
             "allocCount": 18,
@@ -121,7 +121,7 @@
         {
           "input": 22,
           "measurement": {
-            "cycles": 858130,
+            "cycles": 1124682,
             "instructions": null,
             "timeNs": null,
             "allocCount": 18,
@@ -134,7 +134,7 @@
         {
           "input": 23,
           "measurement": {
-            "cycles": 1617720,
+            "cycles": 2153804,
             "instructions": null,
             "timeNs": null,
             "allocCount": 20,
@@ -147,7 +147,7 @@
         {
           "input": 24,
           "measurement": {
-            "cycles": 3156348,
+            "cycles": 4273830,
             "instructions": null,
             "timeNs": null,
             "allocCount": 22,
@@ -160,7 +160,7 @@
         {
           "input": 25,
           "measurement": {
-            "cycles": 13042094,
+            "cycles": 15806074,
             "instructions": null,
             "timeNs": null,
             "allocCount": 24,
