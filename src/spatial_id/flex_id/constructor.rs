@@ -77,8 +77,18 @@ impl FlexId {
         }
     }
 
-    /// # Safety
-    /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であることを保証しなければなりません。
+    /// # Errors
+    /// `f_zoomlevel`、`x_zoomlevel`、`y_zoomlevel` のいずれかが許容範囲外の場合は
+    /// `SpatialIdError::ZOutOfRange` を返します。
+    ///
+    /// `f_index` が `f_zoomlevel` に対応する許容範囲外の場合は
+    /// `SpatialIdError::FOutOfRange` を返します。
+    ///
+    /// `x_index` が `x_zoomlevel` に対応する許容範囲外の場合は
+    /// `SpatialIdError::XOutOfRange` を返します。
+    ///
+    /// `y_index` が `y_zoomlevel` に対応する許容範囲外の場合は
+    /// `SpatialIdError::YOutOfRange` を返します。
     #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
         f_zoomlevel: u8,
