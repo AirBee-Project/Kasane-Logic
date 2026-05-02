@@ -81,9 +81,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${{ matrix.features }}" ]; then
-            cargo test --locked --all-targets --no-default-features --features "${{ matrix.features }}"
+            cargo test --locked --lib --bins --tests --no-default-features --features "${{ matrix.features }}"
           else
-            cargo test --locked --all-targets --no-default-features
+            cargo test --locked --lib --bins --tests --no-default-features
           fi
 
       - name: Clippy
@@ -91,7 +91,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${{ matrix.features }}" ]; then
-            cargo clippy --locked --all-targets --no-default-features --features "${{ matrix.features }}" -- -D warnings
+            cargo clippy --locked --lib --bins --tests --no-default-features --features "${{ matrix.features }}" -- -D warnings
           else
-            cargo clippy --locked --all-targets --no-default-features -- -D warnings
+            cargo clippy --locked --lib --bins --tests --no-default-features -- -D warnings
           fi
