@@ -25,7 +25,6 @@ impl From<Coordinate> for Ecef {
     /// assert_eq!(ecef.y(), 3083182.6924748584);
     /// assert_eq!(ecef.z(), 4333089.862951963);
     /// ```
-
     fn from(value: Coordinate) -> Self {
         let lat = value.latitude.to_radians();
         let lon = value.longitude.to_radians();

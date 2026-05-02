@@ -67,9 +67,9 @@ impl Vec3 {
     /// 引数となるベクトルに垂直な平面の直交基底を返す。始点は原点。
     pub fn create_orthonormal_basis(&self) -> [Self; 2] {
         if self.x == 0.0 && self.y == 0.0 {
-            return [Self::new(1.0, 0.0, 0.0), Self::new(0.0, 1.0, 0.0)];
+            [Self::new(1.0, 0.0, 0.0), Self::new(0.0, 1.0, 0.0)]
         } else {
-            return [
+            [
                 Self::new(-self.y, self.x, 0.0).normalize().unwrap(),
                 Self::new(
                     -self.z * self.x,
@@ -78,7 +78,7 @@ impl Vec3 {
                 )
                 .normalize()
                 .unwrap(),
-            ];
+            ]
         }
     }
 }

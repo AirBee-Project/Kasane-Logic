@@ -80,7 +80,7 @@ where
         let set = self
             .value_index
             .entry(rank)
-            .or_insert_with(SpatialIdSet::new);
+            .or_default();
         set.insert(target);
     }
 
@@ -134,7 +134,7 @@ where
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         self.inner.iter_ref().flat_map(|(flex_id, rank)| {
-            let value = self.reverse_dictionary.get(&rank).unwrap();
+            let value = self.reverse_dictionary.get(rank).unwrap();
             RangeId::from(&flex_id)
                 .into_single_ids()
                 .map(move |single_id| (single_id, value))
@@ -171,7 +171,7 @@ where
         self.inner.iter_ref().map(move |(flex_id, rank)| {
             let value = self
                 .reverse_dictionary
-                .get(&rank)
+                .get(rank)
                 .expect("Dictionary mismatch");
             (flex_id, value)
         })

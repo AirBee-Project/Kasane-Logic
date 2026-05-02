@@ -92,9 +92,9 @@ impl RangeId {
         let f_min = F_MIN[z as usize];
         let f_max = F_MAX[z as usize];
 
-        for i in 0..2 {
-            if value[i] < f_min || value[i] > f_max {
-                return Err(SpatialIdError::FOutOfRange { f: value[i], z }.into());
+        for &f_value in &value {
+            if f_value < f_min || f_value > f_max {
+                return Err(SpatialIdError::FOutOfRange { f: f_value, z }.into());
             }
         }
 
@@ -110,9 +110,9 @@ impl RangeId {
         let z = self.z;
         let xy_max = XY_MAX[z as usize];
 
-        for i in 0..2 {
-            if value[i] > xy_max {
-                return Err(SpatialIdError::XOutOfRange { x: value[i], z }.into());
+        for &x_value in &value {
+            if x_value > xy_max {
+                return Err(SpatialIdError::XOutOfRange { x: x_value, z }.into());
             }
         }
 
@@ -125,9 +125,9 @@ impl RangeId {
         let mut value = value;
         let xy_max = XY_MAX[z as usize];
 
-        for i in 0..2 {
-            if value[i] > xy_max {
-                return Err(SpatialIdError::YOutOfRange { y: value[i], z }.into());
+        for &y_value in &value {
+            if y_value > xy_max {
+                return Err(SpatialIdError::YOutOfRange { y: y_value, z }.into());
             }
         }
 

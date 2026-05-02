@@ -253,7 +253,7 @@ where
         }
 
         if let Some(kd_node) = root {
-            let delta = kd_node.insert(flex_id, value, 0, 0, 0);
+            let delta = kd_node.insert(flex_id, value, (0, 0, 0));
             Self::apply_delta(count, delta);
         }
     }

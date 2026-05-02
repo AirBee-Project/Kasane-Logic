@@ -150,17 +150,17 @@ impl SpatialId for FlexId {
         let mut out = [Coordinate::default(); 8];
 
         let mut i = 0;
-        for f_i in 0..2 {
-            for y_i in 0..2 {
-                for x_i in 0..2 {
+        for &altitude in &alt2 {
+            for &latitude in &lat2 {
+                for &longitude in &lon2 {
                     out[i]
-                        .set_longitude(lon2[x_i])
+                        .set_longitude(longitude)
                         .expect("longitude must be within valid range");
                     out[i]
-                        .set_latitude(lat2[y_i])
+                        .set_latitude(latitude)
                         .expect("latitude must be within valid range");
                     out[i]
-                        .set_altitude(alt2[f_i])
+                        .set_altitude(altitude)
                         .expect("altitude must be within valid range");
                     i += 1;
                 }
@@ -229,7 +229,7 @@ impl FromStr for FlexId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            return FlexId::new_with_temporal(
+            FlexId::new_with_temporal(
                 f_zoomlevel,
                 f_index,
                 x_zoomlevel,
@@ -237,7 +237,7 @@ impl FromStr for FlexId {
                 y_zoomlevel,
                 y_index,
                 temporal_id,
-            );
+            )
         }
 
         #[cfg(not(feature = "temporal_id"))]

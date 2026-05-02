@@ -117,6 +117,8 @@ impl RangeId {
     /// assert_eq!(id.x(), [8,9]);
     /// assert_eq!(id.y(), [5,10]);
     /// ```
+    /// # Safety
+    /// 呼び出し側は、`z` と各次元の配列が対応する有効範囲内であることを保証しなければなりません。
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
         RangeId {
             z,
@@ -145,15 +147,19 @@ impl RangeId {
         let mut f = f;
         let mut y = y;
 
-        for i in 0..2 {
-            if f[i] < f_min || f[i] > f_max {
-                return Err(SpatialIdError::FOutOfRange { f: f[i], z }.into());
+        for &f_value in &f {
+            if f_value < f_min || f_value > f_max {
+                return Err(SpatialIdError::FOutOfRange { f: f_value, z }.into());
             }
-            if x[i] > xy_max {
-                return Err(SpatialIdError::XOutOfRange { x: x[i], z }.into());
+        }
+        for &x_value in &x {
+            if x_value > xy_max {
+                return Err(SpatialIdError::XOutOfRange { x: x_value, z }.into());
             }
-            if y[i] > xy_max {
-                return Err(SpatialIdError::YOutOfRange { y: y[i], z }.into());
+        }
+        for &y_value in &y {
+            if y_value > xy_max {
+                return Err(SpatialIdError::YOutOfRange { y: y_value, z }.into());
             }
         }
 
@@ -173,6 +179,8 @@ impl RangeId {
         })
     }
 
+    /// # Safety
+    /// 呼び出し側は、`z` と各次元の配列が対応する有効範囲内であることに加え、`temporal_id` が有効な値であることを保証しなければなりません。
     #[cfg(feature = "temporal_id")]
     pub unsafe fn new_with_temporal_unchecked(
         z: u8,

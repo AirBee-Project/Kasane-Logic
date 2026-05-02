@@ -185,12 +185,12 @@ impl SpatialId for RangeId {
         let mut out = [Coordinate::default(); 8];
 
         let mut i = 0;
-        for fi in 0..2 {
-            for yi in 0..2 {
-                for xi in 0..2 {
-                    let _ = out[i].set_altitude(altitudes[fi]);
-                    let _ = out[i].set_latitude(latitudes[yi]);
-                    let _ = out[i].set_longitude(longitudes[xi]);
+        for &altitude in &altitudes {
+            for &latitude in &latitudes {
+                for &longitude in &longitudes {
+                    let _ = out[i].set_altitude(altitude);
+                    let _ = out[i].set_latitude(latitude);
+                    let _ = out[i].set_longitude(longitude);
                     i += 1;
                 }
             }
@@ -286,7 +286,7 @@ impl FromStr for RangeId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            return RangeId::new_with_temporal(z, f, x, y, temporal_id);
+            RangeId::new_with_temporal(z, f, x, y, temporal_id)
         }
 
         #[cfg(not(feature = "temporal_id"))]

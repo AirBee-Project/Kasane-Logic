@@ -128,7 +128,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
         let f_max = F_MAX[idx];
         let xy_max = XY_MAX[idx];
 
-        let span_f_max = (f_max - f_min).min(RANDOM_SET_MAX_RANGE_SPAN_F).max(0) as u32;
+        let span_f_max = (f_max - f_min).clamp(0, RANDOM_SET_MAX_RANGE_SPAN_F) as u32;
         let span_xy_max = xy_max.min(RANDOM_SET_MAX_RANGE_SPAN_XY);
 
         (
