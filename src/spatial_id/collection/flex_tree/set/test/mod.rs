@@ -170,6 +170,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 /// # use kasane_logic::spatial_id::collection::flex_tree::set::test::arb_random_set_case;
 /// # use proptest::prelude::*;
 /// proptest! {
+///     #[test]
 ///     fn operator_test_template(case in arb_random_set_case()) {
 ///         let set = case.build_set();
 ///
