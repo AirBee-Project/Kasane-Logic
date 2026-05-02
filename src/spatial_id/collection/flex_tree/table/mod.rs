@@ -77,10 +77,7 @@ where
 
         self.inner.insert(target.clone(), rank);
 
-        let set = self
-            .value_index
-            .entry(rank)
-            .or_default();
+        let set = self.value_index.entry(rank).or_default();
         set.insert(target);
     }
 

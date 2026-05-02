@@ -37,7 +37,14 @@ where
                 lower_child,
                 upper_child,
             } => {
-                let mut delta = Self::insert_into_branch(*axis, lower_child, upper_child, target, value, passed);
+                let mut delta = Self::insert_into_branch(
+                    *axis,
+                    lower_child,
+                    upper_child,
+                    target,
+                    value,
+                    passed,
+                );
 
                 if let Some(merged) = Self::mergeable_leaf_value(lower_child, upper_child) {
                     // 2つのLeafを1つに統合するため、葉ノード数差分は -1。
@@ -168,10 +175,7 @@ where
     }
 
     /// target を追跡するために次に展開を開始すべき軸を返す。
-    fn start_axis_for_target(
-        target: &FlexId,
-        passed: (u8, u8, u8),
-    ) -> Dimension {
+    fn start_axis_for_target(target: &FlexId, passed: (u8, u8, u8)) -> Dimension {
         if passed.0 < target.f_zoomlevel() {
             Dimension::F
         } else if passed.1 < target.x_zoomlevel() {
@@ -191,7 +195,8 @@ where
     ) -> isize {
         match child_opt {
             Some(child) => child.insert(target, value, passed),
-            None => match Self::next_dimension(current_axis, &target, passed.0, passed.1, passed.2) {
+            None => match Self::next_dimension(current_axis, &target, passed.0, passed.1, passed.2)
+            {
                 Some(next_axis) => {
                     let mut new_branch = Node::Branch {
                         axis: next_axis,
