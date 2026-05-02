@@ -11,7 +11,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let s = c.into_solids().next().unwrap();
     let ids = s.cover_single_ids(25).unwrap();
 
-    let mut file = std::fs::File::create("output.txt")?;
+    let mut file = std::fs::File::create("output1.txt")?;
     for id in ids {
         writeln!(file, "{},", id)?;
     }
