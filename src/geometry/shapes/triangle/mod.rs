@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{Coordinate, Ecef, Error, SingleId};
+use crate::{Coordinate, Ecef, Error, SingleId, Vec3};
 pub mod geometry_relation;
 pub mod impls;
 
@@ -22,15 +22,12 @@ impl Triangle {
 
     ///三角形の面積を返す
     pub fn area(&self) -> f64 {
-        let p0: Ecef = self.points[0].into();
-        let p1: Ecef = self.points[1].into();
-        let p2: Ecef = self.points[2].into();
-        let a = [p1.x() - p0.x(), p1.y() - p0.y(), p1.z() - p0.z()];
-        let b = [p2.x() - p0.x(), p2.y() - p0.y(), p2.z() - p0.z()];
-        ((a[0] * a[0] + a[1] * a[1] + a[2] * a[2]) * (b[0] * b[0] + b[1] * b[1] + b[2] * b[2])
-            - dot_product(a, b) * dot_product(a, b))
-        .sqrt()
-            * 0.5
+        let p0: Vec3 = self.points[0].into();
+        let p1: Vec3 = self.points[1].into();
+        let p2: Vec3 = self.points[2].into();
+        let a = p1 - p0;
+        let b = p2 - p0;
+        (a.norm_squared() * a.norm_squared() - a.dot(&b) * a.dot(&b)).sqrt() * 0.5
     }
 
     ///三角形の3辺の長さを返す
