@@ -27,7 +27,8 @@ impl Triangle {
         let p2: Vec3 = self.points[2].into();
         let a = p1 - p0;
         let b = p2 - p0;
-        (a.norm_squared() * a.norm_squared() - a.dot(&b) * a.dot(&b)).sqrt() * 0.5
+        let dot = a.dot(&b);
+        (a.norm_squared() * b.norm_squared() - dot * dot).sqrt() * 0.5
     }
 
     ///三角形の3辺の長さを返す
