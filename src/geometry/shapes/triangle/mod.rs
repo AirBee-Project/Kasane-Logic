@@ -39,7 +39,6 @@ impl Triangle {
         [p0.distance(&p1), p1.distance(&p2), p2.distance(&p0)]
     }
 
-    ///[SingleId]の集合へ変換を行います。
     pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
         let steps_f = steps as f64;
         let p0: Ecef = self.points[0].into();
@@ -115,75 +114,64 @@ impl Triangle {
         Ok(iter)
     }
 
+    ///[SingleId]の集合へ変換を行います。
     pub fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let points: [[f64; 3]; 3] = [
-            coordinate_to_matrix(self.points[0], z),
-            coordinate_to_matrix(self.points[1], z),
-            coordinate_to_matrix(self.points[2], z),
+        let points: [Vec3; 3] = [
+            Vec3::from(coordinate_to_matrix(self.points[0], z)),
+            Vec3::from(coordinate_to_matrix(self.points[1], z)),
+            Vec3::from(coordinate_to_matrix(self.points[2], z)),
         ];
         let mut voxels: HashSet<SingleId> = HashSet::new();
-        let vec_a = [0, 1, 2].map(|i| points[1][i] - points[0][i]);
-        let vec_b = [0, 1, 2].map(|i| points[0][i] - points[2][i]);
-        let vec_c = [0, 1, 2].map(|i| points[2][i] - points[1][i]);
-        let n = cross_product(vec_b, vec_a);
-        let ma = cross_product(n, vec_a);
-        let mb = cross_product(n, vec_b);
-        let mc = cross_product(n, vec_c);
-        let min_f = points[0][0].min(points[1][0]).min(points[2][0]).floor() as i32;
-        let max_f = points[0][0].max(points[1][0]).max(points[2][0]).floor() as i32;
-        let min_x = points[0][1].min(points[1][1]).min(points[2][1]).floor() as u32;
-        let max_x = points[0][1].max(points[1][1]).max(points[2][1]).floor() as u32;
-        let min_y = points[0][2].min(points[1][2]).min(points[2][2]).floor() as u32;
-        let max_y = points[0][2].max(points[1][2]).max(points[2][2]).floor() as u32;
+        let vec_a = points[1] - points[0]; // 1-0
+        let vec_b = points[0] - points[2]; // 0-2
+        let vec_c = points[2] - points[1]; // 2-1
+        let n = vec_b.cross(&vec_a);
+        let ma = n.cross(&vec_a);
+        let mb = n.cross(&vec_b);
+        let mc = n.cross(&vec_c);
+        let min_f = points[0].x.min(points[1].x).min(points[2].x).floor() as i32;
+        let max_f = points[0].x.max(points[1].x).max(points[2].x).floor() as i32;
+        let min_x = points[0].y.min(points[1].y).min(points[2].y).floor() as u32;
+        let max_x = points[0].y.max(points[1].y).max(points[2].y).floor() as u32;
+        let min_y = points[0].z.min(points[1].z).min(points[2].z).floor() as u32;
+        let max_y = points[0].z.max(points[1].z).max(points[2].z).floor() as u32;
         let eight_patterns = [
-            (0.0, 0.0, 0.0),
-            (0.0, 0.0, 1.0),
-            (0.0, 1.0, 0.0),
-            (0.0, 1.0, 1.0),
-            (1.0, 0.0, 0.0),
-            (1.0, 0.0, 1.0),
-            (1.0, 1.0, 0.0),
-            (1.0, 1.0, 1.0),
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.0, 1.0),
+            Vec3::new(0.0, 1.0, 0.0),
+            Vec3::new(0.0, 1.0, 1.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, 1.0),
+            Vec3::new(1.0, 1.0, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
         ];
         for f in min_f..=max_f {
             for x in min_x..=max_x {
                 for y in min_y..=max_y {
                     let mut sign_before = true;
                     for (i, pattern) in eight_patterns.iter().enumerate() {
-                        let vec_p = [
-                            f as f64 + pattern.0 - points[0][0],
-                            x as f64 + pattern.1 - points[0][1],
-                            y as f64 + pattern.2 - points[0][2],
-                        ];
-                        let sign = dot_product(n, vec_p).is_sign_positive();
+                        let vec_p = Vec3::new(
+                            f as f64 + pattern.x - points[0].x,
+                            x as f64 + pattern.y - points[0].y,
+                            y as f64 + pattern.z - points[0].z,
+                        );
+                        let sign = n.dot(&vec_p).is_sign_positive();
                         if i == 0 || sign_before == sign {
                             sign_before = sign;
                         } else {
                             for pattern in eight_patterns {
-                                let cp = [
-                                    f as f64 + pattern.0,
-                                    x as f64 + pattern.1,
-                                    y as f64 + pattern.2,
-                                ];
-                                let rel_p0 = [
-                                    cp[0] - points[0][0],
-                                    cp[1] - points[0][1],
-                                    cp[2] - points[0][2],
-                                ];
-                                let rel_p1 = [
-                                    cp[0] - points[1][0],
-                                    cp[1] - points[1][1],
-                                    cp[2] - points[1][2],
-                                ];
-                                let rel_p2 = [
-                                    cp[0] - points[2][0],
-                                    cp[1] - points[2][1],
-                                    cp[2] - points[2][2],
-                                ];
+                                let cp = Vec3::new(
+                                    f as f64 + pattern.x,
+                                    x as f64 + pattern.y,
+                                    y as f64 + pattern.z,
+                                );
+                                let rel_p0 = cp - points[0];
+                                let rel_p1 = cp - points[1];
+                                let rel_p2 = cp - points[2];
 
-                                if dot_product(ma, rel_p0) >= 0.0
-                                    && dot_product(mc, rel_p1) >= 0.0
-                                    && dot_product(mb, rel_p2) >= 0.0
+                                if ma.dot(&rel_p0) >= 0.0
+                                    && mc.dot(&rel_p1) >= 0.0
+                                    && mb.dot(&rel_p2) >= 0.0
                                 {
                                     voxels.insert(unsafe { SingleId::new_unchecked(z, f, x, y) });
                                     break;
@@ -197,17 +185,6 @@ impl Triangle {
         }
         Ok(voxels.into_iter())
     }
-}
-
-fn dot_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> f64 {
-    vec_a[0] * vec_b[0] + vec_a[1] * vec_b[1] + vec_a[2] * vec_b[2]
-}
-fn cross_product(vec_a: [f64; 3], vec_b: [f64; 3]) -> [f64; 3] {
-    [
-        vec_a[1] * vec_b[2] - vec_a[2] * vec_b[1],
-        vec_a[2] * vec_b[0] - vec_a[0] * vec_b[2],
-        vec_a[0] * vec_b[1] - vec_a[1] * vec_b[0],
-    ]
 }
 
 fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
