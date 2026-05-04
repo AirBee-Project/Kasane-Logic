@@ -16,3 +16,4 @@ pub mod solid;
 pub mod sphere;
 pub mod traits;
 pub mod triangle;
+pub mod tube;
