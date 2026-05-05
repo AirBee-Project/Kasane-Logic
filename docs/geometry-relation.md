@@ -55,6 +55,7 @@ Solid -->|"Solid → Polygon×N"| Polygon
 - `ExpandLines`
 - `ExpandTriangles`
 - `ExpandPolygons`
+- `ExpandSolids`
 
 各トレイトは以下のメソッドを持つ。
 
