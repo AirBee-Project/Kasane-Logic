@@ -1,4 +1,7 @@
 #[cfg(test)]
+mod encode;
+
+#[cfg(test)]
 mod tests {
     use crate::{Error, SingleId, SpatialIdError};
 
