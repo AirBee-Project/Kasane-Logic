@@ -1,5 +1,5 @@
 use crate::{
-    Coordinate, CoverRangeIds, CoverSingleIds, Cylinder, Error, IntoSolids, RangeId, Shape,
+    Coordinate, CoverRangeIds, CoverSingleIds, Cylinder, Error, IterSolids, RangeId, Shape,
     SingleId,
 };
 

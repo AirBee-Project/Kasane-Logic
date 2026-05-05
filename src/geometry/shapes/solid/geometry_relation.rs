@@ -1,15 +1,9 @@
 use crate::{
-    Coordinate, IntoCoordinates, IntoLines, IntoPolygons, IntoTriangles, Line, Polygon, Solid,
+    Coordinate, IterCoordinates, IterLines, IterPolygons, IterTriangles, Line, Polygon, Solid,
     Triangle,
 };
 
-impl IntoCoordinates for Solid {
-    fn into_coordinates(self) -> impl Iterator<Item = Coordinate> {
-        self.polygons
-            .into_iter()
-            .flat_map(|polygon| polygon.into_coordinates())
-    }
-
+impl IterCoordinates for Solid {
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.polygons
             .iter()
@@ -17,13 +11,7 @@ impl IntoCoordinates for Solid {
     }
 }
 
-impl IntoLines for Solid {
-    fn into_lines(self) -> impl Iterator<Item = Line> {
-        self.polygons
-            .into_iter()
-            .flat_map(|polygon| polygon.into_lines())
-    }
-
+impl IterLines for Solid {
     fn iter_lines(&self) -> impl Iterator<Item = Line> {
         self.polygons
             .iter()
@@ -31,13 +19,7 @@ impl IntoLines for Solid {
     }
 }
 
-impl IntoTriangles for Solid {
-    fn into_triangles(self) -> impl Iterator<Item = Triangle> {
-        self.polygons
-            .into_iter()
-            .flat_map(|polygon| polygon.into_triangles())
-    }
-
+impl IterTriangles for Solid {
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
         self.polygons
             .iter()
@@ -45,11 +27,7 @@ impl IntoTriangles for Solid {
     }
 }
 
-impl IntoPolygons for Solid {
-    fn into_polygons(self) -> impl Iterator<Item = Polygon> {
-        self.polygons.into_iter()
-    }
-
+impl IterPolygons for Solid {
     fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
         self.polygons.clone().into_iter()
     }

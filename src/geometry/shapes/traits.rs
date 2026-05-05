@@ -13,7 +13,7 @@ pub trait Shape {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IntoCoordinates, Line};
+/// use kasane_logic::{Coordinate, IterCoordinates, Line};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0001, 139.0001, 11.0).unwrap();
@@ -22,8 +22,7 @@ pub trait Shape {
 /// let coords: Vec<Coordinate> = line.iter_coordinates().collect();
 /// assert_eq!(coords.len(), 2);
 /// ```
-pub trait IntoCoordinates {
-    fn into_coordinates(self) -> impl Iterator<Item = Coordinate>;
+pub trait IterCoordinates {
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate>;
 }
 
@@ -33,18 +32,17 @@ pub trait IntoCoordinates {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IntoLines, Line, Triangle};
+/// use kasane_logic::{Coordinate, IterLines, Line, Triangle};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0002, 139.0, 10.0).unwrap();
 /// let p2 = Coordinate::new(35.0, 139.0002, 10.0).unwrap();
 /// let tri = Triangle::new([p0, p1, p2]);
 ///
-/// let lines: Vec<Line> = tri.into_lines().collect();
+/// let lines: Vec<Line> = tri.iter_lines().collect();
 /// assert_eq!(lines.len(), 3);
 /// ```
-pub trait IntoLines {
-    fn into_lines(self) -> impl Iterator<Item = Line>;
+pub trait IterLines {
     fn iter_lines(&self) -> impl Iterator<Item = Line>;
 }
 
@@ -54,7 +52,7 @@ pub trait IntoLines {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IntoTriangles, Polygon, Triangle};
+/// use kasane_logic::{Coordinate, IterTriangles, Polygon, Triangle};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();
@@ -65,8 +63,7 @@ pub trait IntoLines {
 /// let triangles: Vec<Triangle> = polygon.iter_triangles().collect();
 /// assert_eq!(triangles.len(), 2);
 /// ```
-pub trait IntoTriangles {
-    fn into_triangles(self) -> impl Iterator<Item = Triangle>;
+pub trait IterTriangles {
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle>;
 }
 
@@ -76,7 +73,7 @@ pub trait IntoTriangles {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IntoPolygons, Polygon, Solid};
+/// use kasane_logic::{Coordinate, IterPolygons, Polygon, Solid};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();
@@ -91,15 +88,13 @@ pub trait IntoTriangles {
 /// ];
 ///
 /// let solid = Solid::new(surfaces, 0.01).unwrap();
-/// let polygons: Vec<Polygon> = solid.into_polygons().collect();
+/// let polygons: Vec<Polygon> = solid.iter_polygons().collect();
 /// assert_eq!(polygons.len(), 4);
 /// ```
-pub trait IntoPolygons {
-    fn into_polygons(self) -> impl Iterator<Item = Polygon>;
+pub trait IterPolygons {
     fn iter_polygons(&self) -> impl Iterator<Item = Polygon>;
 }
 
-pub trait IntoSolids {
-    fn into_solids(self) -> impl Iterator<Item = Solid>;
+pub trait IterSolids {
     fn iter_solids(&self) -> impl Iterator<Item = Solid>;
 }
