@@ -1,22 +1,22 @@
-use crate::{Coordinate, Ecef, IterCoordinates, IterLines, IterTriangles, Line, Polygon, Triangle};
+use crate::{Coordinate, Ecef, ExpandCoordinates, ExpandLines, ExpandTriangles, Line, Polygon, Triangle};
 
-impl IterCoordinates for Polygon {
-    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
+impl ExpandCoordinates for Polygon {
+    fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.vertices.clone().into_iter()
     }
 }
 
-impl IterLines for Polygon {
-    fn iter_lines(&self) -> impl Iterator<Item = Line> {
-        let triangles: Vec<Triangle> = self.iter_triangles().collect();
+impl ExpandLines for Polygon {
+    fn expand_lines(&self) -> impl Iterator<Item = Line> {
+        let triangles: Vec<Triangle> = self.expand_triangles().collect();
         triangles
             .into_iter()
-            .flat_map(|triangle| triangle.iter_lines().collect::<Vec<_>>().into_iter())
+            .flat_map(|triangle| triangle.expand_lines().collect::<Vec<_>>().into_iter())
     }
 }
 
-impl IterTriangles for Polygon {
-    fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
+impl ExpandTriangles for Polygon {
+    fn expand_triangles(&self) -> impl Iterator<Item = Triangle> {
         let n = self.vertices.len();
         if n < 3 {
             return Vec::<Triangle>::new().into_iter();

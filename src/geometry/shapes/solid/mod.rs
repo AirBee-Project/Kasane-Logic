@@ -1,5 +1,5 @@
 use crate::geometry::shapes::polygon::Polygon;
-use crate::{CoverSingleIds as _, Ecef, Error, GeometryError, IterTriangles, SingleId, Triangle};
+use crate::{CoverSingleIds as _, Ecef, Error, GeometryError, ExpandTriangles, SingleId, Triangle};
 use std::collections::{HashMap, HashSet};
 
 pub mod geometry_relation;
@@ -54,7 +54,8 @@ impl Solid {
 
     /// [Solid] 全体を三角形分割し、構成する [Triangle] のリストを返します。
     pub fn triangles(&self) -> Vec<Triangle> {
-        self.iter_triangles().collect()
+        let triangles: Vec<Triangle> = self.expand_triangles().collect();
+        triangles
     }
 
     /// 閉じていないエッジの数を数える内部ヘルパー関数
@@ -100,7 +101,7 @@ impl Solid {
         let mut unique_ids = HashSet::new();
 
         for polygon in &self.polygons {
-            let triangles = polygon.iter_triangles();
+            let triangles = polygon.expand_triangles();
             for triangle in triangles {
                 let ids_iter = triangle.cover_single_ids(z)?;
                 for id in ids_iter {

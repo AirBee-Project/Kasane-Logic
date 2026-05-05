@@ -1,34 +1,34 @@
 use crate::{
-    Coordinate, IterCoordinates, IterLines, IterPolygons, IterTriangles, Line, Polygon, Solid,
+    Coordinate, ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Line, Polygon, Solid,
     Triangle,
 };
 
-impl IterCoordinates for Solid {
-    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
+impl ExpandCoordinates for Solid {
+    fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.iter_coordinates())
+            .flat_map(|polygon| polygon.expand_coordinates())
     }
 }
 
-impl IterLines for Solid {
-    fn iter_lines(&self) -> impl Iterator<Item = Line> {
+impl ExpandLines for Solid {
+    fn expand_lines(&self) -> impl Iterator<Item = Line> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.iter_lines())
+            .flat_map(|polygon| polygon.expand_lines())
     }
 }
 
-impl IterTriangles for Solid {
-    fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
+impl ExpandTriangles for Solid {
+    fn expand_triangles(&self) -> impl Iterator<Item = Triangle> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.iter_triangles())
+            .flat_map(|polygon| polygon.expand_triangles())
     }
 }
 
-impl IterPolygons for Solid {
-    fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
+impl ExpandPolygons for Solid {
+    fn expand_polygons(&self) -> impl Iterator<Item = Polygon> {
         self.polygons.clone().into_iter()
     }
 }

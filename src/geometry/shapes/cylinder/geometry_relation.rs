@@ -1,19 +1,19 @@
 use crate::{
-    Coordinate, Cylinder, Ecef, IterCoordinates, IterLines, IterPolygons, IterSolids,
-    IterTriangles, Line, Polygon, Solid, Triangle, Vec3,
+    Coordinate, Cylinder, Ecef, ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandSolids,
+    ExpandTriangles, Line, Polygon, Solid, Triangle, Vec3,
 };
 use std::f64::consts::PI;
 
-impl IterSolids for Cylinder {
-    fn iter_solids(&self) -> impl Iterator<Item = Solid> {
-        let polygons = self.iter_polygons().collect();
+impl ExpandSolids for Cylinder {
+    fn expand_solids(&self) -> impl Iterator<Item = Solid> {
+        let polygons = self.expand_polygons().collect();
         let solid = Solid::new(polygons, 1e-10).unwrap();
         std::iter::once(solid)
     }
 }
 
-impl IterPolygons for Cylinder {
-    fn iter_polygons(&self) -> impl Iterator<Item = Polygon> {
+impl ExpandPolygons for Cylinder {
+    fn expand_polygons(&self) -> impl Iterator<Item = Polygon> {
         let vecs: [Vec3; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
@@ -65,23 +65,20 @@ impl IterPolygons for Cylinder {
     }
 }
 
-impl IterTriangles for Cylinder {
-    fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
-        self.iter_solids()
-            .flat_map(|s| s.iter_triangles().collect::<Vec<_>>().into_iter())
+impl ExpandTriangles for Cylinder {
+    fn expand_triangles(&self) -> impl Iterator<Item = Triangle> {
+        self.expand_solids().flat_map(|s| s.expand_triangles().collect::<Vec<_>>().into_iter())
     }
 }
 
-impl IterLines for Cylinder {
-    fn iter_lines(&self) -> impl Iterator<Item = Line> {
-        self.iter_solids()
-            .flat_map(|s| s.iter_lines().collect::<Vec<_>>().into_iter())
+impl ExpandLines for Cylinder {
+    fn expand_lines(&self) -> impl Iterator<Item = Line> {
+        self.expand_solids().flat_map(|s| s.expand_lines().collect::<Vec<_>>().into_iter())
     }
 }
 
-impl IterCoordinates for Cylinder {
-    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
-        self.iter_solids()
-            .flat_map(|s| s.iter_coordinates().collect::<Vec<_>>().into_iter())
+impl ExpandCoordinates for Cylinder {
+    fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {
+        self.expand_solids().flat_map(|s| s.expand_coordinates().collect::<Vec<_>>().into_iter())
     }
 }

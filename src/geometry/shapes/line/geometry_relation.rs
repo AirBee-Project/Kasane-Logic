@@ -1,7 +1,7 @@
-use crate::{Coordinate, IterCoordinates, Line};
+use crate::{Coordinate, ExpandCoordinates, Line};
 
-impl IterCoordinates for Line {
-    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
+impl ExpandCoordinates for Line {
+    fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.points.into_iter()
     }
 }

@@ -13,17 +13,17 @@ pub trait Shape {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IterCoordinates, Line};
+/// use kasane_logic::{Coordinate, ExpandCoordinates, Line};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0001, 139.0001, 11.0).unwrap();
 /// let line = Line::new([p0, p1]);
 ///
-/// let coords: Vec<Coordinate> = line.iter_coordinates().collect();
+/// let coords: Vec<Coordinate> = line.expand_coordinates().collect();
 /// assert_eq!(coords.len(), 2);
 /// ```
-pub trait IterCoordinates {
-    fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate>;
+pub trait ExpandCoordinates {
+    fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate>;
 }
 
 /// [Line] の集合へ分解可能であることを示す
@@ -32,18 +32,18 @@ pub trait IterCoordinates {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IterLines, Line, Triangle};
+/// use kasane_logic::{Coordinate, ExpandLines, Line, Triangle};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0002, 139.0, 10.0).unwrap();
 /// let p2 = Coordinate::new(35.0, 139.0002, 10.0).unwrap();
 /// let tri = Triangle::new([p0, p1, p2]);
 ///
-/// let lines: Vec<Line> = tri.iter_lines().collect();
+/// let lines: Vec<Line> = tri.expand_lines().collect();
 /// assert_eq!(lines.len(), 3);
 /// ```
-pub trait IterLines {
-    fn iter_lines(&self) -> impl Iterator<Item = Line>;
+pub trait ExpandLines {
+    fn expand_lines(&self) -> impl Iterator<Item = Line>;
 }
 
 /// [Triangle] の集合へ分解可能であることを示す
@@ -52,7 +52,7 @@ pub trait IterLines {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IterTriangles, Polygon, Triangle};
+/// use kasane_logic::{Coordinate, ExpandTriangles, Polygon, Triangle};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();
@@ -60,11 +60,11 @@ pub trait IterLines {
 /// let p3 = Coordinate::new(35.0, 139.0003, 10.0).unwrap();
 /// let polygon = Polygon::new(vec![p0, p1, p2, p3], 0.01);
 ///
-/// let triangles: Vec<Triangle> = polygon.iter_triangles().collect();
+/// let triangles: Vec<Triangle> = polygon.expand_triangles().collect();
 /// assert_eq!(triangles.len(), 2);
 /// ```
-pub trait IterTriangles {
-    fn iter_triangles(&self) -> impl Iterator<Item = Triangle>;
+pub trait ExpandTriangles {
+    fn expand_triangles(&self) -> impl Iterator<Item = Triangle>;
 }
 
 /// [Polygon] の集合へ分解可能であることを示す
@@ -73,7 +73,7 @@ pub trait IterTriangles {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, IterPolygons, Polygon, Solid};
+/// use kasane_logic::{Coordinate, ExpandPolygons, Polygon, Solid};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();
@@ -88,13 +88,13 @@ pub trait IterTriangles {
 /// ];
 ///
 /// let solid = Solid::new(surfaces, 0.01).unwrap();
-/// let polygons: Vec<Polygon> = solid.iter_polygons().collect();
+/// let polygons: Vec<Polygon> = solid.expand_polygons().collect();
 /// assert_eq!(polygons.len(), 4);
 /// ```
-pub trait IterPolygons {
-    fn iter_polygons(&self) -> impl Iterator<Item = Polygon>;
+pub trait ExpandPolygons {
+    fn expand_polygons(&self) -> impl Iterator<Item = Polygon>;
 }
 
-pub trait IterSolids {
-    fn iter_solids(&self) -> impl Iterator<Item = Solid>;
+pub trait ExpandSolids {
+    fn expand_solids(&self) -> impl Iterator<Item = Solid>;
 }
