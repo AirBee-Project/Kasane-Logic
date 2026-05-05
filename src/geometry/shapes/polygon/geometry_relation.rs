@@ -16,7 +16,6 @@ impl IterLines for Polygon {
 }
 
 impl IterTriangles for Polygon {
-
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
         let n = self.vertices.len();
         if n < 3 {

@@ -67,18 +67,21 @@ impl IterPolygons for Cylinder {
 
 impl IterTriangles for Cylinder {
     fn iter_triangles(&self) -> impl Iterator<Item = Triangle> {
-        self.iter_solids().flat_map(|s| s.iter_triangles().collect::<Vec<_>>().into_iter())
+        self.iter_solids()
+            .flat_map(|s| s.iter_triangles().collect::<Vec<_>>().into_iter())
     }
 }
 
 impl IterLines for Cylinder {
     fn iter_lines(&self) -> impl Iterator<Item = Line> {
-        self.iter_solids().flat_map(|s| s.iter_lines().collect::<Vec<_>>().into_iter())
+        self.iter_solids()
+            .flat_map(|s| s.iter_lines().collect::<Vec<_>>().into_iter())
     }
 }
 
 impl IterCoordinates for Cylinder {
     fn iter_coordinates(&self) -> impl Iterator<Item = Coordinate> {
-        self.iter_solids().flat_map(|s| s.iter_coordinates().collect::<Vec<_>>().into_iter())
+        self.iter_solids()
+            .flat_map(|s| s.iter_coordinates().collect::<Vec<_>>().into_iter())
     }
 }

@@ -18,7 +18,7 @@ impl Shape for Polygon {
     /// let p1 = Coordinate::new(35.0, 139.001, 10.0).unwrap();
     /// let p2 = Coordinate::new(35.001, 139.0, 10.0).unwrap();
     /// let polygon = Polygon::new(vec![p0, p1, p2], 0.01);
-    /// 
+    ///
     /// let center = polygon.center();
     /// assert!(center.latitude() > 35.0);
     /// ```
