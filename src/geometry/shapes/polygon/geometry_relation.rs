@@ -11,7 +11,7 @@ impl ExpandCoordinates for Polygon {
 impl ExpandLines for Polygon {
     fn expand_lines(&self) -> impl Iterator<Item = Line> {
         self.expand_triangles()
-            .flat_map(|triangle| triangle.expand_lines())
+            .flat_map(|triangle| triangle.expand_lines().collect::<Vec<_>>())
     }
 }
 
