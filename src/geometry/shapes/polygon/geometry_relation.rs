@@ -10,10 +10,8 @@ impl ExpandCoordinates for Polygon {
 
 impl ExpandLines for Polygon {
     fn expand_lines(&self) -> impl Iterator<Item = Line> {
-        let triangles: Vec<Triangle> = self.expand_triangles().collect();
-        triangles
-            .into_iter()
-            .flat_map(|triangle| triangle.expand_lines().collect::<Vec<_>>().into_iter())
+        self.expand_triangles()
+            .flat_map(|triangle| triangle.expand_lines())
     }
 }
 
