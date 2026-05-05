@@ -86,8 +86,8 @@ impl SingleId {
             shift -= 1;
         }
 
-        if shift >= 32 {
-            let mask = ((1u128 << (shift - 31)) - 1) << 32;
+        if shift >= 37 {
+            let mask = ((1u128 << (shift - 36)) - 1) << 37;
             v |= mask;
         }
 
