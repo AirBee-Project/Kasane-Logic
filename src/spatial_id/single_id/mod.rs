@@ -355,6 +355,31 @@ impl SingleId {
         })
     }
 
+    /// この [`SingleId`] の全ての親を、直近の親から順に列挙する。
+    ///
+    /// 返す順序は `z - 1`, `z - 2`, ..., `0` であり、元の [`SingleId`] 自身は含まない。
+    /// `z = 0` の場合は空のイテレータを返す。
+    ///
+    /// # 動作例
+    ///
+    /// 親の列挙:
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(3, 3, 2, 7).unwrap();
+    /// let parents: Vec<_> = id.spatial_parents().collect();
+    ///
+    /// assert_eq!(parents.len(), 3);
+    /// assert_eq!(parents[0], SingleId::new(2, 1, 1, 3).unwrap());
+    /// assert_eq!(parents[1], SingleId::new(1, 0, 0, 1).unwrap());
+    /// assert_eq!(parents[2], SingleId::new(0, 0, 0, 0).unwrap());
+    /// ```
+    pub fn spatial_parents(&self) -> impl Iterator<Item = SingleId> + '_ {
+        (0..self.z).rev().map(move |target_z| {
+            self.spatial_parent_at_zoom(target_z)
+                .expect("target_z must be valid")
+        })
+    }
+
     /// この [`SingleId`] の 6 近傍を列挙します。
     ///
     /// 近傍は `f` / `x` / `y` の各軸について `±1` だけ動かした 6 個です。

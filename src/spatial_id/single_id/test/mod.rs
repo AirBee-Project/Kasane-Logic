@@ -28,6 +28,27 @@ mod tests {
     }
 
     #[test]
+    fn spatial_parents_are_returned_from_nearest_to_root() {
+        let id = SingleId::new(3, 3, 2, 7).unwrap();
+
+        let parents: Vec<_> = id.spatial_parents().collect();
+
+        assert_eq!(parents.len(), 3);
+        assert_eq!(parents[0], SingleId::new(2, 1, 1, 3).unwrap());
+        assert_eq!(parents[1], SingleId::new(1, 0, 0, 1).unwrap());
+        assert_eq!(parents[2], SingleId::new(0, 0, 0, 0).unwrap());
+    }
+
+    #[test]
+    fn spatial_parents_is_empty_at_root() {
+        let id = SingleId::new(0, 0, 0, 0).unwrap();
+
+        let parents: Vec<_> = id.spatial_parents().collect();
+
+        assert!(parents.is_empty());
+    }
+
+    #[test]
     fn zoom_direction_mismatch_returns_error() {
         let id = SingleId::new(3, 3, 2, 7).unwrap();
 
