@@ -39,6 +39,27 @@ fn spatial_encode_prefix_max_is_not_smaller_than_encode() {
 }
 
 #[test]
+fn spatial_encode_prefix_max_stops_before_next_sibling_subtree() {
+    let parent = SingleId::new(2, 1, 1, 1).unwrap();
+    let children: Vec<_> = parent.spatial_children_at_zoom(3).unwrap().collect();
+
+    let subtree_root = &children[0];
+    let next_sibling_root = &children[1];
+    let subtree_max = subtree_root.spatial_encode_prefix_max();
+
+    assert!(subtree_root.spatial_encode() <= subtree_max);
+    assert!(subtree_max < next_sibling_root.spatial_encode());
+}
+
+#[test]
+fn spatial_encode_places_zoom_level_in_low_five_bits() {
+    let id = SingleId::new(3, 3, 2, 7).unwrap();
+    let bytes = id.spatial_encode();
+
+    assert_eq!(bytes[11] & 0b0001_1111, 3);
+}
+
+#[test]
 fn spatial_encode_roundtrip_at_zero_zoom_boundaries() {
     let cases = [
         SingleId::new(0, -1, 0, 0).unwrap(),
