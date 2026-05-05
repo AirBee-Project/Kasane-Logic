@@ -1,6 +1,7 @@
 pub mod constructor;
 pub mod convert;
 pub mod impls;
+pub mod ops;
 pub mod random;
 pub mod test;
 

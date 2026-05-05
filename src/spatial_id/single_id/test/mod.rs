@@ -1,3 +1,5 @@
+pub mod ops;
+
 #[cfg(test)]
 mod tests {
     use crate::{Error, SingleId, SpatialIdError};
@@ -89,5 +91,36 @@ mod tests {
         assert!(neighbors.contains(&SingleId::new(4, 5, 8, 9).unwrap()));
         assert!(neighbors.contains(&SingleId::new(4, 6, 10, 11).unwrap()));
         assert!(neighbors.contains(&SingleId::new(4, 6, 8, 9).unwrap()));
+    }
+
+    #[test]
+    fn intersection_works() {
+        let id1 = SingleId::new(2, 1, 1, 1).unwrap();
+        // child is inside id1
+        let child = SingleId::new(3, 2, 2, 3).unwrap();
+
+        assert_eq!(id1.intersection(&child).unwrap(), child);
+        assert_eq!(child.intersection(&id1).unwrap(), child);
+
+        // Disjoint child
+        let disjoint = SingleId::new(3, 4, 2, 3).unwrap(); // Outside f range
+        assert!(id1.intersection(&disjoint).is_none());
+    }
+
+    #[test]
+    fn difference_works() {
+        let parent = SingleId::new(1, 0, 0, 0).unwrap();
+        // Covers F:0, X:0, Y:0 at Z:1 (which covers Z:2 F:0..=1, X:0..=1, Y:0..=1)
+
+        let child = SingleId::new(2, 0, 1, 1).unwrap();
+
+        let diff: Vec<_> = parent.difference(&child).collect();
+        // At Z=1 -> Z=2, parent is split into 8 children. One of them is `child`.
+        // So difference should yield 7 SingleIds at Z=2.
+        assert_eq!(diff.len(), 7);
+        for d in &diff {
+            assert_eq!(d.z(), 2);
+            assert_ne!(d, &child);
+        }
     }
 }
