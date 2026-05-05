@@ -1,4 +1,6 @@
-use crate::{Coordinate, Ecef, ExpandCoordinates, ExpandLines, ExpandTriangles, Line, Polygon, Triangle};
+use crate::{
+    Coordinate, Ecef, ExpandCoordinates, ExpandLines, ExpandTriangles, Line, Polygon, Triangle,
+};
 
 impl ExpandCoordinates for Polygon {
     fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {

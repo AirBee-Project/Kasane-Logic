@@ -67,18 +67,21 @@ impl ExpandPolygons for Cylinder {
 
 impl ExpandTriangles for Cylinder {
     fn expand_triangles(&self) -> impl Iterator<Item = Triangle> {
-        self.expand_solids().flat_map(|s| s.expand_triangles().collect::<Vec<_>>().into_iter())
+        self.expand_solids()
+            .flat_map(|s| s.expand_triangles().collect::<Vec<_>>().into_iter())
     }
 }
 
 impl ExpandLines for Cylinder {
     fn expand_lines(&self) -> impl Iterator<Item = Line> {
-        self.expand_solids().flat_map(|s| s.expand_lines().collect::<Vec<_>>().into_iter())
+        self.expand_solids()
+            .flat_map(|s| s.expand_lines().collect::<Vec<_>>().into_iter())
     }
 }
 
 impl ExpandCoordinates for Cylinder {
     fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {
-        self.expand_solids().flat_map(|s| s.expand_coordinates().collect::<Vec<_>>().into_iter())
+        self.expand_solids()
+            .flat_map(|s| s.expand_coordinates().collect::<Vec<_>>().into_iter())
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
-    Coordinate, ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Line, Polygon, Solid,
-    Triangle,
+    Coordinate, ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Line, Polygon,
+    Solid, Triangle,
 };
 
 impl ExpandCoordinates for Solid {
