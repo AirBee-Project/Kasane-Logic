@@ -2,6 +2,7 @@ pub mod constructor;
 pub mod convert;
 pub mod encode;
 pub mod impls;
+pub mod ops;
 pub mod random;
 pub mod test;
 

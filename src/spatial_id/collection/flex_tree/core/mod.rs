@@ -285,7 +285,7 @@ mod tests {
     #[test]
     fn insert_accepts_non_whole_temporal_ids() {
         let mut core = FlexTreeCore::new();
-        let temporal = TemporalId::new(60, [0, 0]).unwrap();
+        let temporal = TemporalId::WHOLE;
         let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
 
         core.insert(id, ());

@@ -130,10 +130,10 @@ impl SingleId {
     /// ```no_run
     /// # use kasane_logic::{SingleId,TemporalId};
     /// //時間IDの作成
-    /// let temporal_id = TemporalId::new(60, [1,1]).unwrap();
+    /// let temporal_id = TemporalId::new(60, 1).unwrap();
     ///
     /// let id = SingleId::new_with_temporal(5, 3, 2, 10,temporal_id).unwrap();
-    /// assert_eq!(id.to_string(), "5/3/2/10_60/1:1".to_string());
+    /// assert_eq!(id.to_string(), "5/3/2/10_60/1".to_string());
     /// ```
     #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
@@ -187,7 +187,7 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::{SingleId,TemporalId};
     /// //時間IDの作成
-    /// let temporal_id = TemporalId::new(60, [1,1]).unwrap();
+    /// let temporal_id = TemporalId::new(60, 1).unwrap();
     ///
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { SingleId::new_with_temporal_unchecked(5, 3, 2, 10,temporal_id) };

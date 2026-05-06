@@ -57,7 +57,7 @@ pub enum SpatialIdError {
     TOutOfRange { i: u64, t: u64 },
 
     /// 時間間隔 `i` に 0 を指定した場合のエラー。
-    TIntervalZero,
+    TIntervalError { i: u64 },
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
 }
@@ -161,8 +161,12 @@ impl fmt::Display for SpatialIdError {
             SpatialIdError::TOutOfRange { i, t } => {
                 write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
             }
-            SpatialIdError::TIntervalZero => {
-                write!(f, "Time interval i cannot be set to 0 ")
+            SpatialIdError::TIntervalError { i } => {
+                write!(
+                    f,
+                    "Time interval i is must u64::MAX or 86400 or 3600 or 60 or 1 (i={}).",
+                    i
+                )
             }
             SpatialIdError::ParseSpatialIdFormat { kind, input } => {
                 write!(f, "{} '{}' has invalid display format", kind, input)
