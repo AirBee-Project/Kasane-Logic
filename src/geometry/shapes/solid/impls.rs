@@ -1,13 +1,14 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Coordinate, Error, IntoCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid, SpatialId,
+    Coordinate, Error, ExpandCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid,
+    SpatialId,
     geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 
 impl Shape for Solid {
     fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(self.iter_coordinates())
+        Coordinate::center_gravity(self.expand_coordinates())
     }
 }
 
