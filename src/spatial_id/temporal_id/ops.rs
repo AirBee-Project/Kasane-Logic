@@ -42,12 +42,14 @@ impl TemporalId {
         let inter_end_excl = self_end_excl.min(other_end_excl);
 
         if inter_start >= inter_end_excl {
-            return None; // No intersection
+            return None;
         }
 
         // Try to find a TemporalId that exactly represents this intersection
         for &interval in &Self::TEMPORAL_I {
-            if inter_start % interval == 0 && (inter_end_excl - inter_start) % interval == 0 {
+            if inter_start.is_multiple_of(interval)
+                && (inter_end_excl - inter_start).is_multiple_of(interval)
+            {
                 let t = inter_start / interval;
                 if interval * (t + 1) == inter_end_excl {
                     return TemporalId::new(interval, t).ok();

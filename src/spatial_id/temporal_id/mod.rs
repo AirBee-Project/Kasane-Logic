@@ -241,4 +241,91 @@ impl TemporalId {
     pub fn t(&self) -> u64 {
         self.t
     }
+
+    /// 開始と終了（排他的）のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`] 列を生成する。
+    ///
+    /// 与えられた時間範囲 `[start, end_exclusive)` を表現するために、
+    /// 最も大きな時間間隔から貪欲に [`TemporalId`] を切り出す。
+    /// これにより、表現に必要な [`TemporalId`] の個数が最小となる。
+    ///
+    /// # パラメーター
+    ///
+    /// * `start` — 時間範囲の開始（UNIXタイムスタンプ、秒単位）
+    /// * `end_exclusive` — 時間範囲の終了（UNIXタイムスタンプ、秒単位、排他的）
+    ///
+    /// # バリデーション
+    ///
+    /// - `start >= end_exclusive` の場合、エラーを返す。
+    /// - 時間範囲の表現に失敗した場合（通常は発生しない）、エラーを返す。
+    ///
+    /// # 動作コスト
+    ///
+    /// 時間範囲の大きさに応じて変わるが、一般的には`O(k)` である。
+    /// ここで `k` は生成される [`TemporalId`] の個数であり、通常は小さい値である。
+    ///
+    /// # 例
+    ///
+    /// 1時間の範囲:
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::TemporalId;
+    /// let ids = TemporalId::from_range(0, 3600).unwrap();
+    /// assert_eq!(ids.len(), 1);
+    /// assert_eq!(ids[0], TemporalId::new(3600, 0).unwrap());
+    /// # }
+    /// ```
+    ///
+    /// 複雑な範囲（時間と分の組み合わせ）:
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::TemporalId;
+    /// let ids = TemporalId::from_range(0, 3720).unwrap(); // 1時間 + 2分
+    /// assert!(ids.len() >= 1);
+    /// // 最初の要素は3600秒（1時間）の間隔を持つ
+    /// # }
+    /// ```
+    ///
+    /// 秒単位の細かい範囲:
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::TemporalId;
+    /// let ids = TemporalId::from_range(100, 105).unwrap();
+    /// assert_eq!(ids.len(), 5);
+    /// // 5秒を1秒単位の5つのIDで表現
+    /// # }
+    /// ```
+    pub fn from_range(start: u64, end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
+        if start >= end_exclusive {
+            return Err(SpatialIdError::TOutOfRange { i: 1, t: start }.into());
+        }
+
+        let mut result = Vec::new();
+        let mut current = start;
+
+        while current < end_exclusive {
+            let remaining = end_exclusive - current;
+            let mut placed = false;
+
+            for &interval in &Self::TEMPORAL_I[1..] {
+                if current.is_multiple_of(interval) && remaining >= interval {
+                    let t = current / interval;
+                    if let Ok(id) = TemporalId::new(interval, t) {
+                        result.push(id);
+                        current += interval;
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+
+            if !placed {
+                return Err(SpatialIdError::TOutOfRange { i: 1, t: current }.into());
+            }
+        }
+
+        Ok(result)
+    }
 }
