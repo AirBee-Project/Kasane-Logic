@@ -24,7 +24,7 @@ struct OutputId {
     #[serde(skip_serializing_if = "Option::is_none")]
     i: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    t: Option<Vec<u64>>,
+    t: Option<u64>,
     #[serde(rename = "ref")]
     #[serde(skip_serializing_if = "Option::is_none")]
     ref_idx: Option<usize>,
@@ -54,7 +54,6 @@ where
     V: PartialEq + Ord + Clone + Serialize,
 {
     pub fn to_json(&self) -> String {
-        // Collect unique values to build the value array
         let mut unique_values: Vec<&V> = Vec::new();
         for (_, val) in self.iter() {
             if !unique_values.contains(&val) {
@@ -82,8 +81,7 @@ where
                         None
                     },
                     t: if !temp.is_whole() {
-                        let t = temp.t();
-                        Some(if t[0] == t[1] { vec![t[0]] } else { t.to_vec() })
+                        Some(temp.t())
                     } else {
                         None
                     },

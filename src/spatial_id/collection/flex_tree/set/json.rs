@@ -24,7 +24,7 @@ struct OutputId {
     #[serde(skip_serializing_if = "Option::is_none")]
     i: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    t: Option<Vec<u64>>,
+    t: Option<u64>,
 }
 
 #[cfg(feature = "serde")]
@@ -67,8 +67,7 @@ impl SpatialIdSet {
                         None
                     },
                     t: if !temp.is_whole() {
-                        let t = temp.t();
-                        Some(if t[0] == t[1] { vec![t[0]] } else { t.to_vec() })
+                        Some(temp.t())
                     } else {
                         None
                     },

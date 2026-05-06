@@ -1,62 +1,86 @@
 use std::{fmt::Display, str::FromStr};
 
-use crate::{SpatialIdError, TemporalId, error::Error, spatial_id::helpers::format_dimension};
+use crate::{SpatialIdError, TemporalId, error::Error};
 
 impl Display for TemporalId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}/", self.i)?;
-        write!(f, "{}", format_dimension(self.t))?;
+        write!(f, "{}", self.t)?;
         Ok(())
     }
 }
 
-/// 文字列表現から [`TemporalId`] を復元します。
+/// 文字列表現から [`TemporalId`] を復元する。
 ///
-/// `temporal_id` feature が有効な場合は `"i/start:end"` または
-/// `"i/value"` 形式を受け付けます。
+/// `"i/t"` 形式の文字列をパースして [`TemporalId`] を構築する。
+/// `i` は [`TemporalId::TEMPORAL_I`] に含まれる値である必要があり、
+/// `t` は任意の `u64` 値である。
 ///
+/// # パラメーター
+///
+/// 入力文字列は `"i/t"` の形式である必要がある。
+/// - `i` — 時間間隔（10進数表記）
+/// - `t` — 時間インデックス（10進数表記）
+///
+/// # エラー
+///
+/// 以下の場合に [`Error`] を返す：
+/// - 区切り文字 `/` が見つからない
+/// - `i` または `t` が有効な `u64` に変換できない
+/// - [`TemporalId::new`] による検証に失敗した場合
+///
+/// # 例
+///
+/// 有効な文字列のパース:
 /// ```
+/// # #[cfg(feature = "temporal_id")]
+/// # {
 /// # use kasane_logic::TemporalId;
-/// let temporal = TemporalId::new(60, [120, 179]).unwrap();
-/// let parsed: TemporalId = temporal.to_string().parse().unwrap();
-/// assert_eq!(parsed, temporal);
+/// # use std::str::FromStr;
+/// let id = TemporalId::new(3600, 5).unwrap();
+/// let parsed: TemporalId = "3600/5".parse().unwrap();
+/// assert_eq!(id, parsed);
+/// # }
+/// ```
+///
+/// Display と FromStr の往復:
+/// ```
+/// # #[cfg(feature = "temporal_id")]
+/// # {
+/// # use kasane_logic::TemporalId;
+/// # use std::str::FromStr;
+/// let original = TemporalId::new(60, 120).unwrap();
+/// let string_repr = original.to_string();
+/// let parsed = TemporalId::from_str(&string_repr).unwrap();
+/// assert_eq!(original, parsed);
+/// # }
 /// ```
 impl FromStr for TemporalId {
     type Err = Error;
-
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (i_str, t_str) = s.split_once('/').ok_or_else(|| {
-            Error::from(SpatialIdError::ParseSpatialIdFormat {
+        let parts: Vec<&str> = s.split('/').collect();
+        if parts.len() != 2 {
+            return Err(SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            })
-        })?;
+            }
+            .into());
+        }
 
-        let i = i_str.parse::<u64>().map_err(|_| {
-            Error::from(SpatialIdError::ParseSpatialIdFormat {
+        let i = parts[0]
+            .parse::<u64>()
+            .map_err(|_| SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            })
-        })?;
+            })?;
 
-        let (start_str, end_str) = match t_str.split_once(':') {
-            Some((start, end)) => (start, end),
-            None => (t_str, t_str),
-        };
-
-        let start = start_str.parse::<u64>().map_err(|_| {
-            Error::from(SpatialIdError::ParseSpatialIdFormat {
+        let t = parts[1]
+            .parse::<u64>()
+            .map_err(|_| SpatialIdError::ParseSpatialIdFormat {
                 kind: "TemporalId",
                 input: s.to_string(),
-            })
-        })?;
-        let end = end_str.parse::<u64>().map_err(|_| {
-            Error::from(SpatialIdError::ParseSpatialIdFormat {
-                kind: "TemporalId",
-                input: s.to_string(),
-            })
-        })?;
+            })?;
 
-        TemporalId::new(i, [start, end])
+        TemporalId::new(i, t)
     }
 }
