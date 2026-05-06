@@ -1,0 +1,176 @@
+{
+  "Representative Value": {
+    "patternType": "instant",
+    "description": "バージョンの変化で負荷が変化していないことを確認",
+    "comment": "bb1df9a - Merge pull request #122 from AirBee-Project/feat/singleid-ops",
+    "results": {
+      "Sphere Function": [
+        {
+          "input": 25,
+          "measurement": {
+            "cycles": 242335062,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        }
+      ]
+    }
+  },
+  "ZoomLevel Scaling": {
+    "patternType": "scaling",
+    "description": "ズームレベルが+1されると、最大でも8倍の負荷",
+    "comment": "bb1df9a - Merge pull request #122 from AirBee-Project/feat/singleid-ops",
+    "results": {
+      "Sphere Function": [
+        {
+          "input": 15,
+          "measurement": {
+            "cycles": 8771,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 16,
+          "measurement": {
+            "cycles": 8771,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 17,
+          "measurement": {
+            "cycles": 8771,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 18,
+          "measurement": {
+            "cycles": 10363,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 19,
+          "measurement": {
+            "cycles": 12960,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 20,
+          "measurement": {
+            "cycles": 24818,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 21,
+          "measurement": {
+            "cycles": 107188,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 22,
+          "measurement": {
+            "cycles": 611667,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 23,
+          "measurement": {
+            "cycles": 4003643,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 24,
+          "measurement": {
+            "cycles": 31223584,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        },
+        {
+          "input": 25,
+          "measurement": {
+            "cycles": 242126812,
+            "instructions": null,
+            "timeNs": null,
+            "allocCount": 1,
+            "allocBytes": 128,
+            "deallocCount": 1,
+            "deallocBytes": 128,
+            "netBytes": 0
+          }
+        }
+      ]
+    }
+  }
+}
