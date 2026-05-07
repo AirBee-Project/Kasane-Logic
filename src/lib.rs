@@ -10,7 +10,9 @@ pub mod spatial_id;
 #[doc(inline)]
 pub use error::Error;
 #[doc(inline)]
-pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
+pub use geometry::point::{
+    coordinate::Coordinate, ecef::Ecef, fractionalid::FractionalId, traits::Point,
+};
 
 #[doc(inline)]
 pub use error::{GeometryError, SpatialIdError};
