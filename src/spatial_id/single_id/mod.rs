@@ -462,7 +462,18 @@ impl SingleId {
             }
         }
 
-        Some(siblings.map(|child| child.expect("sibling set should contain exactly 7 items")))
+        debug_assert_eq!(index, 7, "sibling set should contain exactly 7 items");
+        if index != 7 {
+            return None;
+        }
+
+        let [a, b, c, d, e, f, g] = siblings;
+        match (a, b, c, d, e, f, g) {
+            (Some(a), Some(b), Some(c), Some(d), Some(e), Some(f), Some(g)) => {
+                Some([a, b, c, d, e, f, g])
+            }
+            _ => None,
+        }
     }
 
     /// この [`SingleId`] の全ての親を、直近の親から順に列挙する。
