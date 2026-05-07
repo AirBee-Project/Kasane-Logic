@@ -47,13 +47,6 @@ mod tests {
                 .iter()
                 .all(|s| s.spatial_parent_at_zoom(2).unwrap() == parent)
         );
-
-        let parent = id.spatial_parent_at_zoom(2).unwrap();
-        assert!(
-            siblings
-                .iter()
-                .all(|s| s.spatial_parent_at_zoom(2).unwrap() == parent)
-        );
     }
 
     #[test]
