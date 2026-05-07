@@ -1,6 +1,5 @@
 pub mod impls;
 
-
 use crate::{
     Ecef, SingleId,
     error::{Error, GeometryError, SpatialIdError},

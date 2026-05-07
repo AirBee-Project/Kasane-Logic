@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{
-    ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
-};
+use crate::{ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds};
 
 impl Shape for Polygon {}
 

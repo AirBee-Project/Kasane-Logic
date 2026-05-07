@@ -1,8 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Error, IntoSingleIds, RangeId, Shape, SingleId, Solid,
-    SpatialId,
+    Error, IntoSingleIds, RangeId, Shape, SingleId, Solid, SpatialId,
     geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 
