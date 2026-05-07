@@ -1,13 +1,7 @@
 use crate::{
-    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialIdError,
+    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, SingleId, SpatialIdError,
     geometry::traits::CoverSingleIds,
 };
-
-impl Shape for Line {
-    fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(self.points)
-    }
-}
 
 impl CoverSingleIds for Line {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {

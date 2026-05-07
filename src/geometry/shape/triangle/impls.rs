@@ -1,15 +1,11 @@
 use std::collections::HashSet;
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, Shape, SingleId, Triangle,
+    Error, Shape, SingleId, Triangle,
     geometry::{shape::triangle::coordinate_to_matrix, traits::CoverSingleIds},
 };
 
-impl Shape for Triangle {
-    fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(self.expand_coordinates())
-    }
-}
+impl Shape for Triangle {}
 
 impl CoverSingleIds for Triangle {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {

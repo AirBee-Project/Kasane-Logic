@@ -1,16 +1,12 @@
 use std::collections::{HashSet, VecDeque};
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid,
+    Error, IntoSingleIds, RangeId, Shape, SingleId, Solid,
     SpatialId,
     geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 
-impl Shape for Solid {
-    fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(self.expand_coordinates())
-    }
-}
+impl Shape for Solid {}
 
 impl CoverSingleIds for Solid {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
