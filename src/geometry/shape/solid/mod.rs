@@ -1,4 +1,4 @@
-use crate::geometry::shapes::polygon::Polygon;
+use crate::geometry::shape::polygon::Polygon;
 use crate::{CoverSingleIds as _, Ecef, Error, ExpandTriangles, GeometryError, SingleId, Triangle};
 use std::collections::{HashMap, HashSet};
 
