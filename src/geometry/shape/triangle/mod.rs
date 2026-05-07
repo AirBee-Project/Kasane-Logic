@@ -20,6 +20,23 @@ impl Triangle {
         Self { points }
     }
 
+    ///重心を求める
+    pub fn center(&self) -> Coordinate {
+        let p0: Ecef = self.points[0].into();
+        let p1: Ecef = self.points[1].into();
+        let p2: Ecef = self.points[2].into();
+
+        let center = Ecef::new(
+            (p0.x() + p1.x() + p2.x()) / 3.0,
+            (p0.y() + p1.y() + p2.y()) / 3.0,
+            (p0.z() + p1.z() + p2.z()) / 3.0,
+        );
+
+        center
+            .try_into()
+            .unwrap_or_else(|_| panic!("Failed to convert triangle center"))
+    }
+
     ///三角形の面積を返す
     pub fn area(&self) -> f64 {
         let p0: Vec3 = self.points[0].into();

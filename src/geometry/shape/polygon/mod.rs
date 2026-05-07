@@ -1,4 +1,4 @@
-use crate::Coordinate;
+use crate::{Coordinate, Ecef};
 
 pub mod geometry_relation;
 pub mod impls;
@@ -56,5 +56,27 @@ impl Polygon {
     /// [Polygon]を構成する点を返す。
     pub fn vertices(&self) -> &Vec<Coordinate> {
         &self.vertices
+    }
+
+    ///重心を求める
+    pub fn center(&self) -> Coordinate {
+        let mut x = 0.0;
+        let mut y = 0.0;
+        let mut z = 0.0;
+
+        for vertice in self.vertices.clone() {
+            let ecef: Ecef = vertice.into();
+            x += ecef.x();
+            y += ecef.y();
+            z += ecef.z();
+        }
+
+        Ecef::new(
+            x / self.vertices.len() as f64,
+            y / self.vertices.len() as f64,
+            z / self.vertices.len() as f64,
+        )
+        .try_into()
+        .unwrap_or_else(|_| panic!("Failed to convert triangle center"))
     }
 }
