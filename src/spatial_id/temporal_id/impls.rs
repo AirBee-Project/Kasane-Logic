@@ -10,6 +10,12 @@ impl Display for TemporalId {
     }
 }
 
+impl Default for TemporalId {
+    fn default() -> Self {
+        Self::WHOLE
+    }
+}
+
 /// 文字列表現から [`TemporalId`] を復元する。
 ///
 /// `"i/t"` 形式の文字列をパースして [`TemporalId`] を構築する。

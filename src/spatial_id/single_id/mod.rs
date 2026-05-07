@@ -357,6 +357,114 @@ impl SingleId {
         })
     }
 
+    /// この [`SingleId`] と同じ親を共有する兄弟 [`SingleId`] を 7 個返す。
+    ///
+    /// 返される 7 個と自分自身を合わせると、1つ上のズームレベルにある親 [`SingleId`] を構成する。
+    /// `z = 0` の場合は親を持たないため `None` を返す。
+    ///
+    /// # 動作例
+    ///
+    /// 兄弟の列挙:
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(3, 3, 2, 7).unwrap();
+    /// let siblings = id.spatial_siblings().unwrap();
+    ///
+    /// assert_eq!(siblings.len(), 7);
+    /// assert!(siblings.iter().all(|s| s.spatial_parent_at_zoom(2).unwrap() == id.spatial_parent_at_zoom(2).unwrap()));
+    /// assert!(!siblings.contains(&id));
+    /// ```
+    ///
+    /// 最上位の ID の場合:
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(0, 0, 0, 0).unwrap();
+    /// assert!(id.spatial_siblings().is_none());
+    /// ```
+    pub fn spatial_siblings(&self) -> Option<[SingleId; 7]> {
+        if self.z == 0 {
+            return None;
+        }
+
+        let parent_z = self.z - 1;
+        let parent = self.spatial_parent_at_zoom(parent_z).ok()?;
+        let next_z = self.z;
+        let f_start = parent.f() * 2;
+        let x_start = parent.x() * 2;
+        let y_start = parent.y() * 2;
+
+        let candidates = [
+            SingleId {
+                z: next_z,
+                f: f_start,
+                x: x_start,
+                y: y_start,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start,
+                x: x_start,
+                y: y_start + 1,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start,
+                x: x_start + 1,
+                y: y_start,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start,
+                x: x_start + 1,
+                y: y_start + 1,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start + 1,
+                x: x_start,
+                y: y_start,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start + 1,
+                x: x_start,
+                y: y_start + 1,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start + 1,
+                x: x_start + 1,
+                y: y_start,
+                temporal_id: self.temporal().clone(),
+            },
+            SingleId {
+                z: next_z,
+                f: f_start + 1,
+                x: x_start + 1,
+                y: y_start + 1,
+                temporal_id: self.temporal().clone(),
+            },
+        ];
+
+        let mut siblings: [Option<SingleId>; 7] = [None, None, None, None, None, None, None];
+        let mut index = 0;
+
+        for child in candidates {
+            if child != *self {
+                siblings[index] = Some(child);
+                index += 1;
+            }
+        }
+
+        Some(siblings.map(|child| child.expect("sibling set should contain exactly 7 items")))
+    }
+
     /// この [`SingleId`] の全ての親を、直近の親から順に列挙する。
     ///
     /// 返す順序は `z - 1`, `z - 2`, ..., `0` であり、元の [`SingleId`] 自身は含まない。
