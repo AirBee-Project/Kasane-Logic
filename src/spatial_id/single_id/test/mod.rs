@@ -33,6 +33,37 @@ mod tests {
     }
 
     #[test]
+    fn spatial_siblings_are_returned_for_non_root_ids() {
+        let id = SingleId::new(3, 3, 2, 7).unwrap();
+
+        let siblings = id.spatial_siblings().unwrap();
+
+        assert_eq!(siblings.len(), 7);
+        assert!(!siblings.contains(&id));
+
+        let parent = id.spatial_parent_at_zoom(2).unwrap();
+        assert!(
+            siblings
+                .iter()
+                .all(|s| s.spatial_parent_at_zoom(2).unwrap() == parent)
+        );
+
+        let parent = id.spatial_parent_at_zoom(2).unwrap();
+        assert!(
+            siblings
+                .iter()
+                .all(|s| s.spatial_parent_at_zoom(2).unwrap() == parent)
+        );
+    }
+
+    #[test]
+    fn spatial_siblings_is_none_at_root() {
+        let id = SingleId::new(0, 0, 0, 0).unwrap();
+
+        assert!(id.spatial_siblings().is_none());
+    }
+
+    #[test]
     fn spatial_parents_are_returned_from_nearest_to_root() {
         let id = SingleId::new(3, 3, 2, 7).unwrap();
 
