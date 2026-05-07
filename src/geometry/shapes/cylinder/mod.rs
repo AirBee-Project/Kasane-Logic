@@ -25,11 +25,13 @@ impl Cylinder {
         }
     }
 
+    /// [Cylinder]を近似した[Solid]を作成する関数
     pub fn rough_solid(&self) -> Solid {
         let polygons = self.rough_surfaces().collect();
         Solid::new(polygons, 1e-10).unwrap()
     }
 
+    /// [Cylinder]を近似した立体の表面を[Polygon]として返す関数
     pub fn rough_surfaces(&self) -> impl Iterator<Item = Polygon> {
         let vecs: [Vec3; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
