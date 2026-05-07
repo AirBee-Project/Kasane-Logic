@@ -8,7 +8,7 @@ use crate::{Coordinate, Error, GeometryError};
 /// 中心線及び半径によって定義される立体的な領域を表現する。
 pub struct Cylinder {
     pub start: Coordinate,
-    pub end: Coordinate, //向きに明確な意味を持たせるならstart,endを別に定義する方がいい？
+    pub end: Coordinate,
     pub radius_m: f64,
 }
 

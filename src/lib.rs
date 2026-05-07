@@ -17,6 +17,8 @@ pub use error::{GeometryError, SpatialIdError};
 #[doc(inline)]
 pub use geometry::shapes::cylinder::Cylinder;
 #[doc(inline)]
+pub use geometry::shapes::tube::Tube;
+#[doc(inline)]
 pub use geometry::vec3::Vec3;
 
 // geometry: types
