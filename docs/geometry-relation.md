@@ -1,4 +1,12 @@
-# Trait `Geometry`
+# Geometry の関係
+
+下記の図は、`geometry` モジュール内の型とトレイトの関係を表す。
+
+図における矢印は以下の意味を持つ。
+
+- 太い矢印 : 近似
+- 通常の矢印 : 展開または通常の変換（情報を失わない）
+- 点線矢印 : 常に変換できるとは限らない
 
 ```mermaid
 graph TB
@@ -9,9 +17,11 @@ Triangle((Triangle))
 Polygon((Polygon))
 Solid((Solid))
 Sphere((Sphere))
+Cylinder((Cylinder))
 
 subgraph Geometry
   direction LR
+
     subgraph Point [Point]
         Coordinate
         Ecef
@@ -23,20 +33,23 @@ subgraph Geometry
         Polygon
         Solid
         Sphere
+        Cylinder
     end
-
 end
 
-%%点の定義
+%% 点の定義
 Coordinate --> Ecef
 Ecef -.-> Coordinate
 
-
-%%点以外の型定義
+%% 点以外の型定義
 Line -->|"Line → Coordinate×2"| Coordinate
 Triangle -->|"Triangle → Line×3"| Line
 Polygon -->|"Polygon → Triangle×N"| Triangle
 Solid -->|"Solid → Polygon×N"| Polygon
+
+%% 近似
+Cylinder ==>|"N角形として近似"| Solid
+
 ```
 
 3次元空間上の空間ID以外の図形を表す型。図形から空間 ID を返す Trait は `CoverSingleIds` / `CoverRangeIds` である。
@@ -47,7 +60,7 @@ Solid -->|"Solid → Polygon×N"| Polygon
 
 # Trait `Shape`
 
-3次元空間上の点以外を表す型。
+3次元空間上の図形に共通の性質を表すトレイト。現状の実装では中心点を返す `center()` を持つ。
 
 分解可能な型は、次のトレイトを直接実装する。
 
@@ -55,7 +68,6 @@ Solid -->|"Solid → Polygon×N"| Polygon
 - `ExpandLines`
 - `ExpandTriangles`
 - `ExpandPolygons`
-- `ExpandSolids`
 
 各トレイトは以下のメソッドを持つ。
 
@@ -85,12 +97,12 @@ Solid -->|"Solid → Polygon×N"| Polygon
 
 # Trait `Point`
 
-3次元空間上の点を表す型。
+3次元空間上の点を表すマーカートレイト。`Into<Ecef>` を要求する。
 
 ## Type `Coordinate`
 
-空間IDが定義される範囲内の「緯度/経度/高度」を表し、`Ecef`に必ず変換することができる。本ライブラリの性質上、大体のGeometryは`Coordinate`の集合で表現される。
+空間IDが定義される範囲内の「緯度/経度/高度」を表す。`Ecef` へは必ず変換できる。本ライブラリの性質上、大体の Geometry は `Coordinate` の集合で表現される。
 
 ## Type `Ecef`
 
-制約のない地心直交座標系を表す。必ずしも`Coordinate`に**変換することができない**。
+制約のない地心直交座標系を表す。`Coordinate` への変換は常に保証されない。
