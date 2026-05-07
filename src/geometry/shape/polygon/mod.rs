@@ -60,7 +60,7 @@ impl Polygon {
 
     ///重心を求める
     pub fn center(&self) -> Coordinate {
-        let mut x: f64 = 0.0;
+        let mut x = 0.0;
         let mut y = 0.0;
         let mut z = 0.0;
 
