@@ -8,7 +8,7 @@ pub mod constants;
 
 pub mod point;
 
-pub mod shapes;
+pub mod shape;
 
 pub mod traits;
 

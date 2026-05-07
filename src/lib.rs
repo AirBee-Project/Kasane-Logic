@@ -15,27 +15,27 @@ pub use geometry::point::{coordinate::Coordinate, ecef::Ecef, traits::Point};
 #[doc(inline)]
 pub use error::{GeometryError, SpatialIdError};
 #[doc(inline)]
-pub use geometry::shapes::cylinder::Cylinder;
+pub use geometry::shape::cylinder::Cylinder;
 #[doc(inline)]
-pub use geometry::shapes::tube::Tube;
+pub use geometry::shape::tube::Tube;
 #[doc(inline)]
 pub use geometry::vec3::Vec3;
 
 // geometry: types
 #[doc(inline)]
-pub use geometry::shapes::line::Line;
+pub use geometry::shape::line::Line;
 #[doc(inline)]
-pub use geometry::shapes::polygon::Polygon;
+pub use geometry::shape::polygon::Polygon;
 #[doc(inline)]
-pub use geometry::shapes::solid::Solid;
+pub use geometry::shape::solid::Solid;
 #[doc(inline)]
-pub use geometry::shapes::sphere::Sphere;
+pub use geometry::shape::sphere::Sphere;
 #[doc(inline)]
-pub use geometry::shapes::triangle::Triangle;
+pub use geometry::shape::triangle::Triangle;
 
 // geometry: traits
 #[doc(inline)]
-pub use geometry::shapes::traits::{
+pub use geometry::shape::traits::{
     ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape,
 };
 #[doc(inline)]
