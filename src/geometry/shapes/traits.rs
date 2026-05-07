@@ -1,4 +1,4 @@
-use crate::{Coordinate, Line, Polygon, Solid, Triangle};
+use crate::{Coordinate, Line, Polygon, Triangle};
 
 /// 現実空間の図形に対して共通で定義することができる性質
 ///
@@ -93,8 +93,4 @@ pub trait ExpandTriangles {
 /// ```
 pub trait ExpandPolygons {
     fn expand_polygons(&self) -> impl Iterator<Item = Polygon>;
-}
-
-pub trait ExpandSolids {
-    fn expand_solids(&self) -> impl Iterator<Item = Solid>;
 }

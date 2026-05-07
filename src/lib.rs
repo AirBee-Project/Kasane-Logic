@@ -34,7 +34,7 @@ pub use geometry::shapes::triangle::Triangle;
 // geometry: traits
 #[doc(inline)]
 pub use geometry::shapes::traits::{
-    ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandSolids, ExpandTriangles, Shape,
+    ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape,
 };
 #[doc(inline)]
 pub use geometry::traits::{CoverRangeIds, CoverSingleIds};
