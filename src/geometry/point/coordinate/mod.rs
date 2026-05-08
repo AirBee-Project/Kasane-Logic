@@ -3,7 +3,7 @@ pub mod impls;
 use std::borrow::Borrow;
 
 use crate::{
-    Ecef, SingleId,
+    Ecef, FractionalId, SingleId,
     error::{Error, GeometryError, SpatialIdError},
     spatial_id::constants::MAX_ZOOM_LEVEL,
 };
@@ -237,6 +237,28 @@ impl Coordinate {
             .floor() as u32;
 
         Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
+    }
+
+    pub fn frctional_id(&self, z: u8) -> Result<FractionalId, Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        }
+
+        let lat = self.latitude;
+        let lon = self.longitude;
+        let alt = self.altitude;
+
+        //Z=25のとき高さはちょうど1m
+        let factor = 2_f64.powi(z as i32 - 25);
+        let f = factor * alt;
+
+        let n = 2u64.pow(z as u32) as f64;
+        let x = (lon + 180.0) / 360.0 * n;
+
+        let lat_rad = lat.to_radians();
+        let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
+        let id = unsafe { FractionalId::new_unchecked(z, f, x, y) };
+        Ok(id)
     }
 
     /// 他の [`Coordinate`] との距離をメートル単位で返す。
