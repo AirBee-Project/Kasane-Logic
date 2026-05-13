@@ -3,9 +3,9 @@ mod tests {
     use super::super::{MapEntry, build_map};
     use crate::SingleId;
 
-    /// remove() 後に count() と iter() の整合性が保たれることを検証する。
+    /// remove() 後に len() と iter() の整合性が保たれることを検証する。
     #[test]
-    fn remove_updates_count_and_iteration() {
+    fn remove_updates_len_and_iteration() {
         let first = SingleId::new(4, 3, 2, 1).unwrap();
         let second = SingleId::new(4, 3, 2, 2).unwrap();
         let mut map = build_map(&[
@@ -16,7 +16,7 @@ mod tests {
         let removed: Vec<_> = map.remove(&first).collect();
         assert_eq!(removed.len(), 1);
         assert_eq!(removed[0].1, 10);
-        assert_eq!(map.count(), map.iter().count());
+        assert_eq!(map.len(), map.iter().count());
         assert!(map.get(&first).next().is_none());
         assert_eq!(
             map.get(&second)

@@ -120,8 +120,8 @@ where
     }
 
     /// 保持している[FlexId]の総数を返します。
-    pub fn count(&self) -> usize {
-        self.inner.count()
+    pub fn len(&self) -> usize {
+        self.inner.len()
     }
 
     /// ツリーの最大ズームレベルを返します。
