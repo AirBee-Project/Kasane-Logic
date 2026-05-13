@@ -1,10 +1,10 @@
 #![cfg_attr(test, allow(dead_code))]
 
-pub mod count;
 pub mod difference;
 pub mod equal;
 pub mod insert;
 pub mod intersection;
+pub mod len;
 pub mod union;
 
 #[cfg(test)]
@@ -175,7 +175,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 ///
 ///         // ここで演算子テストを書く
 ///         // 失敗時に case.debug_summary() をメッセージへ出すと追跡しやすい
-///         prop_assert!(set.count() > 0, "{}", case.debug_summary());
+///         prop_assert!(set.len() > 0, "{}", case.debug_summary());
 ///     }
 /// }
 /// ```
