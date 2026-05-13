@@ -1,7 +1,7 @@
 #![cfg_attr(test, allow(dead_code))]
 
-pub mod len;
 pub mod insert;
+pub mod len;
 pub mod query;
 pub mod remove;
 
