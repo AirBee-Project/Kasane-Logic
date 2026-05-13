@@ -38,8 +38,8 @@ where
         self.inner.remove(target)
     }
 
-    pub fn len(&self) -> usize {
-        self.inner.len()
+    pub fn count(&self) -> usize {
+        self.inner.count()
     }
 
     pub fn max_zoomlevel(&self) -> Option<u8> {

@@ -45,7 +45,7 @@ where
         self.lower_root.is_none() && self.upper_root.is_none()
     }
 
-    pub fn len(&self) -> usize {
+    pub fn count(&self) -> usize {
         self.lower_count + self.upper_count
     }
 
@@ -290,6 +290,6 @@ mod tests {
 
         core.insert(id, ());
 
-        assert_eq!(core.len(), 1);
+        assert_eq!(core.count(), 1);
     }
 }

@@ -3,7 +3,11 @@ use crate::{
     geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
 };
 
-impl Shape for Sphere {}
+impl Shape for Sphere {
+    fn center(&self) -> Coordinate {
+        self.center
+    }
+}
 
 impl CoverSingleIds for Sphere {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {

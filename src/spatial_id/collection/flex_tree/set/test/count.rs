@@ -4,8 +4,8 @@ mod tests {
     use crate::{RangeId, SingleId, SpatialIdSet};
     use proptest::prelude::*;
 
-    fn assert_len_consistent(set: &SpatialIdSet) {
-        assert_eq!(set.len(), set.iter().count());
+    fn assert_count_consistent(set: &SpatialIdSet) {
+        assert_eq!(set.count(), set.iter().count());
     }
 
     fn remove_insert_pattern(set: &mut SpatialIdSet, insert: &RandomSetInsert) {
@@ -19,43 +19,43 @@ mod tests {
         }
     }
 
-    /// 挿入後の Set で len() と実際の要素数が一致することを固定ケースで検証する。
+    /// 挿入後の Set で count() と実際の要素数が一致することを固定ケースで検証する。
     #[test]
-    fn len_matches_iter_count_fixed_insert_case() {
+    fn count_matches_iter_count_fixed_insert_case() {
         let mut set = SpatialIdSet::new();
         set.insert(SingleId::new(4, 3, 2, 1).unwrap());
         set.insert(SingleId::new(4, 3, 2, 2).unwrap());
         set.insert(RangeId::new(3, [0, 1], [1, 2], [3, 3]).unwrap());
 
-        assert_len_consistent(&set);
+        assert_count_consistent(&set);
     }
 
-    /// 削除後の Set で len() と実際の要素数が一致することを固定ケースで検証する。
+    /// 削除後の Set で count() と実際の要素数が一致することを固定ケースで検証する。
     #[test]
-    fn len_matches_iter_count_fixed_remove_case() {
+    fn count_matches_iter_count_fixed_remove_case() {
         let mut set = SpatialIdSet::new();
         let remove_target = SingleId::new(4, 3, 2, 2).unwrap();
 
         set.insert(SingleId::new(4, 3, 2, 1).unwrap());
         set.insert(remove_target.clone());
         set.insert(RangeId::new(3, [0, 1], [1, 2], [3, 3]).unwrap());
-        assert_len_consistent(&set);
+        assert_count_consistent(&set);
 
         let _ = set.remove(&remove_target).collect::<Vec<_>>();
-        assert_len_consistent(&set);
+        assert_count_consistent(&set);
     }
 
     proptest! {
-        /// ランダム挿入後の Set で len() と実際の要素数が一致することを検証する。
+        /// ランダム挿入後の Set で count() と実際の要素数が一致することを検証する。
         #[test]
-        fn len_matches_iter_count_after_random_insert(case in arb_random_set_case()) {
+        fn count_matches_iter_count_after_random_insert(case in arb_random_set_case()) {
             let set = case.build_set();
-            prop_assert_eq!(set.len(), set.iter().count(), "{}", case.debug_summary());
+            prop_assert_eq!(set.count(), set.iter().count(), "{}", case.debug_summary());
         }
 
-        /// ランダム挿入とランダム削除を繰り返した後でも len() と実際の要素数が一致することを検証する。
+        /// ランダム挿入とランダム削除を繰り返した後でも count() と実際の要素数が一致することを検証する。
         #[test]
-        fn len_matches_iter_count_after_random_insert_and_remove(
+        fn count_matches_iter_count_after_random_insert_and_remove(
             base_case in arb_random_set_case(),
             remove_case in arb_random_set_case(),
         ) {
@@ -63,7 +63,7 @@ mod tests {
             for insert in &remove_case.inserts {
                 remove_insert_pattern(&mut set, insert);
                 prop_assert_eq!(
-                    set.len(),
+                    set.count(),
                     set.iter().count(),
                     "base={}\nremove={}",
                     base_case.debug_summary(),

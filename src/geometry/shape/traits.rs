@@ -3,7 +3,9 @@ use crate::{Coordinate, Line, Polygon, Triangle};
 /// 現実空間の図形に対して共通で定義することができる性質
 ///
 /// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
-pub trait Shape {}
+pub trait Shape {
+    fn center(&self) -> Coordinate;
+}
 
 /// [Coordinate] の集合へ分解可能であることを示す
 ///

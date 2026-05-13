@@ -48,8 +48,8 @@ impl SpatialIdSet {
             .map(move |(flex_id, _value)| flex_id)
     }
 
-    pub fn len(&self) -> usize {
-        self.inner.len()
+    pub fn count(&self) -> usize {
+        self.inner.count()
     }
 
     pub fn max_zoomlevel(&self) -> Option<u8> {

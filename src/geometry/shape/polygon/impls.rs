@@ -1,8 +1,31 @@
 use std::collections::HashSet;
 
-use crate::{ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds};
+use crate::{
+    Coordinate, ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
+};
 
-impl Shape for Polygon {}
+impl Shape for Polygon {
+    /// ポリゴンの重心を取得する。
+    ///
+    /// 構成する全ての頂点の座標の平均値を算出し、ポリゴンの重心座標として返す。
+    ///
+    /// # 動作例
+    ///
+    /// タイトル: ポリゴンの重心を計算
+    /// ```
+    /// # use kasane_logic::{Coordinate, Polygon, Shape};
+    /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
+    /// let p1 = Coordinate::new(35.0, 139.001, 10.0).unwrap();
+    /// let p2 = Coordinate::new(35.001, 139.0, 10.0).unwrap();
+    /// let polygon = Polygon::new(vec![p0, p1, p2], 0.01);
+    ///
+    /// let center = polygon.center();
+    /// assert!(center.latitude() > 35.0);
+    /// ```
+    fn center(&self) -> Coordinate {
+        Coordinate::center_gravity(self.vertices.clone())
+    }
+}
 
 impl CoverSingleIds for Polygon {
     /// ポリゴン領域を覆う全ての [`SingleId`] を取得する。

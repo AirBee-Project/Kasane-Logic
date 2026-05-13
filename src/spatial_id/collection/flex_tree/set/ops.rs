@@ -6,7 +6,7 @@ impl BitOr<&SpatialIdSet> for &SpatialIdSet {
     type Output = SpatialIdSet;
 
     fn bitor(self, rhs: &SpatialIdSet) -> Self::Output {
-        let (first, second) = if self.len() >= rhs.len() {
+        let (first, second) = if self.count() >= rhs.count() {
             (self, rhs)
         } else {
             (rhs, self)
@@ -26,7 +26,7 @@ impl BitAnd<&SpatialIdSet> for &SpatialIdSet {
     type Output = SpatialIdSet;
 
     fn bitand(self, rhs: &SpatialIdSet) -> Self::Output {
-        let (smaller, larger) = if self.len() <= rhs.len() {
+        let (smaller, larger) = if self.count() <= rhs.count() {
             (self, rhs)
         } else {
             (rhs, self)
@@ -58,7 +58,7 @@ impl Sub<&SpatialIdSet> for &SpatialIdSet {
 
         let mut output = self.clone();
 
-        if rhs.len() <= self.len() {
+        if rhs.count() <= self.count() {
             for rhs_id in rhs.iter() {
                 let _ = output.remove(&rhs_id);
             }
@@ -96,7 +96,7 @@ impl Sub for SpatialIdSet {
     type Output = SpatialIdSet;
 
     fn sub(mut self, rhs: Self) -> Self::Output {
-        if rhs.len() <= self.len() {
+        if rhs.count() <= self.count() {
             for rhs_id in rhs.iter() {
                 let _ = self.remove(&rhs_id);
             }

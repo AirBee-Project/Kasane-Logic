@@ -3,7 +3,11 @@ use crate::{
     geometry::traits::CoverSingleIds,
 };
 
-impl Shape for Line {}
+impl Shape for Line {
+    fn center(&self) -> Coordinate {
+        Coordinate::center_gravity(self.points)
+    }
+}
 
 impl CoverSingleIds for Line {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
