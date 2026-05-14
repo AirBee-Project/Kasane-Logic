@@ -18,9 +18,4 @@ impl Sphere {
             Err(GeometryError::RadiusNegative { radius: radius_m }.into())
         }
     }
-
-    ///重心を求める
-    pub fn center(&self) -> Coordinate {
-        self.center
-    }
 }

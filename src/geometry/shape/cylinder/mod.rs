@@ -25,22 +25,6 @@ impl Cylinder {
         }
     }
 
-    ///重心を求める
-    pub fn center(&self) -> Coordinate {
-        let p0: Ecef = self.start.into();
-        let p1: Ecef = self.end.into();
-
-        let center = Ecef::new(
-            (p0.x() + p1.x()) / 2.0,
-            (p0.y() + p1.y()) / 2.0,
-            (p0.z() + p1.z()) / 2.0,
-        );
-
-        center
-            .try_into()
-            .unwrap_or_else(|_| panic!("Failed to convert triangle center"))
-    }
-
     /// [Cylinder]を近似した[Solid]を作成する関数
     pub fn rough_solid(&self) -> Solid {
         let polygons = self.rough_surfaces().collect();

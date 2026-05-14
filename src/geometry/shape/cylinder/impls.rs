@@ -1,6 +1,10 @@
-use crate::{CoverRangeIds, CoverSingleIds, Cylinder, Error, RangeId, Shape, SingleId};
+use crate::{Coordinate, CoverRangeIds, CoverSingleIds, Cylinder, Error, RangeId, Shape, SingleId};
 
-impl Shape for Cylinder {}
+impl Shape for Cylinder {
+    fn center(&self) -> Coordinate {
+        Coordinate::center_gravity([self.start, self.end])
+    }
+}
 
 impl CoverSingleIds for Cylinder {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
