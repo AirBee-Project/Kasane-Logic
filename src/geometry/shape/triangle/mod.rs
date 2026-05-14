@@ -204,3 +204,13 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
     [f, x, y]
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OldTriangle {
+    pub points: [Coordinate; 3],
+}
+impl OldTriangle {
+    pub fn new(points: [Coordinate; 3]) -> Self {
+        Self { points }
+    }
+}
