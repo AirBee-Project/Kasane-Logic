@@ -16,3 +16,18 @@ impl Line {
         Self { points }
     }
 }
+
+///古いアルゴリズムによる直線（比較用）
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OldLine {
+    pub points: [Coordinate; 2],
+}
+
+impl OldLine {
+    ///[OldLine]を作成する。
+    pub fn new(points: [Coordinate; 2]) -> Self {
+        Self { points }
+    }
+}

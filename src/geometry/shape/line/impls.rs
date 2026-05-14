@@ -1,6 +1,6 @@
 use crate::{
     Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialIdError,
-    geometry::traits::CoverSingleIds,
+    geometry::{shape::line::OldLine, traits::CoverSingleIds},
 };
 
 impl Shape for Line {
@@ -45,6 +45,50 @@ impl CoverSingleIds for Line {
             voxels.pop();
             voxels.extend(line_iter);
         }
+        Ok(voxels.into_iter())
+    }
+}
+
+impl CoverSingleIds for OldLine {
+    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        }
+        let a = self.points[0];
+        let b = self.points[1];
+        let ecef_a: Ecef = a.into();
+        let ecef_b: Ecef = b.into();
+
+        let a1 = ecef_a.x();
+        let b1 = ecef_a.y();
+        let c1 = ecef_a.z();
+
+        let a2 = ecef_b.x();
+        let b2 = ecef_b.y();
+        let c2 = ecef_b.z();
+
+        let minlat = a.latitude().abs().min(b.latitude().abs()).to_radians();
+        let r = 6378137.0;
+
+        let d = std::f64::consts::PI * r * minlat.cos() * (2.0f64).powi(-3 - (z as i32));
+
+        let distance = ((a1 - a2).powi(2) + (b1 - b2).powi(2) + (c1 - c2).powi(2)).sqrt();
+        let steps = (distance / d).ceil() as usize;
+
+        let mut voxels = std::collections::HashSet::new();
+
+        for i in 0..=steps {
+            let t = i as f64 / steps as f64;
+            let x = a1 * (1.0 - t) + a2 * t;
+            let y = b1 * (1.0 - t) + b2 * t;
+            let z_pos = c1 * (1.0 - t) + c2 * t;
+
+            let point: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
+            let single_id = point.single_id(z)?;
+
+            voxels.insert(single_id);
+        }
+
         Ok(voxels.into_iter())
     }
 }
