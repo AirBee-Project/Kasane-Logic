@@ -11,8 +11,6 @@ pub mod impls;
 pub mod ops;
 
 #[cfg(feature = "temporal_id")]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 /// 時間IDの区間表現を表す型である。
 ///

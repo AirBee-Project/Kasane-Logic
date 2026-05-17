@@ -4,8 +4,6 @@ pub mod impls;
 mod tests;
 
 ///球体を表す型
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Sphere {
     center: Coordinate,
     radius_m: f64,

@@ -11,8 +11,6 @@ mod tests;
 ///
 /// 複数の [Polygon] によって構成される閉じた領域を表現します。
 /// この型は、作成時に必ず閉合性が検証されるため、作成できている場合は「閉じている」ことが保証されます。
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, Clone)]
 pub struct Solid {
     /// 立体を構成する面のリスト

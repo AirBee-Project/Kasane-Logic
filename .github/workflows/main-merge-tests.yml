@@ -36,34 +36,10 @@ jobs:
             features: ""
           - name: "features: random"
             features: random
-          - name: "features: serde"
-            features: serde
-          - name: "features: openapi"
-            features: openapi
           - name: "features: temporal_id"
             features: temporal_id
-          - name: "features: random,serde"
-            features: random,serde
-          - name: "features: random,openapi"
-            features: random,openapi
           - name: "features: random,temporal_id"
             features: random,temporal_id
-          - name: "features: serde,openapi"
-            features: serde,openapi
-          - name: "features: serde,temporal_id"
-            features: serde,temporal_id
-          - name: "features: openapi,temporal_id"
-            features: openapi,temporal_id
-          - name: "features: random,serde,openapi"
-            features: random,serde,openapi
-          - name: "features: random,serde,temporal_id"
-            features: random,serde,temporal_id
-          - name: "features: random,openapi,temporal_id"
-            features: random,openapi,temporal_id
-          - name: "features: serde,openapi,temporal_id"
-            features: serde,openapi,temporal_id
-          - name: "features: random,serde,openapi,temporal_id"
-            features: random,serde,openapi,temporal_id
     steps:
       - name: Checkout
         uses: actions/checkout@v4

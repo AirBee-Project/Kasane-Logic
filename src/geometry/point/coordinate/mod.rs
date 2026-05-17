@@ -21,8 +21,6 @@ use crate::{
 ///     altitude: f64,
 /// }
 /// ```
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Coordinate {
     latitude: f64,
