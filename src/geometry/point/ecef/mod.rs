@@ -10,8 +10,6 @@ use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordi
 /// * Z 軸は北極方向
 ///
 /// 単位はすべてメートル。
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Ecef {
     x: f64,

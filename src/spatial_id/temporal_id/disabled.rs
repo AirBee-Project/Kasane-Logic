@@ -3,8 +3,6 @@ use std::str::FromStr;
 
 use crate::error::Error;
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord, Default)]
 /// 時間IDの区間表現を表す型である（temporal_id feature無効時のスタブ）。
 ///

@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId};
 pub mod convert;
-#[cfg(feature = "serde")]
-pub mod json;
 pub mod ops;
 pub mod test;
 
