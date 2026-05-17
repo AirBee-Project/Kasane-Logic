@@ -26,15 +26,9 @@ kasane-logic = "0.1.3"
 - **`random`**
   - **機能**: 内部で `rand` クレートを使用し、各空間IDにおいてランダムなIDの生成機能を有効化します。
   - **用途**: テストデータの自動生成やシチュエーションのシミュレーションにおいて利用します。
-- **`serde`**
-  - **機能**: `serde` および `serde_json` クレートを使用し、各種構造体・列挙型のシリアライズ／デシリアライズを提供します。また、`SpatialIdSet` や `SpatialIdTable` といったコレクションに `to_json()` メソッドが実装され、JSONフォーマットに直接書き出すことが可能になります。
-  - **用途**: REST APIレスポンス、データベースへの保存、ネットワーク経由での通信など。
 
 #### デフォルトで無効な機能
 
-- **`openapi`**
-  - **機能**: `utoipa` クレートを使用し、データ構造をOpenAPIスキーマにマッピングするためのメタデータ (`#[derive(ToSchema)]` など) を付与します。
-  - **用途**: REST API開発時のドキュメント(Swagger UI)自動生成など。
 - **`temporal_id`**
   - **機能**: 時間軸を考慮した時空間ID (`TemporalId`) に関する詳細なロジックを有効化します。
   - **用途**: 時間を持たない（純粋な3D/2Dの）空間のみを扱う場合、この機能は不要です。デフォルト(OFF)のままにすることで時間がダミー化され、メモリや計算のパフォーマンスが最適化されます。時間を扱うアプリケーションのみONにします。
@@ -48,7 +42,7 @@ kasane-logic = "0.1.3"
 kasane-logic = { version = "0.1.3", default-features = false }
 ```
 
-※ その後、必要な機能だけを手動で追加できます。 例: `kasane-logic = { version = "0.1.3", default-features = false, features = ["serde"] }`
+※ その後、必要な機能だけを手動で追加できます。 例: `kasane-logic = { version = "0.1.3", default-features = false, features = ["temporal_id"] }`
 
 ## クイックスタート
 

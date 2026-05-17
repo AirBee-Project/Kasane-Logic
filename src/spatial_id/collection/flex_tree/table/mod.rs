@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::ops::RangeBounds;
 pub mod convert;
-#[cfg(feature = "serde")]
-pub mod json;
 pub mod test;
 
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialIdSet};
