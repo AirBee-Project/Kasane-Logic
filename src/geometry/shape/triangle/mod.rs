@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use crate::{Coordinate, Ecef, Error, SingleId, Vec3};
 pub mod geometry_relation;
 pub mod impls;
+#[cfg(test)]
+mod tests;
 
 ///三角形を表す型
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

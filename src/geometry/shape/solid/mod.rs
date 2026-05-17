@@ -4,6 +4,8 @@ use std::collections::{HashMap, HashSet};
 
 pub mod geometry_relation;
 pub mod impls;
+#[cfg(test)]
+mod tests;
 
 /// 立体を表す型。
 ///

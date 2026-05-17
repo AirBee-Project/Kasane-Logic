@@ -2,6 +2,8 @@ use crate::Coordinate;
 
 pub mod geometry_relation;
 pub mod impls;
+#[cfg(test)]
+mod tests;
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
