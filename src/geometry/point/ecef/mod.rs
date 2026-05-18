@@ -188,3 +188,7 @@ impl Ecef {
         (self.get_component(u_axis), self.get_component(v_axis))
     }
 }
+
+#[cfg(test)]
+mod tests;
+

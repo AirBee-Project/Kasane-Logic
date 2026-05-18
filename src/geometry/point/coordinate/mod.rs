@@ -319,3 +319,7 @@ impl Coordinate {
         unsafe { Self::new_unchecked(sum_lat / n, sum_lon / n, sum_alt / n) }
     }
 }
+
+#[cfg(test)]
+mod tests;
+
