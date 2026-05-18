@@ -176,6 +176,8 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let x = (lon + 180.0) / 360.0 * n;
 
     let lat_rad = lat.to_radians();
-    let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
+    let y = (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+        / 2.0
+        * n;
     [f, x, y]
 }

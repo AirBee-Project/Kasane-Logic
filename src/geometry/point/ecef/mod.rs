@@ -141,10 +141,11 @@ impl Ecef {
     /// assert_eq!(a.distance(&b), 5.0);
     /// ```
     pub fn distance(&self, other: &Ecef) -> f64 {
-        ((self.x() - other.x()).powi(2)
-            + (self.y() - other.y()).powi(2)
-            + (self.z() - other.z()).powi(2))
-        .sqrt()
+        libm::sqrt(
+            (self.x() - other.x()).powi(2)
+                + (self.y() - other.y()).powi(2)
+                + (self.z() - other.z()).powi(2),
+        )
     }
 
     ///他の[Ecef]型との外積を取る。
