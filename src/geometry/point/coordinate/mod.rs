@@ -230,7 +230,8 @@ impl Coordinate {
         let f = libm::floor(factor * alt) as i32;
 
         let n = 2u64.pow(z as u32) as f64;
-        let x = libm::floor((lon + 180.0) / 360.0 * n) as u32;
+        let max_x = n as u32 - 1;
+        let x = libm::floor((lon + 180.0) / 360.0 * n).min(max_x as f64) as u32;
 
         let lat_rad = lat.to_radians();
         let y = libm::floor(
