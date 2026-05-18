@@ -1,0 +1,10 @@
+---
+source: src/geometry/shape/cylinder/tests.rs
+expression: "sorted_ids(&cylinder, 18)"
+---
+[
+    "18/0/232846/103225",
+    "18/0/232846/103226",
+    "18/0/232847/103225",
+    "18/0/232847/103226",
+]

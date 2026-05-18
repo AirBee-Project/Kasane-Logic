@@ -1,5 +1,7 @@
 use crate::{Coordinate, Error, GeometryError};
 pub mod impls;
+#[cfg(test)]
+mod tests;
 
 ///球体を表す型
 pub struct Sphere {

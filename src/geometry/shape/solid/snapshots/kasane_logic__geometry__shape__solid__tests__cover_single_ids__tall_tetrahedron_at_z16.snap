@@ -1,0 +1,5 @@
+---
+source: src/geometry/shape/solid/tests.rs
+expression: "sorted_ids(&solid, 16)"
+---
+[]

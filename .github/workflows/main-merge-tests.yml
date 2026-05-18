@@ -25,21 +25,22 @@ jobs:
         run: cargo fmt --all -- --check
 
   verify:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} / ${{ matrix.feature_config.name }}
+    runs-on: ${{ matrix.os }}
     needs: fmt
     strategy:
       fail-fast: false
       matrix:
-        include:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        feature_config:
           - name: "features: none"
             features: ""
           - name: "features: random"
-            features: random
+            features: "random"
           - name: "features: temporal_id"
-            features: temporal_id
+            features: "temporal_id"
           - name: "features: random,temporal_id"
-            features: random,temporal_id
+            features: "random,temporal_id"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,13 +52,15 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "verify-${{ matrix.os }}"
 
       - name: Test
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n "${{ matrix.features }}" ]; then
-            cargo test --locked --lib --bins --tests --no-default-features --features "${{ matrix.features }}"
+          if [ -n "${{ matrix.feature_config.features }}" ]; then
+            cargo test --locked --lib --bins --tests --no-default-features --features "${{ matrix.feature_config.features }}"
           else
             cargo test --locked --lib --bins --tests --no-default-features
           fi
@@ -66,8 +69,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n "${{ matrix.features }}" ]; then
-            cargo clippy --locked --lib --bins --tests --no-default-features --features "${{ matrix.features }}" -- -D warnings
+          if [ -n "${{ matrix.feature_config.features }}" ]; then
+            cargo clippy --locked --lib --bins --tests --no-default-features --features "${{ matrix.feature_config.features }}" -- -D warnings
           else
             cargo clippy --locked --lib --bins --tests --no-default-features -- -D warnings
           fi

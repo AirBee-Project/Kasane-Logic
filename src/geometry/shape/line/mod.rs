@@ -1,6 +1,8 @@
 use crate::Coordinate;
 pub mod geometry_relation;
 pub mod impls;
+#[cfg(test)]
+mod tests;
 
 ///直線を表す型
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -1,4 +1,6 @@
 pub mod impls;
+#[cfg(test)]
+mod tests;
 
 use crate::{Coordinate, Error, GeometryError};
 
