@@ -1,0 +1,7 @@
+---
+source: src/geometry/shape/line/tests.rs
+expression: "sorted_ids(&line, 25)"
+---
+[
+    "25/-1/29804351/13213024",
+]

@@ -1,0 +1,5 @@
+---
+source: src/geometry/shape/triangle/tests.rs
+expression: "sorted_ids(&tri, 25)"
+---
+[]
