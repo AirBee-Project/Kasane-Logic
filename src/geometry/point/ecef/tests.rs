@@ -38,4 +38,12 @@ mod ecef_to_coordinate {
         let coord = crate::Coordinate::try_from(ecef).unwrap();
         insta::assert_debug_snapshot!(coord);
     }
+
+    #[test]
+    /// 赤道付近で X/Y のわずかな差が OS 間で出やすい入力。
+    fn equatorial_case_snapshot() {
+        let ecef = Ecef::new(6_378_137.0, f64::EPSILON, 0.0);
+        let coord = crate::Coordinate::try_from(ecef).unwrap();
+        insta::assert_debug_snapshot!(coord);
+    }
 }

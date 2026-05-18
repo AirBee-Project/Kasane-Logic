@@ -1,0 +1,9 @@
+---
+source: src/geometry/point/coordinate/tests.rs
+expression: ecef
+---
+Ecef {
+    x: 390373.88168020203,
+    y: 390373.88168020203,
+    z: 6333018.279102522,
+}
