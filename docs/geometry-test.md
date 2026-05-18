@@ -139,25 +139,4 @@ src/geometry/shape/line/snapshots/
 > [!IMPORTANT]
 > スナップショットの変更は必ずレビューしてからコミットすること。自動的に `accept` すると意図しない退行を見逃す恐れがある。
 
-## OSごとの浮動小数点誤差による非決定性のテスト
-
-`Coordinate`（地理座標）や `Ecef`（地心直交座標）などの浮動小数点演算を伴うモジュールでは、計算の最終桁（ULP単位の微小誤差）や `.floor()` 切り捨て時の境界において、OS依存の計算誤差が生じることがあります。
-
-この非決定性を検証し、マルチプラットフォームにおける潜在的な挙動の差異を検出・可視化するため、以下のテストモジュールにおいて `insta` スナップショットテストを配置しています。
-
-### テスト対象とファイル構成
-
-1. **`Coordinate` の投影境界誤差テスト**
-   * **場所:** [src/geometry/point/coordinate/tests.rs](file:///e:/repo/Kasane-Logic/src/geometry/point/coordinate/tests.rs)
-   * **概要:** 緯度 `40.97989806962012` はズームレベル $z=5$ のとき、メルカトル投影 $y$ がちょうど `12.0` の境界に極めて近くなります。Windows (MSVC) では `12` になりますが、Linux (glibc) や macOS では `11` になるため、スナップショット不一致で CI が落ちます。
-
-2. **`Ecef` の逆変換収束誤差テスト**
-   * **場所:** [src/geometry/point/ecef/tests.rs](file:///e:/repo/Kasane-Logic/src/geometry/point/ecef/tests.rs)
-   * **概要:** `try_from` による Bowring の反復収束法を用いた測地座標変換において、OSごとの標準数学ライブラリ（`libm`）の僅かな差異から生じる微小な小数点以下の桁（最下位ビット付近）のズレを `insta` の全桁デバッグ表示でキャッチします。
-
-### CI/CD（GitHub Actions）での失敗の確認
-
-`.github/workflows/main-merge-tests.yml` は `ubuntu-latest` (Linux), `macos-latest` (macOS), `windows-latest` (Windows) のマルチOS環境で並列して `cargo test` を実行しています。
-
-Windows上で生成・コミットされたスナップショット（例: `y: 12`）に対して、CI上の `ubuntu-latest` や `macos-latest` でテストが走ると `insta` のスナップショット比較が不一致を検出し、**CI/CDビルドが自動的に失敗（テスト赤）**します。これにより、マルチプラットフォームでの動作差異があることを明確に示すことができます。
 
