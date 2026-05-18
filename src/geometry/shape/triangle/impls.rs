@@ -24,7 +24,7 @@ impl CoverSingleIds for Triangle {
             - libm::floor(points[0][1].min(points[1][1]).min(points[2][1]));
         let diff_y = libm::floor(points[0][2].max(points[1][2]).max(points[2][2]))
             - libm::floor(points[0][2].min(points[1][2]).min(points[2][2]));
-        let steps = (diff_f.max(diff_x).max(diff_y) / 8.0).ceil() as u32;
+        let steps = libm::ceil(diff_f.max(diff_x).max(diff_y) / 8.0) as u32;
         let mut seen = HashSet::new();
         let voxels = self
             .divide(steps)?

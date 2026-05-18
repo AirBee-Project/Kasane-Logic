@@ -107,13 +107,13 @@ impl SpatialId for FlexId {
 
     fn length_x_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
-        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.x_zoomlevel() as u32) as f64)
     }
 
     fn length_y_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
-        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.y_zoomlevel() as u32) as f64)
     }
 

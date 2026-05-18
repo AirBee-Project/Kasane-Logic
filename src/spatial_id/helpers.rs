@@ -35,7 +35,7 @@ pub fn longitude(x: f64, z: u8) -> f64 {
 pub fn latitude(y: f64, z: u8) -> f64 {
     let n = 2_f64.powi(z as i32);
     let t = PI * (1.0 - 2.0 * (y / n));
-    let lat_rad = t.sinh().atan();
+    let lat_rad = libm::atan(libm::sinh(t));
     lat_rad.to_degrees()
 }
 

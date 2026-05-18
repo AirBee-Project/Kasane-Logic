@@ -68,9 +68,9 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
         origin2[2] - offsets[2],
     ];
     let d_total = [
-        (vp2[0] - vp1[0]).abs(),
-        (vp2[1] - vp1[1]).abs(),
-        (vp2[2] - vp1[2]).abs(),
+        libm::fabs(vp2[0] - vp1[0]),
+        libm::fabs(vp2[1] - vp1[1]),
+        libm::fabs(vp2[2] - vp1[2]),
     ];
     let offsets_int = offsets.map(|x| x as i32);
     let max_d = d_total[0].max(d_total[1]).max(d_total[2]);

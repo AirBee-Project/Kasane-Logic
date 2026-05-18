@@ -124,9 +124,9 @@ struct QuantizedCoord {
 impl QuantizedCoord {
     fn new(e: &Ecef, precision: f64) -> Self {
         Self {
-            x: (e.x() / precision).round() as i64,
-            y: (e.y() / precision).round() as i64,
-            z: (e.z() / precision).round() as i64,
+            x: libm::round(e.x() / precision) as i64,
+            y: libm::round(e.y() / precision) as i64,
+            z: libm::round(e.z() / precision) as i64,
         }
     }
 }
