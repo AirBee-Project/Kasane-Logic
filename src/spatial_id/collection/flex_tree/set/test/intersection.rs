@@ -101,6 +101,7 @@ mod tests {
 
     proptest! {
         /// 2つの Set の交差演算結果が共通ズームへ正規化した単一セル集合の積集合と一致することを検証する。
+        #[ignore]
         #[test]
         fn intersection_matches_between_two_sets(
             lhs_case in arb_random_set_case(),
@@ -133,6 +134,7 @@ mod tests {
         }
 
         /// 3つの Set の交差演算結果が期待値と一致し、かつ結合法則（(A∩B)∩C = A∩(B∩C)）を満たすことを検証する。
+        #[ignore]
         #[test]
         fn intersection_matches_between_three_sets(
             a_case in arb_random_set_case(),

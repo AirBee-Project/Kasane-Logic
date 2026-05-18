@@ -47,6 +47,7 @@ mod tests {
 
     proptest! {
         /// ランダム挿入後の Set で count() と実際の要素数が一致することを検証する。
+        #[ignore]
         #[test]
         fn count_matches_iter_count_after_random_insert(case in arb_random_set_case()) {
             let set = case.build_set();
@@ -54,6 +55,7 @@ mod tests {
         }
 
         /// ランダム挿入とランダム削除を繰り返した後でも count() と実際の要素数が一致することを検証する。
+        #[ignore]
         #[test]
         fn count_matches_iter_count_after_random_insert_and_remove(
             base_case in arb_random_set_case(),

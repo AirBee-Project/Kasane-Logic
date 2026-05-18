@@ -43,8 +43,9 @@ mod cover_single_ids {
         insta::assert_debug_snapshot!(sorted_ids(&tri, 25));
     }
 
-    #[test]
     /// Triangle を構成する頂点が、ちょうど空間IDの境界付近にあるため、外積・sqrt・floor等の計算過程のわずかな誤差で、隣接ボクセルを拾うか拾わないか（OS依存性）が変わるケース。
+    #[ignore]
+    #[test]
     fn os_rounding_boundary_triangle_at_z25() {
         let p0 = Coordinate::new(35.681, 139.766, 1.0 - f64::EPSILON * 5.0).unwrap();
         let p1 = Coordinate::new(35.681 + f64::EPSILON * 100.0, 139.766, 1.0).unwrap();
