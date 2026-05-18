@@ -1,4 +1,4 @@
-use crate::{Coordinate, SingleId};
+use crate::Coordinate;
 
 #[cfg(not(feature = "temporal_id"))]
 mod single_id {
