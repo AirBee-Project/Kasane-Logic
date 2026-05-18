@@ -28,7 +28,7 @@ impl Triangle {
         let a = p1 - p0;
         let b = p2 - p0;
         let dot = a.dot(&b);
-        (a.norm_squared() * b.norm_squared() - dot * dot).sqrt() * 0.5
+        libm::sqrt(a.norm_squared() * b.norm_squared() - dot * dot) * 0.5
     }
 
     ///三角形の3辺の長さを返す
@@ -130,12 +130,12 @@ impl Triangle {
         let ma = n.cross(&vec_a);
         let mb = n.cross(&vec_b);
         let mc = n.cross(&vec_c);
-        let min_f = points[0].x.min(points[1].x).min(points[2].x).floor() as i32;
-        let max_f = points[0].x.max(points[1].x).max(points[2].x).floor() as i32;
-        let min_x = points[0].y.min(points[1].y).min(points[2].y).floor() as u32;
-        let max_x = points[0].y.max(points[1].y).max(points[2].y).floor() as u32;
-        let min_y = points[0].z.min(points[1].z).min(points[2].z).floor() as u32;
-        let max_y = points[0].z.max(points[1].z).max(points[2].z).floor() as u32;
+        let min_f = libm::floor(points[0].x.min(points[1].x).min(points[2].x)) as i32;
+        let max_f = libm::floor(points[0].x.max(points[1].x).max(points[2].x)) as i32;
+        let min_x = libm::floor(points[0].y.min(points[1].y).min(points[2].y)) as u32;
+        let max_x = libm::floor(points[0].y.max(points[1].y).max(points[2].y)) as u32;
+        let min_y = libm::floor(points[0].z.min(points[1].z).min(points[2].z)) as u32;
+        let max_y = libm::floor(points[0].z.max(points[1].z).max(points[2].z)) as u32;
         let eight_patterns = [
             Vec3::new(0.0, 0.0, 0.0),
             Vec3::new(0.0, 0.0, 1.0),
@@ -201,6 +201,8 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let x = (lon + 180.0) / 360.0 * n;
 
     let lat_rad = lat.to_radians();
-    let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
+    let y = (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+        / 2.0
+        * n;
     [f, x, y]
 }

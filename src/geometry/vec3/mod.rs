@@ -33,7 +33,7 @@ impl Vec3 {
 
     /// ベクトルの絶対値（ノルム・長さ）を計算する。
     pub fn norm(&self) -> f64 {
-        self.norm_squared().sqrt()
+        libm::sqrt(self.norm_squared())
     }
 
     /// ベクトルの絶対値の2乗（ノルムの2乗）を計算する。
