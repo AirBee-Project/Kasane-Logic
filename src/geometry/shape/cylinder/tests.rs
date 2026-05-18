@@ -40,8 +40,9 @@ mod cover_single_ids {
         insta::assert_debug_snapshot!(sorted_ids(&cylinder, 18));
     }
 
-    #[test]
     /// cos, sinによる近似曲面の計算で、境界スレスレにあるボクセルを拾うか拾わないかがOSの標準ライブラリ（libm等）の実装によって揺れるケース。
+    #[ignore]
+    #[test]
     fn os_rounding_boundary_cylinder_at_z18() {
         let start = Coordinate::new(35.681, 139.766, 0.0).unwrap();
         let end = Coordinate::new(35.681, 139.766, 12.0).unwrap();

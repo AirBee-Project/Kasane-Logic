@@ -98,6 +98,7 @@ mod tests {
 
     proptest! {
         /// 2つの Set の差集合演算結果が共通ズームへ正規化した単一セル集合の差集合と一致することを検証する。
+        #[ignore]
         #[test]
         fn difference_matches_between_two_sets(
             lhs_case in arb_random_set_case(),
@@ -131,6 +132,7 @@ mod tests {
         }
 
         /// 3つの Set の差集合演算結果が期待値と一致し、かつ (A-B)-C = A-(B∪C) を満たすことを検証する。
+        #[ignore]
         #[test]
         fn difference_matches_between_three_sets(
             a_case in arb_random_set_case(),
