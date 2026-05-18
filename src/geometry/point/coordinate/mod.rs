@@ -322,4 +322,3 @@ impl Coordinate {
 
 #[cfg(test)]
 mod tests;
-

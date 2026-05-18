@@ -191,4 +191,3 @@ impl Ecef {
 
 #[cfg(test)]
 mod tests;
-
