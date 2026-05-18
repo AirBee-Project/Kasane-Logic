@@ -1,5 +1,8 @@
 pub mod impls;
 
+#[cfg(test)]
+mod tests;
+
 use std::borrow::Borrow;
 
 use crate::{
