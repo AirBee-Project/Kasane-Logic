@@ -30,12 +30,12 @@ impl From<Coordinate> for Ecef {
         let lon = value.longitude.to_radians();
         let h = value.altitude;
 
-        let sin_lat = lat.sin();
-        let cos_lat = lat.cos();
-        let sin_lon = lon.sin();
-        let cos_lon = lon.cos();
+        let sin_lat = libm::sin(lat);
+        let cos_lat = libm::cos(lat);
+        let sin_lon = libm::sin(lon);
+        let cos_lon = libm::cos(lon);
 
-        let n = WGS84_A / (1.0 - WGS84_E2 * sin_lat * sin_lat).sqrt();
+        let n = WGS84_A / libm::sqrt(1.0 - WGS84_E2 * sin_lat * sin_lat);
 
         let x = (n + h) * cos_lat * cos_lon;
         let y = (n + h) * cos_lat * sin_lon;

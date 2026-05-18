@@ -1,0 +1,9 @@
+---
+source: src/geometry/point/ecef/tests.rs
+expression: coord
+---
+Coordinate {
+    latitude: 34.140701716291964,
+    longitude: -118.34523370108761,
+    altitude: 13702.79769664444,
+}

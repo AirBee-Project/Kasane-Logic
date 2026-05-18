@@ -215,7 +215,7 @@ impl SpatialId for RangeId {
     fn length_x_meters(&self) -> f64 {
         //Todo:正確な実装ではないので将来的に置換
         let ecef: crate::Ecef = self.spatial_center().into();
-        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
         let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
         let count = self.x()[0].abs_diff(self.x()[1]) as f64 + 1.0;
 
@@ -226,7 +226,7 @@ impl SpatialId for RangeId {
     fn length_y_meters(&self) -> f64 {
         //Todo:正確な実装ではないので将来的に置換
         let ecef: crate::Ecef = self.spatial_center().into();
-        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
         let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
         let count = self.y()[0].abs_diff(self.y()[1]) as f64 + 1.0;
 

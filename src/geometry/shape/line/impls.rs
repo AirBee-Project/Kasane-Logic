@@ -22,12 +22,12 @@ impl CoverSingleIds for Line {
         let dx = ecef_a.x() - ecef_b.x();
         let dy = ecef_a.y() - ecef_b.y();
         let dz = ecef_a.z() - ecef_b.z();
-        let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+        let distance = libm::sqrt(dx * dx + dy * dy + dz * dz);
         let (v1, v2) = (a.single_id(z)?, b.single_id(z)?);
         let diff = ((v1.f() - v2.f()).abs()
             + (v1.x() as i32 - v2.x() as i32).abs()
             + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
-        let devide_num = 5 + (diff / 120.0 + distance / 2000.0).floor() as u16;
+        let devide_num = 5 + libm::floor(diff / 120.0 + distance / 2000.0) as u16;
         let mut coordinates = Vec::new();
         for i in 0..=devide_num {
             let t = i as f64 / devide_num as f64;
@@ -56,7 +56,7 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     }
     let origin1 = coordinate_to_matrix(a, z);
     let origin2 = coordinate_to_matrix(b, z);
-    let offsets = origin1.map(|x| x.floor());
+    let offsets = origin1.map(libm::floor);
     let vp1 = [
         origin1[0] - offsets[0],
         origin1[1] - offsets[1],
@@ -68,9 +68,9 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
         origin2[2] - offsets[2],
     ];
     let d_total = [
-        (vp2[0] - vp1[0]).abs(),
-        (vp2[1] - vp1[1]).abs(),
-        (vp2[2] - vp1[2]).abs(),
+        libm::fabs(vp2[0] - vp1[0]),
+        libm::fabs(vp2[1] - vp1[1]),
+        libm::fabs(vp2[2] - vp1[2]),
     ];
     let offsets_int = offsets.map(|x| x as i32);
     let max_d = d_total[0].max(d_total[1]).max(d_total[2]);
@@ -83,12 +83,12 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     };
     let other_flag_1 = (max_flag + 1) % 3;
     let other_flag_2 = (max_flag + 2) % 3;
-    let i1 = vp1[max_flag].floor() as i32;
-    let j1 = vp1[other_flag_1].floor() as i32;
-    let k1 = vp1[other_flag_2].floor() as i32;
-    let i2 = vp2[max_flag].floor() as i32;
-    let j2 = vp2[other_flag_1].floor() as i32;
-    let k2 = vp2[other_flag_2].floor() as i32;
+    let i1 = libm::floor(vp1[max_flag]) as i32;
+    let j1 = libm::floor(vp1[other_flag_1]) as i32;
+    let k1 = libm::floor(vp1[other_flag_2]) as i32;
+    let i2 = libm::floor(vp2[max_flag]) as i32;
+    let j2 = libm::floor(vp2[other_flag_1]) as i32;
+    let k2 = libm::floor(vp2[other_flag_2]) as i32;
     let d_o1 = if vp2[other_flag_1] != vp1[other_flag_1] {
         d_total[max_flag] / d_total[other_flag_1]
     } else {
@@ -100,25 +100,25 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
         f64::INFINITY
     };
     let tm = if i2 > i1 {
-        1.0 - vp1[max_flag] + vp1[max_flag].floor()
+        1.0 - vp1[max_flag] + libm::floor(vp1[max_flag])
     } else if i2 == i1 {
         f64::INFINITY
     } else {
-        vp1[max_flag] - vp1[max_flag].floor()
+        vp1[max_flag] - libm::floor(vp1[max_flag])
     };
     let mut to1 = if j2 > j1 {
-        (1.0 - vp1[other_flag_1] + vp1[other_flag_1].floor()) * d_o1 - tm
+        (1.0 - vp1[other_flag_1] + libm::floor(vp1[other_flag_1])) * d_o1 - tm
     } else if j2 == j1 {
         f64::INFINITY
     } else {
-        (vp1[other_flag_1] - vp1[other_flag_1].floor()) * d_o1 - tm
+        (vp1[other_flag_1] - libm::floor(vp1[other_flag_1])) * d_o1 - tm
     };
     let mut to2 = if k2 > k1 {
-        (1.0 - vp1[other_flag_2] + vp1[other_flag_2].floor()) * d_o2 - tm
+        (1.0 - vp1[other_flag_2] + libm::floor(vp1[other_flag_2])) * d_o2 - tm
     } else if k2 == k1 {
         f64::INFINITY
     } else {
-        (vp1[other_flag_2] - vp1[other_flag_2].floor()) * d_o2 - tm
+        (vp1[other_flag_2] - libm::floor(vp1[other_flag_2])) * d_o2 - tm
     };
     let max_steps = ((i2 - i1).abs() + (j2 - j1).abs() + (k2 - k1).abs()) as usize;
     let pull_index = [
@@ -176,6 +176,8 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let x = (lon + 180.0) / 360.0 * n;
 
     let lat_rad = lat.to_radians();
-    let y = (1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n;
+    let y = (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+        / 2.0
+        * n;
     [f, x, y]
 }

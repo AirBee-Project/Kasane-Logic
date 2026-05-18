@@ -1,5 +1,8 @@
 pub mod impls;
 
+#[cfg(test)]
+mod tests;
+
 use std::borrow::Borrow;
 
 use crate::{
@@ -224,15 +227,18 @@ impl Coordinate {
 
         //Z=25のとき高さはちょうど1m
         let factor = 2_f64.powi(z as i32 - 25);
-        let f = (factor * alt).floor() as i32;
+        let f = libm::floor(factor * alt) as i32;
 
         let n = 2u64.pow(z as u32) as f64;
-        let x = ((lon + 180.0) / 360.0 * n).floor() as u32;
+        let max_x = n as u32 - 1;
+        let x = libm::floor((lon + 180.0) / 360.0 * n).min(max_x as f64) as u32;
 
         let lat_rad = lat.to_radians();
-        let y = ((1.0 - (lat_rad.tan() + 1.0 / lat_rad.cos()).ln() / std::f64::consts::PI) / 2.0
-            * n)
-            .floor() as u32;
+        let y = libm::floor(
+            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+                / 2.0
+                * n,
+        ) as u32;
 
         Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
     }
@@ -265,8 +271,8 @@ impl Coordinate {
     /// [Coordinate]が同じ位置にあるかを判定します
     /// 2点間の直線距離が epsilon 以内にあるかを判定します
     pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
-        let distance_squared = self.distance(other);
-        distance_squared < epsilon * epsilon
+        let distance = self.distance(other);
+        distance < epsilon
     }
 
     /// 与えられた座標群の重心を計算する。

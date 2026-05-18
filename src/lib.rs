@@ -1,3 +1,5 @@
+#![deny(clippy::disallowed_methods)]
+
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 

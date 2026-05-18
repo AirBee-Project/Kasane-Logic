@@ -23,21 +23,21 @@ impl TryFrom<Ecef> for Coordinate {
         let y = value.y;
         let z = value.z;
 
-        let lon = y.atan2(x);
-        let p = (x * x + y * y).sqrt();
+        let lon = libm::atan2(y, x);
+        let p = libm::sqrt(x * x + y * y);
 
         // 緯度の初期値（Bowring）
-        let mut lat = (z / p).atan2(1.0 - WGS84_F);
+        let mut lat = libm::atan2(z / p, 1.0 - WGS84_F);
         let mut h = 0.0;
 
         for _ in 0..10 {
-            let sin_lat = lat.sin();
-            let n = WGS84_A / (1.0 - WGS84_E2 * sin_lat * sin_lat).sqrt();
-            h = p / lat.cos() - n;
+            let sin_lat = libm::sin(lat);
+            let n = WGS84_A / libm::sqrt(1.0 - WGS84_E2 * sin_lat * sin_lat);
+            h = p / libm::cos(lat) - n;
 
-            let new_lat = (z + WGS84_E2 * n * sin_lat).atan2(p);
+            let new_lat = libm::atan2(z + WGS84_E2 * n * sin_lat, p);
 
-            if (new_lat - lat).abs() < 1e-12 {
+            if libm::fabs(new_lat - lat) < 1e-12 {
                 lat = new_lat;
                 break;
             }

@@ -18,7 +18,7 @@ impl CoverSingleIds for Sphere {
         let center = self.center;
         let radius = self.radius_m;
 
-        let voxel_diag_half = voxel_length(z, Dimension::X) * 3.0_f64.sqrt() / 2.0;
+        let voxel_diag_half = voxel_length(z, Dimension::X) * libm::sqrt(3.0) / 2.0;
         let center_ecef: Ecef = (center).into();
 
         // 球の8頂点 -> 探索範囲推定

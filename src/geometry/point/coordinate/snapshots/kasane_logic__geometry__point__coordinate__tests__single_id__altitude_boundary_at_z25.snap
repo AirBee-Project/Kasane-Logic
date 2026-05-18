@@ -1,0 +1,11 @@
+---
+source: src/geometry/point/coordinate/tests.rs
+expression: coord.single_id(25).unwrap()
+---
+SingleId {
+    z: 25,
+    f: 1,
+    x: 29804359,
+    y: 13212980,
+    temporal_id: TemporalId,
+}

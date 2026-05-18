@@ -1,0 +1,83 @@
+disallowed-methods = [
+    # --- f32 (単精度浮動小数点) ---
+    # Trigonometric & Hyperbolic (三角関数・双曲線関数)
+    { path = "f32::sin", reason = "To guarantee identical behavior across all OS environments, use `libm::sinf` instead." },
+    { path = "f32::cos", reason = "To guarantee identical behavior across all OS environments, use `libm::cosf` instead." },
+    { path = "f32::tan", reason = "To guarantee identical behavior across all OS environments, use `libm::tanf` instead." },
+    { path = "f32::asin", reason = "To guarantee identical behavior across all OS environments, use `libm::asinf` instead." },
+    { path = "f32::acos", reason = "To guarantee identical behavior across all OS environments, use `libm::acosf` instead." },
+    { path = "f32::atan", reason = "To guarantee identical behavior across all OS environments, use `libm::atanf` instead." },
+    { path = "f32::atan2", reason = "To guarantee identical behavior across all OS environments, use `libm::atan2f` instead." },
+    { path = "f32::sin_cos", reason = "To guarantee identical behavior across all OS environments, use `libm::sincosf` instead." },
+    { path = "f32::sinh", reason = "To guarantee identical behavior across all OS environments, use `libm::sinhf` instead." },
+    { path = "f32::cosh", reason = "To guarantee identical behavior across all OS environments, use `libm::coshf` instead." },
+    { path = "f32::tanh", reason = "To guarantee identical behavior across all OS environments, use `libm::tanhf` instead." },
+    { path = "f32::asinh", reason = "To guarantee identical behavior across all OS environments, use `libm::asinhf` instead." },
+    { path = "f32::acosh", reason = "To guarantee identical behavior across all OS environments, use `libm::acoshf` instead." },
+    { path = "f32::atanh", reason = "To guarantee identical behavior across all OS environments, use `libm::atanhf` instead." },
+
+    # Exponential & Logarithmic (指数・対数関数)
+    { path = "f32::exp", reason = "To guarantee identical behavior across all OS environments, use `libm::expf` instead." },
+    { path = "f32::exp2", reason = "To guarantee identical behavior across all OS environments, use `libm::exp2f` instead." },
+    { path = "f32::exp_m1", reason = "To guarantee identical behavior across all OS environments, use `libm::expm1f` instead." },
+    { path = "f32::ln", reason = "To guarantee identical behavior across all OS environments, use `libm::logf` instead." },
+    { path = "f32::ln_1p", reason = "To guarantee identical behavior across all OS environments, use `libm::log1pf` instead." },
+    { path = "f32::log2", reason = "To guarantee identical behavior across all OS environments, use `libm::log2f` instead." },
+    { path = "f32::log10", reason = "To guarantee identical behavior across all OS environments, use `libm::log10f` instead." },
+
+    # Power, Roots & Others (累乗・平方根・その他)
+    { path = "f32::powf", reason = "To guarantee identical behavior across all OS environments, use `libm::powf` instead." },
+    { path = "f32::sqrt", reason = "To guarantee identical behavior across all OS environments, use `libm::sqrtf` instead." },
+    { path = "f32::cbrt", reason = "To guarantee identical behavior across all OS environments, use `libm::cbrtf` instead." },
+    { path = "f32::hypot", reason = "To guarantee identical behavior across all OS environments, use `libm::hypotf` instead." },
+    { path = "f32::abs", reason = "To guarantee identical behavior across all OS environments, use `libm::fabsf` instead." },
+    { path = "f32::copysign", reason = "To guarantee identical behavior across all OS environments, use `libm::copysignf` instead." },
+    { path = "f32::mul_add", reason = "To guarantee identical behavior across all OS environments, use `libm::fmaf` instead." },
+    
+    # Rounding (丸め処理)
+    { path = "f32::floor", reason = "To guarantee identical behavior across all OS environments, use `libm::floorf` instead." },
+    { path = "f32::ceil", reason = "To guarantee identical behavior across all OS environments, use `libm::ceilf` instead." },
+    { path = "f32::round", reason = "To guarantee identical behavior across all OS environments, use `libm::roundf` instead." },
+    { path = "f32::trunc", reason = "To guarantee identical behavior across all OS environments, use `libm::truncf` instead." },
+
+    # --- f64 (倍精度浮動小数点) ---
+    # Trigonometric & Hyperbolic (三角関数・双曲線関数)
+    { path = "f64::sin", reason = "To guarantee identical behavior across all OS environments, use `libm::sin` instead." },
+    { path = "f64::cos", reason = "To guarantee identical behavior across all OS environments, use `libm::cos` instead." },
+    { path = "f64::tan", reason = "To guarantee identical behavior across all OS environments, use `libm::tan` instead." },
+    { path = "f64::asin", reason = "To guarantee identical behavior across all OS environments, use `libm::asin` instead." },
+    { path = "f64::acos", reason = "To guarantee identical behavior across all OS environments, use `libm::acos` instead." },
+    { path = "f64::atan", reason = "To guarantee identical behavior across all OS environments, use `libm::atan` instead." },
+    { path = "f64::atan2", reason = "To guarantee identical behavior across all OS environments, use `libm::atan2` instead." },
+    { path = "f64::sin_cos", reason = "To guarantee identical behavior across all OS environments, use `libm::sincos` instead." },
+    { path = "f64::sinh", reason = "To guarantee identical behavior across all OS environments, use `libm::sinh` instead." },
+    { path = "f64::cosh", reason = "To guarantee identical behavior across all OS environments, use `libm::cosh` instead." },
+    { path = "f64::tanh", reason = "To guarantee identical behavior across all OS environments, use `libm::tanh` instead." },
+    { path = "f64::asinh", reason = "To guarantee identical behavior across all OS environments, use `libm::asinh` instead." },
+    { path = "f64::acosh", reason = "To guarantee identical behavior across all OS environments, use `libm::acosh` instead." },
+    { path = "f64::atanh", reason = "To guarantee identical behavior across all OS environments, use `libm::atanh` instead." },
+
+    # Exponential & Logarithmic (指数・対数関数)
+    { path = "f64::exp", reason = "To guarantee identical behavior across all OS environments, use `libm::exp` instead." },
+    { path = "f64::exp2", reason = "To guarantee identical behavior across all OS environments, use `libm::exp2` instead." },
+    { path = "f64::exp_m1", reason = "To guarantee identical behavior across all OS environments, use `libm::expm1` instead." },
+    { path = "f64::ln", reason = "To guarantee identical behavior across all OS environments, use `libm::log` instead." },
+    { path = "f64::ln_1p", reason = "To guarantee identical behavior across all OS environments, use `libm::log1p` instead." },
+    { path = "f64::log2", reason = "To guarantee identical behavior across all OS environments, use `libm::log2` instead." },
+    { path = "f64::log10", reason = "To guarantee identical behavior across all OS environments, use `libm::log10` instead." },
+
+    # Power, Roots & Others (累乗・平方根・その他)
+    { path = "f64::powf", reason = "To guarantee identical behavior across all OS environments, use `libm::pow` instead." },
+    { path = "f64::sqrt", reason = "To guarantee identical behavior across all OS environments, use `libm::sqrt` instead." },
+    { path = "f64::cbrt", reason = "To guarantee identical behavior across all OS environments, use `libm::cbrt` instead." },
+    { path = "f64::hypot", reason = "To guarantee identical behavior across all OS environments, use `libm::hypot` instead." },
+    { path = "f64::abs", reason = "To guarantee identical behavior across all OS environments, use `libm::fabs` instead." },
+    { path = "f64::copysign", reason = "To guarantee identical behavior across all OS environments, use `libm::copysign` instead." },
+    { path = "f64::mul_add", reason = "To guarantee identical behavior across all OS environments, use `libm::fma` instead." },
+
+    # Rounding (丸め処理)
+    { path = "f64::floor", reason = "To guarantee identical behavior across all OS environments, use `libm::floor` instead." },
+    { path = "f64::ceil", reason = "To guarantee identical behavior across all OS environments, use `libm::ceil` instead." },
+    { path = "f64::round", reason = "To guarantee identical behavior across all OS environments, use `libm::round` instead." },
+    { path = "f64::trunc", reason = "To guarantee identical behavior across all OS environments, use `libm::trunc` instead." }
+]

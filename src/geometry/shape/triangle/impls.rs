@@ -18,13 +18,13 @@ impl CoverSingleIds for Triangle {
             coordinate_to_matrix(self.points[1], z),
             coordinate_to_matrix(self.points[2], z),
         ];
-        let diff_f = points[0][0].max(points[1][0]).max(points[2][0]).floor()
-            - points[0][0].min(points[1][0]).min(points[2][0]).floor();
-        let diff_x = points[0][1].max(points[1][1]).max(points[2][1]).floor()
-            - points[0][1].min(points[1][1]).min(points[2][1]).floor();
-        let diff_y = points[0][2].max(points[1][2]).max(points[2][2]).floor()
-            - points[0][2].min(points[1][2]).min(points[2][2]).floor();
-        let steps = (diff_f.max(diff_x).max(diff_y) / 8.0).ceil() as u32;
+        let diff_f = libm::floor(points[0][0].max(points[1][0]).max(points[2][0]))
+            - libm::floor(points[0][0].min(points[1][0]).min(points[2][0]));
+        let diff_x = libm::floor(points[0][1].max(points[1][1]).max(points[2][1]))
+            - libm::floor(points[0][1].min(points[1][1]).min(points[2][1]));
+        let diff_y = libm::floor(points[0][2].max(points[1][2]).max(points[2][2]))
+            - libm::floor(points[0][2].min(points[1][2]).min(points[2][2]));
+        let steps = libm::ceil(diff_f.max(diff_x).max(diff_y) / 8.0) as u32;
         let mut seen = HashSet::new();
         let voxels = self
             .divide(steps)?

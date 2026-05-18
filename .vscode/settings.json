@@ -1,12 +1,10 @@
 {
-  "rust-analyzer.cargo.features": [
-    "random","serde",
-  ],
-  "rust-analyzer.check.command": "clippy",
-  "chat.tools.terminal.autoApprove": {
-    "cargo test *": true,
-    "cargo clippy *": true,
-    "cargo fmt *": true,
-    "cargo check *": true,
-  }
+	"rust-analyzer.cargo.features": ["random"],
+	"rust-analyzer.check.command": "clippy",
+	"chat.tools.terminal.autoApprove": {
+		"cargo test *": true,
+		"cargo clippy *": true,
+		"cargo fmt *": true,
+		"cargo check *": true
+	}
 }

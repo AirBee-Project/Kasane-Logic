@@ -264,14 +264,14 @@ impl SpatialId for SingleId {
     ///その空間IDのX方向の長さをメートル単位で計算する関数
     fn length_x_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
-        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
     fn length_y_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
-        let r = (ecef.x() * ecef.x() + ecef.y() * ecef.y()).sqrt();
+        let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
         r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 

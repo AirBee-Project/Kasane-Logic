@@ -138,3 +138,5 @@ src/geometry/shape/line/snapshots/
 
 > [!IMPORTANT]
 > スナップショットの変更は必ずレビューしてからコミットすること。自動的に `accept` すると意図しない退行を見逃す恐れがある。
+
+

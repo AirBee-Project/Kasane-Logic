@@ -110,9 +110,9 @@ fn get_projection_axes(pts: &[Ecef]) -> (usize, usize) {
         nz += (curr.x() - next.x()) * (curr.y() + next.y());
     }
 
-    let ax = nx.abs();
-    let ay = ny.abs();
-    let az = nz.abs();
+    let ax = libm::fabs(nx);
+    let ay = libm::fabs(ny);
+    let az = libm::fabs(nz);
 
     if ax >= ay && ax >= az {
         (1, 2)
@@ -167,7 +167,7 @@ fn is_ear(
 
 fn is_point_in_triangle(p: (f64, f64), a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> bool {
     let area2 = 0.5 * (-b.1 * c.0 + a.1 * (-b.0 + c.0) + a.0 * (b.1 - c.1) + b.0 * c.1);
-    if area2.abs() < 1e-12 {
+    if libm::fabs(area2) < 1e-12 {
         return false;
     }
     let s = 1.0 / (2.0 * area2) * (a.1 * c.0 - a.0 * c.1 + (c.1 - a.1) * p.0 + (a.0 - c.0) * p.1);

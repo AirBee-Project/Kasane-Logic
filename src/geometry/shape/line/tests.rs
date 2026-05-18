@@ -39,4 +39,19 @@ mod cover_single_ids {
         let line = Line::new([p0, p1]);
         insta::assert_debug_snapshot!(sorted_ids(&line, 25));
     }
+
+    #[test]
+    /// DDAアルゴリズム内部の sqrt() や複数の floor() を経由するため、浮動小数点誤差によって引かれる軌跡ブロック（空間ID群）が変わる可能性が高いケース。
+    fn os_rounding_boundary_line_at_z25() {
+        let p0 = Coordinate::new(35.681, 139.766, 0.0).unwrap();
+        // Z=25 などのスケールでちょうど境界付近を通るような微小な斜め線を設定
+        let p1 = Coordinate::new(
+            35.681 + f64::EPSILON * 100.0,
+            139.766 - f64::EPSILON * 100.0,
+            0.000_000_1,
+        )
+        .unwrap();
+        let line = Line::new([p0, p1]);
+        insta::assert_debug_snapshot!(sorted_ids(&line, 25));
+    }
 }
