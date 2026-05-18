@@ -165,8 +165,8 @@ impl Ecef {
     /// Ecefが同じ位置にあるかを判定します
     /// 2点間の直線距離が epsilon 以内にあるかを判定します
     pub fn eq_epsilon(&self, other: &Ecef, epsilon: f64) -> bool {
-        let distance_squared = self.distance(other);
-        distance_squared < epsilon * epsilon
+        let distance = self.distance(other);
+        distance < epsilon
     }
 
     /// 内積（ドット積）を計算する。
