@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn six_neighbors_are_generated() {
         let id = SingleId::new(4, 6, 9, 10).unwrap();
-        let neighbors: Vec<_> = id.spatial_neighbors_6().collect();
+        let neighbors: Vec<_> = id.neighbors_share_face().collect();
 
         assert_eq!(neighbors.len(), 6);
         assert!(neighbors.contains(&SingleId::new(4, 7, 9, 10).unwrap()));
@@ -109,9 +109,48 @@ mod tests {
     }
 
     #[test]
+    fn twelve_edge_neighbors_are_generated() {
+        let id = SingleId::new(4, 6, 9, 10).unwrap();
+        let neighbors: Vec<_> = id.neighbors_share_edge().collect();
+
+        assert_eq!(neighbors.len(), 12);
+        // f-x 平面
+        assert!(neighbors.contains(&SingleId::new(4, 7, 10, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 7, 8, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 10, 10).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 8, 10).unwrap()));
+        // f-y 平面
+        assert!(neighbors.contains(&SingleId::new(4, 7, 9, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 7, 9, 9).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 9, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 9, 9).unwrap()));
+        // x-y 平面
+        assert!(neighbors.contains(&SingleId::new(4, 6, 10, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 10, 9).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 8, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 6, 8, 9).unwrap()));
+    }
+
+    #[test]
+    fn eight_vertex_neighbors_are_generated() {
+        let id = SingleId::new(4, 6, 9, 10).unwrap();
+        let neighbors: Vec<_> = id.neighbors_share_vertex().collect();
+
+        assert_eq!(neighbors.len(), 8);
+        assert!(neighbors.contains(&SingleId::new(4, 7, 10, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 7, 10, 9).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 7, 8, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 7, 8, 9).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 10, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 10, 9).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 8, 11).unwrap()));
+        assert!(neighbors.contains(&SingleId::new(4, 5, 8, 9).unwrap()));
+    }
+
+    #[test]
     fn twenty_six_neighbors_are_generated() {
         let id = SingleId::new(4, 6, 9, 10).unwrap();
-        let neighbors: Vec<_> = id.spatial_neighbors_26().collect();
+        let neighbors: Vec<_> = id.neighbors_all().collect();
 
         assert_eq!(neighbors.len(), 26);
         assert!(neighbors.contains(&SingleId::new(4, 7, 10, 11).unwrap()));
