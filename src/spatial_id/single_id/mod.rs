@@ -488,7 +488,7 @@ impl SingleId {
         })
     }
 
-    /// この [`SingleId`] の 6 近傍を列挙します。
+    /// この [`SingleId`] の 面を共有する 6 近傍を列挙します。
     ///
     /// 近傍は `f` / `x` / `y` の各軸について `±1` だけ動かした 6 個です。
     /// `x` は循環するため常に有効ですが、`f` と `y` が範囲外になる方向は除外されます。
@@ -497,10 +497,10 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// let neighbors: Vec<_> = id.spatial_neighbors_6().collect();
+    /// let neighbors: Vec<_> = id.neighbors_share_face().collect();
     /// assert_eq!(neighbors.len(), 6);
     /// ```
-    pub fn spatial_neighbors_6(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn neighbors_share_face(&self) -> impl Iterator<Item = SingleId> + '_ {
         const OFFSETS: [(i32, i32, i32); 6] = [
             (1, 0, 0),
             (-1, 0, 0),
@@ -529,6 +529,99 @@ impl SingleId {
         })
     }
 
+    /// この [`SingleId`] の 辺を共有する 12 近傍を列挙します。
+    ///
+    /// 近傍は `f` / `x` / `y` のうちちょうど 2 軸について `±1` だけ動かした 12 個です。
+    /// `x` は循環するため常に有効ですが、`f` と `y` が
+    /// 範囲外になる方向は除外されます。
+    /// そのため、境界上の [`SingleId`] では 12 個未満になることがあります。
+    ///
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(4, 6, 9, 10).unwrap();
+    /// let neighbors: Vec<_> = id.neighbors_share_edge().collect();
+    /// assert_eq!(neighbors.len(), 12);
+    /// ```
+    pub fn neighbors_share_edge(&self) -> impl Iterator<Item = SingleId> + '_ {
+        const OFFSETS: [(i32, i32, i32); 12] = [
+            // f-x 平面 (dy=0)
+            (1, 1, 0),
+            (1, -1, 0),
+            (-1, 1, 0),
+            (-1, -1, 0),
+            // f-y 平面 (dx=0)
+            (1, 0, 1),
+            (1, 0, -1),
+            (-1, 0, 1),
+            (-1, 0, -1),
+            // x-y 平面 (df=0)
+            (0, 1, 1),
+            (0, 1, -1),
+            (0, -1, 1),
+            (0, -1, -1),
+        ];
+
+        OFFSETS.into_iter().filter_map(move |(df, dx, dy)| {
+            let mut neighbor = self.clone();
+
+            if df != 0 && neighbor.move_f(df).is_err() {
+                return None;
+            }
+
+            if dx != 0 {
+                neighbor.move_x(dx);
+            }
+
+            if dy != 0 && neighbor.move_y(dy).is_err() {
+                return None;
+            }
+
+            Some(neighbor)
+        })
+    }
+
+    /// この [`SingleId`] の 頂点を共有する 8 近傍を列挙します。
+    ///
+    /// 近傍は `f` / `x` / `y` の全 3 軸について `±1` だけ動かした 8 個です。
+    /// `x` は循環するため常に有効ですが、`f` と `y` が
+    /// 範囲外になる方向は除外されます。
+    /// そのため、境界上の [`SingleId`] では 8 個未満になることがあります。
+    ///
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(4, 6, 9, 10).unwrap();
+    /// let neighbors: Vec<_> = id.neighbors_share_vertex().collect();
+    /// assert_eq!(neighbors.len(), 8);
+    /// ```
+    pub fn neighbors_share_vertex(&self) -> impl Iterator<Item = SingleId> + '_ {
+        const OFFSETS: [(i32, i32, i32); 8] = [
+            (1, 1, 1),
+            (1, 1, -1),
+            (1, -1, 1),
+            (1, -1, -1),
+            (-1, 1, 1),
+            (-1, 1, -1),
+            (-1, -1, 1),
+            (-1, -1, -1),
+        ];
+
+        OFFSETS.into_iter().filter_map(move |(df, dx, dy)| {
+            let mut neighbor = self.clone();
+
+            if neighbor.move_f(df).is_err() {
+                return None;
+            }
+
+            neighbor.move_x(dx);
+
+            if neighbor.move_y(dy).is_err() {
+                return None;
+            }
+
+            Some(neighbor)
+        })
+    }
+
     /// この [`SingleId`] の 26 近傍を列挙します。
     ///
     /// 近傍は `f` / `x` / `y` の各軸について `-1, 0, 1` の組み合わせから
@@ -539,10 +632,10 @@ impl SingleId {
     /// ```
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// let neighbors: Vec<_> = id.spatial_neighbors_26().collect();
+    /// let neighbors: Vec<_> = id.neighbors_all().collect();
     /// assert_eq!(neighbors.len(), 26);
     /// ```
-    pub fn spatial_neighbors_26(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn neighbors_all(&self) -> impl Iterator<Item = SingleId> + '_ {
         (-1..=1).flat_map(move |df| {
             (-1..=1).flat_map(move |dy| {
                 (-1..=1).filter_map(move |dx| {
