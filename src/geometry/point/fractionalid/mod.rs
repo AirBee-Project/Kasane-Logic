@@ -11,9 +11,6 @@ use crate::{
 /// 空間 ID (`SingleId`) が整数値のインデックスを持つのに対し、`FractionalId` は実数値（`f64`）の
 /// F、X、Y インデックスを保持することで、グリッド内のより詳細な位置や端点などを表現できます。
 ///
-/// この型は `PartialOrd` を実装していますが、これは主に `BTreeSet` や `BTreeMap`
-/// といった順序付きコレクションにおける格納および探索を目的としたものであり、空間的な位置関係における「大小」を意味するものではありません。
-///
 /// ```
 /// pub struct FractionalId {
 ///     z: u8,
@@ -65,21 +62,21 @@ impl FractionalId {
         let f_max = F_MAX[z as usize] as f64;
         let xy_max = XY_MAX[z as usize] as f64;
 
-        if f < f_min || f > f_max {
+        if f < f_min || f > f_max || !f.is_finite() {
             return Err(SpatialIdError::FOutOfRange {
                 f: libm::floor(f) as i32,
                 z,
             }
             .into());
         }
-        if x < 0.0 || x > xy_max {
+        if x < 0.0 || x > xy_max || !x.is_finite() {
             return Err(SpatialIdError::XOutOfRange {
                 x: if x < 0.0 { 0 } else { libm::floor(x) as u32 },
                 z,
             }
             .into());
         }
-        if y < 0.0 || y > xy_max {
+        if y < 0.0 || y > xy_max || !y.is_finite() {
             return Err(SpatialIdError::YOutOfRange {
                 y: if y < 0.0 { 0 } else { libm::floor(y) as u32 },
                 z,
@@ -158,7 +155,7 @@ impl FractionalId {
     pub fn set_f(&mut self, value: f64) -> Result<(), Error> {
         let min = F_MIN[self.z as usize] as f64;
         let max = F_MAX[self.z as usize] as f64;
-        if value < min || value > max {
+        if value < min || value > max || !value.is_finite() {
             return Err(SpatialIdError::FOutOfRange {
                 f: libm::floor(value) as i32,
                 z: self.z,
@@ -184,7 +181,7 @@ impl FractionalId {
     /// ```
     pub fn set_x(&mut self, value: f64) -> Result<(), Error> {
         let max = XY_MAX[self.z as usize] as f64;
-        if value < 0.0 || value > max {
+        if value < 0.0 || value > max || !value.is_finite() {
             return Err(SpatialIdError::XOutOfRange {
                 x: if value < 0.0 {
                     0
@@ -214,7 +211,7 @@ impl FractionalId {
     /// ```
     pub fn set_y(&mut self, value: f64) -> Result<(), Error> {
         let max = XY_MAX[self.z as usize] as f64;
-        if value < 0.0 || value > max {
+        if value < 0.0 || value > max || !value.is_finite() {
             return Err(SpatialIdError::YOutOfRange {
                 y: if value < 0.0 {
                     0
