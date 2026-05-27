@@ -30,6 +30,15 @@ pub enum GeometryError {
 
     ///半径が負であることを表す
     RadiusNegative { radius: f64 },
+
+    /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
+    FractionalFOutOfRange { z: u8, f: f64 },
+
+    /// X 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
+    FractionalXOutOfRange { z: u8, x: f64 },
+
+    /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
+    FractionalYOutOfRange { z: u8, y: f64 },
 }
 
 /// SpatialId 関連で発生するエラー。
@@ -52,7 +61,7 @@ pub enum SpatialIdError {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
 
-    /// 時間方向が0-u64::MAXの有効範囲外であることを示す。
+    /// 時間方向が0-u64::MAX的有効範囲外であることを示す。
     /// 0=<i×t=<u64::MAXを満たす必要がある
     TOutOfRange { i: u64, t: u64 },
 
@@ -116,6 +125,27 @@ impl fmt::Display for GeometryError {
             }
             GeometryError::RadiusNegative { radius } => {
                 write!(f, "Radius need to be positive (radius = {}).", radius)
+            }
+            GeometryError::FractionalFOutOfRange { z, f: fv } => {
+                write!(
+                    f,
+                    "Fractional F coordinate '{}' is out of range for ZoomLevel '{}'",
+                    fv, z
+                )
+            }
+            GeometryError::FractionalXOutOfRange { z, x } => {
+                write!(
+                    f,
+                    "Fractional X coordinate '{}' is out of range for ZoomLevel '{}'",
+                    x, z
+                )
+            }
+            GeometryError::FractionalYOutOfRange { z, y } => {
+                write!(
+                    f,
+                    "Fractional Y coordinate '{}' is out of range for ZoomLevel '{}'",
+                    y, z
+                )
             }
         }
     }

@@ -2,7 +2,7 @@ pub mod impls;
 
 use crate::{
     SingleId,
-    error::{Error, SpatialIdError},
+    error::{Error, GeometryError, SpatialIdError},
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
 
@@ -63,25 +63,13 @@ impl FractionalId {
         let xy_max = XY_MAX[z as usize] as f64;
 
         if f < f_min || f > f_max || !f.is_finite() {
-            return Err(SpatialIdError::FOutOfRange {
-                f: libm::floor(f) as i32,
-                z,
-            }
-            .into());
+            return Err(GeometryError::FractionalFOutOfRange { f, z }.into());
         }
         if x < 0.0 || x > xy_max || !x.is_finite() {
-            return Err(SpatialIdError::XOutOfRange {
-                x: if x < 0.0 { 0 } else { libm::floor(x) as u32 },
-                z,
-            }
-            .into());
+            return Err(GeometryError::FractionalXOutOfRange { x, z }.into());
         }
         if y < 0.0 || y > xy_max || !y.is_finite() {
-            return Err(SpatialIdError::YOutOfRange {
-                y: if y < 0.0 { 0 } else { libm::floor(y) as u32 },
-                z,
-            }
-            .into());
+            return Err(GeometryError::FractionalYOutOfRange { y, z }.into());
         }
 
         Ok(FractionalId { z, f, x, y })
@@ -156,8 +144,8 @@ impl FractionalId {
         let min = F_MIN[self.z as usize] as f64;
         let max = F_MAX[self.z as usize] as f64;
         if value < min || value > max || !value.is_finite() {
-            return Err(SpatialIdError::FOutOfRange {
-                f: libm::floor(value) as i32,
+            return Err(GeometryError::FractionalFOutOfRange {
+                f: value,
                 z: self.z,
             }
             .into());
@@ -182,12 +170,8 @@ impl FractionalId {
     pub fn set_x(&mut self, value: f64) -> Result<(), Error> {
         let max = XY_MAX[self.z as usize] as f64;
         if value < 0.0 || value > max || !value.is_finite() {
-            return Err(SpatialIdError::XOutOfRange {
-                x: if value < 0.0 {
-                    0
-                } else {
-                    libm::floor(value) as u32
-                },
+            return Err(GeometryError::FractionalXOutOfRange {
+                x: value,
                 z: self.z,
             }
             .into());
@@ -212,12 +196,8 @@ impl FractionalId {
     pub fn set_y(&mut self, value: f64) -> Result<(), Error> {
         let max = XY_MAX[self.z as usize] as f64;
         if value < 0.0 || value > max || !value.is_finite() {
-            return Err(SpatialIdError::YOutOfRange {
-                y: if value < 0.0 {
-                    0
-                } else {
-                    libm::floor(value) as u32
-                },
+            return Err(GeometryError::FractionalYOutOfRange {
+                y: value,
                 z: self.z,
             }
             .into());
@@ -270,3 +250,6 @@ impl FractionalId {
         FractionalId { z, f, x, y }
     }
 }
+
+#[cfg(test)]
+mod tests;
