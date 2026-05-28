@@ -36,11 +36,7 @@ pub trait Vec3: Sized + Add<Output = Self> + Sub<Output = Self> {
     }
 
     fn scale(&self, scalar: f64) -> Self {
-        Self::new(
-            self.a() * scalar,
-            self.b() * scalar,
-            self.c() * scalar,
-        )
+        Self::new(self.a() * scalar, self.b() * scalar, self.c() * scalar)
     }
 
     fn create_orthonormal_basis(&self) -> [Self; 2] {
