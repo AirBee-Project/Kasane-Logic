@@ -281,7 +281,8 @@ impl Coordinate {
             - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
             / 2.0
             * n;
-        Ok(unsafe { FractionalId::new_unchecked(z, f, x, y) })
+        let id = FractionalId::new(z, f, x, y)?;
+        Ok(id)
     }
 
     /// 他の [`Coordinate`] との距離をメートル単位で返す。
