@@ -22,8 +22,6 @@ pub use error::{GeometryError, SpatialIdError};
 pub use geometry::shape::cylinder::Cylinder;
 #[doc(inline)]
 pub use geometry::shape::tube::Tube;
-#[doc(inline)]
-pub use geometry::vec3::Vec3;
 
 // geometry: types
 #[doc(inline)]
@@ -34,14 +32,24 @@ pub use geometry::shape::polygon::Polygon;
 pub use geometry::shape::solid::Solid;
 #[doc(inline)]
 pub use geometry::shape::sphere::Sphere;
+
+// geometry: vec3 types
 #[doc(inline)]
-pub use geometry::shape::triangle::Triangle;
+pub use geometry::vec3::vec3_ecef::Vec3Ecef;
+#[doc(inline)]
+pub use geometry::vec3::vec3_fractionalid::Vec3FractionalId;
+
+// geometry: vec3 traits
+#[doc(inline)]
+pub use geometry::vec3::traits::Vec3;
 
 // geometry: traits
 #[doc(inline)]
 pub use geometry::shape::traits::{
     ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape,
 };
+#[doc(inline)]
+pub use geometry::shape::triangle::Triangle;
 #[doc(inline)]
 pub use geometry::traits::{CoverRangeIds, CoverSingleIds};
 

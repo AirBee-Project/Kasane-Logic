@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, Shape, SingleId, Triangle,
-    geometry::{shape::triangle::coordinate_to_matrix, traits::CoverSingleIds},
+    Coordinate, Error, ExpandCoordinates, Shape, SingleId, Triangle, Vec3, Vec3FractionalId,
+    geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Triangle {
@@ -13,17 +13,17 @@ impl Shape for Triangle {
 
 impl CoverSingleIds for Triangle {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let points: [[f64; 3]; 3] = [
-            coordinate_to_matrix(self.points[0], z),
-            coordinate_to_matrix(self.points[1], z),
-            coordinate_to_matrix(self.points[2], z),
+        let points: [Vec3FractionalId; 3] = [
+            Vec3FractionalId::from(self.points[0].fractional_id(z)?),
+            Vec3FractionalId::from(self.points[1].fractional_id(z)?),
+            Vec3FractionalId::from(self.points[2].fractional_id(z)?),
         ];
-        let diff_f = libm::floor(points[0][0].max(points[1][0]).max(points[2][0]))
-            - libm::floor(points[0][0].min(points[1][0]).min(points[2][0]));
-        let diff_x = libm::floor(points[0][1].max(points[1][1]).max(points[2][1]))
-            - libm::floor(points[0][1].min(points[1][1]).min(points[2][1]));
-        let diff_y = libm::floor(points[0][2].max(points[1][2]).max(points[2][2]))
-            - libm::floor(points[0][2].min(points[1][2]).min(points[2][2]));
+        let diff_f = libm::floor(points[0].a().max(points[1].a()).max(points[2].a()))
+            - libm::floor(points[0].a().min(points[1].a()).min(points[2].a()));
+        let diff_x = libm::floor(points[0].b().max(points[1].b()).max(points[2].b()))
+            - libm::floor(points[0].b().min(points[1].b()).min(points[2].b()));
+        let diff_y = libm::floor(points[0].c().max(points[1].c()).max(points[2].c()))
+            - libm::floor(points[0].c().min(points[1].c()).min(points[2].c()));
         let steps = libm::ceil(diff_f.max(diff_x).max(diff_y) / 8.0) as u32;
         let mut seen = HashSet::new();
         let voxels = self
