@@ -28,7 +28,7 @@ impl CoverSingleIds for Line {
             + (v1.x() as i32 - v2.x() as i32).abs()
             + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
         let devide_num = 5 + libm::floor(diff / 120.0 + distance / 2000.0) as u16;
-        let mut coordinates = Vec::new();
+        let mut coordinates = Vec::with_capacity(devide_num as usize + 1);
         for i in 0..=devide_num {
             let t = i as f64 / devide_num as f64;
             let x = ecef_a.x() * (1.0 - t) + ecef_b.x() * t;
@@ -37,7 +37,8 @@ impl CoverSingleIds for Line {
             let coo: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
             coordinates.push(coo);
         }
-        let mut voxels: Vec<SingleId> = Vec::new();
+        let estimated_capacity = (diff as usize) + (devide_num as usize) * 2 + 10;
+        let mut voxels: Vec<SingleId> = Vec::with_capacity(estimated_capacity);
         for pair in coordinates.windows(2) {
             let start = pair[0];
             let end = pair[1];
