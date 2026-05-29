@@ -1,5 +1,9 @@
 {
-	"rust-analyzer.cargo.features": ["random"],
+	"rust-analyzer.cargo.targetDir": true,
+	"rust-analyzer.procMacro.enable": false,
+	"rust-analyzer.cargo.features": [
+		"random"
+	],
 	"rust-analyzer.check.command": "clippy",
 	"chat.tools.terminal.autoApprove": {
 		"cargo test *": true,
