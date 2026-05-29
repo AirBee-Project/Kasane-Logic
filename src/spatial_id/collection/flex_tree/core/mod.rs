@@ -77,6 +77,13 @@ where
         }
     }
 
+    /// ルートノードのRcポインタが完全に同一か判定します（Result Reuseテスト用）
+    #[cfg(test)]
+    pub fn root_ptr_eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.lower_root, &other.lower_root)
+            && Rc::ptr_eq(&self.upper_root, &other.upper_root)
+    }
+
     ///クリアする
     pub fn clear(&mut self) {
         self.lower_root = self.empty_leaf.clone();

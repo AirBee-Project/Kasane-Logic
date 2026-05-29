@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId};
 pub mod convert;
 pub mod ops;
-pub mod test;
+pub mod tests;
 
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdSet {
@@ -62,6 +62,11 @@ impl SpatialIdSet {
 
     pub fn clear(&mut self) {
         self.inner.clear();
+    }
+
+    #[cfg(test)]
+    pub fn root_ptr_eq(&self, other: &Self) -> bool {
+        self.inner.root_ptr_eq(&other.inner)
     }
 
     pub fn is_empty(&self) -> bool {
