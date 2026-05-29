@@ -8,16 +8,14 @@
 //! | グループ       | 形状      | 都市的なアナロジー                  |
 //! |----------------|-----------|-------------------------------------|
 //! | Sphere         | 球体      | 給水タンクのドーム、球形貯水槽      |
-//! | Cylinder       | 円柱      | 電波塔、煙突、柱                    |
 //! | Building       | 直方体    | オフィスビル、高層ビル              |
 //! | UrbanBlock     | 6 × 直方体| 都市ブロック（3列 × 2行グリッド）  |
 //!
+//! Cylinder は rough_solid() のコストが高いため spatial_id_set_geometry_cylinder に分離。
 //! 集合演算ベンチマークは境界領域が一部重なる形状ペアを使用する。
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use kasane_logic::{
-    Coordinate, CoverSingleIds, Cylinder, Polygon, SingleId, Solid, SpatialIdSet, Sphere,
-};
+use kasane_logic::{Coordinate, CoverSingleIds, Polygon, SingleId, Solid, SpatialIdSet, Sphere};
 use std::hint::black_box;
 
 // ────────────────────────────────────────────────────────────────
@@ -154,36 +152,6 @@ fn bench_sphere_set_ops(c: &mut Criterion) {
 }
 
 // ────────────────────────────────────────────────────────────────
-// 円柱ベンチマーク
-// ────────────────────────────────────────────────────────────────
-
-fn bench_cylinder(c: &mut Criterion) {
-    let base = coord(BASE_LAT, BASE_LON, 0.0);
-
-    // (高さ[m], 半径[m], ズームレベル, ラベル)
-    let cases: &[(f64, f64, u8, &str)] = &[
-        (200.0, 5.0, 18, "tower_h200r5_z18"),
-        (200.0, 5.0, 20, "tower_h200r5_z20"),
-        (50.0, 20.0, 18, "pillar_h50r20_z18"),
-        (50.0, 20.0, 20, "pillar_h50r20_z20"),
-        (20.0, 50.0, 18, "stadium_h20r50_z18"),
-        (20.0, 50.0, 20, "stadium_h20r50_z20"),
-    ];
-
-    let mut group = c.benchmark_group("SpatialIdSet/Geometry/Cylinder");
-    for &(h, r, z, label) in cases {
-        let top = coord(BASE_LAT, BASE_LON, h);
-        group.bench_function(label, |b| {
-            b.iter(|| {
-                let cyl = Cylinder::new(base, top, r).unwrap();
-                black_box(build_set(cyl.cover_single_ids(z).unwrap()))
-            });
-        });
-    }
-    group.finish();
-}
-
-// ────────────────────────────────────────────────────────────────
 // 直方体ビルベンチマーク
 // ────────────────────────────────────────────────────────────────
 
@@ -294,7 +262,6 @@ criterion_group!(
     benches,
     bench_sphere,
     bench_sphere_set_ops,
-    bench_cylinder,
     bench_building,
     bench_urban_block,
     bench_urban_block_ops,

@@ -64,12 +64,47 @@ path = "benches/geometry/point/conversion.rs"
 harness = false
 
 [[bench]]
-name = "spatial_id_set_systematic"
-path = "benches/spatial_id_set/systematic_patterns.rs"
+name = "spatial_id_set_insert"
+path = "benches/spatial_id_set/systematic_insert.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_get"
+path = "benches/spatial_id_set/systematic_get.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_remove"
+path = "benches/spatial_id_set/systematic_remove.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_union"
+path = "benches/spatial_id_set/systematic_union.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_intersection"
+path = "benches/spatial_id_set/systematic_intersection.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_difference"
+path = "benches/spatial_id_set/systematic_difference.rs"
 harness = false
 
 [[bench]]
 name = "spatial_id_set_geometry"
 path = "benches/spatial_id_set/geometry_shapes.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_geometry_cylinder"
+path = "benches/spatial_id_set/geometry_cylinder_set.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_memory"
+path = "benches/spatial_id_set/memory_usage.rs"
 harness = false
 
