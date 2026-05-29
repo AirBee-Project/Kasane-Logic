@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
 use kasane_logic::{Coordinate, Ecef};
-use rand::{Rng, RngExt};
+use rand::RngExt;
 use std::hint::black_box;
 
 fn bench_point_conversions(c: &mut Criterion) {

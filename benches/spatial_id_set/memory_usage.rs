@@ -136,7 +136,7 @@ fn main() {
             let actual_count = ids.len();
 
             // ウォームアップ（アロケータ内部構造を安定させる）
-            drop(measure_insert(&ids));
+            let _ = measure_insert(&ids);
 
             // 本計測 3 回の中央値
             let mut results: Vec<MemResult> = (0..3).map(|_| measure_insert(&ids)).collect();

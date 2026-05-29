@@ -25,7 +25,7 @@ criterion = { version = "0.8.2", features = ["html_reports"] }
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
-features = ["precommit-hook","run-cargo-test", "run-cargo-clippy","run-cargo-fmt","run-for-all"]
+features = ["user-hooks"]
 
 [[bin]]
 name = "kasane-logic"
