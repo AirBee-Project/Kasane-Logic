@@ -18,13 +18,13 @@ temporal_id = []
 rand = "0.9.2"
 proptest = "1.10.0"
 rand_chacha = "0.9.0"
-memori = "0.1.7"
 insta = "1"
+criterion = "0.8.2"
 
 [dev-dependencies.cargo-husky]
 version = "1"
 default-features = false
-features = ["precommit-hook","run-cargo-test", "run-cargo-clippy","run-cargo-fmt"]
+features = ["precommit-hook","run-cargo-test", "run-cargo-clippy","run-cargo-fmt","run-for-all"]
 
 [[bin]]
 name = "kasane-logic"
@@ -34,18 +34,42 @@ bench = false
 bench = false
 
 [[bench]]
-name = "triangle"
+name = "geometry_line"
+path = "benches/geometry/shape/line.rs"
 harness = false
 
 [[bench]]
-name = "line"
+name = "geometry_triangle"
+path = "benches/geometry/shape/triangle.rs"
 harness = false
 
 [[bench]]
-name = "sphere"
+name = "geometry_sphere"
+path = "benches/geometry/shape/sphere.rs"
 harness = false
 
 [[bench]]
-name = "set"
+name = "geometry_cylinder"
+path = "benches/geometry/shape/cylinder.rs"
+harness = false
+
+[[bench]]
+name = "geometry_tube"
+path = "benches/geometry/shape/tube.rs"
+harness = false
+
+[[bench]]
+name = "geometry_point_conversion"
+path = "benches/geometry/point/conversion.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_systematic"
+path = "benches/spatial_id_set/systematic_patterns.rs"
+harness = false
+
+[[bench]]
+name = "spatial_id_set_geometry"
+path = "benches/spatial_id_set/geometry_shapes.rs"
 harness = false
 

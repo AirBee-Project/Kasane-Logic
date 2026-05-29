@@ -1,4 +1,5 @@
-name: Memori Benchmark
+name: Benchmark
+
 on:
   push:
     branches:
@@ -6,7 +7,69 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
-  memori:
-    uses: Tomoro0726/Memori/.github/workflows/memori-publish.yml@master
+  run-benchmarks:
+    name: Run Benchmark (${{ matrix.bench_name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bench_name:
+          - geometry_line
+          - geometry_triangle
+          - geometry_sphere
+          - geometry_cylinder
+          - geometry_tube
+          - geometry_point_conversion
+          - spatial_id_set_systematic
+          - spatial_id_set_geometry
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        
+      - name: Run benchmark
+        run: cargo bench --bench ${{ matrix.bench_name }} -- --output-format bencher | tee ${{ matrix.bench_name }}.txt
+        
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-result-${{ matrix.bench_name }}
+          path: ${{ matrix.bench_name }}.txt
+
+  publish-benchmarks:
+    name: Publish Benchmarks
+    needs: run-benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download all benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: bench-result-*
+          path: bench-results
+          merge-multiple: true
+
+      - name: Merge benchmark results
+        run: cat bench-results/*.txt > all_bench_output.txt
+        
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Kasane-Logic Benchmarks
+          tool: 'cargo'
+          output-file-path: all_bench_output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: false
+          gh-pages-branch: 'gh-pages'
