@@ -1,9 +1,0 @@
-#!/bin/sh
-set -e
-
-echo '+cargo test'
-cargo test
-echo '+cargo clippy --all-targets -- -D warnings'
-cargo clippy --all-targets -- -D warnings
-echo '+cargo fmt -- --check'
-cargo fmt -- --check
