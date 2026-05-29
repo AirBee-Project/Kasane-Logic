@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::{Coordinate, CoverSingleIds, geometry::shape::tube::Tube};
+use std::hint::black_box;
 
 fn bench_tube(c: &mut Criterion) {
     let base_lat = 35.681000;
@@ -15,7 +15,9 @@ fn bench_tube(c: &mut Criterion) {
                 let p1 = Coordinate::new(base_lat, base_lon, base_alt).unwrap();
                 let p2 = Coordinate::new(base_lat + 0.001, base_lon, base_alt).unwrap();
                 let tube = Tube::new(vec![p1, p2], 30.0).unwrap();
-                let iter = tube.cover_single_ids(z as u8).expect("Failed to get iterator");
+                let iter = tube
+                    .cover_single_ids(z as u8)
+                    .expect("Failed to get iterator");
                 black_box(iter.count());
             });
         });

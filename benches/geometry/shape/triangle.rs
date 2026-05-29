@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::{Coordinate, CoverSingleIds, Triangle};
+use std::hint::black_box;
 
 fn bench_triangle(c: &mut Criterion) {
     let base_lat = 35.681000;
@@ -16,7 +16,9 @@ fn bench_triangle(c: &mut Criterion) {
                 let p2 = Coordinate::new(base_lat + 0.001, base_lon, base_alt).unwrap();
                 let p3 = Coordinate::new(base_lat, base_lon + 0.001, base_alt).unwrap();
                 let triangle = Triangle::new([p1, p2, p3]);
-                let iter = triangle.cover_single_ids(z as u8).expect("Failed to get iterator");
+                let iter = triangle
+                    .cover_single_ids(z as u8)
+                    .expect("Failed to get iterator");
                 black_box(iter.count());
             });
         });
@@ -33,7 +35,9 @@ fn bench_triangle(c: &mut Criterion) {
                 let p2 = Coordinate::new(base_lat + scale, base_lon, base_alt).unwrap();
                 let p3 = Coordinate::new(base_lat, base_lon + scale, base_alt).unwrap();
                 let triangle = Triangle::new([p1, p2, p3]);
-                let iter = triangle.cover_single_ids(20).expect("Failed to get iterator");
+                let iter = triangle
+                    .cover_single_ids(20)
+                    .expect("Failed to get iterator");
                 black_box(iter.count());
             });
         });

@@ -1,6 +1,6 @@
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use std::hint::black_box;
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::{Coordinate, CoverSingleIds, Sphere};
+use std::hint::black_box;
 
 fn bench_sphere(c: &mut Criterion) {
     let base_lat = 35.681000;
@@ -14,7 +14,9 @@ fn bench_sphere(c: &mut Criterion) {
             b.iter(|| {
                 let center = Coordinate::new(base_lat, base_lon, base_alt).unwrap();
                 let sphere = Sphere::new(center, 30.0).unwrap();
-                let iter = sphere.cover_single_ids(z as u8).expect("Failed to get iterator");
+                let iter = sphere
+                    .cover_single_ids(z as u8)
+                    .expect("Failed to get iterator");
                 black_box(iter.count());
             });
         });

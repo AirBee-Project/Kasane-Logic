@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use kasane_logic::{Coordinate, Ecef};
 use rand::Rng;
 use std::hint::black_box;
@@ -6,7 +6,7 @@ use std::hint::black_box;
 fn bench_point_conversions(c: &mut Criterion) {
     let mut rng = rand::rng();
     let num_points = 1000;
-    
+
     let mut coords = Vec::with_capacity(num_points);
     for _ in 0..num_points {
         let lat = rng.random_range(-85.0..85.0);

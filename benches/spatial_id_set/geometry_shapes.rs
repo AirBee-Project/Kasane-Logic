@@ -16,7 +16,7 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use kasane_logic::{
-    Coordinate, CoverSingleIds, Cylinder, Polygon, SingleId, Solid, Sphere, SpatialIdSet,
+    Coordinate, CoverSingleIds, Cylinder, Polygon, SingleId, Solid, SpatialIdSet, Sphere,
 };
 use std::hint::black_box;
 
@@ -126,8 +126,18 @@ fn bench_sphere_set_ops(c: &mut Criterion) {
     ];
 
     for &(r, z, label) in cases {
-        let set_a = build_set(Sphere::new(center_a, r).unwrap().cover_single_ids(z).unwrap());
-        let set_b = build_set(Sphere::new(center_b, r).unwrap().cover_single_ids(z).unwrap());
+        let set_a = build_set(
+            Sphere::new(center_a, r)
+                .unwrap()
+                .cover_single_ids(z)
+                .unwrap(),
+        );
+        let set_b = build_set(
+            Sphere::new(center_b, r)
+                .unwrap()
+                .cover_single_ids(z)
+                .unwrap(),
+        );
 
         let mut g = c.benchmark_group("SpatialIdSet/Geometry/Sphere_Union");
         g.bench_function(label, |b| b.iter(|| black_box(&set_a | &set_b)));
@@ -273,7 +283,9 @@ fn bench_urban_block_ops(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("SpatialIdSet/Geometry/UrbanBlock_Ops_z20");
     group.bench_function("Union", |b| b.iter(|| black_box(&block_a | &block_b)));
-    group.bench_function("Intersection", |b| b.iter(|| black_box(&block_a & &block_b)));
+    group.bench_function("Intersection", |b| {
+        b.iter(|| black_box(&block_a & &block_b))
+    });
     group.bench_function("Difference", |b| b.iter(|| black_box(&block_a - &block_b)));
     group.finish();
 }
