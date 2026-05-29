@@ -16,25 +16,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        
+
       - name: Setup mold
         uses: rui314/setup-mold@v1
-      
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
-        
+
       - name: Build benchmarks
         run: |
           mkdir -p bench-binaries
-          BENCHES=("geometry_line" "geometry_triangle" "geometry_sphere" "geometry_cylinder" "geometry_tube" "geometry_point_conversion" "spatial_id_set_realistic_tokyo" "spatial_id_set_systematic")
+          BENCHES=("geometry_line" "geometry_triangle" "geometry_sphere" "geometry_cylinder" "geometry_tube" "geometry_point_conversion" "spatial_id_set_insert" "spatial_id_set_get" "spatial_id_set_remove" "spatial_id_set_union" "spatial_id_set_intersection" "spatial_id_set_difference" "spatial_id_set_geometry" "spatial_id_set_geometry_cylinder")
           for bench in "${BENCHES[@]}"; do
             EXEC=$(cargo bench --bench $bench --no-run --message-format=json | jq -r 'select(.profile.test == true and .executable != null) | .executable')
             cp "$EXEC" "bench-binaries/$bench"
           done
-          
+
       - name: Upload benchmark binaries
         uses: actions/upload-artifact@v4
         with:
@@ -55,20 +55,26 @@ jobs:
           - geometry_cylinder
           - geometry_tube
           - geometry_point_conversion
-          - spatial_id_set_realistic_tokyo
-          - spatial_id_set_systematic
+          - spatial_id_set_insert
+          - spatial_id_set_get
+          - spatial_id_set_remove
+          - spatial_id_set_union
+          - spatial_id_set_intersection
+          - spatial_id_set_difference
+          - spatial_id_set_geometry
+          - spatial_id_set_geometry_cylinder
     steps:
       - name: Download benchmark binaries
         uses: actions/download-artifact@v4
         with:
           name: bench-binaries
           path: bench-binaries
-          
+
       - name: Run benchmark
         run: |
           chmod +x bench-binaries/${{ matrix.bench_name }}
           bench-binaries/${{ matrix.bench_name }} --bench --output-format bencher | tee ${{ matrix.bench_name }}.txt
-          
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -105,9 +111,6 @@ jobs:
           fail-on-alert: false
           gh-pages-branch: "gh-pages"
 
-  # ──────────────────────────────────────────────────────────────
-  # メモリ使用量ベンチマーク（Job Summary に Markdown で出力）
-  # ──────────────────────────────────────────────────────────────
   memory-benchmark:
     name: Memory Benchmark
     runs-on: ubuntu-latest
