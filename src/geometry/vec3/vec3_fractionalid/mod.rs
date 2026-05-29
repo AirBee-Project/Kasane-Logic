@@ -3,6 +3,9 @@ use std::ops::{Add, Sub};
 use crate::{Error, FractionalId, Vec3};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// 空間IDの少数表記(FractionalId)をベクトルとして扱ったもの。
+/// a は F成分、b は X成分、c は Y成分を表す。
+/// 座標系を混同しないため、Vec3Ecefとは区別する。
 pub struct Vec3FractionalId {
     pub a: f64,
     pub b: f64,
