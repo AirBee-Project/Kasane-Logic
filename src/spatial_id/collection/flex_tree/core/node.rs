@@ -1,4 +1,5 @@
 use crate::{Dimension, FlexId, Side};
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum Node<V>
@@ -6,12 +7,13 @@ where
     V: PartialEq + Clone,
 {
     Branch {
-        axis: Dimension,
-        lower_child: Option<Box<Node<V>>>,
-        upper_child: Option<Box<Node<V>>>,
+        level: u8,
+        leaf_count: usize,
+        lower_child: Rc<Node<V>>,
+        upper_child: Rc<Node<V>>,
     },
     Leaf {
-        value: V,
+        value: Option<V>,
     },
 }
 
@@ -19,124 +21,31 @@ impl<V> Node<V>
 where
     V: PartialEq + Clone,
 {
-    /// 指定された空間IDと値を現在ノード配下へ挿入し、葉ノード数の差分を返す。
-    pub fn insert(&mut self, target: FlexId, value: V, passed: (u8, u8, u8)) -> isize {
-        if Self::is_terminal_depth(&target, passed) {
-            let delta = match self {
-                Node::Leaf { value: existing } if existing == &value => 0,
-                Node::Leaf { .. } => 0,
-                Node::Branch { .. } => 1 - Self::subtree_leaf_count(self) as isize,
-            };
-            *self = Node::Leaf { value };
-            return delta;
-        }
-
+    /// 各ノード以下の (値が Some の) Leaf の合計数を返す。O(1)で取得可能。
+    pub fn leaf_count(&self) -> usize {
         match self {
-            Node::Branch {
-                axis,
-                lower_child,
-                upper_child,
-            } => {
-                let mut delta = Self::insert_into_branch(
-                    *axis,
-                    lower_child,
-                    upper_child,
-                    target,
-                    value,
-                    passed,
-                );
-
-                if let Some(merged) = Self::mergeable_leaf_value(lower_child, upper_child) {
-                    // 2つのLeafを1つに統合するため、葉ノード数差分は -1。
-                    delta -= 1;
-                    *self = Node::Leaf { value: merged };
-                }
-
-                delta
-            }
-
-            Node::Leaf {
-                value: existing_value,
-            } => {
-                if *existing_value == value {
-                    return 0;
-                }
-
-                let old_value = existing_value.clone();
-                let start_axis = Self::start_axis_for_target(&target, passed);
-
-                *self = Node::Branch {
-                    axis: start_axis,
-                    lower_child: Some(Box::new(Node::Leaf {
-                        value: old_value.clone(),
-                    })),
-                    upper_child: Some(Box::new(Node::Leaf { value: old_value })),
-                };
-
-                // Leaf1個を子Leaf2個へ展開するので +1。
-                let split_delta = 1;
-                let recurse_delta = self.insert(target, value, passed);
-
-                split_delta + recurse_delta
-            }
+            Node::Branch { leaf_count, .. } => *leaf_count,
+            Node::Leaf { value: Some(_) } => 1,
+            Node::Leaf { value: None } => 0,
         }
     }
 
-    /// 現在の通過深度が target の全次元ズームに到達しているかを判定する。
-    fn is_terminal_depth(target: &FlexId, passed: (u8, u8, u8)) -> bool {
-        passed.0 >= target.f_zoomlevel()
-            && passed.1 >= target.x_zoomlevel()
-            && passed.2 >= target.y_zoomlevel()
-    }
-
-    /// Branchノードでの挿入方針を決定し、子ノード側で生じた葉ノード数差分を返す。
-    fn insert_into_branch(
-        axis: Dimension,
-        lower_child: &mut Option<Box<Node<V>>>,
-        upper_child: &mut Option<Box<Node<V>>>,
-        target: FlexId,
-        value: V,
-        passed: (u8, u8, u8),
-    ) -> isize {
-        let passed_z = Self::passed_zoom(axis, passed.0, passed.1, passed.2);
-        let target_z = Self::target_zoom(axis, &target);
-        let next_passed = Self::next_passed_depth(axis, passed.0, passed.1, passed.2);
-
-        let mut delta = 0;
-
-        if passed_z >= target_z {
-            delta += Self::insert_into_child(
-                lower_child,
-                axis,
-                target.clone(),
-                value.clone(),
-                next_passed,
-            );
-            delta += Self::insert_into_child(upper_child, axis, target, value, next_passed);
-        } else {
-            match Self::forking(&target, &axis, &passed_z) {
-                Side::Lower => {
-                    delta += Self::insert_into_child(lower_child, axis, target, value, next_passed);
-                }
-                Side::Upper => {
-                    delta += Self::insert_into_child(upper_child, axis, target, value, next_passed);
-                }
-            }
-        }
-
-        delta
-    }
-
-    /// 現在軸に対応する通過ズーム値を返す。
-    fn passed_zoom(axis: Dimension, passed_f_z: u8, passed_x_z: u8, passed_y_z: u8) -> u8 {
-        match axis {
-            Dimension::F => passed_f_z,
-            Dimension::X => passed_x_z,
-            Dimension::Y => passed_y_z,
+    /// level から対象とする軸(F, X, Y) を返す
+    pub fn axis(level: u8) -> Dimension {
+        match level % 3 {
+            0 => Dimension::F,
+            1 => Dimension::X,
+            2 => Dimension::Y,
+            _ => unreachable!(),
         }
     }
 
-    /// 現在軸に対応する target 側のズーム値を返す。
+    /// level から各軸の深度を返す
+    pub fn depth(level: u8) -> u8 {
+        level / 3
+    }
+
+    /// FlexId の指定次元に対するズームレベルを返す
     fn target_zoom(axis: Dimension, target: &FlexId) -> u8 {
         match axis {
             Dimension::F => target.f_zoomlevel(),
@@ -145,157 +54,171 @@ where
         }
     }
 
-    /// 現在軸を1段進めた次の通過ズーム状態を返す。
-    fn next_passed_depth(
-        axis: Dimension,
-        passed_f_z: u8,
-        passed_x_z: u8,
-        passed_y_z: u8,
-    ) -> (u8, u8, u8) {
-        match axis {
-            Dimension::F => (passed_f_z + 1, passed_x_z, passed_y_z),
-            Dimension::X => (passed_f_z, passed_x_z + 1, passed_y_z),
-            Dimension::Y => (passed_f_z, passed_x_z, passed_y_z + 1),
-        }
+    /// ターゲットAABB(FlexId)が現在の空間境界を特定の軸で「完全に覆う（covers）」か判定する。
+    fn covers(target: &FlexId, level: u8) -> bool {
+        let axis = Self::axis(level);
+        let depth = Self::depth(level);
+        Self::target_zoom(axis, target) <= depth
     }
 
-    /// 子が両方 Leaf かつ値一致なら、その統合値を返す。
-    fn mergeable_leaf_value(
-        lower_child: &Option<Box<Node<V>>>,
-        upper_child: &Option<Box<Node<V>>>,
-    ) -> Option<V> {
-        if let (Some(Node::Leaf { value: v1 }), Some(Node::Leaf { value: v2 })) =
-            (lower_child.as_deref(), upper_child.as_deref())
-            && v1 == v2
+    /// ターゲットAABB(FlexId)が現在の空間境界を全軸で完全に覆うか判定する。
+    fn completely_covers(target: &FlexId, level: u8) -> bool {
+        let passed_f = level.div_ceil(3);
+        let passed_x = (level + 1) / 3;
+        let passed_y = level / 3;
+
+        target.f_zoomlevel() <= passed_f
+            && target.x_zoomlevel() <= passed_x
+            && target.y_zoomlevel() <= passed_y
+    }
+
+    /// 持続的データ構造(Rc)に挿入し、必要に応じて新しいノードを生成して返す。
+    pub fn insert(
+        self: &Rc<Self>,
+        target: &FlexId,
+        value: &V,
+        level: u8,
+        empty_leaf: &Rc<Node<V>>,
+    ) -> Rc<Self> {
+        // 現在のノードがすでに Leaf であり、値が同一ならそのまま再利用(Result Reuse)
+        if let Node::Leaf {
+            value: Some(ref existing),
+        } = **self
+            && existing == value
         {
-            return Some(v1.clone());
+            return self.clone();
         }
 
-        None
-    }
-
-    /// target を追跡するために次に展開を開始すべき軸を返す。
-    fn start_axis_for_target(target: &FlexId, passed: (u8, u8, u8)) -> Dimension {
-        if passed.0 < target.f_zoomlevel() {
-            Dimension::F
-        } else if passed.1 < target.x_zoomlevel() {
-            Dimension::X
-        } else {
-            Dimension::Y
+        // 完全にターゲットが現在の空間全体を覆う場合、O(1)でLeafに置換する
+        if Self::completely_covers(target, level) {
+            return Rc::new(Node::Leaf {
+                value: Some(value.clone()),
+            });
         }
-    }
 
-    /// 子ノードを生成または再帰利用し、葉ノード数差分を返しながら target を挿入する。
-    fn insert_into_child(
-        child_opt: &mut Option<Box<Node<V>>>,
-        current_axis: Dimension,
-        target: FlexId,
-        value: V,
-        passed: (u8, u8, u8),
-    ) -> isize {
-        match child_opt {
-            Some(child) => child.insert(target, value, passed),
-            None => match Self::next_dimension(current_axis, &target, passed.0, passed.1, passed.2)
+        let node_level = match **self {
+            Node::Branch { level: l, .. } => l,
+            Node::Leaf { .. } => 93, // 葉ノードの場合は仮想的に最大レベル (zoom 30)
+        };
+
+        let mut current_level = level;
+
+        // Algorithm 1: Axis Skipping
+        while current_level < node_level && Self::covers(target, current_level) {
+            current_level += 1;
+        }
+
+        // 完全に target に覆い尽くされた場合、全体を塗りつぶす
+        if current_level >= 93 {
+            return Rc::new(Node::Leaf {
+                value: Some(value.clone()),
+            });
+        }
+
+        // 既存のツリーに欠けている階層 (Prepend missing level) を補うために Branch を作成する
+        if current_level < node_level {
+            let side = Self::forking(target, current_level);
+            let (new_lower, new_upper) = match side {
+                Side::Lower => {
+                    let lo = self.insert(target, value, current_level + 1, empty_leaf);
+                    (lo, self.clone())
+                }
+                Side::Upper => {
+                    let hi = self.insert(target, value, current_level + 1, empty_leaf);
+                    (self.clone(), hi)
+                }
+            };
+
+            if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) = (&*new_lower, &*new_upper)
+                && v1 == v2
             {
-                Some(next_axis) => {
-                    let mut new_branch = Node::Branch {
-                        axis: next_axis,
-                        lower_child: None,
-                        upper_child: None,
-                    };
-                    let delta = new_branch.insert(target, value, passed);
-                    *child_opt = Some(Box::new(new_branch));
-                    delta
+                if v1.is_none() {
+                    return empty_leaf.clone();
+                } else {
+                    return Rc::new(Node::Leaf { value: v1.clone() });
                 }
-                None => {
-                    // 全次元通過したら値付きのLeafを作る
-                    *child_opt = Some(Box::new(Node::Leaf { value }));
-                    1
-                }
-            },
-        }
-    }
+            }
 
-    /// 現在ノード配下の葉ノード数を再帰的に返す。
-    fn subtree_leaf_count(node: &Node<V>) -> usize {
-        match node {
-            Node::Leaf { .. } => 1,
+            return Rc::new(Node::Branch {
+                level: current_level,
+                leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+                lower_child: new_lower,
+                upper_child: new_upper,
+            });
+        }
+
+        // current_level == node_level の場合
+        match **self {
             Node::Branch {
-                lower_child,
-                upper_child,
+                level: l,
+                ref lower_child,
+                ref upper_child,
                 ..
             } => {
-                let lower = lower_child
-                    .as_deref()
-                    .map(Self::subtree_leaf_count)
-                    .unwrap_or(0);
-                let upper = upper_child
-                    .as_deref()
-                    .map(Self::subtree_leaf_count)
-                    .unwrap_or(0);
-                lower + upper
+                let (new_lower, new_upper) = if Self::covers(target, l) {
+                    // Target が現在の軸を完全に覆っている場合、両側の子へ挿入する
+                    let lo = lower_child.insert(target, value, l + 1, empty_leaf);
+                    let hi = upper_child.insert(target, value, l + 1, empty_leaf);
+                    (lo, hi)
+                } else {
+                    let side = Self::forking(target, l);
+                    match side {
+                        Side::Lower => {
+                            let lo = lower_child.insert(target, value, l + 1, empty_leaf);
+                            (lo, upper_child.clone())
+                        }
+                        Side::Upper => {
+                            let hi = upper_child.insert(target, value, l + 1, empty_leaf);
+                            (lower_child.clone(), hi)
+                        }
+                    }
+                };
+
+                if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) =
+                    (&*new_lower, &*new_upper)
+                    && v1 == v2
+                {
+                    if v1.is_none() {
+                        return empty_leaf.clone();
+                    } else {
+                        return Rc::new(Node::Leaf { value: v1.clone() });
+                    }
+                }
+
+                // 子ポインタが変更されなかった場合、元の self を再利用(Result Reuse)
+                if Rc::ptr_eq(&new_lower, lower_child) && Rc::ptr_eq(&new_upper, upper_child) {
+                    return self.clone();
+                }
+
+                Rc::new(Node::Branch {
+                    level: l,
+                    leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+                    lower_child: new_lower,
+                    upper_child: new_upper,
+                })
             }
+            Node::Leaf { .. } => unreachable!(),
         }
     }
 
-    /// 現在軸の分割ビットから、target が Lower/Upper のどちら側に進むかを返す。
-    pub fn forking(target: &FlexId, axis: &Dimension, passed_z: &u8) -> Side {
+    /// target の次元ごとのインデックスビットを取得し、Lower / Upper を判定する。
+    fn forking(target: &FlexId, level: u8) -> Side {
+        let axis = Self::axis(level);
+        let depth = Self::depth(level);
+
         let (target_z, index) = match axis {
             Dimension::F => (target.f_zoomlevel(), target.f_index() as u32),
             Dimension::X => (target.x_zoomlevel(), target.x_index()),
             Dimension::Y => (target.y_zoomlevel(), target.y_index()),
         };
 
-        let shift = target_z - 1 - passed_z;
+        if depth >= target_z {
+            return Side::Lower;
+        }
+
+        let shift = target_z - 1 - depth;
         let bit = (index >> shift) & 1;
 
         if bit == 0 { Side::Lower } else { Side::Upper }
-    }
-
-    /// 現在軸と各次元の通過状況から、次に展開すべき軸を返す。
-    pub fn next_dimension(
-        current_axis: Dimension,
-        target: &FlexId,
-        passed_f_z: u8,
-        passed_x_z: u8,
-        passed_y_z: u8,
-    ) -> Option<Dimension> {
-        let f_passed = passed_f_z >= target.f_zoomlevel();
-        let x_passed = passed_x_z >= target.x_zoomlevel();
-        let y_passed = passed_y_z >= target.y_zoomlevel();
-
-        if f_passed && x_passed && y_passed {
-            return None;
-        }
-
-        match current_axis {
-            Dimension::F => {
-                if !x_passed {
-                    Some(Dimension::X)
-                } else if !y_passed {
-                    Some(Dimension::Y)
-                } else {
-                    Some(Dimension::F)
-                }
-            }
-            Dimension::X => {
-                if !y_passed {
-                    Some(Dimension::Y)
-                } else if !f_passed {
-                    Some(Dimension::F)
-                } else {
-                    Some(Dimension::X)
-                }
-            }
-            Dimension::Y => {
-                if !f_passed {
-                    Some(Dimension::F)
-                } else if !x_passed {
-                    Some(Dimension::X)
-                } else {
-                    Some(Dimension::Y)
-                }
-            }
-        }
     }
 }

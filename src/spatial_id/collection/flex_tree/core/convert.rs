@@ -29,22 +29,23 @@ where
         while let Some((node, current_id)) = self.stack.pop() {
             match node {
                 Node::Branch {
-                    axis,
+                    level,
                     lower_child,
                     upper_child,
+                    ..
                 } => {
-                    if let Some(child) = upper_child {
-                        let next_id = split_child_id(&current_id, *axis, Side::Upper);
-                        self.stack.push((child.as_ref(), next_id));
-                    }
+                    let axis = Node::<V>::axis(*level);
+                    let next_id = split_child_id(&current_id, axis, Side::Upper);
+                    self.stack.push((upper_child.as_ref(), next_id));
 
-                    if let Some(child) = lower_child {
-                        let next_id = split_child_id(&current_id, *axis, Side::Lower);
-                        self.stack.push((child.as_ref(), next_id));
-                    }
+                    let next_id = split_child_id(&current_id, axis, Side::Lower);
+                    self.stack.push((lower_child.as_ref(), next_id));
                 }
-                Node::Leaf { value } => {
+                Node::Leaf { value: Some(value) } => {
                     return Some((current_id, value.clone()));
+                }
+                Node::Leaf { value: None } => {
+                    // Skip empty regions
                 }
             }
         }
@@ -63,22 +64,23 @@ where
         while let Some((node, current_id)) = self.stack.pop() {
             match node {
                 Node::Branch {
-                    axis,
+                    level,
                     lower_child,
                     upper_child,
+                    ..
                 } => {
-                    if let Some(child) = upper_child {
-                        let next_id = split_child_id(&current_id, *axis, Side::Upper);
-                        self.stack.push((child.as_ref(), next_id));
-                    }
+                    let axis = Node::<V>::axis(*level);
+                    let next_id = split_child_id(&current_id, axis, Side::Upper);
+                    self.stack.push((upper_child.as_ref(), next_id));
 
-                    if let Some(child) = lower_child {
-                        let next_id = split_child_id(&current_id, *axis, Side::Lower);
-                        self.stack.push((child.as_ref(), next_id));
-                    }
+                    let next_id = split_child_id(&current_id, axis, Side::Lower);
+                    self.stack.push((lower_child.as_ref(), next_id));
                 }
-                Node::Leaf { value } => {
+                Node::Leaf { value: Some(value) } => {
                     return Some((current_id, value));
+                }
+                Node::Leaf { value: None } => {
+                    // Skip empty regions
                 }
             }
         }

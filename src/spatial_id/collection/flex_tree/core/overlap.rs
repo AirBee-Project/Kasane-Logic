@@ -2,6 +2,7 @@ use crate::{
     Dimension, FlexId, FlexTreeCore, Side,
     spatial_id::collection::flex_tree::core::{node::Node, split_child_id},
 };
+use std::rc::Rc;
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
 pub struct OverlapIter<'a, V>
@@ -21,47 +22,25 @@ where
     stack: Vec<(&'a Node<V>, FlexId)>,
 }
 
-/// 子ノードが存在する場合に、対応する分割 ID と一緒にスタックへ積む。
-fn push_child<'a, V>(
-    stack: &mut Vec<(&'a Node<V>, FlexId)>,
-    axis: Dimension,
-    side: Side,
-    child: Option<&'a Node<V>>,
-    current_id: &FlexId,
-) where
-    V: PartialEq + Clone,
-{
-    if let Some(child) = child {
-        stack.push((child, split_child_id(current_id, axis, side)));
-    }
-}
-
 impl<'a, V> OverlapIter<'a, V>
 where
     V: PartialEq + Clone,
 {
-    /// 現在ノードと軸情報から次に探索する子ノードをスタックへ積む。
     fn push_branch_children(
         &mut self,
         axis: Dimension,
-        lower_child: &'a Option<Box<Node<V>>>,
-        upper_child: &'a Option<Box<Node<V>>>,
+        lower_child: &'a Rc<Node<V>>,
+        upper_child: &'a Rc<Node<V>>,
         current_id: &FlexId,
     ) {
-        push_child(
-            &mut self.stack,
-            axis,
-            Side::Upper,
-            upper_child.as_deref(),
-            current_id,
-        );
-        push_child(
-            &mut self.stack,
-            axis,
-            Side::Lower,
-            lower_child.as_deref(),
-            current_id,
-        );
+        self.stack.push((
+            upper_child.as_ref(),
+            split_child_id(current_id, axis, Side::Upper),
+        ));
+        self.stack.push((
+            lower_child.as_ref(),
+            split_child_id(current_id, axis, Side::Lower),
+        ));
     }
 }
 
@@ -71,7 +50,6 @@ where
 {
     type Item = (FlexId, V);
 
-    /// スタックを深さ優先でたどり、target と重なる葉ノードだけを順次返す。
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, current_id)) = self.stack.pop() {
             if current_id.intersection(&self.target).is_none() {
@@ -80,18 +58,22 @@ where
 
             match node {
                 Node::Branch {
-                    axis,
+                    level,
                     lower_child,
                     upper_child,
+                    ..
                 } => {
-                    self.push_branch_children(*axis, lower_child, upper_child, &current_id);
+                    let axis = Node::<V>::axis(*level);
+                    self.push_branch_children(axis, lower_child, upper_child, &current_id);
                 }
-                Node::Leaf { value } => {
+                Node::Leaf { value: Some(value) } => {
                     return Some((current_id, value.clone()));
+                }
+                Node::Leaf { value: None } => {
+                    // Skip
                 }
             }
         }
-
         None
     }
 }
@@ -102,7 +84,6 @@ where
 {
     type Item = (FlexId, &'a V);
 
-    /// スタックを深さ優先でたどり、target と重なる葉ノードだけを順次返す。
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, current_id)) = self.stack.pop() {
             if current_id.intersection(&self.target).is_none() {
@@ -111,31 +92,29 @@ where
 
             match node {
                 Node::Branch {
-                    axis,
+                    level,
                     lower_child,
                     upper_child,
+                    ..
                 } => {
-                    push_child(
-                        &mut self.stack,
-                        *axis,
-                        Side::Upper,
-                        upper_child.as_deref(),
-                        &current_id,
-                    );
-                    push_child(
-                        &mut self.stack,
-                        *axis,
-                        Side::Lower,
-                        lower_child.as_deref(),
-                        &current_id,
-                    );
+                    let axis = Node::<V>::axis(*level);
+                    self.stack.push((
+                        upper_child.as_ref(),
+                        split_child_id(&current_id, axis, Side::Upper),
+                    ));
+                    self.stack.push((
+                        lower_child.as_ref(),
+                        split_child_id(&current_id, axis, Side::Lower),
+                    ));
                 }
-                Node::Leaf { value } => {
+                Node::Leaf { value: Some(value) } => {
                     return Some((current_id, value));
+                }
+                Node::Leaf { value: None } => {
+                    // Skip
                 }
             }
         }
-
         None
     }
 }
@@ -144,7 +123,6 @@ impl<V> FlexTreeCore<V>
 where
     V: Clone + PartialEq,
 {
-    ///Targetと重なっている[FlexId]とValueを全て取得する関数
     pub fn overlap(&self, target: FlexId) -> impl Iterator<Item = (FlexId, V)> + '_ {
         OverlapIter {
             target,
@@ -152,7 +130,6 @@ where
         }
     }
 
-    ///Targetと重なっている[FlexId]とそのValueへの参照を全て取得する関数
     pub fn overlap_ref(&self, target: FlexId) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         OverlapIterRef {
             target,
@@ -160,133 +137,72 @@ where
         }
     }
 
-    ///Targetと重なっている[FlexId]とValueを全て削除し、取得する関数
     pub fn overlap_remove(&mut self, target: &FlexId) -> impl Iterator<Item = (FlexId, V)> {
-        // 削除された要素を一時的に集めるためのベクタ
         let mut removed_items = Vec::new();
-
-        Self::prune_root_nodes(self, target, &mut removed_items);
+        self.lower_root = Self::prune_node(
+            &self.lower_root,
+            target,
+            FlexId::LOWER_MAX,
+            &mut removed_items,
+            &self.empty_leaf,
+        );
+        self.upper_root = Self::prune_node(
+            &self.upper_root,
+            target,
+            FlexId::UPPER_MAX,
+            &mut removed_items,
+            &self.empty_leaf,
+        );
         removed_items.into_iter()
     }
 
-    /// 上下ルートをまとめて走査し、対象と重なる葉ノードを削除して収集する。
-    fn prune_root_nodes(this: &mut Self, target: &FlexId, removed: &mut Vec<(FlexId, V)>) {
-        Self::prune_node(
-            &mut this.lower_root,
-            target,
-            FlexId::LOWER_MAX,
-            removed,
-            &mut this.lower_count,
-        );
-        Self::prune_node(
-            &mut this.upper_root,
-            target,
-            FlexId::UPPER_MAX,
-            removed,
-            &mut this.upper_count,
-        );
-    }
-
-    /// 対象領域と重なる部分木のみを再帰的に剪定して削除要素を収集する。
     fn prune_node(
-        node_opt: &mut Option<Box<Node<V>>>,
+        node: &Rc<Node<V>>,
         target: &FlexId,
         current_id: FlexId,
         removed: &mut Vec<(FlexId, V)>,
-        root_count: &mut usize,
-    ) {
+        empty_leaf: &Rc<Node<V>>,
+    ) -> Rc<Node<V>> {
         if current_id.intersection(target).is_none() {
-            return;
+            return node.clone();
         }
-        let mut node = match node_opt.take() {
-            Some(n) => n,
-            None => return,
-        };
-        let should_keep = match node.as_mut() {
+
+        match &**node {
             Node::Branch {
-                axis,
+                level,
                 lower_child,
                 upper_child,
-            } => Self::prune_branch_children(
-                *axis,
-                lower_child,
-                upper_child,
-                target,
-                &current_id,
-                removed,
-                root_count,
-            ),
-            Node::Leaf { .. } => false,
-        };
+                ..
+            } => {
+                let axis = Node::<V>::axis(*level);
+                let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                let new_upper =
+                    Self::prune_node(upper_child, target, upper_id, removed, empty_leaf);
 
-        Self::restore_or_collect(node_opt, node, should_keep, current_id, removed, root_count);
-    }
+                let lower_id = split_child_id(&current_id, axis, Side::Lower);
+                let new_lower =
+                    Self::prune_node(lower_child, target, lower_id, removed, empty_leaf);
 
-    /// 分岐ノードの子を再帰的に剪定し、子が残っているかどうかを返す。
-    fn prune_branch_children(
-        axis: Dimension,
-        lower_child: &mut Option<Box<Node<V>>>,
-        upper_child: &mut Option<Box<Node<V>>>,
-        target: &FlexId,
-        current_id: &FlexId,
-        removed: &mut Vec<(FlexId, V)>,
-        root_count: &mut usize,
-    ) -> bool {
-        Self::prune_child(
-            lower_child,
-            axis,
-            Side::Lower,
-            target,
-            current_id,
-            removed,
-            root_count,
-        );
-        Self::prune_child(
-            upper_child,
-            axis,
-            Side::Upper,
-            target,
-            current_id,
-            removed,
-            root_count,
-        );
+                if Rc::ptr_eq(&new_lower, lower_child) && Rc::ptr_eq(&new_upper, upper_child) {
+                    return node.clone();
+                }
 
-        lower_child.is_some() || upper_child.is_some()
-    }
+                if new_lower.leaf_count() == 0 && new_upper.leaf_count() == 0 {
+                    return empty_leaf.clone();
+                }
 
-    /// 指定した side の子ノードを一段進めた ID で再帰的に剪定する。
-    fn prune_child(
-        child: &mut Option<Box<Node<V>>>,
-        axis: Dimension,
-        side: Side,
-        target: &FlexId,
-        current_id: &FlexId,
-        removed: &mut Vec<(FlexId, V)>,
-        root_count: &mut usize,
-    ) {
-        if child.is_some() {
-            let next_id = split_child_id(current_id, axis, side);
-            Self::prune_node(child, target, next_id, removed, root_count);
-        }
-    }
-
-    /// 剪定後にノードを戻すか、葉として削除結果へ収集するかを決定する。
-    fn restore_or_collect(
-        node_opt: &mut Option<Box<Node<V>>>,
-        node: Box<Node<V>>,
-        should_keep: bool,
-        current_id: FlexId,
-        removed: &mut Vec<(FlexId, V)>,
-        root_count: &mut usize,
-    ) {
-        if should_keep {
-            *node_opt = Some(node);
-            return;
-        }
-
-        if let Node::Leaf { value } = *node {
-            removed.push((current_id, value));
-            *root_count -= 1;
+                Rc::new(Node::Branch {
+                    level: *level,
+                    leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+                    lower_child: new_lower,
+                    upper_child: new_upper,
+                })
+            }
+            Node::Leaf { value: Some(v) } => {
+                removed.push((current_id, v.clone()));
+                empty_leaf.clone()
+            }
+            Node::Leaf { value: None } => node.clone(),
         }
     }
 }

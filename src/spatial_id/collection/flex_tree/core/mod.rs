@@ -3,20 +3,30 @@ use crate::{
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
 use node::Node;
+use std::rc::Rc;
 mod convert;
-mod node;
+pub mod node;
+pub mod node_ops;
 mod overlap;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
-#[derive(Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FlexTreeCore<V>
 where
     V: PartialEq + Clone,
 {
-    lower_root: Option<Box<Node<V>>>,
-    upper_root: Option<Box<Node<V>>>,
-    lower_count: usize,
-    upper_count: usize,
+    lower_root: Rc<Node<V>>,
+    upper_root: Rc<Node<V>>,
+    empty_leaf: Rc<Node<V>>,
+}
+
+impl<V> Default for FlexTreeCore<V>
+where
+    V: PartialEq + Clone,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<V> FlexTreeCore<V>
@@ -25,28 +35,60 @@ where
 {
     /// 新しい空の[FlexTreeCore]を作成する
     pub fn new() -> Self {
+        let empty_leaf = Rc::new(Node::Leaf { value: None });
         Self {
-            lower_root: None,
-            upper_root: None,
-            lower_count: 0,
-            upper_count: 0,
+            lower_root: empty_leaf.clone(),
+            upper_root: empty_leaf.clone(),
+            empty_leaf,
+        }
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        Self {
+            lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
+            upper_root: Node::union(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
+            empty_leaf: self.empty_leaf.clone(),
+        }
+    }
+
+    pub fn intersection(&self, other: &Self) -> Self {
+        Self {
+            lower_root: Node::intersection(
+                &self.lower_root,
+                &other.lower_root,
+                0,
+                &self.empty_leaf,
+            ),
+            upper_root: Node::intersection(
+                &self.upper_root,
+                &other.upper_root,
+                0,
+                &self.empty_leaf,
+            ),
+            empty_leaf: self.empty_leaf.clone(),
+        }
+    }
+
+    pub fn difference(&self, other: &Self) -> Self {
+        Self {
+            lower_root: Node::difference(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
+            upper_root: Node::difference(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
+            empty_leaf: self.empty_leaf.clone(),
         }
     }
 
     ///クリアする
     pub fn clear(&mut self) {
-        self.lower_root = None;
-        self.upper_root = None;
-        self.lower_count = 0;
-        self.upper_count = 0;
+        self.lower_root = self.empty_leaf.clone();
+        self.upper_root = self.empty_leaf.clone();
     }
 
     pub fn is_empty(&self) -> bool {
-        self.lower_root.is_none() && self.upper_root.is_none()
+        self.lower_root.leaf_count() == 0 && self.upper_root.leaf_count() == 0
     }
 
     pub fn count(&self) -> usize {
-        self.lower_count + self.upper_count
+        self.lower_root.leaf_count() + self.upper_root.leaf_count()
     }
 
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。
@@ -225,12 +267,12 @@ where
     pub(super) fn root_node_stack(&self) -> Vec<(&Node<V>, FlexId)> {
         let mut stack = Vec::new();
 
-        if let Some(upper) = &self.upper_root {
-            stack.push((upper.as_ref(), FlexId::UPPER_MAX));
+        if !Rc::ptr_eq(&self.upper_root, &self.empty_leaf) {
+            stack.push((self.upper_root.as_ref(), FlexId::UPPER_MAX));
         }
 
-        if let Some(lower) = &self.lower_root {
-            stack.push((lower.as_ref(), FlexId::LOWER_MAX));
+        if !Rc::ptr_eq(&self.lower_root, &self.empty_leaf) {
+            stack.push((self.lower_root.as_ref(), FlexId::LOWER_MAX));
         }
 
         stack
@@ -238,33 +280,13 @@ where
 
     /// 1つの FlexId を対応する上下ルートへ挿入する内部ユーティリティである。
     fn insert_flex_id(&mut self, flex_id: FlexId, value: V) {
-        let (root, count) = if flex_id.f_index().is_negative() {
-            (&mut self.lower_root, &mut self.lower_count)
+        let root = if flex_id.f_index().is_negative() {
+            &mut self.lower_root
         } else {
-            (&mut self.upper_root, &mut self.upper_count)
+            &mut self.upper_root
         };
 
-        if root.is_none() {
-            *root = Some(Box::new(Node::Branch {
-                axis: Dimension::F,
-                lower_child: None,
-                upper_child: None,
-            }));
-        }
-
-        if let Some(kd_node) = root {
-            let delta = kd_node.insert(flex_id, value, (0, 0, 0));
-            Self::apply_delta(count, delta);
-        }
-    }
-
-    /// 葉ノード数差分を count キャッシュへ反映する。
-    fn apply_delta(count: &mut usize, delta: isize) {
-        if delta >= 0 {
-            *count += delta as usize;
-        } else {
-            *count -= (-delta) as usize;
-        }
+        *root = root.insert(&flex_id, &value, 0, &self.empty_leaf);
     }
 }
 
