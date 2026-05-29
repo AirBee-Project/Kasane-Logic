@@ -1,5 +1,5 @@
 #[cfg(any(test, feature = "random"))]
-use rand::Rng;
+use rand::{Rng, RngExt};
 #[cfg(any(test, feature = "random"))]
 use std::ops::RangeInclusive;
 

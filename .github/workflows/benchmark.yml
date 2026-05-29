@@ -75,11 +75,18 @@ jobs:
           chmod +x bench-binaries/${{ matrix.bench_name }}
           bench-binaries/${{ matrix.bench_name }} --bench --output-format bencher | tee ${{ matrix.bench_name }}.txt
 
-      - name: Upload artifact
+      - name: Upload benchmark result txt
         uses: actions/upload-artifact@v4
         with:
           name: bench-result-${{ matrix.bench_name }}
           path: ${{ matrix.bench_name }}.txt
+
+      - name: Upload Criterion HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: criterion-report-${{ matrix.bench_name }}
+          path: target/criterion/report
 
   publish-benchmarks:
     name: Publish Benchmarks
@@ -110,6 +117,32 @@ jobs:
           comment-on-alert: true
           fail-on-alert: false
           gh-pages-branch: "gh-pages"
+
+      - name: Download all Criterion reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: criterion-report-*
+          path: criterion-reports
+
+      - name: Generate Index for Criterion Reports
+        run: |
+          echo "<!DOCTYPE html><html><head><title>Criterion Reports</title><meta charset='utf-8'><style>body{font-family:sans-serif;margin:40px;background:#f9f9f9;}h1{color:#333;}ul{list-style-type:none;padding:0;}li{margin:10px 0;}a{text-decoration:none;color:#0366d6;font-size:18px;}a:hover{text-decoration:underline;}</style></head><body><h1>Criterion HTML Reports</h1><ul>" > criterion-reports/index.html
+          for d in criterion-reports/criterion-report-*/ ; do
+            if [ -d "$d" ]; then
+              folder_name=$(basename "$d")
+              bench_name=${folder_name#criterion-report-}
+              echo "<li><a href=\"$folder_name/index.html\">📊 $bench_name</a></li>" >> criterion-reports/index.html
+            fi
+          done
+          echo "</ul><br><a href=\"../dev/bench/\">⬅️ Back to Historical Dashboard</a></body></html>" >> criterion-reports/index.html
+
+      - name: Deploy Criterion Reports to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./criterion-reports
+          destination_dir: criterion-reports
+          keep_files: true
 
   memory-benchmark:
     name: Memory Benchmark
