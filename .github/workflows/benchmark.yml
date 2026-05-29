@@ -24,20 +24,26 @@ jobs:
           - geometry_cylinder
           - geometry_tube
           - geometry_point_conversion
-          - spatial_id_set_systematic
+          - spatial_id_set_insert
+          - spatial_id_set_get
+          - spatial_id_set_remove
+          - spatial_id_set_union
+          - spatial_id_set_intersection
+          - spatial_id_set_difference
           - spatial_id_set_geometry
+          - spatial_id_set_geometry_cylinder
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
-        
+
       - name: Run benchmark
         run: cargo bench --bench ${{ matrix.bench_name }} -- --output-format bencher | tee ${{ matrix.bench_name }}.txt
-        
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -50,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download all benchmark results
         uses: actions/download-artifact@v4
         with:
@@ -60,16 +66,34 @@ jobs:
 
       - name: Merge benchmark results
         run: cat bench-results/*.txt > all_bench_output.txt
-        
+
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Kasane-Logic Benchmarks
-          tool: 'cargo'
+          tool: "cargo"
           output-file-path: all_bench_output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           fail-on-alert: false
-          gh-pages-branch: 'gh-pages'
+          gh-pages-branch: "gh-pages"
+
+  # ──────────────────────────────────────────────────────────────
+  # メモリ使用量ベンチマーク（Job Summary に Markdown で出力）
+  # ──────────────────────────────────────────────────────────────
+  memory-benchmark:
+    name: Memory Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run memory benchmark
+        run: cargo bench --bench spatial_id_set_memory >> $GITHUB_STEP_SUMMARY
