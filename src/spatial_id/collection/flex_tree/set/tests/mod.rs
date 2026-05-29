@@ -1,5 +1,6 @@
 #![cfg_attr(test, allow(dead_code))]
 
+pub mod corner_cases;
 pub mod count;
 pub mod difference;
 pub mod equal;

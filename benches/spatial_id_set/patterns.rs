@@ -4,7 +4,7 @@
 //! `#[path = "patterns.rs"] mod patterns;` で共有される。
 
 use kasane_logic::{SingleId, SpatialIdSet};
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 pub const Z: u8 = 20;

@@ -6,19 +6,9 @@ impl BitOr<&SpatialIdSet> for &SpatialIdSet {
     type Output = SpatialIdSet;
 
     fn bitor(self, rhs: &SpatialIdSet) -> Self::Output {
-        let (first, second) = if self.count() >= rhs.count() {
-            (self, rhs)
-        } else {
-            (rhs, self)
-        };
-
-        let mut output = first.clone();
-
-        for flex_id in second.iter() {
-            output.insert(flex_id);
+        SpatialIdSet {
+            inner: self.inner.union(&rhs.inner),
         }
-
-        output
     }
 }
 
@@ -26,21 +16,9 @@ impl BitAnd<&SpatialIdSet> for &SpatialIdSet {
     type Output = SpatialIdSet;
 
     fn bitand(self, rhs: &SpatialIdSet) -> Self::Output {
-        let (smaller, larger) = if self.count() <= rhs.count() {
-            (self, rhs)
-        } else {
-            (rhs, self)
-        };
-
-        let mut output = SpatialIdSet::new();
-
-        for flex_id in smaller.iter() {
-            for intersect_id in larger.get(&flex_id) {
-                output.insert(intersect_id);
-            }
+        SpatialIdSet {
+            inner: self.inner.intersection(&rhs.inner),
         }
-
-        output
     }
 }
 
@@ -48,39 +26,17 @@ impl Sub<&SpatialIdSet> for &SpatialIdSet {
     type Output = SpatialIdSet;
 
     fn sub(self, rhs: &SpatialIdSet) -> Self::Output {
-        if self.is_empty() {
-            return SpatialIdSet::new();
+        SpatialIdSet {
+            inner: self.inner.difference(&rhs.inner),
         }
-
-        if rhs.is_empty() {
-            return self.clone();
-        }
-
-        let mut output = self.clone();
-
-        if rhs.count() <= self.count() {
-            for rhs_id in rhs.iter() {
-                let _ = output.remove(&rhs_id);
-            }
-        } else {
-            let intersection = self & rhs;
-            for inter_id in intersection.iter() {
-                let _ = output.remove(&inter_id);
-            }
-        }
-
-        output
     }
 }
 
 impl BitOr for SpatialIdSet {
     type Output = SpatialIdSet;
 
-    fn bitor(mut self, rhs: Self) -> Self::Output {
-        for flex_id in rhs.iter() {
-            self.insert(flex_id.clone());
-        }
-        self
+    fn bitor(self, rhs: Self) -> Self::Output {
+        &self | &rhs
     }
 }
 
@@ -95,17 +51,7 @@ impl BitAnd for SpatialIdSet {
 impl Sub for SpatialIdSet {
     type Output = SpatialIdSet;
 
-    fn sub(mut self, rhs: Self) -> Self::Output {
-        if rhs.count() <= self.count() {
-            for rhs_id in rhs.iter() {
-                let _ = self.remove(&rhs_id);
-            }
-        } else {
-            let intersection = &self & &rhs;
-            for inter_id in intersection.iter() {
-                let _ = self.remove(&inter_id);
-            }
-        }
-        self
+    fn sub(self, rhs: Self) -> Self::Output {
+        &self - &rhs
     }
 }
