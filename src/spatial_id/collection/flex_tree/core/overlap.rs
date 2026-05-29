@@ -139,15 +139,15 @@ where
 
     pub fn overlap_remove(&mut self, target: &FlexId) -> impl Iterator<Item = (FlexId, V)> {
         let mut removed_items = Vec::new();
-        self.lower_root = Self::prune_node(
-            &self.lower_root,
+        Self::prune_node_mut(
+            &mut self.lower_root,
             target,
             FlexId::LOWER_MAX,
             &mut removed_items,
             &self.empty_leaf,
         );
-        self.upper_root = Self::prune_node(
-            &self.upper_root,
+        Self::prune_node_mut(
+            &mut self.upper_root,
             target,
             FlexId::UPPER_MAX,
             &mut removed_items,
@@ -156,53 +156,52 @@ where
         removed_items.into_iter()
     }
 
-    fn prune_node(
-        node: &Rc<Node<V>>,
+    fn prune_node_mut(
+        node: &mut Rc<Node<V>>,
         target: &FlexId,
         current_id: FlexId,
         removed: &mut Vec<(FlexId, V)>,
         empty_leaf: &Rc<Node<V>>,
-    ) -> Rc<Node<V>> {
+    ) {
         if current_id.intersection(target).is_none() {
-            return node.clone();
+            return;
         }
 
-        match &**node {
-            Node::Branch {
+        if let Node::Leaf { value: None } = **node {
+            return;
+        }
+
+        if let Node::Leaf { value: Some(ref v) } = **node {
+            removed.push((current_id, v.clone()));
+            *node = empty_leaf.clone();
+            return;
+        }
+
+        {
+            let mut_node = Rc::make_mut(node);
+            if let Node::Branch {
                 level,
                 lower_child,
                 upper_child,
-                ..
-            } => {
+                leaf_count,
+            } = mut_node
+            {
                 let axis = Node::<V>::axis(*level);
+
                 let upper_id = split_child_id(&current_id, axis, Side::Upper);
-                let new_upper =
-                    Self::prune_node(upper_child, target, upper_id, removed, empty_leaf);
+                Self::prune_node_mut(upper_child, target, upper_id, removed, empty_leaf);
 
                 let lower_id = split_child_id(&current_id, axis, Side::Lower);
-                let new_lower =
-                    Self::prune_node(lower_child, target, lower_id, removed, empty_leaf);
+                Self::prune_node_mut(lower_child, target, lower_id, removed, empty_leaf);
 
-                if Rc::ptr_eq(&new_lower, lower_child) && Rc::ptr_eq(&new_upper, upper_child) {
-                    return node.clone();
-                }
-
-                if new_lower.leaf_count() == 0 && new_upper.leaf_count() == 0 {
-                    return empty_leaf.clone();
-                }
-
-                Rc::new(Node::Branch {
-                    level: *level,
-                    leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
-                    lower_child: new_lower,
-                    upper_child: new_upper,
-                })
+                *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+            } else {
+                unreachable!()
             }
-            Node::Leaf { value: Some(v) } => {
-                removed.push((current_id, v.clone()));
-                empty_leaf.clone()
-            }
-            Node::Leaf { value: None } => node.clone(),
+        }
+
+        if node.leaf_count() == 0 {
+            *node = empty_leaf.clone();
         }
     }
 }

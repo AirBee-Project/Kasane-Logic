@@ -72,31 +72,33 @@ where
             && target.y_zoomlevel() <= passed_y
     }
 
-    /// 持続的データ構造(Rc)に挿入し、必要に応じて新しいノードを生成して返す。
-    pub fn insert(
-        self: &Rc<Self>,
+    /// 持続的データ構造(Rc)に挿入します。
+    /// 参照カウントが1の場合は `Rc::make_mut` を使用してインプレースで更新します (Copy-on-Write最適化)。
+    pub fn insert_mut(
+        node: &mut Rc<Self>,
         target: &FlexId,
         value: &V,
         level: u8,
         empty_leaf: &Rc<Node<V>>,
-    ) -> Rc<Self> {
-        // 現在のノードがすでに Leaf であり、値が同一ならそのまま再利用(Result Reuse)
+    ) {
+        // 現在のノードがすでに Leaf であり、値が同一ならそのまま終了(Result Reuse)
         if let Node::Leaf {
             value: Some(ref existing),
-        } = **self
+        } = **node
             && existing == value
         {
-            return self.clone();
+            return;
         }
 
         // 完全にターゲットが現在の空間全体を覆う場合、O(1)でLeafに置換する
         if Self::completely_covers(target, level) {
-            return Rc::new(Node::Leaf {
+            *node = Rc::new(Node::Leaf {
                 value: Some(value.clone()),
             });
+            return;
         }
 
-        let node_level = match **self {
+        let node_level = match **node {
             Node::Branch { level: l, .. } => l,
             Node::Leaf { .. } => 93, // 葉ノードの場合は仮想的に最大レベル (zoom 30)
         };
@@ -110,22 +112,26 @@ where
 
         // 完全に target に覆い尽くされた場合、全体を塗りつぶす
         if current_level >= 93 {
-            return Rc::new(Node::Leaf {
+            *node = Rc::new(Node::Leaf {
                 value: Some(value.clone()),
             });
+            return;
         }
 
         // 既存のツリーに欠けている階層 (Prepend missing level) を補うために Branch を作成する
         if current_level < node_level {
             let side = Self::forking(target, current_level);
+
             let (new_lower, new_upper) = match side {
                 Side::Lower => {
-                    let lo = self.insert(target, value, current_level + 1, empty_leaf);
-                    (lo, self.clone())
+                    let mut lo = node.clone();
+                    Self::insert_mut(&mut lo, target, value, current_level + 1, empty_leaf);
+                    (lo, node.clone())
                 }
                 Side::Upper => {
-                    let hi = self.insert(target, value, current_level + 1, empty_leaf);
-                    (self.clone(), hi)
+                    let mut hi = node.clone();
+                    Self::insert_mut(&mut hi, target, value, current_level + 1, empty_leaf);
+                    (node.clone(), hi)
                 }
             };
 
@@ -133,71 +139,72 @@ where
                 && v1 == v2
             {
                 if v1.is_none() {
-                    return empty_leaf.clone();
+                    *node = empty_leaf.clone();
                 } else {
-                    return Rc::new(Node::Leaf { value: v1.clone() });
+                    *node = Rc::new(Node::Leaf { value: v1.clone() });
                 }
+                return;
             }
 
-            return Rc::new(Node::Branch {
+            *node = Rc::new(Node::Branch {
                 level: current_level,
                 leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
                 lower_child: new_lower,
                 upper_child: new_upper,
             });
+            return;
         }
 
         // current_level == node_level の場合
-        match **self {
-            Node::Branch {
+        // ここが Copy-on-Write のコア。可能なら node の中身を mutable に取得する。
+        let (should_merge, merged_val) = {
+            let mut_node = Rc::make_mut(node);
+
+            if let Node::Branch {
                 level: l,
-                ref lower_child,
-                ref upper_child,
-                ..
-            } => {
-                let (new_lower, new_upper) = if Self::covers(target, l) {
-                    // Target が現在の軸を完全に覆っている場合、両側の子へ挿入する
-                    let lo = lower_child.insert(target, value, l + 1, empty_leaf);
-                    let hi = upper_child.insert(target, value, l + 1, empty_leaf);
-                    (lo, hi)
+                lower_child,
+                upper_child,
+                leaf_count,
+            } = mut_node
+            {
+                if Self::covers(target, *l) {
+                    Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf);
+                    Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf);
                 } else {
-                    let side = Self::forking(target, l);
-                    match side {
+                    match Self::forking(target, *l) {
                         Side::Lower => {
-                            let lo = lower_child.insert(target, value, l + 1, empty_leaf);
-                            (lo, upper_child.clone())
+                            Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf)
                         }
                         Side::Upper => {
-                            let hi = upper_child.insert(target, value, l + 1, empty_leaf);
-                            (lower_child.clone(), hi)
+                            Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf)
                         }
                     }
-                };
+                }
+
+                *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
 
                 if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) =
-                    (&*new_lower, &*new_upper)
-                    && v1 == v2
+                    (&**lower_child, &**upper_child)
                 {
-                    if v1.is_none() {
-                        return empty_leaf.clone();
+                    if v1 == v2 {
+                        (true, v1.clone())
                     } else {
-                        return Rc::new(Node::Leaf { value: v1.clone() });
+                        (false, None)
                     }
+                } else {
+                    (false, None)
                 }
-
-                // 子ポインタが変更されなかった場合、元の self を再利用(Result Reuse)
-                if Rc::ptr_eq(&new_lower, lower_child) && Rc::ptr_eq(&new_upper, upper_child) {
-                    return self.clone();
-                }
-
-                Rc::new(Node::Branch {
-                    level: l,
-                    leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
-                    lower_child: new_lower,
-                    upper_child: new_upper,
-                })
+            } else {
+                unreachable!()
             }
-            Node::Leaf { .. } => unreachable!(),
+        };
+
+        if should_merge {
+            if merged_val.is_none() {
+                *node = empty_leaf.clone();
+            } else {
+                *node = Rc::new(Node::Leaf { value: merged_val });
+            }
         }
     }
 

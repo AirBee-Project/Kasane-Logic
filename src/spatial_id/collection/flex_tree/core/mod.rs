@@ -293,7 +293,7 @@ where
             &mut self.upper_root
         };
 
-        *root = root.insert(&flex_id, &value, 0, &self.empty_leaf);
+        Node::insert_mut(root, &flex_id, &value, 0, &self.empty_leaf);
     }
 }
 
