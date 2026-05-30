@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{Coordinate, Ecef, Error, SingleId, Vec3};
+use crate::{Coordinate, Ecef, Error, SingleId, Vec3, Vec3Ecef, Vec3FractionalId};
 pub mod geometry_relation;
 pub mod impls;
 #[cfg(test)]
@@ -22,9 +22,9 @@ impl Triangle {
 
     ///三角形の面積を返す
     pub fn area(&self) -> f64 {
-        let p0: Vec3 = self.points[0].into();
-        let p1: Vec3 = self.points[1].into();
-        let p2: Vec3 = self.points[2].into();
+        let p0: Vec3Ecef = self.points[0].into();
+        let p1: Vec3Ecef = self.points[1].into();
+        let p2: Vec3Ecef = self.points[2].into();
         let a = p1 - p0;
         let b = p2 - p0;
         let dot = a.dot(&b);
@@ -117,10 +117,10 @@ impl Triangle {
 
     ///[SingleId]の集合へ変換を行います。
     pub fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let points: [Vec3; 3] = [
-            Vec3::from(coordinate_to_matrix(self.points[0], z)),
-            Vec3::from(coordinate_to_matrix(self.points[1], z)),
-            Vec3::from(coordinate_to_matrix(self.points[2], z)),
+        let points: [Vec3FractionalId; 3] = [
+            Vec3FractionalId::from(self.points[0].fractional_id(z)?),
+            Vec3FractionalId::from(self.points[1].fractional_id(z)?),
+            Vec3FractionalId::from(self.points[2].fractional_id(z)?),
         ];
         let mut voxels: HashSet<SingleId> = HashSet::new();
         let vec_a = points[1] - points[0]; // 1-0
@@ -130,41 +130,41 @@ impl Triangle {
         let ma = n.cross(&vec_a);
         let mb = n.cross(&vec_b);
         let mc = n.cross(&vec_c);
-        let min_f = libm::floor(points[0].x.min(points[1].x).min(points[2].x)) as i32;
-        let max_f = libm::floor(points[0].x.max(points[1].x).max(points[2].x)) as i32;
-        let min_x = libm::floor(points[0].y.min(points[1].y).min(points[2].y)) as u32;
-        let max_x = libm::floor(points[0].y.max(points[1].y).max(points[2].y)) as u32;
-        let min_y = libm::floor(points[0].z.min(points[1].z).min(points[2].z)) as u32;
-        let max_y = libm::floor(points[0].z.max(points[1].z).max(points[2].z)) as u32;
+        let min_f = libm::floor(points[0].a().min(points[1].a()).min(points[2].a())) as i32;
+        let max_f = libm::floor(points[0].a().max(points[1].a()).max(points[2].a())) as i32;
+        let min_x = libm::floor(points[0].b().min(points[1].b()).min(points[2].b())) as u32;
+        let max_x = libm::floor(points[0].b().max(points[1].b()).max(points[2].b())) as u32;
+        let min_y = libm::floor(points[0].c().min(points[1].c()).min(points[2].c())) as u32;
+        let max_y = libm::floor(points[0].c().max(points[1].c()).max(points[2].c())) as u32;
         let eight_patterns = [
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(0.0, 0.0, 1.0),
-            Vec3::new(0.0, 1.0, 0.0),
-            Vec3::new(0.0, 1.0, 1.0),
-            Vec3::new(1.0, 0.0, 0.0),
-            Vec3::new(1.0, 0.0, 1.0),
-            Vec3::new(1.0, 1.0, 0.0),
-            Vec3::new(1.0, 1.0, 1.0),
+            Vec3FractionalId::new(0.0, 0.0, 0.0),
+            Vec3FractionalId::new(0.0, 0.0, 1.0),
+            Vec3FractionalId::new(0.0, 1.0, 0.0),
+            Vec3FractionalId::new(0.0, 1.0, 1.0),
+            Vec3FractionalId::new(1.0, 0.0, 0.0),
+            Vec3FractionalId::new(1.0, 0.0, 1.0),
+            Vec3FractionalId::new(1.0, 1.0, 0.0),
+            Vec3FractionalId::new(1.0, 1.0, 1.0),
         ];
         for f in min_f..=max_f {
             for x in min_x..=max_x {
                 for y in min_y..=max_y {
                     let mut sign_before = true;
                     for (i, pattern) in eight_patterns.iter().enumerate() {
-                        let vec_p = Vec3::new(
-                            f as f64 + pattern.x - points[0].x,
-                            x as f64 + pattern.y - points[0].y,
-                            y as f64 + pattern.z - points[0].z,
+                        let vec_p = Vec3FractionalId::new(
+                            f as f64 + pattern.a() - points[0].a(),
+                            x as f64 + pattern.b() - points[0].b(),
+                            y as f64 + pattern.c() - points[0].c(),
                         );
                         let sign = n.dot(&vec_p).is_sign_positive();
                         if i == 0 || sign_before == sign {
                             sign_before = sign;
                         } else {
                             for pattern in eight_patterns {
-                                let cp = Vec3::new(
-                                    f as f64 + pattern.x,
-                                    x as f64 + pattern.y,
-                                    y as f64 + pattern.z,
+                                let cp = Vec3FractionalId::new(
+                                    f as f64 + pattern.a(),
+                                    x as f64 + pattern.b(),
+                                    y as f64 + pattern.c(),
                                 );
                                 let rel_p0 = cp - points[0];
                                 let rel_p1 = cp - points[1];
@@ -186,23 +186,4 @@ impl Triangle {
         }
         Ok(voxels.into_iter())
     }
-}
-
-fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
-    let lat = p.latitude();
-    let lon = p.longitude();
-    let alt = p.altitude();
-
-    // 空間idの高さはz=25でちょうど1mになるように定義されている
-    let factor = 2_f64.powi(z as i32 - 25);
-    let f = factor * alt;
-
-    let n = 2u64.pow(z as u32) as f64;
-    let x = (lon + 180.0) / 360.0 * n;
-
-    let lat_rad = lat.to_radians();
-    let y = (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
-        / 2.0
-        * n;
-    [f, x, y]
 }
