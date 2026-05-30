@@ -37,7 +37,7 @@ impl CoverSingleIds for Line {
             let coo: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
             coordinates.push(coo);
         }
-        let estimated_capacity = (diff as usize) + (devide_num as usize) * 2 + 10;
+        let estimated_capacity = (diff as usize) + 10;
         let mut voxels: Vec<SingleId> = Vec::with_capacity(estimated_capacity);
         for pair in coordinates.windows(2) {
             let start = pair[0];
