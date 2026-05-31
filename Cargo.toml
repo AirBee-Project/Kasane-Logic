@@ -61,6 +61,16 @@ path = "benches/geometry/shape/tube.rs"
 harness = false
 
 [[bench]]
+name = "geometry_solid"
+path = "benches/geometry/shape/solid.rs"
+harness = false
+
+[[bench]]
+name = "geometry_polygon"
+path = "benches/geometry/shape/polygon.rs"
+harness = false
+
+[[bench]]
 name = "geometry_point_conversion"
 path = "benches/geometry/point/conversion.rs"
 harness = false
