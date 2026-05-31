@@ -9,28 +9,33 @@ fn bench_solid(c: &mut Criterion) {
     let top_alt = 50.0;
 
     let mut zoom_group = c.benchmark_group("Solid_ZoomLevel_Scaling");
-    for z in 15..=20 { // ズームレベル20以上は重いので20まで
+    for z in 15..=20 {
+        // ズームレベル20以上は重いので20まで
         zoom_group.bench_with_input(BenchmarkId::from_parameter(z), &z, |b, &z| {
             b.iter(|| {
                 let p1_b = Coordinate::new(base_lat, base_lon, base_alt).unwrap();
                 let p2_b = Coordinate::new(base_lat + 0.001, base_lon, base_alt).unwrap();
                 let p3_b = Coordinate::new(base_lat + 0.001, base_lon + 0.001, base_alt).unwrap();
                 let p4_b = Coordinate::new(base_lat, base_lon + 0.001, base_alt).unwrap();
-                
+
                 let p1_t = Coordinate::new(base_lat, base_lon, top_alt).unwrap();
                 let p2_t = Coordinate::new(base_lat + 0.001, base_lon, top_alt).unwrap();
                 let p3_t = Coordinate::new(base_lat + 0.001, base_lon + 0.001, top_alt).unwrap();
                 let p4_t = Coordinate::new(base_lat, base_lon + 0.001, top_alt).unwrap();
-                
-                let solid = Solid::new(vec![
-                    Polygon::new(vec![p1_b, p4_b, p3_b, p2_b], 1e-6), // Bottom
-                    Polygon::new(vec![p1_t, p2_t, p3_t, p4_t], 1e-6), // Top
-                    Polygon::new(vec![p1_b, p2_b, p2_t, p1_t], 1e-6), // Side
-                    Polygon::new(vec![p2_b, p3_b, p3_t, p2_t], 1e-6), // Side
-                    Polygon::new(vec![p3_b, p4_b, p4_t, p3_t], 1e-6), // Side
-                    Polygon::new(vec![p4_b, p1_b, p1_t, p4_t], 1e-6), // Side
-                ], 1e-6).unwrap();
-                
+
+                let solid = Solid::new(
+                    vec![
+                        Polygon::new(vec![p1_b, p4_b, p3_b, p2_b], 1e-6), // Bottom
+                        Polygon::new(vec![p1_t, p2_t, p3_t, p4_t], 1e-6), // Top
+                        Polygon::new(vec![p1_b, p2_b, p2_t, p1_t], 1e-6), // Side
+                        Polygon::new(vec![p2_b, p3_b, p3_t, p2_t], 1e-6), // Side
+                        Polygon::new(vec![p3_b, p4_b, p4_t, p3_t], 1e-6), // Side
+                        Polygon::new(vec![p4_b, p1_b, p1_t, p4_t], 1e-6), // Side
+                    ],
+                    1e-6,
+                )
+                .unwrap();
+
                 let iter = solid
                     .cover_single_ids(z as u8)
                     .expect("Failed to get iterator");
@@ -50,21 +55,25 @@ fn bench_solid(c: &mut Criterion) {
                 let p2_b = Coordinate::new(base_lat + scale, base_lon, base_alt).unwrap();
                 let p3_b = Coordinate::new(base_lat + scale, base_lon + scale, base_alt).unwrap();
                 let p4_b = Coordinate::new(base_lat, base_lon + scale, base_alt).unwrap();
-                
+
                 let p1_t = Coordinate::new(base_lat, base_lon, top_alt).unwrap();
                 let p2_t = Coordinate::new(base_lat + scale, base_lon, top_alt).unwrap();
                 let p3_t = Coordinate::new(base_lat + scale, base_lon + scale, top_alt).unwrap();
                 let p4_t = Coordinate::new(base_lat, base_lon + scale, top_alt).unwrap();
-                
-                let solid = Solid::new(vec![
-                    Polygon::new(vec![p1_b, p4_b, p3_b, p2_b], 1e-6),
-                    Polygon::new(vec![p1_t, p2_t, p3_t, p4_t], 1e-6),
-                    Polygon::new(vec![p1_b, p2_b, p2_t, p1_t], 1e-6),
-                    Polygon::new(vec![p2_b, p3_b, p3_t, p2_t], 1e-6),
-                    Polygon::new(vec![p3_b, p4_b, p4_t, p3_t], 1e-6),
-                    Polygon::new(vec![p4_b, p1_b, p1_t, p4_t], 1e-6),
-                ], 1e-6).unwrap();
-                
+
+                let solid = Solid::new(
+                    vec![
+                        Polygon::new(vec![p1_b, p4_b, p3_b, p2_b], 1e-6),
+                        Polygon::new(vec![p1_t, p2_t, p3_t, p4_t], 1e-6),
+                        Polygon::new(vec![p1_b, p2_b, p2_t, p1_t], 1e-6),
+                        Polygon::new(vec![p2_b, p3_b, p3_t, p2_t], 1e-6),
+                        Polygon::new(vec![p3_b, p4_b, p4_t, p3_t], 1e-6),
+                        Polygon::new(vec![p4_b, p1_b, p1_t, p4_t], 1e-6),
+                    ],
+                    1e-6,
+                )
+                .unwrap();
+
                 let iter = solid
                     .cover_single_ids(18) // 18 is manageable even at 0.01 degree scale
                     .expect("Failed to get iterator");
