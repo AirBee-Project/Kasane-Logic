@@ -29,7 +29,7 @@ jobs:
       - name: Build benchmarks
         run: |
           mkdir -p bench-binaries
-          BENCHES=("geometry_line" "geometry_triangle" "geometry_sphere" "geometry_cylinder" "geometry_tube" "geometry_point_conversion" "spatial_id_set_insert" "spatial_id_set_get" "spatial_id_set_remove" "spatial_id_set_union" "spatial_id_set_intersection" "spatial_id_set_difference" "spatial_id_set_geometry" "spatial_id_set_geometry_cylinder")
+          BENCHES=("geometry_line" "geometry_triangle" "geometry_sphere" "geometry_cylinder" "geometry_tube" "geometry_solid" "geometry_polygon" "geometry_point_conversion" "spatial_id_set_insert" "spatial_id_set_get" "spatial_id_set_remove" "spatial_id_set_union" "spatial_id_set_intersection" "spatial_id_set_difference" "spatial_id_set_geometry" "spatial_id_set_geometry_cylinder")
           for bench in "${BENCHES[@]}"; do
             EXEC=$(cargo bench --bench $bench --no-run --message-format=json | jq -r 'select(.profile.test == true and .executable != null) | .executable')
             cp "$EXEC" "bench-binaries/$bench"
@@ -54,6 +54,8 @@ jobs:
           - geometry_sphere
           - geometry_cylinder
           - geometry_tube
+          - geometry_solid
+          - geometry_polygon
           - geometry_point_conversion
           - spatial_id_set_insert
           - spatial_id_set_get
