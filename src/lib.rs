@@ -74,6 +74,8 @@ pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
 pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::traits::SpatialIdCollection;
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
