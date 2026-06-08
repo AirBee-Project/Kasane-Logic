@@ -72,7 +72,7 @@ impl FlexId {
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(f_zoomlevel, z)` のF範囲を超える場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
-    pub fn f_shift(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
+    pub fn shift_f(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         // ズームレベルのチェック
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z }));
@@ -151,7 +151,7 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    pub fn x_shift(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
+    pub fn shift_x(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
@@ -230,7 +230,7 @@ impl FlexId {
     /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(y_zoomlevel, z)` のY範囲を超える場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
-    pub fn y_shift(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
+    pub fn shift_y(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
@@ -298,7 +298,7 @@ impl FlexId {
     }
 
     ///F方向で二つに切り分ける
-    pub fn f_split(&self, side: Side) -> Option<FlexId> {
+    pub fn split_f(&self, side: Side) -> Option<FlexId> {
         if self.f_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
             None
         } else {
@@ -334,7 +334,7 @@ impl FlexId {
     }
 
     ///X方向で二つに切り分ける
-    pub fn x_split(&self, side: Side) -> Option<FlexId> {
+    pub fn split_x(&self, side: Side) -> Option<FlexId> {
         if self.x_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
             None
         } else {
@@ -370,7 +370,7 @@ impl FlexId {
     }
 
     ///Y方向で二つに切り分ける
-    pub fn y_split(&self, side: Side) -> Option<FlexId> {
+    pub fn split_y(&self, side: Side) -> Option<FlexId> {
         if self.y_zoomlevel() == MAX_ZOOM_LEVEL as u8 {
             None
         } else {

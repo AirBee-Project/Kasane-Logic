@@ -1,8 +1,10 @@
-use crate::{Error, SpatialIdTable};
+use crate::{Error, FlexId, SpatialIdCollection};
 
-/// 空間IDのTable同士から2項演算を行うTrait。
+/// 空間IDコレクション同士から2項演算を行うTrait。
 ///
-/// 2つのTableはいずれも「空間ID → 値」の部分関数であり、ある空間IDにおいて各Tableは値を持つ（`Some`）か持たない（`None`）。したがって同じ位置にある2つの空間IDの状態は次の4つに分かれる。
+/// 2つのコレクションはいずれも「空間ID → 値」の部分関数であり、ある空間IDにおいて各々は
+/// 値を持つ（`Some`）か持たない（`None`）。したがって同じ位置にある2つの空間IDの状態は
+/// 次の4つに分かれる。
 ///
 /// | `a` | `b` | 関数 |
 /// |-----|-----|------|
@@ -12,6 +14,9 @@ use crate::{Error, SpatialIdTable};
 /// | `None` | `None` | そもそも演算を行わない |
 ///
 /// memo:仮に`both_none`関数を作成してしまうと、計算量が膨大になってしまう。
+///
+/// 入力・出力は [`SpatialIdCollection`] / [`SpatialIdCollectionMut`] で抽象化されており、
+/// `Table` / `Map` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait BinaryOperator<A, B>
 where
     A: Ord + PartialEq + Clone,
@@ -45,13 +50,53 @@ where
     /// 可換な演算か。
     fn is_commutative(_custom_parameter: &Self::CustomParameter) -> bool;
 
-    /// Table全体の演算。
-    fn execution(
-        _a: &SpatialIdTable<A>,
-        _b: &SpatialIdTable<B>,
-        _custom_parameter: Self::CustomParameter,
-    ) -> Result<SpatialIdTable<Self::ResultValue>, Error> {
-        todo!()
+    /// コレクション全体の演算。
+    ///
+    /// 既定実装は2つのコレクションを走査・重なり問い合わせで突き合わせ、各セルを
+    /// [`both_some`](Self::both_some) / [`a_only`](Self::a_only) / [`b_only`](Self::b_only)
+    /// へ委譲する汎用ドライバである。入出力のストア種別に依存しない。
+    fn execution<SA, SB, O>(
+        a: &SA,
+        b: &SB,
+        custom_parameter: Self::CustomParameter,
+    ) -> Result<O, Error>
+    where
+        SA: SpatialIdCollection<Value = A>,
+        SB: SpatialIdCollection<Value = B>,
+        O: SpatialIdCollection<Value = Self::ResultValue>,
+    {
+        let mut result = O::empty();
+
+        // `a` 主導: 各 `a` セルを `b` との重なりで分割し、both_some と a_only を割り当てる。
+        for (a_id, a_value) in a.scan() {
+            let mut covered: Vec<FlexId> = Vec::new();
+
+            for (overlap, b_value) in b.query(&a_id) {
+                if let Some(value) = Self::both_some(&a_value, &b_value, &custom_parameter)? {
+                    result.insert(overlap.clone(), value);
+                }
+                covered.push(overlap);
+            }
+
+            for region in subtract_regions(a_id, &covered) {
+                if let Some(value) = Self::a_only(&a_value, &custom_parameter)? {
+                    result.insert(region, value);
+                }
+            }
+        }
+
+        // `b` 主導: both は処理済みなので、`a` に覆われていない領域へ b_only を割り当てる。
+        for (b_id, b_value) in b.scan() {
+            let covered: Vec<FlexId> = a.query(&b_id).map(|(id, _)| id).collect();
+
+            for region in subtract_regions(b_id, &covered) {
+                if let Some(value) = Self::b_only(&b_value, &custom_parameter)? {
+                    result.insert(region, value);
+                }
+            }
+        }
+
+        Ok(result)
     }
 }
 
@@ -69,8 +114,11 @@ pub enum ConflictPolicy<V> {
     Fold(fn(&V, &V) -> V),
 }
 
-/// 空間IDのTableに対して単項演算を行うTrait。
-/// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む
+/// 空間IDコレクションに対して単項演算を行うTrait。
+/// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
+///
+/// 入力・出力は [`SpatialIdCollection`] / [`SpatialIdCollectionMut`] で抽象化されており、
+/// `Table` / `Map` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// 演算ごとのカスタム設定
     type CustomParameter;
@@ -78,9 +126,24 @@ pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// 結果として帰ってくる値の型
     type ResultValue: Ord + PartialEq + Clone;
 
-    /// Tableに対する単項演算の定義
-    fn execution(
-        a: &SpatialIdTable<A>,
-        custom_parameter: Self::CustomParameter,
-    ) -> Result<SpatialIdTable<Self::ResultValue>, Error>;
+    /// コレクションに対する単項演算の定義
+    fn execution<S, O>(a: &S, custom_parameter: Self::CustomParameter) -> Result<O, Error>
+    where
+        S: SpatialIdCollection<Value = A>,
+        O: SpatialIdCollection<Value = Self::ResultValue>;
+}
+
+/// `base` から `holes` の各領域を順に差し引いた、残りの領域の集合を返す。
+fn subtract_regions(base: FlexId, holes: &[FlexId]) -> Vec<FlexId> {
+    let mut regions = vec![base];
+
+    for hole in holes {
+        let mut next = Vec::new();
+        for region in regions {
+            next.extend(region.difference(hole));
+        }
+        regions = next;
+    }
+
+    regions
 }

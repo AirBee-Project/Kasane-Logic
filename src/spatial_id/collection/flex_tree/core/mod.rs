@@ -308,9 +308,9 @@ where
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
 pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
     match axis {
-        Dimension::F => current_id.f_split(side).unwrap(),
-        Dimension::X => current_id.x_split(side).unwrap(),
-        Dimension::Y => current_id.y_split(side).unwrap(),
+        Dimension::F => current_id.split_f(side).unwrap(),
+        Dimension::X => current_id.split_x(side).unwrap(),
+        Dimension::Y => current_id.split_y(side).unwrap(),
     }
 }
 

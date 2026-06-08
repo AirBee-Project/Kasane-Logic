@@ -1,4 +1,4 @@
-use crate::{Error, SpatialIdTable, UnaryOperator};
+use crate::{Error, SpatialIdCollection, UnaryOperator};
 
 /// 高さ方向の変形を行う
 pub struct FExtent;
@@ -13,10 +13,11 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for FExtent {
     type CustomParameter = FExtentCustomParameter;
     type ResultValue = A;
 
-    fn execution(
-        a: &SpatialIdTable<A>,
-        custom_parameter: Self::CustomParameter,
-    ) -> Result<SpatialIdTable<Self::ResultValue>, Error> {
+    fn execution<S, O>(_a: &S, _custom_parameter: Self::CustomParameter) -> Result<O, Error>
+    where
+        S: SpatialIdCollection<Value = A>,
+        O: SpatialIdCollection<Value = A>,
+    {
         todo!()
     }
 }

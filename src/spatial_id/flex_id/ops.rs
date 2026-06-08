@@ -21,8 +21,8 @@ impl FlexId {
         let mut current = self.clone();
 
         while current.f_zoomlevel < intersect.f_zoomlevel {
-            let lower = current.f_split(Side::Lower).unwrap();
-            let upper = current.f_split(Side::Upper).unwrap();
+            let lower = current.split_f(Side::Lower).unwrap();
+            let upper = current.split_f(Side::Upper).unwrap();
             if lower.intersection(&intersect).is_some() {
                 results.push(upper);
                 current = lower;
@@ -34,8 +34,8 @@ impl FlexId {
 
         // X軸の分割
         while current.x_zoomlevel < intersect.x_zoomlevel {
-            let lower = current.x_split(Side::Lower).unwrap();
-            let upper = current.x_split(Side::Upper).unwrap();
+            let lower = current.split_x(Side::Lower).unwrap();
+            let upper = current.split_x(Side::Upper).unwrap();
 
             if lower.intersection(&intersect).is_some() {
                 results.push(upper);
@@ -48,8 +48,8 @@ impl FlexId {
 
         // Y軸の分割
         while current.y_zoomlevel < intersect.y_zoomlevel {
-            let lower = current.y_split(Side::Lower).unwrap();
-            let upper = current.y_split(Side::Upper).unwrap();
+            let lower = current.split_y(Side::Lower).unwrap();
+            let upper = current.split_y(Side::Upper).unwrap();
 
             if lower.intersection(&intersect).is_some() {
                 results.push(upper);
