@@ -43,6 +43,9 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] の和集合（Union）を計算します。
+    ///
+    /// 両方の木で値が設定されている（重なり合う）領域については、**呼び出し元（`self`）の値が優先して保持**されます。
     pub fn union(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
@@ -51,6 +54,11 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] の積集合（Intersection）を計算します。
+    ///
+    /// 両方の木で値が設定されている（重なり合う）領域については、以下のように値が保持されます。
+    /// - `self` と `other` で階層（細かさ）が異なる場合、**より細かい領域（より深い階層）で定義されている側の値**が優先して保持されます。
+    /// - 両者が同じ広さ（階層）で完全に一致する場合、**引数（`other`）の値**が優先して保持されます。
     pub fn intersection(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::intersection(
