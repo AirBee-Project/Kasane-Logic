@@ -1,4 +1,4 @@
-use crate::SpatialIdTable;
+use crate::{Error, SpatialIdTable};
 
 /// 空間IDのTable同士から2項演算を行うTrait。
 ///
@@ -28,13 +28,19 @@ where
         a: &A,
         b: &B,
         custom_parameter: &Self::CustomParameter,
-    ) -> Option<Self::ResultValue>;
+    ) -> Result<Option<Self::ResultValue>, Error>;
 
     /// `a` の空間IDのみが値を持つ場合
-    fn a_only(a: &A, custom_parameter: &Self::CustomParameter) -> Option<Self::ResultValue>;
+    fn a_only(
+        a: &A,
+        custom_parameter: &Self::CustomParameter,
+    ) -> Result<Option<Self::ResultValue>, Error>;
 
     /// `b` の空間IDのみが値を持つ場合
-    fn b_only(b: &B, custom_parameter: &Self::CustomParameter) -> Option<Self::ResultValue>;
+    fn b_only(
+        b: &B,
+        custom_parameter: &Self::CustomParameter,
+    ) -> Result<Option<Self::ResultValue>, Error>;
 
     /// 可換な演算か。
     fn is_commutative(_custom_parameter: &Self::CustomParameter) -> bool;
@@ -44,7 +50,7 @@ where
         _a: &SpatialIdTable<A>,
         _b: &SpatialIdTable<B>,
         _custom_parameter: Self::CustomParameter,
-    ) -> SpatialIdTable<Self::ResultValue> {
+    ) -> Result<SpatialIdTable<Self::ResultValue>, Error> {
         todo!()
     }
 }
@@ -64,6 +70,7 @@ pub enum ConflictPolicy<V> {
 }
 
 /// 空間IDのTableに対して単項演算を行うTrait。
+/// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む
 pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// 演算ごとのカスタム設定
     type CustomParameter;
@@ -74,7 +81,6 @@ pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// Tableに対する単項演算の定義
     fn execution(
         a: &SpatialIdTable<A>,
-        conflict_policy: ConflictPolicy<A>,
         custom_parameter: Self::CustomParameter,
-    ) -> SpatialIdTable<Self::ResultValue>;
+    ) -> Result<SpatialIdTable<Self::ResultValue>, Error>;
 }
