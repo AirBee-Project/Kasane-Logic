@@ -45,7 +45,7 @@ where
 
     /// 2つの [FlexTreeCore] の和集合（Union）を計算します。
     ///
-    /// 両方の木で値が設定されている（重なり合う）領域については、**呼び出し元（`self`）の値が優先して保持**されます。
+    /// 値が設定されている（`Some`）領域は基本的に保持されますが、`other` がより粗い領域で `Some` を持つ場合、その領域では `self` のより細かい値が上書きされることがあります（両者が同じ `Leaf(Some)` の場合のみ `self` が優先）。
     pub fn union(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
