@@ -94,3 +94,5 @@ pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::shift::ops::ShiftOps;
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::stretch::ops::StretchOps;

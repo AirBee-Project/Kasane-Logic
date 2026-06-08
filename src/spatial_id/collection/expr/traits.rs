@@ -15,7 +15,7 @@ use crate::{Error, FlexId, SpatialIdCollection};
 ///
 /// memo:仮に`both_none`関数を作成してしまうと、計算量が膨大になってしまう。
 ///
-/// 入力・出力は [`SpatialIdCollection`] / [`SpatialIdCollectionMut`] で抽象化されており、
+/// 入力・出力は [`SpatialIdCollection`] で抽象化されており、
 /// `Table` / `Map` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait BinaryOperator<A, B>
 where
@@ -28,26 +28,26 @@ where
     /// 結果として帰ってくる値の型
     type ResultValue: Ord + PartialEq + Clone;
 
-    /// 両方の空間IDが値を持つ場合
+    /// 両方の空間IDが値を持つ場合。`Ok(None)` を返すとそのセルは結果から除外される。
     fn both_some(
         a: &A,
         b: &B,
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
 
-    /// `a` の空間IDのみが値を持つ場合
+    /// `a` の空間IDのみが値を持つ場合。`Ok(None)` を返すとそのセルは結果から除外される。
     fn a_only(
         a: &A,
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
 
-    /// `b` の空間IDのみが値を持つ場合
+    /// `b` の空間IDのみが値を持つ場合。`Ok(None)` を返すとそのセルは結果から除外される。
     fn b_only(
         b: &B,
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
 
-    /// 可換な演算か。
+    /// 可換な演算か。クエリ最適化での評価順入れ替えの判断に使う。
     fn is_commutative(_custom_parameter: &Self::CustomParameter) -> bool;
 
     /// コレクション全体の演算。
@@ -114,10 +114,29 @@ pub enum ConflictPolicy<V> {
     Fold(fn(&V, &V) -> V),
 }
 
+impl<V: Ord> ConflictPolicy<V> {
+    /// 既存値 `current`（無ければ `None`）に新しい候補 `incoming` を、方針に従って畳み込む。
+    ///
+    /// 空きセル（`current` が `None`）には常に `incoming` がそのまま入る。
+    pub fn resolve(&self, current: Option<V>, incoming: V) -> V {
+        let Some(current) = current else {
+            return incoming;
+        };
+
+        match self {
+            ConflictPolicy::KeepExisting => current,
+            ConflictPolicy::Overwrite => incoming,
+            ConflictPolicy::Min => current.min(incoming),
+            ConflictPolicy::Max => current.max(incoming),
+            ConflictPolicy::Fold(f) => f(&current, &incoming),
+        }
+    }
+}
+
 /// 空間IDコレクションに対して単項演算を行うTrait。
 /// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
 ///
-/// 入力・出力は [`SpatialIdCollection`] / [`SpatialIdCollectionMut`] で抽象化されており、
+/// 入力・出力は [`SpatialIdCollection`] で抽象化されており、
 /// `Table` / `Map` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// 演算ごとのカスタム設定
