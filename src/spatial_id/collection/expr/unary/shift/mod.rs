@@ -6,16 +6,15 @@ pub struct ShiftParam {
     pub index: i32,
 }
 
-/// 高さ（F）方向への移動
+/// F方向への移動
 pub mod shift_f;
 
-/// 東西（X）方向への移動
+/// X方向への移動
 pub mod shift_x;
 
-/// 南北（Y）方向への移動
+/// Y方向への移動
 pub mod shift_y;
 
-/// Shift 系演算子をメソッドとして呼び出す拡張トレイト
 pub mod ops;
 
 #[cfg(test)]
