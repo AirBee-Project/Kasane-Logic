@@ -1,12 +1,3 @@
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
-
 use crate::{
     Coordinate, Ecef, MAX_ZOOM_LEVEL, Point, SpatialIdError, WGS84_A, WGS84_E2,
     geometry::traits::CoverSingleIds,

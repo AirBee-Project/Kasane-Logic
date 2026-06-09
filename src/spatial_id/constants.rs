@@ -1,12 +1,3 @@
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
-
 ///本ライブラリで扱うことができる最大のズームレベル
 pub const MAX_ZOOM_LEVEL: usize = 30;
 

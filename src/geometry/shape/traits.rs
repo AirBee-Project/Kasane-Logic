@@ -1,12 +1,3 @@
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
-
 use crate::{Coordinate, Line, Polygon, Triangle};
 
 /// 現実空間の図形に対して共通で定義することができる性質

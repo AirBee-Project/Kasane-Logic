@@ -8,14 +8,6 @@
 //!
 //! 詳細な図と説明は次のドキュメントを参照:
 //! [docs/geometry-relation.md](https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md)
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
 
 pub mod cylinder;
 pub mod line;

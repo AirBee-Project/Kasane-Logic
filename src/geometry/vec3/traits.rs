@@ -1,12 +1,3 @@
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
-
 use core::ops::{Add, Sub};
 
 /// 3次元空間におけるベクトルを表すトレイト。

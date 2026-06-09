@@ -1,12 +1,3 @@
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
-
 /// Shift 系演算子の共通パラメータ。ズーム `z` のセル `index` 個分だけ移動する。
 pub struct ShiftParam {
     /// 移動量の単位となるズームレベル。

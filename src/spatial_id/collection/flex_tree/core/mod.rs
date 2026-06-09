@@ -1,8 +1,5 @@
-#[allow(unused_imports)]
 use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
+use alloc::string::ToString;
 use alloc::vec::Vec;
 
 use crate::{
