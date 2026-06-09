@@ -2,14 +2,13 @@ use core::marker::PhantomData;
 
 use crate::{BinaryOperator, Error};
 
-/// 異型 `A` × `B` → `C` の総合口。4つの集合演算はこの特殊形にあたる。
+/// 異なる型を持つTableを合成するための二項演算。
 ///
-/// クロージャ `f: (Option<&A>, Option<&B>) -> Option<C>` が4状態のうち `both_some`/`a_only`/
-/// `b_only` の3つ（`(None, None)` は呼ばれない）を一手に引き受ける。`None` を返したセルは
-/// 結果から除外される。任意関数のため可換性は保証できず、常に非可換とみなす。
+/// # 計算内容
+/// - 与えられた関数の通りにAとBを合成する。
 ///
-/// クロージャ型 `F` と結果型 `C` は trait のパラメータにも self 型にも現れないため、
-/// マーカーに `PhantomData` として持たせて型推論を成立させる（値としては生成しない）。
+/// # 性質
+/// - 可換性：非可換
 pub struct Combine<F, C>(PhantomData<(F, C)>);
 
 impl<A, B, C, F> BinaryOperator<A, B> for Combine<F, C>
