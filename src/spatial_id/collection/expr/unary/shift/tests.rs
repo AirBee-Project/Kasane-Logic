@@ -1,8 +1,3 @@
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-
 use crate::{F_MAX, FlexId, ShiftOps, SingleId, SpatialIdSet, SpatialIdTable};
 
 fn table_with(z: u8, f: i32, x: u32, y: u32) -> SpatialIdTable<bool> {

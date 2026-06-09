@@ -1,5 +1,3 @@
-use alloc::string::ToString;
-
 use crate::SingleId;
 
 use crate::{

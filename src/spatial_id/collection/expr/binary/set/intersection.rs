@@ -1,5 +1,3 @@
-use alloc::string::ToString;
-
 use crate::{BinaryOperator, ConflictPolicy, Error};
 
 /// 積集合（A ∩ B）を行う二項演算。

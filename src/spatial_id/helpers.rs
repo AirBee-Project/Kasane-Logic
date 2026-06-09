@@ -1,4 +1,4 @@
-use alloc::string::{String, ToString};
+use alloc::string::String;
 
 use core::{f64::consts::PI, fmt};
 /// Scale an inclusive range `[start, end]` by `scale` for children calculation.

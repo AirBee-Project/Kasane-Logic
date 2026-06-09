@@ -1,6 +1,3 @@
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use crate::spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};

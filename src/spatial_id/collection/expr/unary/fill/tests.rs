@@ -1,8 +1,3 @@
-use alloc::boxed::Box;
-use alloc::rc::Rc;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-
 use crate::{FillOps, FlexTreeCore, SingleId, SpatialIdTable};
 
 fn id(z: u8, f: i32, x: u32, y: u32) -> SingleId {
