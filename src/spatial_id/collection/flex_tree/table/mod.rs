@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use alloc::collections::BTreeMap;
 use core::ops::RangeBounds;
 pub mod convert;
+pub mod json;
 pub mod test;
 
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialIdSet};

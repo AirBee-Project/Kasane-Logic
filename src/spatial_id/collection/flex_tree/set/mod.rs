@@ -2,6 +2,7 @@ use hashbrown::HashSet;
 
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId};
 pub mod convert;
+pub mod json;
 pub mod ops;
 pub mod tests;
 
