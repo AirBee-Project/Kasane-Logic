@@ -1,4 +1,12 @@
 #![cfg_attr(test, allow(dead_code))]
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
 
 pub mod corner_cases;
 pub mod count;
@@ -13,9 +21,9 @@ use crate::IntoSingleIds;
 #[cfg(test)]
 use crate::{F_MAX, F_MIN, RangeId, SingleId, SpatialIdSet, XY_MAX};
 #[cfg(test)]
-use proptest::prelude::*;
+use hashbrown::HashSet;
 #[cfg(test)]
-use std::collections::HashSet;
+use proptest::prelude::*;
 
 #[cfg(test)]
 /// ランダム生成時に使うズームレベルの下限。

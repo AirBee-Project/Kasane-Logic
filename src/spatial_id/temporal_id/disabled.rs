@@ -1,5 +1,14 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use core::fmt::{Display, Formatter};
-use std::str::FromStr;
+use core::str::FromStr;
 
 use crate::error::Error;
 
@@ -86,12 +95,12 @@ impl TemporalId {
     /// `temporal_id` feature が無効な場合、空のイテレータを返す。
     pub fn difference(&self, other: &TemporalId) -> impl Iterator<Item = TemporalId> {
         let _ = other;
-        std::iter::empty()
+        core::iter::empty()
     }
 }
 
 impl Display for TemporalId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.write_str("18446744073709551615/0")
     }
 }

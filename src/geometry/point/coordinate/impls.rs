@@ -1,8 +1,17 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{
     Coordinate, Ecef, MAX_ZOOM_LEVEL, Point, SpatialIdError, WGS84_A, WGS84_E2,
     geometry::traits::CoverSingleIds,
 };
-use std::fmt;
+use core::fmt;
 
 impl fmt::Debug for Coordinate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -66,6 +75,6 @@ impl CoverSingleIds for Coordinate {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
-        Ok(std::iter::once(self.single_id(z)?))
+        Ok(core::iter::once(self.single_id(z)?))
     }
 }

@@ -1,4 +1,13 @@
-use std::fmt;
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use core::fmt;
 
 use crate::{
     Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalId,
@@ -7,7 +16,7 @@ use crate::{
         helpers::{self, format_dimension},
     },
 };
-use std::str::FromStr;
+use core::str::FromStr;
 
 impl fmt::Display for RangeId {
     /// `RangeId` を文字列形式で表示します。
@@ -18,7 +27,7 @@ impl fmt::Display for RangeId {
     /// 通常時の範囲表示
     /// ```no_run
     /// # use kasane_logic::RangeId;
-    /// # use std::fmt::Write;
+    /// # use core::fmt::Write;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
     /// assert_eq!(s, "4/-3:6/8:9/5:10");
@@ -27,7 +36,7 @@ impl fmt::Display for RangeId {
     /// Single範囲に自動圧縮（`f1=f2`）
     /// ```
     /// # use kasane_logic::RangeId;
-    /// # use std::fmt::Write;
+    /// # use core::fmt::Write;
     /// let id = RangeId::new(4, [-3,-3], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
     ///  assert_eq!(s, "4/-3/8:9/5:10");;
@@ -202,7 +211,7 @@ impl SpatialId for RangeId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        let one = 2_f64.powi(25 - self.z() as i32);
+        let one = libm::pow(2_f64, (25 - self.z() as i32) as f64);
 
         //このRangeIdが表すセル数を計算（両端含む）
         let range = (self.f()[1] - self.f()[0] + 1) as f64;
@@ -216,7 +225,7 @@ impl SpatialId for RangeId {
         //Todo:正確な実装ではないので将来的に置換
         let ecef: crate::Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
+        let one = r * 2.0 * core::f64::consts::PI / (libm::pow(2_f64, (self.z() as i32) as f64));
         let count = self.x()[0].abs_diff(self.x()[1]) as f64 + 1.0;
 
         one * count
@@ -227,7 +236,7 @@ impl SpatialId for RangeId {
         //Todo:正確な実装ではないので将来的に置換
         let ecef: crate::Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        let one = r * 2.0 * std::f64::consts::PI / (2_f64.powi(self.z() as i32));
+        let one = r * 2.0 * core::f64::consts::PI / (libm::pow(2_f64, (self.z() as i32) as f64));
         let count = self.y()[0].abs_diff(self.y()[1]) as f64 + 1.0;
 
         one * count
@@ -244,7 +253,7 @@ impl SpatialId for RangeId {
 
 /// 文字列表現から [`RangeId`] を復元します。
 ///
-/// 形式は [`Display`](std::fmt::Display) が出力する
+/// 形式は [`Display`](core::fmt::Display) が出力する
 /// `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
 /// 単体範囲は `:` を省略した `"{z}/{f}/{x}/{y}"` 形式でもパース可能。
 /// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受けつける。

@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 #[cfg(test)]
 mod tests {
     use super::super::{arb_random_set_case, decompose_set_to_single_ids_at_zoom};
@@ -36,7 +45,7 @@ mod tests {
 
         let mut expected: Vec<SingleId> = a_set
             .intersection(&b_set)
-            .filter(|id| c_set.contains(id))
+            .filter(|&id| c_set.contains(id))
             .cloned()
             .collect();
         expected.sort();

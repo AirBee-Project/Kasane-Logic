@@ -1,4 +1,13 @@
-use std::collections::HashSet;
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use hashbrown::HashSet;
 
 use crate::{Coordinate, Ecef, Error, SingleId, Vec3, Vec3Ecef, Vec3FractionalId};
 pub mod geometry_relation;
@@ -105,7 +114,7 @@ impl Triangle {
                     }
 
                     // [最適化2] 次のイテレーションのためにバッファをスワップ
-                    std::mem::swap(prev_row, current_row);
+                    core::mem::swap(prev_row, current_row);
 
                     Some(row_triangles)
                 },

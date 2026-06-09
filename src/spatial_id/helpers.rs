@@ -1,4 +1,13 @@
-use std::{f64::consts::PI, fmt};
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use core::{f64::consts::PI, fmt};
 /// Scale an inclusive range `[start, end]` by `scale` for children calculation.
 /// For integer types, result is `[start*scale, end*scale + scale - 1]`
 pub fn scale_range_i32(start: i32, end: i32, scale: i32) -> [i32; 2] {
@@ -22,7 +31,7 @@ pub fn scale_range_u32(start: u32, end: u32, scale: u32) -> [u32; 2] {
 ///
 /// セル番号 x の左端なら x、中心なら x+0.5 を渡せる。
 pub fn longitude(x: f64, z: u8) -> f64 {
-    let n = 2_f64.powi(z as i32);
+    let n = libm::pow(2_f64, (z as i32) as f64);
     360.0 * (x / n) - 180.0
 }
 
@@ -33,7 +42,7 @@ pub fn longitude(x: f64, z: u8) -> f64 {
 ///
 /// 公式: lat = atan( sinh( π * (1 - 2*y/n) ) )
 pub fn latitude(y: f64, z: u8) -> f64 {
-    let n = 2_f64.powi(z as i32);
+    let n = libm::pow(2_f64, (z as i32) as f64);
     let t = PI * (1.0 - 2.0 * (y / n));
     let lat_rad = libm::atan(libm::sinh(t));
     lat_rad.to_degrees()
@@ -45,7 +54,7 @@ pub fn latitude(y: f64, z: u8) -> f64 {
 /// z: ズームレベル  
 ///
 pub fn altitude(f: f64, z: u8) -> f64 {
-    let n = 2_f64.powi(z as i32);
+    let n = libm::pow(2_f64, (z as i32) as f64);
     33_554_432.0 * (f / n)
 }
 

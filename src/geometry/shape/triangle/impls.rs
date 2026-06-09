@@ -1,4 +1,13 @@
-use std::collections::HashSet;
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use hashbrown::HashSet;
 
 use crate::{
     Coordinate, Error, ExpandCoordinates, Shape, SingleId, Triangle, Vec3, Vec3FractionalId,

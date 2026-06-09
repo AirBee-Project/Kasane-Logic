@@ -1,5 +1,14 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{CoverSingleIds, Cylinder, Error, SingleId, Sphere, Tube};
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 impl CoverSingleIds for Tube {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {

@@ -2,6 +2,14 @@
 //!
 //! 本モジュールでは、距離、半径、高さなどの長さに関する値を、
 //! 特に明記しない限りメートル（m）単位で扱います。
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
 
 /// 地理空間座標の計算で使用される各種の代表的な定数。
 pub mod constants;

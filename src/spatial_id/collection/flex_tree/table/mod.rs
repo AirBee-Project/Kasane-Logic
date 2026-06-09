@@ -1,5 +1,14 @@
-use std::collections::BTreeMap;
-use std::ops::RangeBounds;
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use alloc::collections::BTreeMap;
+use core::ops::RangeBounds;
 pub mod convert;
 pub mod test;
 

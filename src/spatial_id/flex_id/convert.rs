@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{
     FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
 };
@@ -74,16 +83,16 @@ impl From<&SingleId> for FlexId {
 }
 
 impl IntoFlexIds for FlexId {
-    type IntoIter = std::iter::Once<FlexId>;
+    type IntoIter = core::iter::Once<FlexId>;
     fn into_flex_ids(self) -> Self::IntoIter {
-        std::iter::once(self)
+        core::iter::once(self)
     }
 }
 
 impl IterFlexIds for FlexId {
-    type Iter<'a> = std::iter::Once<FlexId>;
+    type Iter<'a> = core::iter::Once<FlexId>;
     fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        std::iter::once(self.clone())
+        core::iter::once(self.clone())
     }
 }
 

@@ -1,4 +1,7 @@
+#![cfg_attr(not(test), no_std)]
 #![deny(clippy::disallowed_methods)]
+#[macro_use]
+extern crate alloc;
 
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;

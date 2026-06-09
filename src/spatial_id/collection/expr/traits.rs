@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{Error, FlexId, SpatialIdCollection};
 
 /// 空間IDコレクション同士から二項演算を行うTrait。

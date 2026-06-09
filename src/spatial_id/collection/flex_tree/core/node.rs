@@ -1,5 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{Dimension, FlexId, Side};
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum Node<V>

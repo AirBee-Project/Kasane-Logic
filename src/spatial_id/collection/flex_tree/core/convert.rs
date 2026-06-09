@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::spatial_id::collection::flex_tree::core::split_child_id;
 use crate::{
     FlexId, FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, Side, SingleId,
@@ -93,7 +102,7 @@ impl<V> IntoFlexIds for FlexTreeCore<V>
 where
     V: PartialEq + Clone,
 {
-    type IntoIter = std::vec::IntoIter<FlexId>;
+    type IntoIter = alloc::vec::IntoIter<FlexId>;
 
     fn into_flex_ids(self) -> Self::IntoIter {
         self.iter()
@@ -121,7 +130,7 @@ impl<V> IntoSingleIds for FlexTreeCore<V>
 where
     V: PartialEq + Clone,
 {
-    type IntoIter = std::vec::IntoIter<SingleId>;
+    type IntoIter = alloc::vec::IntoIter<SingleId>;
 
     fn into_single_ids(self) -> Self::IntoIter {
         self.iter()

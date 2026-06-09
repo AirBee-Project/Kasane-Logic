@@ -1,9 +1,16 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{
     Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
+use alloc::rc::Rc;
 use node::Node;
-use std::rc::Rc;
 mod convert;
 pub mod node;
 pub mod node_ops;
@@ -201,7 +208,7 @@ where
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として参照付きで書き出します。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
 
         Box::new(self.iter_ref().flat_map(move |(flex_id, value)| {

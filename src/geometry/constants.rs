@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 /// WGS-84 楕円体の長半径（赤道半径）\[m\]
 ///
 /// 地球を近似する WGS-84 楕円体における赤道方向の半径を表す。

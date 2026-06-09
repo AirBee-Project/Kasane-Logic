@@ -1,4 +1,13 @@
-use std::{fmt, ops::Sub};
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use core::{fmt, ops::Sub};
 
 use crate::{
     Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, SpatialIdError, WGS84_A, WGS84_E2, WGS84_F,
@@ -70,6 +79,6 @@ impl CoverSingleIds for Ecef {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
-        Ok(std::iter::once(self.single_id(z)?))
+        Ok(core::iter::once(self.single_id(z)?))
     }
 }

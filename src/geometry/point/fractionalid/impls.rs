@@ -1,4 +1,13 @@
-use std::fmt;
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use core::fmt;
 
 use crate::{
     Coordinate, Ecef, FractionalId, Point, SpatialIdError,
@@ -46,6 +55,6 @@ impl CoverSingleIds for FractionalId {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
         let coord: Coordinate = (*self).into();
-        Ok(std::iter::once(coord.single_id(z)?))
+        Ok(core::iter::once(coord.single_id(z)?))
     }
 }

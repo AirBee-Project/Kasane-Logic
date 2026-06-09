@@ -1,8 +1,15 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{
     Dimension, FlexId, FlexTreeCore, Side,
     spatial_id::collection::flex_tree::core::{node::Node, split_child_id},
 };
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
 pub struct OverlapIter<'a, V>

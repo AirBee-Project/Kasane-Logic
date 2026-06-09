@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 pub mod impls;
 
 use crate::{RangeId, SingleId, error::Error, geometry::point::coordinate::Coordinate};
@@ -142,9 +151,9 @@ impl Ecef {
     /// ```
     pub fn distance(&self, other: &Ecef) -> f64 {
         libm::sqrt(
-            (self.x() - other.x()).powi(2)
-                + (self.y() - other.y()).powi(2)
-                + (self.z() - other.z()).powi(2),
+            ((self.x() - other.x()) * (self.x() - other.x()))
+                + ((self.y() - other.y()) * (self.y() - other.y()))
+                + ((self.z() - other.z()) * (self.z() - other.z())),
         )
     }
 

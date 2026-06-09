@@ -1,4 +1,13 @@
-use std::ops::{BitAnd, BitOr, Sub};
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use core::ops::{BitAnd, BitOr, Sub};
 
 use crate::SpatialIdSet;
 

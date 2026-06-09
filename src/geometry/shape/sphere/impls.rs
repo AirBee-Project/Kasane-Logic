@@ -1,3 +1,12 @@
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
 use crate::{
     Coordinate, Ecef, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialId, SpatialIdError, Sphere, WGS84_A,
     geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
@@ -59,12 +68,12 @@ impl CoverSingleIds for Sphere {
 }
 
 pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
-    let n = 2f64.powi(z as i32);
+    let n = libm::pow(2_f64, (z as i32) as f64);
 
     match axis {
         // 赤道周長 = 2πa
-        Dimension::X | Dimension::Y => 2.0 * std::f64::consts::PI * WGS84_A / n,
+        Dimension::X | Dimension::Y => 2.0 * core::f64::consts::PI * WGS84_A / n,
         // F方向（高度）
-        Dimension::F => 2f64.powi(25 - z as i32),
+        Dimension::F => libm::pow(2_f64, (25 - z as i32) as f64),
     }
 }

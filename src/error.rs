@@ -1,4 +1,13 @@
-use std::{error, fmt};
+#[allow(unused_imports)]
+use alloc::boxed::Box;
+#[allow(unused_imports)]
+use alloc::rc::Rc;
+#[allow(unused_imports)]
+use alloc::string::{String, ToString};
+#[allow(unused_imports)]
+use alloc::vec::Vec;
+
+use core::{error, fmt};
 
 /// 本クレートで発生し得るエラーを表す最上位の型。
 #[derive(Debug, Clone, PartialEq)]
