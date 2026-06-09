@@ -11,11 +11,7 @@ mod tests {
     /// O(1) 化前の `max_zoomlevel` と同じ全探索ロジックで最大ズームを求める参照実装。
     fn brute_force_max_zoomlevel(set: &SpatialIdSet) -> Option<u8> {
         set.iter()
-            .map(|id| {
-                id.f_zoomlevel()
-                    .max(id.x_zoomlevel())
-                    .max(id.y_zoomlevel())
-            })
+            .map(|id| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
             .max()
     }
 
@@ -34,7 +30,9 @@ mod tests {
         set.insert(SingleId::new(2, 1, 0, 3).unwrap());
         assert_max_zoomlevel_consistent(&set);
 
-        let _ = set.remove(&RangeId::new(6, [1, 29], [8, 9], [5, 10]).unwrap()).collect::<Vec<_>>();
+        let _ = set
+            .remove(&RangeId::new(6, [1, 29], [8, 9], [5, 10]).unwrap())
+            .collect::<Vec<_>>();
         assert_max_zoomlevel_consistent(&set);
     }
 
