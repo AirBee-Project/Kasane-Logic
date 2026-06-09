@@ -6,3 +6,6 @@ pub mod stretch;
 
 /// 特定の次元の占有を絶対座標範囲へ揃える（起伏を平坦化）
 pub mod level;
+
+/// 値を持つ領域の最小範囲（AABB）の隙間へ既定値を割り当てる
+pub mod fill;

@@ -1,4 +1,4 @@
-use crate::{ArithOps, SingleId, SpatialIdTable};
+use crate::{Addable, Multipliable, SingleId, SpatialIdTable, Subtractable};
 
 fn id(z: u8, f: i32, x: u32, y: u32) -> SingleId {
     SingleId::new(z, f, x, y).unwrap()

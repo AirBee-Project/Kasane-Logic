@@ -128,6 +128,32 @@ where
         Some(lower.max(upper))
     }
 
+    /// この集合が値を持つ全セルを包む最小の範囲（F/X/Y の3次元AABB）を返します。
+    ///
+    /// 返り値 [`RangeId`] の各次元の `[0]` が最小（左下）側、`[1]` が最大（右上）側の角に
+    /// 対応します。混在ズームのセルは木全体の最大ズームへ正規化したうえで比較されます。
+    /// 空の木では [`None`] を返します。
+    ///
+    /// # 例
+    /// ```
+    /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, SingleId};
+    /// let mut core = FlexTreeCore::new();
+    /// core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
+    /// core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
+    ///
+    /// let bbox = core.bounding_box().unwrap();
+    /// assert_eq!(bbox.z(), 20);
+    /// assert_eq!(bbox.f(), [0, 0]);
+    /// assert_eq!(bbox.x(), [0, 2]);
+    /// assert_eq!(bbox.y(), [0, 3]);
+    ///
+    /// let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+    /// assert!(empty.bounding_box().is_none());
+    /// ```
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        RangeId::bounding_box_of(self.iter().map(|(flex_id, _)| flex_id))
+    }
+
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出します。
     ///
     /// 返される `SingleId` はすべて同じズームレベルを持ち、その値は [`max_zoomlevel`](Self::max_zoomlevel)

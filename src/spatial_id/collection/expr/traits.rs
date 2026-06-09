@@ -16,7 +16,7 @@ use crate::{Error, FlexId, SpatialIdCollection};
 /// memo:仮に`both_none`関数を作成してしまうと、計算量が膨大になってしまう。
 ///
 /// 入力・出力は [`SpatialIdCollection`] で抽象化されており、
-/// `Table` / `Map` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
+/// `Table` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait BinaryOperator<A, B>
 where
     A: Ord + PartialEq + Clone,
@@ -137,7 +137,7 @@ impl<V: Ord> ConflictPolicy<V> {
 /// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
 ///
 /// 入力・出力は [`SpatialIdCollection`] で抽象化されており、
-/// `Table` / `Map` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
+/// `Table` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// 演算ごとのカスタム設定
     type CustomParameter;

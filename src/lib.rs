@@ -71,8 +71,6 @@ pub use spatial_id::temporal_id::TemporalId;
 #[doc(inline)]
 pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
-#[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::traits::SpatialIdCollection;
@@ -91,11 +89,13 @@ pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingle
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 
 #[doc(inline)]
-pub use spatial_id::collection::expr::binary::arith::ops::ArithOps;
+pub use spatial_id::collection::expr::binary::arith::ops::{Addable, Multipliable, Subtractable};
 #[doc(inline)]
 pub use spatial_id::collection::expr::binary::set::ops::SetOps;
 #[doc(inline)]
 pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::fill::ops::FillOps;
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::level::ops::LevelOps;
 #[doc(inline)]

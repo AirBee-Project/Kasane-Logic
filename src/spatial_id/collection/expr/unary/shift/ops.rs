@@ -8,7 +8,7 @@ use super::shift_y::YShift;
 /// Shift 系演算子を「普通のメソッド」として呼び出すための拡張トレイト。
 ///
 /// 演算子型（`FShift` 等）はクエリ言語の AST 用にそのまま残しつつ、`SpatialIdCollection`
-/// を実装する任意のコレクション（`Table` / `Map` / `Set` …）へメソッドを生やす。
+/// を実装する任意のコレクション（`Table` / `Set` …）へメソッドを生やす。
 ///
 /// ```ignore
 /// let moved = table.shift_f(25, 3)?; // FShift::execution の糖衣

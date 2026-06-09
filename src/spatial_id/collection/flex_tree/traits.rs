@@ -1,8 +1,8 @@
-use crate::{FlexId, SpatialIdMap, SpatialIdSet, SpatialIdTable};
+use crate::{FlexId, SpatialIdSet, SpatialIdTable};
 
 /// 演算の対象となる空間IDコレクションの性質。
 ///
-/// `SpatialIdTable` / `SpatialIdMap` / `SpatialIdSet` を演算子から一様に扱うための抽象。
+/// `SpatialIdTable` / `SpatialIdSet` を演算子から一様に扱うための抽象。
 /// 「FlexId をキーに値を持つコレクション」であればよく、値を持たない集合（Set）は
 /// `Value = ()` とする。
 pub trait SpatialIdCollection: Sized {
@@ -56,37 +56,6 @@ where
 
     fn is_empty(&self) -> bool {
         SpatialIdTable::is_empty(self)
-    }
-}
-
-impl<V> SpatialIdCollection for SpatialIdMap<V>
-where
-    V: Ord + PartialEq + Clone,
-{
-    type Value = V;
-
-    fn empty() -> Self {
-        SpatialIdMap::new()
-    }
-
-    fn insert(&mut self, key: FlexId, value: V) {
-        SpatialIdMap::insert(self, key, value);
-    }
-
-    fn scan(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
-        self.iter().map(|(id, v)| (id, v.clone()))
-    }
-
-    fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        self.get(target).map(|(id, v)| (id, v.clone()))
-    }
-
-    fn max_zoomlevel(&self) -> Option<u8> {
-        SpatialIdMap::max_zoomlevel(self)
-    }
-
-    fn is_empty(&self) -> bool {
-        SpatialIdMap::is_empty(self)
     }
 }
 
