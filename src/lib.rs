@@ -91,6 +91,8 @@ pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingle
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 
 #[doc(inline)]
+pub use spatial_id::collection::expr::binary::set::ops::SetOps;
+#[doc(inline)]
 pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::level::ops::LevelOps;
