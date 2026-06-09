@@ -1,10 +1,43 @@
 use crate::{
-    RangeId, SpatialIdError, TemporalId,
+    FlexId, RangeId, SpatialIdError, TemporalId,
     error::Error,
     spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
 
 impl RangeId {
+    /// 与えられた [`FlexId`] 群すべてを包む最小の [`RangeId`]（F/X/Y の3次元AABB）を返す。
+    ///
+    /// 各セルを全体の最深ズーム（全セルのズームの最大値）へ正規化したうえで、F/X/Y それぞれの
+    /// 最小・最大をとる。返り値の各次元の `[0]` が最小（左下）側、`[1]` が最大（右上）側の角に
+    /// 対応する。入力が空のときは [`None`] を返す。
+    pub(crate) fn bounding_box_of(ids: impl Iterator<Item = FlexId>) -> Option<RangeId> {
+        let ranges: Vec<RangeId> = ids.map(|id| RangeId::from(&id)).collect();
+        let max_z = ranges.iter().map(RangeId::z).max()?;
+
+        let mut f = [i32::MAX, i32::MIN];
+        let mut x = [u32::MAX, u32::MIN];
+        let mut y = [u32::MAX, u32::MIN];
+
+        for range in ranges {
+            let range = if range.z() == max_z {
+                range
+            } else {
+                range
+                    .spatial_children_at_zoom(max_z)
+                    .expect("max_z は全セルのズーム以上なので細分化は必ず成功する")
+            };
+            let (rf, rx, ry) = (range.f(), range.x(), range.y());
+            f[0] = f[0].min(rf[0]);
+            f[1] = f[1].max(rf[1]);
+            x[0] = x[0].min(rx[0]);
+            x[1] = x[1].max(rx[1]);
+            y[0] = y[0].min(ry[0]);
+            y[1] = y[1].max(ry[1]);
+        }
+
+        Some(RangeId::new(max_z, f, x, y).expect("正規化済みセルから導いた範囲は max_z で有効"))
+    }
+
     /// 指定された値から [`RangeId`] を構築します。
     /// 与えられた `z`, `f1`, `f2`, `x1`, `x2`, `y1`, `y2` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///

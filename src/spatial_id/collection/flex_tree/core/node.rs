@@ -9,6 +9,9 @@ where
     Branch {
         level: u8,
         leaf_count: usize,
+        /// この部分木に含まれる値付き Leaf の FlexId ズームレベルの最大値（絶対値）。
+        /// `leaf_count` と同様に構築時へ畳み込んでおき、`max_zoomlevel` を O(1) で求める。
+        max_zoom: u8,
         lower_child: Rc<Node<V>>,
         upper_child: Rc<Node<V>>,
     },
@@ -28,6 +31,28 @@ where
             Node::Leaf { value: Some(_) } => 1,
             Node::Leaf { value: None } => 0,
         }
+    }
+
+    /// このノードを `node_level`（自身の絶対ツリーレベル）に置いたときの、配下の値付き Leaf の
+    /// FlexId ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
+    ///
+    /// ツリーレベル `L` の Leaf が持つ FlexId のズームは `max(f, x, y) = ceil(L / 3)` に等しい
+    /// （[`completely_covers`](Self::completely_covers) の式と整合）。値の無い Leaf は 0 を返す。
+    pub(super) fn max_zoom_at(&self, node_level: u8) -> u8 {
+        match self {
+            Node::Branch { max_zoom, .. } => *max_zoom,
+            Node::Leaf { value: Some(_) } => node_level.div_ceil(3),
+            Node::Leaf { value: None } => 0,
+        }
+    }
+
+    /// レベル `level` の Branch を構築・更新する際の `max_zoom` を、両子の部分木から畳み上げる。
+    /// 子はいずれもレベル `level + 1` に位置する。
+    pub(super) fn fold_max_zoom(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
+        let child_level = level + 1;
+        lower
+            .max_zoom_at(child_level)
+            .max(upper.max_zoom_at(child_level))
     }
 
     /// level から対象とする軸(F, X, Y) を返す
@@ -149,6 +174,7 @@ where
             *node = Rc::new(Node::Branch {
                 level: current_level,
                 leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+                max_zoom: Self::fold_max_zoom(current_level, &new_lower, &new_upper),
                 lower_child: new_lower,
                 upper_child: new_upper,
             });
@@ -165,6 +191,7 @@ where
                 lower_child,
                 upper_child,
                 leaf_count,
+                max_zoom,
             } = mut_node
             {
                 if Self::covers(target, *l) {
@@ -182,6 +209,7 @@ where
                 }
 
                 *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+                *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
 
                 if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) =
                     (&**lower_child, &**upper_child)

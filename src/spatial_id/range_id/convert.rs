@@ -3,7 +3,8 @@ use crate::{
     XY_MAX,
 };
 
-fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = (u8, u32)> {
+/// XYにおけるセグメントの最適配置関数
+pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = (u8, u32)> {
     let [l, r] = range;
     SegmentIter {
         l: l as i32,
@@ -13,7 +14,8 @@ fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = (u8, u32)> {
     .map(|(z, dim)| (z, dim as u32))
 }
 
-fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = (u8, i32)> {
+/// Fにおけるセグメントの最適配置関数
+pub fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = (u8, i32)> {
     let diff = 1i32 << z;
     let [l, r] = range;
     SegmentIter {

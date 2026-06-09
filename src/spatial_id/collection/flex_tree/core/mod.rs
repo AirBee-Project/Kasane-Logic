@@ -43,6 +43,9 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] の和集合（Union）を計算します。
+    ///
+    /// 値が設定されている（`Some`）領域は基本的に保持されますが、`other` がより粗い領域で `Some` を持つ場合、その領域では `self` のより細かい値が上書きされることがあります（両者が同じ `Leaf(Some)` の場合のみ `self` が優先）。
     pub fn union(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
@@ -51,6 +54,11 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] の積集合（Intersection）を計算します。
+    ///
+    /// 両方の木で値が設定されている（重なり合う）領域については、以下のように値が保持されます。
+    /// - `self` と `other` で階層（細かさ）が異なる場合、**より細かい領域（より深い階層）で定義されている側の値**が優先して保持されます。
+    /// - 両者が同じ広さ（階層）で完全に一致する場合、**引数（`other`）の値**が優先して保持されます。
     pub fn intersection(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::intersection(
@@ -111,15 +119,39 @@ where
     /// assert_eq!(core.max_zoomlevel(), Some(4));
     /// ```
     pub fn max_zoomlevel(&self) -> Option<u8> {
-        //Todo:全探索にならない実装をしたほうが良い
-        self.iter()
-            .map(|(flex_id, _)| {
-                flex_id
-                    .f_zoomlevel()
-                    .max(flex_id.x_zoomlevel())
-                    .max(flex_id.y_zoomlevel())
-            })
-            .max()
+        if self.is_empty() {
+            return None;
+        }
+        // 各 Branch がキャッシュした max_zoom を畳み上げるだけなので O(1)。ルートはレベル 0。
+        let lower = self.lower_root.max_zoom_at(0);
+        let upper = self.upper_root.max_zoom_at(0);
+        Some(lower.max(upper))
+    }
+
+    /// この集合が値を持つ全セルを包む最小の範囲（F/X/Y の3次元AABB）を返します。
+    ///
+    /// 返り値 [`RangeId`] の各次元の `[0]` が最小（左下）側、`[1]` が最大（右上）側の角に
+    /// 対応します。混在ズームのセルは木全体の最大ズームへ正規化したうえで比較されます。
+    /// 空の木では [`None`] を返します。
+    ///
+    /// # 例
+    /// ```
+    /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, SingleId};
+    /// let mut core = FlexTreeCore::new();
+    /// core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
+    /// core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
+    ///
+    /// let bbox = core.bounding_box().unwrap();
+    /// assert_eq!(bbox.z(), 20);
+    /// assert_eq!(bbox.f(), [0, 0]);
+    /// assert_eq!(bbox.x(), [0, 2]);
+    /// assert_eq!(bbox.y(), [0, 3]);
+    ///
+    /// let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+    /// assert!(empty.bounding_box().is_none());
+    /// ```
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        RangeId::bounding_box_of(self.iter().map(|(flex_id, _)| flex_id))
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出します。
@@ -300,9 +332,9 @@ where
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
 pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
     match axis {
-        Dimension::F => current_id.f_split(side).unwrap(),
-        Dimension::X => current_id.x_split(side).unwrap(),
-        Dimension::Y => current_id.y_split(side).unwrap(),
+        Dimension::F => current_id.split_f(side).unwrap(),
+        Dimension::X => current_id.split_x(side).unwrap(),
+        Dimension::Y => current_id.split_y(side).unwrap(),
     }
 }
 
