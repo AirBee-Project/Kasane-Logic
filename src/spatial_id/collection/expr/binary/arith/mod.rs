@@ -7,6 +7,12 @@
 /// 加算
 pub mod add;
 
+/// 減算
+pub mod sub;
+
+/// 乗算
+pub mod mul;
+
 /// 算術演算をメソッドとして呼び出す拡張トレイト
 pub mod ops;
 
