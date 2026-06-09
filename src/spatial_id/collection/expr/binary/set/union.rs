@@ -1,6 +1,14 @@
 use crate::{BinaryOperator, ConflictPolicy, Error};
 
-/// 和集合（A ∪ B）。両方に値があるセルは [`ConflictPolicy`] で畳み込む。
+/// 和集合（A ∪ B）を行う二項演算。
+///
+/// # 計算内容
+/// - AとBが両方存在する場合は[ConflictPolicy]に従って合成する。
+/// - Aのみの場合はAが残る。
+/// - Bのみの場合はBが残る。
+///
+/// # 性質
+/// - 可換性：[ConflictPolicy::Min]か[ConflictPolicy::Max]の場合に可換
 pub struct Union;
 
 impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Union {
@@ -20,8 +28,7 @@ impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Union {
     }
 
     fn is_commutative(policy: &Self::CustomParameter) -> bool {
-        // 値方針が対称なときだけ可換。Overwrite/KeepExisting は左右で結果が変わる。
-        // Fold はユーザ関数のため対称性を保証できず、保守的に非可換とみなす。
+        // Fold はユーザ関数のため対称性を保証できず、非可換とみなす。
         matches!(policy, ConflictPolicy::Min | ConflictPolicy::Max)
     }
 }

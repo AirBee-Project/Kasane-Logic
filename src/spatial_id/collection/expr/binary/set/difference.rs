@@ -1,7 +1,12 @@
 use crate::{BinaryOperator, Error};
 
-/// 差集合（A ∖ B）。`a_only` だけを残すため、B は重なり判定（presence）にのみ使われ、
-/// その値型は問わない（`Set` でも別型の `Table` でもマスクとして使える）。結果は A の値を保つ。
+/// 差集合（A - B）を行う二項演算。
+///
+/// # 計算内容
+/// - Bの値がない場所にAの値を残す。
+///
+/// # 性質
+/// - 可換性：非可換
 pub struct Difference;
 
 impl<A: Ord + PartialEq + Clone, B: Ord + PartialEq + Clone> BinaryOperator<A, B> for Difference {

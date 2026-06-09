@@ -1,8 +1,3 @@
-//! 集合演算（和・積・差・対称差）と、その一般化である値合成。
-//!
-//! いずれも [`BinaryOperator`](crate::BinaryOperator) の `both_some`/`a_only`/`b_only` を
-//! 埋めるだけで定義でき、混在ズーム・時間の重なり分割は既定の `execution` ドライバが担う。
-
 /// 和集合
 pub mod union;
 

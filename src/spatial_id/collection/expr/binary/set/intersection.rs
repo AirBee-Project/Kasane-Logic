@@ -1,6 +1,13 @@
 use crate::{BinaryOperator, ConflictPolicy, Error};
 
-/// 積集合（A ∩ B）。両方に値があるセルだけを残し、値は [`ConflictPolicy`] で畳み込む。
+/// 積集合（A ∩ B）を行う二項演算。
+///
+/// # 計算内容
+/// - AとBが両方存在する場合は[ConflictPolicy]に従って合成する。
+/// - どちらかが存在しない場合はNoneとなる。
+///
+/// # 性質
+/// - 可換性：[ConflictPolicy::Min]か[ConflictPolicy::Max]の場合に可換
 pub struct Intersection;
 
 impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Intersection {
@@ -20,6 +27,7 @@ impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Intersection {
     }
 
     fn is_commutative(policy: &Self::CustomParameter) -> bool {
+        // Fold はユーザ関数のため対称性を保証できず、非可換とみなす。
         matches!(policy, ConflictPolicy::Min | ConflictPolicy::Max)
     }
 }
