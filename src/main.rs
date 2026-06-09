@@ -4,10 +4,10 @@ use std::{
     str::FromStr,
 };
 
-use kasane_logic::{IntoFlexIds, LevelOps, RangeId, SingleId, SpatialIdTable};
+use kasane_logic::{IntoFlexIds, LevelOps, RangeId, SpatialIdTable};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let binding = read_to_string("sample/tran1.txt")?;
+    let binding = read_to_string("sample/bldg1.txt")?;
 
     let mut table: SpatialIdTable<bool> = SpatialIdTable::new();
 
@@ -18,11 +18,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if id_str.is_empty() {
             continue;
         }
-        let single_id = SingleId::from_str(id_str)?;
+        let single_id = RangeId::from_str(id_str)?;
         table.insert(single_id, true);
     }
 
-    let a = table.level_f(23, -10, 10).unwrap();
+    let a = table.level_f(23, 0, 30).unwrap();
 
     // 入力と同じ `id,` 形式でファイルへ書き出す。
     let output_path = "sample/tran1_shifted.txt";

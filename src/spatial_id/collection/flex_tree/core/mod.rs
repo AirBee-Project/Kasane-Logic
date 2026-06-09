@@ -119,15 +119,13 @@ where
     /// assert_eq!(core.max_zoomlevel(), Some(4));
     /// ```
     pub fn max_zoomlevel(&self) -> Option<u8> {
-        //Todo:全探索にならない実装をしたほうが良い
-        self.iter()
-            .map(|(flex_id, _)| {
-                flex_id
-                    .f_zoomlevel()
-                    .max(flex_id.x_zoomlevel())
-                    .max(flex_id.y_zoomlevel())
-            })
-            .max()
+        if self.is_empty() {
+            return None;
+        }
+        // 各 Branch がキャッシュした max_zoom を畳み上げるだけなので O(1)。ルートはレベル 0。
+        let lower = self.lower_root.max_zoom_at(0);
+        let upper = self.upper_root.max_zoom_at(0);
+        Some(lower.max(upper))
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出します。

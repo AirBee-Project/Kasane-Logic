@@ -184,6 +184,7 @@ where
                 lower_child,
                 upper_child,
                 leaf_count,
+                max_zoom,
             } = mut_node
             {
                 let axis = Node::<V>::axis(*level);
@@ -195,6 +196,7 @@ where
                 Self::prune_node_mut(lower_child, target, lower_id, removed, empty_leaf);
 
                 *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+                *max_zoom = Node::<V>::fold_max_zoom(*level, lower_child, upper_child);
             } else {
                 unreachable!()
             }
