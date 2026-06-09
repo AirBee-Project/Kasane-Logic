@@ -1,13 +1,14 @@
 use core::ops::Mul as StdMul;
 
 use crate::{BinaryOperator, Error};
-
-/// 乗算（A × B）。両方に値があるセルだけ積 `a * b` を残し、片側にしか値がないセルは結果に
-/// 出さない（欠落側を零元 `0` とみなす積）。重なる領域だけを取り出す積集合的な振る舞いで、
-/// マスクや重み付けに使える。
+/// 乗算(A×B)を行う二項演算。
 ///
-/// 値型 `V` は乗算 [`core::ops::Mul`] を実装している必要がある。乗算が可換であることを前提に
-/// [`is_commutative`](BinaryOperator::is_commutative) は常に `true` を返す。
+/// # 計算内容
+/// - 両方に値がある場合は値同士を掛け合わせる。
+/// - 片方にのみ値がある場合は0となる。(Noneを0として解釈する)
+///
+/// # 性質
+/// - 可換性：可換
 pub struct Mul;
 
 impl<V> BinaryOperator<V, V> for Mul

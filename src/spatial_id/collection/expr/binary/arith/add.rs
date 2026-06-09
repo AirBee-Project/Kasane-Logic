@@ -2,15 +2,14 @@ use core::ops::Add as StdAdd;
 
 use crate::{BinaryOperator, Error};
 
-/// 加算を行う二項演算。
+/// 加算(A+B)を行う二項演算。
 ///
 /// # 計算内容
-/// - 両方に値があるセルは値同士を足し合わせる。
-/// - 片方に値がある場合はそれを維持する。（Noneを0として解釈する）
+/// - 両方に値がある場合は値同士を足し合わせる。
+/// - 片方にしか値がない場合は存在した値を維持する。（Noneを0として解釈する）
 ///
 /// # 性質
 /// - 可換性：可換
-/// - CustomParameter：なし
 pub struct Add;
 
 impl<V> BinaryOperator<V, V> for Add
