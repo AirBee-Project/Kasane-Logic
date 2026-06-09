@@ -36,7 +36,7 @@ mod tests {
 
         let mut expected: Vec<SingleId> = a_set
             .intersection(&b_set)
-            .filter(|id| c_set.contains(id))
+            .filter(|&id| c_set.contains(id))
             .cloned()
             .collect();
         expected.sort();

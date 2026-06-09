@@ -1,7 +1,7 @@
 #[cfg(any(test, feature = "random"))]
-use rand::{Rng, RngExt};
+use core::ops::RangeInclusive;
 #[cfg(any(test, feature = "random"))]
-use std::ops::RangeInclusive;
+use rand::{Rng, RngExt};
 
 #[cfg(test)]
 use proptest::prelude::*;

@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     FlexId, RangeId, SpatialIdError, TemporalId,
     error::Error,

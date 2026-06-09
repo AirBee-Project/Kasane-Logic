@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{Error, FlexId, SpatialIdCollection};
 
 /// 空間IDコレクション同士から二項演算を行うTrait。

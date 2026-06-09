@@ -1,3 +1,6 @@
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+
 use crate::{Coordinate, CoverSingleIds, Triangle};
 
 fn sorted_ids(tri: &Triangle, z: u8) -> Vec<String> {

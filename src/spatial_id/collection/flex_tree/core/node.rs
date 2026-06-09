@@ -1,5 +1,5 @@
 use crate::{Dimension, FlexId, Side};
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum Node<V>

@@ -1,5 +1,5 @@
 use super::node::Node;
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 impl<V> Node<V>
 where

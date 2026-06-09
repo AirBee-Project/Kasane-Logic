@@ -13,9 +13,9 @@ use crate::IntoSingleIds;
 #[cfg(test)]
 use crate::{F_MAX, F_MIN, RangeId, SingleId, SpatialIdSet, XY_MAX};
 #[cfg(test)]
-use proptest::prelude::*;
+use hashbrown::HashSet;
 #[cfg(test)]
-use std::collections::HashSet;
+use proptest::prelude::*;
 
 #[cfg(test)]
 /// ランダム生成時に使うズームレベルの下限。

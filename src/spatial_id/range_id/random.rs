@@ -1,11 +1,11 @@
 use crate::RangeId;
 
+#[cfg(any(test, feature = "random"))]
+use core::ops::RangeInclusive;
 #[cfg(test)]
 use proptest::prelude::Strategy;
 #[cfg(any(test, feature = "random"))]
 use rand::{Rng, RngExt};
-#[cfg(any(test, feature = "random"))]
-use std::ops::RangeInclusive;
 
 impl RangeId {
     #[cfg(any(test, feature = "random"))]

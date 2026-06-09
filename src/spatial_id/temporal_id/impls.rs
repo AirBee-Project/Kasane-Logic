@@ -1,9 +1,12 @@
-use std::{fmt::Display, str::FromStr};
+use alloc::string::ToString;
+use alloc::vec::Vec;
+
+use core::{fmt::Display, str::FromStr};
 
 use crate::{SpatialIdError, TemporalId, error::Error};
 
 impl Display for TemporalId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}/", self.i)?;
         write!(f, "{}", self.t)?;
         Ok(())
@@ -42,7 +45,7 @@ impl Default for TemporalId {
 /// # #[cfg(feature = "temporal_id")]
 /// # {
 /// # use kasane_logic::TemporalId;
-/// # use std::str::FromStr;
+/// # use core::str::FromStr;
 /// let id = TemporalId::new(3600, 5).unwrap();
 /// let parsed: TemporalId = "3600/5".parse().unwrap();
 /// assert_eq!(id, parsed);
@@ -54,7 +57,7 @@ impl Default for TemporalId {
 /// # #[cfg(feature = "temporal_id")]
 /// # {
 /// # use kasane_logic::TemporalId;
-/// # use std::str::FromStr;
+/// # use core::str::FromStr;
 /// let original = TemporalId::new(60, 120).unwrap();
 /// let string_repr = original.to_string();
 /// let parsed = TemporalId::from_str(&string_repr).unwrap();

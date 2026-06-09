@@ -1,5 +1,7 @@
-use std::collections::BTreeMap;
-use std::ops::RangeBounds;
+use alloc::vec::Vec;
+
+use alloc::collections::BTreeMap;
+use core::ops::RangeBounds;
 pub mod convert;
 pub mod test;
 

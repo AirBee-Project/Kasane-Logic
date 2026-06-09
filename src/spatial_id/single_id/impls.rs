@@ -1,9 +1,11 @@
+use alloc::string::ToString;
+
 use crate::{
     Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
     spatial_id::helpers,
 };
-use std::fmt;
-use std::str::FromStr;
+use core::fmt;
+use core::str::FromStr;
 
 impl fmt::Display for SingleId {
     /// `SingleId` を文字列形式で表示する。
@@ -12,7 +14,7 @@ impl fmt::Display for SingleId {
     ///
     /// ```no_run
     /// # use kasane_logic::SingleId;
-    /// # use std::fmt::Write;
+    /// # use core::fmt::Write;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let s = format!("{}", id);
     /// assert_eq!(s, "4/6/9/10");
@@ -258,21 +260,21 @@ impl SpatialId for SingleId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        2_f64.powi(25 - self.z() as i32)
+        libm::pow(2_f64, (25 - self.z() as i32) as f64)
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
     fn length_x_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
+        r * 2.0 * core::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 
     ///その空間IDのY方向の長さをメートル単位で計算する関数
     fn length_y_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
+        r * 2.0 * core::f64::consts::PI / (2_i32.pow(self.z() as u32) as f64)
     }
 
     fn temporal(&self) -> &TemporalId {
@@ -286,7 +288,7 @@ impl SpatialId for SingleId {
 
 /// 文字列表現から [`SingleId`] を復元する。
 ///
-/// 形式は [`Display`](std::fmt::Display) が出力する `"{z}/{f}/{x}/{y}"`
+/// 形式は [`Display`](core::fmt::Display) が出力する `"{z}/{f}/{x}/{y}"`
 /// で、`temporal_id` feature が有効な場合のみ末尾に `_TemporalId` を付ける。
 ///
 /// ```

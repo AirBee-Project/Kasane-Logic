@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{Coordinate, CoverRangeIds, CoverSingleIds, Cylinder, Error, RangeId, Shape, SingleId};
 
 impl Shape for Cylinder {

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 use crate::{
     Coordinate, ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,

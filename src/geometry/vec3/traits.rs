@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub};
+use core::ops::{Add, Sub};
 
 /// 3次元空間におけるベクトルを表すトレイト。
 ///

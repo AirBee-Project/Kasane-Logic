@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 use crate::{
     Coordinate, Error, ExpandCoordinates, Shape, SingleId, Triangle, Vec3, Vec3FractionalId,

@@ -1,4 +1,4 @@
-use std::fmt;
+use core::fmt;
 
 use crate::{
     Coordinate, Ecef, FractionalId, Point, SpatialIdError,
@@ -46,6 +46,6 @@ impl CoverSingleIds for FractionalId {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
         let coord: Coordinate = (*self).into();
-        Ok(std::iter::once(coord.single_id(z)?))
+        Ok(core::iter::once(coord.single_id(z)?))
     }
 }

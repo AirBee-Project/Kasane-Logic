@@ -1,4 +1,4 @@
-use std::ops::{Add, Sub};
+use core::ops::{Add, Sub};
 
 use crate::{Error, FractionalId, Vec3};
 

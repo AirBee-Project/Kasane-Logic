@@ -3,7 +3,7 @@ pub mod impls;
 #[cfg(test)]
 mod tests;
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 use crate::{
     Ecef, FractionalId, SingleId,
@@ -226,7 +226,7 @@ impl Coordinate {
         let alt = self.altitude;
 
         //Z=25のとき高さはちょうど1m
-        let factor = 2_f64.powi(z as i32 - 25);
+        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
         let f = libm::floor(factor * alt) as i32;
 
         let n = 2u64.pow(z as u32) as f64;
@@ -235,7 +235,8 @@ impl Coordinate {
 
         let lat_rad = lat.to_radians();
         let y = libm::floor(
-            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad))
+                / core::f64::consts::PI)
                 / 2.0
                 * n,
         ) as u32;
@@ -270,7 +271,7 @@ impl Coordinate {
         let alt = self.altitude;
 
         //Z=25のとき高さはちょうど1m
-        let factor = 2_f64.powi(z as i32 - 25);
+        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
         let f = factor * alt;
 
         let n = 2u64.pow(z as u32) as f64;
@@ -278,7 +279,7 @@ impl Coordinate {
 
         let lat_rad = lat.to_radians();
         let y = (1.0
-            - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+            - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / core::f64::consts::PI)
             / 2.0
             * n;
         let id = FractionalId::new(z, f, x, y)?;

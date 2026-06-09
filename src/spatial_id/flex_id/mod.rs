@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 pub mod constructor;
 pub mod convert;
 pub mod impls;

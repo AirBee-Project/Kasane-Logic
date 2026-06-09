@@ -1,7 +1,9 @@
+use alloc::vec::Vec;
+
 pub mod impls;
 #[cfg(test)]
 mod tests;
-use std::f64::consts::PI;
+use core::f64::consts::PI;
 
 use crate::{Coordinate, Ecef, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef};
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -1,4 +1,4 @@
-use std::ops::{BitAnd, BitOr, Sub};
+use core::ops::{BitAnd, BitOr, Sub};
 
 use crate::SpatialIdSet;
 

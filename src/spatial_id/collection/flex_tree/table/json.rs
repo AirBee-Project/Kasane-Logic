@@ -1,3 +1,8 @@
+use alloc::vec::Vec;
+use alloc::string::{String, ToString};
+use alloc::boxed::Box;
+use alloc::rc::Rc;
+
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
