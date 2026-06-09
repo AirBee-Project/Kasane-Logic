@@ -1,7 +1,14 @@
 use crate::{BinaryOperator, Error};
 
-/// 対称差（A △ B）。どちらか一方にしか値がないセルだけを残す（重なりは捨てる）。
-/// 左右が値を持ち寄るため、入力は同型 `V` に限る。
+/// 対称差（A △ B）を行う二項演算。
+///
+/// # 計算内容
+/// - AとBが両方存在する場合はNoneにする。
+/// - Aのみの場合はAが残る。
+/// - Bのみの場合はBが残る。
+///
+/// # 性質
+/// - 可換性：可換
 pub struct SymmetricDifference;
 
 impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for SymmetricDifference {
