@@ -28,20 +28,17 @@ where
     /// 結果として帰ってくる値の型
     type ResultValue: Ord + PartialEq + Clone;
 
-    /// 両方の空間IDが値を持つ場合。`Ok(None)` を返すとそのセルは結果から除外される。
     fn both_some(
         a: &A,
         b: &B,
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
 
-    /// `a` の空間IDのみが値を持つ場合。`Ok(None)` を返すとそのセルは結果から除外される。
     fn a_only(
         a: &A,
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
 
-    /// `b` の空間IDのみが値を持つ場合。`Ok(None)` を返すとそのセルは結果から除外される。
     fn b_only(
         b: &B,
         custom_parameter: &Self::CustomParameter,
@@ -52,9 +49,7 @@ where
 
     /// コレクション全体の演算。
     ///
-    /// 既定実装は2つのコレクションを走査・重なり問い合わせで突き合わせ、各セルを
-    /// [`both_some`](Self::both_some) / [`a_only`](Self::a_only) / [`b_only`](Self::b_only)
-    /// へ委譲する汎用ドライバである。入出力のストア種別に依存しない。
+    /// 既定実装は2つのコレクションを走査・重なり問い合わせで突き合わせ、各空間を [`both_some`](Self::both_some) / [`a_only`](Self::a_only) / [`b_only`](Self::b_only)へ委譲する汎用ドライバである。入出力のストア種別に依存しない。
     fn execution<SA, SB, O>(
         a: &SA,
         b: &SB,
@@ -67,7 +62,6 @@ where
     {
         let mut result = O::empty();
 
-        // `a` 主導: 各 `a` セルを `b` との重なりで分割し、both_some と a_only を割り当てる。
         for (a_id, a_value) in a.scan() {
             let mut covered: Vec<FlexId> = Vec::new();
 
@@ -85,7 +79,6 @@ where
             }
         }
 
-        // `b` 主導: both は処理済みなので、`a` に覆われていない領域へ b_only を割り当てる。
         for (b_id, b_value) in b.scan() {
             let covered: Vec<FlexId> = a.query(&b_id).map(|(id, _)| id).collect();
 
@@ -100,7 +93,7 @@ where
     }
 }
 
-/// 同一の空間セルに複数の値が集まったときに、それらを1つの値へ畳み込む方法。
+/// 同一の空間に複数の値が集まったときに、それらを1つの値にする方法。
 pub enum ConflictPolicy<V> {
     /// 既存の値を保持し、後から来た候補を捨てる。
     KeepExisting,
@@ -116,8 +109,6 @@ pub enum ConflictPolicy<V> {
 
 impl<V: Ord> ConflictPolicy<V> {
     /// 既存値 `current`（無ければ `None`）に新しい候補 `incoming` を、方針に従って畳み込む。
-    ///
-    /// 空きセル（`current` が `None`）には常に `incoming` がそのまま入る。
     pub fn resolve(&self, current: Option<V>, incoming: V) -> V {
         let Some(current) = current else {
             return incoming;
@@ -135,9 +126,6 @@ impl<V: Ord> ConflictPolicy<V> {
 
 /// 空間IDコレクションに対して単項演算を行うTrait。
 /// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
-///
-/// 入力・出力は [`SpatialIdCollection`] で抽象化されており、
-/// `Table` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
     /// 演算ごとのカスタム設定
     type CustomParameter;
