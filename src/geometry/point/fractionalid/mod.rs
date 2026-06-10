@@ -59,7 +59,7 @@ impl FractionalId {
         }
 
         // FractionalId は連続値のため、インデックス値の上限ではなく境界までを有効とする。
-        // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のセルの上面 = 2^z に対応する。
+        // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のインデックス値の上面 = 2^z に対応する。
         let f_min = F_MIN[z as usize] as f64;
         let f_max = F_MAX[z as usize] as f64 + 1.0;
         let xy_max = XY_MAX[z as usize] as f64 + 1.0;
