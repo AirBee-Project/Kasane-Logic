@@ -35,9 +35,9 @@ impl FractionalId {
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル（0 〜 [`MAX_ZOOM_LEVEL`]）
-    /// * `f` - F インデックス（実数、ズームレベルごとの高度限界範囲内）
-    /// * `x` - X インデックス（実数、0.0 〜 `XY_MAX[z]`）
-    /// * `y` - Y インデックス（実数、0.0 〜 `XY_MAX[z]`）
+    /// * `f` - F インデックス（実数、`F_MIN[z]` 〜 `F_MAX[z] + 1`。上端 `2^z` はグリッド最上面）
+    /// * `x` - X インデックス（実数、0.0 〜 `XY_MAX[z] + 1`。上端 `2^z` はグリッド右端）
+    /// * `y` - Y インデックス（実数、0.0 〜 `XY_MAX[z] + 1`。上端 `2^z` はグリッド下端）
     ///
     /// # 戻り値
     /// * 有効な値が指定された場合は `Ok(FractionalId)` を返す。
@@ -58,9 +58,11 @@ impl FractionalId {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
+        // FractionalId は連続値のため、整数セル番号の上限ではなくグリッド全幅の境界までを有効とする。
+        // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のセルの上面 = 2^z に対応する。
         let f_min = F_MIN[z as usize] as f64;
-        let f_max = F_MAX[z as usize] as f64;
-        let xy_max = XY_MAX[z as usize] as f64;
+        let f_max = F_MAX[z as usize] as f64 + 1.0;
+        let xy_max = XY_MAX[z as usize] as f64 + 1.0;
 
         if f < f_min || f > f_max || !f.is_finite() {
             return Err(GeometryError::FractionalFOutOfRange { f, z }.into());
