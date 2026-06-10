@@ -232,9 +232,8 @@ impl Coordinate {
         //Z=25のとき高さはちょうど1m
         let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
 
-        // セルは半開区間 [lo, hi) のため、許容範囲の閉じた上端
-        //（高度=2^25 / 経度=180° / 緯度の南端）は floor で「最後のセルの次」を指す。
-        // 経度を max_x に折り返すのと同様、f/x/y すべてを有効セルへクランプする。
+        // インデックス値は半開区間 [lo, hi) のため、許容範囲の閉じた上端は floor で「最後のセルのインデックス値」を指す。経度を max_x に折り返すのと同様、f/x/y すべてを有効セルへクランプする。
+
         let f = (libm::floor(factor * alt) as i64).clamp(f_min, f_max) as i32;
 
         let n = 2u64.pow(z as u32) as f64;
