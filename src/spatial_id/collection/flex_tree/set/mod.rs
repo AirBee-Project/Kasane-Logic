@@ -1,6 +1,6 @@
 use hashbrown::HashSet;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId};
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId};
 pub mod convert;
 pub mod json;
 pub mod ops;
@@ -67,6 +67,16 @@ impl SpatialIdSet {
         self.inner
             .remove_overlapping(target)
             .map(move |(flex_id, _value)| flex_id)
+    }
+
+    /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    pub fn neighbors_share_face<S: SpatialId>(
+        &self,
+        target: &S,
+    ) -> impl Iterator<Item = FlexId> + '_ {
+        self.inner
+            .neighbors_share_face_ref(target)
+            .map(|(flex_id, _value)| flex_id)
     }
 
     pub fn count(&self) -> usize {

@@ -350,6 +350,54 @@ where
         removed.into_iter()
     }
 
+    /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    pub fn neighbors_share_face_ref<'a, S>(
+        &'a self,
+        id: &S,
+    ) -> alloc::vec::IntoIter<(FlexId, &'a V)>
+    where
+        S: SpatialId,
+    {
+        // 自己除外用に、id が占有する FlexId を取得しておく。
+        let self_ids: Vec<FlexId> = id.iter_flex_ids().collect();
+
+        // 6 面方向へ 1 セルずらしたスラブを作る。
+        // X は循環するため常に成功、F / Y はワールド端を越えるとエラーになるので除外する。
+        let mut slabs: Vec<S> = Vec::new();
+        for delta in [-1, 1] {
+            let mut sf = id.clone();
+            if sf.move_f(delta).is_ok() {
+                slabs.push(sf);
+            }
+            let mut sy = id.clone();
+            if sy.move_y(delta).is_ok() {
+                slabs.push(sy);
+            }
+            let mut sx = id.clone();
+            sx.move_x(delta);
+            slabs.push(sx);
+        }
+
+        let mut seen: HashSet<FlexId> = HashSet::new();
+        let mut results: Vec<(FlexId, &'a V)> = Vec::new();
+
+        for slab in &slabs {
+            for slab_id in slab.iter_flex_ids() {
+                for (cand, value) in self.overlap_ref(slab_id) {
+                    // id 自身と交差する要素（内包など）は面接ではないため除外する。
+                    if self_ids.iter().any(|s| cand.intersection(s).is_some()) {
+                        continue;
+                    }
+                    if seen.insert(cand.clone()) {
+                        results.push((cand, value));
+                    }
+                }
+            }
+        }
+
+        results.into_iter()
+    }
+
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         LeavesIter {

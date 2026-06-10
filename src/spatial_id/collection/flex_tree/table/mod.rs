@@ -6,7 +6,9 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialIdSet};
+use crate::{
+    FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId, SpatialIdSet,
+};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Default, Clone, Debug)]
@@ -168,6 +170,22 @@ where
         }
 
         results.into_iter()
+    }
+
+    /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    pub fn neighbors_share_face<'a, S: SpatialId>(
+        &'a self,
+        target: &S,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        self.inner
+            .neighbors_share_face_ref(target)
+            .map(|(flex_id, rank)| {
+                let value = self
+                    .reverse_dictionary
+                    .get(rank)
+                    .expect("Dictionary mismatch");
+                (flex_id, value)
+            })
     }
 
     /// 保持している[FlexId]の総数を返します。
