@@ -1,5 +1,5 @@
 use super::node::Node;
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 impl<V> Node<V>
 where
@@ -288,6 +288,7 @@ where
         Rc::new(Node::Branch {
             level,
             leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+            max_zoom: Self::fold_max_zoom(level, &new_lower, &new_upper),
             lower_child: new_lower,
             upper_child: new_upper,
         })

@@ -1,5 +1,5 @@
 use crate::{CoverSingleIds, Cylinder, Error, SingleId, Sphere, Tube};
-use std::collections::HashSet;
+use hashbrown::HashSet;
 
 impl CoverSingleIds for Tube {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {

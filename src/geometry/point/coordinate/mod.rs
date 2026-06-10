@@ -3,12 +3,12 @@ pub mod impls;
 #[cfg(test)]
 mod tests;
 
-use std::borrow::Borrow;
+use core::borrow::Borrow;
 
 use crate::{
-    Ecef, SingleId,
+    Ecef, FractionalId, SingleId,
     error::{Error, GeometryError, SpatialIdError},
-    spatial_id::constants::MAX_ZOOM_LEVEL,
+    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
 };
 
 /// 緯度・経度・高度を表す型。
@@ -225,22 +225,72 @@ impl Coordinate {
         let lon = self.longitude;
         let alt = self.altitude;
 
+        let f_min = F_MIN[z as usize] as i64;
+        let f_max = F_MAX[z as usize] as i64;
+        let xy_max = XY_MAX[z as usize] as i64;
+
         //Z=25のとき高さはちょうど1m
-        let factor = 2_f64.powi(z as i32 - 25);
-        let f = libm::floor(factor * alt) as i32;
+        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
+
+        // インデックス値は半開区間 [lo, hi) のため、許容範囲の閉じた上端は floor で「最後のインデックス値」を指す。経度を max_x に折り返すのと同様、f/x/y すべてを有効インデックス値へクランプする。
+
+        let f = (libm::floor(factor * alt) as i64).clamp(f_min, f_max) as i32;
 
         let n = 2u64.pow(z as u32) as f64;
-        let max_x = n as u32 - 1;
-        let x = libm::floor((lon + 180.0) / 360.0 * n).min(max_x as f64) as u32;
+        let x = (libm::floor((lon + 180.0) / 360.0 * n) as i64).clamp(0, xy_max) as u32;
 
         let lat_rad = lat.to_radians();
-        let y = libm::floor(
-            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+        let y = (libm::floor(
+            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad))
+                / core::f64::consts::PI)
                 / 2.0
                 * n,
-        ) as u32;
+        ) as i64)
+            .clamp(0, xy_max) as u32;
 
         Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
+    }
+
+    /// この座標を、指定されたズームレベルに対応する [FractionalId] に変換する。
+    ///
+    /// # 引数
+    /// * `z` - 空間 ID のズームレベル
+    ///
+    /// # 戻り値
+    /// * 指定されたズームレベルに対応する [FractionalId]
+    ///
+    /// # Example
+    /// ```
+    /// # use kasane_logic::{Coordinate,FractionalId};
+    /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
+    /// assert_eq!(
+    ///     coord.fractional_id(24).unwrap(),
+    ///     FractionalId::new(24, 10.0, 14715409.371845974, 6646263.059889234).unwrap()
+    /// )
+    /// ```
+    pub fn fractional_id(&self, z: u8) -> Result<FractionalId, Error> {
+        if z > MAX_ZOOM_LEVEL as u8 {
+            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        }
+
+        let lat = self.latitude;
+        let lon = self.longitude;
+        let alt = self.altitude;
+
+        //Z=25のとき高さはちょうど1m
+        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
+        let f = factor * alt;
+
+        let n = 2u64.pow(z as u32) as f64;
+        let x = (lon + 180.0) / 360.0 * n;
+
+        let lat_rad = lat.to_radians();
+        let y = (1.0
+            - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / core::f64::consts::PI)
+            / 2.0
+            * n;
+        let id = FractionalId::new(z, f, x, y)?;
+        Ok(id)
     }
 
     /// 他の [`Coordinate`] との距離をメートル単位で返す。

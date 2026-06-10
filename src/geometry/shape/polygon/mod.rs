@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::Coordinate;
 
 pub mod geometry_relation;

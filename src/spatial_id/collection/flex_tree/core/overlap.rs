@@ -1,8 +1,10 @@
+use alloc::vec::Vec;
+
 use crate::{
     Dimension, FlexId, FlexTreeCore, Side,
     spatial_id::collection::flex_tree::core::{node::Node, split_child_id},
 };
-use std::rc::Rc;
+use alloc::rc::Rc;
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
 pub struct OverlapIter<'a, V>
@@ -184,6 +186,7 @@ where
                 lower_child,
                 upper_child,
                 leaf_count,
+                max_zoom,
             } = mut_node
             {
                 let axis = Node::<V>::axis(*level);
@@ -195,6 +198,7 @@ where
                 Self::prune_node_mut(lower_child, target, lower_id, removed, empty_leaf);
 
                 *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+                *max_zoom = Node::<V>::fold_max_zoom(*level, lower_child, upper_child);
             } else {
                 unreachable!()
             }

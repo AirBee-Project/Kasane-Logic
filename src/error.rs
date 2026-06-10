@@ -1,4 +1,6 @@
-use std::{error, fmt};
+use alloc::string::String;
+
+use core::{error, fmt};
 
 /// 本クレートで発生し得るエラーを表す最上位の型。
 #[derive(Debug, Clone, PartialEq)]

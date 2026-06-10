@@ -1,4 +1,7 @@
-use std::collections::{HashSet, VecDeque};
+use alloc::vec::Vec;
+
+use alloc::collections::VecDeque;
+use hashbrown::HashSet;
 
 use crate::{
     Coordinate, Error, ExpandCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid,

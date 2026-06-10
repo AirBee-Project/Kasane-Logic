@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialIdError,
     geometry::traits::CoverSingleIds,
@@ -27,7 +29,6 @@ impl CoverSingleIds for Line {
         let diff = ((v1.f() - v2.f()).abs()
             + (v1.x() as i32 - v2.x() as i32).abs()
             + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
-        let devide_num = 5 + libm::floor(diff / 120.0 + distance / 2000.0) as u16;
         let mut coordinates = Vec::with_capacity(devide_num as usize + 1);
         for i in 0..=devide_num {
             let t = i as f64 / devide_num as f64;
@@ -140,7 +141,7 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
             (current[pull_index[2]] + offsets_int[2]) as u32,
         )
     };
-    let iter = std::iter::once(first).chain((1..=max_steps).map(move |_| {
+    let iter = core::iter::once(first).chain((1..=max_steps).map(move |_| {
         let min_wall = (tm_int as f64).min(to1).min(to2);
         if min_wall == tm_int as f64 {
             tm_int += 1;
@@ -170,14 +171,15 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let alt = p.altitude();
 
     // 空間idの高さはz=25でちょうど1mになるように定義されている
-    let factor = 2_f64.powi(z as i32 - 25);
+    let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
     let f = factor * alt;
 
     let n = 2u64.pow(z as u32) as f64;
     let x = (lon + 180.0) / 360.0 * n;
 
     let lat_rad = lat.to_radians();
-    let y = (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / std::f64::consts::PI)
+    let y = (1.0
+        - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / core::f64::consts::PI)
         / 2.0
         * n;
     [f, x, y]

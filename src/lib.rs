@@ -1,4 +1,7 @@
+#![cfg_attr(not(test), no_std)]
 #![deny(clippy::disallowed_methods)]
+#[macro_use]
+extern crate alloc;
 
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
@@ -22,8 +25,6 @@ pub use error::{GeometryError, SpatialIdError};
 pub use geometry::shape::cylinder::Cylinder;
 #[doc(inline)]
 pub use geometry::shape::tube::Tube;
-#[doc(inline)]
-pub use geometry::vec3::Vec3;
 
 // geometry: types
 #[doc(inline)]
@@ -34,14 +35,24 @@ pub use geometry::shape::polygon::Polygon;
 pub use geometry::shape::solid::Solid;
 #[doc(inline)]
 pub use geometry::shape::sphere::Sphere;
+
+// geometry: vec3 types
 #[doc(inline)]
-pub use geometry::shape::triangle::Triangle;
+pub use geometry::vec3::vec3_ecef::Vec3Ecef;
+#[doc(inline)]
+pub use geometry::vec3::vec3_fractionalid::Vec3FractionalId;
+
+// geometry: vec3 traits
+#[doc(inline)]
+pub use geometry::vec3::traits::Vec3;
 
 // geometry: traits
 #[doc(inline)]
 pub use geometry::shape::traits::{
     ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape,
 };
+#[doc(inline)]
+pub use geometry::shape::triangle::Triangle;
 #[doc(inline)]
 pub use geometry::traits::{CoverRangeIds, CoverSingleIds};
 
@@ -63,9 +74,11 @@ pub use spatial_id::temporal_id::TemporalId;
 #[doc(inline)]
 pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
+pub use spatial_id::collection::flex_tree::json::JsonValue;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::traits::SpatialIdCollection;
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
@@ -79,3 +92,18 @@ pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingle
 // spatial_id: constants
 #[doc(inline)]
 pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
+
+#[doc(inline)]
+pub use spatial_id::collection::expr::binary::arith::ops::{Addable, Multipliable, Subtractable};
+#[doc(inline)]
+pub use spatial_id::collection::expr::binary::set::ops::SetOps;
+#[doc(inline)]
+pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::fill::ops::FillOps;
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::level::ops::LevelOps;
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::shift::ops::ShiftOps;
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::stretch::ops::StretchOps;

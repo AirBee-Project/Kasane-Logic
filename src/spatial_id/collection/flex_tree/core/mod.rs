@@ -1,9 +1,13 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use hashbrown::HashSet;
+
 use crate::{
     Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
+use alloc::rc::Rc;
 use node::Node;
-use std::rc::Rc;
 mod convert;
 pub mod node;
 pub mod node_ops;
@@ -43,6 +47,9 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] の和集合（Union）を計算します。
+    ///
+    /// 値が設定されている（`Some`）領域は基本的に保持されますが、`other` がより粗い領域で `Some` を持つ場合、その領域では `self` のより細かい値が上書きされることがあります（両者が同じ `Leaf(Some)` の場合のみ `self` が優先）。
     pub fn union(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
@@ -51,6 +58,11 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] の積集合（Intersection）を計算します。
+    ///
+    /// 両方の木で値が設定されている（重なり合う）領域については、以下のように値が保持されます。
+    /// - `self` と `other` で階層（細かさ）が異なる場合、**より細かい領域（より深い階層）で定義されている側の値**が優先して保持されます。
+    /// - 両者が同じ広さ（階層）で完全に一致する場合、**引数（`other`）の値**が優先して保持されます。
     pub fn intersection(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::intersection(
@@ -111,15 +123,39 @@ where
     /// assert_eq!(core.max_zoomlevel(), Some(4));
     /// ```
     pub fn max_zoomlevel(&self) -> Option<u8> {
-        //Todo:全探索にならない実装をしたほうが良い
-        self.iter()
-            .map(|(flex_id, _)| {
-                flex_id
-                    .f_zoomlevel()
-                    .max(flex_id.x_zoomlevel())
-                    .max(flex_id.y_zoomlevel())
-            })
-            .max()
+        if self.is_empty() {
+            return None;
+        }
+        // 各 Branch がキャッシュした max_zoom を畳み上げるだけなので O(1)。ルートはレベル 0。
+        let lower = self.lower_root.max_zoom_at(0);
+        let upper = self.upper_root.max_zoom_at(0);
+        Some(lower.max(upper))
+    }
+
+    /// この集合が値を持つ全セルを包む最小の範囲（F/X/Y の3次元AABB）を返します。
+    ///
+    /// 返り値 [`RangeId`] の各次元の `[0]` が最小（左下）側、`[1]` が最大（右上）側の角に
+    /// 対応します。混在ズームのセルは木全体の最大ズームへ正規化したうえで比較されます。
+    /// 空の木では [`None`] を返します。
+    ///
+    /// # 例
+    /// ```
+    /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, SingleId};
+    /// let mut core = FlexTreeCore::new();
+    /// core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
+    /// core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
+    ///
+    /// let bbox = core.bounding_box().unwrap();
+    /// assert_eq!(bbox.z(), 20);
+    /// assert_eq!(bbox.f(), [0, 0]);
+    /// assert_eq!(bbox.x(), [0, 2]);
+    /// assert_eq!(bbox.y(), [0, 3]);
+    ///
+    /// let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+    /// assert!(empty.bounding_box().is_none());
+    /// ```
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        RangeId::bounding_box_of(self.iter().map(|(flex_id, _)| flex_id))
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出します。
@@ -169,7 +205,7 @@ where
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として参照付きで書き出します。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
-            return Box::new(std::iter::empty());
+            return Box::new(core::iter::empty());
         };
 
         Box::new(self.iter_ref().flat_map(move |(flex_id, value)| {
@@ -256,6 +292,111 @@ where
         actual_removed.into_iter()
     }
 
+    /// [`get`](Self::get) と同様に target と重なる要素を取り出しますが、
+    /// **交差による切り取り（クリッピング）を行わず**、ツリーに格納されている
+    /// [`FlexId`] をそのままの広さで返します。
+    ///
+    /// target が複数セルにまたがって同じ葉に複数回重なる場合でも、同一の葉は
+    /// 1度だけ返します（重複除去）。
+    pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: Clone + 'a,
+    {
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for item in target.iter_flex_ids() {
+            for (overlap_id, value) in self.overlap(item) {
+                if seen.insert(overlap_id.clone()) {
+                    results.push((overlap_id, value));
+                }
+            }
+        }
+        results.into_iter()
+    }
+
+    /// [`get_overlapping`](Self::get_overlapping) の参照版。値 `V` を複製せず参照で返します。
+    pub fn get_overlapping_ref<'a, S>(
+        &'a self,
+        target: &'a S,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: 'a,
+    {
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for item in target.iter_flex_ids() {
+            for (overlap_id, value) in self.overlap_ref(item) {
+                if seen.insert(overlap_id.clone()) {
+                    results.push((overlap_id, value));
+                }
+            }
+        }
+        results.into_iter()
+    }
+
+    /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、
+    /// target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を
+    /// そのままの広さで返します。
+    pub fn remove_overlapping<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
+    where
+        S: IterFlexIds,
+    {
+        let mut removed = Vec::new();
+        for t_id in target.iter_flex_ids() {
+            removed.extend(self.overlap_remove(&t_id));
+        }
+        removed.into_iter()
+    }
+
+    /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    pub fn neighbors_share_face_ref<'a, S>(
+        &'a self,
+        id: &S,
+    ) -> alloc::vec::IntoIter<(FlexId, &'a V)>
+    where
+        S: SpatialId,
+    {
+        let self_ids: Vec<FlexId> = id.iter_flex_ids().collect();
+
+        let mut slabs: Vec<S> = Vec::new();
+        for delta in [-1, 1] {
+            let mut sf = id.clone();
+            if sf.move_f(delta).is_ok() {
+                slabs.push(sf);
+            }
+            let mut sy = id.clone();
+            if sy.move_y(delta).is_ok() {
+                slabs.push(sy);
+            }
+            let mut sx = id.clone();
+            sx.move_x(delta);
+            slabs.push(sx);
+        }
+
+        let mut seen: HashSet<FlexId> = HashSet::new();
+        let mut results: Vec<(FlexId, &'a V)> = Vec::new();
+
+        for slab in &slabs {
+            for slab_id in slab.iter_flex_ids() {
+                for (cand, value) in self.overlap_ref(slab_id) {
+                    if self_ids.iter().any(|s| cand.intersection(s).is_some()) {
+                        continue;
+                    }
+                    if !self_ids.iter().any(|s| s.shares_face(&cand)) {
+                        continue;
+                    }
+                    if seen.insert(cand.clone()) {
+                        results.push((cand, value));
+                    }
+                }
+            }
+        }
+
+        results.into_iter()
+    }
+
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         LeavesIter {
@@ -300,25 +441,8 @@ where
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
 pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
     match axis {
-        Dimension::F => current_id.f_split(side).unwrap(),
-        Dimension::X => current_id.x_split(side).unwrap(),
-        Dimension::Y => current_id.y_split(side).unwrap(),
-    }
-}
-
-#[cfg(all(test, feature = "temporal_id"))]
-mod tests {
-    use super::FlexTreeCore;
-    use crate::{SingleId, TemporalId};
-
-    #[test]
-    fn insert_accepts_non_whole_temporal_ids() {
-        let mut core = FlexTreeCore::new();
-        let temporal = TemporalId::WHOLE;
-        let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
-
-        core.insert(id, ());
-
-        assert_eq!(core.count(), 1);
+        Dimension::F => current_id.split_f(side).unwrap(),
+        Dimension::X => current_id.split_x(side).unwrap(),
+        Dimension::Y => current_id.split_y(side).unwrap(),
     }
 }

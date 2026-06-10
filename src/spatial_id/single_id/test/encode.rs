@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 use crate::{SingleId, SpatialIdError, error::Error};
 

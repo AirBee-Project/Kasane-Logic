@@ -1,9 +1,11 @@
+use alloc::vec::Vec;
+
 pub mod impls;
 #[cfg(test)]
 mod tests;
-use std::f64::consts::PI;
+use core::f64::consts::PI;
 
-use crate::{Coordinate, Ecef, Error, GeometryError, Polygon, Solid, Vec3};
+use crate::{Coordinate, Ecef, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef};
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -35,7 +37,7 @@ impl Cylinder {
 
     /// [Cylinder]を近似した立体の表面を[Polygon]として返す関数
     pub fn rough_surfaces(&self) -> impl Iterator<Item = Polygon> {
-        let vecs: [Vec3; 2] = [self.start.into(), self.end.into()];
+        let vecs: [Vec3Ecef; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
             .create_orthonormal_basis()
@@ -49,7 +51,7 @@ impl Cylinder {
             })
             .collect();
 
-        let to_coord = |v: Vec3| Coordinate::try_from(Ecef::from(v)).unwrap();
+        let to_coord = |v: Vec3Ecef| Coordinate::try_from(Ecef::from(v)).unwrap();
 
         // 側面の頂点リスト（イテレータ）を作成
         let side_surfaces = (0..divide_num).map(|i| {

@@ -1,90 +1,89 @@
-#[cfg(feature = "serde")]
-use serde::Serialize;
+use alloc::string::String;
 
-use crate::{RangeId, SpatialId, SpatialIdSet};
+use crate::{RangeId, SpatialIdSet};
 
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputMeta {
-    version: &'static str,
-    description: &'static str,
-}
+use super::super::json::{write_envelope_open, write_id_open};
 
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputOption {}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputId {
-    z: u8,
-    f: Vec<i32>,
-    x: Vec<u32>,
-    y: Vec<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    i: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    t: Option<u64>,
-}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputData {
-    name: &'static str,
-    ids: Vec<OutputId>,
-}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputRoot {
-    #[serde(rename = "$schema")]
-    schema: &'static str,
-    meta: OutputMeta,
-    option: OutputOption,
-    data: Vec<OutputData>,
-}
-
-#[cfg(feature = "serde")]
 impl SpatialIdSet {
+    /// この集合を <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ
+    /// 書き出す。外部クレート（serde 等）に依存せず、いつでも利用できる。
+    ///
+    /// 値を持たない集合なので `data[].value` は出力せず、占有空間を `ids` として並べる。
+    ///
+    /// # 例
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    /// let mut set = SpatialIdSet::new();
+    /// set.insert(SingleId::new(20, 0, 0, 0).unwrap());
+    ///
+    /// let json = set.to_json();
+    /// assert!(json.contains("\"z\":20"));
+    /// assert!(json.contains("\"ids\":["));
+    /// ```
     pub fn to_json(&self) -> String {
-        let ids: Vec<_> = self
-            .iter()
-            .map(|flex_id| {
-                let range_id = RangeId::from(&flex_id);
-                let f = range_id.f();
-                let x = range_id.x();
-                let y = range_id.y();
-                let temp = range_id.temporal();
+        let mut out = String::new();
+        write_envelope_open(&mut out);
+        out.push_str("\"ids\":[");
 
-                OutputId {
-                    z: range_id.z(),
-                    f: if f[0] == f[1] { vec![f[0]] } else { f.to_vec() },
-                    x: if x[0] == x[1] { vec![x[0]] } else { x.to_vec() },
-                    y: if y[0] == y[1] { vec![y[0]] } else { y.to_vec() },
-                    i: if !temp.is_whole() {
-                        Some(temp.i())
-                    } else {
-                        None
-                    },
-                    t: if !temp.is_whole() {
-                        Some(temp.t())
-                    } else {
-                        None
-                    },
-                }
-            })
-            .collect();
+        let mut first = true;
+        for flex_id in self.iter() {
+            if !first {
+                out.push(',');
+            }
+            first = false;
 
-        let root = OutputRoot {
-            schema: "https://airbee-project.github.io/schemas/json/v1.0.json",
-            meta: OutputMeta {
-                version: "v1.0",
-                description: "",
-            },
-            option: OutputOption {},
-            data: vec![OutputData { name: "", ids }],
-        };
+            let range_id = RangeId::from(&flex_id);
+            write_id_open(&mut out, &range_id);
+            out.push('}');
+        }
 
-        serde_json::to_string(&root).unwrap()
+        out.push_str("]}]}");
+        out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{SingleId, SpatialIdSet};
+
+    #[test]
+    fn to_json_has_schema_envelope_and_ids() {
+        let mut set = SpatialIdSet::new();
+        set.insert(SingleId::new(20, 0, 0, 0).unwrap());
+
+        let json = set.to_json();
+
+        assert!(json.starts_with(
+            "{\"$schema\":\"https://airbee-project.github.io/schemas/json/v1.0.json\""
+        ));
+        assert!(json.contains("\"meta\":{\"version\":\"v1.0\",\"description\":\"\"}"));
+        assert!(json.contains("\"option\":{}"));
+        assert!(json.contains("\"data\":[{\"name\":\"\",\"ids\":["));
+        assert!(json.contains("\"z\":20"));
+        assert!(json.contains("\"f\":[0]"));
+        // 値を持たない集合は value を出さない。
+        assert!(!json.contains("\"value\""));
+        // 非 temporal では i / t を出さない。
+        assert!(!json.contains("\"i\":"));
+        assert!(!json.contains("\"t\":"));
+    }
+
+    #[test]
+    fn to_json_empty_set_has_empty_ids() {
+        let set = SpatialIdSet::new();
+        assert!(set.to_json().contains("\"ids\":[]"));
+    }
+
+    #[test]
+    fn to_json_collapses_and_expands_ranges() {
+        use crate::RangeId;
+        let mut set = SpatialIdSet::new();
+        // x は範囲 [0,1] を持つ（z20）。f/y は単一。
+        set.insert(RangeId::new(20, [0, 0], [0, 1], [0, 0]).unwrap());
+
+        let json = set.to_json();
+        assert!(json.contains("\"x\":[0,1]"));
+        assert!(json.contains("\"f\":[0]"));
     }
 }

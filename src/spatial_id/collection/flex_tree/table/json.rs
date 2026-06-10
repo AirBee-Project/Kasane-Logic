@@ -1,109 +1,111 @@
-#[cfg(feature = "serde")]
-use serde::Serialize;
+use alloc::string::String;
+use alloc::vec::Vec;
 
-use crate::{RangeId, SpatialId, SpatialIdTable};
+use crate::{JsonValue, RangeId, SpatialIdTable};
 
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputMeta {
-    version: &'static str,
-    description: &'static str,
-}
+use super::super::json::{write_envelope_open, write_id_open};
 
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputOption {}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputId {
-    z: u8,
-    f: Vec<i32>,
-    x: Vec<u32>,
-    y: Vec<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    i: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    t: Option<u64>,
-    #[serde(rename = "ref")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    ref_idx: Option<usize>,
-}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputData<'a, V> {
-    name: &'static str,
-    value: &'a Vec<&'a V>,
-    ids: Vec<OutputId>,
-}
-
-#[cfg(feature = "serde")]
-#[derive(Serialize)]
-struct OutputRoot<'a, V> {
-    #[serde(rename = "$schema")]
-    schema: &'static str,
-    meta: OutputMeta,
-    option: OutputOption,
-    data: Vec<OutputData<'a, V>>,
-}
-
-#[cfg(feature = "serde")]
 impl<V> SpatialIdTable<V>
 where
-    V: PartialEq + Ord + Clone + Serialize,
+    V: PartialEq + Ord + Clone + JsonValue,
 {
+    /// このテーブルを <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ
+    /// 書き出す。外部クレート（serde 等）に依存せず、値型 `V` が [`JsonValue`] を実装していれば
+    /// いつでも利用できる。
+    ///
+    /// 値は `data[].value` に重複なく列挙し、各空間 ID は `ref` でその添字を参照する。
+    ///
+    /// # 例
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdTable};
+    /// let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
+    /// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
+    ///
+    /// let json = table.to_json();
+    /// assert!(json.contains("\"value\":[10]"));
+    /// assert!(json.contains("\"ref\":0"));
+    /// ```
     pub fn to_json(&self) -> String {
-        let mut unique_values: Vec<&V> = Vec::new();
+        // 値を出現順で重複排除し、各 ID から添字（ref）で参照する。
+        let mut unique: Vec<&V> = Vec::new();
         for (_, val) in self.iter() {
-            if !unique_values.contains(&val) {
-                unique_values.push(val);
+            if !unique.contains(&val) {
+                unique.push(val);
             }
         }
 
-        let ids: Vec<_> = self
-            .iter()
-            .map(|(flex_id, val)| {
-                let range_id = RangeId::from(&flex_id);
-                let f = range_id.f();
-                let x = range_id.x();
-                let y = range_id.y();
-                let temp = range_id.temporal();
+        let mut out = String::new();
+        write_envelope_open(&mut out);
 
-                OutputId {
-                    z: range_id.z(),
-                    f: if f[0] == f[1] { vec![f[0]] } else { f.to_vec() },
-                    x: if x[0] == x[1] { vec![x[0]] } else { x.to_vec() },
-                    y: if y[0] == y[1] { vec![y[0]] } else { y.to_vec() },
-                    i: if !temp.is_whole() {
-                        Some(temp.i())
-                    } else {
-                        None
-                    },
-                    t: if !temp.is_whole() {
-                        Some(temp.t())
-                    } else {
-                        None
-                    },
-                    ref_idx: unique_values.iter().position(|&v| v == val),
-                }
-            })
-            .collect();
+        out.push_str("\"value\":[");
+        let mut first = true;
+        for v in &unique {
+            if !first {
+                out.push(',');
+            }
+            first = false;
+            (**v).write_json(&mut out);
+        }
+        out.push_str("],\"ids\":[");
 
-        let root = OutputRoot {
-            schema: "https://airbee-project.github.io/schemas/json/v1.0.json",
-            meta: OutputMeta {
-                version: "v1.0",
-                description: "",
-            },
-            option: OutputOption {},
-            data: vec![OutputData {
-                name: "",
-                value: &unique_values,
-                ids,
-            }],
-        };
+        let mut first = true;
+        for (flex_id, val) in self.iter() {
+            if !first {
+                out.push(',');
+            }
+            first = false;
 
-        serde_json::to_string(&root).unwrap()
+            let range_id = RangeId::from(&flex_id);
+            write_id_open(&mut out, &range_id);
+            if let Some(idx) = unique.iter().position(|&u| u == val) {
+                out.push_str(",\"ref\":");
+                idx.write_json(&mut out);
+            }
+            out.push('}');
+        }
+
+        out.push_str("]}]}");
+        out
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{SingleId, SpatialIdTable};
+    use alloc::string::ToString;
+
+    #[test]
+    fn to_json_lists_unique_values_and_refs() {
+        let mut table = SpatialIdTable::<i32>::new();
+        table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
+        table.insert(SingleId::new(20, 1, 0, 0).unwrap(), 20);
+        table.insert(SingleId::new(20, 2, 0, 0).unwrap(), 10); // 値 10 を再利用
+
+        let json = table.to_json();
+
+        // 値は数値としてそのまま（クォートされない）、重複は1つに集約。
+        assert!(json.contains("\"value\":[10,20]"));
+        assert!(json.contains("\"ref\":0"));
+        assert!(json.contains("\"ref\":1"));
+        assert!(json.contains("\"z\":20"));
+    }
+
+    #[test]
+    fn to_json_quotes_and_escapes_string_values() {
+        let mut table = SpatialIdTable::<String>::new();
+        table.insert(SingleId::new(20, 0, 0, 0).unwrap(), "a\"b".to_string());
+
+        let json = table.to_json();
+        // 文字列値はクォートされ、" がエスケープされる。
+        assert!(json.contains("\"value\":[\"a\\\"b\"]"));
+    }
+
+    #[test]
+    fn to_json_empty_table_has_empty_value_and_ids() {
+        let table = SpatialIdTable::<i32>::new();
+        let json = table.to_json();
+        assert!(json.contains("\"value\":[]"));
+        assert!(json.contains("\"ids\":[]"));
     }
 }

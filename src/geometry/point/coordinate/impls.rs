@@ -2,7 +2,7 @@ use crate::{
     Coordinate, Ecef, MAX_ZOOM_LEVEL, Point, SpatialIdError, WGS84_A, WGS84_E2,
     geometry::traits::CoverSingleIds,
 };
-use std::fmt;
+use core::fmt;
 
 impl fmt::Debug for Coordinate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -66,6 +66,6 @@ impl CoverSingleIds for Coordinate {
         if z > MAX_ZOOM_LEVEL as u8 {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
-        Ok(std::iter::once(self.single_id(z)?))
+        Ok(core::iter::once(self.single_id(z)?))
     }
 }

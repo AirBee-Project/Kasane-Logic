@@ -6,6 +6,8 @@ pub use disabled::TemporalId;
 #[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};
 #[cfg(feature = "temporal_id")]
+use alloc::vec::Vec;
+#[cfg(feature = "temporal_id")]
 pub mod impls;
 #[cfg(feature = "temporal_id")]
 pub mod ops;

@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::{
     Coordinate, Ecef, ExpandCoordinates, ExpandLines, ExpandTriangles, Line, Polygon, Triangle,
 };

@@ -1,10 +1,12 @@
-use std::fmt;
+use alloc::string::ToString;
+
+use core::fmt;
 
 use crate::{
     Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
     spatial_id::helpers,
 };
-use std::str::FromStr;
+use core::str::FromStr;
 
 impl fmt::Display for FlexId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -102,19 +104,19 @@ impl SpatialId for FlexId {
     }
 
     fn length_f_meters(&self) -> f64 {
-        2_f64.powi(25 - self.f_zoomlevel() as i32)
+        libm::pow(2_f64, (25 - self.f_zoomlevel() as i32) as f64)
     }
 
     fn length_x_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.x_zoomlevel() as u32) as f64)
+        r * 2.0 * core::f64::consts::PI / (2_i32.pow(self.x_zoomlevel() as u32) as f64)
     }
 
     fn length_y_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        r * 2.0 * std::f64::consts::PI / (2_i32.pow(self.y_zoomlevel() as u32) as f64)
+        r * 2.0 * core::f64::consts::PI / (2_i32.pow(self.y_zoomlevel() as u32) as f64)
     }
 
     fn spatial_center(&self) -> crate::Coordinate {
@@ -181,7 +183,7 @@ impl SpatialId for FlexId {
 
 /// 文字列表現から [`FlexId`] を復元する。
 ///
-/// 形式は [`Display`](std::fmt::Display) が出力する
+/// 形式は [`Display`](core::fmt::Display) が出力する
 /// `"{f_zoom}/{f}|{x_zoom}/{x}|{y_zoom}/{y}"`。
 /// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受け付け。
 ///
