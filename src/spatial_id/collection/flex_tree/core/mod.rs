@@ -358,11 +358,8 @@ where
     where
         S: SpatialId,
     {
-        // 自己除外用に、id が占有する FlexId を取得しておく。
         let self_ids: Vec<FlexId> = id.iter_flex_ids().collect();
 
-        // 6 面方向へ 1 セルずらしたスラブを作る。
-        // X は循環するため常に成功、F / Y はワールド端を越えるとエラーになるので除外する。
         let mut slabs: Vec<S> = Vec::new();
         for delta in [-1, 1] {
             let mut sf = id.clone();
@@ -384,7 +381,6 @@ where
         for slab in &slabs {
             for slab_id in slab.iter_flex_ids() {
                 for (cand, value) in self.overlap_ref(slab_id) {
-                    // id 自身と交差する要素（内包など）は面接ではないため除外する。
                     if self_ids.iter().any(|s| cand.intersection(s).is_some()) {
                         continue;
                     }
