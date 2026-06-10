@@ -119,6 +119,56 @@ where
 
         results.into_iter()
     }
+    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
+    /// [`FlexId`]と値をそのままの返します。
+    pub fn get_overlapping<'a, S>(
+        &'a self,
+        target: &'a S,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
+    where
+        S: IterFlexIds,
+    {
+        self.inner
+            .get_overlapping_ref(target)
+            .map(|(flex_id, rank)| {
+                let value = self
+                    .reverse_dictionary
+                    .get(rank)
+                    .expect("Dictionary mismatch");
+                (flex_id, value)
+            })
+    }
+
+    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
+    /// [`FlexId`]と値をそのままの返します。
+    pub fn remove_overlapping<'a, S: IterFlexIds>(
+        &'a mut self,
+        target: &'a S,
+    ) -> impl Iterator<Item = (FlexId, V)> + 'a {
+        let removed_items: Vec<(FlexId, usize)> = self.inner.remove_overlapping(target).collect();
+        let mut results = Vec::new();
+
+        for (flex_id, rank) in removed_items {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch")
+                .clone();
+
+            if let Some(set) = self.value_index.get_mut(&rank) {
+                let _ = set.remove(&flex_id);
+
+                if set.is_empty() {
+                    self.value_index.remove(&rank);
+                    self.reverse_dictionary.remove(&rank);
+                    self.dictionary.remove(&value);
+                }
+            }
+            results.push((flex_id, value));
+        }
+
+        results.into_iter()
+    }
 
     /// 保持している[FlexId]の総数を返します。
     pub fn count(&self) -> usize {

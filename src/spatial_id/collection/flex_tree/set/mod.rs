@@ -47,6 +47,28 @@ impl SpatialIdSet {
             .map(move |(flex_id, _value)| flex_id)
     }
 
+    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
+    /// [`FlexId`] をそのままの返します。
+    pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
+    where
+        S: IterFlexIds + 'a,
+    {
+        self.inner
+            .get_overlapping(target)
+            .map(|(flex_id, _value)| flex_id)
+    }
+
+    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
+    /// [`FlexId`] をそのままの返します。
+    pub fn remove_overlapping<S: IterFlexIds>(
+        &mut self,
+        target: &S,
+    ) -> impl Iterator<Item = FlexId> {
+        self.inner
+            .remove_overlapping(target)
+            .map(move |(flex_id, _value)| flex_id)
+    }
+
     pub fn count(&self) -> usize {
         self.inner.count()
     }

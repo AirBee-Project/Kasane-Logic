@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use hashbrown::HashSet;
 
 use crate::{
     Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
@@ -289,6 +290,64 @@ where
         }
 
         actual_removed.into_iter()
+    }
+
+    /// [`get`](Self::get) と同様に target と重なる要素を取り出しますが、
+    /// **交差による切り取り（クリッピング）を行わず**、ツリーに格納されている
+    /// [`FlexId`] をそのままの広さで返します。
+    ///
+    /// target が複数セルにまたがって同じ葉に複数回重なる場合でも、同一の葉は
+    /// 1度だけ返します（重複除去）。
+    pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: Clone + 'a,
+    {
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for item in target.iter_flex_ids() {
+            for (overlap_id, value) in self.overlap(item) {
+                if seen.insert(overlap_id.clone()) {
+                    results.push((overlap_id, value));
+                }
+            }
+        }
+        results.into_iter()
+    }
+
+    /// [`get_overlapping`](Self::get_overlapping) の参照版。値 `V` を複製せず参照で返します。
+    pub fn get_overlapping_ref<'a, S>(
+        &'a self,
+        target: &'a S,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: 'a,
+    {
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for item in target.iter_flex_ids() {
+            for (overlap_id, value) in self.overlap_ref(item) {
+                if seen.insert(overlap_id.clone()) {
+                    results.push((overlap_id, value));
+                }
+            }
+        }
+        results.into_iter()
+    }
+
+    /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、
+    /// target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を
+    /// そのままの広さで返します。
+    pub fn remove_overlapping<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
+    where
+        S: IterFlexIds,
+    {
+        let mut removed = Vec::new();
+        for t_id in target.iter_flex_ids() {
+            removed.extend(self.overlap_remove(&t_id));
+        }
+        removed.into_iter()
     }
 
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
