@@ -860,4 +860,70 @@ impl FlexId {
             }
         }
     }
+
+    /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。
+    ///
+    /// ```
+    /// # use kasane_logic::FlexId;
+    /// let a = FlexId::new(4, 5, 4, 5, 4, 5).unwrap();
+    /// let east = FlexId::new(4, 5, 4, 6, 4, 5).unwrap(); // X+1（面で接する）
+    /// let diag = FlexId::new(4, 5, 4, 6, 4, 6).unwrap(); // X+1,Y+1（辺で接する）
+    /// assert!(a.shares_face(&east));
+    /// assert!(!a.shares_face(&diag));
+    /// assert!(!a.shares_face(&a)); // 重なり（自身）は面共有ではない
+    /// ```
+    pub fn shares_face(&self, other: &FlexId) -> bool {
+        #[derive(PartialEq)]
+        enum Rel {
+            Overlap,
+            Adjacent,
+            Separated,
+        }
+
+        fn axis_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
+            let shift = (common - zoom) as i64;
+            (index << shift, ((index + 1) << shift) - 1)
+        }
+
+        fn classify(a: (i64, i64), b: (i64, i64), cyclic_width: Option<i64>) -> Rel {
+            if a.0.max(b.0) <= a.1.min(b.1) {
+                return Rel::Overlap;
+            }
+            let mut adjacent = a.1 + 1 == b.0 || b.1 + 1 == a.0;
+            if let Some(w) = cyclic_width
+                && ((a.1 + 1).rem_euclid(w) == b.0.rem_euclid(w)
+                    || (b.1 + 1).rem_euclid(w) == a.0.rem_euclid(w))
+            {
+                adjacent = true;
+            }
+            if adjacent {
+                Rel::Adjacent
+            } else {
+                Rel::Separated
+            }
+        }
+
+        let cf = self.f_zoomlevel().max(other.f_zoomlevel());
+        let rf = classify(
+            axis_range(self.f_zoomlevel(), self.f_index() as i64, cf),
+            axis_range(other.f_zoomlevel(), other.f_index() as i64, cf),
+            None,
+        );
+        let cx = self.x_zoomlevel().max(other.x_zoomlevel());
+        let rx = classify(
+            axis_range(self.x_zoomlevel(), self.x_index() as i64, cx),
+            axis_range(other.x_zoomlevel(), other.x_index() as i64, cx),
+            Some(1i64 << cx),
+        );
+        let cy = self.y_zoomlevel().max(other.y_zoomlevel());
+        let ry = classify(
+            axis_range(self.y_zoomlevel(), self.y_index() as i64, cy),
+            axis_range(other.y_zoomlevel(), other.y_index() as i64, cy),
+            None,
+        );
+
+        let rels = [rf, rx, ry];
+        rels.iter().filter(|r| **r == Rel::Adjacent).count() == 1
+            && rels.iter().filter(|r| **r == Rel::Overlap).count() == 2
+    }
 }

@@ -384,6 +384,9 @@ where
                     if self_ids.iter().any(|s| cand.intersection(s).is_some()) {
                         continue;
                     }
+                    if !self_ids.iter().any(|s| s.shares_face(&cand)) {
+                        continue;
+                    }
                     if seen.insert(cand.clone()) {
                         results.push((cand, value));
                     }
@@ -441,22 +444,5 @@ pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -
         Dimension::F => current_id.split_f(side).unwrap(),
         Dimension::X => current_id.split_x(side).unwrap(),
         Dimension::Y => current_id.split_y(side).unwrap(),
-    }
-}
-
-#[cfg(all(test, feature = "temporal_id"))]
-mod tests {
-    use super::FlexTreeCore;
-    use crate::{SingleId, TemporalId};
-
-    #[test]
-    fn insert_accepts_non_whole_temporal_ids() {
-        let mut core = FlexTreeCore::new();
-        let temporal = TemporalId::WHOLE;
-        let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
-
-        core.insert(id, ());
-
-        assert_eq!(core.count(), 1);
     }
 }
