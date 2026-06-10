@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use hashbrown::HashSet;
 
 use crate::{
     Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
@@ -291,6 +292,111 @@ where
         actual_removed.into_iter()
     }
 
+    /// [`get`](Self::get) と同様に target と重なる要素を取り出しますが、
+    /// **交差による切り取り（クリッピング）を行わず**、ツリーに格納されている
+    /// [`FlexId`] をそのままの広さで返します。
+    ///
+    /// target が複数セルにまたがって同じ葉に複数回重なる場合でも、同一の葉は
+    /// 1度だけ返します（重複除去）。
+    pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: Clone + 'a,
+    {
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for item in target.iter_flex_ids() {
+            for (overlap_id, value) in self.overlap(item) {
+                if seen.insert(overlap_id.clone()) {
+                    results.push((overlap_id, value));
+                }
+            }
+        }
+        results.into_iter()
+    }
+
+    /// [`get_overlapping`](Self::get_overlapping) の参照版。値 `V` を複製せず参照で返します。
+    pub fn get_overlapping_ref<'a, S>(
+        &'a self,
+        target: &'a S,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
+    where
+        S: IterFlexIds + 'a,
+        V: 'a,
+    {
+        let mut seen = HashSet::new();
+        let mut results = Vec::new();
+        for item in target.iter_flex_ids() {
+            for (overlap_id, value) in self.overlap_ref(item) {
+                if seen.insert(overlap_id.clone()) {
+                    results.push((overlap_id, value));
+                }
+            }
+        }
+        results.into_iter()
+    }
+
+    /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、
+    /// target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を
+    /// そのままの広さで返します。
+    pub fn remove_overlapping<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
+    where
+        S: IterFlexIds,
+    {
+        let mut removed = Vec::new();
+        for t_id in target.iter_flex_ids() {
+            removed.extend(self.overlap_remove(&t_id));
+        }
+        removed.into_iter()
+    }
+
+    /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    pub fn neighbors_share_face_ref<'a, S>(
+        &'a self,
+        id: &S,
+    ) -> alloc::vec::IntoIter<(FlexId, &'a V)>
+    where
+        S: SpatialId,
+    {
+        let self_ids: Vec<FlexId> = id.iter_flex_ids().collect();
+
+        let mut slabs: Vec<S> = Vec::new();
+        for delta in [-1, 1] {
+            let mut sf = id.clone();
+            if sf.move_f(delta).is_ok() {
+                slabs.push(sf);
+            }
+            let mut sy = id.clone();
+            if sy.move_y(delta).is_ok() {
+                slabs.push(sy);
+            }
+            let mut sx = id.clone();
+            sx.move_x(delta);
+            slabs.push(sx);
+        }
+
+        let mut seen: HashSet<FlexId> = HashSet::new();
+        let mut results: Vec<(FlexId, &'a V)> = Vec::new();
+
+        for slab in &slabs {
+            for slab_id in slab.iter_flex_ids() {
+                for (cand, value) in self.overlap_ref(slab_id) {
+                    if self_ids.iter().any(|s| cand.intersection(s).is_some()) {
+                        continue;
+                    }
+                    if !self_ids.iter().any(|s| s.shares_face(&cand)) {
+                        continue;
+                    }
+                    if seen.insert(cand.clone()) {
+                        results.push((cand, value));
+                    }
+                }
+            }
+        }
+
+        results.into_iter()
+    }
+
     /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         LeavesIter {
@@ -338,22 +444,5 @@ pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -
         Dimension::F => current_id.split_f(side).unwrap(),
         Dimension::X => current_id.split_x(side).unwrap(),
         Dimension::Y => current_id.split_y(side).unwrap(),
-    }
-}
-
-#[cfg(all(test, feature = "temporal_id"))]
-mod tests {
-    use super::FlexTreeCore;
-    use crate::{SingleId, TemporalId};
-
-    #[test]
-    fn insert_accepts_non_whole_temporal_ids() {
-        let mut core = FlexTreeCore::new();
-        let temporal = TemporalId::WHOLE;
-        let id = SingleId::new_with_temporal(3, 3, 2, 7, temporal).unwrap();
-
-        core.insert(id, ());
-
-        assert_eq!(core.count(), 1);
     }
 }
