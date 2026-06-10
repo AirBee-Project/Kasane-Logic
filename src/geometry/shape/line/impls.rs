@@ -29,6 +29,7 @@ impl CoverSingleIds for Line {
         let diff = ((v1.f() - v2.f()).abs()
             + (v1.x() as i32 - v2.x() as i32).abs()
             + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
+        let devide_num = 5 + libm::floor(diff / 120.0 + distance / 2000.0) as u16;
         let mut coordinates = Vec::with_capacity(devide_num as usize + 1);
         for i in 0..=devide_num {
             let t = i as f64 / devide_num as f64;
