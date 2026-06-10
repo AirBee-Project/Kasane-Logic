@@ -14,6 +14,8 @@ jobs:
   build-benchmarks:
     name: Build Benchmarks
     runs-on: ubuntu-latest
+    outputs:
+      benches: ${{ steps.benches.outputs.benches }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,11 +28,17 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
+      - name: Get benchmark list
+        id: benches
+        run: |
+          BENCH_LIST=$(cargo metadata --format-version 1 --no-deps | jq -c '[.packages[] | select(.name=="kasane-logic") | .targets[] | select(.kind[] == "bench") | .name | select(. != "spatial_id_set_memory")]')
+          echo "benches=$BENCH_LIST" >> $GITHUB_OUTPUT
+
       - name: Build benchmarks
         run: |
           mkdir -p bench-binaries
-          BENCHES=("geometry_line" "geometry_triangle" "geometry_sphere" "geometry_cylinder" "geometry_tube" "geometry_solid" "geometry_polygon" "geometry_point_conversion" "spatial_id_set_insert" "spatial_id_set_get" "spatial_id_set_remove" "spatial_id_set_union" "spatial_id_set_intersection" "spatial_id_set_difference" "spatial_id_set_geometry" "spatial_id_set_geometry_cylinder")
-          for bench in "${BENCHES[@]}"; do
+          BENCHES=$(echo '${{ steps.benches.outputs.benches }}' | jq -r '.[]')
+          for bench in $BENCHES; do
             EXEC=$(cargo bench --bench $bench --no-run --message-format=json | jq -r 'select(.profile.test == true and .executable != null) | .executable')
             cp "$EXEC" "bench-binaries/$bench"
           done
@@ -48,23 +56,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        bench_name:
-          - geometry_line
-          - geometry_triangle
-          - geometry_sphere
-          - geometry_cylinder
-          - geometry_tube
-          - geometry_solid
-          - geometry_polygon
-          - geometry_point_conversion
-          - spatial_id_set_insert
-          - spatial_id_set_get
-          - spatial_id_set_remove
-          - spatial_id_set_union
-          - spatial_id_set_intersection
-          - spatial_id_set_difference
-          - spatial_id_set_geometry
-          - spatial_id_set_geometry_cylinder
+        bench_name: ${{ fromJson(needs.build-benchmarks.outputs.benches) }}
     steps:
       - name: Download benchmark binaries
         uses: actions/download-artifact@v4
