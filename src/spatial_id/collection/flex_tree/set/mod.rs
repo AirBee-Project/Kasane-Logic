@@ -1,4 +1,3 @@
-use fxhash::FxBuildHasher;
 use hashbrown::HashSet;
 
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId};
@@ -111,8 +110,8 @@ impl SpatialIdSet {
         self.inner.iter().map(|(flex_id, _)| flex_id)
     }
 
-    fn normalized_single_ids_at_zoom(&self, target_z: u8) -> HashSet<SingleId, FxBuildHasher> {
-        let mut normalized: HashSet<SingleId, FxBuildHasher> = HashSet::default();
+    fn normalized_single_ids_at_zoom(&self, target_z: u8) -> HashSet<SingleId> {
+        let mut normalized = HashSet::new();
 
         for flex_id in self.iter() {
             let range = RangeId::from(&flex_id);
