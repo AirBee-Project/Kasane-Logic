@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use fxhash::FxBuildHasher;
 use hashbrown::HashSet;
 
 use crate::{
@@ -303,7 +304,7 @@ where
         S: IterFlexIds + 'a,
         V: Clone + 'a,
     {
-        let mut seen = HashSet::new();
+        let mut seen: HashSet<FlexId, FxBuildHasher> = HashSet::default();
         let mut results = Vec::new();
         for item in target.iter_flex_ids() {
             for (overlap_id, value) in self.overlap(item) {
@@ -324,7 +325,7 @@ where
         S: IterFlexIds + 'a,
         V: 'a,
     {
-        let mut seen = HashSet::new();
+        let mut seen: HashSet<FlexId, FxBuildHasher> = HashSet::default();
         let mut results = Vec::new();
         for item in target.iter_flex_ids() {
             for (overlap_id, value) in self.overlap_ref(item) {
@@ -375,7 +376,7 @@ where
             slabs.push(sx);
         }
 
-        let mut seen: HashSet<FlexId> = HashSet::new();
+        let mut seen: HashSet<FlexId, FxBuildHasher> = HashSet::default();
         let mut results: Vec<(FlexId, &'a V)> = Vec::new();
 
         for slab in &slabs {
