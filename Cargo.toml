@@ -7,7 +7,6 @@ description = "This is Kasane-logic"
 
 [dependencies]
 hashbrown = "0.15.2"
-fxhash = "0.2.1"
 
 libm = "0.2.16"
 rand = { version = "0.10.1", optional = true }
