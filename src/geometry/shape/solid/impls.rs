@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use alloc::collections::VecDeque;
+use fxhash::FxBuildHasher;
 use hashbrown::HashSet;
 
 use crate::{
@@ -17,10 +18,10 @@ impl Shape for Solid {
 
 impl CoverSingleIds for Solid {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
+        let surface_set: HashSet<SingleId, FxBuildHasher> = self.surface_single_ids(z)?.collect();
 
         if surface_set.is_empty() {
-            return Ok(HashSet::new().into_iter());
+            return Ok(HashSet::with_hasher(FxBuildHasher::default()).into_iter());
         }
 
         let existence_range = surface_set.iter().fold(None, |acc, s| {
@@ -37,7 +38,7 @@ impl CoverSingleIds for Solid {
             }
         });
         let result = existence_range.unwrap();
-        let mut cuboid_set: HashSet<SingleId> = RangeId::new(
+        let mut cuboid_set: HashSet<SingleId, FxBuildHasher> = RangeId::new(
             z,
             [result.0, result.3],
             [result.1, result.4],
@@ -101,7 +102,7 @@ impl CoverSingleIds for Solid {
 
 impl CoverRangeIds for Solid {
     fn cover_range_ids(&self, z: u8) -> Result<impl Iterator<Item = RangeId>, Error> {
-        let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
+        let surface_set: HashSet<SingleId, FxBuildHasher> = self.surface_single_ids(z)?.collect();
         if surface_set.is_empty() {
             return Ok(Vec::new().into_iter());
         }
@@ -114,7 +115,8 @@ impl CoverRangeIds for Solid {
         let mut min_y = first.y();
         let mut max_y = first.y();
 
-        let mut surface_coords = HashSet::with_capacity(surface_set.len());
+        let mut surface_coords: HashSet<(i32, u32, u32), FxBuildHasher> =
+            HashSet::with_capacity_and_hasher(surface_set.len(), FxBuildHasher::default());
         for s in &surface_set {
             let (f, x, y) = (s.f(), s.x(), s.y());
             min_f = min_f.min(f);
@@ -126,7 +128,7 @@ impl CoverRangeIds for Solid {
             surface_coords.insert((f, x, y));
         }
 
-        let mut outside_set = HashSet::new();
+        let mut outside_set: HashSet<(i32, u32, u32), FxBuildHasher> = HashSet::default();
         let mut open_list = VecDeque::new();
 
         for x in min_x..=max_x {

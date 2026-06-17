@@ -1,3 +1,4 @@
+use fxhash::FxBuildHasher;
 use hashbrown::HashSet;
 
 use crate::{
@@ -25,7 +26,7 @@ impl CoverSingleIds for Triangle {
         let diff_y = libm::floor(points[0].c().max(points[1].c()).max(points[2].c()))
             - libm::floor(points[0].c().min(points[1].c()).min(points[2].c()));
         let steps = libm::ceil(diff_f.max(diff_x).max(diff_y) / 8.0) as u32;
-        let mut seen = HashSet::new();
+        let mut seen: HashSet<SingleId, FxBuildHasher> = HashSet::default();
         let voxels = self
             .divide(steps)?
             .flat_map(move |tri| tri.single_ids_limited(z).ok().into_iter().flatten())

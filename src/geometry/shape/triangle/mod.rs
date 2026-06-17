@@ -1,5 +1,6 @@
 use alloc::vec::Vec;
 
+use fxhash::FxBuildHasher;
 use hashbrown::HashSet;
 
 use crate::{Coordinate, Ecef, Error, SingleId, Vec3, Vec3Ecef, Vec3FractionalId};
@@ -124,7 +125,7 @@ impl Triangle {
             Vec3FractionalId::from(self.points[1].fractional_id(z)?),
             Vec3FractionalId::from(self.points[2].fractional_id(z)?),
         ];
-        let mut voxels: HashSet<SingleId> = HashSet::new();
+        let mut voxels: HashSet<SingleId, FxBuildHasher> = HashSet::default();
         let vec_a = points[1] - points[0]; // 1-0
         let vec_b = points[0] - points[2]; // 0-2
         let vec_c = points[2] - points[1]; // 2-1

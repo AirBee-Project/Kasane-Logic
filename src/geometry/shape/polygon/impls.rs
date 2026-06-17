@@ -1,3 +1,4 @@
+use fxhash::FxBuildHasher;
 use hashbrown::HashSet;
 
 use crate::{
@@ -60,7 +61,7 @@ impl CoverSingleIds for Polygon {
     /// assert!(ids.len() > 0);
     /// ```
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
-        let mut unique_ids = HashSet::new();
+        let mut unique_ids: HashSet<SingleId, FxBuildHasher> = HashSet::default();
 
         for triangle in self.expand_triangles() {
             let ids_iter = triangle.cover_single_ids(z)?;

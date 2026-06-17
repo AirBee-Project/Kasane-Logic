@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 
 use crate::geometry::shape::polygon::Polygon;
 use crate::{CoverSingleIds as _, Ecef, Error, ExpandTriangles, GeometryError, SingleId, Triangle};
+use fxhash::FxBuildHasher;
 use hashbrown::{HashMap, HashSet};
 
 pub mod geometry_relation;
@@ -62,7 +63,8 @@ impl Solid {
     /// 閉じていないエッジの数を数える内部ヘルパー関数
     fn count_open_edges(polygons: &[Polygon], epsilon: f64) -> usize {
         // エッジの出現回数を記録するマップ
-        let mut edge_counts: HashMap<(QuantizedCoord, QuantizedCoord), usize> = HashMap::new();
+        let mut edge_counts: HashMap<(QuantizedCoord, QuantizedCoord), usize, FxBuildHasher> =
+            HashMap::default();
 
         for polygon in polygons {
             let vertices = &polygon.vertices();
@@ -99,7 +101,7 @@ impl Solid {
     /// 指定されたズームレベル `z` における、この [Solid] の表面を覆う [SingleId] の集合を返す。
     pub fn surface_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         // HashSetで重複を除去
-        let mut unique_ids = HashSet::new();
+        let mut unique_ids: HashSet<SingleId, FxBuildHasher> = HashSet::default();
 
         for polygon in &self.polygons {
             let triangles = polygon.expand_triangles();
