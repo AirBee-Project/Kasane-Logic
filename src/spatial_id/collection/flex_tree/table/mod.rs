@@ -48,7 +48,7 @@ where
     }
 
     /// 空間に値を挿入します。
-    pub fn insert<S: IterFlexIds + Clone>(&mut self, target: S, value: V) {
+    pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
             None => {
