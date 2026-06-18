@@ -15,7 +15,9 @@ where
     ///
     /// 値は `data[].value` に重複なく列挙し、各空間 ID は `ref` でその添字を参照する。
     ///
-    /// # 例
+    /// # Examples
+    ///
+    /// 文字列としての取得：
     ///
     /// ```
     /// use kasane_logic::{SingleId, SpatialIdTable};
@@ -25,6 +27,19 @@ where
     /// let json = table.to_json();
     /// assert!(json.contains("\"value\":[10]"));
     /// assert!(json.contains("\"ref\":0"));
+    /// ```
+    ///
+    /// ファイルに保存する例：
+    ///
+    /// ```no_run
+    /// use kasane_logic::{SingleId, SpatialIdTable};
+    /// use std::fs;
+    ///
+    /// let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
+    /// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
+    ///
+    /// let json = table.to_json();
+    /// fs::write("spatial_id_table.json", json).expect("Failed to write to file");
     /// ```
     pub fn to_json(&self) -> String {
         // 値を出現順で重複排除し、各 ID から添字（ref）で参照する。

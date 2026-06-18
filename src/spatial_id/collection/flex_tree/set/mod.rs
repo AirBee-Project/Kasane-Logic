@@ -1,75 +1,175 @@
 use hashbrown::HashSet;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId};
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId};
 pub mod convert;
+pub mod impls;
 pub mod json;
 pub mod ops;
 pub mod tests;
+
+/// 空間IDの集合を表す型。
+///
+/// `SpatialIdSet` は、保持する値が空間IDそのものだけであるため、「どの空間が存在するか」を表すための型として機能する。
+///
+/// - ある場所に対する空間IDを「存在しない」もしくは「一意に定まる」状態を維持する
+/// - 集合同士の演算や、集合に対する単項演算を提供する
+///
+/// # 注意
+/// - 現在は時空間IDに非対応で、時間ID部分がWHOLEではないIDが挿入された場合に無条件にPanicする。(将来的に時間IDにも対応する予定。)
+/// - 空間ごとに値を持たせたい、値から空間を引きたい、または値の一覧管理が必要な場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdSet {
     inner: FlexTreeCore<()>,
 }
 
-impl PartialEq for SpatialIdSet {
-    fn eq(&self, other: &Self) -> bool {
-        let common_z = self
-            .max_zoomlevel()
-            .unwrap_or(0)
-            .max(other.max_zoomlevel().unwrap_or(0));
-
-        self.normalized_single_ids_at_zoom(common_z)
-            == other.normalized_single_ids_at_zoom(common_z)
-    }
-}
-
-impl Eq for SpatialIdSet {}
-
 impl SpatialIdSet {
+    /// 新しい集合を作成する。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::SpatialIdSet;
+    ///
+    /// let set = SpatialIdSet::new();
+    /// assert!(set.is_empty());
+    /// ```
     pub fn new() -> Self {
         SpatialIdSet::default()
     }
 
-    pub fn insert<S: IterFlexIds>(&mut self, target: S) {
+    /// 集合に対して空間IDを挿入する。
+    /// 挿入した際に重なりがある空間IDが既に存在する場合は自動的に重なりを解消する。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{FlexId, RangeId, SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    ///
+    /// // SingleId の挿入
+    /// let single = SingleId::new(5, 0, 10, 10).unwrap();
+    /// set.insert(single);
+    ///
+    /// // RangeId の挿入
+    /// let range = RangeId::new(5, [0, 1], [11, 12], [10, 10]).unwrap();
+    /// set.insert(range);
+    ///
+    /// // FlexId の挿入
+    /// let flex = FlexId::from(SingleId::new(5, 0, 13, 10).unwrap());
+    /// set.insert(flex);
+    ///
+    /// assert_eq!(set.count(), 6);
+    /// ```
+    pub fn insert<S: SpatialId>(&mut self, target: S) {
         self.inner.insert(target, ());
     }
 
+    /// 集合から指定した空間IDと重なる空間IDを切り出して返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// let id = SingleId::new(5, 0, 10, 10).unwrap();
+    /// set.insert(id.clone());
+    ///
+    /// let overlapped: Vec<_> = set.get(&id).collect();
+    /// assert_eq!(overlapped.len(), 1);
+    /// ```
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
     where
-        S: IterFlexIds,
+        S: SpatialId,
     {
         self.inner.get(target).map(move |(flex_id, _value)| flex_id)
     }
 
-    pub fn remove<S: IterFlexIds>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
+    /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
+    /// 削除した空間IDを返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// let id = SingleId::new(5, 0, 10, 10).unwrap();
+    /// set.insert(id.clone());
+    ///
+    /// let removed: Vec<_> = set.remove(&id).collect();
+    /// assert_eq!(removed.len(), 1);
+    /// assert!(set.is_empty());
+    /// ```
+    pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
         self.inner
             .remove(target)
             .map(move |(flex_id, _value)| flex_id)
     }
 
-    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`] をそのままの返します。
+    /// [`get`](Self::get) と異なり切り取りを行わず、`target` と重なった
+    /// [`FlexId`] をそのまま返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// let id = SingleId::new(5, 0, 10, 10).unwrap();
+    /// set.insert(id.clone());
+    ///
+    /// let overlapping: Vec<_> = set.get_overlapping(&id).collect();
+    /// assert_eq!(overlapping.len(), 1);
+    /// ```
     pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
     where
-        S: IterFlexIds + 'a,
+        S: SpatialId + 'a,
     {
         self.inner
             .get_overlapping(target)
             .map(|(flex_id, _value)| flex_id)
     }
 
-    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`] をそのままの返します。
-    pub fn remove_overlapping<S: IterFlexIds>(
-        &mut self,
-        target: &S,
-    ) -> impl Iterator<Item = FlexId> {
+    /// [`remove`](Self::remove) と異なり切り取りを行わず、`target` と重なった
+    /// [`FlexId`] をそのまま削除する。削除した空間IDを返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// let id = SingleId::new(5, 0, 10, 10).unwrap();
+    /// set.insert(id.clone());
+    ///
+    /// let removed: Vec<_> = set.remove_overlapping(&id).collect();
+    /// assert_eq!(removed.len(), 1);
+    /// assert!(set.is_empty());
+    /// ```
+    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
         self.inner
             .remove_overlapping(target)
             .map(move |(flex_id, _value)| flex_id)
     }
 
-    /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    /// 指定した単体の空間IDと面で接している[`FlexId`]を重複なく返す。入力された空間ID自身と重なる要素は除外する。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// let center = SingleId::new(5, 0, 10, 10).unwrap();
+    /// let neighbor = SingleId::new(5, 0, 11, 10).unwrap();
+    /// set.insert(neighbor);
+    ///
+    /// let neighbors: Vec<_> = set.neighbors_share_face(&center).collect();
+    /// assert_eq!(neighbors.len(), 1);
+    /// ```
     pub fn neighbors_share_face<S: SpatialId>(
         &self,
         target: &S,
@@ -79,33 +179,104 @@ impl SpatialIdSet {
             .map(|(flex_id, _value)| flex_id)
     }
 
+    /// `SpatialIdSet` の中に入っている `FlexId` の個数を返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// assert_eq!(set.count(), 0);
+    /// set.insert(SingleId::new(5, 0, 10, 10).unwrap());
+    /// assert_eq!(set.count(), 1);
+    /// ```
     pub fn count(&self) -> usize {
         self.inner.count()
     }
 
+    /// `SpatialIdSet` の中に入っている最大のズームレベル値を返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// assert_eq!(set.max_zoomlevel(), None);
+    /// set.insert(SingleId::new(5, 0, 10, 10).unwrap());
+    /// assert_eq!(set.max_zoomlevel(), Some(5));
+    /// ```
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
     }
 
+    /// `SpatialIdSet` の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// set.insert(SingleId::new(5, 0, 10, 10).unwrap());
+    /// let flat: Vec<_> = set.flat_single_ids().collect();
+    /// assert_eq!(flat.len(), 1);
+    /// ```
     pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> {
         self.inner
             .flat_single_ids_ref()
             .map(|(single_id, _)| single_id)
     }
 
+    /// `SpatialIdSet` をリセットする。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// set.insert(SingleId::new(5, 0, 10, 10).unwrap());
+    /// set.clear();
+    /// assert!(set.is_empty());
+    /// ```
     pub fn clear(&mut self) {
         self.inner.clear();
     }
 
+    /// 内部ツリーのルートポインタが一致するかどうかを判定する。
     #[cfg(test)]
-    pub fn root_ptr_eq(&self, other: &Self) -> bool {
+    pub(crate) fn root_ptr_eq(&self, other: &Self) -> bool {
         self.inner.root_ptr_eq(&other.inner)
     }
 
+    /// `SpatialIdSet` が空かどうかを判定する。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::SpatialIdSet;
+    ///
+    /// let set = SpatialIdSet::new();
+    /// assert!(set.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
+    /// `SpatialIdSet` が持つ `FlexId` を返す。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    /// set.insert(SingleId::new(5, 0, 10, 10).unwrap());
+    /// let items: Vec<_> = set.iter().collect();
+    /// assert_eq!(items.len(), 1);
+    /// ```
     pub fn iter(&self) -> impl Iterator<Item = FlexId> {
         self.inner.iter().map(|(flex_id, _)| flex_id)
     }

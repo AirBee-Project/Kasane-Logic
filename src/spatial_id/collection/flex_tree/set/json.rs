@@ -5,21 +5,21 @@ use crate::{RangeId, SpatialIdSet};
 use super::super::json::{write_envelope_open, write_id_open};
 
 impl SpatialIdSet {
-    /// この集合を <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ
-    /// 書き出す。外部クレート（serde 等）に依存せず、いつでも利用できる。
+    /// この集合を <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ書き出す。
     ///
-    /// 値を持たない集合なので `data[].value` は出力せず、占有空間を `ids` として並べる。
+    /// # Examples
     ///
-    /// # 例
+    /// ファイルに保存する例：
     ///
-    /// ```
+    /// ```no_run
     /// use kasane_logic::{SingleId, SpatialIdSet};
+    /// use std::fs;
+    ///
     /// let mut set = SpatialIdSet::new();
-    /// set.insert(SingleId::new(20, 0, 0, 0).unwrap());
+    /// set.insert(SingleId::new(5, 0, 10, 10).unwrap());
     ///
     /// let json = set.to_json();
-    /// assert!(json.contains("\"z\":20"));
-    /// assert!(json.contains("\"ids\":["));
+    /// fs::write("spatial_id_set.json", json).expect("Failed to write to file");
     /// ```
     pub fn to_json(&self) -> String {
         let mut out = String::new();
