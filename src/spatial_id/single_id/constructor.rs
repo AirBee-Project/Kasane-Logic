@@ -116,7 +116,7 @@ impl SingleId {
     /// * `f` — Fインデックス（鉛直方向）
     /// * `x` — Xインデックス（東西方向）
     /// * `y` — Yインデックス（南北方向）
-    /// * `temporal_id` — [`TemporalId`](crate::TemporalId)（時間ID）
+    /// * `temporal_id` — [`TemporalId`]（時間ID）
     ///
     /// # バリデーション
     /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
