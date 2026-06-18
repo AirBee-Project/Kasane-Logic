@@ -103,7 +103,7 @@ impl SingleId {
     ///
     /// # バリデーション
     ///
-    /// - バイト列に含まれるズームレベルが [`MAX_ZOOM_LEVEL`] を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返す。
+    /// - バイト列に含まれるズームレベルが [`crate::MAX_ZOOM_LEVEL`] を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返す。
     /// - 復元した `f` / `x` / `y` が範囲外になる場合は、各種範囲外エラーを返す。
     ///
     /// # 動作コスト

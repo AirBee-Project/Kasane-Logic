@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  fmt:
-    name: cargo fmt
+  lints:
+    name: Lints
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,7 +16,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
 
       - name: Setup mold
         uses: rui314/setup-mold@v1
@@ -27,10 +27,38 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  verify:
-    name: ${{ matrix.os }}
+      - name: Rustdoc
+        shell: bash
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: |
+          set -euo pipefail
+          features=("" "random" "temporal_id" "random,temporal_id")
+          for feature in "${features[@]}"; do
+            if [ -n "$feature" ]; then
+              cargo doc --locked --no-deps --document-private-items --no-default-features --features "$feature"
+            else
+              cargo doc --locked --no-deps --document-private-items --no-default-features
+            fi
+          done
+
+      - name: Clippy
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("" "random" "temporal_id" "random,temporal_id")
+          for feature in "${features[@]}"; do
+            if [ -n "$feature" ]; then
+              cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
+            else
+              cargo clippy --locked --lib --bins --tests --no-default-features -- -D warnings
+            fi
+          done
+
+  test:
+    name: Test ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: fmt
+    needs: lints
     strategy:
       fail-fast: false
       matrix:
@@ -41,8 +69,6 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
 
       - name: Setup mold
         if: matrix.os == 'ubuntu-latest'
@@ -51,7 +77,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "verify-${{ matrix.os }}"
+          shared-key: "test-${{ matrix.os }}"
 
       - name: Test
         shell: bash
@@ -89,18 +115,5 @@ jobs:
               cargo test --locked --doc --no-default-features --features "$feature"
             else
               cargo test --locked --doc --no-default-features
-            fi
-          done
-
-      - name: Clippy
-        shell: bash
-        run: |
-          set -euo pipefail
-          features=("" "random" "temporal_id" "random,temporal_id")
-          for feature in "${features[@]}"; do
-            if [ -n "$feature" ]; then
-              cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
-            else
-              cargo clippy --locked --lib --bins --tests --no-default-features -- -D warnings
             fi
           done
