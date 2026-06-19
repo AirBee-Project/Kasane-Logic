@@ -9,3 +9,6 @@ pub mod level;
 
 /// 値を持つ領域の最小範囲（AABB）の隙間へ既定値を割り当てる
 pub mod fill;
+
+/// 値を持つセルから周囲へ、距離に応じて減衰させた値を波及させる
+pub mod diffuse;

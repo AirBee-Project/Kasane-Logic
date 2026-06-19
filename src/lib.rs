@@ -100,6 +100,8 @@ pub use spatial_id::collection::expr::binary::set::ops::SetOps;
 #[doc(inline)]
 pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
 #[doc(inline)]
+pub use spatial_id::collection::expr::unary::diffuse::ops::DiffuseOps;
+#[doc(inline)]
 pub use spatial_id::collection::expr::unary::fill::ops::FillOps;
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::level::ops::LevelOps;
