@@ -5,7 +5,7 @@ pub mod impls;
 mod tests;
 use core::f64::consts::PI;
 
-use crate::{Coordinate, Ecef, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef};
+use crate::{Coordinate, Ecef, Error, GeometryError, Polygon, Solid, SpatialId, Vec3, Vec3Ecef};
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -30,19 +30,26 @@ impl Cylinder {
     }
 
     /// [Cylinder]を近似した[Solid]を作成する関数
-    pub fn rough_solid(&self) -> Solid {
-        let polygons = self.rough_surfaces().collect();
+    pub fn rough_solid(&self, sample_z: Option<u8>) -> Solid {
+        let polygons = self.rough_surfaces(sample_z).collect();
         Solid::new(polygons, 1e-10).unwrap()
     }
 
     /// [Cylinder]を近似した立体の表面を[Polygon]として返す関数
-    pub fn rough_surfaces(&self) -> impl Iterator<Item = Polygon> {
+    /// sample_zがSomeの場合、そのZ値のときのボクセルサイズを基準に分割数を決定する。
+    pub fn rough_surfaces(&self, sample_z: Option<u8>) -> impl Iterator<Item = Polygon> {
         let vecs: [Vec3Ecef; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n
             .create_orthonormal_basis()
             .map(|v| v.scale(self.radius_m));
-        let divide_num = 100_u32;
+        let midpoint_v: Ecef = (vecs[0] + vecs[1]).scale(0.5).into();
+        let mut divide_num = 57_u32;
+        if let Some(z) = sample_z {
+            let voxel_length = midpoint_v.single_id(z).unwrap().length_f_meters();
+            divide_num = (57_u32).max((self.radius_m * 2.0 * PI * 6.0 / voxel_length) as u32);
+        }
+
         let vertices: Vec<_> = (0..divide_num)
             .map(|i| {
                 let theta = 2.0 * PI * i as f64 / divide_num as f64;
