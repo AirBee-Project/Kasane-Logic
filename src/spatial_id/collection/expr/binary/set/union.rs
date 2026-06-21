@@ -26,4 +26,8 @@ impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Union {
     fn b_only(b: &V, _policy: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(b.clone()))
     }
+
+    fn is_commutative(policy: &Self::CustomParameter) -> bool {
+        matches!(policy, ConflictPolicy::Min | ConflictPolicy::Max)
+    }
 }

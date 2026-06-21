@@ -24,4 +24,8 @@ impl<A: Ord + PartialEq + Clone, B: Ord + PartialEq + Clone> BinaryOperator<A, B
     fn b_only(_b: &B, _p: &Self::CustomParameter) -> Result<Option<A>, Error> {
         Ok(None)
     }
+
+    fn is_commutative(_p: &Self::CustomParameter) -> bool {
+        false
+    }
 }

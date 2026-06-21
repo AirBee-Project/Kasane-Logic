@@ -26,4 +26,8 @@ impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for SymmetricDifference {
     fn b_only(b: &V, _p: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(b.clone()))
     }
+
+    fn is_commutative(_p: &Self::CustomParameter) -> bool {
+        true
+    }
 }

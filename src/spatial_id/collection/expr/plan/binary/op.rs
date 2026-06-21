@@ -11,6 +11,29 @@ pub enum BinaryOp<C: SpatialIdCollection> {
 }
 
 impl<C: SpatialIdCollection> BinaryOp<C> {
+    /// この演算が可換（被演算子を入れ替えても結果が同じ）かどうか。
+    pub fn is_commutative(&self) -> bool {
+        use crate::spatial_id::collection::expr::binary::set::{
+            difference::Difference, intersection::Intersection, mask::Mask,
+            symmetric_difference::SymmetricDifference, union::Union,
+        };
+
+        match self {
+            BinaryOp::Union(p) => <Union as BinaryOperator<C::Value, C::Value>>::is_commutative(p),
+            BinaryOp::Intersection(p) => {
+                <Intersection as BinaryOperator<C::Value, C::Value>>::is_commutative(p)
+            }
+            BinaryOp::Difference => {
+                <Difference as BinaryOperator<C::Value, C::Value>>::is_commutative(&())
+            }
+            BinaryOp::SymmetricDifference => {
+                <SymmetricDifference as BinaryOperator<C::Value, C::Value>>::is_commutative(&())
+            }
+            BinaryOp::Mask => <Mask as BinaryOperator<C::Value, C::Value>>::is_commutative(&()),
+            BinaryOp::Custom(kernel) => kernel.is_commutative(),
+        }
+    }
+
     pub fn run(self, lhs: &C, rhs: &C) -> Result<C, Error> {
         match self {
             BinaryOp::Union(p) => {

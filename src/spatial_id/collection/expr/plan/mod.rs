@@ -3,6 +3,9 @@ use alloc::boxed::Box;
 pub mod binary;
 pub mod unary;
 
+/// 最適化（巡回ドライバと書き換えルール）
+mod optimize;
+
 pub use binary::{BinaryKernel, BinaryOp, BinaryOpKernel};
 pub use unary::{UnaryKernel, UnaryOp, UnaryOpKernel};
 
@@ -22,11 +25,6 @@ impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    /// 最適化を行う
-    pub fn optimize(self) -> Self {
-        self
-    }
-
     /// 最適化せず、プランをそのまま実行
     pub fn execution(self) -> Result<C, Error> {
         match self {
