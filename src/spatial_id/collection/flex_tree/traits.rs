@@ -1,4 +1,11 @@
-use crate::{FlexId, SpatialIdSet, SpatialIdTable};
+use crate::{FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan};
+
+/// コレクションが格納する値型に共通して要求される性質。
+///
+/// `Ord` は `Eq: PartialEq` を含むため、`PartialEq` を別途要求する必要はない。
+/// 値の比較（重なり解決・正規化）と複製にこの2つで足りる。
+pub trait CellValue: Ord + Clone {}
+impl<T: Ord + Clone> CellValue for T {}
 
 /// 演算の対象となる空間IDコレクションの性質。
 ///
@@ -7,7 +14,7 @@ use crate::{FlexId, SpatialIdSet, SpatialIdTable};
 /// `Value = ()` とする。
 pub trait SpatialIdCollection: Sized {
     /// 各空間IDに紐づく値の型。値を持たない集合では `()`。
-    type Value: Ord + PartialEq + Clone;
+    type Value: CellValue;
 
     /// 空のコレクションを作る（演算結果の組み立て先）。
     fn empty() -> Self;
@@ -26,11 +33,16 @@ pub trait SpatialIdCollection: Sized {
 
     /// 空かどうか。
     fn is_empty(&self) -> bool;
+
+    /// このコレクションを起点に、演算チェーン（[`Plan`]）の組み立てを始める。
+    fn plan(self) -> Plan<Self> {
+        Plan::Source(self)
+    }
 }
 
 impl<V> SpatialIdCollection for SpatialIdTable<V>
 where
-    V: Ord + PartialEq + Clone,
+    V: CellValue,
 {
     type Value = V;
 

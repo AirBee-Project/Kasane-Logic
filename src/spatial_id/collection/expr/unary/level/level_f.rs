@@ -28,4 +28,8 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for FLevel {
         }
         Ok(result)
     }
+
+    fn is_identity(_custom_parameter: &Self::CustomParameter) -> bool {
+        false
+    }
 }

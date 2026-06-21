@@ -23,4 +23,8 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for XShift {
         }
         Ok(result)
     }
+
+    fn is_identity(param: &Self::CustomParameter) -> bool {
+        param.index == 0
+    }
 }
