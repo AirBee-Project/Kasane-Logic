@@ -1,12 +1,6 @@
 use crate::{FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan};
 
 /// コレクションが格納する値型に共通して要求される性質。
-///
-/// `Ord` は `Eq: PartialEq` を含むため、`PartialEq` を別途要求する必要はない。
-/// 値の比較（重なり解決・正規化）と複製にこの2つで足りる。
-///
-/// `Send + Sync` は Rayon による並列演算のために要求する（`Send`/`Sync` は `core` に
-/// あるため no_std でも表現でき、`rayon` feature を外しても境界は無害）。
 pub trait CellValue: Ord + Clone + Send + Sync {}
 impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 

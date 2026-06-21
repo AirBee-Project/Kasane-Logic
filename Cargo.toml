@@ -14,9 +14,7 @@ rayon = { version = "1.10", optional = true }
 
 [features]
 default = ["std", "rayon"]
-# 標準ライブラリを使う。no_std で使う場合は default-features = false で外す。
 std = []
-# Rayon による並列化。std を前提とする。
 rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []

@@ -99,9 +99,15 @@ impl<A: CellValue> UnaryOperator<A> for Level {
 /// 1 つのセルへ、存在する軸の Level を X → Y → F の順に適用して展開する。
 fn expand<V>(flex_id: FlexId, param: &LevelParam<V>) -> Result<Vec<FlexId>, Error> {
     let ids = vec![flex_id];
-    let ids = apply_axis(ids, &param.x, |id, z, lo, hi| Ok(id.level_x(z, lo, hi)?.collect()))?;
-    let ids = apply_axis(ids, &param.y, |id, z, lo, hi| Ok(id.level_y(z, lo, hi)?.collect()))?;
-    let ids = apply_axis(ids, &param.f, |id, z, lo, hi| Ok(id.level_f(z, lo, hi)?.collect()))?;
+    let ids = apply_axis(ids, &param.x, |id, z, lo, hi| {
+        Ok(id.level_x(z, lo, hi)?.collect())
+    })?;
+    let ids = apply_axis(ids, &param.y, |id, z, lo, hi| {
+        Ok(id.level_y(z, lo, hi)?.collect())
+    })?;
+    let ids = apply_axis(ids, &param.f, |id, z, lo, hi| {
+        Ok(id.level_f(z, lo, hi)?.collect())
+    })?;
     Ok(ids)
 }
 

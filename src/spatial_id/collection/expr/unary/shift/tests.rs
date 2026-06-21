@@ -207,9 +207,24 @@ fn shift_over_threshold_preserves_all_cells() {
 
     // 件数は保存され、全セルが f=1 へ移動している。
     assert_eq!(result.iter().count(), expected);
-    assert!(result.get(&SingleId::new(z, 1, 0, 0).unwrap()).next().is_some());
-    assert!(result.get(&SingleId::new(z, 1, 30, 32).unwrap()).next().is_some());
-    assert!(result.get(&SingleId::new(z, 0, 0, 0).unwrap()).next().is_none());
+    assert!(
+        result
+            .get(&SingleId::new(z, 1, 0, 0).unwrap())
+            .next()
+            .is_some()
+    );
+    assert!(
+        result
+            .get(&SingleId::new(z, 1, 30, 32).unwrap())
+            .next()
+            .is_some()
+    );
+    assert!(
+        result
+            .get(&SingleId::new(z, 0, 0, 0).unwrap())
+            .next()
+            .is_none()
+    );
 }
 
 // ---- Set でも同じ演算が使える（総称化の確認） ----
