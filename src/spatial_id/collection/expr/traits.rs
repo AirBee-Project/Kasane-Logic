@@ -137,9 +137,7 @@ pub trait UnaryOperator<A: CellValue> {
         O: SpatialIdCollection<Value = Self::ResultValue>;
 
     /// この演算が恒等変換かを判定する。
-    fn is_identity(_custom_parameter: &Self::CustomParameter) -> bool {
-        false
-    }
+    fn is_identity(_custom_parameter: &Self::CustomParameter) -> bool;
 }
 
 /// `base` から `holes` の各領域を順に差し引いた、残りの領域の集合を返す。

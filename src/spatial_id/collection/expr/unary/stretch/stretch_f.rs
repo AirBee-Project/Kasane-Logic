@@ -23,4 +23,8 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for FStretch {
         }
         Ok(result)
     }
+
+    fn is_identity(custom_parameter: &Self::CustomParameter) -> bool {
+        custom_parameter.index == 0
+    }
 }

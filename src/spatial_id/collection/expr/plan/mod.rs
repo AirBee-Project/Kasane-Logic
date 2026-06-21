@@ -8,9 +8,7 @@ pub use unary::{UnaryKernel, UnaryOp, UnaryOpKernel};
 
 use crate::{Error, SpatialIdCollection};
 
-/// メソッドチェーン全体を表す単一のデータ型（再帰的 AST）。
-///
-/// 葉から結果まで、ひとつのコレクション型 `C` が一貫して流れる。
+/// メソッドチェーン全体を表す単一のデータ型
 pub enum Plan<C: SpatialIdCollection> {
     /// 葉：演算の起点となるコレクション。
     Source(C),
@@ -24,16 +22,12 @@ impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    // =========================================================================
-    // 評価・最適化
-    // =========================================================================
-
     /// 最適化を行う
     pub fn optimize(self) -> Self {
         self
     }
 
-    /// 最適化せず、プランをそのまま実行して結果を材化する。
+    /// 最適化せず、プランをそのまま実行
     pub fn execution(self) -> Result<C, Error> {
         match self {
             Plan::Source(collection) => Ok(collection),
@@ -49,7 +43,7 @@ where
         }
     }
 
-    /// 最適化してから実行する。
+    /// 最適化してから実行
     pub fn optimized_execution(self) -> Result<C, Error> {
         self.optimize().execution()
     }
