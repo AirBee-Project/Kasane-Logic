@@ -8,4 +8,4 @@ pub mod unary;
 pub mod traits;
 
 /// 遅延評価用のモジュール
-pub mod lazy;
+pub mod plan;

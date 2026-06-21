@@ -14,11 +14,6 @@ use crate::{CellValue, Error, FlexId, SpatialIdCollection};
 /// | `Some` | `None` | [`a_only`](Self::a_only) |
 /// | `None` | `Some` | [`b_only`](Self::b_only) |
 /// | `None` | `None` | そもそも演算を行わない |
-///
-/// memo:仮に`both_none`関数を作成してしまうと、計算量が膨大になってしまう。
-///
-/// 入力・出力は [`SpatialIdCollection`] で抽象化されており、
-/// `Table` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait BinaryOperator<A, B>
 where
     A: CellValue,
@@ -46,9 +41,12 @@ where
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
 
+    /// この演算が可換なのかを判定する。
+    fn is_commutative(_custom_parameter: &Self::CustomParameter) -> bool {
+        false
+    }
+
     /// コレクション全体の演算。
-    ///
-    /// 既定実装は2つのコレクションを走査・重なり問い合わせで突き合わせ、各空間を [`both_some`](Self::both_some) / [`a_only`](Self::a_only) / [`b_only`](Self::b_only)へ委譲する汎用ドライバである。入出力のストア種別に依存しない。
     fn execution<SA, SB, O>(
         a: &SA,
         b: &SB,
@@ -137,6 +135,11 @@ pub trait UnaryOperator<A: CellValue> {
     where
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = Self::ResultValue>;
+
+    /// この演算が恒等変換かを判定する。
+    fn is_identity(_custom_parameter: &Self::CustomParameter) -> bool {
+        false
+    }
 }
 
 /// `base` から `holes` の各領域を順に差し引いた、残りの領域の集合を返す。

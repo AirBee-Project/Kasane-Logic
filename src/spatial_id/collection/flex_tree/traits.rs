@@ -1,4 +1,4 @@
-use crate::{FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::lazy::Plan};
+use crate::{FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan};
 
 /// コレクションが格納する値型に共通して要求される性質。
 ///
@@ -36,7 +36,7 @@ pub trait SpatialIdCollection: Sized {
 
     /// このコレクションを起点に、演算チェーン（[`Plan`]）の組み立てを始める。
     fn plan(self) -> Plan<Self> {
-        Plan::source(self)
+        Plan::Source(self)
     }
 }
 
