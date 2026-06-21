@@ -28,14 +28,23 @@ where
     C::Value: 'static,
 {
     pub fn shift_f(self, z: u8, index: i32) -> Self {
-        self.apply_unary::<FShift>(ShiftParam { z, index })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::ShiftF(ShiftParam { z, index }),
+            alloc::boxed::Box::new(self),
+        )
     }
 
     pub fn shift_x(self, z: u8, index: i32) -> Self {
-        self.apply_unary::<XShift>(ShiftParam { z, index })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::ShiftX(ShiftParam { z, index }),
+            alloc::boxed::Box::new(self),
+        )
     }
 
     pub fn shift_y(self, z: u8, index: i32) -> Self {
-        self.apply_unary::<YShift>(ShiftParam { z, index })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::ShiftY(ShiftParam { z, index }),
+            alloc::boxed::Box::new(self),
+        )
     }
 }

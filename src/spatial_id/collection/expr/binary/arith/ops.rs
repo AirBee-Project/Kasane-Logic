@@ -87,7 +87,19 @@ where
 {
     #[allow(clippy::should_implement_trait)]
     pub fn add(self, other: Self) -> Self {
-        self.apply_binary::<Add>(other, ())
+        let kernel =
+            alloc::boxed::Box::new(crate::spatial_id::collection::expr::plan::BinaryOpKernel::<
+                Add,
+                _,
+            > {
+                param: (),
+                _op: core::marker::PhantomData,
+            });
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Custom(kernel),
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 }
 
@@ -97,7 +109,19 @@ where
 {
     #[allow(clippy::should_implement_trait)]
     pub fn sub(self, other: Self) -> Self {
-        self.apply_binary::<Sub>(other, ())
+        let kernel =
+            alloc::boxed::Box::new(crate::spatial_id::collection::expr::plan::BinaryOpKernel::<
+                Sub,
+                _,
+            > {
+                param: (),
+                _op: core::marker::PhantomData,
+            });
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Custom(kernel),
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 }
 
@@ -107,6 +131,18 @@ where
 {
     #[allow(clippy::should_implement_trait)]
     pub fn mul(self, other: Self) -> Self {
-        self.apply_binary::<Mul>(other, ())
+        let kernel =
+            alloc::boxed::Box::new(crate::spatial_id::collection::expr::plan::BinaryOpKernel::<
+                Mul,
+                _,
+            > {
+                param: (),
+                _op: core::marker::PhantomData,
+            });
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Custom(kernel),
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 }

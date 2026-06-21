@@ -57,22 +57,42 @@ where
     C::Value: 'static,
 {
     pub fn union_with(self, other: Self, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_binary::<Union>(other, conflict)
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Union(conflict),
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 
     pub fn intersection_with(self, other: Self, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_binary::<Intersection>(other, conflict)
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Intersection(conflict),
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 
     pub fn difference(self, other: Self) -> Self {
-        self.apply_binary::<Difference>(other, ())
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Difference,
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 
     pub fn symmetric_difference(self, other: Self) -> Self {
-        self.apply_binary::<SymmetricDifference>(other, ())
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::SymmetricDifference,
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 
     pub fn mask(self, other: Self) -> Self {
-        self.apply_binary::<Mask>(other, ())
+        Plan::Binary(
+            crate::spatial_id::collection::expr::plan::BinaryOp::Mask,
+            alloc::boxed::Box::new(self),
+            alloc::boxed::Box::new(other),
+        )
     }
 }

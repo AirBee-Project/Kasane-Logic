@@ -61,14 +61,35 @@ where
     C::Value: 'static,
 {
     pub fn stretch_f(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_unary::<FStretch>(StretchParam { z, index, conflict })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::StretchF(StretchParam {
+                z,
+                index,
+                conflict,
+            }),
+            alloc::boxed::Box::new(self),
+        )
     }
 
     pub fn stretch_x(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_unary::<XStretch>(StretchParam { z, index, conflict })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::StretchX(StretchParam {
+                z,
+                index,
+                conflict,
+            }),
+            alloc::boxed::Box::new(self),
+        )
     }
 
     pub fn stretch_y(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_unary::<YStretch>(StretchParam { z, index, conflict })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::StretchY(StretchParam {
+                z,
+                index,
+                conflict,
+            }),
+            alloc::boxed::Box::new(self),
+        )
     }
 }

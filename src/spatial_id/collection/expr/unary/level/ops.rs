@@ -82,29 +82,38 @@ where
     C::Value: 'static,
 {
     pub fn level_f(self, z: u8, lo: i32, hi: i32, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_unary::<FLevel>(LevelParam {
-            z,
-            lo,
-            hi,
-            conflict,
-        })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::LevelF(LevelParam {
+                z,
+                lo,
+                hi,
+                conflict,
+            }),
+            alloc::boxed::Box::new(self),
+        )
     }
 
     pub fn level_x(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_unary::<XLevel>(LevelParam {
-            z,
-            lo,
-            hi,
-            conflict,
-        })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::LevelX(LevelParam {
+                z,
+                lo,
+                hi,
+                conflict,
+            }),
+            alloc::boxed::Box::new(self),
+        )
     }
 
     pub fn level_y(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
-        self.apply_unary::<YLevel>(LevelParam {
-            z,
-            lo,
-            hi,
-            conflict,
-        })
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::LevelY(LevelParam {
+                z,
+                lo,
+                hi,
+                conflict,
+            }),
+            alloc::boxed::Box::new(self),
+        )
     }
 }

@@ -17,6 +17,9 @@ where
     C::Value: 'static,
 {
     pub fn fill(self, default: C::Value) -> Self {
-        self.apply_unary::<FillDefault>(default)
+        Plan::Unary(
+            crate::spatial_id::collection::expr::plan::UnaryOp::Fill(default),
+            alloc::boxed::Box::new(self),
+        )
     }
 }

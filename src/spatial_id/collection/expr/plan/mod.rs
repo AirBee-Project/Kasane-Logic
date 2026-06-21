@@ -1,12 +1,12 @@
 use alloc::boxed::Box;
-use core::marker::PhantomData;
-
-use crate::spatial_id::collection::expr::plan::binary::{BinaryKernel, BinaryOpKernel};
-use crate::spatial_id::collection::expr::plan::unary::{UnaryKernel, UnaryOpKernel};
-use crate::{BinaryOperator, Error, SpatialIdCollection, UnaryOperator};
 
 pub mod binary;
 pub mod unary;
+
+pub use binary::{BinaryKernel, BinaryOp, BinaryOpKernel};
+pub use unary::{UnaryKernel, UnaryOp, UnaryOpKernel};
+
+use crate::{Error, SpatialIdCollection};
 
 /// メソッドチェーン全体を表す単一のデータ型（再帰的 AST）。
 ///
@@ -15,59 +15,15 @@ pub enum Plan<C: SpatialIdCollection> {
     /// 葉：演算の起点となるコレクション。
     Source(C),
     /// 単項演算ノード。
-    Unary {
-        op: Box<dyn UnaryKernel<C>>,
-        input: Box<Plan<C>>,
-    },
+    Unary(UnaryOp<C>, Box<Plan<C>>),
     /// 二項演算ノード。
-    Binary {
-        op: Box<dyn BinaryKernel<C>>,
-        lhs: Box<Plan<C>>,
-        rhs: Box<Plan<C>>,
-    },
+    Binary(BinaryOp<C>, Box<Plan<C>>, Box<Plan<C>>),
 }
 
 impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    /// 任意の単項演算を適用する（内部ヘルパー）。
-    pub fn apply_unary<Op>(self, param: <Op as UnaryOperator<C::Value>>::CustomParameter) -> Self
-    where
-        Op: UnaryOperator<C::Value, ResultValue = C::Value> + 'static,
-        <Op as UnaryOperator<C::Value>>::CustomParameter: 'static,
-    {
-        let kernel = Box::new(UnaryOpKernel::<Op, _> {
-            param,
-            _op: PhantomData,
-        });
-        Plan::Unary {
-            op: kernel,
-            input: Box::new(self),
-        }
-    }
-
-    /// 任意の二項演算を適用する（内部ヘルパー）。
-    pub fn apply_binary<Op>(
-        self,
-        other: Self,
-        param: <Op as BinaryOperator<C::Value, C::Value>>::CustomParameter,
-    ) -> Self
-    where
-        Op: BinaryOperator<C::Value, C::Value, ResultValue = C::Value> + 'static,
-        <Op as BinaryOperator<C::Value, C::Value>>::CustomParameter: 'static,
-    {
-        let kernel = Box::new(BinaryOpKernel::<Op, _> {
-            param,
-            _op: PhantomData,
-        });
-        Plan::Binary {
-            op: kernel,
-            lhs: Box::new(self),
-            rhs: Box::new(other),
-        }
-    }
-
     // =========================================================================
     // 評価・最適化
     // =========================================================================
@@ -81,11 +37,11 @@ where
     pub fn execution(self) -> Result<C, Error> {
         match self {
             Plan::Source(collection) => Ok(collection),
-            Plan::Unary { op, input } => {
+            Plan::Unary(op, input) => {
                 let input = input.execution()?;
                 op.run(&input)
             }
-            Plan::Binary { op, lhs, rhs } => {
+            Plan::Binary(op, lhs, rhs) => {
                 let lhs = lhs.execution()?;
                 let rhs = rhs.execution()?;
                 op.run(&lhs, &rhs)
