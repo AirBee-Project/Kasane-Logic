@@ -139,15 +139,11 @@ pub trait UnaryOperator<A: CellValue> {
 }
 
 /// 同種の単項演算子が連続したとき、2 つのパラメータを 1 つへ融合できる演算子が実装する。
-///
-/// 最適化の融合ルール（`fuse_adjacent_unary`）はこの実装を使う。融合できる演算子を
-/// 新しく作るときは、この trait を実装し、`UnaryOp` のディスパッチに 1 分岐足すだけでよい。
-/// 巡回コードには手を入れない。
 pub trait FusibleOperator {
     /// 融合対象のパラメータ型（通常は [`UnaryOperator::CustomParameter`] と同じ）。
     type Param;
 
-    /// 外側（後に適用）`outer` と内側（先に適用）`inner` を 1 つへ融合する。
+    ///　`outer` と`inner` を 1 つへ融合する。
     /// 融合できなければ両者をそのまま `Err` で返し戻す。
     fn fuse(
         outer: Self::Param,

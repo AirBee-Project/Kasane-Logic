@@ -1,7 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::{ConflictPolicy, Error, FlexId, SpatialIdCollection, UnaryOperator};
+use crate::{CellValue, ConflictPolicy, Error, FlexId, SpatialIdCollection, UnaryOperator};
 
 /// 集合演算をメソッドとして呼び出す拡張トレイト
 pub mod ops;
@@ -73,7 +73,7 @@ impl<V> StretchParam<V> {
 /// X 方向は地球を周回するため巡回し、Y / F 方向は範囲外への拡張がエラーになる。
 pub struct Stretch;
 
-impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for Stretch {
+impl<A: CellValue> UnaryOperator<A> for Stretch {
     type CustomParameter = StretchParam<A>;
     type ResultValue = A;
 
@@ -82,11 +82,13 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for Stretch {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
+        let cells: Vec<(FlexId, A)> = a.scan().collect();
+        let stretched = super::map_cells(cells, |id| expand(id.clone(), &param))?;
+
+        // 重なり解決は `result` を参照するため、元の順序のまま逐次 insert する。
         let mut result = O::empty();
-        for (flex_id, value) in a.scan() {
-            for stretched in expand(flex_id, &param)? {
-                insert_stretched(&mut result, stretched, value.clone(), &param.conflict);
-            }
+        for (id, value) in stretched {
+            insert_stretched(&mut result, id, value, &param.conflict);
         }
         Ok(result)
     }

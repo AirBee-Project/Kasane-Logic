@@ -1,7 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::{ConflictPolicy, Error, FlexId, SpatialIdCollection, UnaryOperator};
+use crate::{CellValue, ConflictPolicy, Error, FlexId, SpatialIdCollection, UnaryOperator};
 
 /// 集合演算をメソッドとして呼び出す拡張トレイト
 pub mod ops;
@@ -71,7 +71,7 @@ impl<V> LevelParam<V> {
 /// X 方向は巡回するため `lo` から東向きに `hi` まで、Y / F は範囲外がエラーになる。
 pub struct Level;
 
-impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for Level {
+impl<A: CellValue> UnaryOperator<A> for Level {
     type CustomParameter = LevelParam<A>;
     type ResultValue = A;
 
@@ -80,11 +80,13 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for Level {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
+        let cells: Vec<(FlexId, A)> = a.scan().collect();
+        let leveled = super::map_cells(cells, |id| expand(id.clone(), &param))?;
+
+        // 重なり解決は `result` を参照するため、元の順序のまま逐次 insert する。
         let mut result = O::empty();
-        for (flex_id, value) in a.scan() {
-            for leveled in expand(flex_id, &param)? {
-                insert_leveled(&mut result, leveled, value.clone(), &param.conflict);
-            }
+        for (id, value) in leveled {
+            insert_leveled(&mut result, id, value, &param.conflict);
         }
         Ok(result)
     }

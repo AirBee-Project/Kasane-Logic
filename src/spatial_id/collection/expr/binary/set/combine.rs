@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 
 /// 異なる型を持つTableを合成するための二項演算。
 ///
@@ -13,9 +13,9 @@ pub struct Combine<F, C>(PhantomData<(F, C)>);
 
 impl<A, B, C, F> BinaryOperator<A, B> for Combine<F, C>
 where
-    A: Ord + PartialEq + Clone,
-    B: Ord + PartialEq + Clone,
-    C: Ord + PartialEq + Clone,
+    A: CellValue,
+    B: CellValue,
+    C: CellValue,
     F: Fn(Option<&A>, Option<&B>) -> Option<C>,
 {
     type CustomParameter = F;

@@ -1,4 +1,4 @@
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 
 /// 対称差（A △ B）を行う二項演算。
 ///
@@ -11,7 +11,7 @@ use crate::{BinaryOperator, Error};
 /// - 可換性：可換
 pub struct SymmetricDifference;
 
-impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for SymmetricDifference {
+impl<V: CellValue> BinaryOperator<V, V> for SymmetricDifference {
     type CustomParameter = ();
     type ResultValue = V;
 

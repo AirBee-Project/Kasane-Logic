@@ -1,4 +1,4 @@
-use crate::{Error, IterFlexIds, RangeId, SpatialIdCollection, UnaryOperator};
+use crate::{CellValue, Error, IterFlexIds, RangeId, SpatialIdCollection, UnaryOperator};
 
 pub mod ops;
 
@@ -8,7 +8,7 @@ mod tests;
 /// 値を持つ領域を包む最小範囲の中で、まだ値が無いセルへ既定値を割り当てる演算。
 pub struct FillDefault;
 
-impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for FillDefault {
+impl<A: CellValue> UnaryOperator<A> for FillDefault {
     /// 隙間へ割り当てる既定値。
     type CustomParameter = A;
     type ResultValue = A;

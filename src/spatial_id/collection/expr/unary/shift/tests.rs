@@ -187,6 +187,31 @@ fn optimize_drops_identity_shift() {
     assert!(matches!(optimized, Plan::Source(_)));
 }
 
+/// map_cells の並列パス（rayon 有効 + 閾値 256 セル以上）を通す。
+/// 並列でも挿入順が保たれ、件数・位置が逐次と一致することを確認する。
+#[test]
+fn shift_over_threshold_preserves_all_cells() {
+    let z = 12;
+    let mut set = SpatialIdSet::new();
+    let mut expected = 0;
+    // 偶数座標へ散らして配置し、隣接セルの併合を防ぐ（16 * 17 = 272 ≥ 256）。
+    for x in 0..16u32 {
+        for y in 0..17u32 {
+            set.insert(SingleId::new(z, 0, x * 2, y * 2).unwrap());
+            expected += 1;
+        }
+    }
+    assert!(expected >= 256);
+
+    let result = set.shift_f(z, 1).unwrap();
+
+    // 件数は保存され、全セルが f=1 へ移動している。
+    assert_eq!(result.iter().count(), expected);
+    assert!(result.get(&SingleId::new(z, 1, 0, 0).unwrap()).next().is_some());
+    assert!(result.get(&SingleId::new(z, 1, 30, 32).unwrap()).next().is_some());
+    assert!(result.get(&SingleId::new(z, 0, 0, 0).unwrap()).next().is_none());
+}
+
 // ---- Set でも同じ演算が使える（総称化の確認） ----
 
 #[test]

@@ -1,7 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::{Error, FlexId, FusibleOperator, SpatialIdCollection, UnaryOperator};
+use crate::{CellValue, Error, FlexId, FusibleOperator, SpatialIdCollection, UnaryOperator};
 
 /// 集合演算をメソッドとして呼び出す拡張トレイト
 pub mod ops;
@@ -88,7 +88,7 @@ impl ShiftParam {
 /// 各軸は独立なので、複数軸を 1 度の走査でまとめて適用できる。
 pub struct Shift;
 
-impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for Shift {
+impl<A: CellValue> UnaryOperator<A> for Shift {
     type CustomParameter = ShiftParam;
     type ResultValue = A;
 
@@ -97,11 +97,12 @@ impl<A: Ord + PartialEq + Clone> UnaryOperator<A> for Shift {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
+        let cells: Vec<(FlexId, A)> = a.scan().collect();
+        let shifted = super::map_cells(cells, |id| apply(id.clone(), &param))?;
+
         let mut result = O::empty();
-        for (flex_id, value) in a.scan() {
-            for shifted in apply(flex_id, &param)? {
-                result.insert(shifted, value.clone());
-            }
+        for (id, value) in shifted {
+            result.insert(id, value);
         }
         Ok(result)
     }

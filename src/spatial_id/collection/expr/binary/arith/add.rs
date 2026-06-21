@@ -1,6 +1,6 @@
 use core::ops::Add as StdAdd;
 
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 
 /// 加算(A+B)を行う二項演算。
 ///
@@ -14,7 +14,7 @@ pub struct Add;
 
 impl<V> BinaryOperator<V, V> for Add
 where
-    V: Ord + PartialEq + Clone + StdAdd<Output = V>,
+    V: CellValue + StdAdd<Output = V>,
 {
     type CustomParameter = ();
     type ResultValue = V;

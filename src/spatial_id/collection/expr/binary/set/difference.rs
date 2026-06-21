@@ -1,4 +1,4 @@
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 
 /// 差集合（A - B）を行う二項演算。
 ///
@@ -9,7 +9,7 @@ use crate::{BinaryOperator, Error};
 /// - 可換性：非可換
 pub struct Difference;
 
-impl<A: Ord + PartialEq + Clone, B: Ord + PartialEq + Clone> BinaryOperator<A, B> for Difference {
+impl<A: CellValue, B: CellValue> BinaryOperator<A, B> for Difference {
     type CustomParameter = ();
     type ResultValue = A;
 
