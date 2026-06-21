@@ -15,6 +15,7 @@ pub trait SpatialId:
     + IterFlexIds
     + IterSingleIds
     + IntoSingleIds
+    + IterSingleIds
     + Debug
     + Display
     + Clone

@@ -1,3 +1,4 @@
+use embed_doc_image::embed_doc_image;
 use hashbrown::HashSet;
 
 use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId};
@@ -38,7 +39,7 @@ impl SpatialIdSet {
         SpatialIdSet::default()
     }
 
-    /// 集合に対して空間IDを挿入する。
+    /// 集合に対して空間IDを挿入する。[SpatialId] Traitが実装されていれば挿入ができる。
     /// 挿入した際に重なりがある空間IDが既に存在する場合は自動的に重なりを解消する。
     ///
     /// # Examples
@@ -49,37 +50,35 @@ impl SpatialIdSet {
     /// let mut set = SpatialIdSet::new();
     ///
     /// // SingleId の挿入
-    /// let single = SingleId::new(5, 0, 10, 10).unwrap();
+    /// let single = SingleId::new(23, 0, 7451089, 3303245).unwrap();
     /// set.insert(single);
     ///
     /// // RangeId の挿入
-    /// let range = RangeId::new(5, [0, 1], [11, 12], [10, 10]).unwrap();
+    /// let range = RangeId::new(23, [0, 0], [7451089, 7451089], [3303245, 3303245]).unwrap();
     /// set.insert(range);
     ///
     /// // FlexId の挿入
-    /// let flex = FlexId::from(SingleId::new(5, 0, 13, 10).unwrap());
+    /// let flex = FlexId::new(23, 0, 23, 7451089, 23, 3303245).unwrap();
     /// set.insert(flex);
     ///
-    /// assert_eq!(set.count(), 6);
+    /// // 競合が解消される
+    /// assert_eq!(set.count(), 1);
     /// ```
     pub fn insert<S: SpatialId>(&mut self, target: S) {
         self.inner.insert(target, ());
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して返す。
-    ///
+    /// ![画像の代替テキスト(Alt)][foobaring]
     /// # Examples
     ///
     /// ```
-    /// use kasane_logic::{SingleId, SpatialIdSet};
+    /// use kasane_logic::{RangeId, SpatialIdSet};
     ///
-    /// let mut set = SpatialIdSet::new();
-    /// let id = SingleId::new(5, 0, 10, 10).unwrap();
-    /// set.insert(id.clone());
+    /// let range_id = RangeId::new(23, [0, 3], [7451089, 7451093], [3303245, 3303250]).unwrap();
     ///
-    /// let overlapped: Vec<_> = set.get(&id).collect();
-    /// assert_eq!(overlapped.len(), 1);
     /// ```
+    #[embed_doc_image("foobaring", "assets/image.png")]
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
     where
         S: SpatialId,
@@ -88,7 +87,7 @@ impl SpatialIdSet {
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
-    /// 削除した空間IDを返す。
+    /// 削除した部分の空間IDを返す。
     ///
     /// # Examples
     ///

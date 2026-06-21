@@ -6,6 +6,7 @@ license = "MIT"
 description = "This is Kasane-logic"
 
 [dependencies]
+embed-doc-image = "0.1.4"
 hashbrown = "0.15.2"
 
 libm = "0.2.16"
