@@ -53,54 +53,56 @@ jobs:
         with:
           shared-key: "verify-${{ matrix.os }}"
 
-      - name: Test
+      # テストハーネスは std を要求するため、テスト系は std を付けて実行する。
+      # rayon の有無（並列／逐次）を両方検証する。
+      - name: Test (std; rayon on/off)
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "random" "temporal_id" "random,temporal_id")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
-            if [ -n "$feature" ]; then
-              cargo test --locked --lib --bins --tests --no-default-features --features "$feature"
-            else
-              cargo test --locked --lib --bins --tests --no-default-features
-            fi
+            cargo test --locked --lib --bins --tests --no-default-features --features "$feature"
           done
 
       - name: Test ignored
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "random" "temporal_id" "random,temporal_id")
+          features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
-            if [ -n "$feature" ]; then
-              cargo test --locked --lib --bins --tests --no-default-features --features "$feature" -- --ignored
-            else
-              cargo test --locked --lib --bins --tests --no-default-features -- --ignored
-            fi
+            cargo test --locked --lib --bins --tests --no-default-features --features "$feature" -- --ignored
           done
 
       - name: Doctest
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "random" "temporal_id" "random,temporal_id")
+          features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
-            if [ -n "$feature" ]; then
-              cargo test --locked --doc --no-default-features --features "$feature"
-            else
-              cargo test --locked --doc --no-default-features
-            fi
+            cargo test --locked --doc --no-default-features --features "$feature"
           done
 
-      - name: Clippy
+      - name: Clippy (std)
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "random" "temporal_id" "random,temporal_id")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
+          for feature in "${features[@]}"; do
+            cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
+          done
+
+      # no_std はテストハーネスが使えないため、ビルドと clippy（lib のみ）で検証する。
+      - name: Build & Clippy (no_std)
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("" "temporal_id")
           for feature in "${features[@]}"; do
             if [ -n "$feature" ]; then
-              cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
+              cargo build --locked --lib --no-default-features --features "$feature"
+              cargo clippy --locked --lib --no-default-features --features "$feature" -- -D warnings
             else
-              cargo clippy --locked --lib --bins --tests --no-default-features -- -D warnings
+              cargo build --locked --lib --no-default-features
+              cargo clippy --locked --lib --no-default-features -- -D warnings
             fi
           done

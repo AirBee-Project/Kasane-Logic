@@ -109,6 +109,124 @@ fn shift_y_above_max_is_error() {
     assert!(table.shift_y(2, 1).is_err());
 }
 
+// ---- optimize による Shift の融合 ----
+
+#[test]
+fn optimize_fuses_shifts_in_all_dimensions() {
+    use crate::SpatialIdCollection;
+    use crate::spatial_id::collection::expr::plan::{Plan, UnaryOp};
+
+    let optimized = table_with(25, 0, 100, 100)
+        .plan()
+        .shift_x(25, 5)
+        .shift_y(25, -3)
+        .shift_f(25, 3)
+        .optimize();
+
+    // 3 軸の Shift が 1 つの Shift ノードへ融合される。
+    match &optimized {
+        Plan::Unary(UnaryOp::Shift(_), inner) => {
+            assert!(matches!(**inner, Plan::Source(_)));
+        }
+        _ => panic!("expected a single fused Shift node"),
+    }
+
+    // 融合後の結果は、逐次適用した結果と一致する。
+    let fused = optimized.execution().unwrap();
+    let sequential = table_with(25, 0, 100, 100)
+        .shift_x(25, 5)
+        .unwrap()
+        .shift_y(25, -3)
+        .unwrap()
+        .shift_f(25, 3)
+        .unwrap();
+
+    assert!(present(&fused, 25, 3, 105, 97)); // x+5, y-3, f+3
+    assert!(!present(&fused, 25, 0, 100, 100));
+    assert!(present(&sequential, 25, 3, 105, 97));
+    assert_eq!(fused.iter().count(), sequential.iter().count());
+}
+
+#[test]
+fn optimize_keeps_separate_nodes_for_repeated_axis() {
+    use crate::SpatialIdCollection;
+    use crate::spatial_id::collection::expr::plan::{Plan, UnaryOp};
+
+    let optimized = table_with(25, 0, 100, 100)
+        .plan()
+        .shift_x(25, 2)
+        .shift_x(25, 3)
+        .optimize();
+
+    // 同じ X 軸が 2 回 → 1 つには融合できず、2 段の Shift ノードのまま残る。
+    match &optimized {
+        Plan::Unary(UnaryOp::Shift(_), inner) => {
+            assert!(matches!(**inner, Plan::Unary(UnaryOp::Shift(_), _)));
+        }
+        _ => panic!("expected two separate shift nodes"),
+    }
+
+    // 結果は逐次適用（合計 +5）と一致する。
+    let result = optimized.execution().unwrap();
+    assert!(present(&result, 25, 0, 105, 100));
+    assert!(!present(&result, 25, 0, 100, 100));
+}
+
+#[test]
+fn optimize_drops_identity_shift() {
+    use crate::SpatialIdCollection;
+    use crate::spatial_id::collection::expr::plan::Plan;
+
+    let optimized = table_with(25, 0, 100, 100)
+        .plan()
+        .shift_x(25, 0)
+        .shift_f(25, 0)
+        .optimize();
+
+    // すべて移動量 0 → Shift ノードは消え、Source だけが残る。
+    assert!(matches!(optimized, Plan::Source(_)));
+}
+
+/// map_cells の並列パス（rayon 有効 + 閾値 256 セル以上）を通す。
+/// 並列でも挿入順が保たれ、件数・位置が逐次と一致することを確認する。
+#[test]
+fn shift_over_threshold_preserves_all_cells() {
+    let z = 12;
+    let mut set = SpatialIdSet::new();
+    let mut expected = 0;
+    // 偶数座標へ散らして配置し、隣接セルの併合を防ぐ（16 * 17 = 272 ≥ 256）。
+    for x in 0..16u32 {
+        for y in 0..17u32 {
+            set.insert(SingleId::new(z, 0, x * 2, y * 2).unwrap());
+            expected += 1;
+        }
+    }
+    assert!(expected >= 256);
+
+    let result = set.shift_f(z, 1).unwrap();
+
+    // 件数は保存され、全セルが f=1 へ移動している。
+    assert_eq!(result.iter().count(), expected);
+    assert!(
+        result
+            .get(&SingleId::new(z, 1, 0, 0).unwrap())
+            .next()
+            .is_some()
+    );
+    assert!(
+        result
+            .get(&SingleId::new(z, 1, 30, 32).unwrap())
+            .next()
+            .is_some()
+    );
+    assert!(
+        result
+            .get(&SingleId::new(z, 0, 0, 0).unwrap())
+            .next()
+            .is_none()
+    );
+}
+
 // ---- Set でも同じ演算が使える（総称化の確認） ----
 
 #[test]

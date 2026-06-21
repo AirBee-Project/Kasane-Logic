@@ -1,4 +1,4 @@
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![deny(clippy::disallowed_methods)]
 #[macro_use]
 extern crate alloc;
@@ -98,7 +98,9 @@ pub use spatial_id::collection::expr::binary::arith::ops::{Addable, Multipliable
 #[doc(inline)]
 pub use spatial_id::collection::expr::binary::set::ops::SetOps;
 #[doc(inline)]
-pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
+pub use spatial_id::collection::expr::traits::{
+    BinaryOperator, ConflictPolicy, FusibleOperator, UnaryOperator,
+};
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::fill::ops::FillOps;
 #[doc(inline)]

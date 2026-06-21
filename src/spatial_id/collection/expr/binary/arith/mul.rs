@@ -1,6 +1,6 @@
 use core::ops::Mul as StdMul;
 
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 /// 乗算(A×B)を行う二項演算。
 ///
 /// # 計算内容
@@ -13,7 +13,7 @@ pub struct Mul;
 
 impl<V> BinaryOperator<V, V> for Mul
 where
-    V: Ord + PartialEq + Clone + StdMul<Output = V>,
+    V: CellValue + StdMul<Output = V>,
 {
     type CustomParameter = ();
     type ResultValue = V;
@@ -28,5 +28,9 @@ where
 
     fn b_only(_b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
+    }
+
+    fn is_commutative(_: &Self::CustomParameter) -> bool {
+        true
     }
 }

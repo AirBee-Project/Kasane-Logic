@@ -1,11 +1,8 @@
 use crate::{FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan};
 
 /// コレクションが格納する値型に共通して要求される性質。
-///
-/// `Ord` は `Eq: PartialEq` を含むため、`PartialEq` を別途要求する必要はない。
-/// 値の比較（重なり解決・正規化）と複製にこの2つで足りる。
-pub trait CellValue: Ord + Clone {}
-impl<T: Ord + Clone> CellValue for T {}
+pub trait CellValue: Ord + Clone + Send + Sync {}
+impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 
 /// 演算の対象となる空間IDコレクションの性質。
 ///

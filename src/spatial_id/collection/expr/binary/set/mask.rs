@@ -1,4 +1,4 @@
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 
 /// マスク（AをBの存在範囲で切り取る）二項演算。
 ///
@@ -9,7 +9,7 @@ use crate::{BinaryOperator, Error};
 /// - 可換性：非可換
 pub struct Mask;
 
-impl<A: Ord + PartialEq + Clone, B: Ord + PartialEq + Clone> BinaryOperator<A, B> for Mask {
+impl<A: CellValue, B: CellValue> BinaryOperator<A, B> for Mask {
     type CustomParameter = ();
     type ResultValue = A;
 
@@ -23,5 +23,9 @@ impl<A: Ord + PartialEq + Clone, B: Ord + PartialEq + Clone> BinaryOperator<A, B
 
     fn b_only(_b: &B, _p: &Self::CustomParameter) -> Result<Option<A>, Error> {
         Ok(None)
+    }
+
+    fn is_commutative(_p: &Self::CustomParameter) -> bool {
+        false
     }
 }

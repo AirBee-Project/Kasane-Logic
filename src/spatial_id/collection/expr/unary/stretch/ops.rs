@@ -1,9 +1,6 @@
 use crate::{ConflictPolicy, Error, SpatialIdCollection, UnaryOperator};
 
-use super::StretchParam;
-use super::stretch_f::FStretch;
-use super::stretch_x::XStretch;
-use super::stretch_y::YStretch;
+use super::{Stretch, StretchParam};
 
 pub trait StretchOps: SpatialIdCollection {
     /// 高さ（F）方向へ引き延ばす（衝突は後勝ち）。
@@ -28,7 +25,7 @@ pub trait StretchOps: SpatialIdCollection {
         index: i32,
         conflict: ConflictPolicy<Self::Value>,
     ) -> Result<Self, Error> {
-        FStretch::execution::<Self, Self>(self, StretchParam { z, index, conflict })
+        Stretch::execution::<Self, Self>(self, StretchParam::f(z, index, conflict))
     }
 
     /// 東西（X）方向へ、衝突方針を指定して引き延ばす。
@@ -38,7 +35,7 @@ pub trait StretchOps: SpatialIdCollection {
         index: i32,
         conflict: ConflictPolicy<Self::Value>,
     ) -> Result<Self, Error> {
-        XStretch::execution::<Self, Self>(self, StretchParam { z, index, conflict })
+        Stretch::execution::<Self, Self>(self, StretchParam::x(z, index, conflict))
     }
 
     /// 南北（Y）方向へ、衝突方針を指定して引き延ばす。
@@ -48,7 +45,7 @@ pub trait StretchOps: SpatialIdCollection {
         index: i32,
         conflict: ConflictPolicy<Self::Value>,
     ) -> Result<Self, Error> {
-        YStretch::execution::<Self, Self>(self, StretchParam { z, index, conflict })
+        Stretch::execution::<Self, Self>(self, StretchParam::y(z, index, conflict))
     }
 }
 
@@ -62,33 +59,27 @@ where
 {
     pub fn stretch_f(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Unary(
-            crate::spatial_id::collection::expr::plan::UnaryOp::StretchF(StretchParam {
-                z,
-                index,
-                conflict,
-            }),
+            crate::spatial_id::collection::expr::plan::UnaryOp::Stretch(StretchParam::f(
+                z, index, conflict,
+            )),
             alloc::boxed::Box::new(self),
         )
     }
 
     pub fn stretch_x(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Unary(
-            crate::spatial_id::collection::expr::plan::UnaryOp::StretchX(StretchParam {
-                z,
-                index,
-                conflict,
-            }),
+            crate::spatial_id::collection::expr::plan::UnaryOp::Stretch(StretchParam::x(
+                z, index, conflict,
+            )),
             alloc::boxed::Box::new(self),
         )
     }
 
     pub fn stretch_y(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Unary(
-            crate::spatial_id::collection::expr::plan::UnaryOp::StretchY(StretchParam {
-                z,
-                index,
-                conflict,
-            }),
+            crate::spatial_id::collection::expr::plan::UnaryOp::Stretch(StretchParam::y(
+                z, index, conflict,
+            )),
             alloc::boxed::Box::new(self),
         )
     }

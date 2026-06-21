@@ -1,6 +1,6 @@
 use core::ops::Sub as StdSub;
 
-use crate::{BinaryOperator, Error};
+use crate::{BinaryOperator, CellValue, Error};
 
 /// 減算（A-B）を行う二項演算。
 ///
@@ -15,7 +15,7 @@ pub struct Sub;
 
 impl<V> BinaryOperator<V, V> for Sub
 where
-    V: Ord + PartialEq + Clone + StdSub<Output = V>,
+    V: CellValue + StdSub<Output = V>,
 {
     type CustomParameter = ();
     type ResultValue = V;
@@ -30,5 +30,9 @@ where
 
     fn b_only(_b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
+    }
+
+    fn is_commutative(_: &Self::CustomParameter) -> bool {
+        false
     }
 }

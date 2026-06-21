@@ -10,9 +10,12 @@ hashbrown = "0.15.2"
 
 libm = "0.2.16"
 rand = { version = "0.10.1", optional = true }
+rayon = { version = "1.10", optional = true }
 
 [features]
-default = []
+default = ["std", "rayon"]
+std = []
+rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]

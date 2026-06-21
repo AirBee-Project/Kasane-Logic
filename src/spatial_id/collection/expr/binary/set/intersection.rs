@@ -1,4 +1,4 @@
-use crate::{BinaryOperator, ConflictPolicy, Error};
+use crate::{BinaryOperator, CellValue, ConflictPolicy, Error};
 
 /// 積集合（A ∩ B）を行う二項演算。
 ///
@@ -10,7 +10,7 @@ use crate::{BinaryOperator, ConflictPolicy, Error};
 /// - 可換性：[ConflictPolicy::Min]か[ConflictPolicy::Max]の場合に可換
 pub struct Intersection;
 
-impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Intersection {
+impl<V: CellValue> BinaryOperator<V, V> for Intersection {
     type CustomParameter = ConflictPolicy<V>;
     type ResultValue = V;
 
@@ -24,5 +24,9 @@ impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Intersection {
 
     fn b_only(_b: &V, _policy: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
+    }
+
+    fn is_commutative(policy: &Self::CustomParameter) -> bool {
+        matches!(policy, ConflictPolicy::Min | ConflictPolicy::Max)
     }
 }
