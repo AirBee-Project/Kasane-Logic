@@ -78,3 +78,35 @@ where
     C::Value: StdMul<Output = C::Value>,
 {
 }
+
+use crate::spatial_id::collection::expr::plan::Plan;
+
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static + StdAdd<Output = C::Value>,
+{
+    #[allow(clippy::should_implement_trait)]
+    pub fn add(self, other: Self) -> Self {
+        self.apply_binary::<Add>(other, ())
+    }
+}
+
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static + StdSub<Output = C::Value>,
+{
+    #[allow(clippy::should_implement_trait)]
+    pub fn sub(self, other: Self) -> Self {
+        self.apply_binary::<Sub>(other, ())
+    }
+}
+
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static + StdMul<Output = C::Value>,
+{
+    #[allow(clippy::should_implement_trait)]
+    pub fn mul(self, other: Self) -> Self {
+        self.apply_binary::<Mul>(other, ())
+    }
+}

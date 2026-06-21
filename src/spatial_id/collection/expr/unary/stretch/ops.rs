@@ -53,3 +53,22 @@ pub trait StretchOps: SpatialIdCollection {
 }
 
 impl<C> StretchOps for C where C: SpatialIdCollection {}
+
+use crate::spatial_id::collection::expr::plan::Plan;
+
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static,
+{
+    pub fn stretch_f(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
+        self.apply_unary::<FStretch>(StretchParam { z, index, conflict })
+    }
+
+    pub fn stretch_x(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
+        self.apply_unary::<XStretch>(StretchParam { z, index, conflict })
+    }
+
+    pub fn stretch_y(self, z: u8, index: i32, conflict: ConflictPolicy<C::Value>) -> Self {
+        self.apply_unary::<YStretch>(StretchParam { z, index, conflict })
+    }
+}

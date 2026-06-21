@@ -1,8 +1,9 @@
 use alloc::boxed::Box;
+use core::marker::PhantomData;
 
-use crate::spatial_id::collection::expr::plan::binary::BinaryOp;
-use crate::spatial_id::collection::expr::plan::unary::UnaryOp;
-use crate::{Error, SpatialIdCollection};
+use crate::spatial_id::collection::expr::plan::binary::{BinaryKernel, BinaryOpKernel};
+use crate::spatial_id::collection::expr::plan::unary::{UnaryKernel, UnaryOpKernel};
+use crate::{BinaryOperator, Error, SpatialIdCollection, UnaryOperator};
 
 pub mod binary;
 pub mod unary;
@@ -14,16 +15,63 @@ pub enum Plan<C: SpatialIdCollection> {
     /// 葉：演算の起点となるコレクション。
     Source(C),
     /// 単項演算ノード。
-    Unary { op: UnaryOp<C>, input: Box<Plan<C>> },
+    Unary {
+        op: Box<dyn UnaryKernel<C>>,
+        input: Box<Plan<C>>,
+    },
     /// 二項演算ノード。
     Binary {
-        op: BinaryOp<C>,
+        op: Box<dyn BinaryKernel<C>>,
         lhs: Box<Plan<C>>,
         rhs: Box<Plan<C>>,
     },
 }
 
-impl<C: SpatialIdCollection> Plan<C> {
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static,
+{
+    /// 任意の単項演算を適用する（内部ヘルパー）。
+    pub fn apply_unary<Op>(self, param: <Op as UnaryOperator<C::Value>>::CustomParameter) -> Self
+    where
+        Op: UnaryOperator<C::Value, ResultValue = C::Value> + 'static,
+        <Op as UnaryOperator<C::Value>>::CustomParameter: 'static,
+    {
+        let kernel = Box::new(UnaryOpKernel::<Op, _> {
+            param,
+            _op: PhantomData,
+        });
+        Plan::Unary {
+            op: kernel,
+            input: Box::new(self),
+        }
+    }
+
+    /// 任意の二項演算を適用する（内部ヘルパー）。
+    pub fn apply_binary<Op>(
+        self,
+        other: Self,
+        param: <Op as BinaryOperator<C::Value, C::Value>>::CustomParameter,
+    ) -> Self
+    where
+        Op: BinaryOperator<C::Value, C::Value, ResultValue = C::Value> + 'static,
+        <Op as BinaryOperator<C::Value, C::Value>>::CustomParameter: 'static,
+    {
+        let kernel = Box::new(BinaryOpKernel::<Op, _> {
+            param,
+            _op: PhantomData,
+        });
+        Plan::Binary {
+            op: kernel,
+            lhs: Box::new(self),
+            rhs: Box::new(other),
+        }
+    }
+
+    // =========================================================================
+    // 評価・最適化
+    // =========================================================================
+
     /// 最適化を行う
     pub fn optimize(self) -> Self {
         self

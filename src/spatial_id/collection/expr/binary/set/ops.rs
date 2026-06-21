@@ -49,3 +49,30 @@ pub trait SetOps: SpatialIdCollection {
 }
 
 impl<C> SetOps for C where C: SpatialIdCollection {}
+
+use crate::spatial_id::collection::expr::plan::Plan;
+
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static,
+{
+    pub fn union_with(self, other: Self, conflict: ConflictPolicy<C::Value>) -> Self {
+        self.apply_binary::<Union>(other, conflict)
+    }
+
+    pub fn intersection_with(self, other: Self, conflict: ConflictPolicy<C::Value>) -> Self {
+        self.apply_binary::<Intersection>(other, conflict)
+    }
+
+    pub fn difference(self, other: Self) -> Self {
+        self.apply_binary::<Difference>(other, ())
+    }
+
+    pub fn symmetric_difference(self, other: Self) -> Self {
+        self.apply_binary::<SymmetricDifference>(other, ())
+    }
+
+    pub fn mask(self, other: Self) -> Self {
+        self.apply_binary::<Mask>(other, ())
+    }
+}

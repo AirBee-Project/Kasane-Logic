@@ -9,3 +9,14 @@ pub trait FillOps: SpatialIdCollection {
 }
 
 impl<C> FillOps for C where C: SpatialIdCollection {}
+
+use crate::spatial_id::collection::expr::plan::Plan;
+
+impl<C: SpatialIdCollection> Plan<C>
+where
+    C::Value: 'static,
+{
+    pub fn fill(self, default: C::Value) -> Self {
+        self.apply_unary::<FillDefault>(default)
+    }
+}
