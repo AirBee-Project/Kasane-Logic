@@ -25,9 +25,4 @@ impl<V: Ord + PartialEq + Clone> BinaryOperator<V, V> for Intersection {
     fn b_only(_b: &V, _policy: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
     }
-
-    fn is_commutative(policy: &Self::CustomParameter) -> bool {
-        // Fold はユーザ関数のため対称性を保証できず、非可換とみなす。
-        matches!(policy, ConflictPolicy::Min | ConflictPolicy::Max)
-    }
 }

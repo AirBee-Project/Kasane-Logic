@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{Error, FlexId, SpatialIdCollection};
+use crate::{CellValue, Error, FlexId, SpatialIdCollection};
 
 /// 空間IDコレクション同士から二項演算を行うTrait。
 ///
@@ -21,14 +21,14 @@ use crate::{Error, FlexId, SpatialIdCollection};
 /// `Table` / `Set`、さらに Disk 上の実装に対しても同じ演算が適用できる。
 pub trait BinaryOperator<A, B>
 where
-    A: Ord + PartialEq + Clone,
-    B: Ord + PartialEq + Clone,
+    A: CellValue,
+    B: CellValue,
 {
     /// 演算ごとのカスタム設定
     type CustomParameter;
 
     /// 結果として帰ってくる値の型
-    type ResultValue: Ord + PartialEq + Clone;
+    type ResultValue: CellValue;
 
     fn both_some(
         a: &A,
@@ -45,9 +45,6 @@ where
         b: &B,
         custom_parameter: &Self::CustomParameter,
     ) -> Result<Option<Self::ResultValue>, Error>;
-
-    /// 可換な演算か。クエリ最適化での評価順入れ替えの判断に使う。
-    fn is_commutative(_custom_parameter: &Self::CustomParameter) -> bool;
 
     /// コレクション全体の演算。
     ///
@@ -128,12 +125,12 @@ impl<V: Ord> ConflictPolicy<V> {
 
 /// 空間IDコレクションに対して単項演算を行うTrait。
 /// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
-pub trait UnaryOperator<A: Ord + PartialEq + Clone> {
+pub trait UnaryOperator<A: CellValue> {
     /// 演算ごとのカスタム設定
     type CustomParameter;
 
     /// 結果として帰ってくる値の型
-    type ResultValue: Ord + PartialEq + Clone;
+    type ResultValue: CellValue;
 
     /// コレクションに対する単項演算の定義
     fn execution<S, O>(a: &S, custom_parameter: Self::CustomParameter) -> Result<O, Error>

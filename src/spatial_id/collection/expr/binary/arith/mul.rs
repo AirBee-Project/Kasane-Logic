@@ -29,8 +29,4 @@ where
     fn b_only(_b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
     }
-
-    fn is_commutative(_: &Self::CustomParameter) -> bool {
-        true
-    }
 }
