@@ -16,7 +16,7 @@ impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    pub fn fill(self, default: C::Value) -> Self {
+    pub fn fill_default(self, default: C::Value) -> Self {
         Plan::Unary(
             crate::spatial_id::collection::expr::plan::UnaryOp::Fill(default),
             alloc::boxed::Box::new(self),

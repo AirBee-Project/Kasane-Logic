@@ -138,19 +138,6 @@ pub trait UnaryOperator<A: CellValue> {
     fn is_identity(_custom_parameter: &Self::CustomParameter) -> bool;
 }
 
-/// 同種の単項演算子が連続したとき、2 つのパラメータを 1 つへ融合できる演算子が実装する。
-pub trait FusibleOperator {
-    /// 融合対象のパラメータ型（通常は [`UnaryOperator::CustomParameter`] と同じ）。
-    type Param;
-
-    ///　`outer` と`inner` を 1 つへ融合する。
-    /// 融合できなければ両者をそのまま `Err` で返し戻す。
-    fn fuse(
-        outer: Self::Param,
-        inner: Self::Param,
-    ) -> Result<Self::Param, (Self::Param, Self::Param)>;
-}
-
 /// `base` から `holes` の各領域を順に差し引いた、残りの領域の集合を返す。
 fn subtract_regions(base: FlexId, holes: &[FlexId]) -> Vec<FlexId> {
     let mut regions = vec![base];

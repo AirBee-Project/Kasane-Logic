@@ -54,7 +54,19 @@ impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    pub fn level_f(self, z: u8, lo: i32, hi: i32, conflict: ConflictPolicy<C::Value>) -> Self {
+    pub fn level_f(self, z: u8, lo: i32, hi: i32) -> Self {
+        self.level_f_with(z, lo, hi, ConflictPolicy::Overwrite)
+    }
+
+    pub fn level_x(self, z: u8, lo: u32, hi: u32) -> Self {
+        self.level_x_with(z, lo, hi, ConflictPolicy::Overwrite)
+    }
+
+    pub fn level_y(self, z: u8, lo: u32, hi: u32) -> Self {
+        self.level_y_with(z, lo, hi, ConflictPolicy::Overwrite)
+    }
+
+    pub fn level_f_with(self, z: u8, lo: i32, hi: i32, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Unary(
             crate::spatial_id::collection::expr::plan::UnaryOp::Level(LevelParam::f(
                 z, lo, hi, conflict,
@@ -63,7 +75,7 @@ where
         )
     }
 
-    pub fn level_x(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
+    pub fn level_x_with(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Unary(
             crate::spatial_id::collection::expr::plan::UnaryOp::Level(LevelParam::x(
                 z, lo, hi, conflict,
@@ -72,7 +84,7 @@ where
         )
     }
 
-    pub fn level_y(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
+    pub fn level_y_with(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Unary(
             crate::spatial_id::collection::expr::plan::UnaryOp::Level(LevelParam::y(
                 z, lo, hi, conflict,

@@ -1,7 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::{CellValue, Error, FlexId, FusibleOperator, SpatialIdCollection, UnaryOperator};
+use crate::{CellValue, Error, FlexId, SpatialIdCollection, UnaryOperator};
 
 /// 集合演算をメソッドとして呼び出す拡張トレイト
 pub mod ops;
@@ -63,23 +63,6 @@ impl ShiftParam {
         let is_zero = |a: &Option<ShiftAmount>| a.as_ref().is_none_or(|s| s.index == 0);
         is_zero(&self.f) && is_zero(&self.x) && is_zero(&self.y)
     }
-
-    /// 同じ軸の移動を両方が持つ（= 融合できない）かどうか。
-    fn collides_with(&self, other: &Self) -> bool {
-        (self.f.is_some() && other.f.is_some())
-            || (self.x.is_some() && other.x.is_some())
-            || (self.y.is_some() && other.y.is_some())
-    }
-
-    /// 軸が衝突しない 2 つを 1 つへ統合する。各軸は最大でも一方しか `Some` を
-    /// 持たないため、`Option::or` で存在する方を採用すればよい。
-    fn merge(self, other: Self) -> Self {
-        Self {
-            f: self.f.or(other.f),
-            x: self.x.or(other.x),
-            y: self.y.or(other.y),
-        }
-    }
 }
 
 /// 空間IDコレクションを、指定した各軸へ平行移動する単項演算。
@@ -112,23 +95,6 @@ impl<A: CellValue> UnaryOperator<A> for Shift {
     }
 }
 
-impl FusibleOperator for Shift {
-    type Param = ShiftParam;
-
-    /// 軸が衝突しなければ 1 つへ統合し、衝突すれば両者を返し戻す。
-    /// 各軸の移動は独立なので、衝突しない範囲でまとめても結果は変わらない。
-    fn fuse(
-        outer: Self::Param,
-        inner: Self::Param,
-    ) -> Result<Self::Param, (Self::Param, Self::Param)> {
-        if outer.collides_with(&inner) {
-            Err((outer, inner))
-        } else {
-            Ok(outer.merge(inner))
-        }
-    }
-}
-
 /// 1 つのセルへ、存在する軸の移動を X → Y → F の順に適用する。
 /// 各軸は独立なので適用順は最終結果に影響しない。
 fn apply(flex_id: FlexId, param: &ShiftParam) -> Result<Vec<FlexId>, Error> {
@@ -141,9 +107,6 @@ fn apply(flex_id: FlexId, param: &ShiftParam) -> Result<Vec<FlexId>, Error> {
 
 /// `amount` が `Some` のとき、各セルへ 1 軸の移動を適用して展開する。
 /// `None` のときは入力をそのまま返す。
-///
-/// `shift` は移動結果を [`Vec`] へ集約して返す。`FlexId::shift_*` が返すイテレータの
-/// 不透明型は `&self` の寿命を捕捉するため、呼び出し側で即座に所有権へ落とす。
 fn apply_axis<F>(
     ids: Vec<FlexId>,
     amount: &Option<ShiftAmount>,

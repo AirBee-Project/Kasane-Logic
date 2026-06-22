@@ -11,13 +11,13 @@ pub use unary::{UnaryKernel, UnaryOp, UnaryOpKernel};
 
 use crate::{Error, SpatialIdCollection};
 
-/// メソッドチェーン全体を表す単一のデータ型
+/// 式全体を表現する型
 pub enum Plan<C: SpatialIdCollection> {
-    /// 葉：演算の起点となるコレクション。
+    /// 演算の起点となるデータ
     Source(C),
-    /// 単項演算ノード。
+    /// 単項演算
     Unary(UnaryOp<C>, Box<Plan<C>>),
-    /// 二項演算ノード。
+    /// 二項演算
     Binary(BinaryOp<C>, Box<Plan<C>>, Box<Plan<C>>),
 }
 
@@ -25,9 +25,9 @@ impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    /// 最適化せず、プランをそのまま実行
+    /// 最適化して式を実行
     pub fn execution(self) -> Result<C, Error> {
-        match self {
+        match self.optimize() {
             Plan::Source(collection) => Ok(collection),
             Plan::Unary(op, input) => {
                 let input = input.execution()?;
@@ -41,8 +41,8 @@ where
         }
     }
 
-    /// 最適化してから実行
-    pub fn optimized_execution(self) -> Result<C, Error> {
+    /// 最適化せずに式を実行
+    pub fn unoptimized_execution(self) -> Result<C, Error> {
         self.optimize().execution()
     }
 }

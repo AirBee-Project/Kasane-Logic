@@ -7,5 +7,5 @@ pub mod unary;
 /// 演算定義のTrait
 pub mod traits;
 
-/// 遅延評価用のモジュール
+/// 式全体を見て、最適化するためのモジュール
 pub mod plan;
