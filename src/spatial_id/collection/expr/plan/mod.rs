@@ -21,6 +21,12 @@ pub enum Plan<C: SpatialIdCollection> {
     Binary(BinaryOp<C>, Box<Plan<C>>, Box<Plan<C>>),
 }
 
+impl<C: SpatialIdCollection> From<C> for Plan<C> {
+    fn from(collection: C) -> Self {
+        collection.plan()
+    }
+}
+
 impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
