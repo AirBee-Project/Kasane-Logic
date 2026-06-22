@@ -31,7 +31,7 @@ pub trait SpatialIdCollection: Sized {
     /// 空かどうか。
     fn is_empty(&self) -> bool;
 
-    /// このコレクションを起点に、演算チェーン（[`Plan`]）の組み立てを始める。
+    /// このコレクションを起点に、[`Plan`]の組み立てを始める。
     fn plan(self) -> Plan<Self> {
         Plan::Source(self)
     }
