@@ -1,4 +1,6 @@
-use crate::{FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan};
+use crate::{
+    ConflictPolicy, FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan,
+};
 
 /// コレクションが格納する値型に共通して要求される性質。
 pub trait CellValue: Ord + Clone + Send + Sync {}
@@ -25,6 +27,29 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
 
     /// 1 つの `(FlexId, Value)` を書き込む。
     fn insert(&mut self, key: FlexId, value: Self::Value);
+
+    /// 解決済みセル列から結果コレクションを一括構築する（全演算子の結果組み立ての共通経路）。
+    ///
+    /// 既定は逐次 `insert`。`conflict` が `Overwrite` 以外のときは書き込み前に現状を
+    /// [`query`](Self::query) して解決するため**入力順に依存する**ので、呼び出し側は順序を
+    /// 保つこと。値インデックス等の付随構造を持つ実装は、これをオーバーライドして一括構築へ
+    /// 差し替えてよい。
+    fn from_cells<I>(cells: I, conflict: &ConflictPolicy<Self::Value>) -> Self
+    where
+        I: IntoIterator<Item = (FlexId, Self::Value)>,
+    {
+        let mut result = Self::empty();
+        for (cell, value) in cells {
+            let resolved = if let ConflictPolicy::Overwrite = conflict {
+                value
+            } else {
+                let current = result.query(&cell).next().map(|(_, v)| v);
+                conflict.resolve(current, value)
+            };
+            result.insert(cell, resolved);
+        }
+        result
+    }
 
     /// 保持している全ての `(FlexId, Value)` を走査する。
     fn scan(&self) -> impl Iterator<Item = (FlexId, Self::Value)> + '_;

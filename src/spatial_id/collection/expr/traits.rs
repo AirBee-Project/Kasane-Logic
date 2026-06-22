@@ -153,19 +153,12 @@ where
             (res_a, res_b)
         };
 
-        let mut result = O::empty();
-        for chunk in new_from_a? {
-            for (id, val) in chunk {
-                result.insert(id, val);
-            }
-        }
-        for chunk in new_from_b? {
-            for (id, val) in chunk {
-                result.insert(id, val);
-            }
-        }
-
-        Ok(result)
+        // a 由来と b 由来の領域は構造上互いに素なので、衝突は起きない（Overwrite で十分）。
+        let cells = new_from_a?
+            .into_iter()
+            .flatten()
+            .chain(new_from_b?.into_iter().flatten());
+        Ok(O::from_cells(cells, &ConflictPolicy::Overwrite))
     }
 }
 

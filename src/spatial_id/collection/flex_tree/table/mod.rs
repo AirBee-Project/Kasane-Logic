@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use alloc::collections::BTreeMap;
+use alloc::collections::{BTreeMap, BTreeSet};
 use core::ops::RangeBounds;
 pub mod convert;
 pub mod json;
@@ -26,7 +26,14 @@ where
     reverse_dictionary: BTreeMap<usize, V>,
 
     // 逆引きインデックス (Rank -> その値が存在する空間の集合)
+    //
+    // 遅延構築。`insert`/`remove` では維持せず（フラグを false にするだけ）、
+    // 値クエリは未構築なら `inner` 走査で答える。明示的に [`rebuild_index`](Self::rebuild_index)
+    // を呼んだときだけ構築され、`value_index_built` が true になる。
     value_index: BTreeMap<usize, SpatialIdSet>,
+
+    // `value_index` が `inner` と整合しているか（= 値クエリで使ってよいか）。
+    value_index_built: bool,
 
     // 次に発行する一意なID（Rank）
     current_rank: usize,
@@ -43,11 +50,16 @@ where
             dictionary: BTreeMap::default(),
             reverse_dictionary: BTreeMap::default(),
             value_index: BTreeMap::default(),
+            value_index_built: true,
             current_rank: 0,
         }
     }
 
     /// 空間に値を挿入します。
+    ///
+    /// `value_index` は維持せず（[`rebuild_index`](Self::rebuild_index) まで遅延）、
+    /// `inner` ツリーと値→ランク辞書だけを更新します。既存オーバーラップの掃除も不要
+    /// （上書きは `inner` 側で行われ、値クエリは `inner` 走査で正しく答えます）。
     pub fn insert<S: IterFlexIds + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
@@ -60,29 +72,8 @@ where
             }
         };
 
-        let mut old_overlaps = Vec::new();
-        for (intersected_id, old_rank) in self.inner.get(&target) {
-            if old_rank != rank {
-                old_overlaps.push((intersected_id, old_rank));
-            }
-        }
-
-        for (intersected_id, old_rank) in old_overlaps {
-            if let Some(old_set) = self.value_index.get_mut(&old_rank) {
-                let _ = old_set.remove(&intersected_id);
-                if old_set.is_empty() {
-                    self.value_index.remove(&old_rank);
-                    if let Some(old_val) = self.reverse_dictionary.remove(&old_rank) {
-                        self.dictionary.remove(&old_val);
-                    }
-                }
-            }
-        }
-
-        self.inner.insert(target.clone(), rank);
-
-        let set = self.value_index.entry(rank).or_default();
-        set.insert(target);
+        self.inner.insert(target, rank);
+        self.value_index_built = false;
     }
 
     /// 特定の空間（target）と交差するすべての領域と、その値への参照を返します。
@@ -106,19 +97,12 @@ where
 
         for (flex_id, rank) in removed_items {
             let value = self.reverse_dictionary.get(&rank).unwrap().clone();
-
-            if let Some(set) = self.value_index.get_mut(&rank) {
-                let _ = set.remove(&flex_id);
-
-                if set.is_empty() {
-                    self.value_index.remove(&rank);
-                    self.reverse_dictionary.remove(&rank);
-                    self.dictionary.remove(&value);
-                }
-            }
             results.push((flex_id, value));
         }
 
+        if !results.is_empty() {
+            self.value_index_built = false;
+        }
         results.into_iter()
     }
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
@@ -208,13 +192,43 @@ where
         })
     }
 
+    /// `value_index` を `inner` から構築し、上書き等で消えたランクを辞書から取り除きます。
+    ///
+    /// `insert`/`remove` は `value_index` を維持しないため、値クエリ（[`value_get`](Self::value_get)
+    /// 等）を多用する前にこれを 1 度呼ぶと、以後の値クエリが `inner` 走査ではなくインデックス
+    /// 参照で高速になります。死んだランク（上書きで消えた値）の掃除もここで行われます。
+    pub fn rebuild_index(&mut self) {
+        self.value_index.clear();
+        for (flex_id, rank) in self.inner.iter() {
+            self.value_index.entry(rank).or_default().insert(flex_id);
+        }
+        let live: BTreeSet<usize> = self.value_index.keys().copied().collect();
+        self.reverse_dictionary
+            .retain(|rank, _| live.contains(rank));
+        self.dictionary.retain(|_, rank| live.contains(rank));
+        self.value_index_built = true;
+    }
+
     /// 特定の値に対応するすべての[FlexId]を返します。
+    ///
+    /// [`rebuild_index`](Self::rebuild_index) 済みならインデックス参照、未構築なら `inner` を
+    /// 走査して同じ結果を返します（計算量だけ後者が O(n)）。
     pub fn value_get(&self, value: &V) -> impl Iterator<Item = FlexId> + '_ {
-        self.dictionary
-            .get(value)
-            .and_then(|rank| self.value_index.get(rank))
-            .into_iter()
-            .flat_map(|set| set.iter())
+        let mut out = Vec::new();
+        if let Some(&rank) = self.dictionary.get(value) {
+            if self.value_index_built {
+                if let Some(set) = self.value_index.get(&rank) {
+                    out.extend(set.iter());
+                }
+            } else {
+                for (flex_id, r) in self.inner.iter() {
+                    if r == rank {
+                        out.push(flex_id);
+                    }
+                }
+            }
+        }
+        out.into_iter()
     }
 
     /// 範囲条件に一致する全ての値の[FlexId]と値への参照のペアを返します。
@@ -222,10 +236,23 @@ where
         &self,
         range: R,
     ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.dictionary.range(range).flat_map(move |(val, rank)| {
-            let set = self.value_index.get(rank).expect("Index mismatch");
-            set.iter().map(move |flex_id| (flex_id, val))
-        })
+        let wanted: Vec<(&V, usize)> = self.dictionary.range(range).map(|(v, r)| (v, *r)).collect();
+        let mut out: Vec<(FlexId, &V)> = Vec::new();
+        if self.value_index_built {
+            for (val, rank) in &wanted {
+                if let Some(set) = self.value_index.get(rank) {
+                    out.extend(set.iter().map(|flex_id| (flex_id, *val)));
+                }
+            }
+        } else {
+            let lookup: BTreeMap<usize, &V> = wanted.iter().map(|(v, r)| (*r, *v)).collect();
+            for (flex_id, rank) in self.inner.iter() {
+                if let Some(val) = lookup.get(&rank) {
+                    out.push((flex_id, *val));
+                }
+            }
+        }
+        out.into_iter()
     }
 
     /// テーブルが空かどうかを返します
@@ -245,7 +272,26 @@ where
     }
 
     /// テーブルに保持されている値への参照を返します。
+    ///
+    /// `value_index` 未構築のときは、上書きで死んだ値を除くため `inner` の生存ランクのみを
+    /// 集めて返します（[`rebuild_index`](Self::rebuild_index) 済みなら辞書から直接）。
     pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
-        self.dictionary.keys()
+        let mut out: Vec<&V> = Vec::new();
+        if self.value_index_built {
+            out.extend(self.dictionary.keys());
+        } else {
+            // 生存ランクから値を集め、値順（昇順）に並べて重複排除する（辞書順を再現）。
+            let mut live: BTreeSet<usize> = BTreeSet::new();
+            for (_, rank) in self.inner.iter() {
+                live.insert(rank);
+            }
+            out = live
+                .iter()
+                .filter_map(|rank| self.reverse_dictionary.get(rank))
+                .collect();
+            out.sort();
+            out.dedup();
+        }
+        out.into_iter()
     }
 }

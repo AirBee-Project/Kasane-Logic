@@ -1,11 +1,25 @@
 use super::node::Node;
 use super::ptr::SharedNode;
 
+/// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。
+///
+/// 集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、
+/// 大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
+/// `leaf_count` は Branch にキャッシュ済みで O(1) で取れる。値は要ベンチ調整。
+#[cfg(feature = "rayon")]
+pub(super) const PARALLEL_LEAF_CUTOFF: usize = 1024;
+
+/// 部分木が十分大きいときだけ `rayon::join` で 2 分割し、小さいときは逐次に処理する。
+/// 第 1 引数は処理対象の規模（合計葉数の見積もり）。
 macro_rules! join_nodes {
-    ($a:expr, $b:expr) => {{
+    ($size:expr, $a:expr, $b:expr) => {{
         #[cfg(feature = "rayon")]
         {
-            rayon::join($a, $b)
+            if $size >= PARALLEL_LEAF_CUTOFF {
+                rayon::join($a, $b)
+            } else {
+                ($a(), $b())
+            }
         }
         #[cfg(not(feature = "rayon"))]
         {
@@ -69,10 +83,11 @@ where
                 },
             ) = (&**a, &**b)
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::union(al, bl, level + 1, empty_leaf), || {
-                        Self::union(au, bu, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::union(al, bl, level + 1, empty_leaf),
+                    || { Self::union(au, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else if level == a_level {
@@ -83,6 +98,7 @@ where
             } = &**a
             {
                 let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
                     || Self::union(al, b, level + 1, empty_leaf),
                     || Self::union(au, b, level + 1, empty_leaf)
                 );
@@ -96,6 +112,7 @@ where
             } = &**b
             {
                 let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
                     || Self::union(a, bl, level + 1, empty_leaf),
                     || Self::union(a, bu, level + 1, empty_leaf)
                 );
@@ -156,10 +173,11 @@ where
                 },
             ) = (&**a, &**b)
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::intersection(al, bl, level + 1, empty_leaf), || {
-                        Self::intersection(au, bu, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::intersection(al, bl, level + 1, empty_leaf),
+                    || { Self::intersection(au, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else if level == a_level {
@@ -169,10 +187,11 @@ where
                 ..
             } = &**a
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::intersection(al, b, level + 1, empty_leaf), || {
-                        Self::intersection(au, b, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::intersection(al, b, level + 1, empty_leaf),
+                    || { Self::intersection(au, b, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else {
@@ -182,10 +201,11 @@ where
                 ..
             } = &**b
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::intersection(a, bl, level + 1, empty_leaf), || {
-                        Self::intersection(a, bu, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::intersection(a, bl, level + 1, empty_leaf),
+                    || { Self::intersection(a, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         }
@@ -240,10 +260,11 @@ where
                 },
             ) = (&**a, &**b)
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::difference(al, bl, level + 1, empty_leaf), || {
-                        Self::difference(au, bu, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::difference(al, bl, level + 1, empty_leaf),
+                    || { Self::difference(au, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else if level == a_level {
@@ -253,10 +274,11 @@ where
                 ..
             } = &**a
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::difference(al, b, level + 1, empty_leaf), || {
-                        Self::difference(au, b, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::difference(al, b, level + 1, empty_leaf),
+                    || { Self::difference(au, b, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else {
@@ -266,10 +288,11 @@ where
                 ..
             } = &**b
             {
-                let (new_lower, new_upper) =
-                    join_nodes!(|| Self::difference(a, bl, level + 1, empty_leaf), || {
-                        Self::difference(a, bu, level + 1, empty_leaf)
-                    });
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::difference(a, bl, level + 1, empty_leaf),
+                    || { Self::difference(a, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         }

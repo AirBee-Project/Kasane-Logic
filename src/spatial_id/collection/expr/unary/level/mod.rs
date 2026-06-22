@@ -83,15 +83,9 @@ impl<A: CellValue> UnaryOperator<A> for Level {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let leveled = super::map_cells(cells, |id| expand(id.clone(), &param))?;
 
-        // `leveled` is already mostly in Z-order because `cells` was in Z-order.
-        // We do not sort it because `FlexId` lexicographical sort breaks Z-order.
-
-        // 重なり解決は `result` を参照するため、元の順序のまま逐次 insert する。
-        let mut result = O::empty();
-        for (id, value) in leveled {
-            insert_leveled(&mut result, id, value, &param.conflict);
-        }
-        Ok(result)
+        // `leveled` は元が Z 順なのでほぼ Z 順。FlexId の辞書順ソートは Z 順を壊すため
+        // 並べ替えはしない。重なり解決は順序依存なのでこの順序のまま一括構築へ渡す。
+        Ok(O::from_cells(leveled, &param.conflict))
     }
 
     fn is_identity(_param: &Self::CustomParameter) -> bool {
@@ -163,22 +157,4 @@ where
         out.extend(level(&id, *z, *lo, *hi)?);
     }
     Ok(out)
-}
-
-/// 範囲へ揃えたセル `cell` を `result` へ、衝突方針 `conflict` に従って書き込む。
-pub(super) fn insert_leveled<O>(
-    result: &mut O,
-    cell: FlexId,
-    value: O::Value,
-    conflict: &ConflictPolicy<O::Value>,
-) where
-    O: SpatialIdCollection,
-{
-    let resolved = if let ConflictPolicy::Overwrite = conflict {
-        value
-    } else {
-        let current = result.query(&cell).next().map(|(_, v)| v);
-        conflict.resolve(current, value)
-    };
-    result.insert(cell, resolved);
 }
