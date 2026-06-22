@@ -7,9 +7,7 @@ use crate::{
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
 use node::Node;
-pub(crate) mod bulk;
 mod convert;
-pub(crate) mod morton;
 pub mod node;
 pub mod node_ops;
 mod overlap;
@@ -57,62 +55,6 @@ where
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
             upper_root: Node::union(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
-            empty_leaf: self.empty_leaf.clone(),
-        }
-    }
-
-    /// 2つの [FlexTreeCore] の積集合（Intersection）を計算します。
-    ///
-    /// 両方の木で値が設定されている（重なり合う）領域については、以下のように値が保持されます。
-    /// - `self` と `other` で階層（細かさ）が異なる場合、**より細かい領域（より深い階層）で定義されている側の値**が優先して保持されます。
-    /// - 両者が同じ広さ（階層）で完全に一致する場合、**引数（`other`）の値**が優先して保持されます。
-    pub fn union_with<F>(&self, other: &Self, resolve: F) -> Self
-    where
-        F: Fn(&V, &V) -> V + Sync,
-    {
-        #[cfg(feature = "rayon")]
-        let (lower_root, upper_root) = rayon::join(
-            || {
-                Node::union_with(
-                    &self.lower_root,
-                    &other.lower_root,
-                    0,
-                    &self.empty_leaf,
-                    &resolve,
-                )
-            },
-            || {
-                Node::union_with(
-                    &self.upper_root,
-                    &other.upper_root,
-                    0,
-                    &self.empty_leaf,
-                    &resolve,
-                )
-            },
-        );
-
-        #[cfg(not(feature = "rayon"))]
-        let (lower_root, upper_root) = (
-            Node::union_with(
-                &self.lower_root,
-                &other.lower_root,
-                0,
-                &self.empty_leaf,
-                &resolve,
-            ),
-            Node::union_with(
-                &self.upper_root,
-                &other.upper_root,
-                0,
-                &self.empty_leaf,
-                &resolve,
-            ),
-        );
-
-        Self {
-            lower_root,
-            upper_root,
             empty_leaf: self.empty_leaf.clone(),
         }
     }
