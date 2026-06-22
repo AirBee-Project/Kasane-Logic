@@ -2,15 +2,11 @@ use crate::spatial_id::collection::expr::plan::unary::kernel::UnaryKernel;
 use crate::spatial_id::collection::expr::unary::level::{Level, LevelParam};
 use crate::spatial_id::collection::expr::unary::shift::{Shift, ShiftParam};
 use crate::spatial_id::collection::expr::unary::stretch::{Stretch, StretchParam};
-use crate::{Error, FusibleOperator, SpatialIdCollection, UnaryOperator};
+use crate::{Error, SpatialIdCollection, UnaryOperator};
 
 pub enum UnaryOp<C: SpatialIdCollection> {
-    /// F / X / Y のいずれか or 複数軸の移動。軸ごとの `shift_x` などはこの形で表現され、
-    /// 連続する Shift は最適化で軸が衝突しない範囲へ融合される。
     Shift(ShiftParam),
-    /// F / X / Y のいずれかの引き延ばし。軸ごとの `stretch_x` などはこの形で表現される。
     Stretch(StretchParam<C::Value>),
-    /// F / X / Y のいずれかの絶対範囲揃え。軸ごとの `level_x` などはこの形で表現される。
     Level(LevelParam<C::Value>),
     Fill(C::Value),
     Custom(alloc::boxed::Box<dyn UnaryKernel<C>>),
@@ -41,23 +37,6 @@ impl<C: SpatialIdCollection> UnaryOp<C> {
                 )
             }
             UnaryOp::Custom(kernel) => kernel.run(input),
-        }
-    }
-
-    /// 直後（内側）に適用される `inner` を自分へ融合できれば、融合した演算子を `Ok` で返す。
-    /// 融合できなければ両演算子をそのまま `Err` で返し戻す。
-    pub(crate) fn try_fuse(self, inner: Self) -> Result<Self, alloc::boxed::Box<(Self, Self)>> {
-        match (self, inner) {
-            (UnaryOp::Shift(outer), UnaryOp::Shift(inner)) => {
-                match <Shift as FusibleOperator>::fuse(outer, inner) {
-                    Ok(fused) => Ok(UnaryOp::Shift(fused)),
-                    Err((outer, inner)) => Err(alloc::boxed::Box::new((
-                        UnaryOp::Shift(outer),
-                        UnaryOp::Shift(inner),
-                    ))),
-                }
-            }
-            (outer, inner) => Err(alloc::boxed::Box::new((outer, inner))),
         }
     }
 }
