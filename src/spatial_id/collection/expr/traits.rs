@@ -57,7 +57,6 @@ where
         SB: SpatialIdCollection<Value = B>,
         O: SpatialIdCollection<Value = Self::ResultValue>,
     {
-        // 参照で集める（値はクローンしない）。結果セルに必要なときだけ both_some 等で複製する。
         let a_cells: Vec<_> = a.scan_ref().collect();
         let b_cells: Vec<_> = b.scan_ref().collect();
 
@@ -154,7 +153,6 @@ where
             (res_a, res_b)
         };
 
-        // a 由来と b 由来の領域は構造上互いに素なので、衝突は起きない（Overwrite で十分）。
         let cells = new_from_a?
             .into_iter()
             .flatten()

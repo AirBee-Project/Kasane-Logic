@@ -83,7 +83,6 @@ impl<A: CellValue> UnaryOperator<A> for Shift {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let shifted = super::map_cells(cells, |id| apply(id.clone(), &param))?;
 
-        // 移動結果は基本的に互いに素。重なった場合は後勝ち（Overwrite）で従来と同じ。
         Ok(O::from_cells(shifted, &ConflictPolicy::Overwrite))
     }
 

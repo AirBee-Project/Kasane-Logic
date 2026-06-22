@@ -20,8 +20,6 @@ impl<A: CellValue> UnaryOperator<A> for FillDefault {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
-        // 既定値で bbox を埋めた後、実セルで上書きする。後勝ち（Overwrite）で実値が勝つよう、
-        // 既定値 → 実セルの順に一括構築へ渡す。
         let bbox = RangeId::bounding_box_of(a.scan().map(|(flex_id, _)| flex_id));
         let defaults = bbox
             .as_ref()

@@ -82,9 +82,6 @@ impl<A: CellValue> UnaryOperator<A> for Level {
     {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let leveled = super::map_cells(cells, |id| expand(id.clone(), &param))?;
-
-        // `leveled` は元が Z 順なのでほぼ Z 順。FlexId の辞書順ソートは Z 順を壊すため
-        // 並べ替えはしない。重なり解決は順序依存なのでこの順序のまま一括構築へ渡す。
         Ok(O::from_cells(leveled, &param.conflict))
     }
 
@@ -94,21 +91,18 @@ impl<A: CellValue> UnaryOperator<A> for Level {
 }
 
 fn expand<V>(flex_id: FlexId, param: &LevelParam<V>) -> Result<Vec<FlexId>, Error> {
-    // Fast path: Only F is specified (most common case for level_f)
     if param.x.is_none()
         && param.y.is_none()
         && let Some(f) = &param.f
     {
         return Ok(flex_id.level_f(f.z, f.lo, f.hi)?.collect());
     }
-    // Fast path: Only X is specified
     if param.f.is_none()
         && param.y.is_none()
         && let Some(x) = &param.x
     {
         return Ok(flex_id.level_x(x.z, x.lo, x.hi)?.collect());
     }
-    // Fast path: Only Y is specified
     if param.f.is_none()
         && param.x.is_none()
         && let Some(y) = &param.y
@@ -116,7 +110,6 @@ fn expand<V>(flex_id: FlexId, param: &LevelParam<V>) -> Result<Vec<FlexId>, Erro
         return Ok(flex_id.level_y(y.z, y.lo, y.hi)?.collect());
     }
 
-    // Fast path: Only F is specified
     if param.x.is_none()
         && param.y.is_none()
         && let Some(f) = &param.f
@@ -124,7 +117,6 @@ fn expand<V>(flex_id: FlexId, param: &LevelParam<V>) -> Result<Vec<FlexId>, Erro
         return Ok(flex_id.level_f(f.z, f.lo, f.hi)?.collect());
     }
 
-    // Slow path: multiple axes
     let ids = vec![flex_id];
     let ids = apply_axis(ids, &param.x, |id, z, lo, hi| {
         Ok(id.level_x(z, lo, hi)?.collect())

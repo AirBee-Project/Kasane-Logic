@@ -85,7 +85,6 @@ impl<A: CellValue> UnaryOperator<A> for Stretch {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let stretched = super::map_cells(cells, |id| expand(id.clone(), &param))?;
 
-        // 重なり解決は順序依存なので、元の順序のまま一括構築へ渡す。
         Ok(O::from_cells(stretched, &param.conflict))
     }
 

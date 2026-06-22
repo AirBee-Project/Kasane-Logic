@@ -1,16 +1,11 @@
 use super::node::Node;
 use super::ptr::SharedNode;
 
-/// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。
-///
-/// 集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、
-/// 大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
-/// `leaf_count` は Branch にキャッシュ済みで O(1) で取れる。値は要ベンチ調整。
+/// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
 #[cfg(feature = "rayon")]
 pub(super) const PARALLEL_LEAF_CUTOFF: usize = 1024;
 
 /// 部分木が十分大きいときだけ `rayon::join` で 2 分割し、小さいときは逐次に処理する。
-/// 第 1 引数は処理対象の規模（合計葉数の見積もり）。
 macro_rules! join_nodes {
     ($size:expr, $a:expr, $b:expr) => {{
         #[cfg(feature = "rayon")]

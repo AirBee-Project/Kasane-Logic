@@ -33,15 +33,8 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// 1 つの `(FlexId, Value)` を書き込む。
     fn insert(&mut self, key: FlexId, value: Self::Value);
 
-    /// 解決済みセル列から結果コレクションを一括構築する（全演算子の結果組み立ての共通経路）。
-    ///
-    /// `conflict` が [`Overwrite`](ConflictPolicy::Overwrite) のときは、ツリーへ積む前に
-    /// **完全一致するセルを「最後の値」へ畳み込み**、最後の出現順に並べてから挿入する。
-    /// 起伏平坦化のように同一セルが何度も生成される出力では、ツリー挿入回数が激減する。
-    /// クロスズームの重なりも「最後の出現順」を保つことで後勝ち（Overwrite）が保たれる。
-    ///
-    /// `Overwrite` 以外は順序・クロスズーム依存の解決が要るため、書き込み前に現状を
-    /// [`query`](Self::query) して解決する逐次経路を使う（呼び出し側は順序を保つこと）。
+    /// 解決済みセル列から結果コレクションを一括構築する
+    /// 全演算子の結果組み立ての共通経路として機能する。
     fn from_cells<I>(cells: I, conflict: &ConflictPolicy<Self::Value>) -> Self
     where
         I: IntoIterator<Item = (FlexId, Self::Value)>,
