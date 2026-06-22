@@ -56,43 +56,47 @@ impl<C: SpatialIdCollection> Plan<C>
 where
     C::Value: 'static,
 {
-    pub fn union_with(self, other: Self, conflict: ConflictPolicy<C::Value>) -> Self {
+    pub fn union_with(self, other: impl Into<Plan<C>>, conflict: ConflictPolicy<C::Value>) -> Self {
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Union(conflict),
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 
-    pub fn intersection_with(self, other: Self, conflict: ConflictPolicy<C::Value>) -> Self {
+    pub fn intersection_with(
+        self,
+        other: impl Into<Plan<C>>,
+        conflict: ConflictPolicy<C::Value>,
+    ) -> Self {
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Intersection(conflict),
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 
-    pub fn difference(self, other: Self) -> Self {
+    pub fn difference(self, other: impl Into<Plan<C>>) -> Self {
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Difference,
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 
-    pub fn symmetric_difference(self, other: Self) -> Self {
+    pub fn symmetric_difference(self, other: impl Into<Plan<C>>) -> Self {
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::SymmetricDifference,
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 
-    pub fn mask(self, other: Self) -> Self {
+    pub fn mask(self, other: impl Into<Plan<C>>) -> Self {
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Mask,
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 }

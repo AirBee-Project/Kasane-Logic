@@ -86,7 +86,7 @@ where
     C::Value: 'static + StdAdd<Output = C::Value>,
 {
     #[allow(clippy::should_implement_trait)]
-    pub fn add(self, other: Self) -> Self {
+    pub fn add(self, other: impl Into<Plan<C>>) -> Self {
         let kernel =
             alloc::boxed::Box::new(crate::spatial_id::collection::expr::plan::BinaryOpKernel::<
                 Add,
@@ -98,7 +98,7 @@ where
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Custom(kernel),
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 }
@@ -108,7 +108,7 @@ where
     C::Value: 'static + StdSub<Output = C::Value>,
 {
     #[allow(clippy::should_implement_trait)]
-    pub fn sub(self, other: Self) -> Self {
+    pub fn sub(self, other: impl Into<Plan<C>>) -> Self {
         let kernel =
             alloc::boxed::Box::new(crate::spatial_id::collection::expr::plan::BinaryOpKernel::<
                 Sub,
@@ -120,7 +120,7 @@ where
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Custom(kernel),
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 }
@@ -130,7 +130,7 @@ where
     C::Value: 'static + StdMul<Output = C::Value>,
 {
     #[allow(clippy::should_implement_trait)]
-    pub fn mul(self, other: Self) -> Self {
+    pub fn mul(self, other: impl Into<Plan<C>>) -> Self {
         let kernel =
             alloc::boxed::Box::new(crate::spatial_id::collection::expr::plan::BinaryOpKernel::<
                 Mul,
@@ -142,7 +142,7 @@ where
         Plan::Binary(
             crate::spatial_id::collection::expr::plan::BinaryOp::Custom(kernel),
             alloc::boxed::Box::new(self),
-            alloc::boxed::Box::new(other),
+            alloc::boxed::Box::new(other.into()),
         )
     }
 }
