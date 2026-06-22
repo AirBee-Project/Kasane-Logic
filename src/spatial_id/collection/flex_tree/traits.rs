@@ -1,6 +1,11 @@
+use alloc::vec::Vec;
+
 use crate::{
     ConflictPolicy, FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan,
 };
+
+/// `SpatialIdSet`（値を持たない集合）の参照版走査で返す `&()` の実体。
+static UNIT: () = ();
 
 /// コレクションが格納する値型に共通して要求される性質。
 pub trait CellValue: Ord + Clone + Send + Sync {}
@@ -30,32 +35,61 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
 
     /// 解決済みセル列から結果コレクションを一括構築する（全演算子の結果組み立ての共通経路）。
     ///
-    /// 既定は逐次 `insert`。`conflict` が `Overwrite` 以外のときは書き込み前に現状を
-    /// [`query`](Self::query) して解決するため**入力順に依存する**ので、呼び出し側は順序を
-    /// 保つこと。値インデックス等の付随構造を持つ実装は、これをオーバーライドして一括構築へ
-    /// 差し替えてよい。
+    /// `conflict` が [`Overwrite`](ConflictPolicy::Overwrite) のときは、ツリーへ積む前に
+    /// **完全一致するセルを「最後の値」へ畳み込み**、最後の出現順に並べてから挿入する。
+    /// 起伏平坦化のように同一セルが何度も生成される出力では、ツリー挿入回数が激減する。
+    /// クロスズームの重なりも「最後の出現順」を保つことで後勝ち（Overwrite）が保たれる。
+    ///
+    /// `Overwrite` 以外は順序・クロスズーム依存の解決が要るため、書き込み前に現状を
+    /// [`query`](Self::query) して解決する逐次経路を使う（呼び出し側は順序を保つこと）。
     fn from_cells<I>(cells: I, conflict: &ConflictPolicy<Self::Value>) -> Self
     where
         I: IntoIterator<Item = (FlexId, Self::Value)>,
     {
-        let mut result = Self::empty();
-        for (cell, value) in cells {
-            let resolved = if let ConflictPolicy::Overwrite = conflict {
-                value
-            } else {
+        if let ConflictPolicy::Overwrite = conflict {
+            // 完全一致セルは (最後の出現位置, 最後の値) だけ残す。
+            let mut latest: hashbrown::HashMap<FlexId, (usize, Self::Value)> =
+                hashbrown::HashMap::new();
+            for (pos, (cell, value)) in cells.into_iter().enumerate() {
+                latest.insert(cell, (pos, value));
+            }
+            // 最後の出現順に並べ直してから積む（後勝ちの相対順を保存）。
+            let mut ordered: Vec<(usize, FlexId, Self::Value)> = latest
+                .into_iter()
+                .map(|(id, (pos, value))| (pos, id, value))
+                .collect();
+            ordered.sort_unstable_by_key(|(pos, _, _)| *pos);
+
+            let mut result = Self::empty();
+            for (_, id, value) in ordered {
+                result.insert(id, value);
+            }
+            result
+        } else {
+            let mut result = Self::empty();
+            for (cell, value) in cells {
                 let current = result.query(&cell).next().map(|(_, v)| v);
-                conflict.resolve(current, value)
-            };
-            result.insert(cell, resolved);
+                let resolved = conflict.resolve(current, value);
+                result.insert(cell, resolved);
+            }
+            result
         }
-        result
     }
 
     /// 保持している全ての `(FlexId, Value)` を走査する。
     fn scan(&self) -> impl Iterator<Item = (FlexId, Self::Value)> + '_;
 
+    /// [`scan`](Self::scan) の参照版。値をクローンせず参照で返す（重い値型でのコピー削減）。
+    fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
+
     /// `target` と重なる `(FlexId, Value)` を取得する（2項演算の重なり判定に使う）。
     fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, Self::Value)> + 'a;
+
+    /// [`query`](Self::query) の参照版。値をクローンせず参照で返す。
+    fn query_ref<'a>(
+        &'a self,
+        target: &'a FlexId,
+    ) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a;
 
     /// 含まれる要素の最大ズームレベル（正規化・最適化に使う）。
     fn max_zoomlevel(&self) -> Option<u8>;
@@ -87,8 +121,16 @@ where
         self.iter().map(|(id, v)| (id, v.clone()))
     }
 
+    fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+        self.iter()
+    }
+
     fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, V)> + 'a {
         self.get(target).map(|(id, v)| (id, v.clone()))
+    }
+
+    fn query_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        self.get(target)
     }
 
     fn max_zoomlevel(&self) -> Option<u8> {
@@ -115,8 +157,16 @@ impl SpatialIdCollection for SpatialIdSet {
         self.iter().map(|id| (id, ()))
     }
 
+    fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &())> + '_ {
+        self.iter().map(|id| (id, &UNIT))
+    }
+
     fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, ())> + 'a {
         self.get(target).map(|id| (id, ()))
+    }
+
+    fn query_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a ())> + 'a {
+        self.get(target).map(|id| (id, &UNIT))
     }
 
     fn max_zoomlevel(&self) -> Option<u8> {

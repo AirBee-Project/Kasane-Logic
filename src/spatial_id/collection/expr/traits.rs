@@ -57,8 +57,9 @@ where
         SB: SpatialIdCollection<Value = B>,
         O: SpatialIdCollection<Value = Self::ResultValue>,
     {
-        let a_cells: Vec<_> = a.scan().collect();
-        let b_cells: Vec<_> = b.scan().collect();
+        // 参照で集める（値はクローンしない）。結果セルに必要なときだけ both_some 等で複製する。
+        let a_cells: Vec<_> = a.scan_ref().collect();
+        let b_cells: Vec<_> = b.scan_ref().collect();
 
         type MapResult<T> = Result<Vec<Vec<(crate::FlexId, T)>>, Error>;
 
@@ -75,16 +76,16 @@ where
                         .map(|(a_id, a_value)| {
                             let mut local = Vec::new();
                             let mut covered = Vec::new();
-                            for (overlap, b_value) in b.query(&a_id) {
+                            for (overlap, b_value) in b.query_ref(&a_id) {
                                 if let Some(value) =
-                                    Self::both_some(&a_value, &b_value, &custom_parameter)?
+                                    Self::both_some(a_value, b_value, &custom_parameter)?
                                 {
                                     local.push((overlap.clone(), value));
                                 }
                                 covered.push(overlap);
                             }
                             for region in subtract_regions(a_id, &covered) {
-                                if let Some(value) = Self::a_only(&a_value, &custom_parameter)? {
+                                if let Some(value) = Self::a_only(a_value, &custom_parameter)? {
                                     local.push((region, value));
                                 }
                             }
@@ -97,9 +98,10 @@ where
                         .into_par_iter()
                         .map(|(b_id, b_value)| {
                             let mut local = Vec::new();
-                            let covered: Vec<FlexId> = a.query(&b_id).map(|(id, _)| id).collect();
+                            let covered: Vec<FlexId> =
+                                a.query_ref(&b_id).map(|(id, _)| id).collect();
                             for region in subtract_regions(b_id, &covered) {
-                                if let Some(value) = Self::b_only(&b_value, &custom_parameter)? {
+                                if let Some(value) = Self::b_only(b_value, &custom_parameter)? {
                                     local.push((region, value));
                                 }
                             }
@@ -120,15 +122,14 @@ where
                 .map(|(a_id, a_value)| {
                     let mut local = Vec::new();
                     let mut covered = Vec::new();
-                    for (overlap, b_value) in b.query(&a_id) {
-                        if let Some(value) = Self::both_some(&a_value, &b_value, &custom_parameter)?
-                        {
+                    for (overlap, b_value) in b.query_ref(&a_id) {
+                        if let Some(value) = Self::both_some(a_value, b_value, &custom_parameter)? {
                             local.push((overlap.clone(), value));
                         }
                         covered.push(overlap);
                     }
                     for region in subtract_regions(a_id, &covered) {
-                        if let Some(value) = Self::a_only(&a_value, &custom_parameter)? {
+                        if let Some(value) = Self::a_only(a_value, &custom_parameter)? {
                             local.push((region, value));
                         }
                     }
@@ -140,9 +141,9 @@ where
                 .into_iter()
                 .map(|(b_id, b_value)| {
                     let mut local = Vec::new();
-                    let covered: Vec<FlexId> = a.query(&b_id).map(|(id, _)| id).collect();
+                    let covered: Vec<FlexId> = a.query_ref(&b_id).map(|(id, _)| id).collect();
                     for region in subtract_regions(b_id, &covered) {
-                        if let Some(value) = Self::b_only(&b_value, &custom_parameter)? {
+                        if let Some(value) = Self::b_only(b_value, &custom_parameter)? {
                             local.push((region, value));
                         }
                     }

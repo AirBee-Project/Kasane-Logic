@@ -1,6 +1,7 @@
 #![cfg_attr(test, allow(dead_code))]
 
 pub mod count;
+pub mod from_cells;
 pub mod insert;
 pub mod query;
 pub mod remove;
