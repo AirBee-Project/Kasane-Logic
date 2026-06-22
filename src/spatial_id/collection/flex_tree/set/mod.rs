@@ -30,8 +30,27 @@ impl SpatialIdSet {
         SpatialIdSet::default()
     }
 
+    pub(crate) fn from_sorted_batch(
+        slice: &[(
+            crate::spatial_id::collection::flex_tree::core::morton::MortonCode,
+            FlexId,
+        )],
+    ) -> Self {
+        let mut inner = FlexTreeCore::new();
+        // 内部ツリーは()を要求するため変換
+        let items: alloc::vec::Vec<_> = slice.iter().map(|(m, f)| (*m, f.clone(), ())).collect();
+        let (lower, upper) = FlexTreeCore::from_sorted_batch(&items, &inner.empty_leaf);
+        inner.lower_root = lower;
+        inner.upper_root = upper;
+        Self { inner }
+    }
+
     pub fn insert<S: IterFlexIds>(&mut self, target: S) {
         self.inner.insert(target, ());
+    }
+
+    pub(crate) fn union_with(&mut self, other: Self) {
+        self.inner = self.inner.union_with(&other.inner, |_, _| ());
     }
 
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a

@@ -1,13 +1,18 @@
 use crate::spatial_id::collection::expr::plan::binary::kernel::BinaryKernel;
 use crate::{BinaryOperator, ConflictPolicy, Error, SpatialIdCollection};
 
+#[cfg(feature = "rayon")]
+pub type DynBinaryKernel<C> = dyn BinaryKernel<C> + Send + Sync;
+#[cfg(not(feature = "rayon"))]
+pub type DynBinaryKernel<C> = dyn BinaryKernel<C>;
+
 pub enum BinaryOp<C: SpatialIdCollection> {
     Union(ConflictPolicy<C::Value>),
     Intersection(ConflictPolicy<C::Value>),
     Difference,
     SymmetricDifference,
     Mask,
-    Custom(alloc::boxed::Box<dyn BinaryKernel<C>>),
+    Custom(alloc::boxed::Box<DynBinaryKernel<C>>),
 }
 
 impl<C: SpatialIdCollection> BinaryOp<C> {

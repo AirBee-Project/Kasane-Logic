@@ -34,9 +34,13 @@ where
                 op.run(&input)
             }
             Plan::Binary(op, lhs, rhs) => {
-                let lhs = lhs.execution()?;
-                let rhs = rhs.execution()?;
-                op.run(&lhs, &rhs)
+                #[cfg(feature = "rayon")]
+                let (lhs_res, rhs_res) = rayon::join(|| lhs.execution(), || rhs.execution());
+
+                #[cfg(not(feature = "rayon"))]
+                let (lhs_res, rhs_res) = (lhs.execution(), rhs.execution());
+
+                op.run(&lhs_res?, &rhs_res?)
             }
         }
     }

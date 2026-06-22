@@ -1,10 +1,10 @@
+use super::ptr::SharedNode;
 use crate::{Dimension, FlexId, Side};
-use alloc::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum Node<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     Branch {
         level: u8,
@@ -12,8 +12,8 @@ where
         /// この部分木に含まれる値付き Leaf の FlexId ズームレベルの最大値（絶対値）。
         /// `leaf_count` と同様に構築時へ畳み込んでおき、`max_zoomlevel` を O(1) で求める。
         max_zoom: u8,
-        lower_child: Rc<Node<V>>,
-        upper_child: Rc<Node<V>>,
+        lower_child: SharedNode<Node<V>>,
+        upper_child: SharedNode<Node<V>>,
     },
     Leaf {
         value: Option<V>,
@@ -22,7 +22,7 @@ where
 
 impl<V> Node<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     /// 各ノード以下の (値が Some の) Leaf の合計数を返す。O(1)で取得可能。
     pub fn leaf_count(&self) -> usize {
@@ -87,7 +87,7 @@ where
     }
 
     /// ターゲットAABB(FlexId)が現在の空間境界を全軸で完全に覆うか判定する。
-    fn completely_covers(target: &FlexId, level: u8) -> bool {
+    pub(crate) fn completely_covers_public(target: &FlexId, level: u8) -> bool {
         let passed_f = level.div_ceil(3);
         let passed_x = (level + 1) / 3;
         let passed_y = level / 3;
@@ -97,14 +97,14 @@ where
             && target.y_zoomlevel() <= passed_y
     }
 
-    /// 持続的データ構造(Rc)に挿入します。
-    /// 参照カウントが1の場合は `Rc::make_mut` を使用してインプレースで更新します (Copy-on-Write最適化)。
+    /// 持続的データ構造に挿入します。
+    /// 参照カウントが1の場合は `SharedNode::make_mut` を使用してインプレースで更新します (Copy-on-Write最適化)。
     pub fn insert_mut(
-        node: &mut Rc<Self>,
+        node: &mut SharedNode<Self>,
         target: &FlexId,
         value: &V,
         level: u8,
-        empty_leaf: &Rc<Node<V>>,
+        empty_leaf: &SharedNode<Node<V>>,
     ) {
         // 現在のノードがすでに Leaf であり、値が同一ならそのまま終了(Result Reuse)
         if let Node::Leaf {
@@ -116,8 +116,8 @@ where
         }
 
         // 完全にターゲットが現在の空間全体を覆う場合、O(1)でLeafに置換する
-        if Self::completely_covers(target, level) {
-            *node = Rc::new(Node::Leaf {
+        if Self::completely_covers_public(target, level) {
+            *node = SharedNode::new(Node::Leaf {
                 value: Some(value.clone()),
             });
             return;
@@ -137,7 +137,7 @@ where
 
         // 完全に target に覆い尽くされた場合、全体を塗りつぶす
         if current_level >= 93 {
-            *node = Rc::new(Node::Leaf {
+            *node = SharedNode::new(Node::Leaf {
                 value: Some(value.clone()),
             });
             return;
@@ -166,12 +166,12 @@ where
                 if v1.is_none() {
                     *node = empty_leaf.clone();
                 } else {
-                    *node = Rc::new(Node::Leaf { value: v1.clone() });
+                    *node = SharedNode::new(Node::Leaf { value: v1.clone() });
                 }
                 return;
             }
 
-            *node = Rc::new(Node::Branch {
+            *node = SharedNode::new(Node::Branch {
                 level: current_level,
                 leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
                 max_zoom: Self::fold_max_zoom(current_level, &new_lower, &new_upper),
@@ -184,7 +184,7 @@ where
         // current_level == node_level の場合
         // ここが Copy-on-Write のコア。可能なら node の中身を mutable に取得する。
         let (should_merge, merged_val) = {
-            let mut_node = Rc::make_mut(node);
+            let mut_node = SharedNode::make_mut(node);
 
             if let Node::Branch {
                 level: l,
@@ -231,7 +231,7 @@ where
             if merged_val.is_none() {
                 *node = empty_leaf.clone();
             } else {
-                *node = Rc::new(Node::Leaf { value: merged_val });
+                *node = SharedNode::new(Node::Leaf { value: merged_val });
             }
         }
     }

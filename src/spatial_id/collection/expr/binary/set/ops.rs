@@ -42,7 +42,7 @@ pub trait SetOps: SpatialIdCollection {
     where
         B: SpatialIdCollection,
         R: SpatialIdCollection,
-        F: Fn(Option<&Self::Value>, Option<&B::Value>) -> Option<R::Value>,
+        F: Fn(Option<&Self::Value>, Option<&B::Value>) -> Option<R::Value> + Sync,
     {
         Combine::<F, R::Value>::execution::<Self, B, R>(self, other, f)
     }

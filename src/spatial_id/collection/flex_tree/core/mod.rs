@@ -6,27 +6,30 @@ use crate::{
     Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
-use alloc::rc::Rc;
 use node::Node;
+pub(crate) mod bulk;
 mod convert;
+pub(crate) mod morton;
 pub mod node;
 pub mod node_ops;
 mod overlap;
+pub(crate) mod ptr;
+use ptr::SharedNode;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
-    lower_root: Rc<Node<V>>,
-    upper_root: Rc<Node<V>>,
-    empty_leaf: Rc<Node<V>>,
+    pub(crate) lower_root: SharedNode<Node<V>>,
+    pub(crate) upper_root: SharedNode<Node<V>>,
+    pub(crate) empty_leaf: SharedNode<Node<V>>,
 }
 
 impl<V> Default for FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     fn default() -> Self {
         Self::new()
@@ -35,11 +38,11 @@ where
 
 impl<V> FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     /// 新しい空の[FlexTreeCore]を作成する
     pub fn new() -> Self {
-        let empty_leaf = Rc::new(Node::Leaf { value: None });
+        let empty_leaf = SharedNode::new(Node::Leaf { value: None });
         Self {
             lower_root: empty_leaf.clone(),
             upper_root: empty_leaf.clone(),
@@ -63,6 +66,57 @@ where
     /// 両方の木で値が設定されている（重なり合う）領域については、以下のように値が保持されます。
     /// - `self` と `other` で階層（細かさ）が異なる場合、**より細かい領域（より深い階層）で定義されている側の値**が優先して保持されます。
     /// - 両者が同じ広さ（階層）で完全に一致する場合、**引数（`other`）の値**が優先して保持されます。
+    pub fn union_with<F>(&self, other: &Self, resolve: F) -> Self
+    where
+        F: Fn(&V, &V) -> V + Sync,
+    {
+        #[cfg(feature = "rayon")]
+        let (lower_root, upper_root) = rayon::join(
+            || {
+                Node::union_with(
+                    &self.lower_root,
+                    &other.lower_root,
+                    0,
+                    &self.empty_leaf,
+                    &resolve,
+                )
+            },
+            || {
+                Node::union_with(
+                    &self.upper_root,
+                    &other.upper_root,
+                    0,
+                    &self.empty_leaf,
+                    &resolve,
+                )
+            },
+        );
+
+        #[cfg(not(feature = "rayon"))]
+        let (lower_root, upper_root) = (
+            Node::union_with(
+                &self.lower_root,
+                &other.lower_root,
+                0,
+                &self.empty_leaf,
+                &resolve,
+            ),
+            Node::union_with(
+                &self.upper_root,
+                &other.upper_root,
+                0,
+                &self.empty_leaf,
+                &resolve,
+            ),
+        );
+
+        Self {
+            lower_root,
+            upper_root,
+            empty_leaf: self.empty_leaf.clone(),
+        }
+    }
+
     pub fn intersection(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::intersection(
@@ -89,11 +143,11 @@ where
         }
     }
 
-    /// ルートノードのRcポインタが完全に同一か判定します（Result Reuseテスト用）
+    /// ルートノードのポインタが完全に同一か判定します（Result Reuseテスト用）
     #[cfg(test)]
     pub fn root_ptr_eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.lower_root, &other.lower_root)
-            && Rc::ptr_eq(&self.upper_root, &other.upper_root)
+        SharedNode::ptr_eq(&self.lower_root, &other.lower_root)
+            && SharedNode::ptr_eq(&self.upper_root, &other.upper_root)
     }
 
     ///クリアする
@@ -415,11 +469,11 @@ where
     pub(super) fn root_node_stack(&self) -> Vec<(&Node<V>, FlexId)> {
         let mut stack = Vec::new();
 
-        if !Rc::ptr_eq(&self.upper_root, &self.empty_leaf) {
+        if !SharedNode::ptr_eq(&self.upper_root, &self.empty_leaf) {
             stack.push((self.upper_root.as_ref(), FlexId::UPPER_MAX));
         }
 
-        if !Rc::ptr_eq(&self.lower_root, &self.empty_leaf) {
+        if !SharedNode::ptr_eq(&self.lower_root, &self.empty_leaf) {
             stack.push((self.lower_root.as_ref(), FlexId::LOWER_MAX));
         }
 

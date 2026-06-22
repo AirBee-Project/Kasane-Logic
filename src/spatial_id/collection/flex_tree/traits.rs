@@ -6,10 +6,17 @@ impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 
 /// 演算の対象となる空間IDコレクションの性質。
 ///
-/// `SpatialIdTable` / `SpatialIdSet` を演算子から一様に扱うための抽象。
-/// 「FlexId をキーに値を持つコレクション」であればよく、値を持たない集合（Set）は
-/// `Value = ()` とする。
-pub trait SpatialIdCollection: Sized {
+#[cfg(feature = "rayon")]
+pub trait SpatialIdCollectionBounds: Sized + Sync + Send {}
+#[cfg(feature = "rayon")]
+impl<T: Sized + Sync + Send> SpatialIdCollectionBounds for T {}
+
+#[cfg(not(feature = "rayon"))]
+pub trait SpatialIdCollectionBounds: Sized {}
+#[cfg(not(feature = "rayon"))]
+impl<T: Sized> SpatialIdCollectionBounds for T {}
+
+pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// 各空間IDに紐づく値の型。値を持たない集合では `()`。
     type Value: CellValue;
 

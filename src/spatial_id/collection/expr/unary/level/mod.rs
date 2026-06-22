@@ -83,6 +83,9 @@ impl<A: CellValue> UnaryOperator<A> for Level {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let leveled = super::map_cells(cells, |id| expand(id.clone(), &param))?;
 
+        // `leveled` is already mostly in Z-order because `cells` was in Z-order.
+        // We do not sort it because `FlexId` lexicographical sort breaks Z-order.
+
         // 重なり解決は `result` を参照するため、元の順序のまま逐次 insert する。
         let mut result = O::empty();
         for (id, value) in leveled {
@@ -96,8 +99,38 @@ impl<A: CellValue> UnaryOperator<A> for Level {
     }
 }
 
-/// 1 つのセルへ、存在する軸の Level を X → Y → F の順に適用して展開する。
 fn expand<V>(flex_id: FlexId, param: &LevelParam<V>) -> Result<Vec<FlexId>, Error> {
+    // Fast path: Only F is specified (most common case for level_f)
+    if param.x.is_none()
+        && param.y.is_none()
+        && let Some(f) = &param.f
+    {
+        return Ok(flex_id.level_f(f.z, f.lo, f.hi)?.collect());
+    }
+    // Fast path: Only X is specified
+    if param.f.is_none()
+        && param.y.is_none()
+        && let Some(x) = &param.x
+    {
+        return Ok(flex_id.level_x(x.z, x.lo, x.hi)?.collect());
+    }
+    // Fast path: Only Y is specified
+    if param.f.is_none()
+        && param.x.is_none()
+        && let Some(y) = &param.y
+    {
+        return Ok(flex_id.level_y(y.z, y.lo, y.hi)?.collect());
+    }
+
+    // Fast path: Only F is specified
+    if param.x.is_none()
+        && param.y.is_none()
+        && let Some(f) = &param.f
+    {
+        return Ok(flex_id.level_f(f.z, f.lo, f.hi)?.collect());
+    }
+
+    // Slow path: multiple axes
     let ids = vec![flex_id];
     let ids = apply_axis(ids, &param.x, |id, z, lo, hi| {
         Ok(id.level_x(z, lo, hi)?.collect())
@@ -125,23 +158,11 @@ where
         return Ok(ids);
     };
 
-    #[cfg(feature = "rayon")]
-    {
-        use rayon::prelude::*;
-        ids.into_par_iter()
-            .map(|id| level(&id, *z, *lo, *hi))
-            .collect::<Result<Vec<Vec<_>>, Error>>()
-            .map(|grouped| grouped.into_iter().flatten().collect())
+    let mut out = Vec::new();
+    for id in ids {
+        out.extend(level(&id, *z, *lo, *hi)?);
     }
-
-    #[cfg(not(feature = "rayon"))]
-    {
-        let mut out = Vec::new();
-        for id in ids {
-            out.extend(level(&id, *z, *lo, *hi)?);
-        }
-        Ok(out)
-    }
+    Ok(out)
 }
 
 /// 範囲へ揃えたセル `cell` を `result` へ、衝突方針 `conflict` に従って書き込む。

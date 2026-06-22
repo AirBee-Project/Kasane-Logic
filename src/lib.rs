@@ -98,6 +98,8 @@ pub use spatial_id::collection::expr::binary::arith::ops::{Addable, Multipliable
 #[doc(inline)]
 pub use spatial_id::collection::expr::binary::set::ops::SetOps;
 #[doc(inline)]
+pub use spatial_id::collection::expr::plan::Plan;
+#[doc(inline)]
 pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::fill::ops::FillOps;

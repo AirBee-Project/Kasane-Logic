@@ -16,7 +16,7 @@ where
     A: CellValue,
     B: CellValue,
     C: CellValue,
-    F: Fn(Option<&A>, Option<&B>) -> Option<C>,
+    F: Fn(Option<&A>, Option<&B>) -> Option<C> + Sync,
 {
     type CustomParameter = F;
     type ResultValue = C;
