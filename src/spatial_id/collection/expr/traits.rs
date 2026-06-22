@@ -19,7 +19,10 @@ where
     A: CellValue,
     B: CellValue,
 {
-    /// 演算ごとのカスタム設定
+    #[cfg(feature = "rayon")]
+    type CustomParameter: Sync;
+
+    #[cfg(not(feature = "rayon"))]
     type CustomParameter;
 
     /// 結果として帰ってくる値の型
@@ -44,7 +47,6 @@ where
     /// この演算が可換なのかを判定する。
     fn is_commutative(custom_parameter: &Self::CustomParameter) -> bool;
 
-    /// コレクション全体の演算。
     fn execution<SA, SB, O>(
         a: &SA,
         b: &SB,
@@ -55,36 +57,107 @@ where
         SB: SpatialIdCollection<Value = B>,
         O: SpatialIdCollection<Value = Self::ResultValue>,
     {
-        let mut result = O::empty();
+        let a_cells: Vec<_> = a.scan_ref().collect();
+        let b_cells: Vec<_> = b.scan_ref().collect();
 
-        for (a_id, a_value) in a.scan() {
-            let mut covered: Vec<FlexId> = Vec::new();
+        type MapResult<T> = Result<Vec<Vec<(crate::FlexId, T)>>, Error>;
 
-            for (overlap, b_value) in b.query(&a_id) {
-                if let Some(value) = Self::both_some(&a_value, &b_value, &custom_parameter)? {
-                    result.insert(overlap.clone(), value);
-                }
-                covered.push(overlap);
-            }
+        #[cfg(feature = "rayon")]
+        let (new_from_a, new_from_b): (
+            MapResult<Self::ResultValue>,
+            MapResult<Self::ResultValue>,
+        ) = {
+            use rayon::prelude::*;
+            rayon::join(
+                || {
+                    a_cells
+                        .into_par_iter()
+                        .map(|(a_id, a_value)| {
+                            let mut local = Vec::new();
+                            let mut covered = Vec::new();
+                            for (overlap, b_value) in b.query_ref(&a_id) {
+                                if let Some(value) =
+                                    Self::both_some(a_value, b_value, &custom_parameter)?
+                                {
+                                    local.push((overlap.clone(), value));
+                                }
+                                covered.push(overlap);
+                            }
+                            for region in subtract_regions(a_id, &covered) {
+                                if let Some(value) = Self::a_only(a_value, &custom_parameter)? {
+                                    local.push((region, value));
+                                }
+                            }
+                            Ok(local)
+                        })
+                        .collect()
+                },
+                || {
+                    b_cells
+                        .into_par_iter()
+                        .map(|(b_id, b_value)| {
+                            let mut local = Vec::new();
+                            let covered: Vec<FlexId> =
+                                a.query_ref(&b_id).map(|(id, _)| id).collect();
+                            for region in subtract_regions(b_id, &covered) {
+                                if let Some(value) = Self::b_only(b_value, &custom_parameter)? {
+                                    local.push((region, value));
+                                }
+                            }
+                            Ok(local)
+                        })
+                        .collect()
+                },
+            )
+        };
 
-            for region in subtract_regions(a_id, &covered) {
-                if let Some(value) = Self::a_only(&a_value, &custom_parameter)? {
-                    result.insert(region, value);
-                }
-            }
-        }
+        #[cfg(not(feature = "rayon"))]
+        let (new_from_a, new_from_b): (
+            MapResult<Self::ResultValue>,
+            MapResult<Self::ResultValue>,
+        ) = {
+            let res_a: MapResult<Self::ResultValue> = a_cells
+                .into_iter()
+                .map(|(a_id, a_value)| {
+                    let mut local = Vec::new();
+                    let mut covered = Vec::new();
+                    for (overlap, b_value) in b.query_ref(&a_id) {
+                        if let Some(value) = Self::both_some(a_value, b_value, &custom_parameter)? {
+                            local.push((overlap.clone(), value));
+                        }
+                        covered.push(overlap);
+                    }
+                    for region in subtract_regions(a_id, &covered) {
+                        if let Some(value) = Self::a_only(a_value, &custom_parameter)? {
+                            local.push((region, value));
+                        }
+                    }
+                    Ok(local)
+                })
+                .collect();
 
-        for (b_id, b_value) in b.scan() {
-            let covered: Vec<FlexId> = a.query(&b_id).map(|(id, _)| id).collect();
+            let res_b: MapResult<Self::ResultValue> = b_cells
+                .into_iter()
+                .map(|(b_id, b_value)| {
+                    let mut local = Vec::new();
+                    let covered: Vec<FlexId> = a.query_ref(&b_id).map(|(id, _)| id).collect();
+                    for region in subtract_regions(b_id, &covered) {
+                        if let Some(value) = Self::b_only(b_value, &custom_parameter)? {
+                            local.push((region, value));
+                        }
+                    }
+                    Ok(local)
+                })
+                .collect();
 
-            for region in subtract_regions(b_id, &covered) {
-                if let Some(value) = Self::b_only(&b_value, &custom_parameter)? {
-                    result.insert(region, value);
-                }
-            }
-        }
+            (res_a, res_b)
+        };
 
-        Ok(result)
+        let cells = new_from_a?
+            .into_iter()
+            .flatten()
+            .chain(new_from_b?.into_iter().flatten());
+        Ok(O::from_cells(cells, &ConflictPolicy::Overwrite))
     }
 }
 
@@ -122,7 +195,10 @@ impl<V: Ord> ConflictPolicy<V> {
 /// 空間IDコレクションに対して単項演算を行うTrait。
 /// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
 pub trait UnaryOperator<A: CellValue> {
-    /// 演算ごとのカスタム設定
+    #[cfg(feature = "rayon")]
+    type CustomParameter: Sync;
+
+    #[cfg(not(feature = "rayon"))]
     type CustomParameter;
 
     /// 結果として帰ってくる値の型

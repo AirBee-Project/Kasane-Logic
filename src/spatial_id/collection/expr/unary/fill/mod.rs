@@ -1,4 +1,6 @@
-use crate::{CellValue, Error, IterFlexIds, RangeId, SpatialIdCollection, UnaryOperator};
+use crate::{
+    CellValue, ConflictPolicy, Error, IterFlexIds, RangeId, SpatialIdCollection, UnaryOperator,
+};
 
 pub mod ops;
 
@@ -18,18 +20,17 @@ impl<A: CellValue> UnaryOperator<A> for FillDefault {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
-        let mut result = O::empty();
-        if let Some(bbox) = RangeId::bounding_box_of(a.scan().map(|(flex_id, _)| flex_id)) {
-            for flex_id in bbox.iter_flex_ids() {
-                result.insert(flex_id, default.clone());
-            }
-        }
+        let bbox = RangeId::bounding_box_of(a.scan().map(|(flex_id, _)| flex_id));
+        let defaults = bbox
+            .as_ref()
+            .into_iter()
+            .flat_map(|b| b.iter_flex_ids())
+            .map(move |flex_id| (flex_id, default.clone()));
 
-        for (flex_id, value) in a.scan() {
-            result.insert(flex_id, value);
-        }
-
-        Ok(result)
+        Ok(O::from_cells(
+            defaults.chain(a.scan()),
+            &ConflictPolicy::Overwrite,
+        ))
     }
 
     fn is_identity(_custom_parameter: &Self::CustomParameter) -> bool {

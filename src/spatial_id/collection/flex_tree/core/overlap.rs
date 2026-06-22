@@ -1,15 +1,15 @@
 use alloc::vec::Vec;
 
+use super::ptr::SharedNode;
 use crate::{
     Dimension, FlexId, FlexTreeCore, Side,
     spatial_id::collection::flex_tree::core::{node::Node, split_child_id},
 };
-use alloc::rc::Rc;
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
 pub struct OverlapIter<'a, V>
 where
-    V: Clone + PartialEq,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     target: FlexId,
     stack: Vec<(&'a Node<V>, FlexId)>,
@@ -18,7 +18,7 @@ where
 /// 重なり合う領域のみを参照付きで遅延評価で探索するイテレータ
 pub struct OverlapIterRef<'a, V>
 where
-    V: Clone + PartialEq,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     target: FlexId,
     stack: Vec<(&'a Node<V>, FlexId)>,
@@ -26,13 +26,13 @@ where
 
 impl<'a, V> OverlapIter<'a, V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     fn push_branch_children(
         &mut self,
         axis: Dimension,
-        lower_child: &'a Rc<Node<V>>,
-        upper_child: &'a Rc<Node<V>>,
+        lower_child: &'a SharedNode<Node<V>>,
+        upper_child: &'a SharedNode<Node<V>>,
         current_id: &FlexId,
     ) {
         self.stack.push((
@@ -48,7 +48,7 @@ where
 
 impl<'a, V> Iterator for OverlapIter<'a, V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Item = (FlexId, V);
 
@@ -82,7 +82,7 @@ where
 
 impl<'a, V> Iterator for OverlapIterRef<'a, V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Item = (FlexId, &'a V);
 
@@ -123,7 +123,7 @@ where
 
 impl<V> FlexTreeCore<V>
 where
-    V: Clone + PartialEq,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     pub fn overlap(&self, target: FlexId) -> impl Iterator<Item = (FlexId, V)> + '_ {
         OverlapIter {
@@ -159,11 +159,11 @@ where
     }
 
     fn prune_node_mut(
-        node: &mut Rc<Node<V>>,
+        node: &mut SharedNode<Node<V>>,
         target: &FlexId,
         current_id: FlexId,
         removed: &mut Vec<(FlexId, V)>,
-        empty_leaf: &Rc<Node<V>>,
+        empty_leaf: &SharedNode<Node<V>>,
     ) {
         if current_id.intersection(target).is_none() {
             return;
@@ -180,7 +180,7 @@ where
         }
 
         {
-            let mut_node = Rc::make_mut(node);
+            let mut_node = SharedNode::make_mut(node);
             if let Node::Branch {
                 level,
                 lower_child,

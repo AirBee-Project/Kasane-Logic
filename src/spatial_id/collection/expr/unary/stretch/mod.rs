@@ -85,12 +85,7 @@ impl<A: CellValue> UnaryOperator<A> for Stretch {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let stretched = super::map_cells(cells, |id| expand(id.clone(), &param))?;
 
-        // 重なり解決は `result` を参照するため、元の順序のまま逐次 insert する。
-        let mut result = O::empty();
-        for (id, value) in stretched {
-            insert_stretched(&mut result, id, value, &param.conflict);
-        }
-        Ok(result)
+        Ok(O::from_cells(stretched, &param.conflict))
     }
 
     fn is_identity(param: &Self::CustomParameter) -> bool {
@@ -114,33 +109,27 @@ fn apply_axis<F>(
     stretch: F,
 ) -> Result<Vec<FlexId>, Error>
 where
-    F: Fn(&FlexId, u8, i32) -> Result<Vec<FlexId>, Error>,
+    F: Fn(&FlexId, u8, i32) -> Result<Vec<FlexId>, Error> + Send + Sync,
 {
     let Some(StretchAmount { z, index }) = amount else {
         return Ok(ids);
     };
 
-    let mut out = Vec::new();
-    for id in ids {
-        out.extend(stretch(&id, *z, *index)?);
+    #[cfg(feature = "rayon")]
+    {
+        use rayon::prelude::*;
+        ids.into_par_iter()
+            .map(|id| stretch(&id, *z, *index))
+            .collect::<Result<Vec<Vec<_>>, Error>>()
+            .map(|grouped| grouped.into_iter().flatten().collect())
     }
-    Ok(out)
-}
 
-/// 伸長したセル `cell` を `result` へ、衝突方針 `conflict` に従って書き込む。
-pub(super) fn insert_stretched<O>(
-    result: &mut O,
-    cell: FlexId,
-    value: O::Value,
-    conflict: &ConflictPolicy<O::Value>,
-) where
-    O: SpatialIdCollection,
-{
-    let resolved = if let ConflictPolicy::Overwrite = conflict {
-        value
-    } else {
-        let current = result.query(&cell).next().map(|(_, v)| v);
-        conflict.resolve(current, value)
-    };
-    result.insert(cell, resolved);
+    #[cfg(not(feature = "rayon"))]
+    {
+        let mut out = Vec::new();
+        for id in ids {
+            out.extend(stretch(&id, *z, *index)?);
+        }
+        Ok(out)
+    }
 }

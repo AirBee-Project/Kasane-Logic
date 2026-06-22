@@ -9,7 +9,7 @@ use crate::{
 
 pub struct LeavesIter<'a, V>
 where
-    V: Clone + PartialEq,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     pub stack: Vec<(&'a super::node::Node<V>, FlexId)>,
 }
@@ -17,14 +17,14 @@ where
 /// 葉ノードを参照のまま辿るイテレータである。
 pub struct LeavesIterRef<'a, V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     pub stack: Vec<(&'a super::node::Node<V>, FlexId)>,
 }
 
 impl<'a, V> Iterator for LeavesIter<'a, V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Item = (FlexId, V);
 
@@ -59,7 +59,7 @@ where
 
 impl<'a, V> Iterator for LeavesIterRef<'a, V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Item = (FlexId, &'a V);
 
@@ -94,7 +94,7 @@ where
 
 impl<V> IntoFlexIds for FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type IntoIter = alloc::vec::IntoIter<FlexId>;
 
@@ -108,7 +108,7 @@ where
 
 impl<V> IterFlexIds for FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Iter<'a>
         = Box<dyn Iterator<Item = FlexId> + 'a>
@@ -122,7 +122,7 @@ where
 
 impl<V> IntoSingleIds for FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type IntoIter = alloc::vec::IntoIter<SingleId>;
 
@@ -136,7 +136,7 @@ where
 
 impl<V> IterSingleIds for FlexTreeCore<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Iter<'a>
         = Box<dyn Iterator<Item = SingleId> + 'a>

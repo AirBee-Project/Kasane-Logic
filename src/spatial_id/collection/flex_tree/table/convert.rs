@@ -2,7 +2,7 @@ use crate::{FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds
 
 impl<V> IntoFlexIds for SpatialIdTable<V>
 where
-    V: PartialEq + Clone + Ord,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
 {
     type IntoIter = <FlexTreeCore<V> as IntoFlexIds>::IntoIter;
 
@@ -13,7 +13,7 @@ where
 
 impl<V> IterFlexIds for SpatialIdTable<V>
 where
-    V: PartialEq + Clone + Ord,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
 {
     type Iter<'a>
         = <FlexTreeCore<V> as IterFlexIds>::Iter<'a>
@@ -27,7 +27,7 @@ where
 
 impl<V> IntoSingleIds for SpatialIdTable<V>
 where
-    V: PartialEq + Clone + Ord,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
 {
     type IntoIter = <FlexTreeCore<V> as IntoSingleIds>::IntoIter;
 
@@ -38,7 +38,7 @@ where
 
 impl<V> IterSingleIds for SpatialIdTable<V>
 where
-    V: PartialEq + Clone + Ord,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
 {
     type Iter<'a>
         = <FlexTreeCore<V> as IterSingleIds>::Iter<'a>

@@ -82,13 +82,7 @@ impl<A: CellValue> UnaryOperator<A> for Level {
     {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let leveled = super::map_cells(cells, |id| expand(id.clone(), &param))?;
-
-        // 重なり解決は `result` を参照するため、元の順序のまま逐次 insert する。
-        let mut result = O::empty();
-        for (id, value) in leveled {
-            insert_leveled(&mut result, id, value, &param.conflict);
-        }
-        Ok(result)
+        Ok(O::from_cells(leveled, &param.conflict))
     }
 
     fn is_identity(_param: &Self::CustomParameter) -> bool {
@@ -96,8 +90,33 @@ impl<A: CellValue> UnaryOperator<A> for Level {
     }
 }
 
-/// 1 つのセルへ、存在する軸の Level を X → Y → F の順に適用して展開する。
 fn expand<V>(flex_id: FlexId, param: &LevelParam<V>) -> Result<Vec<FlexId>, Error> {
+    if param.x.is_none()
+        && param.y.is_none()
+        && let Some(f) = &param.f
+    {
+        return Ok(flex_id.level_f(f.z, f.lo, f.hi)?.collect());
+    }
+    if param.f.is_none()
+        && param.y.is_none()
+        && let Some(x) = &param.x
+    {
+        return Ok(flex_id.level_x(x.z, x.lo, x.hi)?.collect());
+    }
+    if param.f.is_none()
+        && param.x.is_none()
+        && let Some(y) = &param.y
+    {
+        return Ok(flex_id.level_y(y.z, y.lo, y.hi)?.collect());
+    }
+
+    if param.x.is_none()
+        && param.y.is_none()
+        && let Some(f) = &param.f
+    {
+        return Ok(flex_id.level_f(f.z, f.lo, f.hi)?.collect());
+    }
+
     let ids = vec![flex_id];
     let ids = apply_axis(ids, &param.x, |id, z, lo, hi| {
         Ok(id.level_x(z, lo, hi)?.collect())
@@ -118,8 +137,8 @@ fn apply_axis<C, F>(
     level: F,
 ) -> Result<Vec<FlexId>, Error>
 where
-    C: Copy,
-    F: Fn(&FlexId, u8, C, C) -> Result<Vec<FlexId>, Error>,
+    C: Copy + Send + Sync,
+    F: Fn(&FlexId, u8, C, C) -> Result<Vec<FlexId>, Error> + Send + Sync,
 {
     let Some(LevelAmount { z, lo, hi }) = amount else {
         return Ok(ids);
@@ -130,22 +149,4 @@ where
         out.extend(level(&id, *z, *lo, *hi)?);
     }
     Ok(out)
-}
-
-/// 範囲へ揃えたセル `cell` を `result` へ、衝突方針 `conflict` に従って書き込む。
-pub(super) fn insert_leveled<O>(
-    result: &mut O,
-    cell: FlexId,
-    value: O::Value,
-    conflict: &ConflictPolicy<O::Value>,
-) where
-    O: SpatialIdCollection,
-{
-    let resolved = if let ConflictPolicy::Overwrite = conflict {
-        value
-    } else {
-        let current = result.query(&cell).next().map(|(_, v)| v);
-        conflict.resolve(current, value)
-    };
-    result.insert(cell, resolved);
 }

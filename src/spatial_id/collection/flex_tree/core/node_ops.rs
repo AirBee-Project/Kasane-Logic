@@ -1,17 +1,39 @@
 use super::node::Node;
-use alloc::rc::Rc;
+use super::ptr::SharedNode;
+
+/// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
+#[cfg(feature = "rayon")]
+pub(super) const PARALLEL_LEAF_CUTOFF: usize = 1024;
+
+/// 部分木が十分大きいときだけ `rayon::join` で 2 分割し、小さいときは逐次に処理する。
+macro_rules! join_nodes {
+    ($size:expr, $a:expr, $b:expr) => {{
+        #[cfg(feature = "rayon")]
+        {
+            if $size >= PARALLEL_LEAF_CUTOFF {
+                rayon::join($a, $b)
+            } else {
+                ($a(), $b())
+            }
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            ($a(), $b())
+        }
+    }};
+}
 
 impl<V> Node<V>
 where
-    V: PartialEq + Clone,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     pub fn union(
-        a: &Rc<Self>,
-        b: &Rc<Self>,
+        a: &SharedNode<Self>,
+        b: &SharedNode<Self>,
         current_level: u8,
-        empty_leaf: &Rc<Node<V>>,
-    ) -> Rc<Self> {
-        if Rc::ptr_eq(a, b) {
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Self> {
+        if SharedNode::ptr_eq(a, b) {
             return a.clone();
         }
 
@@ -56,8 +78,11 @@ where
                 },
             ) = (&**a, &**b)
             {
-                let new_lower = Self::union(al, bl, level + 1, empty_leaf);
-                let new_upper = Self::union(au, bu, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::union(al, bl, level + 1, empty_leaf),
+                    || { Self::union(au, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else if level == a_level {
@@ -67,8 +92,11 @@ where
                 ..
             } = &**a
             {
-                let new_lower = Self::union(al, b, level + 1, empty_leaf);
-                let new_upper = Self::union(au, b, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::union(al, b, level + 1, empty_leaf),
+                    || Self::union(au, b, level + 1, empty_leaf)
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else {
@@ -78,8 +106,11 @@ where
                 ..
             } = &**b
             {
-                let new_lower = Self::union(a, bl, level + 1, empty_leaf);
-                let new_upper = Self::union(a, bu, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::union(a, bl, level + 1, empty_leaf),
+                    || Self::union(a, bu, level + 1, empty_leaf)
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         }
@@ -87,12 +118,12 @@ where
     }
 
     pub fn intersection(
-        a: &Rc<Self>,
-        b: &Rc<Self>,
+        a: &SharedNode<Self>,
+        b: &SharedNode<Self>,
         current_level: u8,
-        empty_leaf: &Rc<Node<V>>,
-    ) -> Rc<Self> {
-        if Rc::ptr_eq(a, b) {
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Self> {
+        if SharedNode::ptr_eq(a, b) {
             return a.clone();
         }
 
@@ -137,8 +168,11 @@ where
                 },
             ) = (&**a, &**b)
             {
-                let new_lower = Self::intersection(al, bl, level + 1, empty_leaf);
-                let new_upper = Self::intersection(au, bu, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::intersection(al, bl, level + 1, empty_leaf),
+                    || { Self::intersection(au, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else if level == a_level {
@@ -148,8 +182,11 @@ where
                 ..
             } = &**a
             {
-                let new_lower = Self::intersection(al, b, level + 1, empty_leaf);
-                let new_upper = Self::intersection(au, b, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::intersection(al, b, level + 1, empty_leaf),
+                    || { Self::intersection(au, b, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else {
@@ -159,8 +196,11 @@ where
                 ..
             } = &**b
             {
-                let new_lower = Self::intersection(a, bl, level + 1, empty_leaf);
-                let new_upper = Self::intersection(a, bu, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::intersection(a, bl, level + 1, empty_leaf),
+                    || { Self::intersection(a, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         }
@@ -168,12 +208,12 @@ where
     }
 
     pub fn difference(
-        a: &Rc<Self>,
-        b: &Rc<Self>,
+        a: &SharedNode<Self>,
+        b: &SharedNode<Self>,
         current_level: u8,
-        empty_leaf: &Rc<Node<V>>,
-    ) -> Rc<Self> {
-        if Rc::ptr_eq(a, b) {
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Self> {
+        if SharedNode::ptr_eq(a, b) {
             return empty_leaf.clone();
         }
 
@@ -215,8 +255,11 @@ where
                 },
             ) = (&**a, &**b)
             {
-                let new_lower = Self::difference(al, bl, level + 1, empty_leaf);
-                let new_upper = Self::difference(au, bu, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::difference(al, bl, level + 1, empty_leaf),
+                    || { Self::difference(au, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else if level == a_level {
@@ -226,8 +269,11 @@ where
                 ..
             } = &**a
             {
-                let new_lower = Self::difference(al, b, level + 1, empty_leaf);
-                let new_upper = Self::difference(au, b, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::difference(al, b, level + 1, empty_leaf),
+                    || { Self::difference(au, b, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         } else {
@@ -237,8 +283,11 @@ where
                 ..
             } = &**b
             {
-                let new_lower = Self::difference(a, bl, level + 1, empty_leaf);
-                let new_upper = Self::difference(a, bu, level + 1, empty_leaf);
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::difference(a, bl, level + 1, empty_leaf),
+                    || { Self::difference(a, bu, level + 1, empty_leaf) }
+                );
                 return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
             }
         }
@@ -248,19 +297,19 @@ where
     #[inline]
     fn compact_branch(
         level: u8,
-        new_lower: Rc<Node<V>>,
-        new_upper: Rc<Node<V>>,
-        a: &Rc<Node<V>>,
-        b: &Rc<Node<V>>,
-        empty_leaf: &Rc<Node<V>>,
-    ) -> Rc<Self> {
+        new_lower: SharedNode<Node<V>>,
+        new_upper: SharedNode<Node<V>>,
+        a: &SharedNode<Node<V>>,
+        b: &SharedNode<Node<V>>,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Self> {
         if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) = (&*new_lower, &*new_upper)
             && v1 == v2
         {
             if v1.is_none() {
                 return empty_leaf.clone();
             } else {
-                return Rc::new(Node::Leaf { value: v1.clone() });
+                return SharedNode::new(Node::Leaf { value: v1.clone() });
             }
         }
 
@@ -269,8 +318,8 @@ where
             upper_child: au,
             ..
         } = &**a
-            && Rc::ptr_eq(&new_lower, al)
-            && Rc::ptr_eq(&new_upper, au)
+            && SharedNode::ptr_eq(&new_lower, al)
+            && SharedNode::ptr_eq(&new_upper, au)
         {
             return a.clone();
         }
@@ -279,13 +328,13 @@ where
             upper_child: bu,
             ..
         } = &**b
-            && Rc::ptr_eq(&new_lower, bl)
-            && Rc::ptr_eq(&new_upper, bu)
+            && SharedNode::ptr_eq(&new_lower, bl)
+            && SharedNode::ptr_eq(&new_upper, bu)
         {
             return b.clone();
         }
 
-        Rc::new(Node::Branch {
+        SharedNode::new(Node::Branch {
             level,
             leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
             max_zoom: Self::fold_max_zoom(level, &new_lower, &new_upper),

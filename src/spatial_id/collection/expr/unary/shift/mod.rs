@@ -1,7 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use crate::{CellValue, Error, FlexId, SpatialIdCollection, UnaryOperator};
+use crate::{CellValue, ConflictPolicy, Error, FlexId, SpatialIdCollection, UnaryOperator};
 
 /// 集合演算をメソッドとして呼び出す拡張トレイト
 pub mod ops;
@@ -83,11 +83,7 @@ impl<A: CellValue> UnaryOperator<A> for Shift {
         let cells: Vec<(FlexId, A)> = a.scan().collect();
         let shifted = super::map_cells(cells, |id| apply(id.clone(), &param))?;
 
-        let mut result = O::empty();
-        for (id, value) in shifted {
-            result.insert(id, value);
-        }
-        Ok(result)
+        Ok(O::from_cells(shifted, &ConflictPolicy::Overwrite))
     }
 
     fn is_identity(param: &Self::CustomParameter) -> bool {

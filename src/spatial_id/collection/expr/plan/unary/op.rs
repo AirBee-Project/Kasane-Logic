@@ -4,12 +4,17 @@ use crate::spatial_id::collection::expr::unary::shift::{Shift, ShiftParam};
 use crate::spatial_id::collection::expr::unary::stretch::{Stretch, StretchParam};
 use crate::{Error, SpatialIdCollection, UnaryOperator};
 
+#[cfg(feature = "rayon")]
+pub type DynUnaryKernel<C> = dyn UnaryKernel<C> + Send + Sync;
+#[cfg(not(feature = "rayon"))]
+pub type DynUnaryKernel<C> = dyn UnaryKernel<C>;
+
 pub enum UnaryOp<C: SpatialIdCollection> {
     Shift(ShiftParam),
     Stretch(StretchParam<C::Value>),
     Level(LevelParam<C::Value>),
     Fill(C::Value),
-    Custom(alloc::boxed::Box<dyn UnaryKernel<C>>),
+    Custom(alloc::boxed::Box<DynUnaryKernel<C>>),
 }
 
 impl<C: SpatialIdCollection> UnaryOp<C> {
