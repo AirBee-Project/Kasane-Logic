@@ -118,18 +118,30 @@ fn apply_axis<C, F>(
     level: F,
 ) -> Result<Vec<FlexId>, Error>
 where
-    C: Copy,
-    F: Fn(&FlexId, u8, C, C) -> Result<Vec<FlexId>, Error>,
+    C: Copy + Send + Sync,
+    F: Fn(&FlexId, u8, C, C) -> Result<Vec<FlexId>, Error> + Send + Sync,
 {
     let Some(LevelAmount { z, lo, hi }) = amount else {
         return Ok(ids);
     };
 
-    let mut out = Vec::new();
-    for id in ids {
-        out.extend(level(&id, *z, *lo, *hi)?);
+    #[cfg(feature = "rayon")]
+    {
+        use rayon::prelude::*;
+        ids.into_par_iter()
+            .map(|id| level(&id, *z, *lo, *hi))
+            .collect::<Result<Vec<Vec<_>>, Error>>()
+            .map(|grouped| grouped.into_iter().flatten().collect())
     }
-    Ok(out)
+
+    #[cfg(not(feature = "rayon"))]
+    {
+        let mut out = Vec::new();
+        for id in ids {
+            out.extend(level(&id, *z, *lo, *hi)?);
+        }
+        Ok(out)
+    }
 }
 
 /// 範囲へ揃えたセル `cell` を `result` へ、衝突方針 `conflict` に従って書き込む。

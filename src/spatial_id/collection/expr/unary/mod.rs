@@ -27,27 +27,27 @@ where
     #[cfg(feature = "rayon")]
     {
         use rayon::prelude::*;
-        const PAR_THRESHOLD: usize = 256;
-        if cells.len() >= PAR_THRESHOLD {
-            return cells
-                .into_par_iter()
-                .map(|(id, value)| {
-                    let outputs = transform(&id)?;
-                    Ok(outputs
-                        .into_iter()
-                        .map(move |o| (o, value.clone()))
-                        .collect::<Vec<_>>())
-                })
-                .collect::<Result<Vec<Vec<_>>, Error>>()
-                .map(|grouped| grouped.into_iter().flatten().collect());
-        }
+        cells
+            .into_par_iter()
+            .map(|(id, value)| {
+                let outputs = transform(&id)?;
+                Ok(outputs
+                    .into_iter()
+                    .map(move |o| (o, value.clone()))
+                    .collect::<Vec<_>>())
+            })
+            .collect::<Result<Vec<Vec<_>>, Error>>()
+            .map(|grouped| grouped.into_iter().flatten().collect())
     }
 
-    let mut out = Vec::new();
-    for (id, value) in cells {
-        for o in transform(&id)? {
-            out.push((o, value.clone()));
+    #[cfg(not(feature = "rayon"))]
+    {
+        let mut out = Vec::new();
+        for (id, value) in cells {
+            for o in transform(&id)? {
+                out.push((o, value.clone()));
+            }
         }
+        Ok(out)
     }
-    Ok(out)
 }

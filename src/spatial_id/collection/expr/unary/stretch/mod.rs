@@ -114,17 +114,29 @@ fn apply_axis<F>(
     stretch: F,
 ) -> Result<Vec<FlexId>, Error>
 where
-    F: Fn(&FlexId, u8, i32) -> Result<Vec<FlexId>, Error>,
+    F: Fn(&FlexId, u8, i32) -> Result<Vec<FlexId>, Error> + Send + Sync,
 {
     let Some(StretchAmount { z, index }) = amount else {
         return Ok(ids);
     };
 
-    let mut out = Vec::new();
-    for id in ids {
-        out.extend(stretch(&id, *z, *index)?);
+    #[cfg(feature = "rayon")]
+    {
+        use rayon::prelude::*;
+        ids.into_par_iter()
+            .map(|id| stretch(&id, *z, *index))
+            .collect::<Result<Vec<Vec<_>>, Error>>()
+            .map(|grouped| grouped.into_iter().flatten().collect())
     }
-    Ok(out)
+
+    #[cfg(not(feature = "rayon"))]
+    {
+        let mut out = Vec::new();
+        for id in ids {
+            out.extend(stretch(&id, *z, *index)?);
+        }
+        Ok(out)
+    }
 }
 
 /// 伸長したセル `cell` を `result` へ、衝突方針 `conflict` に従って書き込む。
