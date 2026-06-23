@@ -26,13 +26,17 @@ where
     fn from_cells_disjoint(cells: Vec<(MortonKey, V)>) -> Self {
         let mut map = BTreeMap::new();
         let mut state = ZoomState::Empty;
+        let mut min_zoom: Option<u8> = None;
         for (k, v) in cells {
-            state = state.add(super::key_zoom(&k));
+            let z = super::key_zoom(&k);
+            state = state.add(z);
+            min_zoom = Some(min_zoom.map_or(z, |m: u8| m.min(z)));
             map.insert(k, v);
         }
         Self {
             cells: map,
             zoom_state: state,
+            min_zoom,
         }
     }
 
@@ -86,6 +90,7 @@ where
             return Self {
                 cells,
                 zoom_state: ZoomState::Uniform(za),
+                min_zoom: Some(za),
             };
         }
         if other.is_empty() {
@@ -121,14 +126,15 @@ where
                     cells.insert(*k, v.clone());
                 }
             }
-            let state = if cells.is_empty() {
-                ZoomState::Empty
+            let (state, min_zoom) = if cells.is_empty() {
+                (ZoomState::Empty, None)
             } else {
-                ZoomState::Uniform(za)
+                (ZoomState::Uniform(za), Some(za))
             };
             return Self {
                 cells,
                 zoom_state: state,
+                min_zoom,
             };
         }
 
@@ -161,14 +167,15 @@ where
                     cells.insert(*k, v.clone());
                 }
             }
-            let state = if cells.is_empty() {
-                ZoomState::Empty
+            let (state, min_zoom) = if cells.is_empty() {
+                (ZoomState::Empty, None)
             } else {
-                ZoomState::Uniform(za)
+                (ZoomState::Uniform(za), Some(za))
             };
             return Self {
                 cells,
                 zoom_state: state,
+                min_zoom,
             };
         }
 

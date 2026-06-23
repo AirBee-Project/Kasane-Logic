@@ -89,6 +89,11 @@ fn descendant_bounds(sid: &SingleId) -> (MortonKey, MortonKey) {
 pub struct MortonCore<V> {
     pub(crate) cells: BTreeMap<MortonKey, V>,
     pub(crate) zoom_state: ZoomState,
+    /// 格納セルの最小ズームレベルの **下限**（祖先探索の打ち切りに使う）。
+    ///
+    /// 挿入で単調に更新し、削除では更新しない（真の最小は上がるだけなので下限として常に正しい）。
+    /// O(1) で保つことで `covering` を O(n) スキャンから救う。
+    pub(crate) min_zoom: Option<u8>,
 }
 
 impl<V> Default for MortonCore<V>
@@ -118,6 +123,7 @@ where
         Self {
             cells: BTreeMap::new(),
             zoom_state: ZoomState::Empty,
+            min_zoom: None,
         }
     }
 
@@ -132,30 +138,30 @@ where
     pub fn clear(&mut self) {
         self.cells.clear();
         self.zoom_state = ZoomState::Empty;
+        self.min_zoom = None;
     }
 
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.cells.keys().map(key_zoom).max()
     }
 
-    /// マップ内の最小ズームレベル（祖先方向の正規化補助）。
-    fn min_zoomlevel(&self) -> Option<u8> {
-        self.cells.keys().map(key_zoom).min()
+    /// 祖先探索の打ち切り下限。挿入で更新した [`min_zoom`](Self::min_zoom) を返す。
+    fn min_zoom_bound(&self) -> Option<u8> {
+        self.min_zoom
     }
 
-    /// `zoom_state` をマップ全体から再計算する（一般経路の構築後に使う）。
-    fn recompute_zoom_state(&mut self) {
-        let mut state = ZoomState::Empty;
-        for k in self.cells.keys() {
-            state = state.add(key_zoom(k));
-        }
-        self.zoom_state = state;
+    /// `min_zoom` を `z` で単調更新する。
+    fn note_zoom(&mut self, z: u8) {
+        self.min_zoom = Some(match self.min_zoom {
+            Some(m) => m.min(z),
+            None => z,
+        });
     }
 
     /// `sid`（自身）またはその祖先で、マップに格納済みのセルがあればその参照を返す。
     /// 反鎖不変条件より、該当は高々 1 つ。
     pub(crate) fn covering(&self, sid: &SingleId) -> Option<(SingleId, &V)> {
-        let min_z = self.min_zoomlevel()?;
+        let min_z = self.min_zoom_bound()?;
         // 自身 → 祖先の順に、格納され得るズームだけを点検索する。
         for z in (min_z..=sid.z()).rev() {
             let anc = sid
@@ -197,7 +203,7 @@ where
         }
 
         // 祖先が覆っているか確認。
-        if let Some(min_z) = self.min_zoomlevel() {
+        if let Some(min_z) = self.min_zoom_bound() {
             for z in (min_z..sid.z()).rev() {
                 let anc = sid
                     .spatial_parent_at_zoom(z)
@@ -217,6 +223,7 @@ where
                     self.cells.insert(self_key, value);
                     // 分割により子解像度のセルが混ざるので状態を更新。
                     self.zoom_state = self.zoom_state.add(sid.z());
+                    self.note_zoom(sid.z());
                     return;
                 }
             }
@@ -226,6 +233,7 @@ where
         self.remove_strict_descendants(&sid);
         self.cells.insert(self_key, value);
         self.zoom_state = self.zoom_state.add(sid.z());
+        self.note_zoom(sid.z());
     }
 
     /// [`IterFlexIds`] な対象を単一解像度セルへ展開して挿入する。
@@ -291,9 +299,8 @@ where
                 }
             }
         }
-        if !removed.is_empty() {
-            self.recompute_zoom_state();
-        }
+        // 削除は zoom_state を粗くする方向にしか動かさない（Uniform は維持か空、Mixed は維持）。
+        // よって全体再計算は不要で、分割が起きた場合のみ cut_cell 内で状態を更新する。
         removed
     }
 
@@ -304,7 +311,7 @@ where
             return;
         }
         // 祖先が覆うなら分割して sid 部分だけ空ける。
-        if let Some(min_z) = self.min_zoomlevel() {
+        if let Some(min_z) = self.min_zoom_bound() {
             for z in (min_z..sid.z()).rev() {
                 let anc = sid.spatial_parent_at_zoom(z).expect("valid");
                 let anc_key = anc.spatial_encode();
@@ -314,6 +321,9 @@ where
                             self.cells.insert(child.spatial_encode(), old.clone());
                         }
                     }
+                    // 分割で sid 解像度の細かいセルが混ざるため状態を更新する。
+                    self.zoom_state = self.zoom_state.add(sid.z());
+                    self.note_zoom(sid.z());
                     return;
                 }
             }
@@ -407,9 +417,7 @@ where
         for (sid, _) in &removed {
             self.cells.remove(&sid.spatial_encode());
         }
-        if !removed.is_empty() {
-            self.recompute_zoom_state();
-        }
+        // 丸ごと削除のみで分割は起きないため、状態の粗い側へのズレは安全（再計算不要）。
         removed
     }
 
