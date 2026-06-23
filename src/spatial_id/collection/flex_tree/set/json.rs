@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use crate::{RangeId, SpatialIdSet};
 
-use super::super::json::{write_envelope_open, write_id_open};
+use crate::spatial_id::collection::json::{write_envelope_open, write_id_open};
 
 impl SpatialIdSet {
     /// この集合を <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ

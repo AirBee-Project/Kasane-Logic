@@ -19,6 +19,9 @@ rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]
+# 有効化すると SpatialIdSet / SpatialIdTable の実体が FlexTree から Morton order
+# バックエンドへ切り替わる（コンパイル時排他）。性能比較・実験用。
+morton = []
 
 [dev-dependencies]
 rand = "0.10.1"

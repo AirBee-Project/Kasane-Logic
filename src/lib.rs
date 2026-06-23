@@ -71,17 +71,29 @@ pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
 
 // spatial_id: collection types
+#[cfg(not(feature = "morton"))]
 #[doc(inline)]
 pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::json::JsonValue;
+pub use spatial_id::collection::json::JsonValue;
+#[doc(inline)]
+pub use spatial_id::collection::traits::{CellValue, SpatialIdCollection};
+
+// 既定（FlexTree）バックエンドの公開型。
+#[cfg(not(feature = "morton"))]
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::traits::{CellValue, SpatialIdCollection};
-
+#[cfg(not(feature = "morton"))]
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
+
+// Morton order バックエンドの公開型（`morton` feature 有効時）。
+#[cfg(feature = "morton")]
+#[doc(inline)]
+pub use spatial_id::collection::morton::set::SpatialIdSet;
+#[cfg(feature = "morton")]
+#[doc(inline)]
+pub use spatial_id::collection::morton::table::SpatialIdTable;
 
 // spatial_id: traits
 #[doc(inline)]

@@ -1,11 +1,11 @@
-//! FlexTree バックエンドの [`SpatialIdCollection`] 実装。
+//! Morton バックエンドの [`SpatialIdCollection`] 実装。
 //!
-//! トレイト定義自体はバックエンド非依存の
-//! [`crate::spatial_id::collection::traits`] にある。
+//! 公開 API は [`SingleId`](crate::SingleId) を返すが、`expr` エンジンが要求する
+//! このトレイトは [`FlexId`] ベースなので、`SingleId ⇆ FlexId` 変換で橋渡しする。
 
 use crate::{CellValue, FlexId, SpatialIdCollection, SpatialIdSet, SpatialIdTable};
 
-/// `SpatialIdSet`（値を持たない集合）の参照版走査で返す `&()` の実体。
+/// `SpatialIdSet` の参照走査で返す `&()` の実体。
 static UNIT: () = ();
 
 impl<V> SpatialIdCollection for SpatialIdTable<V>
@@ -23,19 +23,20 @@ where
     }
 
     fn scan(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
-        self.iter().map(|(id, v)| (id, v.clone()))
+        self.iter().map(|(sid, v)| (FlexId::from(&sid), v.clone()))
     }
 
     fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.iter()
+        self.iter().map(|(sid, v)| (FlexId::from(&sid), v))
     }
 
     fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        self.get(target).map(|(id, v)| (id, v.clone()))
+        self.get(target)
+            .map(|(sid, v)| (FlexId::from(&sid), v.clone()))
     }
 
     fn query_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        self.get(target)
+        self.get(target).map(|(sid, v)| (FlexId::from(&sid), v))
     }
 
     fn max_zoomlevel(&self) -> Option<u8> {
@@ -59,19 +60,19 @@ impl SpatialIdCollection for SpatialIdSet {
     }
 
     fn scan(&self) -> impl Iterator<Item = (FlexId, ())> + '_ {
-        self.iter().map(|id| (id, ()))
+        self.iter().map(|sid| (FlexId::from(&sid), ()))
     }
 
     fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &())> + '_ {
-        self.iter().map(|id| (id, &UNIT))
+        self.iter().map(|sid| (FlexId::from(&sid), &UNIT))
     }
 
     fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, ())> + 'a {
-        self.get(target).map(|id| (id, ()))
+        self.get(target).map(|sid| (FlexId::from(&sid), ()))
     }
 
     fn query_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a ())> + 'a {
-        self.get(target).map(|id| (id, &UNIT))
+        self.get(target).map(|sid| (FlexId::from(&sid), &UNIT))
     }
 
     fn max_zoomlevel(&self) -> Option<u8> {

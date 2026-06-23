@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use crate::{JsonValue, RangeId, SpatialIdTable};
 
-use super::super::json::{write_envelope_open, write_id_open};
+use crate::spatial_id::collection::json::{write_envelope_open, write_id_open};
 
 impl<V> SpatialIdTable<V>
 where

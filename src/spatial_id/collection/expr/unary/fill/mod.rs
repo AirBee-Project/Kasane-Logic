@@ -4,7 +4,8 @@ use crate::{
 
 pub mod ops;
 
-#[cfg(test)]
+// fill のテストは FlexTreeCore の内部構造を直接検証するため FlexTree バックエンド限定。
+#[cfg(all(test, not(feature = "morton")))]
 mod tests;
 
 /// 値を持つ領域を包む最小範囲の中で、まだ値が無いセルへ既定値を割り当てる演算。
