@@ -2,6 +2,32 @@ use super::ptr::SharedNode;
 use crate::{Dimension, FlexId, Side};
 
 #[derive(Debug, PartialEq, Clone, Eq)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(serialize_bounds(
+        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
+        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    ))
+)]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(deserialize_bounds(
+        __D: rkyv::de::Pooling,
+        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    ))
+)]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(bytecheck(bounds(
+        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
+        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    )))
+)]
 pub enum Node<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
@@ -11,7 +37,10 @@ where
         leaf_count: usize,
         /// この部分木に含まれる値付き Leaf の FlexId ズームレベルの最大値。
         max_zoom: u8,
+        // 再帰フィールド: 自動境界生成がオーバーフローするため省略し、型の *_bounds で供給する。
+        #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         lower_child: SharedNode<Node<V>>,
+        #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         upper_child: SharedNode<Node<V>>,
     },
     Leaf {

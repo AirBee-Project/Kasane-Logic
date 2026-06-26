@@ -13,6 +13,7 @@ libm = "0.2.16"
 # featuresで切り替え可能なもの
 rand = { version = "0.10.1", optional = true }
 rayon = { version = "1.10", optional = true }
+rkyv = { version = "0.8", features = ["unaligned"], optional = true }
 
 [features]
 default = ["std", "rayon"]
@@ -21,6 +22,8 @@ rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]
+# SpatialIdTable / SpatialIdSet の rkyv 直列化と ZeroCopy 読み出し
+persist = ["dep:rkyv", "std"]
 
 [dev-dependencies]
 rand = "0.10.1"

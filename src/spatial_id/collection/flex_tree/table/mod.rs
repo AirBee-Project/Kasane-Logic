@@ -6,12 +6,88 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
+#[cfg(all(test, feature = "persist"))]
+mod persist_tests {
+    use super::SpatialIdTable;
+    use crate::{RangeId, SingleId};
+    use alloc::vec::Vec;
+
+    fn sorted(table: &SpatialIdTable<Vec<u8>>) -> Vec<(crate::FlexId, Vec<u8>)> {
+        let mut v: Vec<_> = table.iter().map(|(f, val)| (f, val.clone())).collect();
+        v.sort();
+        v
+    }
+
+    #[test]
+    fn round_trip() {
+        let mut table = SpatialIdTable::<Vec<u8>>::new();
+        table.insert(SingleId::new(20, 0, 0, 0).unwrap(), b"alpha".to_vec());
+        table.insert(SingleId::new(20, 0, 2, 3).unwrap(), b"alpha".to_vec());
+        table.insert(SingleId::new(18, 1, 5, 7).unwrap(), b"beta".to_vec());
+        table.insert(
+            RangeId::new(5, [1, 4], [8, 9], [5, 6]).unwrap(),
+            b"gamma".to_vec(),
+        );
+
+        let bytes = table.to_bytes().unwrap();
+        let restored = unsafe { SpatialIdTable::<Vec<u8>>::from_bytes(&bytes).unwrap() };
+
+        assert_eq!(sorted(&table), sorted(&restored));
+        assert_eq!(table.count(), restored.count());
+    }
+
+    #[test]
+    fn round_trip_empty() {
+        let table = SpatialIdTable::<Vec<u8>>::new();
+        let bytes = table.to_bytes().unwrap();
+        let restored = unsafe { SpatialIdTable::<Vec<u8>>::from_bytes(&bytes).unwrap() };
+        assert!(restored.is_empty());
+    }
+
+    #[test]
+    fn restored_is_mutable() {
+        let mut table = SpatialIdTable::<Vec<u8>>::new();
+        table.insert(SingleId::new(20, 0, 0, 0).unwrap(), b"alpha".to_vec());
+        let bytes = table.to_bytes().unwrap();
+        let mut restored = unsafe { SpatialIdTable::<Vec<u8>>::from_bytes(&bytes).unwrap() };
+        let before = restored.count();
+        restored.insert(SingleId::new(20, 0, 100, 100).unwrap(), b"delta".to_vec());
+        assert_eq!(restored.count(), before + 1);
+    }
+}
+
 use crate::{
     FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId, SpatialIdSet,
 };
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Default, Clone, Debug)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(serialize_bounds(
+        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
+        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    ))
+)]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(deserialize_bounds(
+        __D: rkyv::de::Pooling,
+        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    ))
+)]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(bytecheck(bounds(
+        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
+        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    )))
+)]
 pub struct SpatialIdTable<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
@@ -280,5 +356,23 @@ where
             out.dedup();
         }
         out.into_iter()
+    }
+}
+
+/// DB 用途（値＝バイト列）の永続化。ジェネリック境界を避けるため `Vec<u8>` 固定で提供する。
+#[cfg(feature = "persist")]
+impl SpatialIdTable<Vec<u8>> {
+    /// この [`SpatialIdTable`] を rkyv バイト列へ直列化する。
+    pub fn to_bytes(&self) -> Result<Vec<u8>, rkyv::rancor::Error> {
+        Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.to_vec())
+    }
+
+    /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から復元する。
+    ///
+    /// # Safety
+    /// `bytes` は [`SpatialIdTable::to_bytes`] が生成した正当なバイト列でなければならない。
+    pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
+        let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdTable<Vec<u8>>>(bytes) };
+        rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
     }
 }
