@@ -8,3 +8,6 @@ pub mod flex_id;
 pub mod helpers;
 pub mod range_id;
 pub mod temporal_id;
+
+#[cfg(test)]
+mod tests;
