@@ -5,6 +5,7 @@ pub mod from_cells;
 pub mod insert;
 pub mod query;
 pub mod remove;
+pub mod sharded;
 
 #[cfg(test)]
 use crate::{RangeId, SingleId, SpatialIdTable};

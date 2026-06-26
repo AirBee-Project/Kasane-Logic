@@ -55,6 +55,15 @@ where
         }
     }
 
+    /// シャード領域 `region` に閉じた空の[SpatialIdMap]を作成する。
+    ///
+    /// 以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    pub fn new_in_shard(region: FlexId) -> Self {
+        Self {
+            inner: FlexTreeCore::new_in_shard(region),
+        }
+    }
+
     /// 空間に値を挿入します。
     pub fn insert<S: IterFlexIds>(&mut self, target: S, value: V) {
         self.inner.insert(target, value);

@@ -6,6 +6,10 @@ use core::str::FromStr;
 use crate::error::Error;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord, Default)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
 /// 時間IDの区間表現を表す型である（temporal_id feature無効時のスタブ）。
 ///
 /// `temporal_id` feature が無効な場合、[`TemporalId`] は常に全時間を表す

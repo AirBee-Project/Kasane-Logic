@@ -14,6 +14,10 @@ pub mod ops;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
 /// 時間IDの区間表現を表す型である。
 ///
 /// [`TemporalId`] は、時間間隔 `i` と時間インデックス `t` の組み合わせで、

@@ -6,6 +6,7 @@ pub mod difference;
 pub mod equal;
 pub mod insert;
 pub mod intersection;
+pub mod sharded;
 pub mod union;
 
 #[cfg(test)]
