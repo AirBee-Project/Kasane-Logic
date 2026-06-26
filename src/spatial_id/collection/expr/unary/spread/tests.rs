@@ -57,6 +57,27 @@ fn spread_xyz_propagates_in_all_axes() {
     assert_eq!(value_at(&result, 25, -1, 100, 100), Some(50));
 }
 
+/// 軸別の `_with` で衝突方針を指定できる（spread_f_with の Min）。
+#[test]
+fn spread_f_with_resolves_overlap_by_policy() {
+    // F=0 に値1、F=2 に値9。半径1で広げると F=1 で重なる。
+    let mut table: SpatialIdTable<u8> = SpatialIdTable::new();
+    table.insert(SingleId::new(25, 0, 100, 100).unwrap(), 1u8);
+    table.insert(SingleId::new(25, 2, 100, 100).unwrap(), 9u8);
+
+    let identity = |v: &u8, _d: u32| Some(*v);
+
+    let by_min = table
+        .spread_f_with(25, 1, identity, ConflictPolicy::Min)
+        .unwrap();
+    assert_eq!(value_at(&by_min, 25, 1, 100, 100), Some(1));
+
+    let by_max = table
+        .spread_f_with(25, 1, identity, ConflictPolicy::Max)
+        .unwrap();
+    assert_eq!(value_at(&by_max, 25, 1, 100, 100), Some(9));
+}
+
 /// 既定の `spread` は XY 平面のみで、F 方向には広がらない。
 #[test]
 fn spread_default_is_xy_plane_only() {

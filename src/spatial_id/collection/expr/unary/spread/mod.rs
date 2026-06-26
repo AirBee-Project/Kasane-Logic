@@ -71,6 +71,31 @@ impl<V> SpreadParam<V> {
             conflict,
         }
     }
+
+    /// X / Y 平面（2D・同心円）のパラメータを作る。
+    pub fn xy(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+        Self::new(z, radius, SpreadAxes::XY, decay, conflict)
+    }
+
+    /// X 軸沿い（1D）のパラメータを作る。
+    pub fn x(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+        Self::new(z, radius, SpreadAxes::X, decay, conflict)
+    }
+
+    /// Y 軸沿い（1D）のパラメータを作る。
+    pub fn y(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+        Self::new(z, radius, SpreadAxes::Y, decay, conflict)
+    }
+
+    /// F（高さ）軸沿い（1D）のパラメータを作る。
+    pub fn f(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+        Self::new(z, radius, SpreadAxes::F, decay, conflict)
+    }
+
+    /// X / Y / F 全軸（3D・同心球）のパラメータを作る。
+    pub fn xyz(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+        Self::new(z, radius, SpreadAxes::XYZ, decay, conflict)
+    }
 }
 
 /// 各セルの値を、指定した軸に沿って同心円（球）状に周囲へ伝播させる単項演算。
