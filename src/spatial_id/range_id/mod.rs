@@ -171,7 +171,7 @@ impl RangeId {
             .into());
         }
 
-        if target_z as usize > (ZoomLevel::MAX.get() as usize) {
+        if ZoomLevel::new(target_z).is_err() {
             return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
         }
 
@@ -246,7 +246,7 @@ impl RangeId {
             .into());
         }
 
-        if target_z as usize > (ZoomLevel::MAX.get() as usize) {
+        if ZoomLevel::new(target_z).is_err() {
             return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
         }
 

@@ -1,6 +1,10 @@
 use alloc::vec::Vec;
 
-use crate::{FlexId, RangeId, TemporalId, error::Error, spatial_id::zoom_level::ZoomLevel};
+use crate::{
+    FlexId, RangeId, TemporalId,
+    error::Error,
+    spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel},
+};
 
 impl RangeId {
     /// 与えられた [`FlexId`] 群すべてを包む最小の [`RangeId`]（F/X/Y の3次元AABB）を返す。
@@ -83,8 +87,13 @@ impl RangeId {
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
-    pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
-        let zoom = ZoomLevel::new(z)?;
+    pub fn new(
+        z: impl IntoZoomLevel,
+        f: [i32; 2],
+        x: [u32; 2],
+        y: [u32; 2],
+    ) -> Result<RangeId, Error> {
+        let zoom = z.into_zoom_level()?;
         let mut f = f;
         let mut y = y;
 

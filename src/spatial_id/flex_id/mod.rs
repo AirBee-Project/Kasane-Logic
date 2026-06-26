@@ -72,7 +72,7 @@ impl FlexId {
     /// そのため複数の [`FlexId`] を生成するイテレーターを返す。XY方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - `index` がズーム `z` のF範囲（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()`）外の場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(f_zoomlevel, z)` のF範囲を超える場合は
@@ -150,7 +150,7 @@ impl FlexId {
     /// F・Y方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     pub fn shift_x(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
@@ -227,7 +227,7 @@ impl FlexId {
     /// Y方向は巡回せず `[0[z]]` に制限される。`z` が このFlexIdのYズームレベルより細かい場合は結果が分割されることがある。F・X方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(y_zoomlevel, z)` のY範囲を超える場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
     pub fn shift_y(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
@@ -305,7 +305,7 @@ impl FlexId {
     /// XY方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - `index` がズーム `z` のF範囲外の場合は [`SpatialIdError::FOutOfRange`] を返す。
     /// - 拡張後の区間が `max(f_zoomlevel, z)` のF範囲を超える場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
@@ -389,7 +389,7 @@ impl FlexId {
     /// F・Y方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     pub fn stretch_x(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
@@ -476,7 +476,7 @@ impl FlexId {
     /// `[0[z]]` に制限される。F・X方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - 拡張後の区間が `max(y_zoomlevel, z)` のY範囲を超える場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
     pub fn stretch_y(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
@@ -558,7 +558,7 @@ impl FlexId {
     /// 占有区間は整列したセル群へ分解されるため複数の [`FlexId`] を返す。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - `lo` または `hi` がズーム `z` のF範囲（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()`）外の場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     pub fn level_f(&self, z: u8, lo: i32, hi: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
@@ -622,7 +622,7 @@ impl FlexId {
     /// F・Y方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - `from` または `to` がズーム `z` のX範囲（`0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）外の場合は
     ///   [`SpatialIdError::XOutOfRange`] を返す。
     pub fn level_x(
@@ -700,7 +700,7 @@ impl FlexId {
     /// 起伏は平坦化される。F・X方向の値は変更しない。
     ///
     /// # バリデーション
-    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - `lo` または `hi` がズーム `z` のY範囲（`0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）外の場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
     pub fn level_y(&self, z: u8, lo: u32, hi: u32) -> Result<impl Iterator<Item = FlexId>, Error> {

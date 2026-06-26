@@ -99,7 +99,7 @@ mod tests {
         let mut set = SpatialIdSet::default();
 
         //SingleIdの作成と挿入
-        let single_id = SingleId::new(ZoomLevel::MAX.get(), 10, 10, 10).unwrap();
+        let single_id = SingleId::new(ZoomLevel::MAX, 10, 10, 10).unwrap();
         set.insert(single_id.clone());
 
         //SetからSingleIdを取り出す
@@ -119,13 +119,7 @@ mod tests {
         let mut set = SpatialIdSet::default();
 
         //SingleIdの作成と挿入
-        let single_id = SingleId::new(
-            ZoomLevel::MAX.get(),
-            unsafe { ZoomLevel::new_unchecked(ZoomLevel::MAX.get()) }.f_min(),
-            0,
-            0,
-        )
-        .unwrap();
+        let single_id = SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_min(), 0, 0).unwrap();
         set.insert(single_id.clone());
 
         //SetからRangeIdを取り出す
@@ -147,9 +141,9 @@ mod tests {
         //SingleIdの作成と挿入
         let single_id = SingleId::new(
             ZoomLevel::MAX.get(),
-            unsafe { ZoomLevel::new_unchecked(ZoomLevel::MAX.get()) }.f_max(),
-            unsafe { ZoomLevel::new_unchecked(ZoomLevel::MAX.get()) }.xy_max(),
-            unsafe { ZoomLevel::new_unchecked(ZoomLevel::MAX.get()) }.xy_max(),
+            ZoomLevel::MAX.f_max(),
+            ZoomLevel::MAX.xy_max(),
+            ZoomLevel::MAX.xy_max(),
         )
         .unwrap();
         set.insert(single_id.clone());

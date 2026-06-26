@@ -9,13 +9,8 @@ mod tests {
 
         // 細かいノードを大量に挿入する (z=30付近)
         for i in 0..10 {
-            let single_id = SingleId::new(
-                ZoomLevel::MAX.get(),
-                unsafe { ZoomLevel::new_unchecked(ZoomLevel::MAX.get()) }.f_max() - i,
-                0,
-                0,
-            )
-            .unwrap();
+            let single_id =
+                SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_max() - i, 0, 0).unwrap();
             set.insert(single_id);
         }
         assert_eq!(10, set.count());
@@ -125,11 +120,11 @@ mod tests {
     #[test]
     fn zoom_30_set_operations() {
         let mut set_a = SpatialIdSet::new();
-        let id_a = SingleId::new(ZoomLevel::MAX.get(), 10, 10, 10).unwrap();
+        let id_a = SingleId::new(ZoomLevel::MAX, 10, 10, 10).unwrap();
         set_a.insert(id_a);
 
         let mut set_b = SpatialIdSet::new();
-        let id_b = SingleId::new(ZoomLevel::MAX.get(), 10, 10, 11).unwrap();
+        let id_b = SingleId::new(ZoomLevel::MAX, 10, 10, 11).unwrap();
         set_b.insert(id_b);
 
         let intersection = &set_a & &set_b;

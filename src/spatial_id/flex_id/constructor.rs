@@ -1,17 +1,20 @@
-use crate::{Error, FlexId, TemporalId, spatial_id::zoom_level::ZoomLevel};
+use crate::{
+    Error, FlexId, TemporalId,
+    spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel},
+};
 
 impl FlexId {
     pub fn new(
-        f_zoomlevel: u8,
+        f_zoomlevel: impl IntoZoomLevel,
         f_index: i32,
-        x_zoomlevel: u8,
+        x_zoomlevel: impl IntoZoomLevel,
         x_index: u32,
-        y_zoomlevel: u8,
+        y_zoomlevel: impl IntoZoomLevel,
         y_index: u32,
     ) -> Result<FlexId, Error> {
-        let fz = ZoomLevel::new(f_zoomlevel)?;
-        let xz = ZoomLevel::new(x_zoomlevel)?;
-        let yz = ZoomLevel::new(y_zoomlevel)?;
+        let fz = f_zoomlevel.into_zoom_level()?;
+        let xz = x_zoomlevel.into_zoom_level()?;
+        let yz = y_zoomlevel.into_zoom_level()?;
 
         fz.check_f(f_index)?;
         xz.check_x(x_index)?;
@@ -63,17 +66,17 @@ impl FlexId {
     /// `SpatialIdError::YOutOfRange` を返します。
     #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
-        f_zoomlevel: u8,
+        f_zoomlevel: impl IntoZoomLevel,
         f_index: i32,
-        x_zoomlevel: u8,
+        x_zoomlevel: impl IntoZoomLevel,
         x_index: u32,
-        y_zoomlevel: u8,
+        y_zoomlevel: impl IntoZoomLevel,
         y_index: u32,
         temporal_id: TemporalId,
     ) -> Result<FlexId, Error> {
-        let fz = ZoomLevel::new(f_zoomlevel)?;
-        let xz = ZoomLevel::new(x_zoomlevel)?;
-        let yz = ZoomLevel::new(y_zoomlevel)?;
+        let fz = f_zoomlevel.into_zoom_level()?;
+        let xz = x_zoomlevel.into_zoom_level()?;
+        let yz = y_zoomlevel.into_zoom_level()?;
 
         fz.check_f(f_index)?;
         xz.check_x(x_index)?;

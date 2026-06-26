@@ -1,4 +1,4 @@
-use crate::spatial_id::zoom_level::ZoomLevel;
+use crate::spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel};
 pub mod impls;
 
 use crate::{
@@ -35,7 +35,7 @@ impl FractionalId {
     /// 範囲外の値が指定された場合、この関数は対応するエラーを返します。
     ///
     /// # 引数
-    /// * `z` - 空間 ID のズームレベル（0 〜 [`crate::(ZoomLevel::MAX.get() as usize)`]）
+    /// * `z` - 空間 ID のズームレベル（0 〜 [`crate::ZoomLevel::MAX`]）
     /// * `f` - F インデックス（`z.f_min()` 〜 `z.f_max() + 1`）
     /// * `x` - X インデックス（`0.0` 〜 `z.xy_max() + 1`）
     /// * `y` - Y インデックス（`0.0` 〜 `z.xy_max() + 1`）
@@ -54,8 +54,8 @@ impl FractionalId {
     /// assert_eq!(fid.x(), 6.2);
     /// assert_eq!(fid.y(), 7.8);
     /// ```
-    pub fn new(z: u8, f: f64, x: f64, y: f64) -> Result<Self, Error> {
-        let zoom = ZoomLevel::new(z)?;
+    pub fn new(z: impl IntoZoomLevel, f: f64, x: f64, y: f64) -> Result<Self, Error> {
+        let zoom = z.into_zoom_level()?;
 
         // FractionalId は連続値のため、インデックス値の上限ではなく境界までを有効とする。
         // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のインデックス値の上面 = 2^z に対応する。
@@ -64,13 +64,13 @@ impl FractionalId {
         let xy_max = zoom.xy_max() as f64 + 1.0;
 
         if f < f_min || f > f_max || !f.is_finite() {
-            return Err(GeometryError::FractionalFOutOfRange { f, z }.into());
+            return Err(GeometryError::FractionalFOutOfRange { f, z: zoom.get() }.into());
         }
         if x < 0.0 || x > xy_max || !x.is_finite() {
-            return Err(GeometryError::FractionalXOutOfRange { x, z }.into());
+            return Err(GeometryError::FractionalXOutOfRange { x, z: zoom.get() }.into());
         }
         if y < 0.0 || y > xy_max || !y.is_finite() {
-            return Err(GeometryError::FractionalYOutOfRange { y, z }.into());
+            return Err(GeometryError::FractionalYOutOfRange { y, z: zoom.get() }.into());
         }
 
         Ok(FractionalId { z: zoom, f, x, y })
@@ -235,7 +235,7 @@ impl FractionalId {
     ///
     /// 以下の制約が保証されない場合、パニック、不正メモリアクセス、未定義動作、
     /// または論理的な不整合を引き起こす可能性があります：
-    /// * `z` が有効なズームレベル（0 〜 [`crate::(ZoomLevel::MAX.get() as usize)`]）であること
+    /// * `z` が有効なズームレベル（0 〜 [`crate::ZoomLevel::MAX`]）であること
     /// * `f` が `z.f_min()..=z.f_max()` の範囲内であること
     /// * `x` および `y` が `0.0..=z.xy_max()` の範囲内であること
     pub unsafe fn new_unchecked(z: u8, f: f64, x: f64, y: f64) -> Self {

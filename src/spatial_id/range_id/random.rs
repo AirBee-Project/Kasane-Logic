@@ -96,7 +96,7 @@ impl RangeId {
 
     /// `proptest` 用に、指定ズーム範囲の [`RangeId`] を生成する戦略を返します。
     ///
-    /// `z_range` の終端は `(ZoomLevel::MAX.get() as usize)` でクリップされ、`start > end` の場合は `end` のみを使います。
+    /// `z_range` の終端は `ZoomLevel::MAX` でクリップされ、`start > end` の場合は `end` のみを使います。
     #[cfg(test)]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
         let start = *z_range.start();

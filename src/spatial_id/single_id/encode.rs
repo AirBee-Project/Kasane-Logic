@@ -10,7 +10,7 @@ impl SingleId {
     ///
     /// # 動作コスト
     ///
-    /// ズームレベル `z` に比例して計算量が増加する。最大でも `(ZoomLevel::MAX.get() as usize)` に比例する。
+    /// ズームレベル `z` に比例して計算量が増加する。最大でも `ZoomLevel::MAX` に比例する。
     ///
     /// # 動作例
     ///
@@ -56,7 +56,7 @@ impl SingleId {
     ///
     /// # 動作コスト
     ///
-    /// ズームレベル `z` に比例して計算量が増加する。最大でも `(ZoomLevel::MAX.get() as usize)` に比例する。
+    /// ズームレベル `z` に比例して計算量が増加する。最大でも `ZoomLevel::MAX` に比例する。
     ///
     /// # 動作例
     ///
@@ -104,12 +104,12 @@ impl SingleId {
     ///
     /// # バリデーション
     ///
-    /// - バイト列に含まれるズームレベルが [`crate::(ZoomLevel::MAX.get() as usize)`] を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返す。
+    /// - バイト列に含まれるズームレベルが [`crate::ZoomLevel::MAX`] を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返す。
     /// - 復元した `f` / `x` / `y` が範囲外になる場合は、各種範囲外エラーを返す。
     ///
     /// # 動作コスト
     ///
-    /// ズームレベル `z` に比例して計算量が増加する。最大でも `(ZoomLevel::MAX.get() as usize)` に比例する。
+    /// ズームレベル `z` に比例して計算量が増加する。最大でも `ZoomLevel::MAX` に比例する。
     ///
     /// # 動作例
     ///
