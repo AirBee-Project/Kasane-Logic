@@ -13,11 +13,11 @@ impl SingleId {
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
-    ///   [`SpatialIdError::FOutOfRange`] を返す。
-    /// - `x` または `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲外の場合、
-    ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合、[`SpatialIdError::ZOutOfRange`](crate::SpatialIdError::ZOutOfRange) を返す。
+    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=ZoomLevel::new(z as u8)?.f_max()` の範囲外の場合、
+    ///   [`SpatialIdError::FOutOfRange`](crate::SpatialIdError::FOutOfRange) を返す。
+    /// - `x` または `y` が `0..=ZoomLevel::new(z as u8)?.xy_max()` の範囲外の場合、
+    ///   それぞれ [`SpatialIdError::XOutOfRange`](crate::SpatialIdError::XOutOfRange)、[`SpatialIdError::YOutOfRange`](crate::SpatialIdError::YOutOfRange) を返す。
     ///
     ///
     /// IDの作成:
@@ -100,14 +100,14 @@ impl SingleId {
     /// * `f` — Fインデックス（鉛直方向）
     /// * `x` — Xインデックス（東西方向）
     /// * `y` — Yインデックス（南北方向）
-    /// * `temporal_id` — [TemporalId](時間ID)
+    /// * `temporal_id` — [`TemporalId`]
     ///
     /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
-    ///   [`SpatialIdError::FOutOfRange`] を返す。
-    /// - `x` または `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲外の場合、
-    ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
+    /// - `z` が [`ZoomLevel::MAX`] を超える場合、[`SpatialIdError::ZOutOfRange`](crate::SpatialIdError::ZOutOfRange) を返す。
+    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=ZoomLevel::new(z as u8)?.f_max()` の範囲外の場合、
+    ///   [`SpatialIdError::FOutOfRange`](crate::SpatialIdError::FOutOfRange) を返す。
+    /// - `x` または `y` が `0..=ZoomLevel::new(z as u8)?.xy_max()` の範囲外の場合、
+    ///   それぞれ [`SpatialIdError::XOutOfRange`](crate::SpatialIdError::XOutOfRange)、[`SpatialIdError::YOutOfRange`](crate::SpatialIdError::YOutOfRange) を返す。
     ///
     ///
     /// IDの作成:
