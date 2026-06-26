@@ -1,9 +1,9 @@
 use alloc::vec::Vec;
 
 use crate::{
-    FlexId, RangeId, SpatialIdError, TemporalId,
+    FlexId, RangeId, TemporalId,
     error::Error,
-    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
+    spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel},
 };
 
 impl RangeId {
@@ -57,11 +57,11 @@ impl RangeId {
     /// * `y2` — 南北方向範囲の端のYインデックス
     ///
     /// # バリデーション
-    /// - `z` が 63 を超える場合、[`SpatialIdError::ZOutOfRange`] を返します。  
-    /// - `f1`,`f2` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、  
-    ///   [`SpatialIdError::FOutOfRange`] を返します。  
-    /// - `x1`,`x2` または `y1`,`y2` が `0..=XY_MAX[z]` の範囲外の場合、  
-    ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返します。
+    /// - `z` が 63 を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返します。  
+    /// - `f` が与えられた `z` に応じて有効範囲外である場合、
+    ///   [`crate::SpatialIdError::FOutOfRange`] を返します。  
+    /// - `x` や `y` が与えられた `z` に応じて有効範囲外である場合、
+    ///   それぞれ [`crate::SpatialIdError::XOutOfRange`]、[`crate::SpatialIdError::YOutOfRange`] を返します。
     ///
     ///
     /// IDの作成:
@@ -87,27 +87,20 @@ impl RangeId {
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
-    pub fn new(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
-        if z as usize > MAX_ZOOM_LEVEL {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-        let xy_max = XY_MAX[z as usize];
+    pub fn new(
+        z: impl IntoZoomLevel,
+        f: [i32; 2],
+        x: [u32; 2],
+        y: [u32; 2],
+    ) -> Result<RangeId, Error> {
+        let zoom = z.into_zoom_level()?;
         let mut f = f;
         let mut y = y;
 
         for i in 0..2 {
-            if f[i] < f_min || f[i] > f_max {
-                return Err(SpatialIdError::FOutOfRange { f: f[i], z }.into());
-            }
-            if x[i] > xy_max {
-                return Err(SpatialIdError::XOutOfRange { x: x[i], z }.into());
-            }
-            if y[i] > xy_max {
-                return Err(SpatialIdError::YOutOfRange { y: y[i], z }.into());
-            }
+            zoom.check_f(f[i])?;
+            zoom.check_x(x[i])?;
+            zoom.check_y(y[i])?;
         }
 
         if f[0] > f[1] {
@@ -118,7 +111,7 @@ impl RangeId {
         }
 
         Ok(RangeId {
-            z,
+            z: zoom,
             f,
             x,
             y,
@@ -136,8 +129,8 @@ impl RangeId {
     /// 呼び出し側は、以下をすべて満たすことを保証しなければなりません。
     ///
     /// * `z` が有効なズームレベル（0–63）であること  
-    /// * `f1`,`f2` が与えられた `z` に応じて `F_MIN[z]..=F_MAX[z]` の範囲内であること  
-    /// * `x1`,`x2` および `y1`,`y2` が `0..=XY_MAX[z]` の範囲内であること  
+    /// * `f1`,`f2` が与えられた `z` に応じて `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること  
+    /// * `x1`,`x2` および `y1`,`y2` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること  
     ///
     /// これらが保証されない場合、本構造体の他のメソッド（範囲を前提とした計算）が
     /// パニック・不正メモリアクセス・未定義動作を引き起こす可能性があります。
@@ -156,7 +149,7 @@ impl RangeId {
     /// 呼び出し側は、`z` と各次元の配列が対応する有効範囲内であることを保証しなければなりません。
     pub unsafe fn new_unchecked(z: u8, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> RangeId {
         RangeId {
-            z,
+            z: unsafe { ZoomLevel::new_unchecked(z) },
             f,
             x,
             y,
@@ -172,30 +165,14 @@ impl RangeId {
         y: [u32; 2],
         temporal_id: TemporalId,
     ) -> Result<RangeId, Error> {
-        if z as usize > MAX_ZOOM_LEVEL {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-        let xy_max = XY_MAX[z as usize];
+        let zoom = ZoomLevel::new(z)?;
         let mut f = f;
         let mut y = y;
 
-        for &f_value in &f {
-            if f_value < f_min || f_value > f_max {
-                return Err(SpatialIdError::FOutOfRange { f: f_value, z }.into());
-            }
-        }
-        for &x_value in &x {
-            if x_value > xy_max {
-                return Err(SpatialIdError::XOutOfRange { x: x_value, z }.into());
-            }
-        }
-        for &y_value in &y {
-            if y_value > xy_max {
-                return Err(SpatialIdError::YOutOfRange { y: y_value, z }.into());
-            }
+        for i in 0..2 {
+            zoom.check_f(f[i])?;
+            zoom.check_x(x[i])?;
+            zoom.check_y(y[i])?;
         }
 
         if f[0] > f[1] {
@@ -206,7 +183,7 @@ impl RangeId {
         }
 
         Ok(RangeId {
-            z,
+            z: zoom,
             f,
             x,
             y,
@@ -225,7 +202,7 @@ impl RangeId {
         temporal_id: TemporalId,
     ) -> RangeId {
         RangeId {
-            z,
+            z: unsafe { ZoomLevel::new_unchecked(z) },
             f,
             x,
             y,

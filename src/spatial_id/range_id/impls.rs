@@ -4,10 +4,7 @@ use core::fmt;
 
 use crate::{
     Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalId,
-    spatial_id::{
-        constants::{F_MAX, F_MIN, XY_MAX},
-        helpers::{self, format_dimension},
-    },
+    spatial_id::helpers::{self, format_dimension},
 };
 use core::str::FromStr;
 
@@ -39,7 +36,7 @@ impl fmt::Display for RangeId {
         write!(
             f,
             "{}/{}/{}/{}",
-            self.z,
+            self.z.get(),
             format_dimension(self.f),
             format_dimension(self.x),
             format_dimension(self.y),
@@ -56,25 +53,25 @@ impl fmt::Display for RangeId {
 
 impl SpatialId for RangeId {
     fn f_min(&self) -> i32 {
-        F_MIN[self.z() as usize]
+        self.z.f_min()
     }
 
     fn f_max(&self) -> i32 {
-        F_MAX[self.z() as usize]
+        self.z.f_max()
     }
 
     fn x_max(&self) -> u32 {
-        XY_MAX[self.z() as usize]
+        self.z.xy_max()
     }
 
     fn y_max(&self) -> u32 {
-        XY_MAX[self.z() as usize]
+        self.z.xy_max()
     }
 
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
         let min = self.f_min();
         let max = self.f_max();
-        let z = self.z;
+        let z = self.z.get();
 
         let ns = self.f[0]
             .checked_add(by)
@@ -104,7 +101,7 @@ impl SpatialId for RangeId {
         if by >= 0 {
             let byu = by as u32;
             let max = self.y_max();
-            let z = self.z;
+            let z = self.z.get();
 
             let ns = self.y[0]
                 .checked_add(byu)
@@ -126,7 +123,7 @@ impl SpatialId for RangeId {
             // south
             let byu = by.unsigned_abs();
             let max = self.y_max();
-            let z = self.z;
+            let z = self.z.get();
 
             let ns = self.y[0]
                 .checked_sub(byu)
@@ -151,26 +148,25 @@ impl SpatialId for RangeId {
     ///
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     fn spatial_center(&self) -> Coordinate {
-        let z = self.z;
+        let z = self.z.get();
 
         let xf = (self.x[0] + self.x[1]) as f64 / 2.0 + 0.5;
         let yf = (self.y[0] + self.y[1]) as f64 / 2.0 + 0.5;
         let ff = (self.f[0] + self.f[1]) as f64 / 2.0 + 0.5;
 
-        unsafe {
-            Coordinate::new_unchecked(
-                helpers::latitude(yf, z),
-                helpers::longitude(xf, z),
-                helpers::altitude(ff, z),
-            )
-        }
+        Coordinate::new(
+            helpers::latitude(yf, z),
+            helpers::longitude(xf, z),
+            helpers::altitude(ff, z),
+        )
+        .unwrap()
     }
 
     /// [`RangeId`] の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
     ///
     /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     fn spatial_vertices(&self) -> [Coordinate; 8] {
-        let z = self.z;
+        let z = self.z.get();
 
         // 2 点ずつの端点
         let xs = [self.x[0] as f64, (self.x[1] + 1) as f64];

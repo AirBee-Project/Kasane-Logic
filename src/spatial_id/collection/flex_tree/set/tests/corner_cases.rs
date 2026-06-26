@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, RangeId, SingleId, SpatialIdSet, XY_MAX};
+    use crate::{RangeId, SingleId, SpatialIdSet, spatial_id::zoom_level::ZoomLevel};
 
     /// 1. 完全被覆によるツリーの O(1) 全置換テスト
     #[test]
@@ -10,7 +10,7 @@ mod tests {
         // 細かいノードを大量に挿入する (z=30付近)
         for i in 0..10 {
             let single_id =
-                SingleId::new(MAX_ZOOM_LEVEL as u8, F_MAX[MAX_ZOOM_LEVEL] - i, 0, 0).unwrap();
+                SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_max() - i, 0, 0).unwrap();
             set.insert(single_id);
         }
         assert_eq!(10, set.count());
@@ -29,8 +29,16 @@ mod tests {
     fn insert_partial_axis_skipping() {
         let mut set = SpatialIdSet::new();
         // F, X は全体を覆うが、Yだけが半分を覆うような RangeId
-        let partial_id =
-            RangeId::new(3, [F_MIN[3], F_MAX[3]], [0, XY_MAX[3]], [0, XY_MAX[3] / 2]).unwrap();
+        let partial_id = RangeId::new(
+            3,
+            [
+                ZoomLevel::new(3_u8).unwrap().f_min(),
+                ZoomLevel::new(3_u8).unwrap().f_max(),
+            ],
+            [0, ZoomLevel::new(3_u8).unwrap().xy_max()],
+            [0, ZoomLevel::new(3_u8).unwrap().xy_max() / 2],
+        )
+        .unwrap();
         set.insert(partial_id);
 
         // Y軸で分割されるので、複数個ではなく効率的に格納されるか確認
@@ -112,11 +120,11 @@ mod tests {
     #[test]
     fn zoom_30_set_operations() {
         let mut set_a = SpatialIdSet::new();
-        let id_a = SingleId::new(MAX_ZOOM_LEVEL as u8, 10, 10, 10).unwrap();
+        let id_a = SingleId::new(ZoomLevel::MAX, 10, 10, 10).unwrap();
         set_a.insert(id_a);
 
         let mut set_b = SpatialIdSet::new();
-        let id_b = SingleId::new(MAX_ZOOM_LEVEL as u8, 10, 10, 11).unwrap();
+        let id_b = SingleId::new(ZoomLevel::MAX, 10, 10, 11).unwrap();
         set_b.insert(id_b);
 
         let intersection = &set_a & &set_b;

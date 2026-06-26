@@ -128,12 +128,7 @@ where
         Some(lower.max(upper))
     }
 
-    /// この集合が値を持つ全セルを包む最小の範囲（F/X/Y の3次元AABB）を返します。
-    ///
-    /// 返り値 [`RangeId`] の各次元の `[0]` が最小（左下）側、`[1]` が最大（右上）側の角に
-    /// 対応します。混在ズームのセルは木全体の最大ズームへ正規化したうえで比較されます。
-    /// 空の木では [`None`] を返します。
-    ///
+    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
     /// # 例
     /// ```
     /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, SingleId};

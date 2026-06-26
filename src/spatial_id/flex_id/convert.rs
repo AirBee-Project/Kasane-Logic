@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 
 use crate::{
     FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
+    spatial_id::zoom_level::ZoomLevel,
 };
 
 impl From<FlexId> for RangeId {
@@ -14,8 +15,9 @@ impl From<&FlexId> for RangeId {
     fn from(flex_id: &FlexId) -> Self {
         let max_z = flex_id
             .f_zoomlevel
-            .max(flex_id.x_zoomlevel)
-            .max(flex_id.y_zoomlevel);
+            .get()
+            .max(flex_id.x_zoomlevel.get())
+            .max(flex_id.y_zoomlevel.get());
 
         let scale_to_range = |val: i64, current_z: u8| -> [i64; 2] {
             let diff = max_z - current_z;
@@ -24,33 +26,31 @@ impl From<&FlexId> for RangeId {
             [start, end]
         };
 
-        let f_range = scale_to_range(flex_id.f_index as i64, flex_id.f_zoomlevel);
-        let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel);
-        let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel);
+        let f_range = scale_to_range(flex_id.f_index as i64, flex_id.f_zoomlevel.get());
+        let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel.get());
+        let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel.get());
 
         #[cfg(feature = "temporal_id")]
         {
-            unsafe {
-                RangeId::new_with_temporal_unchecked(
-                    max_z,
-                    [f_range[0] as i32, f_range[1] as i32],
-                    [x_range[0] as u32, x_range[1] as u32],
-                    [y_range[0] as u32, y_range[1] as u32],
-                    flex_id.temporal().clone(),
-                )
-            }
+            RangeId::new_with_temporal(
+                max_z,
+                [f_range[0] as i32, f_range[1] as i32],
+                [x_range[0] as u32, x_range[1] as u32],
+                [y_range[0] as u32, y_range[1] as u32],
+                flex_id.temporal().clone(),
+            )
+            .unwrap()
         }
 
         #[cfg(not(feature = "temporal_id"))]
         {
-            unsafe {
-                RangeId::new_unchecked(
-                    max_z,
-                    [f_range[0] as i32, f_range[1] as i32],
-                    [x_range[0] as u32, x_range[1] as u32],
-                    [y_range[0] as u32, y_range[1] as u32],
-                )
-            }
+            RangeId::new(
+                max_z,
+                [f_range[0] as i32, f_range[1] as i32],
+                [x_range[0] as u32, x_range[1] as u32],
+                [y_range[0] as u32, y_range[1] as u32],
+            )
+            .unwrap()
         }
     }
 }
@@ -64,11 +64,11 @@ impl From<SingleId> for FlexId {
 impl From<&SingleId> for FlexId {
     fn from(value: &SingleId) -> Self {
         FlexId {
-            f_zoomlevel: value.z(),
+            f_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             f_index: value.f(),
-            x_zoomlevel: value.z(),
+            x_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             x_index: value.x(),
-            y_zoomlevel: value.z(),
+            y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             y_index: value.y(),
             temporal_id: value.temporal().clone(),
         }

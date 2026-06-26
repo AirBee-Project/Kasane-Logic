@@ -176,7 +176,7 @@ impl Triangle {
                                     && mc.dot(&rel_p1) >= 0.0
                                     && mb.dot(&rel_p2) >= 0.0
                                 {
-                                    voxels.insert(unsafe { SingleId::new_unchecked(z, f, x, y) });
+                                    voxels.insert(SingleId::new(z, f, x, y).unwrap());
                                     break;
                                 }
                             }

@@ -3,7 +3,9 @@ source: src/geometry/point/coordinate/tests.rs
 expression: coord.single_id(5).unwrap()
 ---
 SingleId {
-    z: 5,
+    z: ZoomLevel(
+        5,
+    ),
     f: 0,
     x: 16,
     y: 12,

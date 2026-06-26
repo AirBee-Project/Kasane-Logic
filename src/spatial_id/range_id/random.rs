@@ -1,5 +1,3 @@
-use crate::RangeId;
-
 #[cfg(any(test, feature = "random"))]
 use core::ops::RangeInclusive;
 #[cfg(test)]
@@ -7,13 +5,15 @@ use proptest::prelude::Strategy;
 #[cfg(any(test, feature = "random"))]
 use rand::{Rng, RngExt};
 
+use crate::RangeId;
+#[cfg(any(test, feature = "random"))]
+use crate::ZoomLevel;
+
 impl RangeId {
     #[cfg(any(test, feature = "random"))]
     fn pick_zoom_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> u8 {
-        use crate::MAX_ZOOM_LEVEL;
-
         let start = *z_range.start();
-        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
+        let end = (*z_range.end()).min(ZoomLevel::MAX.get());
 
         if start > end {
             end
@@ -25,9 +25,7 @@ impl RangeId {
     /// 外部から渡された乱数生成器を使って、全ズーム範囲からランダムな [`RangeId`] を生成します。
     #[cfg(any(test, feature = "random"))]
     pub fn random_using<R: Rng>(rng: &mut R) -> Self {
-        use crate::MAX_ZOOM_LEVEL;
-
-        Self::random_within_using(rng, 0..=MAX_ZOOM_LEVEL as u8)
+        Self::random_within_using(rng, 0..=ZoomLevel::MAX.get())
     }
 
     /// 外部から渡された乱数生成器を使用して、指定したズームレベルでランダムにRangeIdを生成
@@ -39,14 +37,12 @@ impl RangeId {
     /// 外部から渡された乱数生成器を使用して、指定したズームレベル範囲内でランダムにRangeIdを生成
     #[cfg(any(test, feature = "random"))]
     pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
-        use crate::{F_MAX, F_MIN, XY_MAX};
-
         let z = Self::pick_zoom_using(rng, z_range);
         let z_idx = z as usize;
 
-        let f_min = F_MIN[z_idx];
-        let f_max = F_MAX[z_idx];
-        let xy_max = XY_MAX[z_idx];
+        let f_min = ZoomLevel::new(z_idx as u8).unwrap().f_min();
+        let f_max = ZoomLevel::new(z_idx as u8).unwrap().f_max();
+        let xy_max = ZoomLevel::new(z_idx as u8).unwrap().xy_max();
 
         // 範囲の両端をランダムに生成
         let f1 = rng.random_range(f_min..=f_max);
@@ -89,9 +85,7 @@ impl RangeId {
     /// `proptest` 用に、全ズーム範囲から [`RangeId`] を生成する戦略を返します。
     #[cfg(test)]
     pub fn arb() -> impl Strategy<Value = Self> {
-        use crate::MAX_ZOOM_LEVEL;
-
-        Self::arb_within(0..=MAX_ZOOM_LEVEL as u8)
+        Self::arb_within(0..=ZoomLevel::MAX.get())
     }
 
     /// `proptest` 用に、指定ズームの [`RangeId`] を生成する戦略を返します。
@@ -102,13 +96,11 @@ impl RangeId {
 
     /// `proptest` 用に、指定ズーム範囲の [`RangeId`] を生成する戦略を返します。
     ///
-    /// `z_range` の終端は `MAX_ZOOM_LEVEL` でクリップされ、`start > end` の場合は `end` のみを使います。
+    /// `z_range` の終端は `ZoomLevel::MAX` でクリップされ、`start > end` の場合は `end` のみを使います。
     #[cfg(test)]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
-        use crate::MAX_ZOOM_LEVEL;
-
         let start = *z_range.start();
-        let end = (*z_range.end()).min(MAX_ZOOM_LEVEL as u8);
+        let end = (*z_range.end()).min(ZoomLevel::MAX.get());
         let (start, end) = if start > end {
             (end, end)
         } else {
@@ -118,13 +110,11 @@ impl RangeId {
         (start..=end).prop_flat_map(|z| {
             use proptest::prelude::Just;
 
-            use crate::{F_MAX, F_MIN, XY_MAX};
-
             let z_idx = z as usize;
 
-            let f_min = F_MIN[z_idx];
-            let f_max = F_MAX[z_idx];
-            let xy_max = XY_MAX[z_idx];
+            let f_min = ZoomLevel::new(z_idx as u8).unwrap().f_min();
+            let f_max = ZoomLevel::new(z_idx as u8).unwrap().f_max();
+            let xy_max = ZoomLevel::new(z_idx as u8).unwrap().xy_max();
 
             let f_strat = (f_min..=f_max, f_min..=f_max);
             let x_strat = (0..=xy_max, 0..=xy_max);

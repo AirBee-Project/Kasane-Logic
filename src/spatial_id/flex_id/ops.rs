@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{FlexId, Side, SpatialId};
+use crate::{FlexId, Side, SpatialId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
     /// 相手の[FlexId]との差集合（self - other）を計算し、イテレータとして返します。
@@ -81,34 +81,34 @@ impl FlexId {
     /// 重なりがない場合は None を返します。
     pub fn intersection(&self, other: &FlexId) -> Option<FlexId> {
         let (f_z, f_i) = Self::intersect_axis_i32(
-            self.f_zoomlevel,
+            self.f_zoomlevel.get(),
             self.f_index,
-            other.f_zoomlevel,
+            other.f_zoomlevel.get(),
             other.f_index,
         )?;
 
         let (x_z, x_i) = Self::intersect_axis_u32(
-            self.x_zoomlevel,
+            self.x_zoomlevel.get(),
             self.x_index,
-            other.x_zoomlevel,
+            other.x_zoomlevel.get(),
             other.x_index,
         )?;
 
         let (y_z, y_i) = Self::intersect_axis_u32(
-            self.y_zoomlevel,
+            self.y_zoomlevel.get(),
             self.y_index,
-            other.y_zoomlevel,
+            other.y_zoomlevel.get(),
             other.y_index,
         )?;
 
         let temporal_id = self.temporal().intersection(other.temporal())?;
 
         Some(FlexId {
-            f_zoomlevel: f_z,
+            f_zoomlevel: ZoomLevel::new(f_z).unwrap(),
             f_index: f_i,
-            x_zoomlevel: x_z,
+            x_zoomlevel: ZoomLevel::new(x_z).unwrap(),
             x_index: x_i,
-            y_zoomlevel: y_z,
+            y_zoomlevel: ZoomLevel::new(y_z).unwrap(),
             y_index: y_i,
             temporal_id,
         })

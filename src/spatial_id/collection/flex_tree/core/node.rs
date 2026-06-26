@@ -9,8 +9,7 @@ where
     Branch {
         level: u8,
         leaf_count: usize,
-        /// この部分木に含まれる値付き Leaf の FlexId ズームレベルの最大値（絶対値）。
-        /// `leaf_count` と同様に構築時へ畳み込んでおき、`max_zoomlevel` を O(1) で求める。
+        /// この部分木に含まれる値付き Leaf の FlexId ズームレベルの最大値。
         max_zoom: u8,
         lower_child: SharedNode<Node<V>>,
         upper_child: SharedNode<Node<V>>,
@@ -130,7 +129,7 @@ where
 
         let mut current_level = level;
 
-        // Algorithm 1: Axis Skipping
+        // 無関係な次元をスキップ
         while current_level < node_level && Self::covers(target, current_level) {
             current_level += 1;
         }

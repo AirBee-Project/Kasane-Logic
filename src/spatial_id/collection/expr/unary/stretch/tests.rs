@@ -1,3 +1,4 @@
+use crate::spatial_id::zoom_level::ZoomLevel;
 use crate::{ConflictPolicy, FlexId, SingleId, SpatialIdSet, SpatialIdTable, StretchOps};
 
 fn table_with(z: u8, f: i32, x: u32, y: u32) -> SpatialIdTable<bool> {
@@ -51,7 +52,7 @@ fn stretch_f_zero_is_identity() {
 
 #[test]
 fn stretch_f_out_of_range_is_error() {
-    let table = table_with(25, crate::F_MAX[25], 100, 100);
+    let table = table_with(25, ZoomLevel::new(25_u8).unwrap().f_max(), 100, 100);
     assert!(table.stretch_f(25, 1).is_err());
 }
 

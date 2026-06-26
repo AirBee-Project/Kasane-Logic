@@ -58,7 +58,7 @@ pub use geometry::traits::{CoverRangeIds, CoverSingleIds};
 
 // geometry: constants
 #[doc(inline)]
-pub use geometry::constants::{WGS84_A, WGS84_B, WGS84_E2, WGS84_F, WGS84_INV_F};
+pub use geometry::constants::{WGS84_A, WGS84_E2, WGS84_F};
 
 // spatial_id: id types
 #[doc(inline)]
@@ -89,9 +89,9 @@ pub use spatial_id::helpers::{Dimension, Side};
 #[doc(inline)]
 pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialId};
 
-// spatial_id: constants
+// spatial_id: zoom level
 #[doc(inline)]
-pub use spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
+pub use spatial_id::zoom_level::ZoomLevel;
 
 #[doc(inline)]
 pub use spatial_id::collection::expr::binary::arith::ops::{Addable, Multipliable, Subtractable};

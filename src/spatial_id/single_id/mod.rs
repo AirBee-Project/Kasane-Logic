@@ -7,9 +7,7 @@ pub mod random;
 pub mod test;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalId,
-    error::Error,
-    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
+    SpatialId, SpatialIdError, TemporalId, error::Error, spatial_id::zoom_level::ZoomLevel,
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
@@ -19,9 +17,10 @@ use crate::{
 /// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
 ///
 /// ```
+/// # use kasane_logic::ZoomLevel;
 /// # use kasane_logic::TemporalId;
 /// pub struct SingleId {
-///     z: u8,
+///     z: ZoomLevel,
 ///     f: i32,
 ///     x: u32,
 ///     y: u32,
@@ -31,7 +30,7 @@ use crate::{
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct SingleId {
-    z: u8,
+    z: ZoomLevel,
     f: i32,
     x: u32,
     y: u32,
@@ -47,7 +46,7 @@ impl SingleId {
     /// assert_eq!(id.z(), 5u8);
     /// ```
     pub fn z(&self) -> u8 {
-        self.z
+        self.z.get()
     }
 
     /// この `SingleId` が保持している F インデックス `f` を返します。
@@ -86,7 +85,7 @@ impl SingleId {
     /// F インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `F_MIN[z]..=F_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `ZoomLevel::new(z as u8)?.f_min()..=ZoomLevel::new(z as u8).unwrap().f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい F インデックス
@@ -110,15 +109,7 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::FOutOfRange { z: 3, f: 999 }))));
     /// ```
     pub fn set_f(&mut self, value: i32) -> Result<(), Error> {
-        let min = F_MIN[self.z() as usize];
-        let max = F_MAX[self.z() as usize];
-        if value < min || value > max {
-            return Err(SpatialIdError::FOutOfRange {
-                f: value,
-                z: self.z,
-            }
-            .into());
-        }
+        self.z.check_f(value)?;
         self.f = value;
         Ok(())
     }
@@ -126,7 +117,7 @@ impl SingleId {
     /// X インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0..=XY_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `0..=ZoomLevel::new(z as u8).unwrap().xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい X インデックス
@@ -150,14 +141,7 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::XOutOfRange { z: 3, x: 999 }))));
     /// ```
     pub fn set_x(&mut self, value: u32) -> Result<(), Error> {
-        let max = XY_MAX[self.z() as usize];
-        if value > max {
-            return Err(SpatialIdError::XOutOfRange {
-                x: value,
-                z: self.z,
-            }
-            .into());
-        }
+        self.z.check_x(value)?;
         self.x = value;
         Ok(())
     }
@@ -165,7 +149,7 @@ impl SingleId {
     /// Y インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0..=XY_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `0..=ZoomLevel::new(z as u8).unwrap().xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい Y インデックス
@@ -189,14 +173,7 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::YOutOfRange { z: 3, y: 999 }))));
     /// ```
     pub fn set_y(&mut self, value: u32) -> Result<(), Error> {
-        let max = XY_MAX[self.z() as usize];
-        if value > max {
-            return Err(SpatialIdError::YOutOfRange {
-                y: value,
-                z: self.z,
-            }
-            .into());
-        }
+        self.z.check_y(value)?;
         self.y = value;
         Ok(())
     }
@@ -239,19 +216,17 @@ impl SingleId {
         &self,
         target_z: u8,
     ) -> Result<impl Iterator<Item = SingleId>, Error> {
-        if target_z < self.z {
+        let target_zoom = ZoomLevel::new(target_z)?;
+
+        if target_z < self.z() {
             return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z: self.z,
+                current_z: self.z(),
                 target_z,
             }
             .into());
         }
 
-        if target_z as usize > MAX_ZOOM_LEVEL {
-            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
-        }
-
-        let difference = target_z - self.z;
+        let difference = target_z - self.z();
 
         let scale_f = 2_i32.pow(difference as u32);
         let scale_xy = 2_u32.pow(difference as u32);
@@ -270,7 +245,7 @@ impl SingleId {
 
             x_range.flat_map(move |x| {
                 y_range.clone().map(move |y| SingleId {
-                    z: target_z,
+                    z: target_zoom,
                     f,
                     x,
                     y,
@@ -324,19 +299,17 @@ impl SingleId {
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 4 }))));
     /// ```
     pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<SingleId, Error> {
-        if target_z > self.z {
+        let target_zoom = ZoomLevel::new(target_z)?;
+
+        if target_z > self.z() {
             return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z: self.z,
+                current_z: self.z(),
                 target_z,
             }
             .into());
         }
 
-        if target_z as usize > MAX_ZOOM_LEVEL {
-            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
-        }
-
-        let difference = self.z - target_z;
+        let difference = self.z() - target_z;
         let f = if self.f == -1 {
             -1
         } else {
@@ -346,7 +319,7 @@ impl SingleId {
         let y = self.y >> (difference as u32);
 
         Ok(SingleId {
-            z: target_z,
+            z: target_zoom,
             f,
             x,
             y,
@@ -380,69 +353,69 @@ impl SingleId {
     /// assert!(id.spatial_siblings().is_none());
     /// ```
     pub fn spatial_siblings(&self) -> Option<[SingleId; 7]> {
-        if self.z == 0 {
+        if self.z() == 0 {
             return None;
         }
 
-        let parent_z = self.z - 1;
+        let parent_z = self.z() - 1;
         let parent = self.spatial_parent_at_zoom(parent_z).ok()?;
-        let next_z = self.z;
+        let next_zoom = self.z;
         let f_start = parent.f() * 2;
         let x_start = parent.x() * 2;
         let y_start = parent.y() * 2;
 
         let candidates = [
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start,
                 x: x_start,
                 y: y_start,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start,
                 x: x_start,
                 y: y_start + 1,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start + 1,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start + 1,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start,
                 temporal_id: self.temporal().clone(),
             },
             SingleId {
-                z: next_z,
+                z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start + 1,
@@ -482,7 +455,7 @@ impl SingleId {
     /// assert_eq!(parents[2], SingleId::new(0, 0, 0, 0).unwrap());
     /// ```
     pub fn spatial_parents(&self) -> impl Iterator<Item = SingleId> + '_ {
-        (0..self.z).rev().map(move |target_z| {
+        (0..self.z()).rev().map(move |target_z| {
             self.spatial_parent_at_zoom(target_z)
                 .expect("target_z must be valid")
         })

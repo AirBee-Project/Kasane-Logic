@@ -1,9 +1,9 @@
+use crate::spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel};
 pub mod impls;
 
 use crate::{
     SingleId,
-    error::{Error, GeometryError, SpatialIdError},
-    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
+    error::{Error, GeometryError},
 };
 
 /// 実数値のインデックス（Z, F, X, Y）で表される空間 ID の座標型。
@@ -12,8 +12,9 @@ use crate::{
 /// F、X、Y インデックスを保持することで、グリッド内のより詳細な位置や端点などを表現できます。
 ///
 /// ```
+/// # use kasane_logic::ZoomLevel;
 /// pub struct FractionalId {
-///     z: u8,
+///     z: ZoomLevel,
 ///     f: f64,
 ///     x: f64,
 ///     y: f64,
@@ -21,7 +22,7 @@ use crate::{
 /// ```
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct FractionalId {
-    z: u8,
+    z: ZoomLevel,
     f: f64,
     x: f64,
     y: f64,
@@ -34,10 +35,10 @@ impl FractionalId {
     /// 範囲外の値が指定された場合、この関数は対応するエラーを返します。
     ///
     /// # 引数
-    /// * `z` - 空間 ID のズームレベル（0 〜 [`MAX_ZOOM_LEVEL`]）
-    /// * `f` - F インデックス（`F_MIN[z]` 〜 `F_MAX[z] + 1`）
-    /// * `x` - X インデックス（`0.0` 〜 `XY_MAX[z] + 1`）
-    /// * `y` - Y インデックス（`0.0` 〜 `XY_MAX[z] + 1`）
+    /// * `z` - 空間 ID のズームレベル（0 〜 [`crate::ZoomLevel::MAX`]）
+    /// * `f` - F インデックス（`z.f_min()` 〜 `z.f_max() + 1`）
+    /// * `x` - X インデックス（`0.0` 〜 `z.xy_max() + 1`）
+    /// * `y` - Y インデックス（`0.0` 〜 `z.xy_max() + 1`）
     ///
     /// # 戻り値
     /// * 有効な値が指定された場合は `Ok(FractionalId)` を返す。
@@ -53,28 +54,26 @@ impl FractionalId {
     /// assert_eq!(fid.x(), 6.2);
     /// assert_eq!(fid.y(), 7.8);
     /// ```
-    pub fn new(z: u8, f: f64, x: f64, y: f64) -> Result<Self, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
+    pub fn new(z: impl IntoZoomLevel, f: f64, x: f64, y: f64) -> Result<Self, Error> {
+        let zoom = z.into_zoom_level()?;
 
         // FractionalId は連続値のため、インデックス値の上限ではなく境界までを有効とする。
         // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のインデックス値の上面 = 2^z に対応する。
-        let f_min = F_MIN[z as usize] as f64;
-        let f_max = F_MAX[z as usize] as f64 + 1.0;
-        let xy_max = XY_MAX[z as usize] as f64 + 1.0;
+        let f_min = zoom.f_min() as f64;
+        let f_max = zoom.f_max() as f64 + 1.0;
+        let xy_max = zoom.xy_max() as f64 + 1.0;
 
         if f < f_min || f > f_max || !f.is_finite() {
-            return Err(GeometryError::FractionalFOutOfRange { f, z }.into());
+            return Err(GeometryError::FractionalFOutOfRange { f, z: zoom.get() }.into());
         }
         if x < 0.0 || x > xy_max || !x.is_finite() {
-            return Err(GeometryError::FractionalXOutOfRange { x, z }.into());
+            return Err(GeometryError::FractionalXOutOfRange { x, z: zoom.get() }.into());
         }
         if y < 0.0 || y > xy_max || !y.is_finite() {
-            return Err(GeometryError::FractionalYOutOfRange { y, z }.into());
+            return Err(GeometryError::FractionalYOutOfRange { y, z: zoom.get() }.into());
         }
 
-        Ok(FractionalId { z, f, x, y })
+        Ok(FractionalId { z: zoom, f, x, y })
     }
 
     /// ズームレベルを返す。
@@ -87,7 +86,7 @@ impl FractionalId {
     /// assert_eq!(fid.z(), 4);
     /// ```
     pub fn z(&self) -> u8 {
-        self.z
+        self.z.get()
     }
 
     /// F インデックス（実数）を返す。
@@ -132,7 +131,7 @@ impl FractionalId {
     /// F インデックスを更新する。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `F_MIN[z]..=F_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
+    /// `z.f_min()..=z.f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # Examples
     /// ```
@@ -143,14 +142,11 @@ impl FractionalId {
     /// assert_eq!(fid.f(), 6.0);
     /// ```
     pub fn set_f(&mut self, value: f64) -> Result<(), Error> {
-        let min = F_MIN[self.z as usize] as f64;
-        let max = F_MAX[self.z as usize] as f64;
+        let z = self.z.get();
+        let min = self.z.f_min() as f64;
+        let max = self.z.f_max() as f64;
         if value < min || value > max || !value.is_finite() {
-            return Err(GeometryError::FractionalFOutOfRange {
-                f: value,
-                z: self.z,
-            }
-            .into());
+            return Err(GeometryError::FractionalFOutOfRange { f: value, z }.into());
         }
         self.f = value;
         Ok(())
@@ -159,7 +155,7 @@ impl FractionalId {
     /// X インデックスを更新する。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0.0..=XY_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
+    /// `0.0..=z.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # Examples
     /// ```
@@ -170,13 +166,10 @@ impl FractionalId {
     /// assert_eq!(fid.x(), 8.0);
     /// ```
     pub fn set_x(&mut self, value: f64) -> Result<(), Error> {
-        let max = XY_MAX[self.z as usize] as f64;
+        let z = self.z.get();
+        let max = self.z.xy_max() as f64;
         if value < 0.0 || value > max || !value.is_finite() {
-            return Err(GeometryError::FractionalXOutOfRange {
-                x: value,
-                z: self.z,
-            }
-            .into());
+            return Err(GeometryError::FractionalXOutOfRange { x: value, z }.into());
         }
         self.x = value;
         Ok(())
@@ -185,7 +178,7 @@ impl FractionalId {
     /// Y インデックスを更新する。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0.0..=XY_MAX[z]` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
+    /// `0.0..=z.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # Examples
     /// ```
@@ -196,13 +189,10 @@ impl FractionalId {
     /// assert_eq!(fid.y(), 2.0);
     /// ```
     pub fn set_y(&mut self, value: f64) -> Result<(), Error> {
-        let max = XY_MAX[self.z as usize] as f64;
+        let z = self.z.get();
+        let max = self.z.xy_max() as f64;
         if value < 0.0 || value > max || !value.is_finite() {
-            return Err(GeometryError::FractionalYOutOfRange {
-                y: value,
-                z: self.z,
-            }
-            .into());
+            return Err(GeometryError::FractionalYOutOfRange { y: value, z }.into());
         }
         self.y = value;
         Ok(())
@@ -225,14 +215,13 @@ impl FractionalId {
     /// assert_eq!(sid.y(), 7);
     /// ```
     pub fn single_id(&self) -> SingleId {
-        unsafe {
-            SingleId::new_unchecked(
-                self.z,
-                libm::floor(self.f) as i32,
-                libm::floor(self.x) as u32,
-                libm::floor(self.y) as u32,
-            )
-        }
+        SingleId::new(
+            self.z.get(),
+            libm::floor(self.f) as i32,
+            libm::floor(self.x) as u32,
+            libm::floor(self.y) as u32,
+        )
+        .unwrap()
     }
 
     /// 値の妥当性検証を行わずに [`FractionalId`] を生成する。
@@ -245,11 +234,16 @@ impl FractionalId {
     ///
     /// 以下の制約が保証されない場合、パニック、不正メモリアクセス、未定義動作、
     /// または論理的な不整合を引き起こす可能性があります：
-    /// * `z` が有効なズームレベル（0 〜 [`MAX_ZOOM_LEVEL`]）であること
-    /// * `f` が `F_MIN[z]..=F_MAX[z]` の範囲内であること
-    /// * `x` および `y` が `0.0..=XY_MAX[z]` の範囲内であること
+    /// * `z` が有効なズームレベル（0 〜 [`crate::ZoomLevel::MAX`]）であること
+    /// * `f` が `z.f_min()..=z.f_max()` の範囲内であること
+    /// * `x` および `y` が `0.0..=z.xy_max()` の範囲内であること
     pub unsafe fn new_unchecked(z: u8, f: f64, x: f64, y: f64) -> Self {
-        FractionalId { z, f, x, y }
+        FractionalId {
+            z: ZoomLevel::new(z).unwrap(),
+            f,
+            x,
+            y,
+        }
     }
 }
 

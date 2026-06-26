@@ -1,7 +1,7 @@
 pub mod collection;
-pub mod constants;
 pub mod single_id;
 pub mod traits;
+pub mod zoom_level;
 
 //非公開のモジュール
 pub mod flex_id;

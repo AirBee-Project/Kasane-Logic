@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        F_MAX, F_MIN, FlexId, IntoFlexIds, IntoSingleIds, IterSingleIds, MAX_ZOOM_LEVEL, RangeId,
-        SingleId, SpatialIdSet, XY_MAX,
+        FlexId, IntoFlexIds, IntoSingleIds, IterSingleIds, RangeId, SingleId, SpatialIdSet,
+        spatial_id::zoom_level::ZoomLevel,
     };
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
@@ -99,7 +99,7 @@ mod tests {
         let mut set = SpatialIdSet::default();
 
         //SingleIdの作成と挿入
-        let single_id = SingleId::new(MAX_ZOOM_LEVEL as u8, 10, 10, 10).unwrap();
+        let single_id = SingleId::new(ZoomLevel::MAX, 10, 10, 10).unwrap();
         set.insert(single_id.clone());
 
         //SetからSingleIdを取り出す
@@ -119,7 +119,7 @@ mod tests {
         let mut set = SpatialIdSet::default();
 
         //SingleIdの作成と挿入
-        let single_id = SingleId::new(MAX_ZOOM_LEVEL as u8, F_MIN[MAX_ZOOM_LEVEL], 0, 0).unwrap();
+        let single_id = SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_min(), 0, 0).unwrap();
         set.insert(single_id.clone());
 
         //SetからRangeIdを取り出す
@@ -140,10 +140,10 @@ mod tests {
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(
-            MAX_ZOOM_LEVEL as u8,
-            F_MAX[MAX_ZOOM_LEVEL],
-            XY_MAX[MAX_ZOOM_LEVEL],
-            XY_MAX[MAX_ZOOM_LEVEL],
+            ZoomLevel::MAX.get(),
+            ZoomLevel::MAX.f_max(),
+            ZoomLevel::MAX.xy_max(),
+            ZoomLevel::MAX.xy_max(),
         )
         .unwrap();
         set.insert(single_id.clone());
@@ -249,7 +249,13 @@ mod tests {
         let mut set = SpatialIdSet::default();
 
         //RangeIdの作成と挿入
-        let range_id = RangeId::new(4, [0, F_MAX[4]], [0, XY_MAX[4]], [0, XY_MAX[4]]).unwrap();
+        let range_id = RangeId::new(
+            4,
+            [0, ZoomLevel::new(4_u8).unwrap().f_max()],
+            [0, ZoomLevel::new(4_u8).unwrap().xy_max()],
+            [0, ZoomLevel::new(4_u8).unwrap().xy_max()],
+        )
+        .unwrap();
 
         set.insert(range_id.clone());
 

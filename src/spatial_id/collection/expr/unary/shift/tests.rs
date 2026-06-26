@@ -1,4 +1,5 @@
-use crate::{F_MAX, FlexId, ShiftOps, SingleId, SpatialIdSet, SpatialIdTable};
+use crate::spatial_id::zoom_level::ZoomLevel;
+use crate::{FlexId, ShiftOps, SingleId, SpatialIdSet, SpatialIdTable};
 
 fn table_with(z: u8, f: i32, x: u32, y: u32) -> SpatialIdTable<bool> {
     let mut table = SpatialIdTable::new();
@@ -35,7 +36,7 @@ fn shift_f_down_moves_cell() {
 #[test]
 fn shift_f_out_of_range_is_error() {
     // z=25 の最上セルをさらに上へ動かすと範囲外。
-    let table = table_with(25, F_MAX[25], 100, 100);
+    let table = table_with(25, ZoomLevel::new(25_u8).unwrap().f_max(), 100, 100);
     assert!(table.shift_f(25, 1).is_err());
 }
 
