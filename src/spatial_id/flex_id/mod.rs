@@ -844,4 +844,117 @@ impl FlexId {
         rels.iter().filter(|r| **r == Rel::Adjacent).count() == 1
             && rels.iter().filter(|r| **r == Rel::Overlap).count() == 2
     }
+
+    /// この [`FlexId`] を、指定した各軸のズームレベルで区切られたシャード単位で分割し、親と「シャード内に含まれる対象の分割部分」のペアを列挙する。
+    ///
+    /// 戻り値のイテレータが生成する要素は `(親, 分割部分)` です。
+    pub fn shard(
+        &self,
+        f_zoomlevel: ZoomLevel,
+        x_zoomlevel: ZoomLevel,
+        y_zoomlevel: ZoomLevel,
+    ) -> impl Iterator<Item = (FlexId, FlexId)> {
+        let sz_f = self.f_zoomlevel();
+        let tz_f = f_zoomlevel.get();
+        let (f_start, f_end) = if tz_f <= sz_f {
+            let shift = sz_f - tz_f;
+            let idx = self.f_index() >> shift;
+            (idx, idx)
+        } else {
+            let shift = tz_f - sz_f;
+            let si = self.f_index() as i64;
+            ((si << shift) as i32, (((si + 1) << shift) - 1) as i32)
+        };
+
+        let sz_x = self.x_zoomlevel();
+        let tz_x = x_zoomlevel.get();
+        let (x_start, x_end) = if tz_x <= sz_x {
+            let shift = sz_x - tz_x;
+            let idx = self.x_index() >> shift;
+            (idx, idx)
+        } else {
+            let shift = tz_x - sz_x;
+            let si = self.x_index() as u64;
+            ((si << shift) as u32, (((si + 1) << shift) - 1) as u32)
+        };
+
+        let sz_y = self.y_zoomlevel();
+        let tz_y = y_zoomlevel.get();
+        let (y_start, y_end) = if tz_y <= sz_y {
+            let shift = sz_y - tz_y;
+            let idx = self.y_index() >> shift;
+            (idx, idx)
+        } else {
+            let shift = tz_y - sz_y;
+            let si = self.y_index() as u64;
+            ((si << shift) as u32, (((si + 1) << shift) - 1) as u32)
+        };
+
+        let seg_fz = sz_f.max(tz_f);
+        let seg_xz = sz_x.max(tz_x);
+        let seg_yz = sz_y.max(tz_y);
+
+        let self_fi = self.f_index();
+        let self_xi = self.x_index();
+        let self_yi = self.y_index();
+
+        #[cfg(feature = "temporal_id")]
+        {
+            let temporal_id = self.temporal_id.clone();
+            (f_start..=f_end).flat_map(move |f_idx| {
+                let temp_id1 = temporal_id.clone();
+                (x_start..=x_end).flat_map(move |x_idx| {
+                    let temp_id2 = temp_id1.clone();
+                    (y_start..=y_end).map(move |y_idx| {
+                        let seg_fi = if sz_f >= tz_f { self_fi } else { f_idx };
+                        let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
+                        let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
+
+                        let parent = FlexId::new_with_temporal(
+                            tz_f,
+                            f_idx,
+                            tz_x,
+                            x_idx,
+                            tz_y,
+                            y_idx,
+                            temp_id2.clone(),
+                        )
+                        .unwrap();
+
+                        let seg = FlexId::new_with_temporal(
+                            seg_fz,
+                            seg_fi,
+                            seg_xz,
+                            seg_xi,
+                            seg_yz,
+                            seg_yi,
+                            temp_id2.clone(),
+                        )
+                        .unwrap();
+
+                        (parent, seg)
+                    })
+                })
+            })
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            (f_start..=f_end).flat_map(move |f_idx| {
+                (x_start..=x_end).flat_map(move |x_idx| {
+                    (y_start..=y_end).map(move |y_idx| {
+                        let seg_fi = if sz_f >= tz_f { self_fi } else { f_idx };
+                        let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
+                        let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
+
+                        let parent = FlexId::new(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx).unwrap();
+                        let seg =
+                            FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi).unwrap();
+
+                        (parent, seg)
+                    })
+                })
+            })
+        }
+    }
 }
