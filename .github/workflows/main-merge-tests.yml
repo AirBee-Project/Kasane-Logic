@@ -53,13 +53,11 @@ jobs:
         with:
           shared-key: "verify-${{ matrix.os }}"
 
-      # テストハーネスは std を要求するため、テスト系は std を付けて実行する。
-      # rayon の有無（並列／逐次）を両方検証する。
-      - name: Test (std; rayon on/off)
+      - name: Test (std; various features)
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
           for feature in "${features[@]}"; do
             cargo test --locked --lib --bins --tests --no-default-features --features "$feature"
           done
@@ -68,7 +66,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon,random,temporal_id")
+          features=("std" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,persist")
           for feature in "${features[@]}"; do
             cargo test --locked --lib --bins --tests --no-default-features --features "$feature" -- --ignored
           done
@@ -77,7 +75,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon,random,temporal_id")
+          features=("std" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,persist")
           for feature in "${features[@]}"; do
             cargo test --locked --doc --no-default-features --features "$feature"
           done
@@ -86,12 +84,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
           for feature in "${features[@]}"; do
             cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
           done
 
-      # no_std はテストハーネスが使えないため、ビルドと clippy（lib のみ）で検証する。
       - name: Build & Clippy (no_std)
         shell: bash
         run: |

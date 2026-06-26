@@ -16,6 +16,32 @@ use ptr::SharedNode;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(serialize_bounds(
+        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
+        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    ))
+)]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(deserialize_bounds(
+        __D: rkyv::de::Pooling,
+        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    ))
+)]
+#[cfg_attr(
+    feature = "persist",
+    rkyv(bytecheck(bounds(
+        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
+        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
+    )))
+)]
 pub struct FlexTreeCore<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
