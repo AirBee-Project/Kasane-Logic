@@ -83,12 +83,8 @@ impl RangeId {
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
-    pub fn new<Z>(z: Z, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error>
-    where
-        Z: TryInto<ZoomLevel>,
-        Error: From<Z::Error>,
-    {
-        let zoom = z.try_into()?;
+    pub fn new(z: impl Into<u8>, f: [i32; 2], x: [u32; 2], y: [u32; 2]) -> Result<RangeId, Error> {
+        let zoom = ZoomLevel::new(z.into())?;
         let mut f = f;
         let mut y = y;
 
@@ -154,13 +150,13 @@ impl RangeId {
 
     #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
-        z: u8,
+        z: impl Into<u8>,
         f: [i32; 2],
         x: [u32; 2],
         y: [u32; 2],
         temporal_id: TemporalId,
     ) -> Result<RangeId, Error> {
-        let zoom = ZoomLevel::new(z)?;
+        let zoom = ZoomLevel::new(z.into())?;
         let mut f = f;
         let mut y = y;
 

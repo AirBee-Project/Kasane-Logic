@@ -1,23 +1,17 @@
 use crate::{Error, FlexId, TemporalId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
-    pub fn new<Z1, Z2, Z3>(
-        f_zoomlevel: Z1,
+    pub fn new(
+        f_zoomlevel: impl Into<u8>,
         f_index: i32,
-        x_zoomlevel: Z2,
+        x_zoomlevel: impl Into<u8>,
         x_index: u32,
-        y_zoomlevel: Z3,
+        y_zoomlevel: impl Into<u8>,
         y_index: u32,
-    ) -> Result<FlexId, Error>
-    where
-        Z1: TryInto<ZoomLevel>,
-        Z2: TryInto<ZoomLevel>,
-        Z3: TryInto<ZoomLevel>,
-        Error: From<Z1::Error> + From<Z2::Error> + From<Z3::Error>,
-    {
-        let fz = f_zoomlevel.try_into()?;
-        let xz = x_zoomlevel.try_into()?;
-        let yz = y_zoomlevel.try_into()?;
+    ) -> Result<FlexId, Error> {
+        let fz = ZoomLevel::new(f_zoomlevel.into())?;
+        let xz = ZoomLevel::new(x_zoomlevel.into())?;
+        let yz = ZoomLevel::new(y_zoomlevel.into())?;
 
         fz.check_f(f_index)?;
         xz.check_x(x_index)?;
@@ -68,24 +62,18 @@ impl FlexId {
     /// `y_index` が `y_zoomlevel` に対応する許容範囲外の場合は
     /// `SpatialIdError::YOutOfRange` を返します。
     #[cfg(feature = "temporal_id")]
-    pub fn new_with_temporal<Z1, Z2, Z3>(
-        f_zoomlevel: Z1,
+    pub fn new_with_temporal(
+        f_zoomlevel: impl Into<u8>,
         f_index: i32,
-        x_zoomlevel: Z2,
+        x_zoomlevel: impl Into<u8>,
         x_index: u32,
-        y_zoomlevel: Z3,
+        y_zoomlevel: impl Into<u8>,
         y_index: u32,
         temporal_id: TemporalId,
-    ) -> Result<FlexId, Error>
-    where
-        Z1: TryInto<ZoomLevel>,
-        Z2: TryInto<ZoomLevel>,
-        Z3: TryInto<ZoomLevel>,
-        Error: From<Z1::Error> + From<Z2::Error> + From<Z3::Error>,
-    {
-        let fz = f_zoomlevel.try_into()?;
-        let xz = x_zoomlevel.try_into()?;
-        let yz = y_zoomlevel.try_into()?;
+    ) -> Result<FlexId, Error> {
+        let fz = ZoomLevel::new(f_zoomlevel.into())?;
+        let xz = ZoomLevel::new(x_zoomlevel.into())?;
+        let yz = ZoomLevel::new(y_zoomlevel.into())?;
 
         fz.check_f(f_index)?;
         xz.check_x(x_index)?;

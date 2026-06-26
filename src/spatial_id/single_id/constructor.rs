@@ -42,12 +42,8 @@ impl SingleId {
     /// let id = SingleId::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
-    pub fn new<Z>(z: Z, f: i32, x: u32, y: u32) -> Result<SingleId, Error>
-    where
-        Z: TryInto<ZoomLevel>,
-        Error: From<Z::Error>,
-    {
-        let zoom = z.try_into()?;
+    pub fn new(z: impl Into<u8>, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
+        let zoom = ZoomLevel::new(z.into())?;
         zoom.check_f(f)?;
         zoom.check_x(x)?;
         zoom.check_y(y)?;
