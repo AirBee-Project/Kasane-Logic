@@ -228,8 +228,8 @@ impl SingleId {
 
         let difference = target_z - self.z();
 
-        let scale_f = 2_i32.pow(difference as u32);
-        let scale_xy = 2_u32.pow(difference as u32);
+        let scale_f = 1_i32 << difference as u32;
+        let scale_xy = 1_u32 << difference as u32;
 
         let f_start = self.f * scale_f;
         let x_start = self.x * scale_xy;

@@ -68,8 +68,8 @@ impl SpatialId for FlexId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = (self.x_max() + 1) as i32;
-        let new = (self.x_index as i32 + by).rem_euclid(max_len);
+        let max_len = self.x_max() as i64 + 1;
+        let new = (self.x_index as i64 + by as i64).rem_euclid(max_len);
         self.x_index = new as u32;
     }
 
@@ -110,13 +110,13 @@ impl SpatialId for FlexId {
     fn length_x_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        r * 2.0 * core::f64::consts::PI / (2_i32.pow(self.x_zoomlevel() as u32) as f64)
+        r * 2.0 * core::f64::consts::PI / ((1_u64 << self.x_zoomlevel()) as f64)
     }
 
     fn length_y_meters(&self) -> f64 {
         let ecef: Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        r * 2.0 * core::f64::consts::PI / (2_i32.pow(self.y_zoomlevel() as u32) as f64)
+        r * 2.0 * core::f64::consts::PI / ((1_u64 << self.y_zoomlevel()) as f64)
     }
 
     fn spatial_center(&self) -> crate::Coordinate {

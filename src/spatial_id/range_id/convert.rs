@@ -19,7 +19,7 @@ pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = (u8, u32)> {
 
 /// Fにおけるセグメントの最適配置関数
 pub fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = (u8, i32)> {
-    let diff = 1i32 << z;
+    let diff = (1i64 << z) as i32;
     let [l, r] = range;
     SegmentIter {
         l: l + diff,
@@ -27,7 +27,7 @@ pub fn split_f(z: u8, range: [i32; 2]) -> impl Iterator<Item = (u8, i32)> {
         cur_z: z as i8,
     }
     .map(move |(seg_z, dim)| {
-        let original_dim = dim - (1i32 << seg_z);
+        let original_dim = dim - ((1i64 << seg_z) as i32);
         (seg_z, original_dim)
     })
 }
