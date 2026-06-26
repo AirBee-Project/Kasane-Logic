@@ -36,9 +36,9 @@ impl FractionalId {
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル（0 〜 [`crate::(ZoomLevel::MAX.get() as usize)`]）
-    /// * `f` - F インデックス（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()` 〜 `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max() + 1`）
-    /// * `x` - X インデックス（`0.0` 〜 `unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max() + 1`）
-    /// * `y` - Y インデックス（`0.0` 〜 `unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max() + 1`）
+    /// * `f` - F インデックス（`z.f_min()` 〜 `z.f_max() + 1`）
+    /// * `x` - X インデックス（`0.0` 〜 `z.xy_max() + 1`）
+    /// * `y` - Y インデックス（`0.0` 〜 `z.xy_max() + 1`）
     ///
     /// # 戻り値
     /// * 有効な値が指定された場合は `Ok(FractionalId)` を返す。
@@ -59,9 +59,9 @@ impl FractionalId {
 
         // FractionalId は連続値のため、インデックス値の上限ではなく境界までを有効とする。
         // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のインデックス値の上面 = 2^z に対応する。
-        let f_min = unsafe { ZoomLevel::new_unchecked(z) }.f_min() as f64;
-        let f_max = unsafe { ZoomLevel::new_unchecked(z) }.f_max() as f64 + 1.0;
-        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max() as f64 + 1.0;
+        let f_min = zoom.f_min() as f64;
+        let f_max = zoom.f_max() as f64 + 1.0;
+        let xy_max = zoom.xy_max() as f64 + 1.0;
 
         if f < f_min || f > f_max || !f.is_finite() {
             return Err(GeometryError::FractionalFOutOfRange { f, z }.into());
@@ -131,7 +131,7 @@ impl FractionalId {
     /// F インデックスを更新する。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
+    /// `z.f_min()..=z.f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # Examples
     /// ```
@@ -143,8 +143,8 @@ impl FractionalId {
     /// ```
     pub fn set_f(&mut self, value: f64) -> Result<(), Error> {
         let z = self.z.get();
-        let min = unsafe { ZoomLevel::new_unchecked(z) }.f_min() as f64;
-        let max = unsafe { ZoomLevel::new_unchecked(z) }.f_max() as f64;
+        let min = self.z.f_min() as f64;
+        let max = self.z.f_max() as f64;
         if value < min || value > max || !value.is_finite() {
             return Err(GeometryError::FractionalFOutOfRange { f: value, z }.into());
         }
@@ -155,7 +155,7 @@ impl FractionalId {
     /// X インデックスを更新する。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0.0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
+    /// `0.0..=z.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # Examples
     /// ```
@@ -167,7 +167,7 @@ impl FractionalId {
     /// ```
     pub fn set_x(&mut self, value: f64) -> Result<(), Error> {
         let z = self.z.get();
-        let max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max() as f64;
+        let max = self.z.xy_max() as f64;
         if value < 0.0 || value > max || !value.is_finite() {
             return Err(GeometryError::FractionalXOutOfRange { x: value, z }.into());
         }
@@ -178,7 +178,7 @@ impl FractionalId {
     /// Y インデックスを更新する。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0.0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
+    /// `0.0..=z.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # Examples
     /// ```
@@ -190,7 +190,7 @@ impl FractionalId {
     /// ```
     pub fn set_y(&mut self, value: f64) -> Result<(), Error> {
         let z = self.z.get();
-        let max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max() as f64;
+        let max = self.z.xy_max() as f64;
         if value < 0.0 || value > max || !value.is_finite() {
             return Err(GeometryError::FractionalYOutOfRange { y: value, z }.into());
         }
@@ -236,8 +236,8 @@ impl FractionalId {
     /// 以下の制約が保証されない場合、パニック、不正メモリアクセス、未定義動作、
     /// または論理的な不整合を引き起こす可能性があります：
     /// * `z` が有効なズームレベル（0 〜 [`crate::(ZoomLevel::MAX.get() as usize)`]）であること
-    /// * `f` が `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
-    /// * `x` および `y` が `0.0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること
+    /// * `f` が `z.f_min()..=z.f_max()` の範囲内であること
+    /// * `x` および `y` が `0.0..=z.xy_max()` の範囲内であること
     pub unsafe fn new_unchecked(z: u8, f: f64, x: f64, y: f64) -> Self {
         FractionalId {
             z: unsafe { ZoomLevel::new_unchecked(z) },

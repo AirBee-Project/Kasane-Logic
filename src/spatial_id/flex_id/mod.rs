@@ -79,16 +79,8 @@ impl FlexId {
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     pub fn shift_f(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         // ズームレベルのチェック
-        if z > ZoomLevel::MAX.get() {
-            return Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z }));
-        };
-
-        // 移動インデックス値のチェック
-        if index < unsafe { ZoomLevel::new_unchecked(z) }.f_min()
-            || index > unsafe { ZoomLevel::new_unchecked(z) }.f_max()
-        {
-            return Err(SpatialIdError::FOutOfRange { z, f: index }.into());
-        };
+        let zoom = ZoomLevel::new(z)?;
+        zoom.check_f(index)?;
 
         let f_zoomlevel = self.f_zoomlevel();
         let max_z = f_zoomlevel.max(z);
@@ -100,10 +92,10 @@ impl FlexId {
         let right = left + cell_scale - 1;
 
         // 移動後が max_z のF範囲を超える場合はエラー。
-        if left < unsafe { ZoomLevel::new_unchecked(max_z) }.f_min() {
+        if left < ZoomLevel::new(max_z)?.f_min() {
             return Err(SpatialIdError::FOutOfRange { z: max_z, f: left }.into());
         }
-        if right > unsafe { ZoomLevel::new_unchecked(max_z) }.f_max() {
+        if right > ZoomLevel::new(max_z)?.f_max() {
             return Err(SpatialIdError::FOutOfRange { z: max_z, f: right }.into());
         }
 
@@ -253,7 +245,7 @@ impl FlexId {
         let right = left + cell_scale - 1;
 
         // 移動後が max_z のY範囲 [0[max_z]] を超える場合はエラー。
-        let y_max = unsafe { ZoomLevel::new_unchecked(max_z) }.xy_max() as i64;
+        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
         if left < 0 || right > y_max {
             let offending = if left < 0 { left } else { right };
             return Err(SpatialIdError::YOutOfRange {
@@ -342,10 +334,10 @@ impl FlexId {
             (base_left + delta, base_right)
         };
 
-        if left < unsafe { ZoomLevel::new_unchecked(max_z) }.f_min() {
+        if left < ZoomLevel::new(max_z)?.f_min() {
             return Err(SpatialIdError::FOutOfRange { z: max_z, f: left }.into());
         }
-        if right > unsafe { ZoomLevel::new_unchecked(max_z) }.f_max() {
+        if right > ZoomLevel::new(max_z)?.f_max() {
             return Err(SpatialIdError::FOutOfRange { z: max_z, f: right }.into());
         }
 
@@ -506,7 +498,7 @@ impl FlexId {
             (base_left + delta, base_right)
         };
 
-        let y_max = unsafe { ZoomLevel::new_unchecked(max_z) }.xy_max() as i64;
+        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
         if left < 0 || right > y_max {
             let offending = if left < 0 { left } else { right };
             return Err(SpatialIdError::YOutOfRange {

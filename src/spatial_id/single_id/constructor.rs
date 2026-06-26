@@ -14,7 +14,7 @@ impl SingleId {
     ///
     /// # バリデーション
     /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `f` がズームレベル `z` に対する `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
+    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - `x` または `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲外の場合、
     ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
@@ -65,7 +65,7 @@ impl SingleId {
     /// 呼び出し側は、以下をすべて満たすことを保証しなければならない。
     ///
     /// * `z` が有効なズームレベル（0–[`crate::(ZoomLevel::MAX.get() as usize)`]）であること
-    /// * `f` が与えられた `z` に応じて `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
+    /// * `f` が与えられた `z` に応じて `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
     /// * `x` および `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること
     ///
     /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。
@@ -104,7 +104,7 @@ impl SingleId {
     ///
     /// # バリデーション
     /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `f` がズームレベル `z` に対する `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
+    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - `x` または `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲外の場合、
     ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
@@ -149,7 +149,7 @@ impl SingleId {
     /// 呼び出し側は、以下をすべて満たすことを保証しなければならない。
     ///
     /// * `z` が有効なズームレベル（0–[(ZoomLevel::MAX.get() as usize)]）であること
-    /// * `f` が与えられた `z` に応じて `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
+    /// * `f` が与えられた `z` に応じて `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
     /// * `x` および `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること
     ///
     /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。

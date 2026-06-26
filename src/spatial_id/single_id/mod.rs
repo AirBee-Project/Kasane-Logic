@@ -85,7 +85,7 @@ impl SingleId {
     /// F インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい F インデックス

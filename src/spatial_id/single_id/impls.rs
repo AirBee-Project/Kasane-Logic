@@ -1,4 +1,3 @@
-use crate::spatial_id::zoom_level::ZoomLevel;
 use alloc::string::ToString;
 
 use crate::{
@@ -31,19 +30,19 @@ impl fmt::Display for SingleId {
 
 impl SpatialId for SingleId {
     fn f_min(&self) -> i32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.f_min()
+        self.z.f_min()
     }
 
     fn f_max(&self) -> i32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.f_max()
+        self.z.f_max()
     }
 
     fn x_max(&self) -> u32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.xy_max()
+        self.z.xy_max()
     }
 
     fn y_max(&self) -> u32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.xy_max()
+        self.z.xy_max()
     }
 
     /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かします。

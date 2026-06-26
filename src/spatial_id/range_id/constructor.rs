@@ -120,7 +120,7 @@ impl RangeId {
     /// 呼び出し側は、以下をすべて満たすことを保証しなければなりません。
     ///
     /// * `z` が有効なズームレベル（0–63）であること  
-    /// * `f1`,`f2` が与えられた `z` に応じて `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること  
+    /// * `f1`,`f2` が与えられた `z` に応じて `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること  
     /// * `x1`,`x2` および `y1`,`y2` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること  
     ///
     /// これらが保証されない場合、本構造体の他のメソッド（範囲を前提とした計算）が

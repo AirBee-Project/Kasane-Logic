@@ -1,6 +1,19 @@
 use crate::{SpatialIdError, error::Error};
+use core::fmt;
 
-/// ズームレベルを表す型。
+/// 検証済みのズームレベルを表す型。
+///
+/// この型の値は **必ず `0..=`[`ZoomLevel::MAX`] の範囲に収まる**ことが保証される。
+/// 生成経路は検証付きの [`ZoomLevel::new`]（および [`TryFrom<u8>`]）に一本化されており、
+/// この不変条件のもとで [`f_min`](Self::f_min) / [`f_max`](Self::f_max) /
+/// [`xy_max`](Self::xy_max) は配列の範囲内アクセスが保証されパニックしない。
+///
+/// ズームレベルにまつわる範囲チェックを各所で個別に書くと検証漏れの温床になるため、
+/// 「ズームレベルが妥当か」「あるインデックスがそのズームで妥当か」という判定は
+/// すべてこの型に集約する。
+///
+/// 公開 API の引数は従来どおり `u8` を受け取り、その入口で `ZoomLevel::new(z)?` を
+/// 通すことで、不正なズームレベルが内部へ流入しないことを保証する。
 ///
 /// ```
 /// # use kasane_logic::{SpatialIdError, ZoomLevel};
@@ -11,6 +24,12 @@ use crate::{SpatialIdError, error::Error};
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ZoomLevel(u8);
+
+impl fmt::Display for ZoomLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl ZoomLevel {
     const XY_MAX: [u32; Self::MAX.0 as usize + 1] = [

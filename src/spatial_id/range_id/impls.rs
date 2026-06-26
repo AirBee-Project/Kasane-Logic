@@ -1,4 +1,3 @@
-use crate::spatial_id::zoom_level::ZoomLevel;
 use alloc::string::ToString;
 
 use core::fmt;
@@ -54,19 +53,19 @@ impl fmt::Display for RangeId {
 
 impl SpatialId for RangeId {
     fn f_min(&self) -> i32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.f_min()
+        self.z.f_min()
     }
 
     fn f_max(&self) -> i32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.f_max()
+        self.z.f_max()
     }
 
     fn x_max(&self) -> u32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.xy_max()
+        self.z.xy_max()
     }
 
     fn y_max(&self) -> u32 {
-        unsafe { ZoomLevel::new_unchecked(self.z()) }.xy_max()
+        self.z.xy_max()
     }
 
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
