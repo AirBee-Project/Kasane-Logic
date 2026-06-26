@@ -1,4 +1,4 @@
-use crate::{Error, F_MAX, F_MIN, FlexId, MAX_ZOOM_LEVEL, SpatialIdError, TemporalId, XY_MAX};
+use crate::{Error, FlexId, TemporalId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
     pub fn new(
@@ -9,48 +9,20 @@ impl FlexId {
         y_zoomlevel: u8,
         y_index: u32,
     ) -> Result<FlexId, Error> {
-        if f_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z: f_zoomlevel }.into());
-        }
+        let fz = ZoomLevel::new(f_zoomlevel)?;
+        let xz = ZoomLevel::new(x_zoomlevel)?;
+        let yz = ZoomLevel::new(y_zoomlevel)?;
 
-        if x_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z: x_zoomlevel }.into());
-        }
-
-        if y_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z: y_zoomlevel }.into());
-        }
-
-        if f_index < F_MIN[f_zoomlevel as usize] || f_index > F_MAX[f_zoomlevel as usize] {
-            return Err(SpatialIdError::FOutOfRange {
-                z: f_zoomlevel,
-                f: f_index,
-            }
-            .into());
-        }
-
-        if x_index > XY_MAX[x_zoomlevel as usize] {
-            return Err(SpatialIdError::XOutOfRange {
-                z: x_zoomlevel,
-                x: x_index,
-            }
-            .into());
-        }
-
-        if y_index > XY_MAX[y_zoomlevel as usize] {
-            return Err(SpatialIdError::YOutOfRange {
-                z: y_zoomlevel,
-                y: y_index,
-            }
-            .into());
-        }
+        fz.check_f(f_index)?;
+        xz.check_x(x_index)?;
+        yz.check_y(y_index)?;
 
         Ok(FlexId {
-            f_zoomlevel,
+            f_zoomlevel: fz,
             f_index,
-            x_zoomlevel,
+            x_zoomlevel: xz,
             x_index,
-            y_zoomlevel,
+            y_zoomlevel: yz,
             y_index,
             temporal_id: TemporalId::WHOLE,
         })
@@ -67,11 +39,11 @@ impl FlexId {
         y_index: u32,
     ) -> FlexId {
         FlexId {
-            f_zoomlevel,
+            f_zoomlevel: unsafe { ZoomLevel::new_unchecked(f_zoomlevel) },
             f_index,
-            x_zoomlevel,
+            x_zoomlevel: unsafe { ZoomLevel::new_unchecked(x_zoomlevel) },
             x_index,
-            y_zoomlevel,
+            y_zoomlevel: unsafe { ZoomLevel::new_unchecked(y_zoomlevel) },
             y_index,
             temporal_id: TemporalId::WHOLE,
         }
@@ -99,48 +71,20 @@ impl FlexId {
         y_index: u32,
         temporal_id: TemporalId,
     ) -> Result<FlexId, Error> {
-        if f_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z: f_zoomlevel }.into());
-        }
+        let fz = ZoomLevel::new(f_zoomlevel)?;
+        let xz = ZoomLevel::new(x_zoomlevel)?;
+        let yz = ZoomLevel::new(y_zoomlevel)?;
 
-        if x_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z: x_zoomlevel }.into());
-        }
-
-        if y_zoomlevel > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z: y_zoomlevel }.into());
-        }
-
-        if f_index < F_MIN[f_zoomlevel as usize] || f_index > F_MAX[f_zoomlevel as usize] {
-            return Err(SpatialIdError::FOutOfRange {
-                z: f_zoomlevel,
-                f: f_index,
-            }
-            .into());
-        }
-
-        if x_index > XY_MAX[x_zoomlevel as usize] {
-            return Err(SpatialIdError::XOutOfRange {
-                z: x_zoomlevel,
-                x: x_index,
-            }
-            .into());
-        }
-
-        if y_index > XY_MAX[y_zoomlevel as usize] {
-            return Err(SpatialIdError::YOutOfRange {
-                z: y_zoomlevel,
-                y: y_index,
-            }
-            .into());
-        }
+        fz.check_f(f_index)?;
+        xz.check_x(x_index)?;
+        yz.check_y(y_index)?;
 
         Ok(FlexId {
-            f_zoomlevel,
+            f_zoomlevel: fz,
             f_index,
-            x_zoomlevel,
+            x_zoomlevel: xz,
             x_index,
-            y_zoomlevel,
+            y_zoomlevel: yz,
             y_index,
 
             temporal_id,
@@ -160,11 +104,11 @@ impl FlexId {
         temporal_id: TemporalId,
     ) -> FlexId {
         FlexId {
-            f_zoomlevel,
+            f_zoomlevel: unsafe { ZoomLevel::new_unchecked(f_zoomlevel) },
             f_index,
-            x_zoomlevel,
+            x_zoomlevel: unsafe { ZoomLevel::new_unchecked(x_zoomlevel) },
             x_index,
-            y_zoomlevel,
+            y_zoomlevel: unsafe { ZoomLevel::new_unchecked(y_zoomlevel) },
             y_index,
             temporal_id,
         }

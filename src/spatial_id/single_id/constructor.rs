@@ -1,25 +1,22 @@
 use crate::SingleId;
+use crate::spatial_id::zoom_level::ZoomLevel;
 
-use crate::{
-    SpatialIdError, TemporalId,
-    error::Error,
-    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-};
+use crate::{TemporalId, error::Error};
 
 impl SingleId {
     /// 指定された値から [`SingleId`] を作成する。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # パラメータ
-    /// * `z` — ズームレベル（0–[MAX_ZOOM_LEVEL]の範囲が有効）
+    /// * `z` — ズームレベル（0–[`crate::(ZoomLevel::MAX.get() as usize)`]の範囲が有効）
     /// * `f` — Fインデックス（鉛直方向）
     /// * `x` — Xインデックス（東西方向）
     /// * `y` — Yインデックス（南北方向）
     ///
     /// # バリデーション
-    /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、
+    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `f` がズームレベル `z` に対する `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
     ///   [`SpatialIdError::FOutOfRange`] を返す。
-    /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、
+    /// - `x` または `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲外の場合、
     ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
     ///
     ///
@@ -46,26 +43,13 @@ impl SingleId {
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-        let xy_max = XY_MAX[z as usize];
-
-        if f < f_min || f > f_max {
-            return Err(SpatialIdError::FOutOfRange { f, z }.into());
-        }
-        if x > xy_max {
-            return Err(SpatialIdError::XOutOfRange { x, z }.into());
-        }
-        if y > xy_max {
-            return Err(SpatialIdError::YOutOfRange { y, z }.into());
-        }
+        let zoom = ZoomLevel::new(z)?;
+        zoom.check_f(f)?;
+        zoom.check_x(x)?;
+        zoom.check_y(y)?;
 
         Ok(SingleId {
-            z,
+            z: zoom,
             f,
             x,
             y,
@@ -80,9 +64,9 @@ impl SingleId {
     /// # 注意
     /// 呼び出し側は、以下をすべて満たすことを保証しなければならない。
     ///
-    /// * `z` が有効なズームレベル（0–[MAX_ZOOM_LEVEL]）であること
-    /// * `f` が与えられた `z` に応じて `F_MIN[z]..=F_MAX[z]` の範囲内であること
-    /// * `x` および `y` が `0..=XY_MAX[z]` の範囲内であること
+    /// * `z` が有効なズームレベル（0–[`crate::(ZoomLevel::MAX.get() as usize)`]）であること
+    /// * `f` が与えられた `z` に応じて `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
+    /// * `x` および `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること
     ///
     /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。
     ///
@@ -101,7 +85,7 @@ impl SingleId {
     /// 呼び出し側は、`z` / `f` / `x` / `y` が各ズームレベルの有効範囲内であることを保証しなければなりません。
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId {
-            z,
+            z: unsafe { ZoomLevel::new_unchecked(z) },
             f,
             x,
             y,
@@ -112,17 +96,17 @@ impl SingleId {
     /// 指定された値から時間情報を指定した [`SingleId`] を作成する。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
     ///
     /// # パラメータ
-    /// * `z` — ズームレベル（0–[MAX_ZOOM_LEVEL]の範囲が有効）
+    /// * `z` — ズームレベル（0–[(ZoomLevel::MAX.get() as usize)]の範囲が有効）
     /// * `f` — Fインデックス（鉛直方向）
     /// * `x` — Xインデックス（東西方向）
     /// * `y` — Yインデックス（南北方向）
     /// * `temporal_id` — [TemporalId](時間ID)
     ///
     /// # バリデーション
-    /// - `z` が [`MAX_ZOOM_LEVEL`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `f` がズームレベル `z` に対する `F_MIN[z]..=F_MAX[z]` の範囲外の場合、
+    /// - `z` が [`(ZoomLevel::MAX.get() as usize)`] を超える場合、[`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `f` がズームレベル `z` に対する `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲外の場合、
     ///   [`SpatialIdError::FOutOfRange`] を返す。
-    /// - `x` または `y` が `0..=XY_MAX[z]` の範囲外の場合、
+    /// - `x` または `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲外の場合、
     ///   それぞれ [`SpatialIdError::XOutOfRange`]、[`SpatialIdError::YOutOfRange`] を返す。
     ///
     ///
@@ -143,30 +127,16 @@ impl SingleId {
         y: u32,
         temporal_id: TemporalId,
     ) -> Result<SingleId, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
-        let xy_max = XY_MAX[z as usize];
-
-        if f < f_min || f > f_max {
-            return Err(SpatialIdError::FOutOfRange { f, z }.into());
-        }
-        if x > xy_max {
-            return Err(SpatialIdError::XOutOfRange { x, z }.into());
-        }
-        if y > xy_max {
-            return Err(SpatialIdError::YOutOfRange { y, z }.into());
-        }
+        let zoom = ZoomLevel::new(z)?;
+        zoom.check_f(f)?;
+        zoom.check_x(x)?;
+        zoom.check_y(y)?;
 
         Ok(SingleId {
-            z,
+            z: zoom,
             f,
             x,
             y,
-
             temporal_id,
         })
     }
@@ -178,9 +148,9 @@ impl SingleId {
     /// # 注意
     /// 呼び出し側は、以下をすべて満たすことを保証しなければならない。
     ///
-    /// * `z` が有効なズームレベル（0–[MAX_ZOOM_LEVEL]）であること
-    /// * `f` が与えられた `z` に応じて `F_MIN[z]..=F_MAX[z]` の範囲内であること
-    /// * `x` および `y` が `0..=XY_MAX[z]` の範囲内であること
+    /// * `z` が有効なズームレベル（0–[(ZoomLevel::MAX.get() as usize)]）であること
+    /// * `f` が与えられた `z` に応じて `unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
+    /// * `x` および `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること
     ///
     /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。
     ///
@@ -209,7 +179,7 @@ impl SingleId {
         temporal_id: TemporalId,
     ) -> SingleId {
         SingleId {
-            z,
+            z: unsafe { ZoomLevel::new_unchecked(z) },
             f,
             x,
             y,

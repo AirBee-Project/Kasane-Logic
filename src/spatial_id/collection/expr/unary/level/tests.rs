@@ -1,3 +1,4 @@
+use crate::spatial_id::zoom_level::ZoomLevel;
 use crate::{ConflictPolicy, FlexId, LevelOps, SingleId, SpatialIdSet, SpatialIdTable};
 
 fn table_with(z: u8, f: i32, x: u32, y: u32) -> SpatialIdTable<bool> {
@@ -73,8 +74,24 @@ fn level_f_order_independent() {
 #[test]
 fn level_f_out_of_range_is_error() {
     let table = table_with(25, 0, 100, 100);
-    assert!(table.level_f(25, 0, crate::F_MAX[25] + 1).is_err());
-    assert!(table.level_f(25, crate::F_MIN[25] - 1, 0).is_err());
+    assert!(
+        table
+            .level_f(
+                25,
+                0,
+                unsafe { ZoomLevel::new_unchecked(25_u8) }.f_max() + 1
+            )
+            .is_err()
+    );
+    assert!(
+        table
+            .level_f(
+                25,
+                unsafe { ZoomLevel::new_unchecked(25_u8) }.f_min() - 1,
+                0
+            )
+            .is_err()
+    );
 }
 
 // ---- X方向（巡回） ----
@@ -106,7 +123,11 @@ fn level_x_wraps_across_seam() {
 #[test]
 fn level_x_out_of_range_is_error() {
     let table = table_with(2, 0, 0, 0);
-    assert!(table.level_x(2, 0, crate::XY_MAX[2] + 1).is_err());
+    assert!(
+        table
+            .level_x(2, 0, unsafe { ZoomLevel::new_unchecked(2_u8) }.xy_max() + 1)
+            .is_err()
+    );
 }
 
 // ---- Y方向（境界） ----
@@ -126,7 +147,15 @@ fn level_y_fills_range() {
 #[test]
 fn level_y_out_of_range_is_error() {
     let table = table_with(25, 0, 100, 0);
-    assert!(table.level_y(25, 0, crate::XY_MAX[25] + 1).is_err());
+    assert!(
+        table
+            .level_y(
+                25,
+                0,
+                unsafe { ZoomLevel::new_unchecked(25_u8) }.xy_max() + 1
+            )
+            .is_err()
+    );
 }
 
 // ---- 総称化の確認 ----

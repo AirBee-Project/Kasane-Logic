@@ -34,10 +34,10 @@ impl CoverSingleIds for Polygon {
     /// 境界上の空間IDは重複しないように排除される。
     ///
     /// # パラメーター
-    /// * `z` — 取得する空間IDのズームレベル（0 以上 `MAX_ZOOM_LEVEL` 以下。現状 30）
+    /// * `z` — 取得する空間IDのズームレベル（0 以上 `(ZoomLevel::MAX.get() as usize)` 以下。現状 30）
     ///
     /// # バリデーション
-    /// - `z` が `MAX_ZOOM_LEVEL` を超える場合、`crate::Error`（例: `Error::SpatialId(SpatialIdError::ZOutOfRange { .. })`）を返す。
+    /// - `z` が `(ZoomLevel::MAX.get() as usize)` を超える場合、`crate::Error`（例: `Error::SpatialId(SpatialIdError::ZOutOfRange { .. })`）を返す。
     /// - 内部の三角形分割や各三角形の空間ID計算で不正な座標が現れた場合などは、対応する `crate::Error` を返す。
     ///
     /// # 動作コスト

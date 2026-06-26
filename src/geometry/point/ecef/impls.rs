@@ -1,8 +1,7 @@
 use core::{fmt, ops::Sub};
 
 use crate::{
-    Coordinate, Ecef, Error, MAX_ZOOM_LEVEL, Point, SpatialIdError, WGS84_A, WGS84_E2, WGS84_F,
-    geometry::traits::CoverSingleIds,
+    Coordinate, Ecef, Error, Point, WGS84_A, WGS84_E2, WGS84_F, geometry::traits::CoverSingleIds,
 };
 
 impl fmt::Debug for Ecef {
@@ -67,9 +66,7 @@ impl CoverSingleIds for Ecef {
         &self,
         z: u8,
     ) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-        Ok(core::iter::once(self.single_id(z)?))
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        Ok(core::iter::once(self.single_id(zoom.get())?))
     }
 }

@@ -1,6 +1,6 @@
+use crate::spatial_id::zoom_level::ZoomLevel;
 use alloc::vec::Vec;
 
-use crate::spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX};
 use crate::{SingleId, SpatialIdError, error::Error};
 
 #[test]
@@ -78,10 +78,22 @@ fn spatial_encode_roundtrip_at_zero_zoom_boundaries() {
 
 #[test]
 fn spatial_encode_roundtrip_at_max_zoom_boundaries() {
-    let z = MAX_ZOOM_LEVEL as u8;
+    let z = ZoomLevel::MAX.get();
     let cases = [
-        SingleId::new(z, F_MIN[z as usize], 0, 0).unwrap(),
-        SingleId::new(z, F_MAX[z as usize], XY_MAX[z as usize], XY_MAX[z as usize]).unwrap(),
+        SingleId::new(
+            z,
+            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.f_min(),
+            0,
+            0,
+        )
+        .unwrap(),
+        SingleId::new(
+            z,
+            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.f_max(),
+            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.xy_max(),
+            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.xy_max(),
+        )
+        .unwrap(),
     ];
 
     for id in cases {

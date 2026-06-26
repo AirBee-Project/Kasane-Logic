@@ -1,4 +1,5 @@
 use crate::SingleId;
+use crate::spatial_id::zoom_level::ZoomLevel;
 
 impl SingleId {
     /// 自身を前方一致検索しやすい固定長バイト列に変換する。
@@ -9,7 +10,7 @@ impl SingleId {
     ///
     /// # 動作コスト
     ///
-    /// ズームレベル `z` に比例して計算量が増加する。最大でも `MAX_ZOOM_LEVEL` に比例する。
+    /// ズームレベル `z` に比例して計算量が増加する。最大でも `(ZoomLevel::MAX.get() as usize)` に比例する。
     ///
     /// # 動作例
     ///
@@ -23,7 +24,7 @@ impl SingleId {
     pub fn spatial_encode(&self) -> [u8; 12] {
         let mut v: u128 = 0;
         let z = self.z();
-        let f_shifted = (self.f() - crate::spatial_id::constants::F_MIN[z as usize]) as u128;
+        let f_shifted = (self.f() - unsafe { ZoomLevel::new_unchecked(z) }.f_min()) as u128;
         let x = self.x() as u128;
         let y = self.y() as u128;
 
@@ -55,7 +56,7 @@ impl SingleId {
     ///
     /// # 動作コスト
     ///
-    /// ズームレベル `z` に比例して計算量が増加する。最大でも `MAX_ZOOM_LEVEL` に比例する。
+    /// ズームレベル `z` に比例して計算量が増加する。最大でも `(ZoomLevel::MAX.get() as usize)` に比例する。
     ///
     /// # 動作例
     ///
@@ -69,7 +70,7 @@ impl SingleId {
     pub fn spatial_encode_prefix_max(&self) -> [u8; 12] {
         let mut v: u128 = 0;
         let z = self.z();
-        let f_shifted = (self.f() - crate::spatial_id::constants::F_MIN[z as usize]) as u128;
+        let f_shifted = (self.f() - unsafe { ZoomLevel::new_unchecked(z) }.f_min()) as u128;
         let x = self.x() as u128;
         let y = self.y() as u128;
 
@@ -103,12 +104,12 @@ impl SingleId {
     ///
     /// # バリデーション
     ///
-    /// - バイト列に含まれるズームレベルが [`MAX_ZOOM_LEVEL`] を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返す。
+    /// - バイト列に含まれるズームレベルが [`crate::(ZoomLevel::MAX.get() as usize)`] を超える場合、[`crate::SpatialIdError::ZOutOfRange`] を返す。
     /// - 復元した `f` / `x` / `y` が範囲外になる場合は、各種範囲外エラーを返す。
     ///
     /// # 動作コスト
     ///
-    /// ズームレベル `z` に比例して計算量が増加する。最大でも `MAX_ZOOM_LEVEL` に比例する。
+    /// ズームレベル `z` に比例して計算量が増加する。最大でも `(ZoomLevel::MAX.get() as usize)` に比例する。
     ///
     /// # 動作例
     ///
@@ -125,7 +126,7 @@ impl SingleId {
         let v = u128::from_be_bytes(v_bytes);
         let z_mask = 0b11111 << 32;
         let z = ((v & z_mask) >> 32) as u8;
-        if z > crate::spatial_id::constants::MAX_ZOOM_LEVEL as u8 {
+        if z > ZoomLevel::MAX.get() {
             return Err(crate::error::Error::SpatialId(
                 crate::SpatialIdError::ZOutOfRange { z },
             ));
@@ -148,7 +149,7 @@ impl SingleId {
             shift -= 1;
         }
 
-        let f = (f_shifted as i64 + crate::spatial_id::constants::F_MIN[z as usize] as i64) as i32;
+        let f = (f_shifted as i64 + unsafe { ZoomLevel::new_unchecked(z) }.f_min() as i64) as i32;
 
         crate::spatial_id::single_id::SingleId::new(z, f, x, y)
     }

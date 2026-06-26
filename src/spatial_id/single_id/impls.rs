@@ -1,8 +1,8 @@
+use crate::spatial_id::zoom_level::ZoomLevel;
 use alloc::string::ToString;
 
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, SingleId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
-    spatial_id::helpers,
+    Coordinate, Ecef, Error, SingleId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
 };
 use core::fmt;
 use core::str::FromStr;
@@ -20,7 +20,7 @@ impl fmt::Display for SingleId {
     /// assert_eq!(s, "4/6/9/10");
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}/{}/{}/{}", self.z, self.f, self.x, self.y)?;
+        write!(f, "{}/{}/{}/{}", self.z.get(), self.f, self.x, self.y)?;
         //時間の情報があれば書き込み
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
@@ -31,19 +31,19 @@ impl fmt::Display for SingleId {
 
 impl SpatialId for SingleId {
     fn f_min(&self) -> i32 {
-        F_MIN[self.z() as usize]
+        unsafe { ZoomLevel::new_unchecked(self.z()) }.f_min()
     }
 
     fn f_max(&self) -> i32 {
-        F_MAX[self.z() as usize]
+        unsafe { ZoomLevel::new_unchecked(self.z()) }.f_max()
     }
 
     fn x_max(&self) -> u32 {
-        XY_MAX[self.z() as usize]
+        unsafe { ZoomLevel::new_unchecked(self.z()) }.xy_max()
     }
 
     fn y_max(&self) -> u32 {
-        XY_MAX[self.z() as usize]
+        unsafe { ZoomLevel::new_unchecked(self.z()) }.xy_max()
     }
 
     /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かします。
@@ -78,12 +78,16 @@ impl SpatialId for SingleId {
         let new = self.f.checked_add(by).ok_or_else(|| {
             Error::from(SpatialIdError::FOutOfRange {
                 f: if by >= 0 { i32::MAX } else { i32::MIN },
-                z: self.z,
+                z: self.z.get(),
             })
         })?;
 
         if new < self.f_min() || new > self.f_max() {
-            return Err(SpatialIdError::FOutOfRange { f: new, z: self.z }.into());
+            return Err(SpatialIdError::FOutOfRange {
+                f: new,
+                z: self.z.get(),
+            }
+            .into());
         }
 
         self.f = new;
@@ -156,7 +160,7 @@ impl SpatialId for SingleId {
             self.y.checked_add(by as u32).ok_or_else(|| {
                 Error::from(SpatialIdError::YOutOfRange {
                     y: u32::MAX,
-                    z: self.z,
+                    z: self.z.get(),
                 })
             })?
         } else {
@@ -164,12 +168,16 @@ impl SpatialId for SingleId {
                 .checked_sub(by.unsigned_abs())
                 .ok_or(SpatialIdError::YOutOfRange {
                     y: self.y_min(),
-                    z: self.z,
+                    z: self.z.get(),
                 })?
         };
 
         if new > self.y_max() {
-            return Err(SpatialIdError::YOutOfRange { y: new, z: self.z }.into());
+            return Err(SpatialIdError::YOutOfRange {
+                y: new,
+                z: self.z.get(),
+            }
+            .into());
         }
 
         self.y = new;
@@ -193,9 +201,9 @@ impl SpatialId for SingleId {
     fn spatial_center(&self) -> Coordinate {
         unsafe {
             Coordinate::new_unchecked(
-                helpers::latitude(self.y as f64 + 0.5, self.z),
-                helpers::longitude(self.x as f64 + 0.5, self.z),
-                helpers::altitude(self.f as f64 + 0.5, self.z),
+                helpers::latitude(self.y as f64 + 0.5, self.z.get()),
+                helpers::longitude(self.x as f64 + 0.5, self.z.get()),
+                helpers::altitude(self.f as f64 + 0.5, self.z.get()),
             )
         }
     }
@@ -221,16 +229,16 @@ impl SpatialId for SingleId {
 
         // 各端点の値を前計算しておく
         let lon2 = [
-            helpers::longitude(xs[0], self.z),
-            helpers::longitude(xs[1], self.z),
+            helpers::longitude(xs[0], self.z.get()),
+            helpers::longitude(xs[1], self.z.get()),
         ];
         let lat2 = [
-            helpers::latitude(ys[0], self.z),
-            helpers::latitude(ys[1], self.z),
+            helpers::latitude(ys[0], self.z.get()),
+            helpers::latitude(ys[1], self.z.get()),
         ];
         let alt2 = [
-            helpers::altitude(fs[0], self.z),
-            helpers::altitude(fs[1], self.z),
+            helpers::altitude(fs[0], self.z.get()),
+            helpers::altitude(fs[1], self.z.get()),
         ];
 
         // 結果配列

@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    Coordinate, Ecef, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialId, SpatialIdError, Sphere, WGS84_A,
+    Coordinate, Ecef, Shape, SingleId, SpatialId, Sphere, WGS84_A,
     geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
 };
 
@@ -13,9 +13,8 @@ impl Shape for Sphere {
 
 impl CoverSingleIds for Sphere {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let z = zoom.get();
 
         let center = self.center;
         let radius = self.radius_m;

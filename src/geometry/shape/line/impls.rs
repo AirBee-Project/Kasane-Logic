@@ -1,9 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{
-    Coordinate, Ecef, Error, Line, MAX_ZOOM_LEVEL, Shape, SingleId, SpatialIdError,
-    geometry::traits::CoverSingleIds,
-};
+use crate::{Coordinate, Ecef, Error, Line, Shape, SingleId, geometry::traits::CoverSingleIds};
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
@@ -13,9 +10,8 @@ impl Shape for Line {
 
 impl CoverSingleIds for Line {
     fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let z = zoom.get();
         let a = self.points[0];
         let b = self.points[1];
 
@@ -54,9 +50,8 @@ impl CoverSingleIds for Line {
 
 ///DDAを用いたLine関数
 fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
-    if z > MAX_ZOOM_LEVEL as u8 {
-        return Err(SpatialIdError::ZOutOfRange { z }.into());
-    }
+    let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+    let z = zoom.get();
     let origin1 = coordinate_to_matrix(a, z);
     let origin2 = coordinate_to_matrix(b, z);
     let offsets = origin1.map(libm::floor);

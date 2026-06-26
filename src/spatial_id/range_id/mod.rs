@@ -6,10 +6,7 @@ pub mod random;
 use crate::{
     SpatialId, SpatialIdError, TemporalId,
     error::Error,
-    spatial_id::{
-        constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
-        helpers,
-    },
+    spatial_id::{helpers, zoom_level::ZoomLevel},
 };
 
 /// RangeIdは空間IDの範囲表現を表す型です。
@@ -19,8 +16,9 @@ use crate::{
 /// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
 ///
 /// ```
+/// # use kasane_logic::ZoomLevel;
 /// pub struct RangeId {
-///     z: u8,
+///     z: ZoomLevel,
 ///     f: [i32; 2],
 ///     x: [u32; 2],
 ///     y: [u32; 2],
@@ -28,7 +26,7 @@ use crate::{
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 pub struct RangeId {
-    z: u8,
+    z: ZoomLevel,
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
@@ -45,7 +43,7 @@ impl RangeId {
     /// assert_eq!(id.z(), 5u8);
     /// ```
     pub fn z(&self) -> u8 {
-        self.z
+        self.z.get()
     }
 
     /// この `RangeId` が保持しているズームレベル `[f1,f2]` を返します。
@@ -85,10 +83,10 @@ impl RangeId {
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
-        let z = self.z;
+        let z = self.z.get();
         let mut value = value;
-        let f_min = F_MIN[z as usize];
-        let f_max = F_MAX[z as usize];
+        let f_min = unsafe { ZoomLevel::new_unchecked(z) }.f_min();
+        let f_max = unsafe { ZoomLevel::new_unchecked(z) }.f_max();
 
         for &f_value in &value {
             if f_value < f_min || f_value > f_max {
@@ -105,8 +103,8 @@ impl RangeId {
     }
 
     pub fn set_x(&mut self, value: [u32; 2]) -> Result<(), Error> {
-        let z = self.z;
-        let xy_max = XY_MAX[z as usize];
+        let z = self.z.get();
+        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max();
 
         for &x_value in &value {
             if x_value > xy_max {
@@ -119,9 +117,9 @@ impl RangeId {
     }
 
     pub fn set_y(&mut self, value: [u32; 2]) -> Result<(), Error> {
-        let z = self.z;
+        let z = self.z.get();
         let mut value = value;
-        let xy_max = XY_MAX[z as usize];
+        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max();
 
         for &y_value in &value {
             if y_value > xy_max {
@@ -164,19 +162,20 @@ impl RangeId {
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 4 }))));
     /// ```
     pub fn spatial_children_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
-        if target_z < self.z {
+        let z = self.z.get();
+        if target_z < z {
             return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z: self.z,
+                current_z: z,
                 target_z,
             }
             .into());
         }
 
-        if target_z as usize > MAX_ZOOM_LEVEL {
+        if target_z as usize > (ZoomLevel::MAX.get() as usize) {
             return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
         }
 
-        let difference = target_z - self.z;
+        let difference = target_z - z;
         let scale_f = 2_i32.pow(difference as u32);
         let scale_xy = 2_u32.pow(difference as u32);
 
@@ -185,7 +184,7 @@ impl RangeId {
         let y = helpers::scale_range_u32(self.y[0], self.y[1], scale_xy);
 
         Ok(RangeId {
-            z: target_z,
+            z: unsafe { ZoomLevel::new_unchecked(target_z) },
             f,
             x,
             y,
@@ -238,19 +237,20 @@ impl RangeId {
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 6 }))));
     /// ```
     pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
-        if target_z > self.z {
+        let z = self.z.get();
+        if target_z > z {
             return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z: self.z,
+                current_z: z,
                 target_z,
             }
             .into());
         }
 
-        if target_z as usize > MAX_ZOOM_LEVEL {
+        if target_z as usize > (ZoomLevel::MAX.get() as usize) {
             return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
         }
 
-        let shift = (self.z - target_z) as u32;
+        let shift = (z - target_z) as u32;
 
         let f = [
             if self.f[0] == -1 {
@@ -269,7 +269,7 @@ impl RangeId {
         let y = [self.y[0] >> shift, self.y[1] >> shift];
 
         Ok(RangeId {
-            z: target_z,
+            z: unsafe { ZoomLevel::new_unchecked(target_z) },
             f,
             x,
             y,

@@ -1,3 +1,4 @@
+use crate::spatial_id::zoom_level::ZoomLevel;
 pub mod impls;
 
 #[cfg(test)]
@@ -7,8 +8,7 @@ use core::borrow::Borrow;
 
 use crate::{
     Ecef, FractionalId, SingleId,
-    error::{Error, GeometryError, SpatialIdError},
-    spatial_id::constants::{F_MAX, F_MIN, MAX_ZOOM_LEVEL, XY_MAX},
+    error::{Error, GeometryError},
 };
 
 /// 緯度・経度・高度を表す型。
@@ -217,17 +217,16 @@ impl Coordinate {
     /// )
     /// ```
     pub fn single_id(&self, z: u8) -> Result<SingleId, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let z = zoom.get();
 
         let lat = self.latitude;
         let lon = self.longitude;
         let alt = self.altitude;
 
-        let f_min = F_MIN[z as usize] as i64;
-        let f_max = F_MAX[z as usize] as i64;
-        let xy_max = XY_MAX[z as usize] as i64;
+        let f_min = unsafe { ZoomLevel::new_unchecked(z) }.f_min() as i64;
+        let f_max = unsafe { ZoomLevel::new_unchecked(z) }.f_max() as i64;
+        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max() as i64;
 
         //Z=25のとき高さはちょうど1m
         let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
@@ -269,9 +268,8 @@ impl Coordinate {
     /// )
     /// ```
     pub fn fractional_id(&self, z: u8) -> Result<FractionalId, Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let z = zoom.get();
 
         let lat = self.latitude;
         let lon = self.longitude;

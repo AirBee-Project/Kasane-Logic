@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use crate::{
     FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
-    XY_MAX,
+    spatial_id::zoom_level::ZoomLevel,
 };
 
 /// XYにおけるセグメントの最適配置関数
@@ -41,7 +41,7 @@ impl From<SingleId> for RangeId {
 impl From<&SingleId> for RangeId {
     fn from(id: &SingleId) -> Self {
         RangeId {
-            z: id.z(),
+            z: unsafe { ZoomLevel::new_unchecked(id.z()) },
             f: [id.f(), id.f()],
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
@@ -54,7 +54,7 @@ impl From<&SingleId> for RangeId {
 impl IntoSingleIds for RangeId {
     type IntoIter = Box<dyn Iterator<Item = SingleId>>;
     fn into_single_ids(self) -> Self::IntoIter {
-        let z = self.z;
+        let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
         let y_range = self.y[0]..=self.y[1];
         let t_id = self.temporal_id.clone();
@@ -66,7 +66,7 @@ impl IntoSingleIds for RangeId {
             let x_iter = if self.x[0] <= self.x[1] {
                 (self.x[0]..=self.x[1]).collect::<Vec<_>>()
             } else {
-                (self.x[0]..=XY_MAX[z as usize])
+                (self.x[0]..=unsafe { ZoomLevel::new_unchecked(z) }.xy_max())
                     .chain(0..=self.x[1])
                     .collect::<Vec<_>>()
             };
@@ -94,7 +94,7 @@ impl IntoSingleIds for RangeId {
 impl IterSingleIds for RangeId {
     type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
     fn iter_single_ids(&self) -> Self::Iter<'_> {
-        let z = self.z;
+        let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
         let y_range = self.y[0]..=self.y[1];
 
@@ -104,7 +104,7 @@ impl IterSingleIds for RangeId {
             let x_iter = if self.x[0] <= self.x[1] {
                 (self.x[0]..=self.x[1]).collect::<Vec<_>>()
             } else {
-                (self.x[0]..=XY_MAX[z as usize])
+                (self.x[0]..=unsafe { ZoomLevel::new_unchecked(z) }.xy_max())
                     .chain(0..=self.x[1])
                     .collect::<Vec<_>>()
             };
@@ -139,16 +139,20 @@ impl IntoFlexIds for RangeId {
     type IntoIter = Box<dyn Iterator<Item = FlexId>>;
 
     fn into_flex_ids(self) -> Self::IntoIter {
-        let f_list: Vec<_> = split_f(self.z, self.f).collect();
+        let z = self.z.get();
+        let f_list: Vec<_> = split_f(z, self.f).collect();
 
         let x_list: Vec<_> = if self.x[0] <= self.x[1] {
-            split_xy(self.z, self.x).collect()
+            split_xy(z, self.x).collect()
         } else {
-            split_xy(self.z, [self.x[0], XY_MAX[self.z as usize]])
-                .chain(split_xy(self.z, [0, self.x[1]]))
-                .collect()
+            split_xy(
+                z,
+                [self.x[0], unsafe { ZoomLevel::new_unchecked(z) }.xy_max()],
+            )
+            .chain(split_xy(z, [0, self.x[1]]))
+            .collect()
         };
-        let y_list: Vec<_> = split_xy(self.z, self.y).collect();
+        let y_list: Vec<_> = split_xy(z, self.y).collect();
 
         let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
             let y_list_inner = y_list.clone();

@@ -1,10 +1,10 @@
+use crate::spatial_id::zoom_level::ZoomLevel;
 use alloc::string::ToString;
 
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, Error, F_MAX, F_MIN, FlexId, SpatialId, SpatialIdError, TemporalId, XY_MAX,
-    spatial_id::helpers,
+    Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
 };
 use core::str::FromStr;
 
@@ -14,11 +14,11 @@ impl fmt::Display for FlexId {
         write!(
             f,
             "{}/{}|{}/{}|{}/{}",
-            self.f_zoomlevel,
+            self.f_zoomlevel.get(),
             self.f_index,
-            self.x_zoomlevel,
+            self.x_zoomlevel.get(),
             self.x_index,
-            self.y_zoomlevel,
+            self.y_zoomlevel.get(),
             self.y_index
         )?;
 
@@ -32,33 +32,33 @@ impl fmt::Display for FlexId {
 
 impl SpatialId for FlexId {
     fn f_min(&self) -> i32 {
-        F_MIN[self.f_zoomlevel as usize]
+        unsafe { ZoomLevel::new_unchecked(self.f_zoomlevel.get()) }.f_min()
     }
 
     fn f_max(&self) -> i32 {
-        F_MAX[self.f_zoomlevel as usize]
+        unsafe { ZoomLevel::new_unchecked(self.f_zoomlevel.get()) }.f_max()
     }
 
     fn x_max(&self) -> u32 {
-        XY_MAX[self.x_zoomlevel as usize]
+        unsafe { ZoomLevel::new_unchecked(self.x_zoomlevel.get()) }.xy_max()
     }
 
     fn y_max(&self) -> u32 {
-        XY_MAX[self.y_zoomlevel as usize]
+        unsafe { ZoomLevel::new_unchecked(self.y_zoomlevel.get()) }.xy_max()
     }
 
     fn move_f(&mut self, by: i32) -> Result<(), crate::Error> {
         let new = self.f_index.checked_add(by).ok_or_else(|| {
             Error::from(SpatialIdError::FOutOfRange {
                 f: if by >= 0 { i32::MAX } else { i32::MIN },
-                z: self.f_zoomlevel,
+                z: self.f_zoomlevel.get(),
             })
         })?;
 
         if new < self.f_min() || new > self.f_max() {
             return Err(SpatialIdError::FOutOfRange {
                 f: new,
-                z: self.f_zoomlevel,
+                z: self.f_zoomlevel.get(),
             }
             .into());
         }
@@ -78,7 +78,7 @@ impl SpatialId for FlexId {
             self.y_index.checked_add(by as u32).ok_or_else(|| {
                 Error::from(SpatialIdError::YOutOfRange {
                     y: u32::MAX,
-                    z: self.y_zoomlevel,
+                    z: self.y_zoomlevel.get(),
                 })
             })?
         } else {
@@ -86,14 +86,14 @@ impl SpatialId for FlexId {
                 .checked_sub(by.unsigned_abs())
                 .ok_or(SpatialIdError::YOutOfRange {
                     y: self.y_min(),
-                    z: self.y_zoomlevel,
+                    z: self.y_zoomlevel.get(),
                 })?
         };
 
         if new > self.y_max() {
             return Err(SpatialIdError::YOutOfRange {
                 y: new,
-                z: self.y_zoomlevel,
+                z: self.y_zoomlevel.get(),
             }
             .into());
         }
@@ -122,9 +122,9 @@ impl SpatialId for FlexId {
     fn spatial_center(&self) -> crate::Coordinate {
         unsafe {
             Coordinate::new_unchecked(
-                helpers::latitude(self.y_index as f64 + 0.5, self.y_zoomlevel),
-                helpers::longitude(self.x_index as f64 + 0.5, self.x_zoomlevel),
-                helpers::altitude(self.f_index as f64 + 0.5, self.f_zoomlevel),
+                helpers::latitude(self.y_index as f64 + 0.5, self.y_zoomlevel.get()),
+                helpers::longitude(self.x_index as f64 + 0.5, self.x_zoomlevel.get()),
+                helpers::altitude(self.f_index as f64 + 0.5, self.f_zoomlevel.get()),
             )
         }
     }
@@ -136,16 +136,16 @@ impl SpatialId for FlexId {
 
         // 各端点の値を前計算しておく
         let lon2 = [
-            helpers::longitude(xs[0], self.x_zoomlevel),
-            helpers::longitude(xs[1], self.x_zoomlevel),
+            helpers::longitude(xs[0], self.x_zoomlevel.get()),
+            helpers::longitude(xs[1], self.x_zoomlevel.get()),
         ];
         let lat2 = [
-            helpers::latitude(ys[0], self.y_zoomlevel),
-            helpers::latitude(ys[1], self.y_zoomlevel),
+            helpers::latitude(ys[0], self.y_zoomlevel.get()),
+            helpers::latitude(ys[1], self.y_zoomlevel.get()),
         ];
         let alt2 = [
-            helpers::altitude(fs[0], self.f_zoomlevel),
-            helpers::altitude(fs[1], self.f_zoomlevel),
+            helpers::altitude(fs[0], self.f_zoomlevel.get()),
+            helpers::altitude(fs[1], self.f_zoomlevel.get()),
         ];
 
         // 結果配列

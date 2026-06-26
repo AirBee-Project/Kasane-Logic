@@ -1,15 +1,13 @@
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, FractionalId, Point, SpatialIdError,
-    geometry::traits::CoverSingleIds,
-    spatial_id::{constants::MAX_ZOOM_LEVEL, helpers},
+    Coordinate, Ecef, FractionalId, Point, geometry::traits::CoverSingleIds, spatial_id::helpers,
 };
 
 impl fmt::Debug for FractionalId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("FractionalId")
-            .field("z", &self.z)
+            .field("z", &self.z.get())
             .field("f", &self.f)
             .field("x", &self.x)
             .field("y", &self.y)
@@ -20,9 +18,10 @@ impl fmt::Debug for FractionalId {
 impl From<FractionalId> for Coordinate {
     /// `FractionalId` から地理座標（`Coordinate`）への変換。
     fn from(value: FractionalId) -> Self {
-        let alt = helpers::altitude(value.f, value.z);
-        let lat = helpers::latitude(value.y, value.z);
-        let lon = helpers::longitude(value.x, value.z);
+        let z = value.z.get();
+        let alt = helpers::altitude(value.f, z);
+        let lat = helpers::latitude(value.y, z);
+        let lon = helpers::longitude(value.x, z);
         unsafe { Coordinate::new_unchecked(lat, lon, alt) }
     }
 }
@@ -42,10 +41,8 @@ impl CoverSingleIds for FractionalId {
         &self,
         z: u8,
     ) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
-        if z > MAX_ZOOM_LEVEL as u8 {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
         let coord: Coordinate = (*self).into();
-        Ok(core::iter::once(coord.single_id(z)?))
+        Ok(core::iter::once(coord.single_id(zoom.get())?))
     }
 }
