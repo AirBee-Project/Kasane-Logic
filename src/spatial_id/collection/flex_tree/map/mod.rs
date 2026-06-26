@@ -133,3 +133,21 @@ where
         self.inner.iter_ref()
     }
 }
+
+/// DB 用途（値＝バイト列）の永続化。ジェネリック境界を避けるため `Vec<u8>` 固定で提供する。
+#[cfg(feature = "persist")]
+impl SpatialIdMap<Vec<u8>> {
+    /// この [`SpatialIdMap`] を rkyv バイト列へ直列化する。
+    pub fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, rkyv::rancor::Error> {
+        Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.to_vec())
+    }
+
+    /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から復元する。
+    ///
+    /// # Safety
+    /// `bytes` は [`SpatialIdMap::to_bytes`] が生成した正当なバイト列でなければならない。
+    pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
+        let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdMap<Vec<u8>>>(bytes) };
+        rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
+    }
+}
