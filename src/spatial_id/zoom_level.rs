@@ -10,6 +10,10 @@ use core::fmt;
 /// ```
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
 pub struct ZoomLevel(u8);
 
 impl fmt::Display for ZoomLevel {

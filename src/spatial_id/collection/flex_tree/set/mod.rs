@@ -69,6 +69,18 @@ impl SpatialIdSet {
         SpatialIdSet::default()
     }
 
+    /// シャード領域 `region` に閉じた空の [`SpatialIdSet`] を作成します。
+    ///
+    /// 以降この集合は `region` の内側だけを保持します。`region` の外側への
+    /// 挿入は無視され、`region` をまたぐ粗い挿入は `region` に切り詰められます。
+    /// 集合演算では、相手とシャード領域が交わらない場合に走査を省いて早期に
+    /// 返します。
+    pub fn new_in_shard(region: FlexId) -> Self {
+        Self {
+            inner: FlexTreeCore::new_in_shard(region),
+        }
+    }
+
     pub fn insert<S: IterFlexIds>(&mut self, target: S) {
         self.inner.insert(target, ());
     }

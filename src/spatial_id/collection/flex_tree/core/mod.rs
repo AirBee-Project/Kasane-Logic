@@ -15,7 +15,7 @@ pub(crate) mod ptr;
 use ptr::SharedNode;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -49,6 +49,10 @@ where
     pub(crate) lower_root: SharedNode<Node<V>>,
     pub(crate) upper_root: SharedNode<Node<V>>,
     pub(crate) empty_leaf: SharedNode<Node<V>>,
+
+    /// このツリーが閉じているシャード領域。`None` は全空間。
+    /// `Some(region)` のとき、`region` の外側への挿入は無視される。
+    pub(crate) shard: Option<FlexId>,
 }
 
 impl<V> Default for FlexTreeCore<V>
@@ -57,6 +61,39 @@ where
 {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<V> PartialEq for FlexTreeCore<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.lower_root == other.lower_root && self.upper_root == other.upper_root
+    }
+}
+
+impl<V> Eq for FlexTreeCore<V> where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue
+{
+}
+
+/// union 結果のシャード領域を決める。両者が同一領域ならそれを保ち、
+/// 異なる・無制限が絡む場合は全空間（`None`）とみなす。
+fn shard_after_union(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
+    match (a, b) {
+        (Some(a), Some(b)) if a == b => Some(a.clone()),
+        _ => None,
+    }
+}
+
+/// intersection 結果のシャード領域を、交差した狭い領域へ絞り込む。
+fn shard_after_intersection(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
+    match (a, b) {
+        (Some(a), Some(b)) => a.intersection(b).or_else(|| Some(a.clone())),
+        (Some(a), None) => Some(a.clone()),
+        (None, Some(b)) => Some(b.clone()),
+        (None, None) => None,
     }
 }
 
@@ -71,21 +108,46 @@ where
             lower_root: empty_leaf.clone(),
             upper_root: empty_leaf.clone(),
             empty_leaf,
+            shard: None,
         }
     }
 
-    /// 2つの [FlexTreeCore] の和集合（Union）を計算します。
+    /// シャード領域 `region` に閉じた空の[FlexTreeCore]を作成する。
     ///
-    /// 値が設定されている（`Some`）領域は基本的に保持されますが、`other` がより粗い領域で `Some` を持つ場合、その領域では `self` のより細かい値が上書きされることがあります（両者が同じ `Leaf(Some)` の場合のみ `self` が優先）。
+    /// 以降この木は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    pub fn new_in_shard(region: FlexId) -> Self {
+        let mut core = Self::new();
+        core.shard = Some(region);
+        core
+    }
+
+    /// このツリーが閉じているシャード領域を返す。`None` は全空間。
+    pub(crate) fn shard(&self) -> Option<&FlexId> {
+        self.shard.as_ref()
+    }
+
+    /// 2つの [FlexTreeCore] の和集合を計算します。
     pub fn union(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
             upper_root: Node::union(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
             empty_leaf: self.empty_leaf.clone(),
+            shard: shard_after_union(&self.shard, &other.shard),
         }
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
+        if let (Some(a), Some(b)) = (&self.shard, &other.shard)
+            && a.intersection(b).is_none()
+        {
+            return Self {
+                lower_root: self.empty_leaf.clone(),
+                upper_root: self.empty_leaf.clone(),
+                empty_leaf: self.empty_leaf.clone(),
+                shard: shard_after_intersection(&self.shard, &other.shard),
+            };
+        }
+
         Self {
             lower_root: Node::intersection(
                 &self.lower_root,
@@ -100,14 +162,22 @@ where
                 &self.empty_leaf,
             ),
             empty_leaf: self.empty_leaf.clone(),
+            shard: shard_after_intersection(&self.shard, &other.shard),
         }
     }
 
     pub fn difference(&self, other: &Self) -> Self {
+        if let (Some(a), Some(b)) = (&self.shard, &other.shard)
+            && a.intersection(b).is_none()
+        {
+            return self.clone();
+        }
+
         Self {
             lower_root: Node::difference(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
             upper_root: Node::difference(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
             empty_leaf: self.empty_leaf.clone(),
+            shard: self.shard.clone(),
         }
     }
 
@@ -266,6 +336,14 @@ where
             if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
                 panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
             }
+            // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
+            let flex_id = match &self.shard {
+                Some(region) => match flex_id.intersection(region) {
+                    Some(clipped) => clipped,
+                    None => continue,
+                },
+                None => flex_id,
+            };
             self.insert_flex_id(flex_id, value.clone());
         }
     }

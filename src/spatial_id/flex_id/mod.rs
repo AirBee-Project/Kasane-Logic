@@ -14,6 +14,10 @@ use crate::{
 };
 
 #[derive(Clone, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
 ///拡張空間ID
 pub struct FlexId {
     f_zoomlevel: ZoomLevel,
