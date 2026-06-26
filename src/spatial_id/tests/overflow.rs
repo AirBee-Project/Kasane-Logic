@@ -3,6 +3,7 @@ use crate::spatial_id::range_id::RangeId;
 use crate::spatial_id::single_id::SingleId;
 use crate::spatial_id::traits::SpatialId;
 
+/// SingleIdが最大ズームレベル(z=30)のときに、座標の移動や距離計算で算術オーバーフローやパニックが発生しないことをテストします。
 #[test]
 fn single_id_z30_no_overflow() {
     let max_x = (1 << 30) - 1;
@@ -15,6 +16,7 @@ fn single_id_z30_no_overflow() {
     let _ = id.length_y_meters();
 }
 
+/// FlexIdが最大ズームレベル(z=30)のときに、座標の移動や距離計算で算術オーバーフローやパニックが発生しないことをテストします。
 #[test]
 fn flex_id_z30_no_overflow() {
     let max_x = (1 << 30) - 1;
@@ -25,6 +27,7 @@ fn flex_id_z30_no_overflow() {
     let _ = id.length_y_meters();
 }
 
+/// RangeIdが最大ズームレベル(z=30)のときに、座標の移動や距離計算で算術オーバーフローやパニックが発生しないことをテストします。
 #[test]
 fn range_id_z30_no_overflow() {
     let max_x = (1 << 30) - 1;
