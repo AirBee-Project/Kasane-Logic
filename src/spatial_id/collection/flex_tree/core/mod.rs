@@ -114,7 +114,7 @@ where
 
     /// シャード領域 `region` に閉じた空の[FlexTreeCore]を作成する。
     ///
-    /// 以降この木は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    /// 以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         let mut core = Self::new();
         core.shard = Some(region);
