@@ -85,6 +85,12 @@ impl From<SpatialIdError> for Error {
     }
 }
 
+impl From<core::convert::Infallible> for Error {
+    fn from(err: core::convert::Infallible) -> Self {
+        match err {}
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

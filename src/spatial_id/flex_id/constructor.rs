@@ -1,20 +1,23 @@
-use crate::{
-    Error, FlexId, TemporalId,
-    spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel},
-};
+use crate::{Error, FlexId, TemporalId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
-    pub fn new(
-        f_zoomlevel: impl IntoZoomLevel,
+    pub fn new<Z1, Z2, Z3>(
+        f_zoomlevel: Z1,
         f_index: i32,
-        x_zoomlevel: impl IntoZoomLevel,
+        x_zoomlevel: Z2,
         x_index: u32,
-        y_zoomlevel: impl IntoZoomLevel,
+        y_zoomlevel: Z3,
         y_index: u32,
-    ) -> Result<FlexId, Error> {
-        let fz = f_zoomlevel.into_zoom_level()?;
-        let xz = x_zoomlevel.into_zoom_level()?;
-        let yz = y_zoomlevel.into_zoom_level()?;
+    ) -> Result<FlexId, Error>
+    where
+        Z1: TryInto<ZoomLevel>,
+        Z2: TryInto<ZoomLevel>,
+        Z3: TryInto<ZoomLevel>,
+        Error: From<Z1::Error> + From<Z2::Error> + From<Z3::Error>,
+    {
+        let fz = f_zoomlevel.try_into()?;
+        let xz = x_zoomlevel.try_into()?;
+        let yz = y_zoomlevel.try_into()?;
 
         fz.check_f(f_index)?;
         xz.check_x(x_index)?;
@@ -65,18 +68,24 @@ impl FlexId {
     /// `y_index` が `y_zoomlevel` に対応する許容範囲外の場合は
     /// `SpatialIdError::YOutOfRange` を返します。
     #[cfg(feature = "temporal_id")]
-    pub fn new_with_temporal(
-        f_zoomlevel: impl IntoZoomLevel,
+    pub fn new_with_temporal<Z1, Z2, Z3>(
+        f_zoomlevel: Z1,
         f_index: i32,
-        x_zoomlevel: impl IntoZoomLevel,
+        x_zoomlevel: Z2,
         x_index: u32,
-        y_zoomlevel: impl IntoZoomLevel,
+        y_zoomlevel: Z3,
         y_index: u32,
         temporal_id: TemporalId,
-    ) -> Result<FlexId, Error> {
-        let fz = f_zoomlevel.into_zoom_level()?;
-        let xz = x_zoomlevel.into_zoom_level()?;
-        let yz = y_zoomlevel.into_zoom_level()?;
+    ) -> Result<FlexId, Error>
+    where
+        Z1: TryInto<ZoomLevel>,
+        Z2: TryInto<ZoomLevel>,
+        Z3: TryInto<ZoomLevel>,
+        Error: From<Z1::Error> + From<Z2::Error> + From<Z3::Error>,
+    {
+        let fz = f_zoomlevel.try_into()?;
+        let xz = x_zoomlevel.try_into()?;
+        let yz = y_zoomlevel.try_into()?;
 
         fz.check_f(f_index)?;
         xz.check_x(x_index)?;
