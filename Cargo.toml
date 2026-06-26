@@ -22,7 +22,6 @@ rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]
-# SpatialIdTable / SpatialIdSet の rkyv 直列化と ZeroCopy 読み出し
 persist = ["dep:rkyv", "std"]
 
 [dev-dependencies]

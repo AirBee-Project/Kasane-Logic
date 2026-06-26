@@ -35,9 +35,7 @@ where
     Branch {
         level: u8,
         leaf_count: usize,
-        /// この部分木に含まれる値付き Leaf の FlexId ズームレベルの最大値。
         max_zoom: u8,
-        // 再帰フィールド: 自動境界生成がオーバーフローするため省略し、型の *_bounds で供給する。
         #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         lower_child: SharedNode<Node<V>>,
         #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
