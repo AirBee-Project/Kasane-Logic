@@ -34,7 +34,7 @@ impl CoverSingleIds for Polygon {
     /// 境界上の空間IDは重複しないように排除される。
     ///
     /// # パラメーター
-    /// * `z` — 取得する空間IDのズームレベル（0 以上 `ZoomLevel::MAX` 以下。現状 30）
+    /// * `z` — 取得する空間IDのズームレベル（0 以上 `ZoomLevel::MAX` 以下）
     ///
     /// # バリデーション
     /// - `z` が `ZoomLevel::MAX` を超える場合、`crate::Error`（例: `Error::SpatialId(SpatialIdError::ZOutOfRange { .. })`）を返す。
