@@ -110,4 +110,8 @@ pub use spatial_id::collection::expr::unary::level::ops::LevelOps;
 #[doc(inline)]
 pub use spatial_id::collection::expr::unary::shift::ops::ShiftOps;
 #[doc(inline)]
+pub use spatial_id::collection::expr::unary::spread::SpreadAxes;
+#[doc(inline)]
+pub use spatial_id::collection::expr::unary::spread::ops::SpreadOps;
+#[doc(inline)]
 pub use spatial_id::collection::expr::unary::stretch::ops::StretchOps;

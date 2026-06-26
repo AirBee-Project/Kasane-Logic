@@ -4,6 +4,9 @@ pub mod shift;
 /// 特定の次元の方向へ引き延ばし
 pub mod stretch;
 
+/// X / Y 平面上で値を同心円状に伝播（減衰）
+pub mod spread;
+
 /// 特定の次元の占有を絶対座標範囲へ揃える（起伏を平坦化）
 pub mod level;
 
