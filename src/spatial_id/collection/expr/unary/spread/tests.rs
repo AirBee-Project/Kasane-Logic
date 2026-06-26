@@ -154,7 +154,9 @@ fn spread_resolves_overlap_by_policy() {
     assert_eq!(value_at(&by_max, 25, 0, 101, 100), Some(9));
 
     // Min: 重なる x=101 は min(1, 9) = 1。
-    let by_min = table.spread_with(25, 1, identity, ConflictPolicy::Min).unwrap();
+    let by_min = table
+        .spread_with(25, 1, identity, ConflictPolicy::Min)
+        .unwrap();
     assert_eq!(value_at(&by_min, 25, 0, 101, 100), Some(1));
 }
 

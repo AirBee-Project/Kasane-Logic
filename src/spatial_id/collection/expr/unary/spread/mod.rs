@@ -25,15 +25,35 @@ pub struct SpreadAxes {
 
 impl SpreadAxes {
     /// X 軸のみ（1D）。
-    pub const X: Self = Self { x: true, y: false, f: false };
+    pub const X: Self = Self {
+        x: true,
+        y: false,
+        f: false,
+    };
     /// Y 軸のみ（1D）。
-    pub const Y: Self = Self { x: false, y: true, f: false };
+    pub const Y: Self = Self {
+        x: false,
+        y: true,
+        f: false,
+    };
     /// F 軸のみ（1D）。
-    pub const F: Self = Self { x: false, y: false, f: true };
+    pub const F: Self = Self {
+        x: false,
+        y: false,
+        f: true,
+    };
     /// X / Y 平面（2D・同心円）。
-    pub const XY: Self = Self { x: true, y: true, f: false };
+    pub const XY: Self = Self {
+        x: true,
+        y: true,
+        f: false,
+    };
     /// X / Y / F 全軸（3D・同心球）。
-    pub const XYZ: Self = Self { x: true, y: true, f: true };
+    pub const XYZ: Self = Self {
+        x: true,
+        y: true,
+        f: true,
+    };
 }
 
 /// Spread 演算子のパラメータ。中心セルの値を、指定した軸に沿って同心円（球）状に伝播させる。
@@ -73,27 +93,52 @@ impl<V> SpreadParam<V> {
     }
 
     /// X / Y 平面（2D・同心円）のパラメータを作る。
-    pub fn xy(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+    pub fn xy(
+        z: u8,
+        radius: u32,
+        decay: fn(&V, u32) -> Option<V>,
+        conflict: ConflictPolicy<V>,
+    ) -> Self {
         Self::new(z, radius, SpreadAxes::XY, decay, conflict)
     }
 
     /// X 軸沿い（1D）のパラメータを作る。
-    pub fn x(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+    pub fn x(
+        z: u8,
+        radius: u32,
+        decay: fn(&V, u32) -> Option<V>,
+        conflict: ConflictPolicy<V>,
+    ) -> Self {
         Self::new(z, radius, SpreadAxes::X, decay, conflict)
     }
 
     /// Y 軸沿い（1D）のパラメータを作る。
-    pub fn y(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+    pub fn y(
+        z: u8,
+        radius: u32,
+        decay: fn(&V, u32) -> Option<V>,
+        conflict: ConflictPolicy<V>,
+    ) -> Self {
         Self::new(z, radius, SpreadAxes::Y, decay, conflict)
     }
 
     /// F（高さ）軸沿い（1D）のパラメータを作る。
-    pub fn f(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+    pub fn f(
+        z: u8,
+        radius: u32,
+        decay: fn(&V, u32) -> Option<V>,
+        conflict: ConflictPolicy<V>,
+    ) -> Self {
         Self::new(z, radius, SpreadAxes::F, decay, conflict)
     }
 
     /// X / Y / F 全軸（3D・同心球）のパラメータを作る。
-    pub fn xyz(z: u8, radius: u32, decay: fn(&V, u32) -> Option<V>, conflict: ConflictPolicy<V>) -> Self {
+    pub fn xyz(
+        z: u8,
+        radius: u32,
+        decay: fn(&V, u32) -> Option<V>,
+        conflict: ConflictPolicy<V>,
+    ) -> Self {
         Self::new(z, radius, SpreadAxes::XYZ, decay, conflict)
     }
 }

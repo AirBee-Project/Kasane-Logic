@@ -168,7 +168,12 @@ where
     }
 
     /// X 軸沿い（1D）に伝播する（重なりは [`ConflictPolicy::Max`]）。
-    pub fn spread_x(self, z: u8, radius: u32, decay: fn(&C::Value, u32) -> Option<C::Value>) -> Self {
+    pub fn spread_x(
+        self,
+        z: u8,
+        radius: u32,
+        decay: fn(&C::Value, u32) -> Option<C::Value>,
+    ) -> Self {
         self.spread_x_with(z, radius, decay, ConflictPolicy::Max)
     }
 
@@ -184,7 +189,12 @@ where
     }
 
     /// Y 軸沿い（1D）に伝播する（重なりは [`ConflictPolicy::Max`]）。
-    pub fn spread_y(self, z: u8, radius: u32, decay: fn(&C::Value, u32) -> Option<C::Value>) -> Self {
+    pub fn spread_y(
+        self,
+        z: u8,
+        radius: u32,
+        decay: fn(&C::Value, u32) -> Option<C::Value>,
+    ) -> Self {
         self.spread_y_with(z, radius, decay, ConflictPolicy::Max)
     }
 
@@ -200,7 +210,12 @@ where
     }
 
     /// F（高さ）軸沿い（1D）に伝播する（重なりは [`ConflictPolicy::Max`]）。
-    pub fn spread_f(self, z: u8, radius: u32, decay: fn(&C::Value, u32) -> Option<C::Value>) -> Self {
+    pub fn spread_f(
+        self,
+        z: u8,
+        radius: u32,
+        decay: fn(&C::Value, u32) -> Option<C::Value>,
+    ) -> Self {
         self.spread_f_with(z, radius, decay, ConflictPolicy::Max)
     }
 
@@ -216,7 +231,12 @@ where
     }
 
     /// X / Y / F 全軸へ同心球状（3D）に伝播する（重なりは [`ConflictPolicy::Max`]）。
-    pub fn spread_xyz(self, z: u8, radius: u32, decay: fn(&C::Value, u32) -> Option<C::Value>) -> Self {
+    pub fn spread_xyz(
+        self,
+        z: u8,
+        radius: u32,
+        decay: fn(&C::Value, u32) -> Option<C::Value>,
+    ) -> Self {
         self.spread_xyz_with(z, radius, decay, ConflictPolicy::Max)
     }
 
