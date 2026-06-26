@@ -144,13 +144,7 @@ where
     }
 
     /// 空間に値を挿入します。
-    ///
-    /// `value_index` は維持せず（[`rebuild_index`](Self::rebuild_index) まで遅延）、
-    /// `inner` ツリーと値→ランク辞書だけを更新します。既存オーバーラップの掃除も不要
-    /// （上書きは `inner` 側で行われ、値クエリは `inner` 走査で正しく答えます）。
     pub fn insert<S: IterFlexIds + Clone>(&mut self, target: S, value: V) {
-        // シャード初期化されている場合、領域内に入る要素が1つも無ければ、
-        // 値の rank 割り当てごとスキップする（孤児 rank を残さない）。
         if let Some(region) = self.inner.shard()
             && !target
                 .iter_flex_ids()

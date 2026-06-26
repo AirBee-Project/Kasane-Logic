@@ -19,7 +19,7 @@ fn out_of_range_insert_leaves_no_orphan_rank() {
 
     assert!(table.is_empty());
     assert_eq!(table.count(), 0);
-    // 値辞書・rank が一切増えていない（孤児 rank が残らない）。
+    // 値辞書・rank が一切増えていない（rank が残らない）。
     assert!(table.dictionary.is_empty());
     assert!(table.reverse_dictionary.is_empty());
     assert_eq!(table.current_rank, 0);
