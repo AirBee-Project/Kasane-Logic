@@ -104,11 +104,11 @@ impl FlexId {
         let temporal_id = self.temporal().intersection(other.temporal())?;
 
         Some(FlexId {
-            f_zoomlevel: unsafe { ZoomLevel::new_unchecked(f_z) },
+            f_zoomlevel: ZoomLevel::new(f_z).unwrap(),
             f_index: f_i,
-            x_zoomlevel: unsafe { ZoomLevel::new_unchecked(x_z) },
+            x_zoomlevel: ZoomLevel::new(x_z).unwrap(),
             x_index: x_i,
-            y_zoomlevel: unsafe { ZoomLevel::new_unchecked(y_z) },
+            y_zoomlevel: ZoomLevel::new(y_z).unwrap(),
             y_index: y_i,
             temporal_id,
         })

@@ -40,9 +40,9 @@ impl RangeId {
         let z = Self::pick_zoom_using(rng, z_range);
         let z_idx = z as usize;
 
-        let f_min = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.f_min();
-        let f_max = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.f_max();
-        let xy_max = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.xy_max();
+        let f_min = ZoomLevel::new(z_idx as u8).unwrap().f_min();
+        let f_max = ZoomLevel::new(z_idx as u8).unwrap().f_max();
+        let xy_max = ZoomLevel::new(z_idx as u8).unwrap().xy_max();
 
         // 範囲の両端をランダムに生成
         let f1 = rng.random_range(f_min..=f_max);
@@ -112,9 +112,9 @@ impl RangeId {
 
             let z_idx = z as usize;
 
-            let f_min = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.f_min();
-            let f_max = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.f_max();
-            let xy_max = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.xy_max();
+            let f_min = ZoomLevel::new(z_idx as u8).unwrap().f_min();
+            let f_max = ZoomLevel::new(z_idx as u8).unwrap().f_max();
+            let xy_max = ZoomLevel::new(z_idx as u8).unwrap().xy_max();
 
             let f_strat = (f_min..=f_max, f_min..=f_max);
             let x_strat = (0..=xy_max, 0..=xy_max);

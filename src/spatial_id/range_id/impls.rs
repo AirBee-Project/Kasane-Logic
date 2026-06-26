@@ -154,13 +154,12 @@ impl SpatialId for RangeId {
         let yf = (self.y[0] + self.y[1]) as f64 / 2.0 + 0.5;
         let ff = (self.f[0] + self.f[1]) as f64 / 2.0 + 0.5;
 
-        unsafe {
-            Coordinate::new_unchecked(
-                helpers::latitude(yf, z),
-                helpers::longitude(xf, z),
-                helpers::altitude(ff, z),
-            )
-        }
+        Coordinate::new(
+            helpers::latitude(yf, z),
+            helpers::longitude(xf, z),
+            helpers::altitude(ff, z),
+        )
+        .unwrap()
     }
 
     /// [`RangeId`] の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。

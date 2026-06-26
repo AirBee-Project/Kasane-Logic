@@ -49,7 +49,7 @@ impl CoverSingleIds for Sphere {
         Ok((x_min..=x_max)
             .flat_map(move |x| {
                 (y_min..=y_max).flat_map(move |y| {
-                    (f_min..=f_max).map(move |f| unsafe { SingleId::new_unchecked(z, f, x, y) })
+                    (f_min..=f_max).map(move |f| SingleId::new(z, f, x, y).unwrap())
                 })
             })
             .filter(move |id| {

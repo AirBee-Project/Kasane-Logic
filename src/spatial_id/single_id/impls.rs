@@ -198,13 +198,12 @@ impl SpatialId for SingleId {
     /// // Coordinate { latitude: -81.09321385260839, longitude: 33.75, altitude: 13631488.0 }
     /// ```
     fn spatial_center(&self) -> Coordinate {
-        unsafe {
-            Coordinate::new_unchecked(
-                helpers::latitude(self.y as f64 + 0.5, self.z.get()),
-                helpers::longitude(self.x as f64 + 0.5, self.z.get()),
-                helpers::altitude(self.f as f64 + 0.5, self.z.get()),
-            )
-        }
+        Coordinate::new(
+            helpers::latitude(self.y as f64 + 0.5, self.z.get()),
+            helpers::longitude(self.x as f64 + 0.5, self.z.get()),
+            helpers::altitude(self.f as f64 + 0.5, self.z.get()),
+        )
+        .unwrap()
     }
 
     /// `SingleId` の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。

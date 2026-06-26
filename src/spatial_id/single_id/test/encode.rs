@@ -80,18 +80,12 @@ fn spatial_encode_roundtrip_at_zero_zoom_boundaries() {
 fn spatial_encode_roundtrip_at_max_zoom_boundaries() {
     let z = ZoomLevel::MAX.get();
     let cases = [
+        SingleId::new(z, ZoomLevel::new(z as usize as u8).unwrap().f_min(), 0, 0).unwrap(),
         SingleId::new(
             z,
-            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.f_min(),
-            0,
-            0,
-        )
-        .unwrap(),
-        SingleId::new(
-            z,
-            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.f_max(),
-            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.xy_max(),
-            unsafe { ZoomLevel::new_unchecked(z as usize as u8) }.xy_max(),
+            ZoomLevel::new(z as usize as u8).unwrap().f_max(),
+            ZoomLevel::new(z as usize as u8).unwrap().xy_max(),
+            ZoomLevel::new(z as usize as u8).unwrap().xy_max(),
         )
         .unwrap(),
     ];

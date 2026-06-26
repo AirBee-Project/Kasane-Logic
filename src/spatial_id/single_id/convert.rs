@@ -3,9 +3,9 @@ use crate::{FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, Sing
 impl IntoFlexIds for SingleId {
     type IntoIter = core::iter::Once<FlexId>;
     fn into_flex_ids(self) -> Self::IntoIter {
-        core::iter::once(unsafe {
-            FlexId::new_unchecked(self.z(), self.f(), self.z(), self.x(), self.z(), self.y())
-        })
+        core::iter::once(
+            FlexId::new(self.z(), self.f(), self.z(), self.x(), self.z(), self.y()).unwrap(),
+        )
     }
 }
 

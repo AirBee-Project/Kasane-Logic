@@ -133,7 +133,7 @@ impl CoverRangeIds for Solid {
             for y in min_y..=max_y {
                 for f in [min_f, max_f] {
                     if !surface_coords.contains(&(f, x, y)) && outside_set.insert((f, x, y)) {
-                        open_list.push_back(unsafe { SingleId::new_unchecked(z, f, x, y) });
+                        open_list.push_back(SingleId::new(z, f, x, y).unwrap());
                     }
                 }
             }
@@ -142,7 +142,7 @@ impl CoverRangeIds for Solid {
             for y in min_y..=max_y {
                 for x in [min_x, max_x] {
                     if !surface_coords.contains(&(f, x, y)) && outside_set.insert((f, x, y)) {
-                        open_list.push_back(unsafe { SingleId::new_unchecked(z, f, x, y) });
+                        open_list.push_back(SingleId::new(z, f, x, y).unwrap());
                     }
                 }
             }
@@ -151,7 +151,7 @@ impl CoverRangeIds for Solid {
             for x in min_x..=max_x {
                 for y in [min_y, max_y] {
                     if !surface_coords.contains(&(f, x, y)) && outside_set.insert((f, x, y)) {
-                        open_list.push_back(unsafe { SingleId::new_unchecked(z, f, x, y) });
+                        open_list.push_back(SingleId::new(z, f, x, y).unwrap());
                     }
                 }
             }

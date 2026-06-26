@@ -32,11 +32,11 @@ mod tests {
         let partial_id = RangeId::new(
             3,
             [
-                unsafe { ZoomLevel::new_unchecked(3_u8) }.f_min(),
-                unsafe { ZoomLevel::new_unchecked(3_u8) }.f_max(),
+                ZoomLevel::new(3_u8).unwrap().f_min(),
+                ZoomLevel::new(3_u8).unwrap().f_max(),
             ],
-            [0, unsafe { ZoomLevel::new_unchecked(3_u8) }.xy_max()],
-            [0, unsafe { ZoomLevel::new_unchecked(3_u8) }.xy_max() / 2],
+            [0, ZoomLevel::new(3_u8).unwrap().xy_max()],
+            [0, ZoomLevel::new(3_u8).unwrap().xy_max() / 2],
         )
         .unwrap();
         set.insert(partial_id);

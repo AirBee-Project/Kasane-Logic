@@ -73,7 +73,7 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `index` がズーム `z` のF範囲（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()`）外の場合は
+    /// - `index` がズーム `z` のF範囲（`ZoomLevel::new(z as u8).unwrap().f_min()..=ZoomLevel::new(z as u8).unwrap().f_max()`）外の場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(f_zoomlevel, z)` のF範囲を超える場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
@@ -112,31 +112,22 @@ impl FlexId {
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    unsafe {
-                        FlexId::new_with_temporal_unchecked(
-                            seg_z,
-                            seg_index,
-                            x_zoomlevel,
-                            x_index,
-                            y_zoomlevel,
-                            y_index,
-                            temporal_id.clone(),
-                        )
-                    }
+                    FlexId::new_with_temporal(
+                        seg_z,
+                        seg_index,
+                        x_zoomlevel,
+                        x_index,
+                        y_zoomlevel,
+                        y_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            seg_z,
-                            seg_index,
-                            x_zoomlevel,
-                            x_index,
-                            y_zoomlevel,
-                            y_index,
-                        )
-                    }
+                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                        .unwrap()
                 }
             }),
         )
@@ -193,31 +184,21 @@ impl FlexId {
         Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
-                unsafe {
-                    FlexId::new_with_temporal_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                }
+                FlexId::new_with_temporal(
+                    f_zoomlevel,
+                    f_index,
+                    seg_z,
+                    seg_index,
+                    y_zoomlevel,
+                    y_index,
+                    temporal_id.clone(),
+                )
+                .unwrap()
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                unsafe {
-                    FlexId::new_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                    )
-                }
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
             }
         }))
     }
@@ -267,31 +248,22 @@ impl FlexId {
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    unsafe {
-                        FlexId::new_with_temporal_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            x_zoomlevel,
-                            x_index,
-                            seg_z,
-                            seg_index,
-                            temporal_id.clone(),
-                        )
-                    }
+                    FlexId::new_with_temporal(
+                        f_zoomlevel,
+                        f_index,
+                        x_zoomlevel,
+                        x_index,
+                        seg_z,
+                        seg_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            x_zoomlevel,
-                            x_index,
-                            seg_z,
-                            seg_index,
-                        )
-                    }
+                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
+                        .unwrap()
                 }
             }),
         )
@@ -313,8 +285,7 @@ impl FlexId {
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
-        if index < unsafe { ZoomLevel::new_unchecked(z) }.f_min()
-            || index > unsafe { ZoomLevel::new_unchecked(z) }.f_max()
+        if index < ZoomLevel::new(z).unwrap().f_min() || index > ZoomLevel::new(z).unwrap().f_max()
         {
             return Err(SpatialIdError::FOutOfRange { z, f: index }.into());
         }
@@ -352,31 +323,22 @@ impl FlexId {
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    unsafe {
-                        FlexId::new_with_temporal_unchecked(
-                            seg_z,
-                            seg_index,
-                            x_zoomlevel,
-                            x_index,
-                            y_zoomlevel,
-                            y_index,
-                            temporal_id.clone(),
-                        )
-                    }
+                    FlexId::new_with_temporal(
+                        seg_z,
+                        seg_index,
+                        x_zoomlevel,
+                        x_index,
+                        y_zoomlevel,
+                        y_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            seg_z,
-                            seg_index,
-                            x_zoomlevel,
-                            x_index,
-                            y_zoomlevel,
-                            y_index,
-                        )
-                    }
+                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                        .unwrap()
                 }
             }),
         )
@@ -441,31 +403,21 @@ impl FlexId {
         Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
-                unsafe {
-                    FlexId::new_with_temporal_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                }
+                FlexId::new_with_temporal(
+                    f_zoomlevel,
+                    f_index,
+                    seg_z,
+                    seg_index,
+                    y_zoomlevel,
+                    y_index,
+                    temporal_id.clone(),
+                )
+                .unwrap()
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                unsafe {
-                    FlexId::new_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                    )
-                }
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
             }
         }))
     }
@@ -519,31 +471,22 @@ impl FlexId {
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    unsafe {
-                        FlexId::new_with_temporal_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            x_zoomlevel,
-                            x_index,
-                            seg_z,
-                            seg_index,
-                            temporal_id.clone(),
-                        )
-                    }
+                    FlexId::new_with_temporal(
+                        f_zoomlevel,
+                        f_index,
+                        x_zoomlevel,
+                        x_index,
+                        seg_z,
+                        seg_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            x_zoomlevel,
-                            x_index,
-                            seg_z,
-                            seg_index,
-                        )
-                    }
+                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
+                        .unwrap()
                 }
             }),
         )
@@ -559,7 +502,7 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `lo` または `hi` がズーム `z` のF範囲（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()`）外の場合は
+    /// - `lo` または `hi` がズーム `z` のF範囲（`ZoomLevel::new(z as u8).unwrap().f_min()..=ZoomLevel::new(z as u8).unwrap().f_max()`）外の場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     pub fn level_f(&self, z: u8, lo: i32, hi: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > ZoomLevel::MAX.get() {
@@ -567,10 +510,10 @@ impl FlexId {
         }
 
         let (left, right) = (lo.min(hi), lo.max(hi));
-        if left < unsafe { ZoomLevel::new_unchecked(z) }.f_min() {
+        if left < ZoomLevel::new(z).unwrap().f_min() {
             return Err(SpatialIdError::FOutOfRange { z, f: left }.into());
         }
-        if right > unsafe { ZoomLevel::new_unchecked(z) }.f_max() {
+        if right > ZoomLevel::new(z).unwrap().f_max() {
             return Err(SpatialIdError::FOutOfRange { z, f: right }.into());
         }
 
@@ -584,31 +527,21 @@ impl FlexId {
         Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
-                unsafe {
-                    FlexId::new_with_temporal_unchecked(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                }
+                FlexId::new_with_temporal(
+                    seg_z,
+                    seg_index,
+                    x_zoomlevel,
+                    x_index,
+                    y_zoomlevel,
+                    y_index,
+                    temporal_id.clone(),
+                )
+                .unwrap()
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                unsafe {
-                    FlexId::new_unchecked(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                    )
-                }
+                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index).unwrap()
             }
         }))
     }
@@ -623,7 +556,7 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `from` または `to` がズーム `z` のX範囲（`0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）外の場合は
+    /// - `from` または `to` がズーム `z` のX範囲（`0..=ZoomLevel::new(z as u8).unwrap().xy_max()`）外の場合は
     ///   [`SpatialIdError::XOutOfRange`] を返す。
     pub fn level_x(
         &self,
@@ -635,7 +568,7 @@ impl FlexId {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
-        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max();
+        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
         if from > xy_max {
             return Err(SpatialIdError::XOutOfRange { z, x: from }.into());
         }
@@ -664,31 +597,21 @@ impl FlexId {
         Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
-                unsafe {
-                    FlexId::new_with_temporal_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                }
+                FlexId::new_with_temporal(
+                    f_zoomlevel,
+                    f_index,
+                    seg_z,
+                    seg_index,
+                    y_zoomlevel,
+                    y_index,
+                    temporal_id.clone(),
+                )
+                .unwrap()
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                unsafe {
-                    FlexId::new_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                    )
-                }
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
             }
         }))
     }
@@ -701,7 +624,7 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `lo` または `hi` がズーム `z` のY範囲（`0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）外の場合は
+    /// - `lo` または `hi` がズーム `z` のY範囲（`0..=ZoomLevel::new(z as u8).unwrap().xy_max()`）外の場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
     pub fn level_y(&self, z: u8, lo: u32, hi: u32) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > ZoomLevel::MAX.get() {
@@ -709,7 +632,7 @@ impl FlexId {
         }
 
         let (left, right) = (lo.min(hi), lo.max(hi));
-        if right > unsafe { ZoomLevel::new_unchecked(z) }.xy_max() {
+        if right > ZoomLevel::new(z).unwrap().xy_max() {
             return Err(SpatialIdError::YOutOfRange { z, y: right }.into());
         }
 
@@ -723,31 +646,21 @@ impl FlexId {
         Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
-                unsafe {
-                    FlexId::new_with_temporal_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                        temporal_id.clone(),
-                    )
-                }
+                FlexId::new_with_temporal(
+                    f_zoomlevel,
+                    f_index,
+                    x_zoomlevel,
+                    x_index,
+                    seg_z,
+                    seg_index,
+                    temporal_id.clone(),
+                )
+                .unwrap()
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                unsafe {
-                    FlexId::new_unchecked(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                    )
-                }
+                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index).unwrap()
             }
         }))
     }
@@ -759,8 +672,8 @@ impl FlexId {
         } else {
             #[cfg(feature = "temporal_id")]
             {
-                Some(unsafe {
-                    FlexId::new_with_temporal_unchecked(
+                Some(
+                    FlexId::new_with_temporal(
                         self.f_zoomlevel() + 1,
                         self.f_index() * 2 + side as i32,
                         self.x_zoomlevel(),
@@ -769,13 +682,14 @@ impl FlexId {
                         self.y_index(),
                         self.temporal_id.clone(),
                     )
-                })
+                    .unwrap(),
+                )
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                Some(unsafe {
-                    FlexId::new_unchecked(
+                Some(
+                    FlexId::new(
                         self.f_zoomlevel() + 1,
                         self.f_index() * 2 + side as i32,
                         self.x_zoomlevel(),
@@ -783,7 +697,8 @@ impl FlexId {
                         self.y_zoomlevel(),
                         self.y_index(),
                     )
-                })
+                    .unwrap(),
+                )
             }
         }
     }
@@ -795,8 +710,8 @@ impl FlexId {
         } else {
             #[cfg(feature = "temporal_id")]
             {
-                Some(unsafe {
-                    FlexId::new_with_temporal_unchecked(
+                Some(
+                    FlexId::new_with_temporal(
                         self.f_zoomlevel(),
                         self.f_index(),
                         self.x_zoomlevel() + 1,
@@ -805,13 +720,14 @@ impl FlexId {
                         self.y_index(),
                         self.temporal_id.clone(),
                     )
-                })
+                    .unwrap(),
+                )
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                Some(unsafe {
-                    FlexId::new_unchecked(
+                Some(
+                    FlexId::new(
                         self.f_zoomlevel(),
                         self.f_index(),
                         self.x_zoomlevel() + 1,
@@ -819,7 +735,8 @@ impl FlexId {
                         self.y_zoomlevel(),
                         self.y_index(),
                     )
-                })
+                    .unwrap(),
+                )
             }
         }
     }
@@ -831,8 +748,8 @@ impl FlexId {
         } else {
             #[cfg(feature = "temporal_id")]
             {
-                Some(unsafe {
-                    FlexId::new_with_temporal_unchecked(
+                Some(
+                    FlexId::new_with_temporal(
                         self.f_zoomlevel(),
                         self.f_index(),
                         self.x_zoomlevel(),
@@ -841,13 +758,14 @@ impl FlexId {
                         self.y_index() * 2 + side as u32,
                         self.temporal_id.clone(),
                     )
-                })
+                    .unwrap(),
+                )
             }
 
             #[cfg(not(feature = "temporal_id"))]
             {
-                Some(unsafe {
-                    FlexId::new_unchecked(
+                Some(
+                    FlexId::new(
                         self.f_zoomlevel(),
                         self.f_index(),
                         self.x_zoomlevel(),
@@ -855,7 +773,8 @@ impl FlexId {
                         self.y_zoomlevel() + 1,
                         self.y_index() * 2 + side as u32,
                     )
-                })
+                    .unwrap(),
+                )
             }
         }
     }

@@ -76,20 +76,12 @@ fn level_f_out_of_range_is_error() {
     let table = table_with(25, 0, 100, 100);
     assert!(
         table
-            .level_f(
-                25,
-                0,
-                unsafe { ZoomLevel::new_unchecked(25_u8) }.f_max() + 1
-            )
+            .level_f(25, 0, ZoomLevel::new(25_u8).unwrap().f_max() + 1)
             .is_err()
     );
     assert!(
         table
-            .level_f(
-                25,
-                unsafe { ZoomLevel::new_unchecked(25_u8) }.f_min() - 1,
-                0
-            )
+            .level_f(25, ZoomLevel::new(25_u8).unwrap().f_min() - 1, 0)
             .is_err()
     );
 }
@@ -125,7 +117,7 @@ fn level_x_out_of_range_is_error() {
     let table = table_with(2, 0, 0, 0);
     assert!(
         table
-            .level_x(2, 0, unsafe { ZoomLevel::new_unchecked(2_u8) }.xy_max() + 1)
+            .level_x(2, 0, ZoomLevel::new(2_u8).unwrap().xy_max() + 1)
             .is_err()
     );
 }
@@ -149,11 +141,7 @@ fn level_y_out_of_range_is_error() {
     let table = table_with(25, 0, 100, 0);
     assert!(
         table
-            .level_y(
-                25,
-                0,
-                unsafe { ZoomLevel::new_unchecked(25_u8) }.xy_max() + 1
-            )
+            .level_y(25, 0, ZoomLevel::new(25_u8).unwrap().xy_max() + 1)
             .is_err()
     );
 }

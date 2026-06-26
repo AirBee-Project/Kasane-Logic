@@ -127,9 +127,9 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
     (RANDOM_SET_MIN_ZOOM..=max_zoom).prop_flat_map(|z| {
         let idx = z as usize;
 
-        let f_min = unsafe { ZoomLevel::new_unchecked(idx as u8) }.f_min();
-        let f_max = unsafe { ZoomLevel::new_unchecked(idx as u8) }.f_max();
-        let xy_max = unsafe { ZoomLevel::new_unchecked(idx as u8) }.xy_max();
+        let f_min = ZoomLevel::new(idx as u8).unwrap().f_min();
+        let f_max = ZoomLevel::new(idx as u8).unwrap().f_max();
+        let xy_max = ZoomLevel::new(idx as u8).unwrap().xy_max();
 
         let span_f_max = (f_max - f_min).clamp(0, RANDOM_SET_MAX_RANGE_SPAN_F) as u32;
         let span_xy_max = xy_max.min(RANDOM_SET_MAX_RANGE_SPAN_XY);
@@ -146,14 +146,14 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
             .prop_map(
                 move |(z, f_start, f_span, x_start, x_span, y_start, y_span)| {
                     let idx = z as usize;
-                    let f_end = (f_start + f_span as i32)
-                        .min(unsafe { ZoomLevel::new_unchecked(idx as u8) }.f_max());
+                    let f_end =
+                        (f_start + f_span as i32).min(ZoomLevel::new(idx as u8).unwrap().f_max());
                     let x_end = x_start
                         .saturating_add(x_span)
-                        .min(unsafe { ZoomLevel::new_unchecked(idx as u8) }.xy_max());
+                        .min(ZoomLevel::new(idx as u8).unwrap().xy_max());
                     let y_end = y_start
                         .saturating_add(y_span)
-                        .min(unsafe { ZoomLevel::new_unchecked(idx as u8) }.xy_max());
+                        .min(ZoomLevel::new(idx as u8).unwrap().xy_max());
 
                     RangeId::new(z, [f_start, f_end], [x_start, x_end], [y_start, y_end])
                         .expect("Generated compact range must be valid")

@@ -85,7 +85,7 @@ impl SingleId {
     /// F インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `ZoomLevel::new(z as u8)?.f_min()..=ZoomLevel::new(z as u8).unwrap().f_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい F インデックス
@@ -117,7 +117,7 @@ impl SingleId {
     /// X インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `0..=ZoomLevel::new(z as u8).unwrap().xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい X インデックス
@@ -149,7 +149,7 @@ impl SingleId {
     /// Y インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する
-    /// `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
+    /// `0..=ZoomLevel::new(z as u8).unwrap().xy_max()` の範囲内にあるかを検証し、範囲外の場合は [`Error`] を返します。
     ///
     /// # パラメータ
     /// * `value` — 新しい Y インデックス

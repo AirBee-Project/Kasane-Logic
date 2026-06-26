@@ -32,19 +32,19 @@ impl fmt::Display for FlexId {
 
 impl SpatialId for FlexId {
     fn f_min(&self) -> i32 {
-        unsafe { ZoomLevel::new_unchecked(self.f_zoomlevel.get()) }.f_min()
+        ZoomLevel::new(self.f_zoomlevel.get()).unwrap().f_min()
     }
 
     fn f_max(&self) -> i32 {
-        unsafe { ZoomLevel::new_unchecked(self.f_zoomlevel.get()) }.f_max()
+        ZoomLevel::new(self.f_zoomlevel.get()).unwrap().f_max()
     }
 
     fn x_max(&self) -> u32 {
-        unsafe { ZoomLevel::new_unchecked(self.x_zoomlevel.get()) }.xy_max()
+        ZoomLevel::new(self.x_zoomlevel.get()).unwrap().xy_max()
     }
 
     fn y_max(&self) -> u32 {
-        unsafe { ZoomLevel::new_unchecked(self.y_zoomlevel.get()) }.xy_max()
+        ZoomLevel::new(self.y_zoomlevel.get()).unwrap().xy_max()
     }
 
     fn move_f(&mut self, by: i32) -> Result<(), crate::Error> {
@@ -120,13 +120,12 @@ impl SpatialId for FlexId {
     }
 
     fn spatial_center(&self) -> crate::Coordinate {
-        unsafe {
-            Coordinate::new_unchecked(
-                helpers::latitude(self.y_index as f64 + 0.5, self.y_zoomlevel.get()),
-                helpers::longitude(self.x_index as f64 + 0.5, self.x_zoomlevel.get()),
-                helpers::altitude(self.f_index as f64 + 0.5, self.f_zoomlevel.get()),
-            )
-        }
+        Coordinate::new(
+            helpers::latitude(self.y_index as f64 + 0.5, self.y_zoomlevel.get()),
+            helpers::longitude(self.x_index as f64 + 0.5, self.x_zoomlevel.get()),
+            helpers::altitude(self.f_index as f64 + 0.5, self.f_zoomlevel.get()),
+        )
+        .unwrap()
     }
 
     fn spatial_vertices(&self) -> [crate::Coordinate; 8] {

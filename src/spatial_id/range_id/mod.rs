@@ -85,8 +85,8 @@ impl RangeId {
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
         let z = self.z.get();
         let mut value = value;
-        let f_min = unsafe { ZoomLevel::new_unchecked(z) }.f_min();
-        let f_max = unsafe { ZoomLevel::new_unchecked(z) }.f_max();
+        let f_min = ZoomLevel::new(z).unwrap().f_min();
+        let f_max = ZoomLevel::new(z).unwrap().f_max();
 
         for &f_value in &value {
             if f_value < f_min || f_value > f_max {
@@ -104,7 +104,7 @@ impl RangeId {
 
     pub fn set_x(&mut self, value: [u32; 2]) -> Result<(), Error> {
         let z = self.z.get();
-        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max();
+        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
 
         for &x_value in &value {
             if x_value > xy_max {
@@ -119,7 +119,7 @@ impl RangeId {
     pub fn set_y(&mut self, value: [u32; 2]) -> Result<(), Error> {
         let z = self.z.get();
         let mut value = value;
-        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max();
+        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
 
         for &y_value in &value {
             if y_value > xy_max {
@@ -184,7 +184,7 @@ impl RangeId {
         let y = helpers::scale_range_u32(self.y[0], self.y[1], scale_xy);
 
         Ok(RangeId {
-            z: unsafe { ZoomLevel::new_unchecked(target_z) },
+            z: ZoomLevel::new(target_z).unwrap(),
             f,
             x,
             y,
@@ -269,7 +269,7 @@ impl RangeId {
         let y = [self.y[0] >> shift, self.y[1] >> shift];
 
         Ok(RangeId {
-            z: unsafe { ZoomLevel::new_unchecked(target_z) },
+            z: ZoomLevel::new(target_z).unwrap(),
             f,
             x,
             y,

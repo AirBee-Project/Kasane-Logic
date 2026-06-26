@@ -71,12 +71,10 @@ impl SingleId {
         (start..=end).prop_flat_map(|z| {
             let z_idx = z as usize;
 
-            let f_strategy = unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.f_min()..=unsafe {
-                ZoomLevel::new_unchecked(z_idx as u8)
-            }
-            .f_max();
-            let x_strategy = 0..=unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.xy_max();
-            let y_strategy = 0..=unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.xy_max();
+            let f_strategy = ZoomLevel::new(z_idx as u8).unwrap().f_min()
+                ..=ZoomLevel::new(z_idx as u8).unwrap().f_max();
+            let x_strategy = 0..=ZoomLevel::new(z_idx as u8).unwrap().xy_max();
+            let y_strategy = 0..=ZoomLevel::new(z_idx as u8).unwrap().xy_max();
 
             (Just(z), f_strategy, x_strategy, y_strategy).prop_map(|(z, f, x, y)| {
                 Self::new(z, f, x, y).expect("Strategy generated invalid ID")
@@ -107,13 +105,11 @@ impl SingleId {
 
         // F, X, Y の範囲生成も渡された rng を使用
         let f = rng.random_range(
-            unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.f_min()..=unsafe {
-                ZoomLevel::new_unchecked(z_idx as u8)
-            }
-            .f_max(),
+            ZoomLevel::new(z_idx as u8).unwrap().f_min()
+                ..=ZoomLevel::new(z_idx as u8).unwrap().f_max(),
         );
-        let x = rng.random_range(0..=unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.xy_max());
-        let y = rng.random_range(0..=unsafe { ZoomLevel::new_unchecked(z_idx as u8) }.xy_max());
+        let x = rng.random_range(0..=ZoomLevel::new(z_idx as u8).unwrap().xy_max());
+        let y = rng.random_range(0..=ZoomLevel::new(z_idx as u8).unwrap().xy_max());
 
         SingleId::new(z, f, x, y).expect("Failed to generate random SingleId")
     }

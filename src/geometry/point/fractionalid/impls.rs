@@ -22,7 +22,7 @@ impl From<FractionalId> for Coordinate {
         let alt = helpers::altitude(value.f, z);
         let lat = helpers::latitude(value.y, z);
         let lon = helpers::longitude(value.x, z);
-        unsafe { Coordinate::new_unchecked(lat, lon, alt) }
+        Coordinate::new(lat, lon, alt).unwrap()
     }
 }
 

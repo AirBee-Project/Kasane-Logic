@@ -24,7 +24,7 @@ impl SingleId {
     pub fn spatial_encode(&self) -> [u8; 12] {
         let mut v: u128 = 0;
         let z = self.z();
-        let f_shifted = (self.f() - unsafe { ZoomLevel::new_unchecked(z) }.f_min()) as u128;
+        let f_shifted = (self.f() - ZoomLevel::new(z).unwrap().f_min()) as u128;
         let x = self.x() as u128;
         let y = self.y() as u128;
 
@@ -70,7 +70,7 @@ impl SingleId {
     pub fn spatial_encode_prefix_max(&self) -> [u8; 12] {
         let mut v: u128 = 0;
         let z = self.z();
-        let f_shifted = (self.f() - unsafe { ZoomLevel::new_unchecked(z) }.f_min()) as u128;
+        let f_shifted = (self.f() - ZoomLevel::new(z).unwrap().f_min()) as u128;
         let x = self.x() as u128;
         let y = self.y() as u128;
 
@@ -149,7 +149,7 @@ impl SingleId {
             shift -= 1;
         }
 
-        let f = (f_shifted as i64 + unsafe { ZoomLevel::new_unchecked(z) }.f_min() as i64) as i32;
+        let f = (f_shifted as i64 + ZoomLevel::new(z).unwrap().f_min() as i64) as i32;
 
         crate::spatial_id::single_id::SingleId::new(z, f, x, y)
     }

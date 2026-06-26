@@ -129,14 +129,13 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let sign_j = (vp2[other_flag_1] - vp1[other_flag_1]).signum() as i32;
     let sign_k = (vp2[other_flag_2] - vp1[other_flag_2]).signum() as i32;
     let mut tm_int = 0;
-    let first = unsafe {
-        SingleId::new_unchecked(
-            z,
-            current[pull_index[0]] + offsets_int[0],
-            (current[pull_index[1]] + offsets_int[1]) as u32,
-            (current[pull_index[2]] + offsets_int[2]) as u32,
-        )
-    };
+    let first = SingleId::new(
+        z,
+        current[pull_index[0]] + offsets_int[0],
+        (current[pull_index[1]] + offsets_int[1]) as u32,
+        (current[pull_index[2]] + offsets_int[2]) as u32,
+    )
+    .unwrap();
     let iter = core::iter::once(first).chain((1..=max_steps).map(move |_| {
         let min_wall = (tm_int as f64).min(to1).min(to2);
         if min_wall == tm_int as f64 {
@@ -149,14 +148,13 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
             to2 += d_o2;
             current[2] += sign_k;
         }
-        unsafe {
-            SingleId::new_unchecked(
-                z,
-                current[pull_index[0]] + offsets_int[0],
-                (current[pull_index[1]] + offsets_int[1]) as u32,
-                (current[pull_index[2]] + offsets_int[2]) as u32,
-            )
-        }
+        SingleId::new(
+            z,
+            current[pull_index[0]] + offsets_int[0],
+            (current[pull_index[1]] + offsets_int[1]) as u32,
+            (current[pull_index[2]] + offsets_int[2]) as u32,
+        )
+        .unwrap()
     }));
     Ok(iter)
 }

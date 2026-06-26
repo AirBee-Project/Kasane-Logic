@@ -41,7 +41,7 @@ impl From<SingleId> for RangeId {
 impl From<&SingleId> for RangeId {
     fn from(id: &SingleId) -> Self {
         RangeId {
-            z: unsafe { ZoomLevel::new_unchecked(id.z()) },
+            z: ZoomLevel::new(id.z()).unwrap(),
             f: [id.f(), id.f()],
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
@@ -66,7 +66,7 @@ impl IntoSingleIds for RangeId {
             let x_iter = if self.x[0] <= self.x[1] {
                 (self.x[0]..=self.x[1]).collect::<Vec<_>>()
             } else {
-                (self.x[0]..=unsafe { ZoomLevel::new_unchecked(z) }.xy_max())
+                (self.x[0]..=ZoomLevel::new(z).unwrap().xy_max())
                     .chain(0..=self.x[1])
                     .collect::<Vec<_>>()
             };
@@ -76,13 +76,13 @@ impl IntoSingleIds for RangeId {
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        unsafe { SingleId::new_with_temporal_unchecked(z, f, x, y, t_id.clone()) }
+                        SingleId::new_with_temporal(z, f, x, y, t_id.clone()).unwrap()
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
                     {
                         let _ = &t_id;
-                        unsafe { SingleId::new_unchecked(z, f, x, y) }
+                        SingleId::new(z, f, x, y).unwrap()
                     }
                 })
             })
@@ -104,7 +104,7 @@ impl IterSingleIds for RangeId {
             let x_iter = if self.x[0] <= self.x[1] {
                 (self.x[0]..=self.x[1]).collect::<Vec<_>>()
             } else {
-                (self.x[0]..=unsafe { ZoomLevel::new_unchecked(z) }.xy_max())
+                (self.x[0]..=ZoomLevel::new(z).unwrap().xy_max())
                     .chain(0..=self.x[1])
                     .collect::<Vec<_>>()
             };
@@ -113,20 +113,12 @@ impl IterSingleIds for RangeId {
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        unsafe {
-                            SingleId::new_with_temporal_unchecked(
-                                z,
-                                f,
-                                x,
-                                y,
-                                self.temporal_id.clone(),
-                            )
-                        }
+                        SingleId::new_with_temporal(z, f, x, y, self.temporal_id.clone()).unwrap()
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
                     {
-                        unsafe { SingleId::new_unchecked(z, f, x, y) }
+                        SingleId::new(z, f, x, y).unwrap()
                     }
                 })
             })
@@ -145,12 +137,9 @@ impl IntoFlexIds for RangeId {
         let x_list: Vec<_> = if self.x[0] <= self.x[1] {
             split_xy(z, self.x).collect()
         } else {
-            split_xy(
-                z,
-                [self.x[0], unsafe { ZoomLevel::new_unchecked(z) }.xy_max()],
-            )
-            .chain(split_xy(z, [0, self.x[1]]))
-            .collect()
+            split_xy(z, [self.x[0], ZoomLevel::new(z).unwrap().xy_max()])
+                .chain(split_xy(z, [0, self.x[1]]))
+                .collect()
         };
         let y_list: Vec<_> = split_xy(z, self.y).collect();
 

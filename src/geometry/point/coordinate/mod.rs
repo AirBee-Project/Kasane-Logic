@@ -224,9 +224,9 @@ impl Coordinate {
         let lon = self.longitude;
         let alt = self.altitude;
 
-        let f_min = unsafe { ZoomLevel::new_unchecked(z) }.f_min() as i64;
-        let f_max = unsafe { ZoomLevel::new_unchecked(z) }.f_max() as i64;
-        let xy_max = unsafe { ZoomLevel::new_unchecked(z) }.xy_max() as i64;
+        let f_min = ZoomLevel::new(z).unwrap().f_min() as i64;
+        let f_max = ZoomLevel::new(z).unwrap().f_max() as i64;
+        let xy_max = ZoomLevel::new(z).unwrap().xy_max() as i64;
 
         //Z=25のとき高さはちょうど1m
         let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
@@ -247,7 +247,7 @@ impl Coordinate {
         ) as i64)
             .clamp(0, xy_max) as u32;
 
-        Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
+        Ok(SingleId::new(z, f, x, y).unwrap())
     }
 
     /// この座標を、指定されたズームレベルに対応する [FractionalId] に変換する。
@@ -370,6 +370,6 @@ impl Coordinate {
 
         let n = count as f64;
         // 重心は元の座標の凸包内に必ず収まるため、バリデーションをスキップ
-        unsafe { Self::new_unchecked(sum_lat / n, sum_lon / n, sum_alt / n) }
+        Self::new(sum_lat / n, sum_lon / n, sum_alt / n).unwrap()
     }
 }

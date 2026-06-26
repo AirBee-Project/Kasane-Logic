@@ -215,14 +215,13 @@ impl FractionalId {
     /// assert_eq!(sid.y(), 7);
     /// ```
     pub fn single_id(&self) -> SingleId {
-        unsafe {
-            SingleId::new_unchecked(
-                self.z.get(),
-                libm::floor(self.f) as i32,
-                libm::floor(self.x) as u32,
-                libm::floor(self.y) as u32,
-            )
-        }
+        SingleId::new(
+            self.z.get(),
+            libm::floor(self.f) as i32,
+            libm::floor(self.x) as u32,
+            libm::floor(self.y) as u32,
+        )
+        .unwrap()
     }
 
     /// 値の妥当性検証を行わずに [`FractionalId`] を生成する。
@@ -240,7 +239,7 @@ impl FractionalId {
     /// * `x` および `y` が `0.0..=z.xy_max()` の範囲内であること
     pub unsafe fn new_unchecked(z: u8, f: f64, x: f64, y: f64) -> Self {
         FractionalId {
-            z: unsafe { ZoomLevel::new_unchecked(z) },
+            z: ZoomLevel::new(z).unwrap(),
             f,
             x,
             y,

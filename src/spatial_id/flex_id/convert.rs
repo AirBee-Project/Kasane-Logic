@@ -32,27 +32,25 @@ impl From<&FlexId> for RangeId {
 
         #[cfg(feature = "temporal_id")]
         {
-            unsafe {
-                RangeId::new_with_temporal_unchecked(
-                    max_z,
-                    [f_range[0] as i32, f_range[1] as i32],
-                    [x_range[0] as u32, x_range[1] as u32],
-                    [y_range[0] as u32, y_range[1] as u32],
-                    flex_id.temporal().clone(),
-                )
-            }
+            RangeId::new_with_temporal(
+                max_z,
+                [f_range[0] as i32, f_range[1] as i32],
+                [x_range[0] as u32, x_range[1] as u32],
+                [y_range[0] as u32, y_range[1] as u32],
+                flex_id.temporal().clone(),
+            )
+            .unwrap()
         }
 
         #[cfg(not(feature = "temporal_id"))]
         {
-            unsafe {
-                RangeId::new_unchecked(
-                    max_z,
-                    [f_range[0] as i32, f_range[1] as i32],
-                    [x_range[0] as u32, x_range[1] as u32],
-                    [y_range[0] as u32, y_range[1] as u32],
-                )
-            }
+            RangeId::new(
+                max_z,
+                [f_range[0] as i32, f_range[1] as i32],
+                [x_range[0] as u32, x_range[1] as u32],
+                [y_range[0] as u32, y_range[1] as u32],
+            )
+            .unwrap()
         }
     }
 }
@@ -66,11 +64,11 @@ impl From<SingleId> for FlexId {
 impl From<&SingleId> for FlexId {
     fn from(value: &SingleId) -> Self {
         FlexId {
-            f_zoomlevel: unsafe { ZoomLevel::new_unchecked(value.z()) },
+            f_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             f_index: value.f(),
-            x_zoomlevel: unsafe { ZoomLevel::new_unchecked(value.z()) },
+            x_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             x_index: value.x(),
-            y_zoomlevel: unsafe { ZoomLevel::new_unchecked(value.z()) },
+            y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             y_index: value.y(),
             temporal_id: value.temporal().clone(),
         }

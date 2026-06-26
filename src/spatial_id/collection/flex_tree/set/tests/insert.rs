@@ -251,9 +251,9 @@ mod tests {
         //RangeIdの作成と挿入
         let range_id = RangeId::new(
             4,
-            [0, unsafe { ZoomLevel::new_unchecked(4_u8) }.f_max()],
-            [0, unsafe { ZoomLevel::new_unchecked(4_u8) }.xy_max()],
-            [0, unsafe { ZoomLevel::new_unchecked(4_u8) }.xy_max()],
+            [0, ZoomLevel::new(4_u8).unwrap().f_max()],
+            [0, ZoomLevel::new(4_u8).unwrap().xy_max()],
+            [0, ZoomLevel::new(4_u8).unwrap().xy_max()],
         )
         .unwrap();
 
