@@ -170,22 +170,3 @@ impl From<ZoomLevel> for u8 {
         z.0
     }
 }
-
-/// `u8` もしくは `ZoomLevel` のどちらからでも `ZoomLevel` を抽出・生成するためのトレイト。
-/// API の引数として `impl IntoZoomLevel` を受け取ることで、利用者は `4` などの数値と、
-/// すでに検証済みの `ZoomLevel::MAX` の両方をシームレスに渡すことができる。
-pub trait IntoZoomLevel {
-    fn into_zoom_level(self) -> Result<ZoomLevel, Error>;
-}
-
-impl IntoZoomLevel for u8 {
-    fn into_zoom_level(self) -> Result<ZoomLevel, Error> {
-        ZoomLevel::new(self)
-    }
-}
-
-impl IntoZoomLevel for ZoomLevel {
-    fn into_zoom_level(self) -> Result<ZoomLevel, Error> {
-        Ok(self)
-    }
-}

@@ -1,4 +1,4 @@
-use crate::spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel};
+use crate::spatial_id::zoom_level::ZoomLevel;
 pub mod impls;
 
 use crate::{
@@ -54,8 +54,8 @@ impl FractionalId {
     /// assert_eq!(fid.x(), 6.2);
     /// assert_eq!(fid.y(), 7.8);
     /// ```
-    pub fn new(z: impl IntoZoomLevel, f: f64, x: f64, y: f64) -> Result<Self, Error> {
-        let zoom = z.into_zoom_level()?;
+    pub fn new(z: impl Into<u8>, f: f64, x: f64, y: f64) -> Result<Self, Error> {
+        let zoom = ZoomLevel::new(z.into())?;
 
         // FractionalId は連続値のため、インデックス値の上限ではなく境界までを有効とする。
         // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のインデックス値の上面 = 2^z に対応する。

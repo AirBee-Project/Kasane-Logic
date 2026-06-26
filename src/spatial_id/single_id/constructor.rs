@@ -1,5 +1,5 @@
 use crate::SingleId;
-use crate::spatial_id::zoom_level::{IntoZoomLevel, ZoomLevel};
+use crate::spatial_id::zoom_level::ZoomLevel;
 
 use crate::{TemporalId, error::Error};
 
@@ -42,8 +42,8 @@ impl SingleId {
     /// let id = SingleId::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
-    pub fn new(z: impl IntoZoomLevel, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
-        let zoom = z.into_zoom_level()?;
+    pub fn new(z: impl Into<u8>, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
+        let zoom = ZoomLevel::new(z.into())?;
         zoom.check_f(f)?;
         zoom.check_x(x)?;
         zoom.check_y(y)?;
