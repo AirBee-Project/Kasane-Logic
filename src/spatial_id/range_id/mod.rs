@@ -176,8 +176,8 @@ impl RangeId {
         }
 
         let difference = target_z - z;
-        let scale_f = 2_i32.pow(difference as u32);
-        let scale_xy = 2_u32.pow(difference as u32);
+        let scale_f = 1_i32 << difference as u32;
+        let scale_xy = 1_u32 << difference as u32;
 
         let f = helpers::scale_range_i32(self.f[0], self.f[1], scale_f);
         let x = helpers::scale_range_u32(self.x[0], self.x[1], scale_xy);

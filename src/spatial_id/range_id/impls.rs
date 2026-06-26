@@ -92,9 +92,9 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = (self.x_max() + 1) as i32;
-        self.x[0] = ((self.x[0] as i32 + by).rem_euclid(max_len)) as u32;
-        self.x[1] = ((self.x[1] as i32 + by).rem_euclid(max_len)) as u32;
+        let max_len = self.x_max() as i64 + 1;
+        self.x[0] = ((self.x[0] as i64 + by as i64).rem_euclid(max_len)) as u32;
+        self.x[1] = ((self.x[1] as i64 + by as i64).rem_euclid(max_len)) as u32;
     }
 
     fn move_y(&mut self, by: i32) -> Result<(), Error> {

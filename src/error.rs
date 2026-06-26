@@ -46,7 +46,7 @@ pub enum GeometryError {
 /// SpatialId 関連で発生するエラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpatialIdError {
-    /// ズームレベルが有効範囲（0..=31）外であることを示す。
+    /// ズームレベルが有効範囲（0..=30）外であることを示す。
     ZOutOfRange { z: u8 },
 
     /// ある操作に対して、現在のズームレベルと要求されたズームレベルの上下関係が不正であることを示す。
@@ -157,7 +157,7 @@ impl fmt::Display for SpatialIdError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SpatialIdError::ZOutOfRange { z } => {
-                write!(f, "ZoomLevel '{}' is out of range (valid: 0..=60)", z)
+                write!(f, "ZoomLevel '{}' is out of range (valid: 0..=30)", z)
             }
             SpatialIdError::ZoomLevelTransitionOutOfRange {
                 current_z,
