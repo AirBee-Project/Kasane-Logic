@@ -139,6 +139,7 @@ impl SpatialIdSet {
     }
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
+    /// 内部に空間IDが存在しない場合は[None]を返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
     }
