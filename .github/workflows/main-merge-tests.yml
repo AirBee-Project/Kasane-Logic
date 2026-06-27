@@ -103,3 +103,25 @@ jobs:
               cargo clippy --locked --lib --no-default-features -- -D warnings
             fi
           done
+
+      - name: Rustdoc (std)
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
+          for feature in "${features[@]}"; do
+            RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
+          done
+
+      - name: Rustdoc (no_std)
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("" "temporal_id")
+          for feature in "${features[@]}"; do
+            if [ -n "$feature" ]; then
+              RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
+            else
+              RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features
+            fi
+          done
