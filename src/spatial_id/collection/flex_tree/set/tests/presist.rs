@@ -1,6 +1,6 @@
 #[cfg(all(test, feature = "persist"))]
 mod persist_tests {
-    use super::SpatialIdSet;
+    use crate::SpatialIdSet;
     use crate::{RangeId, SingleId};
 
     /// FlexId をそのまま比較する（独自 PartialEq の zoom 正規化展開は使わない）。
