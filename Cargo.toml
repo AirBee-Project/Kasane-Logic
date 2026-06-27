@@ -30,6 +30,7 @@ proptest = "1.11.0"
 rand_chacha = "0.10.0"
 insta = "1"
 criterion = { version = "0.8.2", features = ["html_reports"] }
+embed-doc-image = "0.1.4"
 
 [dev-dependencies.cargo-husky]
 version = "1"

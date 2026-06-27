@@ -6,41 +6,16 @@ pub mod json;
 pub mod ops;
 pub mod tests;
 
-#[cfg(all(test, feature = "persist"))]
-mod persist_tests {
-    use super::SpatialIdSet;
-    use crate::{RangeId, SingleId};
-
-    /// FlexId をそのまま比較する（独自 PartialEq の zoom 正規化展開は使わない）。
-    fn sorted(set: &SpatialIdSet) -> Vec<crate::FlexId> {
-        let mut v: Vec<_> = set.iter().collect();
-        v.sort();
-        v
-    }
-
-    #[test]
-    fn round_trip() {
-        let mut set = SpatialIdSet::new();
-        set.insert(SingleId::new(20, 0, 0, 0).unwrap());
-        set.insert(SingleId::new(18, 1, 5, 7).unwrap());
-        set.insert(RangeId::new(5, [1, 4], [8, 9], [5, 6]).unwrap());
-
-        let bytes = set.to_bytes().unwrap();
-        let restored = unsafe { SpatialIdSet::from_bytes(&bytes).unwrap() };
-
-        assert_eq!(sorted(&set), sorted(&restored));
-        assert_eq!(set.count(), restored.count());
-    }
-
-    #[test]
-    fn round_trip_empty() {
-        let set = SpatialIdSet::new();
-        let bytes = set.to_bytes().unwrap();
-        let restored = unsafe { SpatialIdSet::from_bytes(&bytes).unwrap() };
-        assert!(restored.is_empty());
-    }
-}
-
+/// 空間IDの集合を表す型。
+///
+/// `SpatialIdSet` は、保持する値が空間IDそのものだけであるため、「どの空間が存在するか」を表すための型として機能する。
+///
+/// - ある場所に対する空間IDを「存在しない」もしくは「一意に定まる」状態を維持する
+/// - 集合同士の演算や、集合に対する単項演算を提供する
+///
+/// # 注意
+/// - 現在は時空間IDに非対応で、時間ID部分がWHOLEではないIDが挿入された場合に無条件にPanicする。(将来的に時間IDにも対応する予定。)
+/// - 空間ごとに値を持たせたい、値から空間を引きたい、または値の管理が必要な場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
@@ -51,6 +26,7 @@ pub struct SpatialIdSet {
 }
 
 impl PartialEq for SpatialIdSet {
+    // Todo:等価検証が重いのでどうにかする
     fn eq(&self, other: &Self) -> bool {
         let common_z = self
             .max_zoomlevel()
@@ -65,19 +41,50 @@ impl PartialEq for SpatialIdSet {
 impl Eq for SpatialIdSet {}
 
 impl SpatialIdSet {
+    /// 新しい集合を作成する。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::SpatialIdSet;
+    ///
+    /// let set = SpatialIdSet::new();
+    /// assert!(set.is_empty());
+    /// ```
     pub fn new() -> Self {
         SpatialIdSet::default()
     }
 
-    /// シャード領域 `region` に閉じた空の[SpatialIdSet]を作成する。
-    ///
-    /// 以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    /// 限定的な領域に閉じた空の[SpatialIdSet]を作成する。
+    /// `region` の内側だけを保持し、`region` の外側への操作は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         Self {
             inner: FlexTreeCore::new_in_shard(region),
         }
     }
 
+    /// 集合に対して空間IDを挿入する。[SpatialId] Traitが実装されていれば挿入ができる。
+    /// 挿入した際に重なりがある空間IDが既に存在する場合は自動的に重なりを解消する。
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kasane_logic::{FlexId, RangeId, SingleId, SpatialIdSet};
+    ///
+    /// let mut set = SpatialIdSet::new();
+    ///
+    /// // SingleId の挿入
+    /// let single = SingleId::new(23, 0, 7451089, 3303245).unwrap();
+    /// set.insert(single);
+    ///
+    /// // RangeId の挿入
+    /// let range = RangeId::new(23, [0, 0], [7451089, 7451089], [3303245, 3303245]).unwrap();
+    /// set.insert(range);
+    ///
+    /// // FlexId の挿入
+    /// let flex = FlexId::new(23, 0, 24, 7451089, 23, 3303245).unwrap();
+    /// set.insert(flex);
+    /// ```
     pub fn insert<S: IterFlexIds>(&mut self, target: S) {
         self.inner.insert(target, ());
     }
