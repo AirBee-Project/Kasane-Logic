@@ -269,6 +269,38 @@ where
         self.inner.count()
     }
 
+    /// このテーブルをシャード分割すべきか判定する。**O(Z)**。
+    /// 葉数が `max_leaves` を超え、かつバランス `min_balance` 以上の二分が可能なら `true`。
+    pub fn should_split_shard(&self, max_leaves: usize, min_balance: f64) -> bool {
+        self.inner.should_split_shard(max_leaves, min_balance)
+    }
+
+    /// バランスの取れた位置で2つのシャードへ二分割する。
+    ///
+    /// 一点集中（balance < `min_balance`）のときは分割せず自身1つを返す。
+    /// 内部ツリー（空間→Rank）の分割位置だけ `inner` から借り、値辞書を保つために
+    /// 抽出・再挿入は [`Self::remove`] / [`Self::insert`] 経由で行う（孤児 rank を残さない）。
+    /// 辞書再構築のため計算量は **O(N·(Z + log M))**（Set/Map の O(Z) と異なる点に注意）。
+    pub fn split_shard(&self, min_balance: f64) -> alloc::vec::Vec<Self> {
+        let cut = self
+            .inner
+            .balanced_cut()
+            .filter(|(_, balance)| *balance >= min_balance);
+
+        let Some((region, _)) = cut else {
+            return alloc::vec![self.clone()];
+        };
+
+        let mut rest = self.clone();
+        let extracted: alloc::vec::Vec<(FlexId, V)> = rest.remove(&region).collect();
+        let mut shard = Self::new_in_shard(region);
+        for (flex_id, value) in extracted {
+            shard.insert(flex_id, value);
+        }
+
+        alloc::vec![shard, rest]
+    }
+
     /// ツリーの最大ズームレベルを返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()

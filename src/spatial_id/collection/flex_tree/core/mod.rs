@@ -122,7 +122,7 @@ where
     }
 
     /// このツリーが閉じているシャード領域を返す。`None` は全空間。
-    pub(crate) fn shard(&self) -> Option<&FlexId> {
+    pub fn shard(&self) -> Option<&FlexId> {
         self.shard.as_ref()
     }
 
@@ -200,6 +200,218 @@ where
 
     pub fn count(&self) -> usize {
         self.lower_root.leaf_count() + self.upper_root.leaf_count()
+    }
+
+    /// データを最も均等に二分する単一領域 `R` を、各 Branch にキャッシュされた
+    /// `leaf_count`（O(1)）を頼りに木を降下して探す。
+    ///
+    /// 返り値は `(R, balance)`。`balance` は `min(R内, R外) / max(R内, R外)` で、
+    /// 1.0 が完全均等・0 に近いほど偏る。空のツリーでは `None`。
+    ///
+    /// アルゴリズム：重いルートから「重い子」へ降りつつ、各 Branch の左右の子を
+    /// 「総数の半分に最も近い葉数を持つ領域」の候補として評価する。重い子が過半でなく
+    /// なった時点で停止する（それ以上降りても半分に近づかない）。偏った上層は重い子へ
+    /// 素通りし、左右が拮抗する深さで切れる。
+    pub(crate) fn balanced_cut(&self) -> Option<(FlexId, f64)> {
+        let lower = self.lower_root.leaf_count();
+        let upper = self.upper_root.leaf_count();
+        let total = lower + upper;
+        if total == 0 {
+            return None;
+        }
+
+        let half = total as i64 / 2;
+        let closeness = |count: usize| (count as i64 - half).unsigned_abs();
+
+        // 重いルートから降下を開始。軽いルート全体を初期候補に置く。
+        let (heavy_root, heavy_id, light_id, light_count) = if lower >= upper {
+            (
+                &self.lower_root,
+                FlexId::LOWER_MAX,
+                FlexId::UPPER_MAX,
+                upper,
+            )
+        } else {
+            (
+                &self.upper_root,
+                FlexId::UPPER_MAX,
+                FlexId::LOWER_MAX,
+                lower,
+            )
+        };
+
+        let mut best_region = light_id;
+        let mut best_count = light_count;
+
+        // SharedNode（Rc 相当）を複製しながら降りるのでライフタイムに悩まされない。
+        let mut node = heavy_root.clone();
+        let mut id = heavy_id;
+        loop {
+            let branch = match &*node {
+                Node::Branch {
+                    level,
+                    lower_child,
+                    upper_child,
+                    ..
+                } => Some((
+                    *level,
+                    lower_child.leaf_count(),
+                    upper_child.leaf_count(),
+                    lower_child.clone(),
+                    upper_child.clone(),
+                )),
+                Node::Leaf { .. } => None,
+            };
+            let Some((level, l, u, lower_child, upper_child)) = branch else {
+                break;
+            };
+
+            let axis = Node::<V>::axis(level);
+            let lower_id = split_child_id(&id, axis, Side::Lower);
+            let upper_id = split_child_id(&id, axis, Side::Upper);
+
+            if closeness(l) < closeness(best_count) {
+                best_region = lower_id.clone();
+                best_count = l;
+            }
+            if closeness(u) < closeness(best_count) {
+                best_region = upper_id.clone();
+                best_count = u;
+            }
+
+            // 偏りの原因は重い子の中にある → まだ過半なら重い子へ降りる。
+            let (heavy_child, heavy_child_id, heavy_count) = if l >= u {
+                (lower_child, lower_id, l)
+            } else {
+                (upper_child, upper_id, u)
+            };
+            if heavy_count as i64 > half {
+                node = heavy_child;
+                id = heavy_child_id;
+            } else {
+                break;
+            }
+        }
+
+        let other = total - best_count;
+        let (lo, hi) = (best_count.min(other), best_count.max(other));
+        let balance = if hi == 0 { 0.0 } else { lo as f64 / hi as f64 };
+        Some((best_region, balance))
+    }
+
+    /// このツリーを分割すべきか。葉数が `max_leaves` を超え、かつ意味のある
+    /// （バランスが `min_balance` 以上の）二分が可能なときに `true`。O(Z)。
+    pub fn should_split_shard(&self, max_leaves: usize, min_balance: f64) -> bool {
+        if self.count() <= max_leaves {
+            return false;
+        }
+        match self.balanced_cut() {
+            Some((_, balance)) => balance >= min_balance,
+            None => false,
+        }
+    }
+
+    /// バランスの取れた位置でツリーを2つのシャードへ二分割する。**O(Z)**（Z=木の高さ）。
+    ///
+    /// 既存ツリーを `clone`（構造共有で O(1)）したうえで、切り出す領域 `R` へ向かう
+    /// **1本のパスだけ**を書き換える。A は R 以外の枝と反対側ルートを空にして R だけ残し、
+    /// B は R の枝を空にする。葉の列挙・再挿入をしないため葉数 N に依存しない。
+    ///
+    /// 均衡が `min_balance` 未満（データが一点に集中していて割っても無駄）なら、
+    /// 分割せず自身1つだけを返す。
+    pub fn split_shard(&self, min_balance: f64) -> Vec<Self> {
+        let cut = self
+            .balanced_cut()
+            .filter(|(_, balance)| *balance >= min_balance);
+
+        let Some((region, _)) = cut else {
+            return alloc::vec![self.clone()];
+        };
+
+        // R がどちらのルート（F の符号）に属するか。
+        let in_lower = FlexId::LOWER_MAX.intersection(&region).is_some();
+
+        // A: R だけを残す（パス上の兄弟と反対側ルートを空にする）。
+        let mut a = self.clone();
+        {
+            let (root, root_id) = if in_lower {
+                (&mut a.lower_root, FlexId::LOWER_MAX)
+            } else {
+                (&mut a.upper_root, FlexId::UPPER_MAX)
+            };
+            Self::prune_path(root, root_id, &region, true, &self.empty_leaf);
+        }
+        if in_lower {
+            a.upper_root = self.empty_leaf.clone();
+        } else {
+            a.lower_root = self.empty_leaf.clone();
+        }
+        a.shard = Some(region.clone());
+
+        // B: R の枝を空にする（残りはそのまま）。
+        let mut b = self.clone();
+        {
+            let (root, root_id) = if in_lower {
+                (&mut b.lower_root, FlexId::LOWER_MAX)
+            } else {
+                (&mut b.upper_root, FlexId::UPPER_MAX)
+            };
+            Self::prune_path(root, root_id, &region, false, &self.empty_leaf);
+        }
+
+        alloc::vec![a, b]
+    }
+
+    /// `region` へ向かう1本のパスだけを辿って枝を刈る。**O(Z)**。
+    ///
+    /// - `keep == true`：パス上の兄弟を空にし、`region` の部分木だけを残す。
+    /// - `keep == false`：`region` の部分木を空にする。
+    ///
+    /// いずれも経路上の `leaf_count` / `max_zoom` を畳み上げ直す。`SharedNode` の COW で
+    /// 触れたパス上のノードだけが複製され、それ以外は元ツリーと共有されたまま。
+    fn prune_path(
+        node: &mut SharedNode<Node<V>>,
+        current_id: FlexId,
+        region: &FlexId,
+        keep: bool,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) {
+        if &current_id == region {
+            if !keep {
+                *node = empty_leaf.clone();
+            }
+            return;
+        }
+
+        let mut_node = SharedNode::make_mut(node);
+        if let Node::Branch {
+            level,
+            lower_child,
+            upper_child,
+            leaf_count,
+            max_zoom,
+        } = mut_node
+        {
+            let axis = Node::<V>::axis(*level);
+            let lower_id = split_child_id(&current_id, axis, Side::Lower);
+            let upper_id = split_child_id(&current_id, axis, Side::Upper);
+
+            // region は子のちょうど一方に含まれる。
+            if lower_id.intersection(region).is_some() {
+                if keep {
+                    *upper_child = empty_leaf.clone();
+                }
+                Self::prune_path(lower_child, lower_id, region, keep, empty_leaf);
+            } else {
+                if keep {
+                    *lower_child = empty_leaf.clone();
+                }
+                Self::prune_path(upper_child, upper_id, region, keep, empty_leaf);
+            }
+
+            *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+            *max_zoom = Node::<V>::fold_max_zoom(*level, lower_child, upper_child);
+        }
     }
 
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。

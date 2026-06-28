@@ -138,6 +138,22 @@ impl SpatialIdSet {
         self.inner.count()
     }
 
+    /// この集合をシャード分割すべきか判定する。**O(Z)**。
+    /// 葉数が `max_leaves` を超え、かつバランス `min_balance` 以上の二分が可能なら `true`。
+    pub fn should_split_shard(&self, max_leaves: usize, min_balance: f64) -> bool {
+        self.inner.should_split_shard(max_leaves, min_balance)
+    }
+
+    /// バランスの取れた位置で2つのシャードへ二分割する。**O(Z)**。
+    /// 一点集中（balance < `min_balance`）のときは分割せず自身1つを返す。
+    pub fn split_shard(&self, min_balance: f64) -> alloc::vec::Vec<Self> {
+        self.inner
+            .split_shard(min_balance)
+            .into_iter()
+            .map(|inner| Self { inner })
+            .collect()
+    }
+
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
     /// 内部に空間IDが存在しない場合は[None]を返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
