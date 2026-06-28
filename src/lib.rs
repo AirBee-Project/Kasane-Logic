@@ -82,6 +82,9 @@ pub use spatial_id::collection::flex_tree::traits::{CellValue, SpatialIdCollecti
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
+#[cfg(feature = "persist")]
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::map::persist::ArchivedMap;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
