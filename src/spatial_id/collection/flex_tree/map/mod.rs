@@ -65,6 +65,11 @@ where
         }
     }
 
+    /// シャード領域を返す。`None` が帰ってきた場合はシャードされていない。
+    pub fn shard(&self) -> Option<&FlexId> {
+        self.inner.shard()
+    }
+
     /// 空間に値を挿入します。
     pub fn insert<S: IterFlexIds>(&mut self, target: S, value: V) {
         self.inner.insert(target, value);
