@@ -122,7 +122,7 @@ where
     }
 
     /// このツリーが閉じているシャード領域を返す。`None` は全空間。
-    pub fn shard(&self) -> Option<&FlexId> {
+    pub(crate) fn shard(&self) -> Option<&FlexId> {
         self.shard.as_ref()
     }
 
@@ -202,13 +202,7 @@ where
         self.lower_root.leaf_count() + self.upper_root.leaf_count()
     }
 
-    /// データを最も均等に二分する単一領域 `R` を、各 Branch にキャッシュされた
-    /// `leaf_count`（O(1)）を頼りに木を降下して探して返す。空のツリーでは `None`。
-    ///
-    /// アルゴリズム：重いルートから「重い子」へ降りつつ、各 Branch の左右の子を
-    /// 「総数の半分に最も近い葉数を持つ領域」の候補として評価する。重い子が過半でなく
-    /// なった時点で停止する（それ以上降りても半分に近づかない）。偏った上層は重い子へ
-    /// 素通りし、左右が拮抗する深さで切れる。
+    /// このFlexTreeをシャードのために分割する際に、どこを切り出せば良いのかを判断する関数。木の全体を見て、
     pub(crate) fn balanced_cut(&self) -> Option<FlexId> {
         let lower = self.lower_root.leaf_count();
         let upper = self.upper_root.leaf_count();
@@ -220,7 +214,6 @@ where
         let half = total as i64 / 2;
         let closeness = |count: usize| (count as i64 - half).unsigned_abs();
 
-        // 重いルートから降下を開始。軽いルート全体を初期候補に置く。
         let (heavy_root, heavy_id, light_id, light_count) = if lower >= upper {
             (
                 &self.lower_root,
@@ -240,7 +233,6 @@ where
         let mut best_region = light_id;
         let mut best_count = light_count;
 
-        // SharedNode（Rc 相当）を複製しながら降りるのでライフタイムに悩まされない。
         let mut node = heavy_root.clone();
         let mut id = heavy_id;
         loop {
@@ -293,20 +285,12 @@ where
         Some(best_region)
     }
 
-    /// このツリーをシャード分割すべきか。保持する FlexId 数が `max_flex_id_count` を
-    /// 超えていれば `true`。**O(1)**。
+    /// この[FlexTree]をシャード分割すべきかを判定する。保持する[FlexId]数が `max_flex_id_count` を超えていれば `true`を返す。[FlexId]の個数はキャッシュされているため高速に動作する。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
         self.count() > max_flex_id_count
     }
 
-    /// バランスの取れた位置を境に、ツリーを**互いに素なクリーン領域のシャード列**へ分割する。
-    ///
-    /// `max_flex_id_count` を超える FlexId を持つピースは、`balanced_cut` を使って
-    /// 再帰的に分割する。各ピースが閾値以下になるか、それ以上分割できない（FlexId が
-    /// 1つ以下）まで繰り返す。結果はすべて**互いに素なクリーン FlexId 領域**。
-    ///
-    /// 計算量は最悪 **O(K·Z²)**（K = 最終ピース数、Z = ズームレベル数）。葉数 N には非依存。
-    /// FlexId が `max_flex_id_count` 以下なら自身1つだけを返す。
+    /// [FlexTree]を互いに素なシャードへ分割する。この時、シャード1つあたりの中身の[FlexId]の個数は`max_flex_id_count` 以下になる。分割の必要がなければ、自分自身を返す。
     pub fn split_shard(&self, max_flex_id_count: usize) -> Vec<Self> {
         let mut result = Vec::new();
         let mut pending = alloc::vec![self.clone()];
@@ -334,8 +318,6 @@ where
         result
     }
 
-    /// `split_shard` の領域分解。`R` と、その補集合を構成する互いに素なクリーン領域
-    /// （反対側ルート＋ root→R パスの off-path 兄弟）を列挙する。**O(Z)**。
     pub(crate) fn shard_regions(&self, region: FlexId) -> Vec<FlexId> {
         let mut regions = alloc::vec![region.clone()];
 
@@ -357,12 +339,10 @@ where
             )
         };
 
-        // 反対側ルートはまるごと補集合の1ピース（空でなければ）。
         if other_root.leaf_count() > 0 {
             regions.push(other_root_id);
         }
 
-        // region_root → R のパスを降り、各 Branch で off-path 側（兄弟）を拾う。
         let mut node = region_root.clone();
         let mut id = region_root_id;
         while id != region {
@@ -376,7 +356,6 @@ where
                     let axis = Node::<V>::axis(*level);
                     let lower_id = split_child_id(&id, axis, Side::Lower);
                     let upper_id = split_child_id(&id, axis, Side::Upper);
-                    // R を含む子へ進み、反対の子（兄弟）が空でなければピースに加える。
                     if lower_id.intersection(&region).is_some() {
                         if upper_child.leaf_count() > 0 {
                             regions.push(upper_id);
@@ -398,8 +377,6 @@ where
         regions
     }
 
-    /// `region` の部分木だけを残した単一シャードを作る（`shard = region`）。**O(Z)**。
-    /// 既存ツリーを `clone`（構造共有）し、`region` へのパス1本だけを `prune_path` で刈る。
     fn extract_region(&self, region: FlexId) -> Self {
         let in_lower = region.f_index() < 0;
 
@@ -421,13 +398,6 @@ where
         piece
     }
 
-    /// `region` へ向かう1本のパスだけを辿って枝を刈る。**O(Z)**。
-    ///
-    /// - `keep == true`：パス上の兄弟を空にし、`region` の部分木だけを残す。
-    /// - `keep == false`：`region` の部分木を空にする。
-    ///
-    /// いずれも経路上の `leaf_count` / `max_zoom` を畳み上げ直す。`SharedNode` の COW で
-    /// 触れたパス上のノードだけが複製され、それ以外は元ツリーと共有されたまま。
     fn prune_path(
         node: &mut SharedNode<Node<V>>,
         current_id: FlexId,
