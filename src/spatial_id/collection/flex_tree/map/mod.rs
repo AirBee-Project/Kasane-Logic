@@ -2,6 +2,7 @@ use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId, SpatialId};
 
 pub mod convert;
 pub mod json;
+pub mod shard;
 pub mod tests;
 
 /// 空間(FlexId)に値(V)を対応づけるマップ構造。
@@ -115,23 +116,6 @@ where
     /// 保持している[FlexId]の総数を返します。
     pub fn count(&self) -> usize {
         self.inner.count()
-    }
-
-    /// このマップをシャード分割すべきか判定する。**O(1)**。
-    /// 保持する FlexId 数が `max_flex_id_count` を超えていれば `true`。
-    pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
-        self.inner.should_split_shard(max_flex_id_count)
-    }
-
-    /// 互いに素なクリーン領域のシャード列へ分割する。
-    /// **O(K·Z²)**・N非依存。各ピースの FlexId 数が `max_flex_id_count` 以下になるまで分割する。
-    /// FlexId が `max_flex_id_count` 以下なら自身1つを返す。
-    pub fn split_shard(&self, max_flex_id_count: usize) -> alloc::vec::Vec<Self> {
-        self.inner
-            .split_shard(max_flex_id_count)
-            .into_iter()
-            .map(|inner| Self { inner })
-            .collect()
     }
 
     /// ツリーの最大ズームレベルを返します。
