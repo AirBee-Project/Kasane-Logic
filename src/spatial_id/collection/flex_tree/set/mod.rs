@@ -145,13 +145,11 @@ impl SpatialIdSet {
     }
 
     /// 最も均衡する位置で2つのシャードへ二分割する。**O(Z)**。
-    /// FlexId が1つ以下で分割できない場合は自身1つを返す。
-    pub fn split_shard(&self) -> alloc::vec::Vec<Self> {
+    /// 分割した場合は `Some((A, B))`、FlexId が1つ以下で分割できない場合は `None`。
+    pub fn split_shard(&self) -> Option<(Self, Self)> {
         self.inner
             .split_shard()
-            .into_iter()
-            .map(|inner| Self { inner })
-            .collect()
+            .map(|(a, b)| (Self { inner: a }, Self { inner: b }))
     }
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。

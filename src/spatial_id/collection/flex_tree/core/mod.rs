@@ -305,17 +305,15 @@ where
     /// **1本のパスだけ**を書き換える。A は R 以外の枝と反対側ルートを空にして R だけ残し、
     /// B は R の枝を空にする。葉の列挙・再挿入をしないため葉数 N に依存しない。
     ///
-    /// `balanced_cut` が最も均衡する切り口を選ぶ。FlexId が1つ以下で分割できない場合は
-    /// 自身1つだけを返す。
-    pub fn split_shard(&self) -> Vec<Self> {
+    /// `balanced_cut` が最も均衡する切り口を選ぶ。分割した場合は `Some((A, B))`、
+    /// FlexId が1つ以下で分割できない場合は `None`（呼び出し側が元を保持する）。
+    pub fn split_shard(&self) -> Option<(Self, Self)> {
         // 1 件以下は分割しようがない。
         if self.count() < 2 {
-            return alloc::vec![self.clone()];
+            return None;
         }
 
-        let Some(region) = self.balanced_cut() else {
-            return alloc::vec![self.clone()];
-        };
+        let region = self.balanced_cut()?;
 
         // R がどちらのルートに属するか ＝ F の符号。lower_root は F<0、upper_root は F≥0。
         let in_lower = region.f_index() < 0;
@@ -348,7 +346,7 @@ where
             Self::prune_path(root, root_id, &region, false, &self.empty_leaf);
         }
 
-        alloc::vec![a, b]
+        Some((a, b))
     }
 
     /// `region` へ向かう1本のパスだけを辿って枝を刈る。**O(Z)**。

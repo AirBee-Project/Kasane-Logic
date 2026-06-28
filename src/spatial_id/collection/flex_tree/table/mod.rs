@@ -277,18 +277,16 @@ where
 
     /// 最も均衡する位置で2つのシャードへ二分割する。
     ///
-    /// FlexId が1つ以下で分割できない場合は自身1つを返す。
+    /// 分割した場合は `Some((A, B))`、FlexId が1つ以下で分割できない場合は `None`。
     /// 内部ツリー（空間→Rank）の分割位置だけ `inner` から借り、値辞書を保つために
     /// 抽出・再挿入は [`Self::remove`] / [`Self::insert`] 経由で行う（孤児 rank を残さない）。
     /// 辞書再構築のため計算量は **O(N·(Z + log M))**（Set/Map の O(Z) と異なる点に注意）。
-    pub fn split_shard(&self) -> alloc::vec::Vec<Self> {
+    pub fn split_shard(&self) -> Option<(Self, Self)> {
         if self.count() < 2 {
-            return alloc::vec![self.clone()];
+            return None;
         }
 
-        let Some(region) = self.inner.balanced_cut() else {
-            return alloc::vec![self.clone()];
-        };
+        let region = self.inner.balanced_cut()?;
 
         let mut rest = self.clone();
         let extracted: alloc::vec::Vec<(FlexId, V)> = rest.remove(&region).collect();
@@ -297,7 +295,7 @@ where
             shard.insert(flex_id, value);
         }
 
-        alloc::vec![shard, rest]
+        Some((shard, rest))
     }
 
     /// ツリーの最大ズームレベルを返します。
