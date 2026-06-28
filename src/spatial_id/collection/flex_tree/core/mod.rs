@@ -203,16 +203,13 @@ where
     }
 
     /// データを最も均等に二分する単一領域 `R` を、各 Branch にキャッシュされた
-    /// `leaf_count`（O(1)）を頼りに木を降下して探す。
-    ///
-    /// 返り値は `(R, balance)`。`balance` は `min(R内, R外) / max(R内, R外)` で、
-    /// 1.0 が完全均等・0 に近いほど偏る。空のツリーでは `None`。
+    /// `leaf_count`（O(1)）を頼りに木を降下して探して返す。空のツリーでは `None`。
     ///
     /// アルゴリズム：重いルートから「重い子」へ降りつつ、各 Branch の左右の子を
     /// 「総数の半分に最も近い葉数を持つ領域」の候補として評価する。重い子が過半でなく
     /// なった時点で停止する（それ以上降りても半分に近づかない）。偏った上層は重い子へ
     /// 素通りし、左右が拮抗する深さで切れる。
-    pub(crate) fn balanced_cut(&self) -> Option<(FlexId, f64)> {
+    pub(crate) fn balanced_cut(&self) -> Option<FlexId> {
         let lower = self.lower_root.leaf_count();
         let upper = self.upper_root.leaf_count();
         let total = lower + upper;
@@ -293,22 +290,13 @@ where
             }
         }
 
-        let other = total - best_count;
-        let (lo, hi) = (best_count.min(other), best_count.max(other));
-        let balance = if hi == 0 { 0.0 } else { lo as f64 / hi as f64 };
-        Some((best_region, balance))
+        Some(best_region)
     }
 
-    /// このツリーを分割すべきか。葉数が `max_leaves` を超え、かつ意味のある
-    /// （バランスが `min_balance` 以上の）二分が可能なときに `true`。O(Z)。
-    pub fn should_split_shard(&self, max_leaves: usize, min_balance: f64) -> bool {
-        if self.count() <= max_leaves {
-            return false;
-        }
-        match self.balanced_cut() {
-            Some((_, balance)) => balance >= min_balance,
-            None => false,
-        }
+    /// このツリーをシャード分割すべきか。保持する FlexId 数が `max_flex_id_count` を
+    /// 超えていれば `true`。**O(1)**。
+    pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
+        self.count() > max_flex_id_count
     }
 
     /// バランスの取れた位置でツリーを2つのシャードへ二分割する。**O(Z)**（Z=木の高さ）。
@@ -317,19 +305,20 @@ where
     /// **1本のパスだけ**を書き換える。A は R 以外の枝と反対側ルートを空にして R だけ残し、
     /// B は R の枝を空にする。葉の列挙・再挿入をしないため葉数 N に依存しない。
     ///
-    /// 均衡が `min_balance` 未満（データが一点に集中していて割っても無駄）なら、
-    /// 分割せず自身1つだけを返す。
-    pub fn split_shard(&self, min_balance: f64) -> Vec<Self> {
-        let cut = self
-            .balanced_cut()
-            .filter(|(_, balance)| *balance >= min_balance);
+    /// `balanced_cut` が最も均衡する切り口を選ぶ。FlexId が1つ以下で分割できない場合は
+    /// 自身1つだけを返す。
+    pub fn split_shard(&self) -> Vec<Self> {
+        // 1 件以下は分割しようがない。
+        if self.count() < 2 {
+            return alloc::vec![self.clone()];
+        }
 
-        let Some((region, _)) = cut else {
+        let Some(region) = self.balanced_cut() else {
             return alloc::vec![self.clone()];
         };
 
-        // R がどちらのルート（F の符号）に属するか。
-        let in_lower = FlexId::LOWER_MAX.intersection(&region).is_some();
+        // R がどちらのルートに属するか ＝ F の符号。lower_root は F<0、upper_root は F≥0。
+        let in_lower = region.f_index() < 0;
 
         // A: R だけを残す（パス上の兄弟と反対側ルートを空にする）。
         let mut a = self.clone();

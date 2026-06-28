@@ -269,25 +269,24 @@ where
         self.inner.count()
     }
 
-    /// このテーブルをシャード分割すべきか判定する。**O(Z)**。
-    /// 葉数が `max_leaves` を超え、かつバランス `min_balance` 以上の二分が可能なら `true`。
-    pub fn should_split_shard(&self, max_leaves: usize, min_balance: f64) -> bool {
-        self.inner.should_split_shard(max_leaves, min_balance)
+    /// このテーブルをシャード分割すべきか判定する。**O(1)**。
+    /// 保持する FlexId 数が `max_flex_id_count` を超えていれば `true`。
+    pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
+        self.inner.should_split_shard(max_flex_id_count)
     }
 
-    /// バランスの取れた位置で2つのシャードへ二分割する。
+    /// 最も均衡する位置で2つのシャードへ二分割する。
     ///
-    /// 一点集中（balance < `min_balance`）のときは分割せず自身1つを返す。
+    /// FlexId が1つ以下で分割できない場合は自身1つを返す。
     /// 内部ツリー（空間→Rank）の分割位置だけ `inner` から借り、値辞書を保つために
     /// 抽出・再挿入は [`Self::remove`] / [`Self::insert`] 経由で行う（孤児 rank を残さない）。
     /// 辞書再構築のため計算量は **O(N·(Z + log M))**（Set/Map の O(Z) と異なる点に注意）。
-    pub fn split_shard(&self, min_balance: f64) -> alloc::vec::Vec<Self> {
-        let cut = self
-            .inner
-            .balanced_cut()
-            .filter(|(_, balance)| *balance >= min_balance);
+    pub fn split_shard(&self) -> alloc::vec::Vec<Self> {
+        if self.count() < 2 {
+            return alloc::vec![self.clone()];
+        }
 
-        let Some((region, _)) = cut else {
+        let Some(region) = self.inner.balanced_cut() else {
             return alloc::vec![self.clone()];
         };
 
