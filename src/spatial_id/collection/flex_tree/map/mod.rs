@@ -8,13 +8,6 @@ pub mod shard;
 pub mod tests;
 
 /// 空間(FlexId)に値(V)を対応づけるマップ構造。
-///
-/// [`SpatialIdTable`](crate::SpatialIdTable) と基本 API は同じだが、
-/// 値→空間の逆引き（値インデックス）や値↔ランク辞書を一切持たず、
-/// 値を直接ツリーに格納する index-free 版。そのため `V: Ord` を要求せず、
-/// `value_get` / `value_range` / `rebuild_index` のような値クエリは提供しない。
-// 注: 永続化はインメモリの Arc 木をそのまま rkyv 化するのではなく、ZeroCopy 走査に適した
-// フラットアリーナ形式（[`persist`] モジュール）で行う。よってこの型自体に rkyv 派生は付けない。
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdMap<V>
 where
@@ -126,6 +119,3 @@ where
         self.inner.iter_ref()
     }
 }
-
-// 永続化（`to_bytes` / `from_bytes`）と ZeroCopy 読み（`ArchivedMap`）は
-// フラットアリーナ形式で [`persist`] モジュールが提供する。
