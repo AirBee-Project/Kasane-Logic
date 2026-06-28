@@ -2,42 +2,13 @@ use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId, SpatialId};
 
 pub mod convert;
 pub mod json;
+#[cfg(feature = "persist")]
+pub mod persist;
 pub mod shard;
 pub mod tests;
 
 /// 空間(FlexId)に値(V)を対応づけるマップ構造。
-///
-/// [`SpatialIdTable`](crate::SpatialIdTable) と基本 API は同じだが、
-/// 値→空間の逆引き（値インデックス）や値↔ランク辞書を一切持たず、
-/// 値を直接ツリーに格納する index-free 版。そのため `V: Ord` を要求せず、
-/// `value_get` / `value_range` / `rebuild_index` のような値クエリは提供しない。
 #[derive(Default, Clone, Debug)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(serialize_bounds(
-        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
-        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(deserialize_bounds(
-        __D: rkyv::de::Pooling,
-        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(bytecheck(bounds(
-        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
-        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    )))
-)]
 pub struct SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
@@ -146,23 +117,5 @@ where
     /// マップに保持されている全ての空間と値への参照のペアを返します。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter_ref()
-    }
-}
-
-/// DB 用途（値＝バイト列）の永続化。ジェネリック境界を避けるため `Vec<u8>` 固定で提供する。
-#[cfg(feature = "persist")]
-impl SpatialIdMap<Vec<u8>> {
-    /// この [`SpatialIdMap`] を rkyv バイト列へ直列化する。
-    pub fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, rkyv::rancor::Error> {
-        Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.to_vec())
-    }
-
-    /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から復元する。
-    ///
-    /// # Safety
-    /// `bytes` は [`SpatialIdMap::to_bytes`] が生成した正当なバイト列でなければならない。
-    pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
-        let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdMap<Vec<u8>>>(bytes) };
-        rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
     }
 }

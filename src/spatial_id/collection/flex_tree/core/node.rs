@@ -64,7 +64,7 @@ where
     ///
     /// ツリーレベル `L` の Leaf が持つ FlexId のズームは `max(f, x, y) = ceil(L / 3)` に等しい
     /// （[`completely_covers`](Self::completely_covers) の式と整合）。値の無い Leaf は 0 を返す。
-    pub(super) fn max_zoom_at(&self, node_level: u8) -> u8 {
+    pub(crate) fn max_zoom_at(&self, node_level: u8) -> u8 {
         match self {
             Node::Branch { max_zoom, .. } => *max_zoom,
             Node::Leaf { value: Some(_) } => node_level.div_ceil(3),
@@ -74,7 +74,7 @@ where
 
     /// レベル `level` の Branch を構築・更新する際の `max_zoom` を、両子の部分木から畳み上げる。
     /// 子はいずれもレベル `level + 1` に位置する。
-    pub(super) fn fold_max_zoom(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
+    pub(crate) fn fold_max_zoom(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
         let child_level = level + 1;
         lower
             .max_zoom_at(child_level)
