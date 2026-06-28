@@ -7,7 +7,7 @@ impl<V> FlexTreeCore<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
-    /// このFlexTreeをシャードのために分割する際に、どこを切り出せば良いのかを判断する関数。木の全体を見て、
+    /// このFlexTreeをシャードのために分割する際に、どこを切り出せば良いのかを判断する関数。
     pub(crate) fn balanced_cut(&self) -> Option<FlexId> {
         let lower = self.lower_root.leaf_count();
         let upper = self.upper_root.leaf_count();
@@ -90,12 +90,12 @@ where
         Some(best_region)
     }
 
-    /// この[FlexTree]をシャード分割すべきかを判定する。保持する[FlexId]数が `max_flex_id_count` を超えていれば `true`を返す。[FlexId]の個数はキャッシュされているため高速に動作する。
+    /// この[`FlexTreeCore`]をシャード分割すべきかを判定する。保持する[FlexId]数が `max_flex_id_count` を超えていれば `true`を返す。[FlexId]の個数はキャッシュされているため高速に動作する。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
         self.count() > max_flex_id_count
     }
 
-    /// [FlexTree]を互いに素なシャードへ分割する。この時、シャード1つあたりの中身の[FlexId]の個数は`max_flex_id_count` 以下になる。分割の必要がなければ、自分自身を返す。
+    /// [`FlexTreeCore`]を互いに素なシャードへ分割する。この時、シャード1つあたりの中身の[FlexId]の個数は`max_flex_id_count` 以下になる。分割の必要がなければ、自分自身を返す。
     pub fn split_shard(&self, max_flex_id_count: usize) -> Vec<Self> {
         let mut result = Vec::new();
         let mut pending = alloc::vec![self.clone()];
