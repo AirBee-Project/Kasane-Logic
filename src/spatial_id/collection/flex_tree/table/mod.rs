@@ -275,27 +275,33 @@ where
         self.inner.should_split_shard(max_flex_id_count)
     }
 
-    /// 最も均衡する位置で2つのシャードへ二分割する。
+    /// 互いに素なクリーン領域のシャード列へ分割する（`[R, 兄弟…]`、最大ピース ≈半分）。
     ///
-    /// 分割した場合は `Some((A, B))`、FlexId が1つ以下で分割できない場合は `None`。
-    /// 内部ツリー（空間→Rank）の分割位置だけ `inner` から借り、値辞書を保つために
-    /// 抽出・再挿入は [`Self::remove`] / [`Self::insert`] 経由で行う（孤児 rank を残さない）。
-    /// 辞書再構築のため計算量は **O(N·(Z + log M))**（Set/Map の O(Z) と異なる点に注意）。
-    pub fn split_shard(&self) -> Option<(Self, Self)> {
+    /// 分割位置の領域分解だけ `inner` から借り、値辞書を保つために抽出・再挿入は
+    /// [`Self::remove`] / [`Self::insert`] 経由で行う（孤児 rank を残さない）。
+    /// 辞書再構築のため計算量は **O(N·(Z + log M))**（Set/Map の O(Z²) と異なる点に注意）。
+    /// FlexId が1つ以下なら自身1つを返す。
+    pub fn split_shard(&self) -> alloc::vec::Vec<Self> {
         if self.count() < 2 {
-            return None;
+            return alloc::vec![self.clone()];
         }
 
-        let region = self.inner.balanced_cut()?;
+        let Some(region) = self.inner.balanced_cut() else {
+            return alloc::vec![self.clone()];
+        };
 
+        let regions = self.inner.shard_regions(region);
         let mut rest = self.clone();
-        let extracted: alloc::vec::Vec<(FlexId, V)> = rest.remove(&region).collect();
-        let mut shard = Self::new_in_shard(region);
-        for (flex_id, value) in extracted {
-            shard.insert(flex_id, value);
+        let mut pieces = alloc::vec::Vec::with_capacity(regions.len());
+        for piece_region in regions {
+            let extracted: alloc::vec::Vec<(FlexId, V)> = rest.remove(&piece_region).collect();
+            let mut piece = Self::new_in_shard(piece_region);
+            for (flex_id, value) in extracted {
+                piece.insert(flex_id, value);
+            }
+            pieces.push(piece);
         }
-
-        Some((shard, rest))
+        pieces
     }
 
     /// ツリーの最大ズームレベルを返します。

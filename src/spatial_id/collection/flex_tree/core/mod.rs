@@ -299,54 +299,115 @@ where
         self.count() > max_flex_id_count
     }
 
-    /// バランスの取れた位置でツリーを2つのシャードへ二分割する。**O(Z)**（Z=木の高さ）。
+    /// バランスの取れた位置を境に、ツリーを**互いに素なクリーン領域のシャード列**へ分割する。
     ///
-    /// 既存ツリーを `clone`（構造共有で O(1)）したうえで、切り出す領域 `R` へ向かう
-    /// **1本のパスだけ**を書き換える。A は R 以外の枝と反対側ルートを空にして R だけ残し、
-    /// B は R の枝を空にする。葉の列挙・再挿入をしないため葉数 N に依存しない。
+    /// `balanced_cut` で求めた最も均衡する単一領域 `R`（≈半分）を1つのシャードとし、その
+    /// 補集合（元 − R）を「root から R へ向かうパスの脇に逸れた部分木（兄弟）」へ分解する。
+    /// 結果はすべて**互いに素なクリーン FlexId 領域**で、`[R, 兄弟1, 兄弟2, …]` を返す。
+    /// 多くの場合「大きいの2つ＋小さい欠片」で、最大ピースは ≈半分。
     ///
-    /// `balanced_cut` が最も均衡する切り口を選ぶ。分割した場合は `Some((A, B))`、
-    /// FlexId が1つ以下で分割できない場合は `None`（呼び出し側が元を保持する）。
-    pub fn split_shard(&self) -> Option<(Self, Self)> {
-        // 1 件以下は分割しようがない。
+    /// 計算量は **O(Z²)**（ピース数 ≤ Z、各ピースの切り出しが O(Z)）。葉数 N には非依存。
+    /// FlexId が1つ以下で分割できない場合は自身1つだけを返す。
+    pub fn split_shard(&self) -> Vec<Self> {
         if self.count() < 2 {
-            return None;
+            return alloc::vec![self.clone()];
         }
 
-        let region = self.balanced_cut()?;
+        let Some(region) = self.balanced_cut() else {
+            return alloc::vec![self.clone()];
+        };
 
-        // R がどちらのルートに属するか ＝ F の符号。lower_root は F<0、upper_root は F≥0。
+        self.shard_regions(region)
+            .into_iter()
+            .map(|piece_region| self.extract_region(piece_region))
+            .collect()
+    }
+
+    /// `split_shard` の領域分解。`R` と、その補集合を構成する互いに素なクリーン領域
+    /// （反対側ルート＋ root→R パスの off-path 兄弟）を列挙する。**O(Z)**。
+    pub(crate) fn shard_regions(&self, region: FlexId) -> Vec<FlexId> {
+        let mut regions = alloc::vec![region.clone()];
+
+        // R が属するルートと、反対側ルート。
+        let in_lower = region.f_index() < 0;
+        let (region_root, region_root_id, other_root, other_root_id) = if in_lower {
+            (
+                &self.lower_root,
+                FlexId::LOWER_MAX,
+                &self.upper_root,
+                FlexId::UPPER_MAX,
+            )
+        } else {
+            (
+                &self.upper_root,
+                FlexId::UPPER_MAX,
+                &self.lower_root,
+                FlexId::LOWER_MAX,
+            )
+        };
+
+        // 反対側ルートはまるごと補集合の1ピース（空でなければ）。
+        if other_root.leaf_count() > 0 {
+            regions.push(other_root_id);
+        }
+
+        // region_root → R のパスを降り、各 Branch で off-path 側（兄弟）を拾う。
+        let mut node = region_root.clone();
+        let mut id = region_root_id;
+        while id != region {
+            let next = match &*node {
+                Node::Branch {
+                    level,
+                    lower_child,
+                    upper_child,
+                    ..
+                } => {
+                    let axis = Node::<V>::axis(*level);
+                    let lower_id = split_child_id(&id, axis, Side::Lower);
+                    let upper_id = split_child_id(&id, axis, Side::Upper);
+                    // R を含む子へ進み、反対の子（兄弟）が空でなければピースに加える。
+                    if lower_id.intersection(&region).is_some() {
+                        if upper_child.leaf_count() > 0 {
+                            regions.push(upper_id);
+                        }
+                        (lower_child.clone(), lower_id)
+                    } else {
+                        if lower_child.leaf_count() > 0 {
+                            regions.push(lower_id);
+                        }
+                        (upper_child.clone(), upper_id)
+                    }
+                }
+                Node::Leaf { .. } => break,
+            };
+            node = next.0;
+            id = next.1;
+        }
+
+        regions
+    }
+
+    /// `region` の部分木だけを残した単一シャードを作る（`shard = region`）。**O(Z)**。
+    /// 既存ツリーを `clone`（構造共有）し、`region` へのパス1本だけを `prune_path` で刈る。
+    fn extract_region(&self, region: FlexId) -> Self {
         let in_lower = region.f_index() < 0;
 
-        // A: R だけを残す（パス上の兄弟と反対側ルートを空にする）。
-        let mut a = self.clone();
+        let mut piece = self.clone();
         {
             let (root, root_id) = if in_lower {
-                (&mut a.lower_root, FlexId::LOWER_MAX)
+                (&mut piece.lower_root, FlexId::LOWER_MAX)
             } else {
-                (&mut a.upper_root, FlexId::UPPER_MAX)
+                (&mut piece.upper_root, FlexId::UPPER_MAX)
             };
             Self::prune_path(root, root_id, &region, true, &self.empty_leaf);
         }
         if in_lower {
-            a.upper_root = self.empty_leaf.clone();
+            piece.upper_root = self.empty_leaf.clone();
         } else {
-            a.lower_root = self.empty_leaf.clone();
+            piece.lower_root = self.empty_leaf.clone();
         }
-        a.shard = Some(region.clone());
-
-        // B: R の枝を空にする（残りはそのまま）。
-        let mut b = self.clone();
-        {
-            let (root, root_id) = if in_lower {
-                (&mut b.lower_root, FlexId::LOWER_MAX)
-            } else {
-                (&mut b.upper_root, FlexId::UPPER_MAX)
-            };
-            Self::prune_path(root, root_id, &region, false, &self.empty_leaf);
-        }
-
-        Some((a, b))
+        piece.shard = Some(region);
+        piece
     }
 
     /// `region` へ向かう1本のパスだけを辿って枝を刈る。**O(Z)**。

@@ -123,12 +123,14 @@ where
         self.inner.should_split_shard(max_flex_id_count)
     }
 
-    /// 最も均衡する位置で2つのシャードへ二分割する。**O(Z)**。
-    /// 分割した場合は `Some((A, B))`、FlexId が1つ以下で分割できない場合は `None`。
-    pub fn split_shard(&self) -> Option<(Self, Self)> {
+    /// 互いに素なクリーン領域のシャード列へ分割する（`[R, 兄弟…]`、最大ピース ≈半分）。
+    /// **O(Z²)**・N非依存。FlexId が1つ以下なら自身1つを返す。
+    pub fn split_shard(&self) -> alloc::vec::Vec<Self> {
         self.inner
             .split_shard()
-            .map(|(a, b)| (Self { inner: a }, Self { inner: b }))
+            .into_iter()
+            .map(|inner| Self { inner })
+            .collect()
     }
 
     /// ツリーの最大ズームレベルを返します。
