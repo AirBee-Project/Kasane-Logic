@@ -275,33 +275,43 @@ where
         self.inner.should_split_shard(max_flex_id_count)
     }
 
-    /// 互いに素なクリーン領域のシャード列へ分割する（`[R, 兄弟…]`、最大ピース ≈半分）。
+    /// 互いに素なクリーン領域のシャード列へ分割する。
     ///
     /// 分割位置の領域分解だけ `inner` から借り、値辞書を保つために抽出・再挿入は
     /// [`Self::remove`] / [`Self::insert`] 経由で行う（孤児 rank を残さない）。
-    /// 辞書再構築のため計算量は **O(N·(Z + log M))**（Set/Map の O(Z²) と異なる点に注意）。
-    /// FlexId が1つ以下なら自身1つを返す。
-    pub fn split_shard(&self) -> alloc::vec::Vec<Self> {
-        if self.count() < 2 {
-            return alloc::vec![self.clone()];
-        }
+    /// 各ピースの FlexId 数が `max_flex_id_count` 以下になるまで再分割する。
+    /// 計算量は **O(K·N·(Z + log M))**（K = 最終ピース数）。FlexId が `max_flex_id_count` 以下なら自身1つを返す。
+    pub fn split_shard(&self, max_flex_id_count: usize) -> alloc::vec::Vec<Self> {
+        let mut result = alloc::vec::Vec::new();
+        let mut pending = alloc::vec![self.clone()];
 
-        let Some(region) = self.inner.balanced_cut() else {
-            return alloc::vec![self.clone()];
-        };
-
-        let regions = self.inner.shard_regions(region);
-        let mut rest = self.clone();
-        let mut pieces = alloc::vec::Vec::with_capacity(regions.len());
-        for piece_region in regions {
-            let extracted: alloc::vec::Vec<(FlexId, V)> = rest.remove(&piece_region).collect();
-            let mut piece = Self::new_in_shard(piece_region);
-            for (flex_id, value) in extracted {
-                piece.insert(flex_id, value);
+        while let Some(piece) = pending.pop() {
+            // 閾値以下、または分割不能（1要素以下）ならそのまま確定
+            if piece.count() <= max_flex_id_count || piece.count() < 2 {
+                result.push(piece);
+                continue;
             }
-            pieces.push(piece);
+
+            let Some(region) = piece.inner.balanced_cut() else {
+                result.push(piece);
+                continue;
+            };
+
+            let regions = piece.inner.shard_regions(region);
+            let mut rest = piece.clone();
+            let mut sub_pieces = alloc::vec::Vec::with_capacity(regions.len());
+            for piece_region in regions {
+                let extracted: alloc::vec::Vec<(FlexId, V)> = rest.remove(&piece_region).collect();
+                let mut sub_piece = Self::new_in_shard(piece_region);
+                for (flex_id, value) in extracted {
+                    sub_piece.insert(flex_id, value);
+                }
+                sub_pieces.push(sub_piece);
+            }
+            pending.extend(sub_pieces);
         }
-        pieces
+
+        result
     }
 
     /// ツリーの最大ズームレベルを返します。

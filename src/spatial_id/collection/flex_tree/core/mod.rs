@@ -301,26 +301,37 @@ where
 
     /// バランスの取れた位置を境に、ツリーを**互いに素なクリーン領域のシャード列**へ分割する。
     ///
-    /// `balanced_cut` で求めた最も均衡する単一領域 `R`（≈半分）を1つのシャードとし、その
-    /// 補集合（元 − R）を「root から R へ向かうパスの脇に逸れた部分木（兄弟）」へ分解する。
-    /// 結果はすべて**互いに素なクリーン FlexId 領域**で、`[R, 兄弟1, 兄弟2, …]` を返す。
-    /// 多くの場合「大きいの2つ＋小さい欠片」で、最大ピースは ≈半分。
+    /// `max_flex_id_count` を超える FlexId を持つピースは、`balanced_cut` を使って
+    /// 再帰的に分割する。各ピースが閾値以下になるか、それ以上分割できない（FlexId が
+    /// 1つ以下）まで繰り返す。結果はすべて**互いに素なクリーン FlexId 領域**。
     ///
-    /// 計算量は **O(Z²)**（ピース数 ≤ Z、各ピースの切り出しが O(Z)）。葉数 N には非依存。
-    /// FlexId が1つ以下で分割できない場合は自身1つだけを返す。
-    pub fn split_shard(&self) -> Vec<Self> {
-        if self.count() < 2 {
-            return alloc::vec![self.clone()];
+    /// 計算量は最悪 **O(K·Z²)**（K = 最終ピース数、Z = ズームレベル数）。葉数 N には非依存。
+    /// FlexId が `max_flex_id_count` 以下なら自身1つだけを返す。
+    pub fn split_shard(&self, max_flex_id_count: usize) -> Vec<Self> {
+        let mut result = Vec::new();
+        let mut pending = alloc::vec![self.clone()];
+
+        while let Some(piece) = pending.pop() {
+            // 閾値以下、または分割不能（1要素以下）ならそのまま確定
+            if piece.count() <= max_flex_id_count || piece.count() < 2 {
+                result.push(piece);
+                continue;
+            }
+
+            let Some(region) = piece.balanced_cut() else {
+                result.push(piece);
+                continue;
+            };
+
+            let sub_pieces: Vec<Self> = piece
+                .shard_regions(region)
+                .into_iter()
+                .map(|piece_region| piece.extract_region(piece_region))
+                .collect();
+            pending.extend(sub_pieces);
         }
 
-        let Some(region) = self.balanced_cut() else {
-            return alloc::vec![self.clone()];
-        };
-
-        self.shard_regions(region)
-            .into_iter()
-            .map(|piece_region| self.extract_region(piece_region))
-            .collect()
+        result
     }
 
     /// `split_shard` の領域分解。`R` と、その補集合を構成する互いに素なクリーン領域
