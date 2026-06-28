@@ -12,6 +12,7 @@ pub mod node;
 pub mod node_ops;
 mod overlap;
 pub(crate) mod ptr;
+pub mod shard;
 use ptr::SharedNode;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型

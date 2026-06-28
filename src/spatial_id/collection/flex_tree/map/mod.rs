@@ -2,6 +2,7 @@ use crate::{FlexId, FlexTreeCore, IterFlexIds, SingleId, SpatialId};
 
 pub mod convert;
 pub mod json;
+pub mod shard;
 pub mod tests;
 
 /// 空間(FlexId)に値(V)を対応づけるマップ構造。

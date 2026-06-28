@@ -4,6 +4,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use core::ops::RangeBounds;
 pub mod convert;
 pub mod json;
+pub mod shard;
 pub mod test;
 
 #[cfg(all(test, feature = "persist"))]

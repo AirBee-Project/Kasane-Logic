@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 
 pub mod constructor;
 pub mod convert;
+pub mod encode;
 pub mod impls;
 pub mod ops;
 
