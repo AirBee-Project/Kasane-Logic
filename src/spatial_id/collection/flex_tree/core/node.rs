@@ -186,14 +186,8 @@ where
                 }
             };
 
-            if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) = (&*new_lower, &*new_upper)
-                && v1 == v2
-            {
-                if v1.is_none() {
-                    *node = empty_leaf.clone();
-                } else {
-                    *node = SharedNode::new(Node::Leaf { value: v1.clone() });
-                }
+            if let Some(rep) = Self::collapse_equal_children(&new_lower, &new_upper, empty_leaf) {
+                *node = rep;
                 return;
             }
 
@@ -209,7 +203,7 @@ where
 
         // current_level == node_level の場合
         // ここが Copy-on-Write のコア。可能なら node の中身を mutable に取得する。
-        let (should_merge, merged_val) = {
+        let replacement = {
             let mut_node = SharedNode::make_mut(node);
 
             if let Node::Branch {
@@ -237,28 +231,36 @@ where
                 *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
                 *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
 
-                if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) =
-                    (&**lower_child, &**upper_child)
-                {
-                    if v1 == v2 {
-                        (true, v1.clone())
-                    } else {
-                        (false, None)
-                    }
-                } else {
-                    (false, None)
-                }
+                Self::collapse_equal_children(lower_child, upper_child, empty_leaf)
             } else {
                 unreachable!()
             }
         };
 
-        if should_merge {
-            if merged_val.is_none() {
-                *node = empty_leaf.clone();
+        if let Some(rep) = replacement {
+            *node = rep;
+        }
+    }
+
+    /// 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳む置換ノードを返す。
+    ///
+    /// 葉同士（同値）の uniform-fill だけでなく、**等価な非葉サブツリー**（＝その軸が
+    /// 効かない＝1段粗くできる異方セル）も畳む。Node の derived `PartialEq` は
+    /// `level`/`leaf_count`/`max_zoom`（O(1) キャッシュ）を先に比較して短絡するため、
+    /// 等価でない大半の枝は深い比較に入らず弾かれる。
+    fn collapse_equal_children(
+        lower_child: &SharedNode<Node<V>>,
+        upper_child: &SharedNode<Node<V>>,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> Option<SharedNode<Node<V>>> {
+        if **lower_child == **upper_child {
+            Some(if matches!(&**lower_child, Node::Leaf { value: None }) {
+                empty_leaf.clone()
             } else {
-                *node = SharedNode::new(Node::Leaf { value: merged_val });
-            }
+                lower_child.clone()
+            })
+        } else {
+            None
         }
     }
 

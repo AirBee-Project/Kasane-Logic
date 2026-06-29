@@ -11,6 +11,96 @@ use crate::spatial_id::collection::flex_tree::set::tests::arb_random_set_case;
 use crate::{SingleId, SpatialIdSet, SpatialIdTable};
 use proptest::prelude::*;
 
+/// Branch の「両子が値として等しい」ノード数を数える（＝冗長な軸分割＝スキップで畳める）。
+fn count_equal_child_branches(node: &Node<()>) -> usize {
+    match node {
+        Node::Leaf { .. } => 0,
+        Node::Branch {
+            lower_child,
+            upper_child,
+            ..
+        } => {
+            let here = if **lower_child == **upper_child { 1 } else { 0 };
+            here + count_equal_child_branches(lower_child) + count_equal_child_branches(upper_child)
+        }
+    }
+}
+
+/// 冗長軸分割の collapse を入れた後、X ストリップの木に「両子が等しい Branch」が
+/// 1 つも残らない（＝スキップ collapse が完全に適用された）こと。
+#[test]
+fn x_strip_has_no_redundant_branch() {
+    let z = 4u8;
+    let mut x_strip = SpatialIdSet::new();
+    x_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
+    x_strip.insert(SingleId::new(z, 0, 1, 0).unwrap());
+
+    let redundant = count_equal_child_branches(&x_strip.inner.lower_root)
+        + count_equal_child_branches(&x_strip.inner.upper_root);
+    assert_eq!(redundant, 0, "no redundant equal-child branch must remain");
+}
+
+/// 道路（平面ストリップ）の X/Y 方向マージ対称性。
+/// 冗長軸分割の collapse により、X 方向ストリップも（Y 同様に）異方セルへ畳まれる。
+#[test]
+fn road_strip_xy_symmetry() {
+    let z = 4u8;
+
+    // Y 方向 2 セル → merge して 1。
+    let mut y_strip = SpatialIdSet::new();
+    y_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
+    y_strip.insert(SingleId::new(z, 0, 0, 1).unwrap());
+    assert_eq!(y_strip.count(), 1, "Y-strip should merge");
+
+    // X 方向 2 セル → 冗長 X 分割が畳まれ 1（異方セル x_zoom=z-1, y_zoom=z）。
+    let mut x_strip = SpatialIdSet::new();
+    x_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
+    x_strip.insert(SingleId::new(z, 0, 1, 0).unwrap());
+    assert_eq!(x_strip.count(), 1, "X-strip now merges symmetrically");
+
+    // 2x2 ブロック → merge して 1。
+    let mut block = SpatialIdSet::new();
+    for x in 0..2 {
+        for y in 0..2 {
+            block.insert(SingleId::new(z, 0, x, y).unwrap());
+        }
+    }
+    assert_eq!(block.count(), 1, "2x2 block should merge");
+
+    // X 方向に長さ 8 の道（Y=1セル幅, アラインあり）→ 1 つの異方セルへ畳まれる。
+    let mut long_x_road = SpatialIdSet::new();
+    for x in 0..8 {
+        long_x_road.insert(SingleId::new(z, 0, x, 0).unwrap());
+    }
+    assert_eq!(
+        long_x_road.count(),
+        1,
+        "aligned X-road merges to a single anisotropic cell"
+    );
+}
+
+/// F 軸 collapse で f_zoom が strict-max から減るケース。
+/// zoom4 の 2×2×2 ブロック（f,x,y∈{0,1}）は zoom3 等方セルへ畳まれ、
+/// max_zoomlevel は 4→3 になる（キャッシュ済み max_zoom がステイルにならない）。
+#[test]
+fn f_collapse_reduces_max_zoom() {
+    let mut set = SpatialIdSet::new();
+    for f in 0..2 {
+        for x in 0..2 {
+            for y in 0..2 {
+                set.insert(SingleId::new(4, f, x, y).unwrap());
+            }
+        }
+    }
+    assert_eq!(set.count(), 1, "2x2x2 block collapses to 1");
+    assert_eq!(
+        set.max_zoomlevel(),
+        Some(3),
+        "f-collapse must drop cached max_zoom 4 -> 3"
+    );
+    assert_eq!(set.max_zoomlevel(), brute_max_zoom(&set));
+}
+
 /// Table（値あり）: 同値の Y 兄弟は merge して 1、異値は merge せず 2。
 #[test]
 fn table_merges_same_value_only() {
@@ -189,6 +279,14 @@ fn union_recursive_collapse_deep() {
     assert!(set_is_fully_merged(&u));
 }
 
+/// 格納されている全 FlexId から `max(f_zoom, x_zoom, y_zoom)` の最大値を直接計算する。
+/// キャッシュ済み `max_zoom` のオラクル。
+fn brute_max_zoom(set: &SpatialIdSet) -> Option<u8> {
+    set.iter()
+        .map(|id| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
+        .max()
+}
+
 /// 木の現在の内容を iter() で取り出し、新しい Set へ再挿入したものを返す。
 fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
     let mut out = SpatialIdSet::new();
@@ -246,6 +344,21 @@ proptest! {
     fn insert_no_unmerged(case in arb_random_set_case()) {
         let set = case.build_set();
         prop_assert!(set_is_fully_merged(&set), "unmerged after insert: {}", case.debug_summary());
+    }
+
+    /// 冗長軸 collapse 後も、キャッシュ済み max_zoom が実際の格納セルと一致する
+    /// （collapse で葉の実効 zoom が変わっても max_zoomlevel がステイルにならない）。
+    #[test]
+    fn max_zoom_consistent_after_collapse(a in arb_random_set_case(), b in arb_random_set_case()) {
+        let sa = a.build_set();
+        let sb = b.build_set();
+        prop_assert_eq!(sa.max_zoomlevel(), brute_max_zoom(&sa), "insert: {}", a.debug_summary());
+        let u = &sa | &sb;
+        prop_assert_eq!(u.max_zoomlevel(), brute_max_zoom(&u), "union");
+        let i = &sa & &sb;
+        prop_assert_eq!(i.max_zoomlevel(), brute_max_zoom(&i), "intersection");
+        let d = &sa - &sb;
+        prop_assert_eq!(d.max_zoomlevel(), brute_max_zoom(&d), "difference");
     }
 
     /// 内部不変条件: union/intersection/difference の結果にも未適用マージが無い。
@@ -342,4 +455,24 @@ fn fill_zoom2_cube_collapses() {
     // 完全に満たされた zoom2 立方体 → zoom0 の 1 葉へ collapse すべき。
     println!("zoom2 full cube count = {}", set.count());
     assert_eq!(set.count(), 1, "full zoom2 cube should collapse to 1");
+}
+
+#[test]
+fn verify_f_strip_coverage_preserved() {
+    use crate::spatial_id::zoom_level::ZoomLevel;
+    // corner_cases と同じ 10 個の F 隣接セル（z=30, x=y=0）。
+    let mut set = SpatialIdSet::new();
+    let mut expected = std::collections::BTreeSet::new();
+    for i in 0..10 {
+        let id = SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_max() - i, 0, 0).unwrap();
+        set.insert(id);
+        expected.insert((ZoomLevel::MAX.f_max() - i, 0u32, 0u32));
+    }
+    // マージ後 count は減るが、最細セルへ展開すると元の 10 セルと一致するはず（被覆不変）。
+    let mut got = std::collections::BTreeSet::new();
+    for (sid, _) in set.flat_single_ids().map(|s| (s, ())) {
+        assert_eq!(sid.z(), ZoomLevel::MAX.get());
+        got.insert((sid.f(), sid.x(), sid.y()));
+    }
+    assert_eq!(got, expected, "merge must preserve exact coverage");
 }
