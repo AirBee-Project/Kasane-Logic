@@ -10,7 +10,7 @@ where
         self.count() > max_flex_id_count
     }
 
-    /// このシャード（[`shard`](Self::shard) 領域）を、その root レベルの軸で2分割し、切り取った部分木を `((下のシャード領域, 下の実体), (上のシャード領域, 上の実体))` で返す。
+    /// このシャード（[`shard`](Self::shard) 領域）を、現在のrootの軸で2分割し、切り取った部分木を `((下のシャード領域, 下の実体), (上のシャード領域, 上の実体))` で返す。
     /// シャード領域が未設定なら `None`を返す。
     pub(crate) fn split_shard(&self) -> Option<((FlexId, Self), (FlexId, Self))> {
         let region = self.shard()?.clone();
