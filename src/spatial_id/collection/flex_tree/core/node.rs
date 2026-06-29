@@ -264,7 +264,9 @@ where
         // その軸の最深分割のときに限る。さもないと軸の分割深さに途中ギャップができ、
         // 階層細分として表現不能になって座標再構成（[`LeavesIter`] / [`split_child_id`]）が
         // 壊れる（接頭辞のみ＝接尾辞トリムだけが許される不変条件）。
-        if **lower_child == **upper_child
+        // ptr_eq なら値も必ず等価なので、深い等価比較（O(部分木)）を省く。
+        // union 後など構造共有された左右の子で効く。
+        if (SharedNode::ptr_eq(lower_child, upper_child) || **lower_child == **upper_child)
             && !Self::subtree_splits_axis(lower_child, Self::axis(level))
         {
             Some(if matches!(&**lower_child, Node::Leaf { value: None }) {
