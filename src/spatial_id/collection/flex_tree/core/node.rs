@@ -186,7 +186,9 @@ where
                 }
             };
 
-            if let Some(rep) = Self::collapse_equal_children(&new_lower, &new_upper, empty_leaf) {
+            if let Some(rep) =
+                Self::collapse_equal_children(&new_lower, &new_upper, current_level, empty_leaf)
+            {
                 *node = rep;
                 return;
             }
@@ -231,7 +233,7 @@ where
                 *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
                 *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
 
-                Self::collapse_equal_children(lower_child, upper_child, empty_leaf)
+                Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
             } else {
                 unreachable!()
             }
@@ -248,12 +250,23 @@ where
     /// 効かない＝1段粗くできる異方セル）も畳む。Node の derived `PartialEq` は
     /// `level`/`leaf_count`/`max_zoom`（O(1) キャッシュ）を先に比較して短絡するため、
     /// 等価でない大半の枝は深い比較に入らず弾かれる。
-    fn collapse_equal_children(
+    pub(crate) fn collapse_equal_children(
         lower_child: &SharedNode<Node<V>>,
         upper_child: &SharedNode<Node<V>>,
+        level: u8,
         empty_leaf: &SharedNode<Node<V>>,
     ) -> Option<SharedNode<Node<V>>> {
-        if **lower_child == **upper_child {
+        // 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳める。
+        // 葉同士（uniform-fill）だけでなく、等価な非葉サブツリー（＝その軸が効かない
+        // 1段粗い異方セル）も畳む＝FlexId の異方圧縮を効かせる。
+        //
+        // ただし畳めるのは「畳む軸 axis(level) を子側がこれ以上分割しない」＝この分割が
+        // その軸の最深分割のときに限る。さもないと軸の分割深さに途中ギャップができ、
+        // 階層細分として表現不能になって座標再構成（[`LeavesIter`] / [`split_child_id`]）が
+        // 壊れる（接頭辞のみ＝接尾辞トリムだけが許される不変条件）。
+        if **lower_child == **upper_child
+            && !Self::subtree_splits_axis(lower_child, Self::axis(level))
+        {
             Some(if matches!(&**lower_child, Node::Leaf { value: None }) {
                 empty_leaf.clone()
             } else {
@@ -261,6 +274,26 @@ where
             })
         } else {
             None
+        }
+    }
+
+    /// `node` 配下に `axis` を分割する [`Node::Branch`] が1つでも存在するか。
+    ///
+    /// 等価サブツリーを畳む際、その軸の「より深い分割」が下に残っていないかの
+    /// 判定に使う（残っているとギャップになるため畳めない）。
+    fn subtree_splits_axis(node: &SharedNode<Node<V>>, axis: Dimension) -> bool {
+        match &**node {
+            Node::Leaf { .. } => false,
+            Node::Branch {
+                level,
+                lower_child,
+                upper_child,
+                ..
+            } => {
+                Self::axis(*level) == axis
+                    || Self::subtree_splits_axis(lower_child, axis)
+                    || Self::subtree_splits_axis(upper_child, axis)
+            }
         }
     }
 

@@ -13,8 +13,8 @@ mod tests {
                 SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_max() - i, 0, 0).unwrap();
             set.insert(single_id);
         }
-        // 10 個は F 方向に隣接（x=y=0 固定）するため、冗長軸分割の collapse により
-        // 異方セルへ圧縮される（被覆は保たれたまま count は 2 になる）。
+        // 10 個は F 方向に隣接（x=y=0 固定）し、異方 collapse で圧縮される
+        // （被覆は保たれたまま count は減る）。
         assert_eq!(2, set.count());
 
         // 全体を覆う巨大なノードを挿入 (z=0, 負の空間)

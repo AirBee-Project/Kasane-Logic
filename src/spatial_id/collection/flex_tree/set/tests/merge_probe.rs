@@ -7,9 +7,51 @@
 #![cfg(test)]
 
 use crate::spatial_id::collection::flex_tree::core::node::Node;
-use crate::spatial_id::collection::flex_tree::set::tests::arb_random_set_case;
+use crate::spatial_id::collection::flex_tree::set::tests::{
+    arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
+};
 use crate::{SingleId, SpatialIdSet, SpatialIdTable};
 use proptest::prelude::*;
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(96))]
+
+    /// 異方 collapse が単一ID被覆を保つことを、ブルートフォース（共通ズームへ単一ID
+    /// 展開）と照合する。union / intersection / difference を網羅。
+    ///
+    /// これは座標再構成まで含めて検証する gold-standard。素朴 collapse の座標破壊は
+    /// このオラクルでのみ検出できた（count 不変テストでは見逃した）ので常時実行する。
+    #[test]
+    fn ops_preserve_single_id_coverage(
+        a in arb_random_set_case(),
+        b in arb_random_set_case(),
+    ) {
+        let sa = a.build_set();
+        let sb = b.build_set();
+        let z = sa
+            .max_zoomlevel()
+            .unwrap_or(0)
+            .max(sb.max_zoomlevel().unwrap_or(0));
+
+        let ea = decompose_set_to_single_ids_at_zoom(&sa, z);
+        let eb = decompose_set_to_single_ids_at_zoom(&sb, z);
+
+        let mut exp_union: Vec<SingleId> = ea.union(&eb).cloned().collect();
+        exp_union.sort();
+        prop_assert_eq!(sorted_single_ids(&(&sa | &sb), z), exp_union,
+            "union: a={} b={}", a.debug_summary(), b.debug_summary());
+
+        let mut exp_inter: Vec<SingleId> = ea.intersection(&eb).cloned().collect();
+        exp_inter.sort();
+        prop_assert_eq!(sorted_single_ids(&(&sa & &sb), z), exp_inter,
+            "intersection: a={} b={}", a.debug_summary(), b.debug_summary());
+
+        let mut exp_diff: Vec<SingleId> = ea.difference(&eb).cloned().collect();
+        exp_diff.sort();
+        prop_assert_eq!(sorted_single_ids(&(&sa - &sb), z), exp_diff,
+            "difference: a={} b={}", a.debug_summary(), b.debug_summary());
+    }
+}
 
 /// Branch の「両子が値として等しい」ノード数を数える（＝冗長な軸分割＝スキップで畳める）。
 fn count_equal_child_branches(node: &Node<()>) -> usize {
@@ -26,8 +68,8 @@ fn count_equal_child_branches(node: &Node<()>) -> usize {
     }
 }
 
-/// 冗長軸分割の collapse を入れた後、X ストリップの木に「両子が等しい Branch」が
-/// 1 つも残らない（＝スキップ collapse が完全に適用された）こと。
+/// ガード付き collapse 適用後、X ストリップの木に「両子が等しい Branch」（＝最深軸の
+/// 冗長分割）が 1 つも残らない（異方圧縮が効いている）こと。
 #[test]
 fn x_strip_has_no_redundant_branch() {
     let z = 4u8;
@@ -41,33 +83,33 @@ fn x_strip_has_no_redundant_branch() {
 }
 
 /// 道路（平面ストリップ）の X/Y 方向マージ対称性。
-/// 冗長軸分割の collapse により、X 方向ストリップも（Y 同様に）異方セルへ畳まれる。
+/// ガード付きの異方 collapse により、最深軸であれば X 方向ストリップも畳まれる。
 #[test]
 fn road_strip_xy_symmetry() {
     let z = 4u8;
 
-    // Y 方向 2 セル → merge して 1。
+    // Y 方向 2 セル → 1。
     let mut y_strip = SpatialIdSet::new();
     y_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
     y_strip.insert(SingleId::new(z, 0, 0, 1).unwrap());
-    assert_eq!(y_strip.count(), 1, "Y-strip should merge");
+    assert_eq!(y_strip.count(), 1, "Y-strip merges");
 
-    // X 方向 2 セル → 冗長 X 分割が畳まれ 1（異方セル x_zoom=z-1, y_zoom=z）。
+    // X 方向 2 セル → 最深 X の冗長分割が畳まれ 1（異方セル x_zoom=z-1, y_zoom=z）。
     let mut x_strip = SpatialIdSet::new();
     x_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
     x_strip.insert(SingleId::new(z, 0, 1, 0).unwrap());
-    assert_eq!(x_strip.count(), 1, "X-strip now merges symmetrically");
+    assert_eq!(x_strip.count(), 1, "X-strip now merges (anisotropic)");
 
-    // 2x2 ブロック → merge して 1。
+    // 2x2 ブロック → 1。
     let mut block = SpatialIdSet::new();
     for x in 0..2 {
         for y in 0..2 {
             block.insert(SingleId::new(z, 0, x, y).unwrap());
         }
     }
-    assert_eq!(block.count(), 1, "2x2 block should merge");
+    assert_eq!(block.count(), 1, "2x2 block merges");
 
-    // X 方向に長さ 8 の道（Y=1セル幅, アラインあり）→ 1 つの異方セルへ畳まれる。
+    // X 方向に長さ 8 のアライン道（Y=1セル幅）→ 1 つの異方セルへ畳まれる。
     let mut long_x_road = SpatialIdSet::new();
     for x in 0..8 {
         long_x_road.insert(SingleId::new(z, 0, x, 0).unwrap());
@@ -79,8 +121,8 @@ fn road_strip_xy_symmetry() {
     );
 }
 
-/// F 軸 collapse で f_zoom が strict-max から減るケース。
-/// zoom4 の 2×2×2 ブロック（f,x,y∈{0,1}）は zoom3 等方セルへ畳まれ、
+/// フル充填の葉 collapse で max_zoom が減るケース。
+/// zoom4 の 2×2×2 ブロック（f,x,y∈{0,1}）は zoom3 等方セル（葉）へ畳まれ、
 /// max_zoomlevel は 4→3 になる（キャッシュ済み max_zoom がステイルにならない）。
 #[test]
 fn f_collapse_reduces_max_zoom() {

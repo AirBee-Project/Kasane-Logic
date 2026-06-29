@@ -303,14 +303,9 @@ where
         b: &SharedNode<Node<V>>,
         empty_leaf: &SharedNode<Node<V>>,
     ) -> SharedNode<Self> {
-        // 2つの子が値として等価なら、その軸の分割は冗長なので片方へ畳む。
-        // 葉同士（uniform-fill）に加え、等価な非葉サブツリー（＝1段粗くできる異方セル）も畳む。
-        if *new_lower == *new_upper {
-            return if matches!(&*new_lower, Node::Leaf { value: None }) {
-                empty_leaf.clone()
-            } else {
-                new_lower
-            };
+        if let Some(rep) = Self::collapse_equal_children(&new_lower, &new_upper, level, empty_leaf)
+        {
+            return rep;
         }
 
         if let Node::Branch {
