@@ -1,6 +1,7 @@
 use super::SpatialIdMap;
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use crate::{Error, FlexId, SpatialIdError};
+use alloc::vec::Vec;
 
 impl<V> SpatialIdMap<V>
 where
