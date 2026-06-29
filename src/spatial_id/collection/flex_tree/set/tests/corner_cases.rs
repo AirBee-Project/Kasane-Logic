@@ -13,7 +13,9 @@ mod tests {
                 SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_max() - i, 0, 0).unwrap();
             set.insert(single_id);
         }
-        assert_eq!(10, set.count());
+        // 10 個は F 方向に隣接（x=y=0 固定）し、異方 collapse で圧縮される
+        // （被覆は保たれたまま count は減る）。
+        assert_eq!(2, set.count());
 
         // 全体を覆う巨大なノードを挿入 (z=0, 負の空間)
         let large_id = RangeId::new(0, [-1, 0], [0, 0], [0, 0]).unwrap();

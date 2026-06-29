@@ -303,14 +303,9 @@ where
         b: &SharedNode<Node<V>>,
         empty_leaf: &SharedNode<Node<V>>,
     ) -> SharedNode<Self> {
-        if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) = (&*new_lower, &*new_upper)
-            && v1 == v2
+        if let Some(rep) = Self::collapse_equal_children(&new_lower, &new_upper, level, empty_leaf)
         {
-            if v1.is_none() {
-                return empty_leaf.clone();
-            } else {
-                return SharedNode::new(Node::Leaf { value: v1.clone() });
-            }
+            return rep;
         }
 
         if let Node::Branch {
