@@ -88,3 +88,49 @@ fn same_region_intersection_matches_overlap() {
     let got: Vec<FlexId> = inter.iter().collect();
     assert_eq!(got, vec![FlexId::from(SingleId::new(4, 0, 2, 2).unwrap())]);
 }
+
+#[test]
+fn split_shard_then_merge_shards_roundtrips() {
+    // Map と対称な split_shard / merge_shards が、分割→統合で元の集合に戻ることを確認。
+    let shard = region(2, 0, 0, 0);
+    let mut set = SpatialIdSet::new_in_shard(shard.clone());
+    set.insert(SingleId::new(4, 0, 1, 1).unwrap());
+    set.insert(SingleId::new(4, 0, 2, 2).unwrap());
+    set.insert(SingleId::new(4, 0, 3, 0).unwrap());
+
+    let ((lr, lower), (ur, upper)) = set.split_shard().expect("sharded set must split");
+
+    // 2子のシャード領域は親に内包される（被覆分割の不変条件）。
+    assert_eq!(shard.intersection(&lr).as_ref(), Some(&lr));
+    assert_eq!(shard.intersection(&ur).as_ref(), Some(&ur));
+
+    // 統合すると領域・内容ともに元へ戻る。
+    let merged = SpatialIdSet::merge_shards(shard.clone(), vec![lower, upper]).unwrap();
+    assert_eq!(merged.shard(), Some(&shard));
+    assert_eq!(merged, set);
+}
+
+#[test]
+fn merge_shards_rejects_region_outside_parent() {
+    // 親領域に内包されない子を渡すと InvalidShardMerge。
+    let parent = region(2, 0, 0, 0);
+    let outside = SpatialIdSet::new_in_shard(region(2, 0, 3, 3));
+    assert!(SpatialIdSet::merge_shards(parent, vec![outside]).is_err());
+}
+
+#[test]
+fn merge_shards_rejects_overlapping_children() {
+    // 親には内包されるが、子同士が重なる（同一領域）→ 互いに素でないので拒否。
+    let parent = region(1, 0, 0, 0);
+    let a = SpatialIdSet::new_in_shard(region(2, 0, 0, 0));
+    let b = SpatialIdSet::new_in_shard(region(2, 0, 0, 0));
+    assert!(SpatialIdSet::merge_shards(parent, vec![a, b]).is_err());
+}
+
+#[test]
+fn merge_shards_rejects_shardless_child() {
+    // シャード領域未設定（new()）の子は検証不能なので拒否。
+    let parent = region(1, 0, 0, 0);
+    let shardless = SpatialIdSet::new();
+    assert!(SpatialIdSet::merge_shards(parent, vec![shardless]).is_err());
+}

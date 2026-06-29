@@ -1,38 +1,61 @@
 use super::SpatialIdMap;
-use crate::{FlexId, FlexTreeCore};
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::{Error, FlexId, SpatialIdError};
+use alloc::vec::Vec;
 
 impl<V> SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
+    /// 保持 [FlexId] 数が `max_flex_id_count` を超えていれば `true`（分割すべき）。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
         self.inner.should_split_shard(max_flex_id_count)
     }
-
-    pub fn split_shard(&self, max_flex_id_count: usize) -> alloc::vec::Vec<Self> {
-        self.inner
-            .split_shard(max_flex_id_count)
-            .into_iter()
-            .map(|inner| Self { inner })
-            .collect()
+    /// このシャード（[`shard`](Self::shard) 領域）を、現在のrootの軸で2分割し、切り取った部分木を `((下のシャード領域, 下の実体), (上のシャード領域, 上の実体))` で返す。
+    /// シャード領域が未設定なら `None`を返す。
+    pub fn split_shard(&self) -> Option<((FlexId, Self), (FlexId, Self))> {
+        let ((lower_region, lower), (upper_region, upper)) = self.inner.split_shard()?;
+        Some((
+            (lower_region, Self { inner: lower }),
+            (upper_region, Self { inner: upper }),
+        ))
     }
 
-    /// 親領域 `parent_region` を互いに素に覆う**兄弟シャード群を1つのシャードへ統合**する。
+    /// シャードされている複数の[SpatialIdMap]を、`parent_region` に閉じた1つの[SpatialIdMap]へ統合する。
     ///
-    /// [`split_shard`](Self::split_shard) の逆操作。`children` は split で生じた、
-    /// 親領域の互いに素な被覆である前提（各 child は自身の領域に閉じている）。
-    /// 結合は `union` で行い、境界を跨いで隣接する同値セルはこの時点で compaction される。
-    /// 結果のシャード領域は `parent_region` に設定される。
-    pub fn merge_siblings(parent_region: FlexId, children: impl IntoIterator<Item = Self>) -> Self {
-        let mut acc: Option<FlexTreeCore<V>> = None;
-        for child in children {
-            acc = Some(match acc {
-                None => child.inner,
-                Some(a) => a.union(&child.inner),
-            });
+    /// 次のいずれかに該当すると [`SpatialIdError::InvalidShardMerge`] を返す：
+    /// - シャード領域が未設定（`None`）の子が含まれる。
+    /// - 子のシャード領域が `parent_region` からはみ出している。
+    /// - 子同士のシャード領域が重なっている。
+    pub fn merge_shards(parent_region: FlexId, children: Vec<Self>) -> Result<Self, Error> {
+        // はみ出していないか
+        let mut regions: Vec<FlexId> = Vec::with_capacity(children.len());
+        for c in &children {
+            let r = c
+                .inner
+                .shard()
+                .ok_or(Error::SpatialId(SpatialIdError::InvalidShardMerge))?
+                .clone();
+            if parent_region.intersection(&r).as_ref() != Some(&r) {
+                return Err(Error::SpatialId(SpatialIdError::InvalidShardMerge));
+            }
+            regions.push(r);
         }
-        let mut inner = acc.unwrap_or_else(|| FlexTreeCore::new_in_shard(parent_region.clone()));
+
+        // 子同士は互いに素であること
+        for i in 0..regions.len() {
+            for j in (i + 1)..regions.len() {
+                if regions[i].intersection(&regions[j]).is_some() {
+                    return Err(Error::SpatialId(SpatialIdError::InvalidShardMerge));
+                }
+            }
+        }
+
+        let mut inner = FlexTreeCore::new_in_shard(parent_region.clone());
+        for c in children {
+            inner = inner.union(&c.inner);
+        }
         inner.shard = Some(parent_region);
-        Self { inner }
+        Ok(Self { inner })
     }
 }
