@@ -4,7 +4,6 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use core::ops::RangeBounds;
 pub mod convert;
 pub mod json;
-pub mod shard;
 pub mod test;
 
 #[cfg(all(test, feature = "persist"))]
@@ -130,30 +129,8 @@ where
         }
     }
 
-    /// シャード領域 `region` に閉じた空の[SpatialIdTable]を作成する。
-    ///
-    /// 以降この木は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
-    pub fn new_in_shard(region: FlexId) -> Self {
-        Self {
-            inner: FlexTreeCore::new_in_shard(region),
-            dictionary: BTreeMap::default(),
-            reverse_dictionary: BTreeMap::default(),
-            value_index: BTreeMap::default(),
-            value_index_built: true,
-            current_rank: 0,
-        }
-    }
-
     /// 空間に値を挿入します。
     pub fn insert<S: IterFlexIds + Clone>(&mut self, target: S, value: V) {
-        if let Some(region) = self.inner.shard()
-            && !target
-                .iter_flex_ids()
-                .any(|id| id.intersection(region).is_some())
-        {
-            return;
-        }
-
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
             None => {

@@ -10,21 +10,23 @@ where
         self.count() > max_flex_id_count
     }
 
-    /// シャード領域 `region` を、その root レベルの軸で**下半分／上半分の2領域に2分割**し、
-    /// それぞれに切り取った部分木を `((下領域, 下), (上領域, 上))` として返す。
+    /// このシャード（[`shard`](Self::shard) 領域）を、その root レベルの軸で
+    /// **下半分／上半分の2領域に2分割**し、切り取った部分木を `((下領域, 下), (上領域, 上))` で返す。
+    /// シャード領域が未設定なら `None`。
     ///
-    /// 2領域は `region` を**互いに素に完全被覆**する（`lower ∪ upper = region`）。これにより
+    /// 2領域はシャード領域を**互いに素に完全被覆**する（`lower ∪ upper = region`）。これにより
     /// 空領域も必ずどちらかに属し、ルーティングで取りこぼしが起きない（被覆性が構造的に保証される）。
-    pub(crate) fn split_region_binary(&self, region: &FlexId) -> ((FlexId, Self), (FlexId, Self)) {
+    pub(crate) fn split_shard(&self) -> Option<((FlexId, Self), (FlexId, Self))> {
+        let region = self.shard()?.clone();
         // region のレベル = 各軸ズームの和（level→depth 式と整合）。
         let level = region.f_zoomlevel() + region.x_zoomlevel() + region.y_zoomlevel();
         let axis = Node::<V>::axis(level);
-        let lower = split_child_id(region, axis, Side::Lower);
-        let upper = split_child_id(region, axis, Side::Upper);
-        (
+        let lower = split_child_id(&region, axis, Side::Lower);
+        let upper = split_child_id(&region, axis, Side::Upper);
+        Some((
             (lower.clone(), self.extract_region(lower)),
             (upper.clone(), self.extract_region(upper)),
-        )
+        ))
     }
 
     pub(crate) fn extract_region(&self, region: FlexId) -> Self {
