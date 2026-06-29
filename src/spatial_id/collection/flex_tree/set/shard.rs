@@ -31,14 +31,33 @@ impl SpatialIdSet {
     /// `parent_region` を被覆する子シャード群 `children` を1つのシャードへ統合する
     /// （[`split_shard`](Self::split_shard) を繰り返した分割の逆）。
     ///
-    /// 各 `children` のシャード領域が `parent_region` に含まれていない場合は
-    /// [`SpatialIdError::InvalidShardMerge`] を返す（被覆そのものは呼び出し側の分割不変条件が保証する）。
+    /// 次のいずれかに該当すると [`SpatialIdError::InvalidShardMerge`] を返す：
+    /// - シャード領域が未設定（`None`）の子が含まれる（検証不能なため拒否）。
+    /// - 子のシャード領域が `parent_region` からはみ出している（`region ⊄ parent_region`）。
+    /// - 子同士のシャード領域が重なっている（互いに素でない）。
+    ///
+    /// 子が `parent_region` を隙間なく覆っているか（covering）は検証せず、呼び出し側の分割不変条件に委ねる。
     pub fn merge_shards(parent_region: FlexId, children: Vec<Self>) -> Result<Self, Error> {
+        // 各子のシャード領域を集めつつ、None 拒否と「親への内包（はみ出し禁止）」を検査する。
+        let mut regions: Vec<FlexId> = Vec::with_capacity(children.len());
         for c in &children {
-            if let Some(r) = c.inner.shard()
-                && parent_region.intersection(r).as_ref() != Some(r)
-            {
+            let r = c
+                .inner
+                .shard()
+                .ok_or(Error::SpatialId(SpatialIdError::InvalidShardMerge))?
+                .clone();
+            if parent_region.intersection(&r).as_ref() != Some(&r) {
                 return Err(Error::SpatialId(SpatialIdError::InvalidShardMerge));
+            }
+            regions.push(r);
+        }
+
+        // 子同士は互いに素であること（重なり禁止）。被覆トライでは子数が有界なので O(n^2) で十分。
+        for i in 0..regions.len() {
+            for j in (i + 1)..regions.len() {
+                if regions[i].intersection(&regions[j]).is_some() {
+                    return Err(Error::SpatialId(SpatialIdError::InvalidShardMerge));
+                }
             }
         }
 

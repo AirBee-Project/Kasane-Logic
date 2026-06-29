@@ -117,3 +117,20 @@ fn merge_shards_rejects_region_outside_parent() {
     let outside = SpatialIdSet::new_in_shard(region(2, 0, 3, 3));
     assert!(SpatialIdSet::merge_shards(parent, vec![outside]).is_err());
 }
+
+#[test]
+fn merge_shards_rejects_overlapping_children() {
+    // 親には内包されるが、子同士が重なる（同一領域）→ 互いに素でないので拒否。
+    let parent = region(1, 0, 0, 0);
+    let a = SpatialIdSet::new_in_shard(region(2, 0, 0, 0));
+    let b = SpatialIdSet::new_in_shard(region(2, 0, 0, 0));
+    assert!(SpatialIdSet::merge_shards(parent, vec![a, b]).is_err());
+}
+
+#[test]
+fn merge_shards_rejects_shardless_child() {
+    // シャード領域未設定（new()）の子は検証不能なので拒否。
+    let parent = region(1, 0, 0, 0);
+    let shardless = SpatialIdSet::new();
+    assert!(SpatialIdSet::merge_shards(parent, vec![shardless]).is_err());
+}
