@@ -1,10 +1,8 @@
 use alloc::vec::Vec;
 
 use super::ptr::SharedNode;
-use crate::{
-    Dimension, FlexId, FlexTreeCore, Side,
-    spatial_id::collection::flex_tree::core::{node::Node, split_child_id},
-};
+use super::{FlexTreeCore, split_child_id};
+use crate::{Dimension, FlexId, Side, spatial_id::collection::flex_tree::core::node::Node};
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
 pub struct OverlapIter<'a, V>

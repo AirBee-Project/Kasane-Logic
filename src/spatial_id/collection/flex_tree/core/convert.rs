@@ -1,10 +1,9 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::flex_tree::core::split_child_id;
+use super::{node::Node, split_child_id};
 use crate::{
     FlexId, FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, Side, SingleId,
-    spatial_id::collection::flex_tree::core::node::Node,
 };
 
 pub struct LeavesIter<'a, V>

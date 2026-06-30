@@ -51,8 +51,7 @@ where
     pub(crate) upper_root: SharedNode<Node<V>>,
     pub(crate) empty_leaf: SharedNode<Node<V>>,
 
-    /// このツリーが閉じているシャード領域。`None` は全空間。
-    /// `Some(region)` のとき、`region` の外側への挿入は無視される。
+    /// シャード空間の有無。
     pub(crate) shard: Option<FlexId>,
 }
 
@@ -79,25 +78,6 @@ impl<V> Eq for FlexTreeCore<V> where
 {
 }
 
-/// union 結果のシャード領域を決める。両者が同一領域ならそれを保ち、
-/// 異なる・無制限が絡む場合は全空間（`None`）とみなす。
-fn shard_after_union(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
-    match (a, b) {
-        (Some(a), Some(b)) if a == b => Some(a.clone()),
-        _ => None,
-    }
-}
-
-/// intersection 結果のシャード領域を、交差した狭い領域へ絞り込む。
-fn shard_after_intersection(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
-    match (a, b) {
-        (Some(a), Some(b)) => a.intersection(b).or_else(|| Some(a.clone())),
-        (Some(a), None) => Some(a.clone()),
-        (None, Some(b)) => Some(b.clone()),
-        (None, None) => None,
-    }
-}
-
 impl<V> FlexTreeCore<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
@@ -113,9 +93,7 @@ where
         }
     }
 
-    /// シャード領域 `region` に閉じた空の[FlexTreeCore]を作成する。
-    ///
-    /// 以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    /// シャード領域 `region` に閉じた空の[FlexTreeCore]を作成する。以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         let mut core = Self::new();
         core.shard = Some(region);
@@ -133,7 +111,7 @@ where
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
             upper_root: Node::union(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
             empty_leaf: self.empty_leaf.clone(),
-            shard: shard_after_union(&self.shard, &other.shard),
+            shard: Self::shard_after_union(&self.shard, &other.shard),
         }
     }
 
@@ -145,7 +123,7 @@ where
                 lower_root: self.empty_leaf.clone(),
                 upper_root: self.empty_leaf.clone(),
                 empty_leaf: self.empty_leaf.clone(),
-                shard: shard_after_intersection(&self.shard, &other.shard),
+                shard: Self::shard_after_intersection(&self.shard, &other.shard),
             };
         }
 
@@ -163,7 +141,7 @@ where
                 &self.empty_leaf,
             ),
             empty_leaf: self.empty_leaf.clone(),
-            shard: shard_after_intersection(&self.shard, &other.shard),
+            shard: Self::shard_after_intersection(&self.shard, &other.shard),
         }
     }
 
@@ -189,6 +167,15 @@ where
             && SharedNode::ptr_eq(&self.upper_root, &other.upper_root)
     }
 
+    /// コレクション内のすべての値をインプレースで更新します。
+    pub fn map_values_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut V),
+    {
+        SharedNode::make_mut(&mut self.lower_root).map_values_mut(&mut f);
+        SharedNode::make_mut(&mut self.upper_root).map_values_mut(&mut f);
+    }
+
     ///クリアする
     pub fn clear(&mut self) {
         self.lower_root = self.empty_leaf.clone();
@@ -203,9 +190,7 @@ where
         self.lower_root.leaf_count() + self.upper_root.leaf_count()
     }
 
-    /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。
-    ///
-    /// ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
+    /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
     /// 空の木では [`None`] を返します。
     ///
     /// # 例
@@ -219,7 +204,6 @@ where
         if self.is_empty() {
             return None;
         }
-        // 各 Branch がキャッシュした max_zoom を畳み上げるだけなので O(1)。ルートはレベル 0。
         let lower = self.lower_root.max_zoom_at(0);
         let upper = self.upper_root.max_zoom_at(0);
         Some(lower.max(upper))
@@ -246,25 +230,7 @@ where
         RangeId::bounding_box_of(self.iter().map(|(flex_id, _)| flex_id))
     }
 
-    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出します。
-    ///
-    /// 返される `SingleId` はすべて同じズームレベルを持ち、その値は [`max_zoomlevel`](Self::max_zoomlevel)
-    /// と一致します。値 `V` は各 `SingleId` に対応づけたまま返します。
-    ///
-    /// 空の木では空のイテレータを返します。
-    ///
-    /// # 例
-    /// ```
-    /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, RangeId, SingleId};
-    /// let mut core = FlexTreeCore::new();
-    /// core.insert(SingleId::new(3, 3, 2, 7).unwrap(), 10);
-    /// core.insert(RangeId::new(5, [1, 29], [8, 9], [5, 10]).unwrap(), 20);
-    ///
-    /// let max_z = core.max_zoomlevel().unwrap();
-    /// let exported: Vec<_> = core.flat_single_ids().collect();
-    ///
-    /// assert!(exported.iter().all(|(single_id, _)| single_id.z() == max_z));
-    /// ```
+    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Vec::new().into_iter();
@@ -290,7 +256,7 @@ where
         exported.into_iter()
     }
 
-    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として参照付きで書き出します。
+    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
@@ -348,6 +314,7 @@ where
             self.insert_flex_id(flex_id, value.clone());
         }
     }
+
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
@@ -358,14 +325,13 @@ where
             self.overlap(item.clone())
                 .filter_map(move |(overlap_id, val)| {
                     overlap_id
-                        // ここで安全に元の item を参照できる
                         .intersection(&item)
                         .map(|intersected_id| (intersected_id, val.clone()))
                 })
         })
     }
 
-    /// [FlexTreeCore]からTargetが示す領域を切り取って返す
+    /// [FlexTreeCore]からTargetが示す領域を削除して、返す。
     pub fn remove<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
     where
         S: IterFlexIds,
@@ -389,11 +355,7 @@ where
     }
 
     /// [`get`](Self::get) と同様に target と重なる要素を取り出しますが、
-    /// **交差による切り取り（クリッピング）を行わず**、ツリーに格納されている
-    /// [`FlexId`] をそのままの広さで返します。
-    ///
-    /// target が複数セルにまたがって同じ葉に複数回重なる場合でも、同一の葉は
-    /// 1度だけ返します（重複除去）。
+    /// 切り取りを行わず、[`FlexId`] をそのままの広さで返す。
     pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
         S: IterFlexIds + 'a,
@@ -411,7 +373,7 @@ where
         results.into_iter()
     }
 
-    /// [`get_overlapping`](Self::get_overlapping) の参照版。値 `V` を複製せず参照で返します。
+    /// [`get_overlapping`](Self::get_overlapping) の参照版。
     pub fn get_overlapping_ref<'a, S>(
         &'a self,
         target: &'a S,
@@ -432,9 +394,7 @@ where
         results.into_iter()
     }
 
-    /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、
-    /// target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を
-    /// そのままの広さで返します。
+    /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、 target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を そのままの広さで返す。
     pub fn remove_overlapping<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
     where
         S: IterFlexIds,
@@ -446,7 +406,7 @@ where
         removed.into_iter()
     }
 
-    /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返す。入力された空間ID自身と重なる要素は除外する。
     pub fn neighbors_share_face_ref<'a, S>(
         &'a self,
         id: &S,
@@ -522,20 +482,38 @@ where
         stack
     }
 
-    /// 1つの FlexId を対応する上下ルートへ挿入する内部ユーティリティである。
     fn insert_flex_id(&mut self, flex_id: FlexId, value: V) {
         let root = if flex_id.f_index().is_negative() {
             &mut self.lower_root
         } else {
             &mut self.upper_root
         };
-
         Node::insert_mut(root, &flex_id, &value, 0, &self.empty_leaf);
+    }
+
+    /// unionのシャード領域を返す。
+    /// シャードされている場合とされていない場合があるので、そのラッパー
+    fn shard_after_union(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
+        match (a, b) {
+            (Some(a), Some(b)) if a == b => Some(a.clone()),
+            _ => None,
+        }
+    }
+
+    /// intersectionのシャード領域を返す。
+    /// シャードされている場合とされていない場合があるので、そのラッパー
+    fn shard_after_intersection(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
+        match (a, b) {
+            (Some(a), Some(b)) => a.intersection(b).or_else(|| Some(a.clone())),
+            (Some(a), None) => Some(a.clone()),
+            (None, Some(b)) => Some(b.clone()),
+            (None, None) => None,
+        }
     }
 }
 
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
-pub(super) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
+pub(crate) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
     match axis {
         Dimension::F => current_id.split_f(side).unwrap(),
         Dimension::X => current_id.split_x(side).unwrap(),

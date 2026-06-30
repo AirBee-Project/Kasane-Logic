@@ -48,8 +48,8 @@ where
     fn is_commutative(custom_parameter: &Self::CustomParameter) -> bool;
 
     fn execution<SA, SB, O>(
-        a: &SA,
-        b: &SB,
+        a: SA,
+        b: SB,
         custom_parameter: Self::CustomParameter,
     ) -> Result<O, Error>
     where
@@ -75,7 +75,7 @@ where
                         .map(|(a_id, a_value)| {
                             let mut local = Vec::new();
                             let mut covered = Vec::new();
-                            for (overlap, b_value) in b.query_ref(&a_id) {
+                            for (overlap, b_value) in b.get_ref(&a_id) {
                                 if let Some(value) =
                                     Self::both_some(a_value, b_value, &custom_parameter)?
                                 {
@@ -97,8 +97,7 @@ where
                         .into_par_iter()
                         .map(|(b_id, b_value)| {
                             let mut local = Vec::new();
-                            let covered: Vec<FlexId> =
-                                a.query_ref(&b_id).map(|(id, _)| id).collect();
+                            let covered: Vec<FlexId> = a.get_ref(&b_id).map(|(id, _)| id).collect();
                             for region in subtract_regions(b_id, &covered) {
                                 if let Some(value) = Self::b_only(b_value, &custom_parameter)? {
                                     local.push((region, value));
@@ -121,7 +120,7 @@ where
                 .map(|(a_id, a_value)| {
                     let mut local = Vec::new();
                     let mut covered = Vec::new();
-                    for (overlap, b_value) in b.query_ref(&a_id) {
+                    for (overlap, b_value) in b.get_ref(&a_id) {
                         if let Some(value) = Self::both_some(a_value, b_value, &custom_parameter)? {
                             local.push((overlap.clone(), value));
                         }
@@ -140,7 +139,7 @@ where
                 .into_iter()
                 .map(|(b_id, b_value)| {
                     let mut local = Vec::new();
-                    let covered: Vec<FlexId> = a.query_ref(&b_id).map(|(id, _)| id).collect();
+                    let covered: Vec<FlexId> = a.get_ref(&b_id).map(|(id, _)| id).collect();
                     for region in subtract_regions(b_id, &covered) {
                         if let Some(value) = Self::b_only(b_value, &custom_parameter)? {
                             local.push((region, value));
@@ -205,7 +204,7 @@ pub trait UnaryOperator<A: CellValue> {
     type ResultValue: CellValue;
 
     /// コレクションに対する単項演算の定義
-    fn execution<S, O>(a: &S, custom_parameter: Self::CustomParameter) -> Result<O, Error>
+    fn execution<S, O>(a: S, custom_parameter: Self::CustomParameter) -> Result<O, Error>
     where
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = Self::ResultValue>;
