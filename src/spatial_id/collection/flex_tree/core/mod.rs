@@ -300,8 +300,14 @@ where
         S: IterFlexIds,
     {
         for flex_id in target.iter_flex_ids() {
-            if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
-                panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
+            // 時空間ID（temporal != WHOLE）はまだコレクション（FlexTree）に格納できない
+            // （空間主体統合は別途）。黙って時間を捨てないよう、明示的に弾く。
+            // FlexId 1:1 の時間演算（difference / difference_in_window 等）は利用可能。
+            if !flex_id.temporal().is_whole() {
+                panic!(
+                    "時空間ID（temporal != WHOLE）はまだ FlexTree に挿入できません。\
+                     空間主体統合で対応予定です。FlexId 単体の時間演算は利用可能です。"
+                );
             }
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {

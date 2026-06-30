@@ -16,7 +16,7 @@ rayon = { version = "1.10", optional = true }
 rkyv = { version = "0.8", features = ["unaligned"], optional = true }
 
 [features]
-default = ["std", "rayon"]
+default = ["std", "rayon", "temporal_id"]
 std = []
 rayon = ["dep:rayon", "std"]
 random = [ "rand" ]

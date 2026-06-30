@@ -69,6 +69,9 @@ pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;
 #[doc(inline)]
 pub use spatial_id::temporal_id::TemporalId;
+#[cfg(feature = "temporal_id")]
+#[doc(inline)]
+pub use spatial_id::temporal_id::TemporalSet;
 
 // spatial_id: collection types
 #[doc(inline)]

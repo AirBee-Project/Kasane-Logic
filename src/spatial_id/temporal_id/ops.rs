@@ -119,75 +119,220 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn difference(&self, other: &TemporalId) -> impl Iterator<Item = TemporalId> {
+        let s0 = self.start_unixstamp();
+        let s1 = self.end_unixtime_exclusive() as u64;
+        let o0 = other.start_unixstamp();
+        let o1 = other.end_unixtime_exclusive() as u64;
+
         let mut result = Vec::new();
 
-        let self_start = self.start_unixstamp();
-        let self_end_excl = self.end_unixtime_exclusive() as u64;
-        let other_start = other.start_unixstamp();
-        let other_end_excl = other.end_unixtime_exclusive() as u64;
-
-        if other_end_excl <= self_start || other_start >= self_end_excl {
+        // 重なりなし → self をそのまま返す
+        if o1 <= s0 || o0 >= s1 {
             result.push(self.clone());
             return result.into_iter();
         }
 
-        if self_start < other_start {
-            let left_duration = other_start - self_start;
-            let mut found = false;
-
-            for &interval in &Self::TEMPORAL_I {
-                if self_start.is_multiple_of(interval) && left_duration.is_multiple_of(interval) {
-                    let t = self_start / interval;
-                    if interval * (t + 1) == other_start
-                        && let Ok(id) = TemporalId::new(interval, t)
-                    {
-                        result.push(id);
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            // If left part cannot be expressed, split by seconds
-            if !found {
-                for ts in self_start..other_start {
-                    if let Ok(id) = TemporalId::new(1, ts) {
-                        result.push(id);
-                    }
-                }
-            }
+        // 左側 [s0, min(o0, s1)) と右側 [max(o1, s0), s1) を、それぞれ
+        // カレンダー最小分解（[`from_range`]）で表す（方法1）。
+        // 1秒展開のフォールバックは行わない（差分が膨張しない）。
+        let left_end = o0.min(s1);
+        if s0 < left_end
+            && let Ok(cells) = Self::from_range(s0, left_end)
+        {
+            result.extend(cells);
         }
 
-        // Right part (other_end_excl to self_end_excl)
-        if self_end_excl > other_end_excl {
-            let right_duration = self_end_excl - other_end_excl;
-            let mut found = false;
-
-            for &interval in &Self::TEMPORAL_I {
-                if other_end_excl.is_multiple_of(interval)
-                    && right_duration.is_multiple_of(interval)
-                {
-                    let t = other_end_excl / interval;
-                    if interval * (t + 1) == self_end_excl
-                        && let Ok(id) = TemporalId::new(interval, t)
-                    {
-                        result.push(id);
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            // If right part cannot be expressed, split by seconds
-            if !found {
-                for ts in other_end_excl..self_end_excl {
-                    if let Ok(id) = TemporalId::new(1, ts) {
-                        result.push(id);
-                    }
-                }
-            }
+        let right_start = o1.max(s0);
+        if right_start < s1
+            && let Ok(cells) = Self::from_range(right_start, s1)
+        {
+            result.extend(cells);
         }
 
         result.into_iter()
+    }
+
+    /// 時間窓 `window` に限定した差集合 `(self ∩ window) − other` をカレンダー最小分解で返す（方法2）。
+    ///
+    /// `self` が WHOLE でも `window` が有界なら結果は有界になる（WHOLE 差分の膨張を防ぐ）。
+    /// 集合論的に `(self ∩ window) − other = (self − other) ∩ window` と一致する。
+    pub fn difference_in_window(&self, other: &TemporalId, window: &TemporalId) -> Vec<TemporalId> {
+        let w0 = window.start_unixstamp();
+        let w1 = window.end_unixtime_exclusive() as u64;
+        let s0 = self.start_unixstamp().max(w0);
+        let s1 = (self.end_unixtime_exclusive() as u64).min(w1);
+
+        let mut result = Vec::new();
+        if s0 >= s1 {
+            return result;
+        }
+
+        let o0 = other.start_unixstamp();
+        let o1 = other.end_unixtime_exclusive() as u64;
+
+        // other が窓内の self と重ならない → クリップした self をそのまま分解
+        if o1 <= s0 || o0 >= s1 {
+            if let Ok(cells) = Self::from_range(s0, s1) {
+                result = cells;
+            }
+            return result;
+        }
+
+        let left_end = o0.min(s1);
+        if s0 < left_end
+            && let Ok(cells) = Self::from_range(s0, left_end)
+        {
+            result.extend(cells);
+        }
+
+        let right_start = o1.max(s0);
+        if right_start < s1
+            && let Ok(cells) = Self::from_range(right_start, s1)
+        {
+            result.extend(cells);
+        }
+
+        result
+    }
+
+    /// `other` の時間範囲が `self` に完全に含まれるか（`other ⊆ self`）を判定する。
+    pub fn contains(&self, other: &TemporalId) -> bool {
+        self.start_unixstamp() <= other.start_unixstamp()
+            && other.end_unixtime_exclusive() <= self.end_unixtime_exclusive()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::TemporalId;
+    use alloc::collections::BTreeSet;
+    use alloc::vec::Vec;
+
+    /// 1セルが覆う秒の集合 `[start, end)`。
+    fn seconds(t: &TemporalId) -> BTreeSet<u64> {
+        (t.start_unixstamp()..t.end_unixtime_exclusive() as u64).collect()
+    }
+
+    /// セル列が覆う秒の集合（重複は潰される）。
+    fn seconds_of(cells: &[TemporalId]) -> BTreeSet<u64> {
+        let mut set = BTreeSet::new();
+        for c in cells {
+            set.extend(c.start_unixstamp()..c.end_unixtime_exclusive() as u64);
+        }
+        set
+    }
+
+    /// 秒単位の長さ合計（重なり検出用）。
+    fn total_len(cells: &[TemporalId]) -> u64 {
+        cells
+            .iter()
+            .map(|c| c.end_unixtime_exclusive() as u64 - c.start_unixstamp())
+            .sum()
+    }
+
+    /// [0, 7200) に収まる代表セル（入れ子・非交差・境界）。
+    fn sample_cells() -> Vec<TemporalId> {
+        let mut v = Vec::new();
+        for t in [0u64, 1, 59, 60, 100, 3599, 3600, 7199] {
+            v.push(TemporalId::new(1, t).unwrap());
+        }
+        for t in [0u64, 1, 59, 60, 119] {
+            v.push(TemporalId::new(60, t).unwrap());
+        }
+        for t in [0u64, 1] {
+            v.push(TemporalId::new(3600, t).unwrap());
+        }
+        v
+    }
+
+    /// 厳格オラクル：秒集合に展開して intersection / difference / contains を照合する。
+    #[test]
+    fn second_set_oracle() {
+        let cells = sample_cells();
+        for a in &cells {
+            let sa = seconds(a);
+            for b in &cells {
+                let sb = seconds(b);
+
+                // intersection: 1セル or None、かつ秒集合が厳密一致
+                let inter = a.intersection(b);
+                let exp_inter: BTreeSet<u64> = sa.intersection(&sb).copied().collect();
+                match &inter {
+                    Some(i) => assert_eq!(seconds(i), exp_inter, "inter {a:?} ∩ {b:?}"),
+                    None => assert!(
+                        exp_inter.is_empty(),
+                        "inter None だが重なりあり {a:?} {b:?}"
+                    ),
+                }
+
+                // difference: 被覆が厳密一致、ピース同士は非交差
+                let diff: Vec<TemporalId> = a.difference(b).collect();
+                let got = seconds_of(&diff);
+                let exp_diff: BTreeSet<u64> = sa.difference(&sb).copied().collect();
+                assert_eq!(got, exp_diff, "diff {a:?} − {b:?}");
+                assert_eq!(
+                    total_len(&diff) as usize,
+                    got.len(),
+                    "diff ピースが重複 {a:?} − {b:?}"
+                );
+
+                // contains
+                assert_eq!(a.contains(b), sb.is_subset(&sa), "contains {a:?} ⊇ {b:?}");
+            }
+        }
+    }
+
+    /// 1時間 − 1分 が「59個の分セル」（秒断片でない）になる。
+    #[test]
+    fn hour_minus_minute_is_59_minute_cells() {
+        let hour = TemporalId::new(3600, 0).unwrap(); // [0, 3600)
+        let min = TemporalId::new(60, 0).unwrap(); // [0, 60)
+        let d: Vec<_> = hour.difference(&min).collect();
+        assert_eq!(d.len(), 59, "59個の分セルのはず");
+        assert!(d.iter().all(|c| c.i() == 60), "全て i=60（分単位）");
+        assert_eq!(seconds_of(&d), (60u64..3600).collect());
+    }
+
+    /// WHOLE − 1分 を「窓（その1時間）」に限定すると有界（59分）になる。
+    #[test]
+    fn whole_minus_minute_in_window_is_bounded() {
+        let whole = TemporalId::WHOLE;
+        let min = TemporalId::new(60, 600).unwrap(); // [36000, 36060)
+        let hour = TemporalId::new(3600, 10).unwrap(); // [36000, 39600)
+        let d = whole.difference_in_window(&min, &hour);
+        assert_eq!(d.len(), 59);
+        assert!(d.iter().all(|c| c.i() == 60));
+        let exp: BTreeSet<u64> = (36000u64..39600)
+            .filter(|s| !(36000..36060).contains(s))
+            .collect();
+        assert_eq!(seconds_of(&d), exp);
+    }
+
+    /// `(self ∩ window) − other == (self − other) ∩ window`（窓と差分の整合）。
+    #[test]
+    fn window_difference_matches_clip_then_difference() {
+        let cells = sample_cells();
+        let windows = [
+            TemporalId::new(3600, 0).unwrap(),
+            TemporalId::new(3600, 1).unwrap(),
+            TemporalId::new(60, 30).unwrap(),
+            TemporalId::WHOLE,
+        ];
+        for a in &cells {
+            for b in &cells {
+                for w in &windows {
+                    let got = seconds_of(&a.difference_in_window(b, w));
+                    // オラクル: (seconds(a) − seconds(b)) ∩ window
+                    // window は WHOLE だと巨大なので述語で判定（展開しない）。
+                    let in_w = |s: &u64| {
+                        w.start_unixstamp() <= *s && (*s as u128) < w.end_unixtime_exclusive()
+                    };
+                    let sa = seconds(a);
+                    let sb = seconds(b);
+                    let exp: BTreeSet<u64> = sa.difference(&sb).copied().filter(in_w).collect();
+                    assert_eq!(got, exp, "window diff a={a:?} b={b:?} w={w:?}");
+                }
+            }
+        }
     }
 }

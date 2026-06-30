@@ -1,8 +1,35 @@
 use alloc::vec::Vec;
 
-use crate::{FlexId, Side, SpatialId, spatial_id::zoom_level::ZoomLevel};
+use crate::{FlexId, Side, SpatialId, TemporalId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
+    /// 時間窓 `window` に限定して `self - other` を計算する（方法2）。
+    ///
+    /// `self` の時間を `window` に切り詰めてから [`difference`](Self::difference) するため、
+    /// `self` の時間が `WHOLE` でも `window` が有界なら結果のセル数は有界になる。
+    /// 集合論的に `(A ∩ W) − B = (A − B) ∩ W` と一致する（空間は不変、時間のみ窓で限定）。
+    pub fn difference_in_window(
+        &self,
+        other: &FlexId,
+        window: &TemporalId,
+    ) -> impl Iterator<Item = FlexId> {
+        // self の時間を窓へクリップ。窓と交差しなければ空。
+        let clipped_t = match self.temporal().intersection(window) {
+            Some(t) => t,
+            None => return Vec::new().into_iter(),
+        };
+        let clipped = FlexId {
+            f_zoomlevel: self.f_zoomlevel,
+            f_index: self.f_index,
+            x_zoomlevel: self.x_zoomlevel,
+            x_index: self.x_index,
+            y_zoomlevel: self.y_zoomlevel,
+            y_index: self.y_index,
+            temporal_id: clipped_t,
+        };
+        clipped.difference(other).collect::<Vec<_>>().into_iter()
+    }
+
     /// 相手の[FlexId]との差集合（self - other）を計算し、イテレータとして返します。
     /// 空間と時間の両方を考慮し、相手にくり抜かれた「残りの領域」を過不足なく細かい FlexId に分割して返します。
     pub fn difference(&self, other: &FlexId) -> impl Iterator<Item = FlexId> {
@@ -143,5 +170,117 @@ impl FlexId {
         } else {
             None
         }
+    }
+}
+
+#[cfg(all(test, feature = "temporal_id"))]
+mod temporal_tests {
+    use crate::{FlexId, SpatialId, TemporalId};
+    use alloc::collections::BTreeSet;
+    use alloc::vec::Vec;
+
+    type Atom = ((i32, u32, u32), u64);
+
+    /// FlexId の空間部分を、共通ズーム `z` の単一セル `(f, x, y)` 群へ展開する
+    /// （異方セルも各軸を自分のズームから `z` まで展開）。
+    fn spatial_keys(f: &FlexId, z: u8) -> Vec<(i32, u32, u32)> {
+        let (fz, xz, yz) = (f.f_zoomlevel(), f.x_zoomlevel(), f.y_zoomlevel());
+        let f0 = f.f_index() << (z - fz);
+        let x0 = f.x_index() << (z - xz);
+        let y0 = f.y_index() << (z - yz);
+        let (fs, xs, ys) = (1i32 << (z - fz), 1u32 << (z - xz), 1u32 << (z - yz));
+        let mut out = Vec::new();
+        for df in 0..fs {
+            for dx in 0..xs {
+                for dy in 0..ys {
+                    out.push((f0 + df, x0 + dx, y0 + dy));
+                }
+            }
+        }
+        out
+    }
+
+    /// FlexId を (空間キー × 秒) のアトム集合へ展開する。
+    fn atoms(f: &FlexId, z: u8) -> BTreeSet<Atom> {
+        let secs: Vec<u64> = (f.temporal().start_unixstamp()
+            ..f.temporal().end_unixtime_exclusive() as u64)
+            .collect();
+        let mut set = BTreeSet::new();
+        for k in spatial_keys(f, z) {
+            for &s in &secs {
+                set.insert((k, s));
+            }
+        }
+        set
+    }
+
+    fn atoms_of(fs: &[FlexId], z: u8) -> BTreeSet<Atom> {
+        let mut set = BTreeSet::new();
+        for f in fs {
+            set.extend(atoms(f, z));
+        }
+        set
+    }
+
+    /// 同一空間セル S=(zoom1, f=x=y=0)、時間だけ変える。
+    fn st(temp: TemporalId) -> FlexId {
+        FlexId::new_with_temporal(1u8, 0, 1u8, 0, 1u8, 0, temp).unwrap()
+    }
+
+    /// 同一空間・時間のみ差分：1時間 − 1分 = 59個（空間S × 分セル）。秒断片にならない。
+    #[test]
+    fn temporal_only_difference() {
+        let a = st(TemporalId::new(3600, 0).unwrap());
+        let b = st(TemporalId::new(60, 0).unwrap());
+        let d: Vec<_> = a.difference(&b).collect();
+        assert_eq!(d.len(), 59);
+        assert!(d.iter().all(|f| f.temporal().i() == 60));
+        assert!(
+            d.iter()
+                .all(|f| f.f_zoomlevel() == 1 && f.x_index() == 0 && f.y_index() == 0)
+        );
+        let exp: BTreeSet<Atom> = atoms(&a, 1).difference(&atoms(&b, 1)).copied().collect();
+        assert_eq!(atoms_of(&d, 1), exp);
+    }
+
+    /// WHOLE 時間の FlexId を窓で限定した差分が有界（59分）になる。
+    #[test]
+    fn windowed_difference_bounds_whole() {
+        let a = st(TemporalId::WHOLE);
+        let b = st(TemporalId::new(60, 600).unwrap()); // [36000, 36060)
+        let window = TemporalId::new(3600, 10).unwrap(); // [36000, 39600)
+        let d: Vec<_> = a.difference_in_window(&b, &window).collect();
+        assert_eq!(d.len(), 59);
+        assert!(d.iter().all(|f| f.temporal().i() == 60));
+    }
+
+    /// 空間・時間ともに異なる 4D 差分を (空間キー×秒) のアトムで厳密照合する。
+    #[test]
+    fn spatio_temporal_difference_atom_oracle() {
+        // A = S1(zoom1) × [0,60),  B = S2(zoom2, S2⊂S1) × [0,1)
+        let a = FlexId::new_with_temporal(1u8, 0, 1u8, 0, 1u8, 0, TemporalId::new(60, 0).unwrap())
+            .unwrap();
+        let b = FlexId::new_with_temporal(2u8, 0, 2u8, 0, 2u8, 0, TemporalId::new(1, 0).unwrap())
+            .unwrap();
+        let d: Vec<_> = a.difference(&b).collect();
+        let got = atoms_of(&d, 2);
+        let exp: BTreeSet<Atom> = atoms(&a, 2).difference(&atoms(&b, 2)).copied().collect();
+        assert_eq!(got, exp);
+        // ピース同士は非交差（アトム総数が一致）
+        let total: usize = d.iter().map(|p| atoms(p, 2).len()).sum();
+        assert_eq!(total, got.len());
+    }
+
+    /// 空間のみ（時間 WHOLE）差分は従来どおり（全ピース時間 WHOLE）。
+    #[test]
+    fn spatial_only_regression() {
+        let a = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0).unwrap();
+        let b = FlexId::new(2u8, 0, 2u8, 0, 2u8, 0).unwrap();
+        let d: Vec<_> = a.difference(&b).collect();
+        assert!(d.iter().all(|f| f.temporal().is_whole()));
+        let got: BTreeSet<_> = d.iter().flat_map(|f| spatial_keys(f, 2)).collect();
+        let sa: BTreeSet<_> = spatial_keys(&a, 2).into_iter().collect();
+        let sb: BTreeSet<_> = spatial_keys(&b, 2).into_iter().collect();
+        assert_eq!(got, sa.difference(&sb).copied().collect());
     }
 }
