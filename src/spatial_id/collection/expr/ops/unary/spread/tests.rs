@@ -18,7 +18,7 @@ fn spread_f_propagates_only_along_height() {
     let table = table_with(25, 0, 100, 100, 100);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread_f(25, 2, |v, dist| {
             let d = v.saturating_sub((dist * 10) as u8);
             (d > 0).then_some(d)
@@ -42,7 +42,7 @@ fn spread_x_propagates_only_along_x() {
     let table = table_with(25, 0, 100, 100, 50);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread_x(25, 1, |v, _| Some(*v))
         .run()
         .unwrap();
@@ -59,7 +59,7 @@ fn spread_xyz_propagates_in_all_axes() {
     let table = table_with(25, 0, 100, 100, 50);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread_xyz(25, 1, |v, _| Some(*v))
         .run()
         .unwrap();
@@ -83,7 +83,7 @@ fn spread_f_with_resolves_overlap_by_policy() {
 
     let by_min = table
         .clone()
-        .into_query()
+        .query()
         .spread_f_with(25, 1, identity, ConflictPolicy::Min)
         .run()
         .unwrap();
@@ -91,7 +91,7 @@ fn spread_f_with_resolves_overlap_by_policy() {
 
     let by_max = table
         .clone()
-        .into_query()
+        .query()
         .spread_f_with(25, 1, identity, ConflictPolicy::Max)
         .run()
         .unwrap();
@@ -104,7 +104,7 @@ fn spread_default_is_xy_plane_only() {
     let table = table_with(25, 5, 100, 100, 50);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread(25, 1, |v, _| Some(*v))
         .run()
         .unwrap();
@@ -121,7 +121,7 @@ fn spread_fills_disc_with_decay() {
     let table = table_with(25, 0, 100, 100, 100);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread(25, 2, |v, dist| {
             let d = v.saturating_sub((dist * 10) as u8);
             (d > 0).then_some(d)
@@ -148,7 +148,7 @@ fn spread_keeps_height() {
     let table = table_with(25, 5, 100, 100, 50);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread(25, 1, |v, _| Some(*v))
         .run()
         .unwrap();
@@ -166,7 +166,7 @@ fn spread_none_stops_propagation() {
     // 距離1以上は None。
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread(25, 3, |v, dist| (dist == 0).then_some(*v))
         .run()
         .unwrap();
@@ -186,18 +186,13 @@ fn spread_resolves_overlap_by_policy() {
     let identity = |v: &u8, _d: u32| Some(*v);
 
     // Max（既定）: 重なる x=101 は max(1, 9) = 9。
-    let by_max = table
-        .clone()
-        .into_query()
-        .spread(25, 1, identity)
-        .run()
-        .unwrap();
+    let by_max = table.clone().query().spread(25, 1, identity).run().unwrap();
     assert_eq!(value_at(&by_max, 25, 0, 101, 100), Some(9));
 
     // Min: 重なる x=101 は min(1, 9) = 1。
     let by_min = table
         .clone()
-        .into_query()
+        .query()
         .spread_with(25, 1, identity, ConflictPolicy::Min)
         .run()
         .unwrap();
@@ -211,7 +206,7 @@ fn spread_radius_uses_given_zoom() {
     let table = table_with(25, 0, 100, 100, 7);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread(24, 1, |v, _| Some(*v))
         .run()
         .unwrap();
@@ -229,7 +224,7 @@ fn spread_finer_zoom_subdivides() {
     let table = table_with(24, 0, 100, 100, 7);
     let result = table
         .clone()
-        .into_query()
+        .query()
         .spread(25, 1, |v, _| Some(*v))
         .run()
         .unwrap();
@@ -243,7 +238,7 @@ fn spread_zoom_over_max_is_error() {
     assert!(
         table
             .clone()
-            .into_query()
+            .query()
             .spread(u8::MAX, 1, |v, _| Some(*v))
             .run()
             .is_err()
@@ -258,7 +253,7 @@ fn spread_works_on_set() {
 
     let result = set
         .clone()
-        .into_query()
+        .query()
         .spread(25, 1, |_, _| Some(()))
         .run()
         .unwrap();

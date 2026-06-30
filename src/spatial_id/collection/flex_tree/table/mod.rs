@@ -262,6 +262,20 @@ where
         })
     }
 
+    /// コレクション内のすべての値をインプレースで更新します。
+    pub fn map_values_in_place<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut V),
+    {
+        let mut new_dict = BTreeMap::new();
+        for (&rank, val) in self.reverse_dictionary.iter_mut() {
+            f(val);
+            new_dict.insert(val.clone(), rank);
+        }
+        self.dictionary = new_dict;
+        self.value_index_built = false;
+    }
+
     /// `value_index` を `inner` から構築し、上書き等で消えたランクを辞書から取り除く。
     pub fn rebuild_index(&mut self) {
         self.value_index.clear();

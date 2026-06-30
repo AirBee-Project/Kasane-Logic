@@ -19,7 +19,7 @@ fn present(table: &SpatialIdTable<bool>, z: u8, f: i32, x: u32, y: u32) -> bool 
 fn level_f_fills_absolute_range() {
     // f=0 を [0,3] に揃える → 0..=3 が埋まる。
     let table = table_with(25, 0, 100, 100);
-    let result = table.clone().into_query().level_f(25, 0, 3).run().unwrap();
+    let result = table.clone().query().level_f(25, 0, 3).run().unwrap();
 
     for f in 0..=3 {
         assert!(present(&result, 25, f, 100, 100), "f={f} should be filled");
@@ -33,7 +33,7 @@ fn level_f_truncates_overflow() {
     // f=0 と f=20 のセルを [0,5] に揃える → 0..=5 のみ。20 は削られる。
     let mut table = table_with(25, 0, 100, 100);
     table.insert(SingleId::new(25, 20, 100, 100).unwrap(), true);
-    let result = table.clone().into_query().level_f(25, 0, 5).run().unwrap();
+    let result = table.clone().query().level_f(25, 0, 5).run().unwrap();
 
     for f in 0..=5 {
         assert!(present(&result, 25, f, 100, 100), "f={f} should be filled");
@@ -48,7 +48,7 @@ fn level_f_flattens_relief_across_columns() {
     // どちらの列も同じ f-範囲になり、起伏が平坦化される。
     let mut table = table_with(25, 0, 100, 100); // 列A
     table.insert(SingleId::new(25, 5, 101, 100).unwrap(), true); // 列B（高い）
-    let result = table.clone().into_query().level_f(25, 0, 2).run().unwrap();
+    let result = table.clone().query().level_f(25, 0, 2).run().unwrap();
 
     for f in 0..=2 {
         assert!(present(&result, 25, f, 100, 100), "A f={f}");
@@ -62,8 +62,8 @@ fn level_f_flattens_relief_across_columns() {
 fn level_f_order_independent() {
     // lo/hi を入れ替えても同じ結果。
     let table = table_with(25, 10, 100, 100);
-    let asc = table.clone().into_query().level_f(25, 2, 6).run().unwrap();
-    let desc = table.clone().into_query().level_f(25, 6, 2).run().unwrap();
+    let asc = table.clone().query().level_f(25, 2, 6).run().unwrap();
+    let desc = table.clone().query().level_f(25, 6, 2).run().unwrap();
 
     for f in 2..=6 {
         assert!(present(&asc, 25, f, 100, 100));
@@ -78,7 +78,7 @@ fn level_f_out_of_range_is_error() {
     assert!(
         table
             .clone()
-            .into_query()
+            .query()
             .level_f(25, 0, ZoomLevel::new(25_u8).unwrap().f_max() + 1)
             .run()
             .is_err()
@@ -86,7 +86,7 @@ fn level_f_out_of_range_is_error() {
     assert!(
         table
             .clone()
-            .into_query()
+            .query()
             .level_f(25, ZoomLevel::new(25_u8).unwrap().f_min() - 1, 0)
             .run()
             .is_err()
@@ -98,12 +98,7 @@ fn level_f_out_of_range_is_error() {
 #[test]
 fn level_x_fills_range() {
     let table = table_with(25, 0, 50, 100);
-    let result = table
-        .clone()
-        .into_query()
-        .level_x(25, 100, 102)
-        .run()
-        .unwrap();
+    let result = table.clone().query().level_x(25, 100, 102).run().unwrap();
 
     for x in 100..=102 {
         assert!(present(&result, 25, 0, x, 100), "x={x} should be filled");
@@ -116,7 +111,7 @@ fn level_x_fills_range() {
 fn level_x_wraps_across_seam() {
     // z=2 は一周4セル。from=3 → to=0 は境界をまたいで x=3 と x=0 を埋める。
     let table = table_with(2, 0, 1, 0);
-    let result = table.clone().into_query().level_x(2, 3, 0).run().unwrap();
+    let result = table.clone().query().level_x(2, 3, 0).run().unwrap();
 
     assert!(present(&result, 2, 0, 3, 0));
     assert!(present(&result, 2, 0, 0, 0));
@@ -130,7 +125,7 @@ fn level_x_out_of_range_is_error() {
     assert!(
         table
             .clone()
-            .into_query()
+            .query()
             .level_x(2, 0, ZoomLevel::new(2_u8).unwrap().xy_max() + 1)
             .run()
             .is_err()
@@ -142,12 +137,7 @@ fn level_x_out_of_range_is_error() {
 #[test]
 fn level_y_fills_range() {
     let table = table_with(25, 0, 100, 50);
-    let result = table
-        .clone()
-        .into_query()
-        .level_y(25, 100, 103)
-        .run()
-        .unwrap();
+    let result = table.clone().query().level_y(25, 100, 103).run().unwrap();
 
     for y in 100..=103 {
         assert!(present(&result, 25, 0, 100, y), "y={y} should be filled");
@@ -162,7 +152,7 @@ fn level_y_out_of_range_is_error() {
     assert!(
         table
             .clone()
-            .into_query()
+            .query()
             .level_y(25, 0, ZoomLevel::new(25_u8).unwrap().xy_max() + 1)
             .run()
             .is_err()
@@ -176,7 +166,7 @@ fn level_works_on_set() {
     let mut set = SpatialIdSet::new();
     set.insert(SingleId::new(25, 9, 100, 100).unwrap());
 
-    let result = set.clone().into_query().level_f(25, 0, 2).run().unwrap();
+    let result = set.clone().query().level_f(25, 0, 2).run().unwrap();
 
     for f in 0..=2 {
         let cell = SingleId::new(25, f, 100, 100).unwrap();
@@ -206,7 +196,7 @@ fn level_resolves_overlap_by_policy() {
     // Max: 重なったセルは max(1, 9) = 9。
     let by_max = table
         .clone()
-        .into_query()
+        .query()
         .level_f_with(25, 0, 3, ConflictPolicy::Max)
         .run()
         .unwrap();
@@ -215,7 +205,7 @@ fn level_resolves_overlap_by_policy() {
     // Min: 重なったセルは min(1, 9) = 1。
     let by_min = table
         .clone()
-        .into_query()
+        .query()
         .level_f_with(25, 0, 3, ConflictPolicy::Min)
         .run()
         .unwrap();
@@ -227,7 +217,7 @@ fn level_resolves_overlap_by_policy() {
 fn level_y_on_coarse_cell() {
     let mut table = SpatialIdTable::new();
     table.insert(FlexId::new(2, 0, 2, 2, 1, 1).unwrap(), true); // y は z1 / index1（= z2 の 2,3）
-    let result = table.clone().into_query().level_y(2, 0, 1).run().unwrap();
+    let result = table.clone().query().level_y(2, 0, 1).run().unwrap();
 
     // y は [0,1] へ揃えられ、元の 2,3 は消える。
     for y in 0..=1 {

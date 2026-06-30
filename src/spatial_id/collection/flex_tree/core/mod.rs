@@ -167,6 +167,15 @@ where
             && SharedNode::ptr_eq(&self.upper_root, &other.upper_root)
     }
 
+    /// コレクション内のすべての値をインプレースで更新します。
+    pub fn map_values_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut V),
+    {
+        SharedNode::make_mut(&mut self.lower_root).map_values_mut(&mut f);
+        SharedNode::make_mut(&mut self.upper_root).map_values_mut(&mut f);
+    }
+
     ///クリアする
     pub fn clear(&mut self) {
         self.lower_root = self.empty_leaf.clone();

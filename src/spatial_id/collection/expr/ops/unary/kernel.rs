@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 use crate::{Error, SpatialIdCollection, UnaryOperator};
 
 pub trait UnaryKernel<C: SpatialIdCollection> {
-    fn run(self: Box<Self>, input: &C) -> Result<C, Error>;
+    fn run(self: Box<Self>, input: C) -> Result<C, Error>;
 
     fn is_identity(&self) -> bool {
         false
@@ -21,7 +21,7 @@ where
     C: SpatialIdCollection,
     Op: UnaryOperator<C::Value, ResultValue = C::Value>,
 {
-    fn run(self: Box<Self>, input: &C) -> Result<C, Error> {
+    fn run(self: Box<Self>, input: C) -> Result<C, Error> {
         <Op as UnaryOperator<C::Value>>::execution::<C, C>(input, self.param)
     }
 

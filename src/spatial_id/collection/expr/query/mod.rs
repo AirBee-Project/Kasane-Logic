@@ -19,7 +19,7 @@ pub enum Query<C: SpatialIdCollection> {
 
 impl<C: SpatialIdCollection> From<C> for Query<C> {
     fn from(collection: C) -> Self {
-        collection.into_query()
+        collection.query()
     }
 }
 
@@ -33,7 +33,7 @@ where
             Query::Source(collection) => Ok(collection),
             Query::Unary(op, input) => {
                 let input = input.run()?;
-                op.run(&input)
+                op.run(input)
             }
             Query::Binary(op, lhs, rhs) => {
                 #[cfg(feature = "rayon")]
@@ -42,7 +42,7 @@ where
                 #[cfg(not(feature = "rayon"))]
                 let (lhs_res, rhs_res) = (lhs.run(), rhs.run());
 
-                op.run(&lhs_res?, &rhs_res?)
+                op.run(lhs_res?, rhs_res?)
             }
         }
     }
@@ -53,7 +53,7 @@ where
             Query::Source(collection) => Ok(collection),
             Query::Unary(op, input) => {
                 let input = input.run_raw()?;
-                op.run(&input)
+                op.run(input)
             }
             Query::Binary(op, lhs, rhs) => {
                 #[cfg(feature = "rayon")]
@@ -62,7 +62,7 @@ where
                 #[cfg(not(feature = "rayon"))]
                 let (lhs_res, rhs_res) = (lhs.run_raw(), rhs.run_raw());
 
-                op.run(&lhs_res?, &rhs_res?)
+                op.run(lhs_res?, rhs_res?)
             }
         }
     }

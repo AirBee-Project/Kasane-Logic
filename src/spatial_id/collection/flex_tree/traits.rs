@@ -24,7 +24,7 @@ pub trait SpatialIdCollectionBounds: Sized {}
 #[cfg(not(feature = "rayon"))]
 impl<T: Sized> SpatialIdCollectionBounds for T {}
 
-pub trait SpatialIdCollection: SpatialIdCollectionBounds {
+pub trait SpatialIdCollection: SpatialIdCollectionBounds + Clone {
     /// 各空間IDに紐づく値の型。値を持たない集合では `()`。
     type Value: CellValue;
 
@@ -62,7 +62,7 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
         } else {
             let mut result = Self::empty();
             for (cell, value) in cells {
-                let current = result.query(&cell).next().map(|(_, v)| v);
+                let current = result.get(&cell).next().map(|(_, v)| v);
                 let resolved = conflict.resolve(current, value);
                 result.insert(cell, resolved);
             }
@@ -77,10 +77,10 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
 
     /// `target` と重なる `(FlexId, Value)` を取得する（2項演算の重なり判定に使う）。
-    fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, Self::Value)> + 'a;
+    fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, Self::Value)> + 'a;
 
     /// [`query`](Self::query) の参照版。値をクローンせず参照で返す。
-    fn query_ref<'a>(
+    fn get_ref<'a>(
         &'a self,
         target: &'a FlexId,
     ) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a;
@@ -91,10 +91,53 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// 空かどうか。
     fn is_empty(&self) -> bool;
 
-    /// このコレクションを起点に、[`Query`]の組み立てを始める。
-    fn into_query(self) -> Query<Self> {
+    /// [Query]を用いて空間IDの集合を処理します。
+    /// 指定した空間IDの集合を直接操作するため、所有権を消費します。
+    ///
+    /// # Examples
+    ///
+    /// 元のコレクションを直接書き換える場合:
+    ///
+    /// ```rust
+    /// use kasane_logic::{SpatialIdTable, SpatialIdCollection};
+    ///
+    /// let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
+    /// // ... tableに要素を追加 ...
+    ///
+    /// // query()は所有権を消費し、メモリを再利用して高速に元のtableを直接書き換えます。
+    /// table = table.query().shift_x(15, 1).run().unwrap();
+    /// ```
+    fn query(self) -> Query<Self> {
         Query::Source(self)
     }
+
+    /// [Query]を用いて空間IDの集合を処理します。
+    /// 指定した空間IDの集合を参照して新しい集合を構築するため、元の集合の所有権を消費しません。
+    ///
+    /// 新しい集合の構築は必要部分で行われるため、軽量に動作します。
+    ///
+    /// # Examples
+    ///
+    /// 元の集合を残しつつ、新しい集合を作成する場合:
+    ///
+    /// ```rust
+    /// use kasane_logic::{SpatialIdTable, SpatialIdCollection};
+    ///
+    /// let table: SpatialIdTable<i32> = SpatialIdTable::new();
+    /// // ... tableに要素を追加 ...
+    ///
+    /// // as_query()は所有権を消費せず、元のtableを維持したまま新しいtableを構築します。
+    /// // 内部では軽量なcloneが行われます。
+    /// let new_table = table.as_query().shift_x(15, 1).run().unwrap();
+    /// ```
+    fn as_query(&self) -> Query<Self> {
+        (*self).clone().query()
+    }
+
+    /// コレクション内のすべての値を更新します。
+    fn map_values_in_place<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut Self::Value);
 }
 
 impl<V> SpatialIdCollection for SpatialIdTable<V>
@@ -119,11 +162,11 @@ where
         self.iter()
     }
 
-    fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, V)> + 'a {
+    fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, V)> + 'a {
         self.get(target).map(|(id, v)| (id, v.clone()))
     }
 
-    fn query_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+    fn get_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.get(target)
     }
 
@@ -133,6 +176,13 @@ where
 
     fn is_empty(&self) -> bool {
         SpatialIdTable::is_empty(self)
+    }
+
+    fn map_values_in_place<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut Self::Value),
+    {
+        SpatialIdTable::map_values_in_place(self, f);
     }
 }
 
@@ -155,11 +205,11 @@ impl SpatialIdCollection for SpatialIdSet {
         self.iter().map(|id| (id, &UNIT))
     }
 
-    fn query<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, ())> + 'a {
+    fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, ())> + 'a {
         self.get(target).map(|id| (id, ()))
     }
 
-    fn query_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a ())> + 'a {
+    fn get_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a ())> + 'a {
         self.get(target).map(|id| (id, &UNIT))
     }
 
@@ -169,5 +219,12 @@ impl SpatialIdCollection for SpatialIdSet {
 
     fn is_empty(&self) -> bool {
         SpatialIdSet::is_empty(self)
+    }
+
+    fn map_values_in_place<F>(&mut self, _f: F)
+    where
+        F: FnMut(&mut Self::Value),
+    {
+        // SpatialIdSet's value is (), so no mutation is needed.
     }
 }

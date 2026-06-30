@@ -4,7 +4,7 @@ use core::marker::PhantomData;
 use crate::{BinaryOperator, Error, SpatialIdCollection};
 
 pub trait BinaryKernel<C: SpatialIdCollection> {
-    fn run(self: Box<Self>, lhs: &C, rhs: &C) -> Result<C, Error>;
+    fn run(self: Box<Self>, lhs: C, rhs: C) -> Result<C, Error>;
 
     fn is_commutative(&self) -> bool {
         false
@@ -22,7 +22,7 @@ where
     C: SpatialIdCollection,
     Op: BinaryOperator<C::Value, C::Value, ResultValue = C::Value>,
 {
-    fn run(self: Box<Self>, lhs: &C, rhs: &C) -> Result<C, Error> {
+    fn run(self: Box<Self>, lhs: C, rhs: C) -> Result<C, Error> {
         <Op as BinaryOperator<C::Value, C::Value>>::execution::<C, C, C>(lhs, rhs, self.param)
     }
 

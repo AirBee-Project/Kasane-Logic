@@ -15,7 +15,7 @@ impl<A: CellValue> UnaryOperator<A> for FillDefault {
     type CustomParameter = A;
     type ResultValue = A;
 
-    fn execution<S, O>(a: &S, default: A) -> Result<O, Error>
+    fn execution<S, O>(a: S, default: A) -> Result<O, Error>
     where
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,

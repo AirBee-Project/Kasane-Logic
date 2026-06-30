@@ -28,7 +28,7 @@ fn b_table() -> SpatialIdTable<i32> {
 fn add_sums_overlap_and_keeps_each_side() {
     let s = a_table()
         .clone()
-        .into_query()
+        .query()
         .add(b_table().clone())
         .run()
         .unwrap();
@@ -42,13 +42,13 @@ fn add_sums_overlap_and_keeps_each_side() {
 fn add_is_commutative() {
     let ab = a_table()
         .clone()
-        .into_query()
+        .query()
         .add(b_table().clone())
         .run()
         .unwrap();
     let ba = b_table()
         .clone()
-        .into_query()
+        .query()
         .add(a_table().clone())
         .run()
         .unwrap();
@@ -64,12 +64,7 @@ fn add_is_commutative() {
 #[test]
 fn add_with_empty_is_identity() {
     let empty = SpatialIdTable::<i32>::new();
-    let s = a_table()
-        .clone()
-        .into_query()
-        .add(empty.clone())
-        .run()
-        .unwrap();
+    let s = a_table().clone().query().add(empty.clone()).run().unwrap();
 
     assert_eq!(value_at(&s, 25, 0, 100, 100), Some(10));
     assert_eq!(value_at(&s, 25, 1, 100, 100), Some(20));
@@ -80,7 +75,7 @@ fn add_with_empty_is_identity() {
 fn sub_keeps_a_domain_and_drops_b_only() {
     let d = a_table()
         .clone()
-        .into_query()
+        .query()
         .sub(b_table().clone())
         .run()
         .unwrap();
@@ -94,7 +89,7 @@ fn sub_keeps_a_domain_and_drops_b_only() {
 fn sub_self_is_zero_over_a_domain() {
     let d = a_table()
         .clone()
-        .into_query()
+        .query()
         .sub(a_table().clone())
         .run()
         .unwrap();
@@ -107,7 +102,7 @@ fn sub_self_is_zero_over_a_domain() {
 fn mul_keeps_overlap_only() {
     let m = a_table()
         .clone()
-        .into_query()
+        .query()
         .mul(b_table().clone())
         .run()
         .unwrap();
@@ -121,13 +116,13 @@ fn mul_keeps_overlap_only() {
 fn mul_is_commutative() {
     let ab = a_table()
         .clone()
-        .into_query()
+        .query()
         .mul(b_table().clone())
         .run()
         .unwrap();
     let ba = b_table()
         .clone()
-        .into_query()
+        .query()
         .mul(a_table().clone())
         .run()
         .unwrap();
@@ -149,7 +144,7 @@ fn mul_over_overlapping_ranges_at_mixed_zoom() {
     let mut b = SpatialIdTable::<i32>::new();
     b.insert(id(25, 0, 100, 100), 7); // a の被覆領域内の細かいセル
 
-    let m = a.clone().into_query().mul(b.clone()).run().unwrap();
+    let m = a.clone().query().mul(b.clone()).run().unwrap();
 
     // 重なるセルは 3 * 7、覆われていない残りは片側のみなので消える。
     assert_eq!(value_at(&m, 25, 0, 100, 100), Some(21));
@@ -165,7 +160,7 @@ fn add_over_overlapping_ranges_at_mixed_zoom() {
     let mut b = SpatialIdTable::<i32>::new();
     b.insert(id(25, 0, 100, 100), 1); // a の被覆領域内の細かいセル
 
-    let s = a.clone().into_query().add(b.clone()).run().unwrap();
+    let s = a.clone().query().add(b.clone()).run().unwrap();
 
     // 重なるセルは 100 + 1、覆われていない残りは a の 100 のまま。
     assert_eq!(value_at(&s, 25, 0, 100, 100), Some(101));

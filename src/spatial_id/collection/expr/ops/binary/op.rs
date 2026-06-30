@@ -39,7 +39,7 @@ impl<C: SpatialIdCollection> BinaryOp<C> {
         }
     }
 
-    pub fn run(self, lhs: &C, rhs: &C) -> Result<C, Error> {
+    pub fn run(self, lhs: C, rhs: C) -> Result<C, Error> {
         match self {
             BinaryOp::Union(p) => {
                 crate::spatial_id::collection::expr::ops::binary::set::union::Union::execution::<C, C, C>(
@@ -47,25 +47,13 @@ impl<C: SpatialIdCollection> BinaryOp<C> {
                 )
             }
             BinaryOp::Intersection(p) => {
-                crate::spatial_id::collection::expr::ops::binary::set::intersection::Intersection::execution::<
-                    C,
-                    C,
-                    C,
-                >(lhs, rhs, p)
+                crate::spatial_id::collection::expr::ops::binary::set::intersection::Intersection::execution::<C, C, C>(lhs, rhs, p)
             }
             BinaryOp::Difference => {
-                crate::spatial_id::collection::expr::ops::binary::set::difference::Difference::execution::<
-                    C,
-                    C,
-                    C,
-                >(lhs, rhs, ())
+                crate::spatial_id::collection::expr::ops::binary::set::difference::Difference::execution::<C, C, C>(lhs, rhs, ())
             }
             BinaryOp::SymmetricDifference => {
-                crate::spatial_id::collection::expr::ops::binary::set::symmetric_difference::SymmetricDifference::execution::<
-                    C,
-                    C,
-                    C,
-                >(lhs, rhs, ())
+                crate::spatial_id::collection::expr::ops::binary::set::symmetric_difference::SymmetricDifference::execution::<C, C, C>(lhs, rhs, ())
             }
             BinaryOp::Mask => {
                 crate::spatial_id::collection::expr::ops::binary::set::mask::Mask::execution::<C, C, C>(

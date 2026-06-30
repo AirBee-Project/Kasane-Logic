@@ -31,7 +31,7 @@ fn b_table() -> SpatialIdTable<u8> {
 #[test]
 fn union_keeps_both_sides_and_resolves_overlap() {
     let u = a_table()
-        .into_query()
+        .query()
         .union_with(b_table(), ConflictPolicy::Max)
         .run()
         .unwrap();
@@ -44,7 +44,7 @@ fn union_keeps_both_sides_and_resolves_overlap() {
 #[test]
 fn intersection_keeps_overlap_only() {
     let i = a_table()
-        .into_query()
+        .query()
         .intersection_with(b_table(), ConflictPolicy::Min)
         .run()
         .unwrap();
@@ -56,7 +56,7 @@ fn intersection_keeps_overlap_only() {
 
 #[test]
 fn difference_removes_overlap() {
-    let d = a_table().into_query().difference(b_table()).run().unwrap();
+    let d = a_table().query().difference(b_table()).run().unwrap();
 
     assert_eq!(value_at(&d, 25, 0, 100, 100), Some(1)); // a のみ → 残る
     assert_eq!(value_at(&d, 25, 1, 100, 100), None); // 重なり → 削る
@@ -68,7 +68,7 @@ fn difference_accepts_table_as_mask() {
     let mut mask: SpatialIdTable<u8> = SpatialIdTable::new();
     mask.insert(id(25, 1, 100, 100), 0);
 
-    let d = a_table().into_query().difference(mask).run().unwrap();
+    let d = a_table().query().difference(mask).run().unwrap();
     assert_eq!(value_at(&d, 25, 0, 100, 100), Some(1));
     assert_eq!(value_at(&d, 25, 1, 100, 100), None);
 }
@@ -76,7 +76,7 @@ fn difference_accepts_table_as_mask() {
 #[test]
 fn symmetric_difference_keeps_exclusive_cells() {
     let x = a_table()
-        .into_query()
+        .query()
         .symmetric_difference(b_table())
         .run()
         .unwrap();
@@ -91,7 +91,7 @@ fn mask_keeps_left_value_on_overlap() {
     let mut region: SpatialIdTable<u8> = SpatialIdTable::new();
     region.insert(id(25, 1, 100, 100), 0);
 
-    let m = a_table().into_query().mask(region).run().unwrap();
+    let m = a_table().query().mask(region).run().unwrap();
     assert_eq!(value_at(&m, 25, 0, 100, 100), None); // 範囲外 → 落ちる
     assert_eq!(value_at(&m, 25, 1, 100, 100), Some(2)); // a の値を保持
 }
@@ -104,7 +104,7 @@ fn empty_identities() {
     // A ∪ ∅ = A
     let u = a
         .clone()
-        .into_query()
+        .query()
         .union_with(empty.clone(), ConflictPolicy::Max)
         .run()
         .unwrap();
@@ -114,7 +114,7 @@ fn empty_identities() {
     // A ∩ ∅ = ∅
     assert!(
         a.clone()
-            .into_query()
+            .query()
             .intersection_with(empty.clone(), ConflictPolicy::Max)
             .run()
             .unwrap()
@@ -124,11 +124,7 @@ fn empty_identities() {
     // A ∖ ∅ = A
     assert_eq!(
         value_at(
-            &a.clone()
-                .into_query()
-                .difference(empty.clone())
-                .run()
-                .unwrap(),
+            &a.clone().query().difference(empty.clone()).run().unwrap(),
             25,
             0,
             100,
@@ -140,7 +136,7 @@ fn empty_identities() {
     // A ∖ A = ∅
     assert!(
         a.clone()
-            .into_query()
+            .query()
             .difference(a_table().clone())
             .run()
             .unwrap()
@@ -157,7 +153,7 @@ fn difference_splits_coarse_cell() {
     let mut b: SpatialIdTable<bool> = SpatialIdTable::new();
     b.insert(id(25, 0, 100, 100), true);
 
-    let d = a.clone().into_query().difference(b.clone()).run().unwrap();
+    let d = a.clone().query().difference(b.clone()).run().unwrap();
     assert!(present_b(&d, 25, 0, 101, 100)); // 残り
     assert!(!present_b(&d, 25, 0, 100, 100)); // くり抜かれた
 }
@@ -171,7 +167,7 @@ fn works_on_sets() {
     let mut b = SpatialIdSet::new();
     b.insert(id(25, 1, 100, 100));
 
-    let d = a.clone().into_query().difference(b.clone()).run().unwrap();
+    let d = a.clone().query().difference(b.clone()).run().unwrap();
     assert!(d.get(&id(25, 0, 100, 100)).next().is_some());
     assert!(d.get(&id(25, 1, 100, 100)).next().is_none());
 }

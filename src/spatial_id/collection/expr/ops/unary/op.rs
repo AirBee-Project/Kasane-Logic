@@ -34,7 +34,7 @@ impl<C: SpatialIdCollection> UnaryOp<C> {
         }
     }
 
-    pub fn run(self, input: &C) -> Result<C, Error> {
+    pub fn run(self, input: C) -> Result<C, Error> {
         match self {
             UnaryOp::Shift(p) => Shift::execution::<C, C>(input, p),
             UnaryOp::Stretch(p) => Stretch::execution::<C, C>(input, p),

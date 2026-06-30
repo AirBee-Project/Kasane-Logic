@@ -156,7 +156,7 @@ impl<A: CellValue> UnaryOperator<A> for Spread {
     type CustomParameter = SpreadParam<A>;
     type ResultValue = A;
 
-    fn execution<S, O>(a: &S, param: Self::CustomParameter) -> Result<O, Error>
+    fn execution<S, O>(a: S, param: Self::CustomParameter) -> Result<O, Error>
     where
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,

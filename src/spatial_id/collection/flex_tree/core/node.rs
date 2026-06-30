@@ -319,4 +319,25 @@ where
 
         if bit == 0 { Side::Lower } else { Side::Upper }
     }
+
+    /// ノード以下すべての値をインプレースで更新します。
+    pub fn map_values_mut<F>(&mut self, f: &mut F)
+    where
+        F: FnMut(&mut V),
+    {
+        match self {
+            Node::Branch {
+                lower_child,
+                upper_child,
+                ..
+            } => {
+                SharedNode::make_mut(lower_child).map_values_mut(f);
+                SharedNode::make_mut(upper_child).map_values_mut(f);
+            }
+            Node::Leaf { value: Some(v) } => {
+                f(v);
+            }
+            Node::Leaf { value: None } => {}
+        }
+    }
 }
