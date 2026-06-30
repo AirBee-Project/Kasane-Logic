@@ -1,6 +1,6 @@
 use hashbrown::HashSet;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId};
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId};
 pub mod convert;
 pub mod impls;
 pub mod json;
@@ -87,14 +87,14 @@ impl SpatialIdSet {
     /// let flex = FlexId::new(23, 0, 24, 7451089, 23, 3303245).unwrap();
     /// set.insert(flex);
     /// ```
-    pub fn insert<S: IterFlexIds>(&mut self, target: S) {
+    pub fn insert<S: SpatialId>(&mut self, target: S) {
         self.inner.insert(target, ());
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して返す。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
     where
-        S: IterFlexIds,
+        S: SpatialId,
     {
         self.inner.get(target).map(move |(flex_id, _value)| flex_id)
     }

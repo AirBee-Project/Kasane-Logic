@@ -56,9 +56,7 @@ mod persist_tests {
     }
 }
 
-use crate::{
-    FlexId, FlexTreeCore, IntoSingleIds, IterFlexIds, RangeId, SingleId, SpatialId, SpatialIdSet,
-};
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Default, Clone, Debug)]
@@ -130,7 +128,7 @@ where
     }
 
     /// 空間に値を挿入します。
-    pub fn insert<S: IterFlexIds + Clone>(&mut self, target: S, value: V) {
+    pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
             None => {
@@ -149,7 +147,7 @@ where
     /// 特定の空間（target）と交差するすべての領域と、その値への参照を返します。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
-        S: IterFlexIds,
+        S: SpatialId,
     {
         self.inner.get(target).map(|(flex_id, rank)| {
             let value = self.reverse_dictionary.get(&rank).unwrap();
@@ -158,7 +156,7 @@ where
     }
 
     /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
-    pub fn remove<'a, S: IterFlexIds + Clone>(
+    pub fn remove<'a, S: SpatialId + Clone>(
         &'a mut self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, V)> + 'a {
@@ -182,7 +180,7 @@ where
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
-        S: IterFlexIds,
+        S: SpatialId,
     {
         self.inner
             .get_overlapping_ref(target)
@@ -197,7 +195,7 @@ where
 
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
     /// [`FlexId`]と値をそのままの返します。
-    pub fn remove_overlapping<'a, S: IterFlexIds>(
+    pub fn remove_overlapping<'a, S: SpatialId>(
         &'a mut self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, V)> + 'a {
