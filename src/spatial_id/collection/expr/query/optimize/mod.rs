@@ -8,11 +8,11 @@ where
 {
     /// 最適化を行う。
     pub fn optimize(self) -> Self {
+        #[allow(clippy::type_complexity)]
         // 最適化のルール一覧
         // プリミティブなルールほど最初のほうに置く
-
-        #[allow(clippy::type_complexity)]
         let rules: &[fn(Query<C>) -> Query<C>] = &[rules::drop_identity_unary];
+
         let mut reuslt = self;
 
         for rule in rules {

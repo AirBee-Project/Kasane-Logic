@@ -1,3 +1,9 @@
+pub mod kernel;
+pub mod op;
+
+pub use kernel::*;
+pub use op::*;
+
 /// 特定の次元の方向へ移動
 pub mod shift;
 

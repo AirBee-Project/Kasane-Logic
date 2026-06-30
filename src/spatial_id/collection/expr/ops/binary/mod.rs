@@ -3,3 +3,8 @@ pub mod set;
 
 /// 算術演算（加算ほか）
 pub mod arith;
+pub mod kernel;
+pub mod op;
+
+pub use kernel::*;
+pub use op::*;

@@ -1,13 +1,9 @@
 use alloc::boxed::Box;
 
-pub mod binary;
-pub mod unary;
-
-/// 最適化（巡回ドライバと書き換えルール）
 mod optimize;
 
-pub use binary::{BinaryKernel, BinaryOp, BinaryOpKernel};
-pub use unary::{UnaryKernel, UnaryOp, UnaryOpKernel};
+use super::ops::binary::BinaryOp;
+use super::ops::unary::UnaryOp;
 
 use crate::{Error, SpatialIdCollection};
 
