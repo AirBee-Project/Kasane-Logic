@@ -1,7 +1,8 @@
 use alloc::vec::Vec;
 
 use crate::{
-    ConflictPolicy, FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::expr::plan::Plan,
+    ConflictPolicy, FlexId, SpatialIdSet, SpatialIdTable,
+    spatial_id::collection::expr::query::Query,
 };
 
 /// `SpatialIdSet`（値を持たない集合）の参照版走査で返す `&()` の実体。
@@ -90,9 +91,9 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// 空かどうか。
     fn is_empty(&self) -> bool;
 
-    /// このコレクションを起点に、[`Plan`]の組み立てを始める。
-    fn plan(self) -> Plan<Self> {
-        Plan::Source(self)
+    /// このコレクションを起点に、[`Query`]の組み立てを始める。
+    fn into_query(self) -> Query<Self> {
+        Query::Source(self)
     }
 }
 

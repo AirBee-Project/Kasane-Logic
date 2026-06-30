@@ -1,4 +1,4 @@
-use crate::spatial_id::collection::expr::plan::binary::kernel::BinaryKernel;
+use crate::spatial_id::collection::expr::query::binary::kernel::BinaryKernel;
 use crate::{BinaryOperator, ConflictPolicy, Error, SpatialIdCollection};
 
 #[cfg(feature = "rayon")]

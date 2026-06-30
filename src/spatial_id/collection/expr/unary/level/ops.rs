@@ -1,56 +1,10 @@
-use crate::{ConflictPolicy, Error, SpatialIdCollection, UnaryOperator};
+use crate::{ConflictPolicy, SpatialIdCollection};
 
-use super::{Level, LevelParam};
+use super::LevelParam;
 
-pub trait LevelOps: SpatialIdCollection {
-    fn level_f(&self, z: u8, lo: i32, hi: i32) -> Result<Self, Error> {
-        self.level_f_with(z, lo, hi, ConflictPolicy::Overwrite)
-    }
+use crate::spatial_id::collection::expr::query::Query;
 
-    fn level_x(&self, z: u8, lo: u32, hi: u32) -> Result<Self, Error> {
-        self.level_x_with(z, lo, hi, ConflictPolicy::Overwrite)
-    }
-
-    fn level_y(&self, z: u8, lo: u32, hi: u32) -> Result<Self, Error> {
-        self.level_y_with(z, lo, hi, ConflictPolicy::Overwrite)
-    }
-
-    fn level_f_with(
-        &self,
-        z: u8,
-        lo: i32,
-        hi: i32,
-        conflict: ConflictPolicy<Self::Value>,
-    ) -> Result<Self, Error> {
-        Level::execution::<Self, Self>(self, LevelParam::f(z, lo, hi, conflict))
-    }
-
-    fn level_x_with(
-        &self,
-        z: u8,
-        lo: u32,
-        hi: u32,
-        conflict: ConflictPolicy<Self::Value>,
-    ) -> Result<Self, Error> {
-        Level::execution::<Self, Self>(self, LevelParam::x(z, lo, hi, conflict))
-    }
-
-    fn level_y_with(
-        &self,
-        z: u8,
-        lo: u32,
-        hi: u32,
-        conflict: ConflictPolicy<Self::Value>,
-    ) -> Result<Self, Error> {
-        Level::execution::<Self, Self>(self, LevelParam::y(z, lo, hi, conflict))
-    }
-}
-
-impl<C> LevelOps for C where C: SpatialIdCollection {}
-
-use crate::spatial_id::collection::expr::plan::Plan;
-
-impl<C: SpatialIdCollection> Plan<C>
+impl<C: SpatialIdCollection> Query<C>
 where
     C::Value: 'static,
 {
@@ -67,8 +21,8 @@ where
     }
 
     pub fn level_f_with(self, z: u8, lo: i32, hi: i32, conflict: ConflictPolicy<C::Value>) -> Self {
-        Plan::Unary(
-            crate::spatial_id::collection::expr::plan::UnaryOp::Level(LevelParam::f(
+        Query::Unary(
+            crate::spatial_id::collection::expr::query::UnaryOp::Level(LevelParam::f(
                 z, lo, hi, conflict,
             )),
             alloc::boxed::Box::new(self),
@@ -76,8 +30,8 @@ where
     }
 
     pub fn level_x_with(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
-        Plan::Unary(
-            crate::spatial_id::collection::expr::plan::UnaryOp::Level(LevelParam::x(
+        Query::Unary(
+            crate::spatial_id::collection::expr::query::UnaryOp::Level(LevelParam::x(
                 z, lo, hi, conflict,
             )),
             alloc::boxed::Box::new(self),
@@ -85,8 +39,8 @@ where
     }
 
     pub fn level_y_with(self, z: u8, lo: u32, hi: u32, conflict: ConflictPolicy<C::Value>) -> Self {
-        Plan::Unary(
-            crate::spatial_id::collection::expr::plan::UnaryOp::Level(LevelParam::y(
+        Query::Unary(
+            crate::spatial_id::collection::expr::query::UnaryOp::Level(LevelParam::y(
                 z, lo, hi, conflict,
             )),
             alloc::boxed::Box::new(self),

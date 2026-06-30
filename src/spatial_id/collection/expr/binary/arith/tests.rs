@@ -1,4 +1,5 @@
-use crate::{Addable, Multipliable, SingleId, SpatialIdTable, Subtractable};
+use crate::SpatialIdCollection;
+use crate::{SingleId, SpatialIdTable};
 
 fn id(z: u8, f: i32, x: u32, y: u32) -> SingleId {
     SingleId::new(z, f, x, y).unwrap()
@@ -25,7 +26,12 @@ fn b_table() -> SpatialIdTable<i32> {
 
 #[test]
 fn add_sums_overlap_and_keeps_each_side() {
-    let s = a_table().add(&b_table()).unwrap();
+    let s = a_table()
+        .clone()
+        .into_query()
+        .add(b_table().clone())
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&s, 25, 0, 100, 100), Some(10)); // a のみ
     assert_eq!(value_at(&s, 25, 1, 100, 100), Some(25)); // both → 20 + 5
@@ -34,8 +40,18 @@ fn add_sums_overlap_and_keeps_each_side() {
 
 #[test]
 fn add_is_commutative() {
-    let ab = a_table().add(&b_table()).unwrap();
-    let ba = b_table().add(&a_table()).unwrap();
+    let ab = a_table()
+        .clone()
+        .into_query()
+        .add(b_table().clone())
+        .run()
+        .unwrap();
+    let ba = b_table()
+        .clone()
+        .into_query()
+        .add(a_table().clone())
+        .run()
+        .unwrap();
 
     for f in 0..=2 {
         assert_eq!(
@@ -48,7 +64,12 @@ fn add_is_commutative() {
 #[test]
 fn add_with_empty_is_identity() {
     let empty = SpatialIdTable::<i32>::new();
-    let s = a_table().add(&empty).unwrap();
+    let s = a_table()
+        .clone()
+        .into_query()
+        .add(empty.clone())
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&s, 25, 0, 100, 100), Some(10));
     assert_eq!(value_at(&s, 25, 1, 100, 100), Some(20));
@@ -57,7 +78,12 @@ fn add_with_empty_is_identity() {
 
 #[test]
 fn sub_keeps_a_domain_and_drops_b_only() {
-    let d = a_table().sub(&b_table()).unwrap();
+    let d = a_table()
+        .clone()
+        .into_query()
+        .sub(b_table().clone())
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&d, 25, 0, 100, 100), Some(10)); // a のみ → a
     assert_eq!(value_at(&d, 25, 1, 100, 100), Some(15)); // both → 20 - 5
@@ -66,7 +92,12 @@ fn sub_keeps_a_domain_and_drops_b_only() {
 
 #[test]
 fn sub_self_is_zero_over_a_domain() {
-    let d = a_table().sub(&a_table()).unwrap();
+    let d = a_table()
+        .clone()
+        .into_query()
+        .sub(a_table().clone())
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&d, 25, 0, 100, 100), Some(0));
     assert_eq!(value_at(&d, 25, 1, 100, 100), Some(0));
@@ -74,7 +105,12 @@ fn sub_self_is_zero_over_a_domain() {
 
 #[test]
 fn mul_keeps_overlap_only() {
-    let m = a_table().mul(&b_table()).unwrap();
+    let m = a_table()
+        .clone()
+        .into_query()
+        .mul(b_table().clone())
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&m, 25, 0, 100, 100), None); // a のみ → 捨てる
     assert_eq!(value_at(&m, 25, 1, 100, 100), Some(100)); // both → 20 * 5
@@ -83,8 +119,18 @@ fn mul_keeps_overlap_only() {
 
 #[test]
 fn mul_is_commutative() {
-    let ab = a_table().mul(&b_table()).unwrap();
-    let ba = b_table().mul(&a_table()).unwrap();
+    let ab = a_table()
+        .clone()
+        .into_query()
+        .mul(b_table().clone())
+        .run()
+        .unwrap();
+    let ba = b_table()
+        .clone()
+        .into_query()
+        .mul(a_table().clone())
+        .run()
+        .unwrap();
 
     for f in 0..=2 {
         assert_eq!(
@@ -103,7 +149,7 @@ fn mul_over_overlapping_ranges_at_mixed_zoom() {
     let mut b = SpatialIdTable::<i32>::new();
     b.insert(id(25, 0, 100, 100), 7); // a の被覆領域内の細かいセル
 
-    let m = a.mul(&b).unwrap();
+    let m = a.clone().into_query().mul(b.clone()).run().unwrap();
 
     // 重なるセルは 3 * 7、覆われていない残りは片側のみなので消える。
     assert_eq!(value_at(&m, 25, 0, 100, 100), Some(21));
@@ -119,7 +165,7 @@ fn add_over_overlapping_ranges_at_mixed_zoom() {
     let mut b = SpatialIdTable::<i32>::new();
     b.insert(id(25, 0, 100, 100), 1); // a の被覆領域内の細かいセル
 
-    let s = a.add(&b).unwrap();
+    let s = a.clone().into_query().add(b.clone()).run().unwrap();
 
     // 重なるセルは 100 + 1、覆われていない残りは a の 100 のまま。
     assert_eq!(value_at(&s, 25, 0, 100, 100), Some(101));

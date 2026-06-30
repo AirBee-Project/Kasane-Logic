@@ -1,5 +1,6 @@
+use crate::SpatialIdCollection;
 use crate::spatial_id::zoom_level::ZoomLevel;
-use crate::{ConflictPolicy, FlexId, SingleId, SpatialIdSet, SpatialIdTable, StretchOps};
+use crate::{ConflictPolicy, FlexId, SingleId, SpatialIdSet, SpatialIdTable};
 
 fn table_with(z: u8, f: i32, x: u32, y: u32) -> SpatialIdTable<bool> {
     let mut table = SpatialIdTable::new();
@@ -18,7 +19,7 @@ fn present(table: &SpatialIdTable<bool>, z: u8, f: i32, x: u32, y: u32) -> bool 
 fn stretch_f_keeps_original_and_fills_up() {
     // f=0 を +3 引き延ばす → 元の 0 と 1..=3 が埋まる（shift と違い 0 は残る）。
     let table = table_with(25, 0, 100, 100);
-    let result = table.stretch_f(25, 3).unwrap();
+    let result = table.clone().into_query().stretch_f(25, 3).run().unwrap();
 
     for f in 0..=3 {
         assert!(present(&result, 25, f, 100, 100), "f={f} should be filled");
@@ -31,7 +32,7 @@ fn stretch_f_keeps_original_and_fills_up() {
 fn stretch_f_negative_fills_down() {
     // f=10 を -2 引き延ばす → 8..=10 が埋まる。
     let table = table_with(25, 10, 100, 100);
-    let result = table.stretch_f(25, -2).unwrap();
+    let result = table.clone().into_query().stretch_f(25, -2).run().unwrap();
 
     for f in 8..=10 {
         assert!(present(&result, 25, f, 100, 100), "f={f} should be filled");
@@ -43,7 +44,7 @@ fn stretch_f_negative_fills_down() {
 #[test]
 fn stretch_f_zero_is_identity() {
     let table = table_with(25, 4, 100, 100);
-    let result = table.stretch_f(25, 0).unwrap();
+    let result = table.clone().into_query().stretch_f(25, 0).run().unwrap();
 
     assert!(present(&result, 25, 4, 100, 100));
     assert!(!present(&result, 25, 3, 100, 100));
@@ -53,7 +54,7 @@ fn stretch_f_zero_is_identity() {
 #[test]
 fn stretch_f_out_of_range_is_error() {
     let table = table_with(25, ZoomLevel::new(25_u8).unwrap().f_max(), 100, 100);
-    assert!(table.stretch_f(25, 1).is_err());
+    assert!(table.clone().into_query().stretch_f(25, 1).run().is_err());
 }
 
 // ---- X方向（巡回） ----
@@ -61,7 +62,7 @@ fn stretch_f_out_of_range_is_error() {
 #[test]
 fn stretch_x_fills_range() {
     let table = table_with(25, 0, 100, 100);
-    let result = table.stretch_x(25, 2).unwrap();
+    let result = table.clone().into_query().stretch_x(25, 2).run().unwrap();
 
     for x in 100..=102 {
         assert!(present(&result, 25, 0, x, 100), "x={x} should be filled");
@@ -73,7 +74,7 @@ fn stretch_x_fills_range() {
 fn stretch_x_wraps_across_seam() {
     // z=2 の最東セル x=3 を +1 引き延ばす → x=3 と巡回先 x=0 が埋まる。
     let table = table_with(2, 0, 3, 0);
-    let result = table.stretch_x(2, 1).unwrap();
+    let result = table.clone().into_query().stretch_x(2, 1).run().unwrap();
 
     assert!(present(&result, 2, 0, 3, 0));
     assert!(present(&result, 2, 0, 0, 0));
@@ -84,7 +85,7 @@ fn stretch_x_wraps_across_seam() {
 fn stretch_x_full_circle_covers_all() {
     // z=2 は一周4セル。+4 引き延ばすと全周（0..=3）を覆う。
     let table = table_with(2, 0, 1, 0);
-    let result = table.stretch_x(2, 4).unwrap();
+    let result = table.clone().into_query().stretch_x(2, 4).run().unwrap();
 
     for x in 0..=3 {
         assert!(present(&result, 2, 0, x, 0), "x={x} should be filled");
@@ -96,7 +97,7 @@ fn stretch_x_full_circle_covers_all() {
 #[test]
 fn stretch_y_negative_fills_down() {
     let table = table_with(25, 0, 100, 100);
-    let result = table.stretch_y(25, -3).unwrap();
+    let result = table.clone().into_query().stretch_y(25, -3).run().unwrap();
 
     for y in 97..=100 {
         assert!(present(&result, 25, 0, 100, y), "y={y} should be filled");
@@ -107,7 +108,7 @@ fn stretch_y_negative_fills_down() {
 #[test]
 fn stretch_y_out_of_range_is_error() {
     let table = table_with(25, 0, 100, 0);
-    assert!(table.stretch_y(25, -1).is_err());
+    assert!(table.clone().into_query().stretch_y(25, -1).run().is_err());
 }
 
 // ---- 総称化の確認 ----
@@ -117,7 +118,7 @@ fn stretch_works_on_set() {
     let mut set = SpatialIdSet::new();
     set.insert(SingleId::new(25, 0, 100, 100).unwrap());
 
-    let result = set.stretch_f(25, 2).unwrap();
+    let result = set.clone().into_query().stretch_f(25, 2).run().unwrap();
 
     for f in 0..=2 {
         let cell = SingleId::new(25, f, 100, 100).unwrap();
@@ -139,11 +140,21 @@ fn stretch_resolves_overlap_by_policy() {
     };
 
     // Max: 重なった f=2 は max(1 の伸長, 9) = 9。
-    let by_max = table.stretch_f_with(25, 2, ConflictPolicy::Max).unwrap();
+    let by_max = table
+        .clone()
+        .into_query()
+        .stretch_f_with(25, 2, ConflictPolicy::Max)
+        .run()
+        .unwrap();
     assert_eq!(value_at(&by_max, 2), Some(9));
 
     // Min: 重なった f=2 は min(...) = 1。
-    let by_min = table.stretch_f_with(25, 2, ConflictPolicy::Min).unwrap();
+    let by_min = table
+        .clone()
+        .into_query()
+        .stretch_f_with(25, 2, ConflictPolicy::Min)
+        .run()
+        .unwrap();
     assert_eq!(value_at(&by_min, 2), Some(1));
 }
 
@@ -152,7 +163,7 @@ fn stretch_resolves_overlap_by_policy() {
 fn stretch_x_on_coarse_cell() {
     let mut table = SpatialIdTable::new();
     table.insert(FlexId::new(2, 0, 1, 1, 2, 0).unwrap(), true); // x は z1 / index1（= z2 の 2,3）
-    let result = table.stretch_x(2, 1).unwrap();
+    let result = table.clone().into_query().stretch_x(2, 1).run().unwrap();
 
     // 元の 2,3 に加え、+1 で 4→0（巡回）まで埋まる。
     for x in [0u32, 2, 3] {

@@ -1,4 +1,5 @@
-use crate::{ConflictPolicy, SingleId, SpatialIdSet, SpatialIdTable, SpreadOps};
+use crate::SpatialIdCollection;
+use crate::{ConflictPolicy, SingleId, SpatialIdSet, SpatialIdTable};
 
 fn table_with(z: u8, f: i32, x: u32, y: u32, v: u8) -> SpatialIdTable<u8> {
     let mut table = SpatialIdTable::new();
@@ -16,10 +17,13 @@ fn value_at(table: &SpatialIdTable<u8>, z: u8, f: i32, x: u32, y: u32) -> Option
 fn spread_f_propagates_only_along_height() {
     let table = table_with(25, 0, 100, 100, 100);
     let result = table
+        .clone()
+        .into_query()
         .spread_f(25, 2, |v, dist| {
             let d = v.saturating_sub((dist * 10) as u8);
             (d > 0).then_some(d)
         })
+        .run()
         .unwrap();
 
     // F 方向には ±2 まで減衰しながら広がる。
@@ -36,7 +40,12 @@ fn spread_f_propagates_only_along_height() {
 #[test]
 fn spread_x_propagates_only_along_x() {
     let table = table_with(25, 0, 100, 100, 50);
-    let result = table.spread_x(25, 1, |v, _| Some(*v)).unwrap();
+    let result = table
+        .clone()
+        .into_query()
+        .spread_x(25, 1, |v, _| Some(*v))
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&result, 25, 0, 101, 100), Some(50));
     assert_eq!(value_at(&result, 25, 0, 99, 100), Some(50));
@@ -48,7 +57,12 @@ fn spread_x_propagates_only_along_x() {
 #[test]
 fn spread_xyz_propagates_in_all_axes() {
     let table = table_with(25, 0, 100, 100, 50);
-    let result = table.spread_xyz(25, 1, |v, _| Some(*v)).unwrap();
+    let result = table
+        .clone()
+        .into_query()
+        .spread_xyz(25, 1, |v, _| Some(*v))
+        .run()
+        .unwrap();
 
     // 半径1の球：各軸の隣接が埋まる。
     assert_eq!(value_at(&result, 25, 0, 101, 100), Some(50));
@@ -68,12 +82,18 @@ fn spread_f_with_resolves_overlap_by_policy() {
     let identity = |v: &u8, _d: u32| Some(*v);
 
     let by_min = table
+        .clone()
+        .into_query()
         .spread_f_with(25, 1, identity, ConflictPolicy::Min)
+        .run()
         .unwrap();
     assert_eq!(value_at(&by_min, 25, 1, 100, 100), Some(1));
 
     let by_max = table
+        .clone()
+        .into_query()
         .spread_f_with(25, 1, identity, ConflictPolicy::Max)
+        .run()
         .unwrap();
     assert_eq!(value_at(&by_max, 25, 1, 100, 100), Some(9));
 }
@@ -82,7 +102,12 @@ fn spread_f_with_resolves_overlap_by_policy() {
 #[test]
 fn spread_default_is_xy_plane_only() {
     let table = table_with(25, 5, 100, 100, 50);
-    let result = table.spread(25, 1, |v, _| Some(*v)).unwrap();
+    let result = table
+        .clone()
+        .into_query()
+        .spread(25, 1, |v, _| Some(*v))
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&result, 25, 5, 101, 100), Some(50));
     assert_eq!(value_at(&result, 25, 4, 100, 100), None);
@@ -95,10 +120,13 @@ fn spread_fills_disc_with_decay() {
     // 半径2・1セルごとに-10で減衰（z=25 = セル自身のズーム）。
     let table = table_with(25, 0, 100, 100, 100);
     let result = table
+        .clone()
+        .into_query()
         .spread(25, 2, |v, dist| {
             let d = v.saturating_sub((dist * 10) as u8);
             (d > 0).then_some(d)
         })
+        .run()
         .unwrap();
 
     // 中心は減衰なし。
@@ -118,7 +146,12 @@ fn spread_fills_disc_with_decay() {
 #[test]
 fn spread_keeps_height() {
     let table = table_with(25, 5, 100, 100, 50);
-    let result = table.spread(25, 1, |v, _| Some(*v)).unwrap();
+    let result = table
+        .clone()
+        .into_query()
+        .spread(25, 1, |v, _| Some(*v))
+        .run()
+        .unwrap();
 
     assert_eq!(value_at(&result, 25, 5, 101, 100), Some(50));
     // 別の高さには漏れない。
@@ -132,7 +165,10 @@ fn spread_none_stops_propagation() {
     let table = table_with(25, 0, 100, 100, 5);
     // 距離1以上は None。
     let result = table
+        .clone()
+        .into_query()
         .spread(25, 3, |v, dist| (dist == 0).then_some(*v))
+        .run()
         .unwrap();
 
     assert_eq!(value_at(&result, 25, 0, 100, 100), Some(5));
@@ -150,12 +186,20 @@ fn spread_resolves_overlap_by_policy() {
     let identity = |v: &u8, _d: u32| Some(*v);
 
     // Max（既定）: 重なる x=101 は max(1, 9) = 9。
-    let by_max = table.spread(25, 1, identity).unwrap();
+    let by_max = table
+        .clone()
+        .into_query()
+        .spread(25, 1, identity)
+        .run()
+        .unwrap();
     assert_eq!(value_at(&by_max, 25, 0, 101, 100), Some(9));
 
     // Min: 重なる x=101 は min(1, 9) = 1。
     let by_min = table
+        .clone()
+        .into_query()
         .spread_with(25, 1, identity, ConflictPolicy::Min)
+        .run()
         .unwrap();
     assert_eq!(value_at(&by_min, 25, 0, 101, 100), Some(1));
 }
@@ -165,7 +209,12 @@ fn spread_resolves_overlap_by_policy() {
 fn spread_radius_uses_given_zoom() {
     // セルは z=25。z=24 で半径1 → 1ステップ = 2 (= 1 << (25-24)) インデックス分。
     let table = table_with(25, 0, 100, 100, 7);
-    let result = table.spread(24, 1, |v, _| Some(*v)).unwrap();
+    let result = table
+        .clone()
+        .into_query()
+        .spread(24, 1, |v, _| Some(*v))
+        .run()
+        .unwrap();
 
     // x=102 / x=98（±2）は埋まるが、その間の x=101 は埋まらない。
     assert_eq!(value_at(&result, 25, 0, 102, 100), Some(7));
@@ -178,7 +227,12 @@ fn spread_radius_uses_given_zoom() {
 fn spread_finer_zoom_subdivides() {
     // セルは z=24。z=25（1段細かい）で伝播してもエラーにならず、結果が得られる。
     let table = table_with(24, 0, 100, 100, 7);
-    let result = table.spread(25, 1, |v, _| Some(*v)).unwrap();
+    let result = table
+        .clone()
+        .into_query()
+        .spread(25, 1, |v, _| Some(*v))
+        .run()
+        .unwrap();
     assert!(!result.is_empty());
 }
 
@@ -186,7 +240,14 @@ fn spread_finer_zoom_subdivides() {
 #[test]
 fn spread_zoom_over_max_is_error() {
     let table = table_with(25, 0, 100, 100, 7);
-    assert!(table.spread(u8::MAX, 1, |v, _| Some(*v)).is_err());
+    assert!(
+        table
+            .clone()
+            .into_query()
+            .spread(u8::MAX, 1, |v, _| Some(*v))
+            .run()
+            .is_err()
+    );
 }
 
 /// 値を持たない集合（SpatialIdSet）でも動く。
@@ -195,7 +256,12 @@ fn spread_works_on_set() {
     let mut set = SpatialIdSet::new();
     set.insert(SingleId::new(25, 0, 100, 100).unwrap());
 
-    let result = set.spread(25, 1, |_, _| Some(())).unwrap();
+    let result = set
+        .clone()
+        .into_query()
+        .spread(25, 1, |_, _| Some(()))
+        .run()
+        .unwrap();
 
     // 隣接セルまで広がる。
     let neighbor = SingleId::new(25, 0, 101, 100).unwrap();

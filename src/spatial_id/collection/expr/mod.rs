@@ -8,4 +8,4 @@ pub mod unary;
 pub mod traits;
 
 /// 式全体を見て、最適化するためのモジュール
-pub mod plan;
+pub mod query;

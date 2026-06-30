@@ -20,56 +20,56 @@ impl TemporalId {
     /// 全時間を表す定数。
     pub const WHOLE: TemporalId = TemporalId;
 
-    /// 時間IDを構築する（スタブ）。
+    /// 全ての時間を表す時間IDを作成する。
     ///
     /// `temporal_id` feature が無効な場合、常に `Ok(Self::WHOLE)` を返す。
     pub fn new(_i: u64, _t: u64) -> Result<Self, Error> {
         Ok(Self::WHOLE)
     }
 
-    /// このインスタンスが全時間を表すかを判定する（スタブ）。
+    /// このインスタンスが全時間を表すかを判定する。
     ///
     /// `temporal_id` feature が無効な場合、常に `true` を返す。
     pub fn is_whole(&self) -> bool {
         true
     }
 
-    /// 時間区間の開始時刻をUNIXタイムスタンプで取得する（スタブ）。
+    /// 時間区間の開始時刻をUNIXタイムスタンプで取得する。
     ///
     /// `temporal_id` feature が無効な場合、常に `0` を返す。
     pub fn start_unixstamp(&self) -> u64 {
         0
     }
 
-    /// 時間区間の終了時刻をUNIXタイムスタンプで取得する（包括的、スタブ）。
+    /// 時間区間の終了時刻をUNIXタイムスタンプで取得する。
     ///
     /// `temporal_id` feature が無効な場合、常に `u64::MAX` を返す。
     pub fn end_unixstamp_inclusive(&self) -> u64 {
         u64::MAX
     }
 
-    /// 時間区間の終了時刻をUNIXタイムスタンプで取得する（排他的、スタブ）。
+    /// 時間区間の終了時刻をUNIXタイムスタンプで取得する。
     ///
     /// `temporal_id` feature が無効な場合、常に `u64::MAX + 1` を返す。
     pub fn end_unixtime_exclusive(&self) -> u128 {
         (u64::MAX as u128) + 1
     }
 
-    /// 時間間隔 `i` を取得する（スタブ）。
+    /// 時間間隔 `i` を取得する。
     ///
     /// `temporal_id` feature が無効な場合、常に `u64::MAX` を返す。
     pub fn i(&self) -> u64 {
         u64::MAX
     }
 
-    /// 時間インデックス `t` を取得する（スタブ）。
+    /// 時間インデックス `t` を取得する。
     ///
     /// `temporal_id` feature が無効な場合、常に `0` を返す。
     pub fn t(&self) -> u64 {
         0
     }
 
-    /// 2つの時間IDの交差を計算する（スタブ）。
+    /// 2つの時間IDの交差を計算する。
     ///
     /// `temporal_id` feature が無効な場合、両者が全時間ならば全時間を返す。
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
@@ -80,14 +80,14 @@ impl TemporalId {
         }
     }
 
-    /// 開始と終了から複数のTemporalIdを生成する（スタブ）。
+    /// 開始と終了から複数のTemporalIdを生成する。
     ///
     /// `temporal_id` feature が無効な場合、常に全時間を表す1つの要素を含むベクトルを返す。
     pub fn from_range(_start: u64, _end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
         Ok(vec![Self::WHOLE])
     }
 
-    /// 2つの時間IDの差集合を計算する（スタブ）。
+    /// 2つの時間IDの差集合を計算する。
     ///
     /// `temporal_id` feature が無効な場合、空のイテレータを返す。
     pub fn difference(&self, other: &TemporalId) -> impl Iterator<Item = TemporalId> {

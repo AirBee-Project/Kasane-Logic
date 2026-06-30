@@ -1,4 +1,4 @@
-use crate::spatial_id::collection::expr::plan::unary::kernel::UnaryKernel;
+use crate::spatial_id::collection::expr::query::unary::kernel::UnaryKernel;
 use crate::spatial_id::collection::expr::unary::level::{Level, LevelParam};
 use crate::spatial_id::collection::expr::unary::shift::{Shift, ShiftParam};
 use crate::spatial_id::collection::expr::unary::spread::{Spread, SpreadParam};

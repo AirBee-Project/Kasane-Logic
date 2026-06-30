@@ -1,4 +1,5 @@
-use crate::{FillOps, FlexTreeCore, SingleId, SpatialIdTable};
+use crate::SpatialIdCollection;
+use crate::{FlexTreeCore, SingleId, SpatialIdTable};
 
 fn id(z: u8, f: i32, x: u32, y: u32) -> SingleId {
     SingleId::new(z, f, x, y).unwrap()
@@ -14,7 +15,7 @@ fn fill_default_fills_gap_and_keeps_originals() {
     a.insert(id(20, 0, 0, 0), 10);
     a.insert(id(20, 0, 2, 0), 30);
 
-    let filled = a.fill_default(7).unwrap();
+    let filled = a.clone().into_query().fill_default(7).run().unwrap();
 
     assert_eq!(value_at(&filled, 20, 0, 0, 0), Some(10)); // 元の値
     assert_eq!(value_at(&filled, 20, 0, 1, 0), Some(7)); // 隙間 → 既定値
@@ -27,7 +28,7 @@ fn fill_default_writes_nothing_outside_bbox() {
     a.insert(id(20, 0, 1, 1), 10);
     a.insert(id(20, 0, 3, 1), 30);
 
-    let filled = a.fill_default(7).unwrap();
+    let filled = a.clone().into_query().fill_default(7).run().unwrap();
 
     // AABB は x[1,3], y[1,1], f[0,0]。その外側は空のまま。
     assert_eq!(value_at(&filled, 20, 0, 0, 1), None); // x が bbox 左外
@@ -45,7 +46,7 @@ fn fill_default_fills_2d_gap_and_preserves_corners() {
     a.insert(id(20, 0, 0, 0), 10);
     a.insert(id(20, 0, 2, 2), 30);
 
-    let filled = a.fill_default(7).unwrap();
+    let filled = a.clone().into_query().fill_default(7).run().unwrap();
 
     // bbox 内の 3×3=9 セルすべてを検証。両端の角だけ元の値、残りは既定値。
     for x in 0..=2 {
@@ -63,7 +64,7 @@ fn fill_default_fills_2d_gap_and_preserves_corners() {
 #[test]
 fn fill_default_on_empty_returns_empty() {
     let a = SpatialIdTable::<i32>::new();
-    let filled = a.fill_default(7).unwrap();
+    let filled = a.clone().into_query().fill_default(7).run().unwrap();
 
     assert_eq!(filled.count(), 0);
 }
@@ -75,7 +76,7 @@ fn fill_default_mixed_zoom_normalizes_bbox() {
     a.insert(id(19, 0, 0, 0), 10); // z20 では x[0,1] を覆う
     a.insert(id(20, 0, 4, 0), 30);
 
-    let filled = a.fill_default(7).unwrap();
+    let filled = a.clone().into_query().fill_default(7).run().unwrap();
 
     // 元のセル群は保持。
     assert_eq!(value_at(&filled, 20, 0, 0, 0), Some(10)); // 粗いセル内（元の値）
