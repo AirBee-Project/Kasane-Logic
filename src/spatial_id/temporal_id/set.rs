@@ -15,7 +15,10 @@ use crate::TemporalId;
 const WHOLE_END: u64 = u64::MAX;
 
 /// カレンダー時間の集合。互いに素な半開区間 `[start, end)` の正規化列で表す。
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+///
+/// 正規化済みなので比較は正準（同じ集合 ⇔ 同じ `intervals`）。`CellValue` として
+/// コレクションの値型に使える。
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)

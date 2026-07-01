@@ -61,6 +61,9 @@ pub use geometry::traits::{CoverRangeIds, CoverSingleIds};
 pub use geometry::constants::{WGS84_A, WGS84_E2, WGS84_F};
 
 // spatial_id: id types
+#[cfg(feature = "temporal_id")]
+#[doc(inline)]
+pub use spatial_id::collection::spatio_temporal::SpatioTemporalSet;
 #[doc(inline)]
 pub use spatial_id::flex_id::FlexId;
 #[doc(inline)]
