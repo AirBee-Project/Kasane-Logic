@@ -11,6 +11,10 @@ use alloc::vec::Vec;
 pub mod impls;
 #[cfg(feature = "temporal_id")]
 pub mod ops;
+#[cfg(feature = "temporal_id")]
+pub mod set;
+#[cfg(feature = "temporal_id")]
+pub use set::TemporalSet;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
