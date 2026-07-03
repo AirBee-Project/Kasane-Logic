@@ -7,11 +7,105 @@
 #![cfg(test)]
 
 use crate::spatial_id::collection::flex_tree::core::node::Node;
+use crate::spatial_id::collection::flex_tree::core::node_ops::Combine;
+use crate::spatial_id::collection::flex_tree::core::ptr::SharedNode;
 use crate::spatial_id::collection::flex_tree::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
 use crate::{SingleId, SpatialIdSet, SpatialIdTable};
 use proptest::prelude::*;
+
+// presence（値 ()）用の Combine 実装。汎用 combine が既存 union/int/diff と一致する
+// ことの検証用（挙動保存）。
+struct PUnion;
+impl Combine<()> for PUnion {
+    fn both(_: &(), _: &()) -> Option<()> {
+        Some(())
+    }
+    fn a_only(_: &()) -> Option<()> {
+        Some(())
+    }
+    fn b_only(_: &()) -> Option<()> {
+        Some(())
+    }
+    fn on_identical(a: &SharedNode<Node<()>>, _: &SharedNode<Node<()>>) -> SharedNode<Node<()>> {
+        a.clone()
+    }
+}
+struct PInter;
+impl Combine<()> for PInter {
+    fn both(_: &(), _: &()) -> Option<()> {
+        Some(())
+    }
+    fn a_only(_: &()) -> Option<()> {
+        None
+    }
+    fn b_only(_: &()) -> Option<()> {
+        None
+    }
+    fn on_identical(a: &SharedNode<Node<()>>, _: &SharedNode<Node<()>>) -> SharedNode<Node<()>> {
+        a.clone()
+    }
+}
+struct PDiff;
+impl Combine<()> for PDiff {
+    fn both(_: &(), _: &()) -> Option<()> {
+        None
+    }
+    fn a_only(_: &()) -> Option<()> {
+        Some(())
+    }
+    fn b_only(_: &()) -> Option<()> {
+        None
+    }
+    fn on_identical(
+        _: &SharedNode<Node<()>>,
+        empty: &SharedNode<Node<()>>,
+    ) -> SharedNode<Node<()>> {
+        empty.clone()
+    }
+}
+
+proptest! {
+    /// 汎用 combine（presence 実装）が既存 union/intersection/difference と厳密一致する
+    /// （＝汎用エンジンの挙動保存を単一IDオラクルで検証）。
+    #[test]
+    fn combine_matches_presence_ops(a in arb_random_set_case(), b in arb_random_set_case()) {
+        let sa = a.build_set();
+        let sb = b.build_set();
+        let z = sa
+            .max_zoomlevel()
+            .unwrap_or(0)
+            .max(sb.max_zoomlevel().unwrap_or(0));
+
+        let new_u = SpatialIdSet {
+            inner: sa.inner.combine_with::<PUnion>(&sb.inner),
+        };
+        prop_assert_eq!(
+            sorted_single_ids(&(&sa | &sb), z),
+            sorted_single_ids(&new_u, z),
+            "union mismatch"
+        );
+
+        let new_i = SpatialIdSet {
+            inner: sa.inner.combine_with::<PInter>(&sb.inner),
+        };
+        prop_assert_eq!(
+            sorted_single_ids(&(&sa & &sb), z),
+            sorted_single_ids(&new_i, z),
+            "intersection mismatch"
+        );
+
+        let new_d = SpatialIdSet {
+            inner: sa.inner.combine_with::<PDiff>(&sb.inner),
+        };
+        prop_assert_eq!(
+            sorted_single_ids(&(&sa - &sb), z),
+            sorted_single_ids(&new_d, z),
+            "difference mismatch"
+        );
+    }
+}
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(96))]

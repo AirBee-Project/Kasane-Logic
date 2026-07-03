@@ -160,6 +160,30 @@ where
         }
     }
 
+    /// 値結合 [`Combine`](node_ops::Combine) を差し込んだ汎用の二項演算。
+    /// union/intersection/difference を値付き（時間集合など）で行うためのネイティブ経路。
+    /// 現状 shard は非対応（`None`）。
+    // 次段階（SpatialIdSet/Table の時間ネイティブ化）で使用する。
+    #[allow(dead_code)]
+    pub(crate) fn combine_with<C: node_ops::Combine<V>>(&self, other: &Self) -> Self {
+        Self {
+            lower_root: Node::combine::<C>(
+                &self.lower_root,
+                &other.lower_root,
+                0,
+                &self.empty_leaf,
+            ),
+            upper_root: Node::combine::<C>(
+                &self.upper_root,
+                &other.upper_root,
+                0,
+                &self.empty_leaf,
+            ),
+            empty_leaf: self.empty_leaf.clone(),
+            shard: None,
+        }
+    }
+
     /// ルートノードのポインタが完全に同一か判定します（Result Reuseテスト用）
     #[cfg(test)]
     pub fn root_ptr_eq(&self, other: &Self) -> bool {

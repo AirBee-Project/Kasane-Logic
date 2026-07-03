@@ -7,7 +7,7 @@ use crate::{SpatialIdError, TemporalId, error::Error};
 
 impl Display for TemporalId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}/", self.i)?;
+        write!(f, "{}/", self.i())?;
         write!(f, "{}", self.t)?;
         Ok(())
     }

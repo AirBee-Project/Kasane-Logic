@@ -19,6 +19,10 @@ pub use set::TemporalSet;
 pub mod map;
 #[cfg(feature = "temporal_id")]
 pub use map::TemporalMap;
+#[cfg(feature = "temporal_id")]
+pub mod interval;
+#[cfg(feature = "temporal_id")]
+pub use interval::Interval;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -54,18 +58,20 @@ pub use map::TemporalMap;
 /// # }
 /// ```
 pub struct TemporalId {
-    /// 時間間隔（秒単位）。
-    /// [`Self::TEMPORAL_I`] に定義された値のいずれかである。
-    i: u64,
+    /// 時間間隔（[`Interval`] 型。空間の [`ZoomLevel`](crate::ZoomLevel) に相当）。
+    interval: Interval,
     /// 時間インデックス。
-    /// この値と時間間隔 `i` を組み合わせることで、
+    /// この値と時間間隔を組み合わせることで、
     /// 実際の時間範囲 `[i*t, i*(t+1))` が決定される。
     t: u64,
 }
 
 #[cfg(feature = "temporal_id")]
 impl TemporalId {
-    pub const WHOLE: TemporalId = TemporalId { i: u64::MAX, t: 0 };
+    pub const WHOLE: TemporalId = TemporalId {
+        interval: Interval::Whole,
+        t: 0,
+    };
     pub const TEMPORAL_I: [u64; 5] = [u64::MAX, 86400, 3600, 60, 1];
 
     /// 指定された時間間隔と時間インデックスから新しい [`TemporalId`] を構築する。
@@ -109,15 +115,22 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn new(i: u64, t: u64) -> Result<Self, Error> {
-        Self::TEMPORAL_I
-            .iter()
-            .find(|&&interval| interval == i)
-            .ok_or(SpatialIdError::TIntervalError { i })?;
+        let interval = Interval::from_seconds(i).ok_or(SpatialIdError::TIntervalError { i })?;
         let inclusive_end = i as u128 * (t as u128) + i as u128 - 1;
         if inclusive_end > u64::MAX as u128 {
             return Err(SpatialIdError::TOutOfRange { i, t }.into());
         }
-        Ok(Self { i, t })
+        Ok(Self { interval, t })
+    }
+
+    /// [`Interval`] と時間インデックス `t` から構築する（型安全版）。
+    pub fn from_interval(interval: Interval, t: u64) -> Result<Self, Error> {
+        Self::new(interval.seconds(), t)
+    }
+
+    /// この時間IDの間隔（[`Interval`] 型）。
+    pub fn interval(&self) -> Interval {
+        self.interval
     }
 
     /// このインスタンスが全時間を表す特別な値（`WHOLE`）であるかを判定する。
@@ -142,7 +155,7 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn is_whole(&self) -> bool {
-        self.i == u64::MAX && self.t == 0
+        self.interval == Interval::Whole && self.t == 0
     }
 
     /// この時間区間の開始時刻をUNIXタイムスタンプ（秒単位）で取得する。
@@ -164,7 +177,7 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn start_unixstamp(&self) -> u64 {
-        self.i * self.t
+        self.interval.seconds() * self.t
     }
 
     /// この時間区間の終了時刻をUNIXタイムスタンプ（秒単位、包括的）で取得する。
@@ -187,7 +200,7 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn end_unixstamp_inclusive(&self) -> u64 {
-        self.i * (self.t + 1) - 1
+        self.interval.seconds() * (self.t + 1) - 1
     }
 
     /// この時間区間の終了時刻をUNIXタイムスタンプ（秒単位、排他的）で取得する。
@@ -211,7 +224,7 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn end_unixtime_exclusive(&self) -> u128 {
-        (self.i as u128) * ((self.t as u128) + 1)
+        (self.interval.seconds() as u128) * ((self.t as u128) + 1)
     }
 
     /// 時間間隔 `i` を取得する。
@@ -231,7 +244,7 @@ impl TemporalId {
     /// # }
     /// ```
     pub fn i(&self) -> u64 {
-        self.i
+        self.interval.seconds()
     }
 
     /// 時間インデックス `t` を取得する。

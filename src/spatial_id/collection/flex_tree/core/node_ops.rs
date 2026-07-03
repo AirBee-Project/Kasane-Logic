@@ -23,10 +23,134 @@ macro_rules! join_nodes {
     }};
 }
 
+/// Node 集合演算の「値結合」を定義するトレイト（expr の `BinaryOperator` の Node 版）。
+///
+/// 空間の同一セルにおいて、両側/片側に値があるときの結合規則を与える。これにより
+/// union/intersection/difference を1つの汎用 [`Node::combine`] で表現でき、値
+/// （時間集合 [`TemporalSet`](crate::TemporalSet) など）を結合できる。
+/// 3演算の制御フロー（レベルスキップ・枝再帰・compact）は完全に共通で、違いは
+/// この結合規則だけである。
+pub(crate) trait Combine<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    /// 両側に値があるとき。`None` を返すと不在。
+    fn both(a: &V, b: &V) -> Option<V>;
+    /// a のみ値があるとき。
+    fn a_only(a: &V) -> Option<V>;
+    /// b のみ値があるとき。
+    fn b_only(b: &V) -> Option<V>;
+    /// a と b が同一部分木（ptr_eq）のときの結果。
+    /// union/intersection は a をそのまま、difference は空。
+    fn on_identical(
+        a: &SharedNode<Node<V>>,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Node<V>>;
+}
+
 impl<V> Node<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
+    /// 値結合 [`Combine`] を差し込んだ汎用の二項演算。
+    ///
+    /// 制御フローは [`union`](Self::union) と同一だが、唯一の base case
+    /// 「両方が葉」で `C` の結合規則を適用する。葉 vs 枝は、葉を仮想レベル 93 として
+    /// レベルロジックが枝の子へ降ろすことで自然に扱われる（＝葉の値を枝全体へ畳み込む）。
+    pub(crate) fn combine<C: Combine<V>>(
+        a: &SharedNode<Self>,
+        b: &SharedNode<Self>,
+        current_level: u8,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Self> {
+        if SharedNode::ptr_eq(a, b) {
+            return C::on_identical(a, empty_leaf);
+        }
+
+        // 唯一の base case: 両方が葉 → 値を結合する。
+        if let (Node::Leaf { value: av }, Node::Leaf { value: bv }) = (&**a, &**b) {
+            let v = match (av, bv) {
+                (Some(x), Some(y)) => C::both(x, y),
+                (Some(x), None) => C::a_only(x),
+                (None, Some(y)) => C::b_only(y),
+                (None, None) => None,
+            };
+            return Self::leaf_of(v, empty_leaf);
+        }
+
+        let a_level = match **a {
+            Node::Branch { level, .. } => level,
+            Node::Leaf { .. } => 93,
+        };
+        let b_level = match **b {
+            Node::Branch { level, .. } => level,
+            Node::Leaf { .. } => 93,
+        };
+
+        let mut level = current_level;
+        while level < a_level && level < b_level {
+            level += 1;
+        }
+
+        if level == a_level && level == b_level {
+            if let (
+                Node::Branch {
+                    lower_child: al,
+                    upper_child: au,
+                    ..
+                },
+                Node::Branch {
+                    lower_child: bl,
+                    upper_child: bu,
+                    ..
+                },
+            ) = (&**a, &**b)
+            {
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::combine::<C>(al, bl, level + 1, empty_leaf),
+                    || { Self::combine::<C>(au, bu, level + 1, empty_leaf) }
+                );
+                return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
+            }
+        } else if level == a_level {
+            if let Node::Branch {
+                lower_child: al,
+                upper_child: au,
+                ..
+            } = &**a
+            {
+                let (new_lower, new_upper) = join_nodes!(
+                    a.leaf_count() + b.leaf_count(),
+                    || Self::combine::<C>(al, b, level + 1, empty_leaf),
+                    || { Self::combine::<C>(au, b, level + 1, empty_leaf) }
+                );
+                return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
+            }
+        } else if let Node::Branch {
+            lower_child: bl,
+            upper_child: bu,
+            ..
+        } = &**b
+        {
+            let (new_lower, new_upper) = join_nodes!(
+                a.leaf_count() + b.leaf_count(),
+                || Self::combine::<C>(a, bl, level + 1, empty_leaf),
+                || { Self::combine::<C>(a, bu, level + 1, empty_leaf) }
+            );
+            return Self::compact_branch(level, new_lower, new_upper, a, b, empty_leaf);
+        }
+        unreachable!();
+    }
+
+    /// 値から葉ノードを作る（`None` は共有 empty_leaf）。
+    fn leaf_of(v: Option<V>, empty_leaf: &SharedNode<Node<V>>) -> SharedNode<Node<V>> {
+        match v {
+            None => empty_leaf.clone(),
+            some => SharedNode::new(Node::Leaf { value: some }),
+        }
+    }
+
     pub fn union(
         a: &SharedNode<Self>,
         b: &SharedNode<Self>,
