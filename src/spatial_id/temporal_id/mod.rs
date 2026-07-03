@@ -15,6 +15,10 @@ pub mod ops;
 pub mod set;
 #[cfg(feature = "temporal_id")]
 pub use set::TemporalSet;
+#[cfg(feature = "temporal_id")]
+pub mod map;
+#[cfg(feature = "temporal_id")]
+pub use map::TemporalMap;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]

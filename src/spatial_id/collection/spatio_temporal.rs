@@ -11,7 +11,10 @@
 
 use alloc::vec::Vec;
 
-use crate::{BinaryOperator, Error, FlexId, SpatialId, SpatialIdTable, TemporalId, TemporalSet};
+use crate::{
+    BinaryOperator, CellValue, ConflictPolicy, Error, FlexId, SpatialId, SpatialIdTable,
+    TemporalId, TemporalMap, TemporalSet,
+};
 
 // ---- 時間結合オペレータ（値 = TemporalSet） ----
 
@@ -73,6 +76,83 @@ impl BinaryOperator<TemporalSet, TemporalSet> for TDifference {
         Ok(None)
     }
     fn is_commutative(_: &()) -> bool {
+        false
+    }
+}
+
+// ---- 値付き時間結合オペレータ（値 = TemporalMap<V>） ----
+
+/// 時間マップの和（both は ConflictPolicy で値解決）。
+struct TMUnion;
+impl<V: CellValue> BinaryOperator<TemporalMap<V>, TemporalMap<V>> for TMUnion {
+    type CustomParameter = ConflictPolicy<V>;
+    type ResultValue = TemporalMap<V>;
+
+    fn both_some(
+        a: &TemporalMap<V>,
+        b: &TemporalMap<V>,
+        p: &ConflictPolicy<V>,
+    ) -> Result<Option<TemporalMap<V>>, Error> {
+        let u = a.union(b, p);
+        Ok(if u.is_empty() { None } else { Some(u) })
+    }
+    fn a_only(a: &TemporalMap<V>, _: &ConflictPolicy<V>) -> Result<Option<TemporalMap<V>>, Error> {
+        Ok(Some(a.clone()))
+    }
+    fn b_only(b: &TemporalMap<V>, _: &ConflictPolicy<V>) -> Result<Option<TemporalMap<V>>, Error> {
+        Ok(Some(b.clone()))
+    }
+    fn is_commutative(p: &ConflictPolicy<V>) -> bool {
+        matches!(p, ConflictPolicy::Min | ConflictPolicy::Max)
+    }
+}
+
+/// 時間マップの積（both のみ・ConflictPolicy で値解決）。
+struct TMIntersection;
+impl<V: CellValue> BinaryOperator<TemporalMap<V>, TemporalMap<V>> for TMIntersection {
+    type CustomParameter = ConflictPolicy<V>;
+    type ResultValue = TemporalMap<V>;
+
+    fn both_some(
+        a: &TemporalMap<V>,
+        b: &TemporalMap<V>,
+        p: &ConflictPolicy<V>,
+    ) -> Result<Option<TemporalMap<V>>, Error> {
+        let i = a.intersection(b, p);
+        Ok(if i.is_empty() { None } else { Some(i) })
+    }
+    fn a_only(_: &TemporalMap<V>, _: &ConflictPolicy<V>) -> Result<Option<TemporalMap<V>>, Error> {
+        Ok(None)
+    }
+    fn b_only(_: &TemporalMap<V>, _: &ConflictPolicy<V>) -> Result<Option<TemporalMap<V>>, Error> {
+        Ok(None)
+    }
+    fn is_commutative(p: &ConflictPolicy<V>) -> bool {
+        matches!(p, ConflictPolicy::Min | ConflictPolicy::Max)
+    }
+}
+
+/// 時間マップの差（both は時間差・値は a 由来、a のみはそのまま）。
+struct TMDifference;
+impl<V: CellValue> BinaryOperator<TemporalMap<V>, TemporalMap<V>> for TMDifference {
+    type CustomParameter = ConflictPolicy<V>;
+    type ResultValue = TemporalMap<V>;
+
+    fn both_some(
+        a: &TemporalMap<V>,
+        b: &TemporalMap<V>,
+        _: &ConflictPolicy<V>,
+    ) -> Result<Option<TemporalMap<V>>, Error> {
+        let d = a.difference(b);
+        Ok(if d.is_empty() { None } else { Some(d) })
+    }
+    fn a_only(a: &TemporalMap<V>, _: &ConflictPolicy<V>) -> Result<Option<TemporalMap<V>>, Error> {
+        Ok(Some(a.clone()))
+    }
+    fn b_only(_: &TemporalMap<V>, _: &ConflictPolicy<V>) -> Result<Option<TemporalMap<V>>, Error> {
+        Ok(None)
+    }
+    fn is_commutative(_: &ConflictPolicy<V>) -> bool {
         false
     }
 }
@@ -256,6 +336,106 @@ impl SpatioTemporalSet {
     }
 }
 
+/// 空間主体の時空間テーブル（各時空間セルに値 `V` を対応）。
+///
+/// [`SpatioTemporalSet`] の値付き版。空間セル（temporal=WHOLE）→ 値 [`TemporalMap<V>`]
+/// （時間 → V）で保持し、集合演算は値衝突を [`ConflictPolicy`] で解決する。
+#[derive(Clone, Debug)]
+pub struct SpatioTemporalTable<V: CellValue> {
+    inner: SpatialIdTable<TemporalMap<V>>,
+}
+
+impl<V: CellValue> Default for SpatioTemporalTable<V> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<V: CellValue> SpatioTemporalTable<V> {
+    /// 空のテーブルを作る。
+    pub fn new() -> Self {
+        Self {
+            inner: SpatialIdTable::new(),
+        }
+    }
+
+    /// 時空間ID に値 `value` を挿入する（同一時空間点は後勝ち＝Overwrite）。
+    pub fn insert<S: SpatialId>(&mut self, target: S, value: V) {
+        let mut single = SpatialIdTable::<TemporalMap<V>>::new();
+        for flex_id in target.iter_flex_ids() {
+            single.insert(
+                spatial_cell(&flex_id),
+                TemporalMap::from_temporal(flex_id.temporal(), value.clone()),
+            );
+        }
+        self.inner = TMUnion::execution(self.inner.clone(), single, ConflictPolicy::Overwrite)
+            .expect("temporal map union never fails");
+    }
+
+    /// 空かどうか。
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    /// 全 (時空間セル, 値) を返す。
+    pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
+        self.inner.iter().flat_map(|(spatial, tmap)| {
+            tmap.cells()
+                .into_iter()
+                .map(move |(t, v)| (with_temporal(&spatial, t), v))
+        })
+    }
+
+    /// `query`（時空間 [`FlexId`]）と重なる (時空間セル, 値) を、`query` に切り取って返す。
+    pub fn get(&self, query: &FlexId) -> Vec<(FlexId, V)> {
+        let q_spatial = spatial_cell(query);
+        let q_time = query.temporal().clone();
+        let hits: Vec<(FlexId, TemporalMap<V>)> = self
+            .inner
+            .get(&q_spatial)
+            .map(|(f, tmap)| (f, tmap.clone()))
+            .collect();
+
+        let mut out = Vec::new();
+        for (spatial_inter, tmap) in hits {
+            for (cell, v) in tmap.cells() {
+                if let Some(clipped) = cell.intersection(&q_time) {
+                    out.push((with_temporal(&spatial_inter, clipped), v));
+                }
+            }
+        }
+        out
+    }
+
+    /// 和集合（値衝突は `policy`）。
+    pub fn union(&self, other: &Self, policy: ConflictPolicy<V>) -> Self {
+        Self {
+            inner: TMUnion::execution(self.inner.clone(), other.inner.clone(), policy)
+                .expect("temporal map union never fails"),
+        }
+    }
+
+    /// 積集合（空間×時間が重なる部分、値衝突は `policy`）。
+    pub fn intersection(&self, other: &Self, policy: ConflictPolicy<V>) -> Self {
+        Self {
+            inner: TMIntersection::execution(self.inner.clone(), other.inner.clone(), policy)
+                .expect("temporal map intersection never fails"),
+        }
+    }
+
+    /// 差集合（値は self 由来）。
+    pub fn difference(&self, other: &Self) -> Self {
+        Self {
+            inner: TMDifference::execution(
+                self.inner.clone(),
+                other.inner.clone(),
+                ConflictPolicy::Overwrite,
+            )
+            .expect("temporal map difference never fails"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::SpatioTemporalSet;
@@ -432,6 +612,129 @@ mod tests {
         let seq = build(&cells);
         let bulk = SpatioTemporalSet::from_flex_ids(cells.iter().cloned());
         assert_eq!(atoms(&seq, 2), atoms(&bulk, 2));
+    }
+
+    // ---- SpatioTemporalTable<V> ----
+
+    use super::SpatioTemporalTable;
+    use crate::ConflictPolicy;
+
+    type ValAtom = ((i32, u32, u32), u64, i32);
+
+    /// テーブルを (空間キー, 秒) → 値 の写像へ展開（オラクル）。
+    fn table_atoms(
+        t: &SpatioTemporalTable<i32>,
+        z: u8,
+    ) -> alloc::collections::BTreeMap<((i32, u32, u32), u64), i32> {
+        let mut out = alloc::collections::BTreeMap::new();
+        for (f, v) in t.iter() {
+            let secs: Vec<u64> = (f.temporal().start_unixstamp()
+                ..f.temporal().end_unixtime_exclusive() as u64)
+                .collect();
+            for k in spatial_keys(&f, z) {
+                for &s in &secs {
+                    out.insert((k, s), v);
+                }
+            }
+        }
+        out
+    }
+
+    fn tcell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64, v: i32) -> (FlexId, i32) {
+        (
+            FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::new(i, t).unwrap()).unwrap(),
+            v,
+        )
+    }
+
+    fn tbuild(cells: &[(FlexId, i32)]) -> SpatioTemporalTable<i32> {
+        let mut s = SpatioTemporalTable::new();
+        for (f, v) in cells {
+            s.insert(f.clone(), *v);
+        }
+        s
+    }
+
+    /// insert は後勝ち（Overwrite）で同一時空間点の値を上書き。
+    #[test]
+    fn table_insert_overwrite() {
+        let mut t = SpatioTemporalTable::new();
+        t.insert(tcell(2, 0, 0, 0, 60, 0, 7).0, 7); // (2,0,0,0)@[0,60)=7
+        t.insert(tcell(2, 0, 0, 0, 60, 0, 9).0, 9); // 同一時空間 → 9 で上書き
+        let a = table_atoms(&t, 2);
+        assert!((0..60).all(|s| a[&((0, 0, 0), s)] == 9));
+        assert_eq!(a.len(), 60);
+    }
+
+    /// union / intersection / difference を (空間キー,秒)→値 オラクルで照合。
+    #[test]
+    fn table_ops_atom_oracle() {
+        // A: (2,0,0,0)@[0,120)=1
+        let a = tbuild(&[tcell(2, 0, 0, 0, 60, 0, 1), tcell(2, 0, 0, 0, 60, 1, 1)]);
+        // B: (2,0,0,0)@[0,60)=5（時空間が A に重なる） と (2,0,1,0)@[0,60)=6（A に無い空間）
+        let b = tbuild(&[tcell(2, 0, 0, 0, 60, 0, 5), tcell(2, 0, 1, 0, 60, 0, 6)]);
+
+        let (aa, ba) = (table_atoms(&a, 2), table_atoms(&b, 2));
+
+        // union Overwrite = B 優先
+        let u = a.union(&b, ConflictPolicy::Overwrite);
+        let mut exp_u = aa.clone();
+        for (&k, &v) in &ba {
+            exp_u.insert(k, v);
+        }
+        assert_eq!(table_atoms(&u, 2), exp_u);
+
+        // union Max
+        let um = a.union(&b, ConflictPolicy::Max);
+        let mut exp_um = aa.clone();
+        for (&k, &v) in &ba {
+            let e = exp_um.entry(k).or_insert(v);
+            *e = (*e).max(v);
+        }
+        assert_eq!(table_atoms(&um, 2), exp_um);
+
+        // intersection Overwrite = 両方存在する点で B 優先
+        let i = a.intersection(&b, ConflictPolicy::Overwrite);
+        let exp_i: alloc::collections::BTreeMap<_, _> = ba
+            .iter()
+            .filter(|(k, _)| aa.contains_key(k))
+            .map(|(&k, &v)| (k, v))
+            .collect();
+        assert_eq!(table_atoms(&i, 2), exp_i);
+
+        // difference = A の時空間から B の時空間を除く（値は A）
+        let d = a.difference(&b);
+        let exp_d: alloc::collections::BTreeMap<_, _> = aa
+            .iter()
+            .filter(|(k, _)| !ba.contains_key(k))
+            .map(|(&k, &v)| (k, v))
+            .collect();
+        assert_eq!(table_atoms(&d, 2), exp_d);
+    }
+
+    /// get（時空間クエリ）で値付きに切り取って返す。
+    #[test]
+    fn table_get() {
+        let t = tbuild(&[tcell(2, 0, 0, 0, 3600, 0, 42)]); // (2,0,0,0)@[0,3600)=42
+        let query =
+            FlexId::new_with_temporal(2u8, 0, 2u8, 0, 2u8, 0, TemporalId::new(60, 1).unwrap())
+                .unwrap(); // @[60,120)
+        let got: Vec<((i32, u32, u32), u64, i32)> = {
+            let mut out = Vec::new();
+            for (f, v) in t.get(&query) {
+                for s in
+                    f.temporal().start_unixstamp()..f.temporal().end_unixtime_exclusive() as u64
+                {
+                    for k in spatial_keys(&f, 2) {
+                        out.push((k, s, v));
+                    }
+                }
+            }
+            out
+        };
+        let exp: Vec<ValAtom> = (60u64..120).map(|s| ((0, 0, 0), s, 42)).collect();
+        let got_sorted: BTreeSet<ValAtom> = got.into_iter().collect();
+        assert_eq!(got_sorted, exp.into_iter().collect());
     }
 
     /// 空間のみ（時間 WHOLE）でも動く（時間 WHOLE 同士の union/diff）。

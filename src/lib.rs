@@ -63,7 +63,7 @@ pub use geometry::constants::{WGS84_A, WGS84_E2, WGS84_F};
 // spatial_id: id types
 #[cfg(feature = "temporal_id")]
 #[doc(inline)]
-pub use spatial_id::collection::spatio_temporal::SpatioTemporalSet;
+pub use spatial_id::collection::spatio_temporal::{SpatioTemporalSet, SpatioTemporalTable};
 #[doc(inline)]
 pub use spatial_id::flex_id::FlexId;
 #[doc(inline)]
@@ -72,6 +72,9 @@ pub use spatial_id::range_id::RangeId;
 pub use spatial_id::single_id::SingleId;
 #[doc(inline)]
 pub use spatial_id::temporal_id::TemporalId;
+#[cfg(feature = "temporal_id")]
+#[doc(inline)]
+pub use spatial_id::temporal_id::TemporalMap;
 #[cfg(feature = "temporal_id")]
 #[doc(inline)]
 pub use spatial_id::temporal_id::TemporalSet;
