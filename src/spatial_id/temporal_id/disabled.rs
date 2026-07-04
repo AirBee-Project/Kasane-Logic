@@ -96,6 +96,13 @@ impl TemporalId {
         Ok(vec![Self::WHOLE])
     }
 
+    /// 範囲をセル列へ分解する（クレート内部フック）。
+    ///
+    /// `temporal_id` feature が無効な場合、常に全時間1個を返す。
+    pub(crate) fn decompose(_start: u64, _end_exclusive: u64) -> Vec<TemporalId> {
+        vec![Self::WHOLE]
+    }
+
     /// 2つの時間IDの差集合を計算する。
     ///
     /// `temporal_id` feature が無効な場合、常に空（WHOLE − WHOLE = 空）を返す。
@@ -163,6 +170,11 @@ impl TemporalSet {
         !self.whole
     }
 
+    /// 正規化済み区間列を返す（クレート内部の走査用フック）。
+    pub(crate) fn intervals(&self) -> &[(u64, u64)] {
+        if self.whole { &[(0, DOMAIN_END)] } else { &[] }
+    }
+
     /// 指定の UNIX 秒が含まれるか。
     pub fn contains_unixtime(&self, _sec: u64) -> bool {
         self.whole
@@ -206,5 +218,112 @@ impl TemporalSet {
     /// `window` に限定したセル列を返す。
     pub fn cells_in_window(&self, window: &TemporalId) -> Vec<TemporalId> {
         self.intersection(&Self::from_temporal(window)).cells()
+    }
+}
+
+/// 時間 → 値 `V` の対応（temporal_id feature無効時のスタブ）。
+///
+/// feature 無効時はすべての時間IDが全時間（WHOLE）なので、マップは
+/// 「空」か「全時間 → 1つの値」の2状態のみをとる。
+/// [`SpatialIdMap`](crate::SpatialIdMap) / [`SpatialIdTable`](crate::SpatialIdTable) の
+/// 葉の値として、有効時の [`TemporalMap`](crate::TemporalMap) と同じ最小APIを提供する。
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+pub struct TemporalMap<V> {
+    value: Option<V>,
+}
+
+impl<V: Clone + PartialEq> TemporalMap<V> {
+    /// 空。
+    pub fn new() -> Self {
+        Self { value: None }
+    }
+
+    /// 1つの [`TemporalId`] に値 `v` を対応させる（feature 無効時は常に全時間）。
+    pub fn from_temporal(_t: &TemporalId, v: V) -> Self {
+        Self { value: Some(v) }
+    }
+
+    /// 空かどうか。
+    pub fn is_empty(&self) -> bool {
+        self.value.is_none()
+    }
+
+    /// 指定秒の値。
+    pub fn value_at(&self, _sec: u64) -> Option<&V> {
+        self.value.as_ref()
+    }
+
+    /// 上書き合成（other が存在すれば other が勝つ）。
+    pub fn overwrite(&self, other: &Self) -> Self {
+        Self {
+            value: other.value.clone().or_else(|| self.value.clone()),
+        }
+    }
+
+    /// 差集合 `self - other`（時間で other を除く）。
+    pub fn difference(&self, other: &Self) -> Self {
+        Self {
+            value: if other.value.is_some() {
+                None
+            } else {
+                self.value.clone()
+            },
+        }
+    }
+
+    /// 時間集合 `set` に含まれる時間だけを残す。
+    pub fn intersect_time(&self, set: &TemporalSet) -> Self {
+        Self {
+            value: if set.is_whole() {
+                self.value.clone()
+            } else {
+                None
+            },
+        }
+    }
+
+    /// 時間集合 `set` に含まれる時間を取り除く。
+    pub fn subtract_time(&self, set: &TemporalSet) -> Self {
+        Self {
+            value: if set.is_empty() {
+                self.value.clone()
+            } else {
+                None
+            },
+        }
+    }
+
+    /// 全セグメントをセル列 `(TemporalId, V)` へ分解する。
+    pub fn cells(&self) -> Vec<(TemporalId, V)> {
+        self.value
+            .iter()
+            .map(|v| (TemporalId::WHOLE, v.clone()))
+            .collect()
+    }
+
+    /// [`cells`](Self::cells) の参照版。
+    pub fn cells_ref(&self) -> Vec<(TemporalId, &V)> {
+        self.value.iter().map(|v| (TemporalId::WHOLE, v)).collect()
+    }
+
+    /// `window` に限定したセル列を参照で返す（feature 無効時は全時間のみ）。
+    pub fn cells_in_window_ref(&self, _window: &TemporalId) -> Vec<(TemporalId, &V)> {
+        self.cells_ref()
+    }
+
+    /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
+    pub(crate) fn segments_ref(&self) -> Vec<(u64, u64, &V)> {
+        self.value.iter().map(|v| (0, DOMAIN_END, v)).collect()
+    }
+
+    /// セグメント列から構築する（永続化復元用の内部フック）。
+    pub(crate) fn from_raw_segments(mut segments: Vec<(u64, u64, V)>) -> Self {
+        Self {
+            value: segments.pop().map(|(_, _, v)| v),
+        }
     }
 }

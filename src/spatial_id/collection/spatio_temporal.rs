@@ -1,4 +1,5 @@
-//! 空間主体の時空間集合 [`SpatioTemporalSet`]。
+#![allow(dead_code)]
+//! 空間主体の時空間集合 [`SpatioTemporalSet`]（テスト専用の参照実装）。
 //!
 //! # 設計（空間主体）
 //! - 空間は既存の [`SpatialIdTable`] ツリーが一次索引（キーは常に temporal=WHOLE の空間セル）。
@@ -467,9 +468,8 @@ mod tests {
     fn atoms(set: &SpatioTemporalSet, z: u8) -> BTreeSet<Atom> {
         let mut out = BTreeSet::new();
         for f in set.iter() {
-            let secs: Vec<u64> = (f.temporal().start_unixstamp()
-                ..f.temporal().end_unixtime_exclusive() as u64)
-                .collect();
+            let secs: Vec<u64> =
+                (f.temporal().start_unixtime()..f.temporal().end_unixtime_exclusive()).collect();
             for k in spatial_keys(&f, z) {
                 for &s in &secs {
                     out.insert((k, s));
@@ -538,8 +538,8 @@ mod tests {
         let got: BTreeSet<Atom> = {
             let mut out = BTreeSet::new();
             for f in a.get(&query) {
-                let secs: Vec<u64> = (f.temporal().start_unixstamp()
-                    ..f.temporal().end_unixtime_exclusive() as u64)
+                let secs: Vec<u64> = (f.temporal().start_unixtime()
+                    ..f.temporal().end_unixtime_exclusive())
                     .collect();
                 for k in spatial_keys(&f, 2) {
                     for &s in &secs {
@@ -567,8 +567,8 @@ mod tests {
         let removed: BTreeSet<Atom> = {
             let mut out = BTreeSet::new();
             for f in a.remove(&query) {
-                let secs: Vec<u64> = (f.temporal().start_unixstamp()
-                    ..f.temporal().end_unixtime_exclusive() as u64)
+                let secs: Vec<u64> = (f.temporal().start_unixtime()
+                    ..f.temporal().end_unixtime_exclusive())
                     .collect();
                 for k in spatial_keys(&f, 2) {
                     for &s in &secs {
@@ -628,9 +628,8 @@ mod tests {
     ) -> alloc::collections::BTreeMap<((i32, u32, u32), u64), i32> {
         let mut out = alloc::collections::BTreeMap::new();
         for (f, v) in t.iter() {
-            let secs: Vec<u64> = (f.temporal().start_unixstamp()
-                ..f.temporal().end_unixtime_exclusive() as u64)
-                .collect();
+            let secs: Vec<u64> =
+                (f.temporal().start_unixtime()..f.temporal().end_unixtime_exclusive()).collect();
             for k in spatial_keys(&f, z) {
                 for &s in &secs {
                     out.insert((k, s), v);
@@ -722,9 +721,7 @@ mod tests {
         let got: Vec<((i32, u32, u32), u64, i32)> = {
             let mut out = Vec::new();
             for (f, v) in t.get(&query) {
-                for s in
-                    f.temporal().start_unixstamp()..f.temporal().end_unixtime_exclusive() as u64
-                {
+                for s in f.temporal().start_unixtime()..f.temporal().end_unixtime_exclusive() {
                     for k in spatial_keys(&f, 2) {
                         out.push((k, s, v));
                     }

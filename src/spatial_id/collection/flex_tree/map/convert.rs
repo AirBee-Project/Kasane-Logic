@@ -1,13 +1,19 @@
-use crate::{FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialIdMap};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
+use crate::{
+    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SingleId, SpatialIdMap,
+};
 
 impl<V> IntoFlexIds for SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
-    type IntoIter = <FlexTreeCore<V> as IntoFlexIds>::IntoIter;
+    type IntoIter = alloc::vec::IntoIter<FlexId>;
 
     fn into_flex_ids(self) -> Self::IntoIter {
-        self.inner.into_flex_ids()
+        let ids: Vec<FlexId> = self.iter().map(|(flex_id, _)| flex_id).collect();
+        ids.into_iter()
     }
 }
 
@@ -16,12 +22,12 @@ where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Iter<'a>
-        = <FlexTreeCore<V> as IterFlexIds>::Iter<'a>
+        = Box<dyn Iterator<Item = FlexId> + 'a>
     where
         Self: 'a;
 
     fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_flex_ids()
+        Box::new(self.iter().map(|(flex_id, _)| flex_id))
     }
 }
 
@@ -29,10 +35,11 @@ impl<V> IntoSingleIds for SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
-    type IntoIter = <FlexTreeCore<V> as IntoSingleIds>::IntoIter;
+    type IntoIter = alloc::vec::IntoIter<SingleId>;
 
     fn into_single_ids(self) -> Self::IntoIter {
-        self.inner.into_single_ids()
+        let ids: Vec<SingleId> = self.flat_single_ids().map(|(single, _)| single).collect();
+        ids.into_iter()
     }
 }
 
@@ -41,11 +48,12 @@ where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
     type Iter<'a>
-        = <FlexTreeCore<V> as IterSingleIds>::Iter<'a>
+        = alloc::vec::IntoIter<SingleId>
     where
         Self: 'a;
 
     fn iter_single_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_single_ids()
+        let ids: Vec<SingleId> = self.flat_single_ids().map(|(single, _)| single).collect();
+        ids.into_iter()
     }
 }

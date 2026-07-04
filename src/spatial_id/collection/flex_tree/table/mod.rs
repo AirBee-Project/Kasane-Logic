@@ -56,9 +56,18 @@ mod persist_tests {
     }
 }
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::spatial_id::collection::flex_tree::core::node_ops::TMapOverwrite;
+use crate::{
+    FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, SpatialIdSet, TemporalMap,
+    TemporalSet,
+};
 
-/// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
+/// 値(V)と時空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
+///
+/// 空間は木構造（FlexTree）の一次索引として、時間ごとの値（のランク）は各空間セルの値
+/// （[`TemporalMap`]）として保持する（**時間ネイティブ**）。
+/// 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間テーブルとして振る舞う。
+/// 挿入は後勝ち（同一時空間点は後から挿入した値で上書き）である。
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
@@ -90,8 +99,8 @@ pub struct SpatialIdTable<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
 {
-    // メインの空間ツリー (空間 -> Rank)
-    inner: FlexTreeCore<usize>,
+    // メインの空間ツリー (空間 -> 時間ごとの Rank)
+    inner: FlexTreeCore<TemporalMap<usize>>,
 
     // 辞書 (値 -> Rank)
     dictionary: BTreeMap<V, usize>,
@@ -127,7 +136,10 @@ where
         }
     }
 
-    /// 空間に値を挿入します。
+    /// 時空間に値を挿入します（後勝ち）。
+    ///
+    /// 時間付きの空間ID（temporal ≠ WHOLE）もそのまま受け付ける。既存と時空間が
+    /// 重なる部分は新しい値で上書きされ、重ならない時間の値は保持される。
     pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
@@ -140,32 +152,79 @@ where
             }
         };
 
-        self.inner.insert(target, rank);
+        for flex_id in target.iter_flex_ids() {
+            // シャード領域外は無視し、はみ出しは切り詰める。
+            let flex_id = match self.inner.shard() {
+                Some(region) => match flex_id.intersection(region) {
+                    Some(clipped) => clipped,
+                    None => continue,
+                },
+                None => flex_id,
+            };
+            let temporal = flex_id.temporal().clone();
+            let spatial = flex_id.spatial_part();
+            let tmap = TemporalMap::from_temporal(&temporal, rank);
+            if temporal.is_whole() {
+                // 全時間の上書きは、覆う領域を置換する直接挿入と一致する。
+                self.inner.insert_flex_id(spatial, tmap);
+            } else {
+                // 既存と時空間が重なる部分だけ新しい値が勝つ。
+                let mut single = FlexTreeCore::<TemporalMap<usize>>::new();
+                single.insert_flex_id(spatial, tmap);
+                let shard = self.inner.shard().cloned();
+                self.inner = self.inner.combine_with::<TMapOverwrite>(&single, shard);
+            }
+        }
         self.value_index_built = false;
     }
 
-    /// 特定の空間（target）と交差するすべての領域と、その値への参照を返します。
+    /// 特定の時空間（target）と交差するすべての領域と、その値への参照を返します。
+    ///
+    /// 空間・時間の両方が target に切り取られる。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: SpatialId,
     {
-        self.inner.get(target).map(|(flex_id, rank)| {
-            let value = self.reverse_dictionary.get(&rank).unwrap();
-            (flex_id, value)
+        self.inner.get_ref(target).flat_map(|(clipped, tmap)| {
+            tmap.cells_in_window_ref(clipped.temporal())
+                .into_iter()
+                .map(|(t, rank)| {
+                    let value = self.reverse_dictionary.get(rank).unwrap();
+                    (clipped.with_temporal(t), value)
+                })
+                .collect::<Vec<_>>()
         })
     }
 
-    /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
+    /// 指定した時空間（target）をツリーからくり抜き、削除された領域とその値を返します。
     pub fn remove<'a, S: SpatialId + Clone>(
         &'a mut self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        let removed_items: Vec<(FlexId, usize)> = self.inner.remove(target).collect();
         let mut results = Vec::new();
-
-        for (flex_id, rank) in removed_items {
-            let value = self.reverse_dictionary.get(&rank).unwrap().clone();
-            results.push((flex_id, value));
+        for query in target.iter_flex_ids() {
+            let q_spatial = query.spatial_part();
+            let q_time = TemporalSet::from_temporal(query.temporal());
+            // 空間的に重なる葉を丸ごと取り出し、残すべき部分を戻す。
+            let affected: Vec<(FlexId, TemporalMap<usize>)> =
+                self.inner.remove_overlapping(&q_spatial).collect();
+            for (leaf, tmap) in affected {
+                // query の空間外の残余はそのまま戻す（キーは WHOLE 同士なので空間分割のみ）。
+                for remnant in leaf.difference(&q_spatial) {
+                    self.inner.insert_flex_id(remnant, tmap.clone());
+                }
+                // 空間交差部は時間で分割する。
+                if let Some(inter) = leaf.intersection(&q_spatial) {
+                    let kept = tmap.subtract_time(&q_time);
+                    if !kept.is_empty() {
+                        self.inner.insert_flex_id(inter.clone(), kept);
+                    }
+                    for (t, rank) in tmap.intersect_time(&q_time).cells() {
+                        let value = self.reverse_dictionary.get(&rank).unwrap().clone();
+                        results.push((inter.with_temporal(t), value));
+                    }
+                }
+            }
         }
 
         if !results.is_empty() {
@@ -184,12 +243,17 @@ where
     {
         self.inner
             .get_overlapping_ref(target)
-            .map(|(flex_id, rank)| {
-                let value = self
-                    .reverse_dictionary
-                    .get(rank)
-                    .expect("Dictionary mismatch");
-                (flex_id, value)
+            .flat_map(|(stored, tmap)| {
+                tmap.cells_ref()
+                    .into_iter()
+                    .map(|(t, rank)| {
+                        let value = self
+                            .reverse_dictionary
+                            .get(rank)
+                            .expect("Dictionary mismatch");
+                        (stored.with_temporal(t), value)
+                    })
+                    .collect::<Vec<_>>()
             })
     }
 
@@ -199,28 +263,24 @@ where
         &'a mut self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        let removed_items: Vec<(FlexId, usize)> = self.inner.remove_overlapping(target).collect();
+        let removed_items: Vec<(FlexId, TemporalMap<usize>)> =
+            self.inner.remove_overlapping(target).collect();
         let mut results = Vec::new();
 
-        for (flex_id, rank) in removed_items {
-            let value = self
-                .reverse_dictionary
-                .get(&rank)
-                .expect("Dictionary mismatch")
-                .clone();
-
-            if let Some(set) = self.value_index.get_mut(&rank) {
-                let _ = set.remove(&flex_id);
-
-                if set.is_empty() {
-                    self.value_index.remove(&rank);
-                    self.reverse_dictionary.remove(&rank);
-                    self.dictionary.remove(&value);
-                }
+        for (flex_id, tmap) in removed_items {
+            for (t, rank) in tmap.cells() {
+                let value = self
+                    .reverse_dictionary
+                    .get(&rank)
+                    .expect("Dictionary mismatch")
+                    .clone();
+                results.push((flex_id.with_temporal(t), value));
             }
-            results.push((flex_id, value));
         }
 
+        if !results.is_empty() {
+            self.value_index_built = false;
+        }
         results.into_iter()
     }
 
@@ -231,12 +291,17 @@ where
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner
             .neighbors_share_face_ref(target)
-            .map(|(flex_id, rank)| {
-                let value = self
-                    .reverse_dictionary
-                    .get(rank)
-                    .expect("Dictionary mismatch");
-                (flex_id, value)
+            .flat_map(|(stored, tmap)| {
+                tmap.cells_ref()
+                    .into_iter()
+                    .map(|(t, rank)| {
+                        let value = self
+                            .reverse_dictionary
+                            .get(rank)
+                            .expect("Dictionary mismatch");
+                        (stored.with_temporal(t), value)
+                    })
+                    .collect::<Vec<_>>()
             })
     }
 
@@ -251,12 +316,13 @@ where
     }
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
+    /// 各 [`SingleId`] には存在時間（時間セル）が付く。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        self.inner.iter_ref().flat_map(|(flex_id, rank)| {
-            let value = self.reverse_dictionary.get(rank).unwrap();
+        self.iter().flat_map(|(flex_id, value)| {
             RangeId::from(&flex_id)
                 .into_single_ids()
                 .map(move |single_id| (single_id, value))
+                .collect::<Vec<_>>()
         })
     }
 
@@ -275,10 +341,18 @@ where
     }
 
     /// `value_index` を `inner` から構築し、上書き等で消えたランクを辞書から取り除く。
+    ///
+    /// 逆引きインデックス（値 → 時空間）は時間ネイティブな [`SpatialIdSet`] なので、
+    /// 同じ値が存在する時空間そのものを保持する。
     pub fn rebuild_index(&mut self) {
         self.value_index.clear();
-        for (flex_id, rank) in self.inner.iter() {
-            self.value_index.entry(rank).or_default().insert(flex_id);
+        for (spatial, tmap) in self.inner.iter() {
+            for (t, rank) in tmap.cells() {
+                self.value_index
+                    .entry(rank)
+                    .or_default()
+                    .insert(spatial.with_temporal(t));
+            }
         }
         let live: BTreeSet<usize> = self.value_index.keys().copied().collect();
         self.reverse_dictionary
@@ -287,7 +361,7 @@ where
         self.value_index_built = true;
     }
 
-    /// 特定の値に対応するすべての[FlexId]を返す。
+    /// 特定の値に対応するすべての時空間[FlexId]を返す。
     pub fn value_get(&self, value: &V) -> impl Iterator<Item = FlexId> + '_ {
         let mut out = Vec::new();
         if let Some(&rank) = self.dictionary.get(value) {
@@ -296,9 +370,11 @@ where
                     out.extend(set.iter());
                 }
             } else {
-                for (flex_id, r) in self.inner.iter() {
-                    if r == rank {
-                        out.push(flex_id);
+                for (spatial, tmap) in self.inner.iter_ref() {
+                    for (t, r) in tmap.cells_ref() {
+                        if *r == rank {
+                            out.push(spatial.with_temporal(t));
+                        }
                     }
                 }
             }
@@ -321,9 +397,11 @@ where
             }
         } else {
             let lookup: BTreeMap<usize, &V> = wanted.iter().map(|(v, r)| (*r, *v)).collect();
-            for (flex_id, rank) in self.inner.iter() {
-                if let Some(val) = lookup.get(&rank) {
-                    out.push((flex_id, *val));
+            for (spatial, tmap) in self.inner.iter_ref() {
+                for (t, rank) in tmap.cells_ref() {
+                    if let Some(val) = lookup.get(rank) {
+                        out.push((spatial.with_temporal(t), *val));
+                    }
                 }
             }
         }
@@ -335,14 +413,23 @@ where
         self.inner.is_empty()
     }
 
-    /// テーブルに保持されている全ての空間と値への参照のペアを返します。
+    /// テーブルに保持されている全ての時空間と値への参照のペアを返します。
+    ///
+    /// 各空間セルの時間別の値は約数鎖の最小セル列へ分解され、
+    /// `(空間セル × 時間セル, 値)` として列挙される。全時間（WHOLE）のセルは
+    /// 従来どおり1つの `(FlexId, &V)` になる。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.inner.iter_ref().map(move |(flex_id, rank)| {
-            let value = self
-                .reverse_dictionary
-                .get(rank)
-                .expect("Dictionary mismatch");
-            (flex_id, value)
+        self.inner.iter_ref().flat_map(move |(spatial, tmap)| {
+            tmap.cells_ref()
+                .into_iter()
+                .map(|(t, rank)| {
+                    let value = self
+                        .reverse_dictionary
+                        .get(rank)
+                        .expect("Dictionary mismatch");
+                    (spatial.with_temporal(t), value)
+                })
+                .collect::<Vec<_>>()
         })
     }
 
@@ -353,8 +440,10 @@ where
             out.extend(self.dictionary.keys());
         } else {
             let mut live: BTreeSet<usize> = BTreeSet::new();
-            for (_, rank) in self.inner.iter() {
-                live.insert(rank);
+            for (_, tmap) in self.inner.iter_ref() {
+                for (_, _, rank) in tmap.segments_ref() {
+                    live.insert(*rank);
+                }
             }
             out = live
                 .iter()

@@ -57,9 +57,12 @@ impl SpatialIdSet {
 
         let mut inner = FlexTreeCore::new_in_shard(parent_region.clone());
         for c in children {
-            inner = inner.union(&c.inner);
+            inner = inner
+                .combine_with::<crate::spatial_id::collection::flex_tree::core::node_ops::TSetUnion>(
+                    &c.inner,
+                    Some(parent_region.clone()),
+                );
         }
-        inner.shard = Some(parent_region);
         Ok(Self { inner })
     }
 }

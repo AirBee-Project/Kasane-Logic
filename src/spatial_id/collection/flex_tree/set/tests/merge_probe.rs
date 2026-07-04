@@ -7,67 +7,15 @@
 #![cfg(test)]
 
 use crate::spatial_id::collection::flex_tree::core::node::Node;
-use crate::spatial_id::collection::flex_tree::core::node_ops::Combine;
-use crate::spatial_id::collection::flex_tree::core::ptr::SharedNode;
 use crate::spatial_id::collection::flex_tree::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
 use crate::{SingleId, SpatialIdSet, SpatialIdTable};
 use proptest::prelude::*;
 
-// presence（値 ()）用の Combine 実装。汎用 combine が既存 union/int/diff と一致する
-// ことの検証用（挙動保存）。
-struct PUnion;
-impl Combine<()> for PUnion {
-    fn both(_: &(), _: &()) -> Option<()> {
-        Some(())
-    }
-    fn a_only(_: &()) -> Option<()> {
-        Some(())
-    }
-    fn b_only(_: &()) -> Option<()> {
-        Some(())
-    }
-    fn on_identical(a: &SharedNode<Node<()>>, _: &SharedNode<Node<()>>) -> SharedNode<Node<()>> {
-        a.clone()
-    }
-}
-struct PInter;
-impl Combine<()> for PInter {
-    fn both(_: &(), _: &()) -> Option<()> {
-        Some(())
-    }
-    fn a_only(_: &()) -> Option<()> {
-        None
-    }
-    fn b_only(_: &()) -> Option<()> {
-        None
-    }
-    fn on_identical(a: &SharedNode<Node<()>>, _: &SharedNode<Node<()>>) -> SharedNode<Node<()>> {
-        a.clone()
-    }
-}
-struct PDiff;
-impl Combine<()> for PDiff {
-    fn both(_: &(), _: &()) -> Option<()> {
-        None
-    }
-    fn a_only(_: &()) -> Option<()> {
-        Some(())
-    }
-    fn b_only(_: &()) -> Option<()> {
-        None
-    }
-    fn on_identical(
-        _: &SharedNode<Node<()>>,
-        empty: &SharedNode<Node<()>>,
-    ) -> SharedNode<Node<()>> {
-        empty.clone()
-    }
-}
-
 proptest! {
-    /// 汎用 combine（presence 実装）が既存 union/intersection/difference と厳密一致する
+    /// 汎用 combine（時間集合値）が、値に依存しないレガシー node 演算
+    /// （union/intersection/difference）と全時間データにおいて厳密一致する
     /// （＝汎用エンジンの挙動保存を単一IDオラクルで検証）。
     #[test]
     fn combine_matches_presence_ops(a in arb_random_set_case(), b in arb_random_set_case()) {
@@ -78,30 +26,32 @@ proptest! {
             .unwrap_or(0)
             .max(sb.max_zoomlevel().unwrap_or(0));
 
-        let new_u = SpatialIdSet {
-            inner: sa.inner.combine_with::<PUnion>(&sb.inner),
+        // レガシー（値に依存しない node 演算）との一致。
+        // Set の演算子（|, &, -）は汎用 combine を使うため、これが両エンジンの照合になる。
+        let legacy_u = SpatialIdSet {
+            inner: sa.inner.union(&sb.inner),
         };
         prop_assert_eq!(
             sorted_single_ids(&(&sa | &sb), z),
-            sorted_single_ids(&new_u, z),
+            sorted_single_ids(&legacy_u, z),
             "union mismatch"
         );
 
-        let new_i = SpatialIdSet {
-            inner: sa.inner.combine_with::<PInter>(&sb.inner),
+        let legacy_i = SpatialIdSet {
+            inner: sa.inner.intersection(&sb.inner),
         };
         prop_assert_eq!(
             sorted_single_ids(&(&sa & &sb), z),
-            sorted_single_ids(&new_i, z),
+            sorted_single_ids(&legacy_i, z),
             "intersection mismatch"
         );
 
-        let new_d = SpatialIdSet {
-            inner: sa.inner.combine_with::<PDiff>(&sb.inner),
+        let legacy_d = SpatialIdSet {
+            inner: sa.inner.difference(&sb.inner),
         };
         prop_assert_eq!(
             sorted_single_ids(&(&sa - &sb), z),
-            sorted_single_ids(&new_d, z),
+            sorted_single_ids(&legacy_d, z),
             "difference mismatch"
         );
     }
@@ -148,7 +98,9 @@ proptest! {
 }
 
 /// Branch の「両子が値として等しい」ノード数を数える（＝冗長な軸分割＝スキップで畳める）。
-fn count_equal_child_branches(node: &Node<()>) -> usize {
+fn count_equal_child_branches<V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue>(
+    node: &Node<V>,
+) -> usize {
     match node {
         Node::Leaf { .. } => 0,
         Node::Branch {
@@ -271,7 +223,9 @@ fn table_full_cube_same_value_collapses() {
 
 /// 「両子が等しい値の Leaf」な Branch が存在しないこと（未適用マージ＝バグ）を再帰検査する。
 /// 戻り値 false = 未適用マージを発見。
-fn no_unmerged_leaf_branch(node: &Node<()>) -> bool {
+fn no_unmerged_leaf_branch<V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue>(
+    node: &Node<V>,
+) -> bool {
     match node {
         Node::Leaf { .. } => true,
         Node::Branch {

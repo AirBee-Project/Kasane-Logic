@@ -60,6 +60,37 @@ where
     ) -> SharedNode<Node<V>>;
 }
 
+/// 時間マップの上書き合成（both は時間重なりで b が勝つ、片側はそのまま）。
+///
+/// [`SpatialIdMap`](crate::SpatialIdMap) / [`SpatialIdTable`](crate::SpatialIdTable) の
+/// 挿入（後勝ち）に使う。
+pub(crate) struct TMapOverwrite;
+impl<V> Combine<crate::TemporalMap<V>> for TMapOverwrite
+where
+    crate::TemporalMap<V>: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: Clone + PartialEq,
+{
+    const KEEP_A_WHEN_B_EMPTY: bool = true;
+    const KEEP_B_WHEN_A_EMPTY: bool = true;
+
+    fn both(a: &crate::TemporalMap<V>, b: &crate::TemporalMap<V>) -> Option<crate::TemporalMap<V>> {
+        let m = a.overwrite(b);
+        if m.is_empty() { None } else { Some(m) }
+    }
+    fn a_only(a: &crate::TemporalMap<V>) -> Option<crate::TemporalMap<V>> {
+        Some(a.clone())
+    }
+    fn b_only(b: &crate::TemporalMap<V>) -> Option<crate::TemporalMap<V>> {
+        Some(b.clone())
+    }
+    fn on_identical(
+        a: &SharedNode<Node<crate::TemporalMap<V>>>,
+        _empty_leaf: &SharedNode<Node<crate::TemporalMap<V>>>,
+    ) -> SharedNode<Node<crate::TemporalMap<V>>> {
+        a.clone()
+    }
+}
+
 /// 時間集合の和（both は union、片側はそのまま）。
 pub(crate) struct TSetUnion;
 impl Combine<crate::TemporalSet> for TSetUnion {

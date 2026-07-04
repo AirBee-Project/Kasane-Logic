@@ -9,6 +9,7 @@ pub mod intersection;
 pub mod merge_probe;
 pub mod presist;
 pub mod sharded;
+pub mod temporal;
 pub mod union;
 
 #[cfg(test)]

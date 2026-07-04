@@ -70,7 +70,7 @@ impl Interval {
             60 => Some(Interval::Minute),
             1 => Some(Interval::Second),
             _ => {
-                if i > 86400 && i % 86400 == 0 {
+                if i > 86400 && i.is_multiple_of(86400) {
                     let m = i / 86400;
                     if m.is_power_of_two() {
                         let k = m.trailing_zeros() as u8;

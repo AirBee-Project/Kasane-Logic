@@ -17,10 +17,7 @@ use super::SpatialIdMap;
 use crate::spatial_id::collection::flex_tree::core::node::Node;
 use crate::spatial_id::collection::flex_tree::core::ptr::SharedNode;
 use crate::spatial_id::collection::flex_tree::core::split_child_id;
-use crate::{FlexId, FlexTreeCore, Side};
-
-/// 空を表す葉インデックス値（`PersistedNode::Leaf { value }` の `value == 0`）。
-const EMPTY_LEAF: u32 = 0;
+use crate::{FlexId, FlexTreeCore, Side, SpatialId, TemporalId, TemporalMap};
 
 /// 平坦化された [`SpatialIdMap`] 1枚（1シャード）。
 #[derive(Archive, Serialize, Deserialize, Debug)]
@@ -45,9 +42,9 @@ pub enum PersistedNode {
         lower: u32,
         upper: u32,
     },
-    /// `value == 0` は空、`value > 0` は `dictionary[value - 1]`。
+    /// 葉の時間セグメント列 `(start, end, dictionary index)`。空葉は `segments` が空。
     Leaf {
-        value: u32,
+        segments: Vec<(u64, u64, u32)>,
     },
 }
 
@@ -93,7 +90,7 @@ impl SpatialIdMap<Vec<u8>> {
         let persisted: PersistedMap =
             rkyv::deserialize::<PersistedMap, rkyv::rancor::Error>(archived)?;
 
-        let mut core = FlexTreeCore::<Vec<u8>>::new();
+        let mut core = FlexTreeCore::<TemporalMap<Vec<u8>>>::new();
         let empty = core.empty_leaf.clone();
         core.lower_root = rebuild_node(
             persisted.lower_root,
@@ -115,7 +112,7 @@ impl SpatialIdMap<Vec<u8>> {
 
 /// 作業木の 1 ノードを後行順でアリーナへ書き出し、そのインデックスを返す。
 fn build_node(
-    node: &SharedNode<Node<Vec<u8>>>,
+    node: &SharedNode<Node<TemporalMap<Vec<u8>>>>,
     nodes: &mut Vec<PersistedNode>,
     dictionary: &mut Vec<Vec<u8>>,
     value_to_idx: &mut BTreeMap<Vec<u8>, u32>,
@@ -127,25 +124,32 @@ fn build_node(
                 i
             } else {
                 let i = nodes.len() as u32;
-                nodes.push(PersistedNode::Leaf { value: EMPTY_LEAF });
+                nodes.push(PersistedNode::Leaf {
+                    segments: Vec::new(),
+                });
                 *empty_idx = Some(i);
                 i
             }
         }
-        Node::Leaf { value: Some(v) } => {
-            let dict_idx = match value_to_idx.get(v) {
-                Some(idx) => *idx,
-                None => {
-                    let idx = dictionary.len() as u32;
-                    dictionary.push(v.clone());
-                    value_to_idx.insert(v.clone(), idx);
-                    idx
-                }
-            };
+        Node::Leaf { value: Some(tmap) } => {
+            let segments = tmap
+                .segments_ref()
+                .into_iter()
+                .map(|(start, end, v)| {
+                    let dict_idx = match value_to_idx.get(v) {
+                        Some(idx) => *idx,
+                        None => {
+                            let idx = dictionary.len() as u32;
+                            dictionary.push(v.clone());
+                            value_to_idx.insert(v.clone(), idx);
+                            idx
+                        }
+                    };
+                    (start, end, dict_idx)
+                })
+                .collect();
             let i = nodes.len() as u32;
-            nodes.push(PersistedNode::Leaf {
-                value: dict_idx + 1,
-            });
+            nodes.push(PersistedNode::Leaf { segments });
             i
         }
         Node::Branch {
@@ -172,12 +176,19 @@ fn rebuild_node(
     idx: u32,
     nodes: &[PersistedNode],
     dictionary: &[Vec<u8>],
-    empty: &SharedNode<Node<Vec<u8>>>,
-) -> SharedNode<Node<Vec<u8>>> {
+    empty: &SharedNode<Node<TemporalMap<Vec<u8>>>>,
+) -> SharedNode<Node<TemporalMap<Vec<u8>>>> {
     match &nodes[idx as usize] {
-        PersistedNode::Leaf { value } if *value == EMPTY_LEAF => empty.clone(),
-        PersistedNode::Leaf { value } => SharedNode::new(Node::Leaf {
-            value: Some(dictionary[(*value - 1) as usize].clone()),
+        PersistedNode::Leaf { segments } if segments.is_empty() => empty.clone(),
+        PersistedNode::Leaf { segments } => SharedNode::new(Node::Leaf {
+            value: Some(TemporalMap::from_raw_segments(
+                segments
+                    .iter()
+                    .map(|&(start, end, dict_idx)| {
+                        (start, end, dictionary[dict_idx as usize].clone())
+                    })
+                    .collect(),
+            )),
         }),
         PersistedNode::Branch {
             level,
@@ -187,7 +198,8 @@ fn rebuild_node(
             let lower_child = rebuild_node(*lower, nodes, dictionary, empty);
             let upper_child = rebuild_node(*upper, nodes, dictionary, empty);
             let leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
-            let max_zoom = Node::<Vec<u8>>::fold_max_zoom(*level, &lower_child, &upper_child);
+            let max_zoom =
+                Node::<TemporalMap<Vec<u8>>>::fold_max_zoom(*level, &lower_child, &upper_child);
             SharedNode::new(Node::Branch {
                 level: *level,
                 leaf_count,
@@ -232,7 +244,7 @@ impl<'a> ArchivedMap<'a> {
                     lower,
                     upper,
                 } => {
-                    let axis = Node::<Vec<u8>>::axis(*level);
+                    let axis = Node::<TemporalMap<Vec<u8>>>::axis(*level);
                     stack.push((
                         upper.to_native(),
                         split_child_id(&current_id, axis, Side::Upper),
@@ -242,12 +254,27 @@ impl<'a> ArchivedMap<'a> {
                         split_child_id(&current_id, axis, Side::Lower),
                     ));
                 }
-                ArchivedPersistedNode::Leaf { value } => {
-                    let v = value.to_native();
-                    if v != EMPTY_LEAF
-                        && let Some(clipped) = current_id.intersection(target)
-                    {
-                        out.push((clipped, self.inner.dictionary[(v - 1) as usize].as_slice()));
+                ArchivedPersistedNode::Leaf { segments } => {
+                    if let Some(clipped) = current_id.intersection(target) {
+                        // 時間もクエリ（clipped.temporal()）で切り取って返す。
+                        let (w0, w1) = (
+                            clipped.temporal().start_unixtime(),
+                            clipped.temporal().end_unixtime_exclusive(),
+                        );
+                        for seg in segments.iter() {
+                            let (s, e, dict_idx) =
+                                (seg.0.to_native(), seg.1.to_native(), seg.2.to_native());
+                            let cs = s.max(w0);
+                            let ce = e.min(w1);
+                            if cs < ce {
+                                for t in TemporalId::decompose(cs, ce) {
+                                    out.push((
+                                        clipped.with_temporal(t),
+                                        self.inner.dictionary[dict_idx as usize].as_slice(),
+                                    ));
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -269,7 +296,7 @@ impl<'a> ArchivedMap<'a> {
                     lower,
                     upper,
                 } => {
-                    let axis = Node::<Vec<u8>>::axis(*level);
+                    let axis = Node::<TemporalMap<Vec<u8>>>::axis(*level);
                     stack.push((
                         upper.to_native(),
                         split_child_id(&current_id, axis, Side::Upper),
@@ -279,13 +306,16 @@ impl<'a> ArchivedMap<'a> {
                         split_child_id(&current_id, axis, Side::Lower),
                     ));
                 }
-                ArchivedPersistedNode::Leaf { value } => {
-                    let v = value.to_native();
-                    if v != EMPTY_LEAF {
-                        out.push((
-                            current_id,
-                            self.inner.dictionary[(v - 1) as usize].as_slice(),
-                        ));
+                ArchivedPersistedNode::Leaf { segments } => {
+                    for seg in segments.iter() {
+                        let (s, e, dict_idx) =
+                            (seg.0.to_native(), seg.1.to_native(), seg.2.to_native());
+                        for t in TemporalId::decompose(s, e) {
+                            out.push((
+                                current_id.with_temporal(t),
+                                self.inner.dictionary[dict_idx as usize].as_slice(),
+                            ));
+                        }
                     }
                 }
             }

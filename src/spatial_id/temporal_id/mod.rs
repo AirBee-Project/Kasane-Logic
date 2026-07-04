@@ -1,7 +1,7 @@
 #[cfg(not(feature = "temporal_id"))]
 mod disabled;
 #[cfg(not(feature = "temporal_id"))]
-pub use disabled::{TemporalId, TemporalSet};
+pub use disabled::{TemporalId, TemporalMap, TemporalSet};
 
 #[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};

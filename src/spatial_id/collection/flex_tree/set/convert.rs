@@ -1,42 +1,48 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
 use crate::{
-    FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialIdSet,
+    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SingleId, SpatialIdSet,
     SpatialIdTable,
 };
 
 impl IntoFlexIds for SpatialIdSet {
-    type IntoIter = <FlexTreeCore<()> as IntoFlexIds>::IntoIter;
+    type IntoIter = alloc::vec::IntoIter<FlexId>;
 
     fn into_flex_ids(self) -> Self::IntoIter {
-        self.inner.into_flex_ids()
+        let ids: Vec<FlexId> = self.iter().collect();
+        ids.into_iter()
     }
 }
 
 impl IterFlexIds for SpatialIdSet {
     type Iter<'a>
-        = <FlexTreeCore<()> as IterFlexIds>::Iter<'a>
+        = Box<dyn Iterator<Item = FlexId> + 'a>
     where
         Self: 'a;
 
     fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_flex_ids()
+        Box::new(self.iter())
     }
 }
 
 impl IntoSingleIds for SpatialIdSet {
-    type IntoIter = <FlexTreeCore<()> as IntoSingleIds>::IntoIter;
+    type IntoIter = alloc::vec::IntoIter<SingleId>;
 
     fn into_single_ids(self) -> Self::IntoIter {
-        self.inner.into_single_ids()
+        let ids: Vec<SingleId> = self.flat_single_ids().collect();
+        ids.into_iter()
     }
 }
 
 impl IterSingleIds for SpatialIdSet {
     type Iter<'a>
-        = <FlexTreeCore<()> as IterSingleIds>::Iter<'a>
+        = alloc::vec::IntoIter<SingleId>
     where
         Self: 'a;
     fn iter_single_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_single_ids()
+        let ids: Vec<SingleId> = self.flat_single_ids().collect();
+        ids.into_iter()
     }
 }
 

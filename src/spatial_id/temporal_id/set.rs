@@ -64,6 +64,11 @@ impl TemporalSet {
         self.intervals.is_empty()
     }
 
+    /// 正規化済み区間列 `[start, end)` を返す（クレート内部の走査用フック）。
+    pub(crate) fn intervals(&self) -> &[(u64, u64)] {
+        &self.intervals
+    }
+
     /// 指定の UNIX 秒が含まれるか（二分探索）。
     pub fn contains_unixtime(&self, sec: u64) -> bool {
         let idx = self.intervals.partition_point(|&(s, _)| s <= sec);
