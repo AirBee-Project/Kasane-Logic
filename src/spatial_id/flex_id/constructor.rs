@@ -61,7 +61,9 @@ impl FlexId {
     ///
     /// `y_index` が `y_zoomlevel` に対応する許容範囲外の場合は
     /// `SpatialIdError::YOutOfRange` を返します。
-    #[cfg(feature = "temporal_id")]
+    ///
+    /// `temporal_id` feature が無効な場合、`temporal_id` は常に全時間を表す
+    /// スタブ（[`TemporalId::WHOLE`]）である。
     pub fn new_with_temporal(
         f_zoomlevel: impl Into<u8>,
         f_index: i32,
@@ -93,7 +95,6 @@ impl FlexId {
 
     /// # Safety
     /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であること、および `temporal_id` が有効な値であることを保証しなければなりません。
-    #[cfg(feature = "temporal_id")]
     pub unsafe fn new_with_temporal_unchecked(
         f_zoomlevel: u8,
         f_index: i32,

@@ -10,10 +10,12 @@ use alloc::vec::Vec;
 
 use crate::{ConflictPolicy, TemporalId};
 
-const WHOLE_END: u64 = u64::MAX;
-
 /// 時間 → 値 `V` の対応。
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
 pub struct TemporalMap<V> {
     /// 正規化済み（昇順・互いに素・隣接同値マージ）の `(start, end, V)`。
     segments: Vec<(u64, u64, V)>,
@@ -29,14 +31,8 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
 
     /// 1つの [`TemporalId`] に値 `v` を対応させる。
     pub fn from_temporal(t: &TemporalId, v: V) -> Self {
-        let s = t.start_unixstamp();
-        let e = t.end_unixtime_exclusive().min(WHOLE_END as u128) as u64;
-        if s >= e {
-            Self::new()
-        } else {
-            Self {
-                segments: alloc::vec![(s, e, v)],
-            }
+        Self {
+            segments: alloc::vec![(t.start_unixtime(), t.end_unixtime_exclusive(), v)],
         }
     }
 
@@ -45,36 +41,50 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.segments.is_empty()
     }
 
-    /// 指定秒の値。
+    /// 指定秒の値（二分探索）。
     pub fn value_at(&self, sec: u64) -> Option<&V> {
-        self.segments
-            .iter()
-            .find(|(s, e, _)| *s <= sec && sec < *e)
-            .map(|(_, _, v)| v)
+        let idx = self.segments.partition_point(|(s, _, _)| *s <= sec);
+        if idx == 0 {
+            return None;
+        }
+        let (_, e, v) = &self.segments[idx - 1];
+        (sec < *e).then_some(v)
     }
 
     /// 境界イベント走査。各素区間 `[p, q)` について `self`/`other` の値を `combine` で合成する。
+    ///
+    /// 両列とも正規化済み（昇順）なので、境界点を昇順に処理しながら
+    /// 各列のカーソルを単調に進める（全体 O(n + m)、ソートを除く）。
     fn sweep<F>(&self, other: &Self, combine: F) -> Self
     where
         F: Fn(Option<&V>, Option<&V>) -> Option<V>,
     {
-        let mut pts: Vec<u64> =
-            Vec::with_capacity((self.segments.len() + other.segments.len()) * 2);
-        for (s, e, _) in &self.segments {
+        let (a, b) = (&self.segments, &other.segments);
+        let mut pts: Vec<u64> = Vec::with_capacity((a.len() + b.len()) * 2);
+        for (s, e, _) in a {
             pts.push(*s);
             pts.push(*e);
         }
-        for (s, e, _) in &other.segments {
+        for (s, e, _) in b {
             pts.push(*s);
             pts.push(*e);
         }
         pts.sort_unstable();
         pts.dedup();
 
+        let (mut ia, mut ib) = (0usize, 0usize);
         let mut out: Vec<(u64, u64, V)> = Vec::new();
         for w in pts.windows(2) {
             let (p, q) = (w[0], w[1]);
-            if let Some(v) = combine(self.value_at(p), other.value_at(p)) {
+            while ia < a.len() && a[ia].1 <= p {
+                ia += 1;
+            }
+            while ib < b.len() && b[ib].1 <= p {
+                ib += 1;
+            }
+            let av = (ia < a.len() && a[ia].0 <= p).then(|| &a[ia].2);
+            let bv = (ib < b.len() && b[ib].0 <= p).then(|| &b[ib].2);
+            if let Some(v) = combine(av, bv) {
                 // 隣接同値なら伸ばす（正規化）。
                 if let Some(last) = out.last_mut()
                     && last.1 == p
@@ -97,16 +107,12 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         })
     }
 
-    /// 全セグメントをカレンダーセル列 `(TemporalId, V)` へ最小分解する。
+    /// 全セグメントを約数鎖セル列 `(TemporalId, V)` へ最小分解する。
     pub fn cells(&self) -> Vec<(TemporalId, V)> {
         let mut out = Vec::new();
         for (s, e, v) in &self.segments {
-            if *s == 0 && *e == WHOLE_END {
-                out.push((TemporalId::WHOLE, v.clone()));
-            } else if let Ok(cells) = TemporalId::from_range(*s, *e) {
-                for c in cells {
-                    out.push((c, v.clone()));
-                }
+            for c in TemporalId::decompose(*s, *e) {
+                out.push((c, v.clone()));
             }
         }
         out
@@ -178,19 +184,15 @@ mod tests {
         let mut a = seg(60, 0, 1); // [0,60)=1 …作り込みは union で
         a = a.union(&seg(60, 1, 1), &ConflictPolicy::Overwrite); // [0,120)=1
         a = a.union(&seg(60, 3, 2), &ConflictPolicy::Overwrite); // +[180,240)=2
-        let b = TemporalMap::from_temporal(&TemporalId::new(1, 60).unwrap(), 9); // [60,61)=9
         let b = {
-            // B = [60,200)=9 を分単位で作る
+            // B = [60,200)=9 を秒単位で作る
             let mut bb = TemporalMap::new();
-            for t in 1..200u64 {
-                if (60..200).contains(&t) {
-                    bb = bb.union(
-                        &TemporalMap::from_temporal(&TemporalId::new(1, t).unwrap(), 9),
-                        &ConflictPolicy::Overwrite,
-                    );
-                }
+            for t in 60..200u64 {
+                bb = bb.union(
+                    &TemporalMap::from_temporal(&TemporalId::new(1, t).unwrap(), 9),
+                    &ConflictPolicy::Overwrite,
+                );
             }
-            let _ = b;
             bb
         };
 
@@ -233,6 +235,17 @@ mod tests {
             *e = (*e).max(v);
         }
         assert_eq!(secmap(&um), exp_um);
+    }
+
+    /// value_at（二分探索）の照合。
+    #[test]
+    fn value_at_oracle() {
+        let mut m = seg(60, 0, 1);
+        m = m.union(&seg(60, 3, 2), &ConflictPolicy::Overwrite); // [0,60)=1, [180,240)=2
+        let s = secmap(&m);
+        for probe in [0u64, 30, 59, 60, 179, 180, 239, 240, 1000] {
+            assert_eq!(m.value_at(probe), s.get(&probe), "value_at({probe})");
+        }
     }
 
     /// cells 往復で被覆と値が保たれる。

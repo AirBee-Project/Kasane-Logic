@@ -5,124 +5,66 @@ use crate::TemporalId;
 impl TemporalId {
     /// 2つのTemporalIdの重なる時間範囲（Intersection）を計算して返す。
     ///
-    /// 2つの時間区間の交差が存在し、かつ [`TemporalId`] の定義する時間間隔で
-    /// 正確に表現できる場合、交差を表す新しい [`TemporalId`] を返す。
-    /// 重なりがない場合や、交差が時間間隔の境界に合致しない場合は `None` を返す。
+    /// 時間間隔は約数鎖（[`Interval`](crate::Interval)）に限定されるため、
+    /// 任意の2つの時間IDは必ず「入れ子」か「非交差」のいずれかになる。
+    /// したがって交差は常に細かい方のIDそのもの（`Some`）か、存在しない（`None`）である。
     ///
     /// # パラメーター
     ///
     /// * `other` — 交差を計算する相手の [`TemporalId`]。
     ///
-    /// # 戻り値
-    ///
-    /// 交差を表す [`TemporalId`] が存在する場合は `Some(id)`、
-    /// そうでない場合は `None` を返す。
-    ///
     /// # 例
     ///
-    /// 交差がある場合:
     /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
     /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(3600, 5).unwrap();  // [18000, 21599]
-    /// let id2 = TemporalId::new(3600, 6).unwrap();  // [21600, 24999]
-    /// assert_eq!(id1.intersection(&id2), None);     // No overlap
+    /// let id1 = TemporalId::new(3600, 5).unwrap();  // [18000, 21600)
+    /// let id2 = TemporalId::new(3600, 6).unwrap();  // [21600, 25200)
+    /// assert_eq!(id1.intersection(&id2), None);     // 重なりなし
     ///
-    /// let id3 = TemporalId::new(1, 18000).unwrap(); // [18000, 18000]
-    /// let inter = id1.intersection(&id3);
-    /// assert!(inter.is_some());
-    /// # }
+    /// let id3 = TemporalId::new(1, 18000).unwrap(); // [18000, 18001)
+    /// assert_eq!(id1.intersection(&id3), Some(id3.clone())); // 入れ子 → 細かい方
     /// ```
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
-        let self_start = self.start_unixstamp();
-        let self_end_excl = self.end_unixtime_exclusive() as u64;
-        let other_start = other.start_unixstamp();
-        let other_end_excl = other.end_unixtime_exclusive() as u64;
-
-        let inter_start = self_start.max(other_start);
-        let inter_end_excl = self_end_excl.min(other_end_excl);
-
-        if inter_start >= inter_end_excl {
-            return None;
+        if self.contains(other) {
+            Some(other.clone())
+        } else if other.contains(self) {
+            Some(self.clone())
+        } else {
+            None
         }
-
-        // Try to find a TemporalId that exactly represents this intersection
-        for &interval in &Self::TEMPORAL_I {
-            if inter_start.is_multiple_of(interval)
-                && (inter_end_excl - inter_start).is_multiple_of(interval)
-            {
-                let t = inter_start / interval;
-                if interval * (t + 1) == inter_end_excl {
-                    return TemporalId::new(interval, t).ok();
-                }
-            }
-        }
-
-        None
     }
 
-    /// 相手の [`TemporalId`] との差集合（self - other）を計算し、
-    /// イテレータとして返す。
+    /// 相手の [`TemporalId`] との差集合（self - other）を計算し、イテレータとして返す。
     ///
-    /// `self` の時間範囲から `other` の時間範囲を除いた部分を計算する。
-    /// 結果は0個、1個、または2個の [`TemporalId`] となる。
-    ///
-    /// 差集合の各要素は、元々の `self` と同じ時間間隔を持つ場合、
-    /// その間隔で表現される。異なる間隔を持つ場合は、
-    /// より小さい間隔への分割が行われる可能性がある。
-    ///
-    /// # パラメーター
-    ///
-    /// * `other` — `self` から除外する [`TemporalId`]。
-    ///
-    /// # 戻り値
-    ///
-    /// 差集合を表す [`TemporalId`] のイテレータ。
+    /// `self` の時間範囲から `other` の時間範囲を除いた部分を、
+    /// 約数鎖の最小分解で表す。約数鎖に二進層があるため、
+    /// `WHOLE − 有限セル` のような巨大な残余も高々数百セルで正確に表現される。
     ///
     /// # 例
     ///
     /// 重なりがない場合（self全体が返される）:
     /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
     /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(3600, 0).unwrap();   // [0, 3599]
-    /// let id2 = TemporalId::new(3600, 5).unwrap();   // [18000, 21599]
+    /// let id1 = TemporalId::new(3600, 0).unwrap();   // [0, 3600)
+    /// let id2 = TemporalId::new(3600, 5).unwrap();   // [18000, 21600)
     /// let diff: Vec<_> = id1.difference(&id2).collect();
     /// assert_eq!(diff.len(), 1);
     /// assert_eq!(diff[0], id1);
-    /// # }
-    /// ```
-    ///
-    /// 左右に分かれる場合:
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(3600, 5).unwrap();   // [18000, 21599]
-    /// let id2 = TemporalId::new(1, 19800).unwrap();  // [19800, 19800]（中間の1秒）
-    /// let diff: Vec<_> = id1.difference(&id2).collect();
-    /// // 差集合は複数のピースに分かれる可能性がある
-    /// # }
     /// ```
     ///
     /// 完全に包含される場合（空のイテレータ）:
     /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
     /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(1, 19800).unwrap();  // [19800, 19800]
-    /// let id2 = TemporalId::new(3600, 5).unwrap();   // [18000, 21599]
+    /// let id1 = TemporalId::new(1, 19800).unwrap();  // [19800, 19801)
+    /// let id2 = TemporalId::new(3600, 5).unwrap();   // [18000, 21600)
     /// let diff: Vec<_> = id1.difference(&id2).collect();
     /// assert_eq!(diff.len(), 0);
-    /// # }
     /// ```
     pub fn difference(&self, other: &TemporalId) -> impl Iterator<Item = TemporalId> {
-        let s0 = self.start_unixstamp();
-        let s1 = self.end_unixtime_exclusive() as u64;
-        let o0 = other.start_unixstamp();
-        let o1 = other.end_unixtime_exclusive() as u64;
+        let s0 = self.start_unixtime();
+        let s1 = self.end_unixtime_exclusive();
+        let o0 = other.start_unixtime();
+        let o1 = other.end_unixtime_exclusive();
 
         let mut result = Vec::new();
 
@@ -133,63 +75,51 @@ impl TemporalId {
         }
 
         // 左側 [s0, min(o0, s1)) と右側 [max(o1, s0), s1) を、それぞれ
-        // カレンダー最小分解（[`from_range`]）で表す（方法1）。
-        // 1秒展開のフォールバックは行わない（差分が膨張しない）。
+        // 約数鎖の最小分解で表す。
         let left_end = o0.min(s1);
-        if s0 < left_end
-            && let Ok(cells) = Self::from_range(s0, left_end)
-        {
-            result.extend(cells);
+        if s0 < left_end {
+            result.extend(Self::decompose(s0, left_end));
         }
 
         let right_start = o1.max(s0);
-        if right_start < s1
-            && let Ok(cells) = Self::from_range(right_start, s1)
-        {
-            result.extend(cells);
+        if right_start < s1 {
+            result.extend(Self::decompose(right_start, s1));
         }
 
         result.into_iter()
     }
 
-    /// 時間窓 `window` に限定した差集合 `(self ∩ window) − other` をカレンダー最小分解で返す（方法2）。
+    /// 時間窓 `window` に限定した差集合 `(self ∩ window) − other` を最小分解で返す。
     ///
-    /// `self` が WHOLE でも `window` が有界なら結果は有界になる（WHOLE 差分の膨張を防ぐ）。
+    /// 結果を `window` の範囲に切り詰めたい場合に使う。
     /// 集合論的に `(self ∩ window) − other = (self − other) ∩ window` と一致する。
     pub fn difference_in_window(&self, other: &TemporalId, window: &TemporalId) -> Vec<TemporalId> {
-        let w0 = window.start_unixstamp();
-        let w1 = window.end_unixtime_exclusive() as u64;
-        let s0 = self.start_unixstamp().max(w0);
-        let s1 = (self.end_unixtime_exclusive() as u64).min(w1);
+        let w0 = window.start_unixtime();
+        let w1 = window.end_unixtime_exclusive();
+        let s0 = self.start_unixtime().max(w0);
+        let s1 = self.end_unixtime_exclusive().min(w1);
 
         let mut result = Vec::new();
         if s0 >= s1 {
             return result;
         }
 
-        let o0 = other.start_unixstamp();
-        let o1 = other.end_unixtime_exclusive() as u64;
+        let o0 = other.start_unixtime();
+        let o1 = other.end_unixtime_exclusive();
 
         // other が窓内の self と重ならない → クリップした self をそのまま分解
         if o1 <= s0 || o0 >= s1 {
-            if let Ok(cells) = Self::from_range(s0, s1) {
-                result = cells;
-            }
-            return result;
+            return Self::decompose(s0, s1);
         }
 
         let left_end = o0.min(s1);
-        if s0 < left_end
-            && let Ok(cells) = Self::from_range(s0, left_end)
-        {
-            result.extend(cells);
+        if s0 < left_end {
+            result.extend(Self::decompose(s0, left_end));
         }
 
         let right_start = o1.max(s0);
-        if right_start < s1
-            && let Ok(cells) = Self::from_range(right_start, s1)
-        {
-            result.extend(cells);
+        if right_start < s1 {
+            result.extend(Self::decompose(right_start, s1));
         }
 
         result
@@ -197,7 +127,7 @@ impl TemporalId {
 
     /// `other` の時間範囲が `self` に完全に含まれるか（`other ⊆ self`）を判定する。
     pub fn contains(&self, other: &TemporalId) -> bool {
-        self.start_unixstamp() <= other.start_unixstamp()
+        self.start_unixtime() <= other.start_unixtime()
             && other.end_unixtime_exclusive() <= self.end_unixtime_exclusive()
     }
 }
@@ -210,14 +140,14 @@ mod tests {
 
     /// 1セルが覆う秒の集合 `[start, end)`。
     fn seconds(t: &TemporalId) -> BTreeSet<u64> {
-        (t.start_unixstamp()..t.end_unixtime_exclusive() as u64).collect()
+        (t.start_unixtime()..t.end_unixtime_exclusive()).collect()
     }
 
     /// セル列が覆う秒の集合（重複は潰される）。
     fn seconds_of(cells: &[TemporalId]) -> BTreeSet<u64> {
         let mut set = BTreeSet::new();
         for c in cells {
-            set.extend(c.start_unixstamp()..c.end_unixtime_exclusive() as u64);
+            set.extend(c.start_unixtime()..c.end_unixtime_exclusive());
         }
         set
     }
@@ -226,7 +156,7 @@ mod tests {
     fn total_len(cells: &[TemporalId]) -> u64 {
         cells
             .iter()
-            .map(|c| c.end_unixtime_exclusive() as u64 - c.start_unixstamp())
+            .map(|c| c.end_unixtime_exclusive() - c.start_unixtime())
             .sum()
     }
 
@@ -293,7 +223,32 @@ mod tests {
         assert_eq!(seconds_of(&d), (60u64..3600).collect());
     }
 
-    /// WHOLE − 1分 を「窓（その1時間）」に限定すると有界（59分）になる。
+    /// WHOLE − 1分 が有界個（対数オーダー）のセルで正確に表現される。
+    #[test]
+    fn whole_minus_minute_is_bounded() {
+        let whole = TemporalId::WHOLE;
+        let min = TemporalId::new(60, 600).unwrap(); // [36000, 36060)
+        let d: Vec<_> = whole.difference(&min).collect();
+        // 二進層のおかげで爆発しない（左側 + 右側で高々数百）。
+        assert!(d.len() < 400, "cells = {}", d.len());
+        // 被覆の検証（秒展開せず区間で照合）:
+        // 合計長 = ドメイン全長 − 60秒、穴の周辺だけピンポイントで欠けている。
+        assert_eq!(total_len(&d), TemporalId::DOMAIN_END - 60);
+        assert!(
+            d.iter()
+                .all(|c| { c.end_unixtime_exclusive() <= 36000 || c.start_unixtime() >= 36060 })
+        );
+        // ピースは互いに素・整列済みの分解であることを軽く確認
+        let mut cover = 0u64;
+        let mut cells = d.clone();
+        cells.sort_by_key(|c| c.start_unixtime());
+        for c in &cells {
+            assert!(c.start_unixtime() >= cover, "overlap");
+            cover = c.end_unixtime_exclusive();
+        }
+    }
+
+    /// WHOLE − 1分 を「窓（その1時間）」に限定すると 59分になる。
     #[test]
     fn whole_minus_minute_in_window_is_bounded() {
         let whole = TemporalId::WHOLE;
@@ -316,17 +271,13 @@ mod tests {
             TemporalId::new(3600, 0).unwrap(),
             TemporalId::new(3600, 1).unwrap(),
             TemporalId::new(60, 30).unwrap(),
-            TemporalId::WHOLE,
         ];
         for a in &cells {
             for b in &cells {
                 for w in &windows {
                     let got = seconds_of(&a.difference_in_window(b, w));
-                    // オラクル: (seconds(a) − seconds(b)) ∩ window
-                    // window は WHOLE だと巨大なので述語で判定（展開しない）。
-                    let in_w = |s: &u64| {
-                        w.start_unixstamp() <= *s && (*s as u128) < w.end_unixtime_exclusive()
-                    };
+                    let in_w =
+                        |s: &u64| w.start_unixtime() <= *s && *s < w.end_unixtime_exclusive();
                     let sa = seconds(a);
                     let sb = seconds(b);
                     let exp: BTreeSet<u64> = sa.difference(&sb).copied().filter(in_w).collect();
@@ -334,5 +285,41 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// 時間ドメイン `[0, DOMAIN_END)` の境界検証。
+    #[test]
+    fn domain_boundary() {
+        // 終端を超えるIDは構築できない
+        assert!(TemporalId::new(1, TemporalId::DOMAIN_END).is_err());
+        // 最終秒 [DOMAIN_END-1, DOMAIN_END) は有効で、WHOLE に含まれる
+        let last = TemporalId::new(1, TemporalId::DOMAIN_END - 1).unwrap();
+        assert_eq!(last.end_unixtime_exclusive(), TemporalId::DOMAIN_END);
+        assert!(TemporalId::WHOLE.contains(&last));
+        // WHOLE 自身の終端はドメイン終端
+        assert_eq!(
+            TemporalId::WHOLE.end_unixtime_exclusive(),
+            TemporalId::DOMAIN_END
+        );
+        // 後方互換: i = u64::MAX は WHOLE として構築できる
+        assert_eq!(TemporalId::new(u64::MAX, 0).unwrap(), TemporalId::WHOLE);
+    }
+
+    /// 仕様の任意間隔 `i/t` を正規化する from_spec。
+    #[test]
+    fn from_spec_normalizes_arbitrary_interval() {
+        // 仕様書の例: 1800/809712 = [1457481600, 1457483400)
+        let ids = TemporalId::from_spec(1800, 809712).unwrap();
+        assert_eq!(seconds_of(&ids), (1457481600u64..1457483400).collect());
+        assert_eq!(total_len(&ids), 1800, "ピースは非交差");
+
+        // 約数鎖に含まれる i は単一ID
+        let ids = TemporalId::from_spec(3600, 5).unwrap();
+        assert_eq!(ids, alloc::vec![TemporalId::new(3600, 5).unwrap()]);
+
+        // i=0 はエラー
+        assert!(TemporalId::from_spec(0, 1).is_err());
+        // ドメイン外はエラー
+        assert!(TemporalId::from_spec(TemporalId::DOMAIN_END - 1, 2).is_err());
     }
 }

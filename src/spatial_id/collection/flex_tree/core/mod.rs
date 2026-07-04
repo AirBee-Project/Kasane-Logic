@@ -162,10 +162,15 @@ where
 
     /// 値結合 [`Combine`](node_ops::Combine) を差し込んだ汎用の二項演算。
     /// union/intersection/difference を値付き（時間集合など）で行うためのネイティブ経路。
-    /// 現状 shard は非対応（`None`）。
-    // 次段階（SpatialIdSet/Table の時間ネイティブ化）で使用する。
-    #[allow(dead_code)]
-    pub(crate) fn combine_with<C: node_ops::Combine<V>>(&self, other: &Self) -> Self {
+    ///
+    /// `shard` には結果のシャード領域を渡す（union なら
+    /// [`shard_after_union`](Self::shard_after_union) 相当、difference なら
+    /// `self.shard` など、演算に応じて呼び出し側が決める）。
+    pub(crate) fn combine_with<C: node_ops::Combine<V>>(
+        &self,
+        other: &Self,
+        shard: Option<FlexId>,
+    ) -> Self {
         Self {
             lower_root: Node::combine::<C>(
                 &self.lower_root,
@@ -180,8 +185,18 @@ where
                 &self.empty_leaf,
             ),
             empty_leaf: self.empty_leaf.clone(),
-            shard: None,
+            shard,
         }
+    }
+
+    /// unionのシャード合成規則を公開ヘルパとして提供する（値結合経路用）。
+    pub(crate) fn shard_for_union(a: &Self, b: &Self) -> Option<FlexId> {
+        Self::shard_after_union(&a.shard, &b.shard)
+    }
+
+    /// intersectionのシャード合成規則を公開ヘルパとして提供する（値結合経路用）。
+    pub(crate) fn shard_for_intersection(a: &Self, b: &Self) -> Option<FlexId> {
+        Self::shard_after_intersection(&a.shard, &b.shard)
     }
 
     /// ルートノードのポインタが完全に同一か判定します（Result Reuseテスト用）
@@ -318,20 +333,33 @@ where
         })
     }
 
-    /// [FlexTreeCore]に空間IDを挿入する
+    /// [FlexTreeCore]に空間IDを挿入する。
+    ///
+    /// # Panics
+    ///
+    /// 時空間ID（temporal ≠ WHOLE）を渡すと panic する。エラーとして扱いたい場合は
+    /// [`try_insert`](Self::try_insert) を使うこと。時間を値として保持できる
+    /// コレクションは [`SpatialIdSet`](crate::SpatialIdSet) である。
     pub fn insert<S>(&mut self, target: S, value: V)
     where
         S: IterFlexIds,
     {
+        self.try_insert(target, value)
+            .expect("時空間ID（temporal != WHOLE）はこのコレクションに挿入できません。SpatialIdSet を使用してください。");
+    }
+
+    /// [`insert`](Self::insert) の失敗を [`Result`] で返す版。
+    ///
+    /// 時空間ID（temporal ≠ WHOLE）を渡した場合、
+    /// [`SpatialIdError::TemporalNotSupported`](crate::SpatialIdError::TemporalNotSupported)
+    /// を返す（黙って時間を捨てない）。
+    pub fn try_insert<S>(&mut self, target: S, value: V) -> Result<(), crate::Error>
+    where
+        S: IterFlexIds,
+    {
         for flex_id in target.iter_flex_ids() {
-            // 時空間ID（temporal != WHOLE）はまだコレクション（FlexTree）に格納できない
-            // （空間主体統合は別途）。黙って時間を捨てないよう、明示的に弾く。
-            // FlexId 1:1 の時間演算（difference / difference_in_window 等）は利用可能。
             if !flex_id.temporal().is_whole() {
-                panic!(
-                    "時空間ID（temporal != WHOLE）はまだ FlexTree に挿入できません。\
-                     空間主体統合で対応予定です。FlexId 単体の時間演算は利用可能です。"
-                );
+                return Err(crate::SpatialIdError::TemporalNotSupported.into());
             }
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {
@@ -343,6 +371,7 @@ where
             };
             self.insert_flex_id(flex_id, value.clone());
         }
+        Ok(())
     }
 
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
@@ -512,7 +541,11 @@ where
         stack
     }
 
-    fn insert_flex_id(&mut self, flex_id: FlexId, value: V) {
+    /// 1つの [`FlexId`]（空間キー）へ値を直接書き込む（覆う領域は置換）。
+    ///
+    /// 時間ネイティブなラッパー（[`SpatialIdSet`](crate::SpatialIdSet) など）が、
+    /// 時間を値へ移し替えた上でキー（temporal=WHOLE）を挿入する経路。
+    pub(crate) fn insert_flex_id(&mut self, flex_id: FlexId, value: V) {
         let root = if flex_id.f_index().is_negative() {
             &mut self.lower_root
         } else {

@@ -3,10 +3,9 @@ use alloc::vec::Vec;
 use crate::{FlexId, Side, SpatialId, TemporalId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
-    /// 時間窓 `window` に限定して `self - other` を計算する（方法2）。
+    /// 時間窓 `window` に限定して `self - other` を計算する。
     ///
-    /// `self` の時間を `window` に切り詰めてから [`difference`](Self::difference) するため、
-    /// `self` の時間が `WHOLE` でも `window` が有界なら結果のセル数は有界になる。
+    /// `self` の時間を `window` に切り詰めてから [`difference`](Self::difference) する。
     /// 集合論的に `(A ∩ W) − B = (A − B) ∩ W` と一致する（空間は不変、時間のみ窓で限定）。
     pub fn difference_in_window(
         &self,
@@ -32,6 +31,9 @@ impl FlexId {
 
     /// 相手の[FlexId]との差集合（self - other）を計算し、イテレータとして返します。
     /// 空間と時間の両方を考慮し、相手にくり抜かれた「残りの領域」を過不足なく細かい FlexId に分割して返します。
+    ///
+    /// 時間の差分は約数鎖の最小分解で表されるため、時間 `WHOLE` のIDから有限時間の
+    /// IDを引いても結果は高々数百セルに収まる（[`TemporalId::difference`] を参照）。
     pub fn difference(&self, other: &FlexId) -> impl Iterator<Item = FlexId> {
         let mut results = Vec::new();
 
@@ -202,9 +204,8 @@ mod temporal_tests {
 
     /// FlexId を (空間キー × 秒) のアトム集合へ展開する。
     fn atoms(f: &FlexId, z: u8) -> BTreeSet<Atom> {
-        let secs: Vec<u64> = (f.temporal().start_unixstamp()
-            ..f.temporal().end_unixtime_exclusive() as u64)
-            .collect();
+        let secs: Vec<u64> =
+            (f.temporal().start_unixtime()..f.temporal().end_unixtime_exclusive()).collect();
         let mut set = BTreeSet::new();
         for k in spatial_keys(f, z) {
             for &s in &secs {
@@ -252,6 +253,21 @@ mod temporal_tests {
         let d: Vec<_> = a.difference_in_window(&b, &window).collect();
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|f| f.temporal().i() == 60));
+    }
+
+    /// WHOLE 時間の FlexId から有限時間を引いても有界（対数個）のセルで表現される。
+    #[test]
+    fn whole_difference_is_bounded() {
+        let a = st(TemporalId::WHOLE);
+        let b = st(TemporalId::new(60, 600).unwrap()); // [36000, 36060)
+        let d: Vec<_> = a.difference(&b).collect();
+        assert!(d.len() < 400, "cells = {}", d.len());
+        // 空間は不変、時間の被覆は「全時間 − 60秒」
+        let total: u64 = d
+            .iter()
+            .map(|f| f.temporal().end_unixtime_exclusive() - f.temporal().start_unixtime())
+            .sum();
+        assert_eq!(total, TemporalId::DOMAIN_END - 60);
     }
 
     /// 空間・時間ともに異なる 4D 差分を (空間キー×秒) のアトムで厳密照合する。

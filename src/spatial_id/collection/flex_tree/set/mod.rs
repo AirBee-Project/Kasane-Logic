@@ -1,6 +1,8 @@
+use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId};
+use crate::spatial_id::collection::flex_tree::core::node_ops::{TSetDifference, TSetUnion};
+use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, TemporalSet};
 pub mod convert;
 pub mod impls;
 pub mod json;
@@ -8,15 +10,16 @@ pub mod ops;
 pub mod shard;
 pub mod tests;
 
-/// 空間IDの集合を表す型。
+/// 時空間IDの集合を表す型。
 ///
-/// `SpatialIdSet` は、保持する値が空間IDそのものだけであるため、「どの空間が存在するか」を表すための型として機能する。
+/// `SpatialIdSet` は「どの空間が、どの時間に存在するか」を表すための型として機能する。
 ///
-/// - ある場所に対する空間IDを「存在しない」もしくは「一意に定まる」状態を維持する
-/// - 集合同士の演算や、集合に対する単項演算を提供する
+/// - 空間は木構造（FlexTree）の一次索引として、時間は各空間セルの値
+///   （[`TemporalSet`]）として保持する（**時間ネイティブ**）。
+/// - 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間集合として振る舞う。
+/// - 集合同士の演算（和・積・差）は空間×時間の4次元で厳密に行われる。
 ///
 /// # 注意
-/// - 現在は時空間IDに非対応で、時間ID部分がWHOLEではないIDが挿入された場合に無条件にPanicする。(将来的に時間IDにも対応する予定。)
 /// - 空間ごとに値を持たせたい、値から空間を引きたい、または値の管理が必要な場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(
@@ -24,7 +27,7 @@ pub mod tests;
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
 pub struct SpatialIdSet {
-    inner: FlexTreeCore<()>,
+    inner: FlexTreeCore<TemporalSet>,
 }
 
 impl PartialEq for SpatialIdSet {

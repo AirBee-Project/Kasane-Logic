@@ -4,21 +4,20 @@
 //! 区間代数で union / intersection / difference を厳密に行い、出力（[`cells`](TemporalSet::cells)）は
 //! [`TemporalId`] のカレンダーセル列へ最小分解する（時/分/日などの慣例単位を保つ）。
 //!
-//! これは空間主体統合（FlexTree の葉に持たせる時間構造）の土台となる独立部品で、
-//! コレクション本体には依存しない。
+//! 時間ドメインは `[0, TemporalId::DOMAIN_END)`（[`TemporalId`] と同一）である。
 
 use alloc::vec::Vec;
 
 use crate::TemporalId;
 
-/// WHOLE（全時間）区間の排他的終端。
-const WHOLE_END: u64 = u64::MAX;
+/// 時間ドメインの排他的終端（= WHOLE 区間の排他的終端）。
+const WHOLE_END: u64 = TemporalId::DOMAIN_END;
 
 /// カレンダー時間の集合。互いに素な半開区間 `[start, end)` の正規化列で表す。
 ///
 /// 正規化済みなので比較は正準（同じ集合 ⇔ 同じ `intervals`）。`CellValue` として
 /// コレクションの値型に使える。
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -43,16 +42,15 @@ impl TemporalSet {
         }
     }
 
+    /// 全時間（WHOLE）と等しいか。
+    pub fn is_whole(&self) -> bool {
+        self.intervals.as_slice() == [(0, WHOLE_END)]
+    }
+
     /// 1つの [`TemporalId`] が覆う時間の集合を作る。
     pub fn from_temporal(t: &TemporalId) -> Self {
-        let s = t.start_unixstamp();
-        let e = t.end_unixtime_exclusive().min(WHOLE_END as u128) as u64;
-        if s >= e {
-            Self::new()
-        } else {
-            Self {
-                intervals: alloc::vec![(s, e)],
-            }
+        Self {
+            intervals: alloc::vec![(t.start_unixtime(), t.end_unixtime_exclusive())],
         }
     }
 
@@ -66,9 +64,10 @@ impl TemporalSet {
         self.intervals.is_empty()
     }
 
-    /// 指定の UNIX 秒が含まれるか。
+    /// 指定の UNIX 秒が含まれるか（二分探索）。
     pub fn contains_unixtime(&self, sec: u64) -> bool {
-        self.intervals.iter().any(|&(s, e)| s <= sec && sec < e)
+        let idx = self.intervals.partition_point(|&(s, _)| s <= sec);
+        idx > 0 && sec < self.intervals[idx - 1].1
     }
 
     /// `t` の時間範囲が完全に含まれるか（`t ⊆ self`）。
@@ -158,18 +157,21 @@ impl TemporalSet {
         }
     }
 
-    /// 集合をカレンダー最小セル列（[`TemporalId`]）へ分解する。
-    /// WHOLE 区間は単一の [`TemporalId::WHOLE`] として返す（巨大分解を避ける）。
+    /// 集合を約数鎖の最小セル列（[`TemporalId`]）へ分解する。
+    ///
+    /// 約数鎖に二進層（`Day·2^k`）があるため、どの区間も高々数百セルに収まる
+    /// （ドメイン全体は単一の [`TemporalId::WHOLE`] になる）。
     pub fn cells(&self) -> Vec<TemporalId> {
         let mut out = Vec::new();
         for &(s, e) in &self.intervals {
-            if s == 0 && e == WHOLE_END {
-                out.push(TemporalId::WHOLE);
-            } else if let Ok(cells) = TemporalId::from_range(s, e) {
-                out.extend(cells);
-            }
+            out.extend(TemporalId::decompose(s, e));
         }
         out
+    }
+
+    /// `window` に限定したセル列を返す（`(self ∩ window)` の分解）。
+    pub fn cells_in_window(&self, window: &TemporalId) -> Vec<TemporalId> {
+        self.intersection(&Self::from_temporal(window)).cells()
     }
 }
 
@@ -271,8 +273,7 @@ mod tests {
         for set in &sets {
             let s = secs(set);
             for p in &probes {
-                let ps: BTreeSet<u64> =
-                    (p.start_unixstamp()..p.end_unixtime_exclusive() as u64).collect();
+                let ps: BTreeSet<u64> = (p.start_unixtime()..p.end_unixtime_exclusive()).collect();
                 assert_eq!(
                     set.contains(p),
                     ps.is_subset(&s),
@@ -282,10 +283,26 @@ mod tests {
         }
     }
 
-    /// WHOLE の扱い: cells() は単一 WHOLE、WHOLE − 1時間 は2区間。
+    /// contains_unixtime の二分探索照合。
+    #[test]
+    fn contains_unixtime_oracle() {
+        for set in sample_sets() {
+            let s = secs(&set);
+            for probe in [0u64, 1, 59, 60, 61, 3599, 3600, 3659, 3660, 7199, 7200] {
+                assert_eq!(
+                    set.contains_unixtime(probe),
+                    s.contains(&probe),
+                    "contains_unixtime({probe}) mismatch: {set:?}"
+                );
+            }
+        }
+    }
+
+    /// WHOLE の扱い: cells() は単一 WHOLE、WHOLE − 1時間 は2区間で有界に分解できる。
     #[test]
     fn whole_handling() {
         let w = TemporalSet::whole();
+        assert!(w.is_whole());
         assert_eq!(w.cells(), alloc::vec![TemporalId::WHOLE]);
 
         let hour = TemporalSet::from_temporal(&TemporalId::new(3600, 10).unwrap());
@@ -294,5 +311,19 @@ mod tests {
         assert!(!d.contains_unixtime(36000)); // 穴の中
         assert!(d.contains_unixtime(35999)); // 穴の直前
         assert!(d.contains_unixtime(39600)); // 穴の直後
+
+        // 巨大な残余区間も対数個のセルへ正確に分解できる（爆発しない）
+        let cells = d.cells();
+        assert!(cells.len() < 400, "cells = {}", cells.len());
+        let total: u64 = cells
+            .iter()
+            .map(|c| c.end_unixtime_exclusive() - c.start_unixtime())
+            .sum();
+        assert_eq!(total, TemporalId::DOMAIN_END - 3600);
+
+        // 窓で限定した分解
+        let window = TemporalId::new(3600, 11).unwrap(); // [39600, 43200)
+        let cells = d.cells_in_window(&window);
+        assert_eq!(cells, alloc::vec![window]);
     }
 }

@@ -69,6 +69,13 @@ pub enum SpatialIdError {
 
     /// 時間間隔 `i` に 0 を指定した場合のエラー。
     TIntervalError { i: u64 },
+
+    /// 時間範囲が空（`start >= end_exclusive`）であることを示す。
+    TRangeEmpty { start: u64, end_exclusive: u64 },
+
+    /// 時空間ID（temporal ≠ WHOLE）を、時間非対応のコレクションに挿入しようとしたことを示す。
+    TemporalNotSupported,
+
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
 
@@ -196,10 +203,26 @@ impl fmt::Display for SpatialIdError {
             SpatialIdError::TOutOfRange { i, t } => {
                 write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
             }
+            SpatialIdError::TRangeEmpty {
+                start,
+                end_exclusive,
+            } => {
+                write!(
+                    f,
+                    "time range is empty (start={}, end_exclusive={}).",
+                    start, end_exclusive
+                )
+            }
+            SpatialIdError::TemporalNotSupported => {
+                write!(
+                    f,
+                    "spatio-temporal ids (temporal != WHOLE) are not supported by this collection; use SpatialIdSet or strip the temporal part"
+                )
+            }
             SpatialIdError::TIntervalError { i } => {
                 write!(
                     f,
-                    "Time interval i is must u64::MAX or 86400 or 3600 or 60 or 1 (i={}).",
+                    "Time interval i must be 1, 60, 3600, 86400, 86400*2^k (k<=47), or u64::MAX (whole) (i={}).",
                     i
                 )
             }
