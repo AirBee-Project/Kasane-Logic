@@ -1,4 +1,5 @@
-#![cfg_attr(test, allow(dead_code))]
+#[cfg(test)]
+use crate::IterSingleIds;
 
 pub mod corner_cases;
 pub mod count;
@@ -13,7 +14,6 @@ pub mod temporal;
 pub mod union;
 
 #[cfg(test)]
-use crate::IntoSingleIds;
 #[cfg(test)]
 use crate::ZoomLevel;
 #[cfg(test)]
@@ -238,7 +238,7 @@ pub(crate) fn decompose_set_to_single_ids_at_zoom(
                 .expect("target_z must be >= range.z")
         };
 
-        for single_id in expanded.into_single_ids() {
+        for single_id in expanded.iter_single_ids() {
             normalized.insert(single_id);
         }
     }

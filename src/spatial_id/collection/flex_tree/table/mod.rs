@@ -1,3 +1,4 @@
+use crate::IterSingleIds;
 use alloc::vec::Vec;
 
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -58,7 +59,7 @@ mod persist_tests {
 
 use crate::spatial_id::collection::flex_tree::core::node_ops::TMapOverwrite;
 use crate::{
-    FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, SpatialIdSet, TemporalMap,
+    FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, SpatialIdSet, TemporalMap,
     TemporalSet,
 };
 
@@ -320,7 +321,9 @@ where
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         self.iter().flat_map(|(flex_id, value)| {
             RangeId::from(&flex_id)
-                .into_single_ids()
+                .iter_single_ids()
+                .collect::<alloc::vec::Vec<_>>()
+                .into_iter()
                 .map(move |single_id| (single_id, value))
                 .collect::<Vec<_>>()
         })

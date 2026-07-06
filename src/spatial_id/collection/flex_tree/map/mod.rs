@@ -1,9 +1,8 @@
+use crate::IterSingleIds;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::flex_tree::core::node_ops::TMapOverwrite;
-use crate::{
-    FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, TemporalMap, TemporalSet,
-};
+use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, TemporalMap, TemporalSet};
 
 pub mod convert;
 pub mod json;
@@ -200,7 +199,9 @@ where
                     .expect("target max zoomlevel must be valid")
             };
             normalized
-                .into_single_ids()
+                .iter_single_ids()
+                .collect::<alloc::vec::Vec<_>>()
+                .into_iter()
                 .map(move |single_id| (single_id, value))
                 .collect::<Vec<_>>()
         })

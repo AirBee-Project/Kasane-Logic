@@ -2,18 +2,11 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
-    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SingleId, SpatialIdSet,
+    FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdSet,
     SpatialIdTable,
 };
 
-impl IntoFlexIds for SpatialIdSet {
-    type IntoIter = alloc::vec::IntoIter<FlexId>;
 
-    fn into_flex_ids(self) -> Self::IntoIter {
-        let ids: Vec<FlexId> = self.iter().collect();
-        ids.into_iter()
-    }
-}
 
 impl IterFlexIds for SpatialIdSet {
     type Iter<'a>
@@ -26,14 +19,7 @@ impl IterFlexIds for SpatialIdSet {
     }
 }
 
-impl IntoSingleIds for SpatialIdSet {
-    type IntoIter = alloc::vec::IntoIter<SingleId>;
 
-    fn into_single_ids(self) -> Self::IntoIter {
-        let ids: Vec<SingleId> = self.flat_single_ids().collect();
-        ids.into_iter()
-    }
-}
 
 impl IterSingleIds for SpatialIdSet {
     type Iter<'a>

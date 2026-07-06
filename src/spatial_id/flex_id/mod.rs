@@ -132,15 +132,7 @@ impl FlexId {
         // 占有区間を整列したセル群へ分解し、F以外の成分を保ったままFlexIdを構築する。
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                FlexId::new_with_temporal(
-                    seg_z,
-                    seg_index,
-                    x_zoomlevel,
-                    x_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
+                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id.clone()))
                 .unwrap()
             }),
         )
@@ -194,15 +186,7 @@ impl FlexId {
         let temporal_id = self.temporal_id.clone();
 
         Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            FlexId::new_with_temporal(
-                f_zoomlevel,
-                f_index,
-                seg_z,
-                seg_index,
-                y_zoomlevel,
-                y_index,
-                temporal_id.clone(),
-            )
+            FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id.clone()))
             .unwrap()
         }))
     }
@@ -249,15 +233,7 @@ impl FlexId {
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    x_zoomlevel,
-                    x_index,
-                    seg_z,
-                    seg_index,
-                    temporal_id.clone(),
-                )
+                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index).map(|id| id.with_temporal(temporal_id.clone()))
                 .unwrap()
             }),
         )
@@ -314,15 +290,7 @@ impl FlexId {
 
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                FlexId::new_with_temporal(
-                    seg_z,
-                    seg_index,
-                    x_zoomlevel,
-                    x_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
+                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id.clone()))
                 .unwrap()
             }),
         )
@@ -384,15 +352,7 @@ impl FlexId {
         let temporal_id = self.temporal_id.clone();
 
         Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            FlexId::new_with_temporal(
-                f_zoomlevel,
-                f_index,
-                seg_z,
-                seg_index,
-                y_zoomlevel,
-                y_index,
-                temporal_id.clone(),
-            )
+            FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id.clone()))
             .unwrap()
         }))
     }
@@ -443,15 +403,7 @@ impl FlexId {
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    x_zoomlevel,
-                    x_index,
-                    seg_z,
-                    seg_index,
-                    temporal_id.clone(),
-                )
+                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index).map(|id| id.with_temporal(temporal_id.clone()))
                 .unwrap()
             }),
         )
@@ -489,15 +441,7 @@ impl FlexId {
         let temporal_id = self.temporal_id.clone();
 
         Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
-            FlexId::new_with_temporal(
-                seg_z,
-                seg_index,
-                x_zoomlevel,
-                x_index,
-                y_zoomlevel,
-                y_index,
-                temporal_id.clone(),
-            )
+            FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id.clone()))
             .unwrap()
         }))
     }
@@ -550,15 +494,7 @@ impl FlexId {
         let temporal_id = self.temporal_id.clone();
 
         Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            FlexId::new_with_temporal(
-                f_zoomlevel,
-                f_index,
-                seg_z,
-                seg_index,
-                y_zoomlevel,
-                y_index,
-                temporal_id.clone(),
-            )
+            FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id.clone()))
             .unwrap()
         }))
     }
@@ -590,15 +526,7 @@ impl FlexId {
         let temporal_id = self.temporal_id.clone();
 
         Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
-            FlexId::new_with_temporal(
-                f_zoomlevel,
-                f_index,
-                x_zoomlevel,
-                x_index,
-                seg_z,
-                seg_index,
-                temporal_id.clone(),
-            )
+            FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index).map(|id| id.with_temporal(temporal_id.clone()))
             .unwrap()
         }))
     }
@@ -609,15 +537,7 @@ impl FlexId {
             None
         } else {
             Some(
-                FlexId::new_with_temporal(
-                    self.f_zoomlevel() + 1,
-                    self.f_index() * 2 + side as i32,
-                    self.x_zoomlevel(),
-                    self.x_index(),
-                    self.y_zoomlevel(),
-                    self.y_index(),
-                    self.temporal_id.clone(),
-                )
+                FlexId::new(self.f_zoomlevel() + 1, self.f_index() * 2 + side as i32, self.x_zoomlevel(), self.x_index(), self.y_zoomlevel(), self.y_index()).map(|id| id.with_temporal(self.temporal_id.clone()))
                 .unwrap(),
             )
         }
@@ -629,15 +549,7 @@ impl FlexId {
             None
         } else {
             Some(
-                FlexId::new_with_temporal(
-                    self.f_zoomlevel(),
-                    self.f_index(),
-                    self.x_zoomlevel() + 1,
-                    self.x_index() * 2 + side as u32,
-                    self.y_zoomlevel(),
-                    self.y_index(),
-                    self.temporal_id.clone(),
-                )
+                FlexId::new(self.f_zoomlevel(), self.f_index(), self.x_zoomlevel() + 1, self.x_index() * 2 + side as u32, self.y_zoomlevel(), self.y_index()).map(|id| id.with_temporal(self.temporal_id.clone()))
                 .unwrap(),
             )
         }
@@ -649,15 +561,7 @@ impl FlexId {
             None
         } else {
             Some(
-                FlexId::new_with_temporal(
-                    self.f_zoomlevel(),
-                    self.f_index(),
-                    self.x_zoomlevel(),
-                    self.x_index(),
-                    self.y_zoomlevel() + 1,
-                    self.y_index() * 2 + side as u32,
-                    self.temporal_id.clone(),
-                )
+                FlexId::new(self.f_zoomlevel(), self.f_index(), self.x_zoomlevel(), self.x_index(), self.y_zoomlevel() + 1, self.y_index() * 2 + side as u32).map(|id| id.with_temporal(self.temporal_id.clone()))
                 .unwrap(),
             )
         }
@@ -792,26 +696,10 @@ impl FlexId {
                     let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
                     let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
 
-                    let parent = FlexId::new_with_temporal(
-                        tz_f,
-                        f_idx,
-                        tz_x,
-                        x_idx,
-                        tz_y,
-                        y_idx,
-                        temp_id2.clone(),
-                    )
+                    let parent = FlexId::new(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx).map(|id| id.with_temporal(temp_id2.clone()))
                     .unwrap();
 
-                    let seg = FlexId::new_with_temporal(
-                        seg_fz,
-                        seg_fi,
-                        seg_xz,
-                        seg_xi,
-                        seg_yz,
-                        seg_yi,
-                        temp_id2.clone(),
-                    )
+                    let seg = FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi).map(|id| id.with_temporal(temp_id2.clone()))
                     .unwrap();
 
                     (parent, seg)

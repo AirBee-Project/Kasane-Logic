@@ -284,7 +284,7 @@ impl FromStr for RangeId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            RangeId::new_with_temporal(z, f, x, y, temporal_id)
+            RangeId::new(z, f, x, y).map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

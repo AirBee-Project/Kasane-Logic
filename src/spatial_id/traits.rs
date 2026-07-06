@@ -11,10 +11,8 @@ use crate::RangeId;
 
 /// [SingleId],[RangeId],[FlexId]が共通して持つTrait
 pub trait SpatialId:
-    IntoFlexIds
-    + IterFlexIds
+    IterFlexIds
     + IterSingleIds
-    + IntoSingleIds
     + Debug
     + Display
     + Clone
@@ -185,13 +183,7 @@ pub trait SpatialId:
     fn temporal_mut(&mut self) -> &mut TemporalId;
 }
 
-/// [SingleId] の集合であることを保証するトレイト。
-pub trait IntoSingleIds {
-    type IntoIter: Iterator<Item = SingleId>;
 
-    /// 所有権ごと [SingleId] の列へ変換する。
-    fn into_single_ids(self) -> Self::IntoIter;
-}
 
 /// [SingleId] の参照列を返せることを保証するトレイト。
 pub trait IterSingleIds {
@@ -203,13 +195,7 @@ pub trait IterSingleIds {
     fn iter_single_ids(&self) -> Self::Iter<'_>;
 }
 
-/// [FlexId] の集合であることを保証するトレイト。
-pub trait IntoFlexIds {
-    type IntoIter: Iterator<Item = FlexId>;
 
-    /// 所有権ごと [FlexId] の列へ変換する。
-    fn into_flex_ids(self) -> Self::IntoIter;
-}
 
 /// [FlexId] の参照列を返せることを保証するトレイト。
 pub trait IterFlexIds {

@@ -1,8 +1,9 @@
+use crate::IterSingleIds;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
 use crate::spatial_id::collection::flex_tree::core::node_ops::{TSetDifference, TSetUnion};
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, TemporalSet};
+use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, TemporalSet};
 pub mod convert;
 pub mod impls;
 pub mod json;
@@ -221,7 +222,7 @@ impl SpatialIdSet {
                     .spatial_children_at_zoom(max_zoomlevel)
                     .expect("target max zoomlevel must be valid")
             };
-            exported.extend(normalized.into_single_ids());
+            exported.extend(normalized.iter_single_ids());
         }
         exported.into_iter()
     }
@@ -284,7 +285,7 @@ impl SpatialIdSet {
                     .expect("target_z must be >= range.z")
             };
 
-            for single_id in expanded.into_single_ids() {
+            for single_id in expanded.iter_single_ids() {
                 normalized.insert(single_id);
             }
         }

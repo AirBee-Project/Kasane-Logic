@@ -2,20 +2,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
-    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SingleId, SpatialIdTable,
+    FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdTable,
 };
 
-impl<V> IntoFlexIds for SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    type IntoIter = alloc::vec::IntoIter<FlexId>;
 
-    fn into_flex_ids(self) -> Self::IntoIter {
-        let ids: Vec<FlexId> = self.iter().map(|(flex_id, _)| flex_id).collect();
-        ids.into_iter()
-    }
-}
 
 impl<V> IterFlexIds for SpatialIdTable<V>
 where
@@ -31,17 +21,7 @@ where
     }
 }
 
-impl<V> IntoSingleIds for SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    type IntoIter = alloc::vec::IntoIter<SingleId>;
 
-    fn into_single_ids(self) -> Self::IntoIter {
-        let ids: Vec<SingleId> = self.flat_single_ids().map(|(single, _)| single).collect();
-        ids.into_iter()
-    }
-}
 
 impl<V> IterSingleIds for SpatialIdTable<V>
 where

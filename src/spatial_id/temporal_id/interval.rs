@@ -1,75 +1,38 @@
-//! [`Interval`]: 時間IDの間隔 `i` を表す型（空間の [`ZoomLevel`](crate::ZoomLevel) に相当）。
-//!
-//! 生の `u64` 秒ではなく、**約数鎖の階層**として型で表す。各段は親を割り切るので、
-//! 区間は必ず入れ子か非交差になる。
-//!
-//! 鎖は2層構造をもつ:
-//! - **カレンダー層**（Day より細かい側）: day=24×hour, hour=60×min, min=60×sec。
-//!   人間の慣例単位（時/分/秒/日）をそのまま保つ。
-//! - **二進層**（Day より粗い側）: `Day·2^k`（`k = 1..=46`、[`day_pow`](Interval::day_pow)）。
-//!   空間ズームレベルと同じ幾何スケールで、最上段 `Day·2^47` が全時間
-//!   （[`Whole`](Interval::Whole)）に一致する。
-//!
-//! この構造により、時間ドメイン `[0, Day·2^47)` 内の**任意の区間**が高々数百個の
-//! セルへ分解できる（各段で高々「分岐数−1」個 × 両端）。「全時間 − 有限セル」の
-//! ような巨大な残余も対数個のセルで正確に表現できる。
-//!
-//! [`DayPow`](Interval::DayPow) バリアントは `#[non_exhaustive]` で、外部からは
-//! 検証付きコンストラクタ（[`new`](Interval::new) / [`day_pow`](Interval::day_pow)）
-//! 経由でのみ構築できる。したがって
-//! **不正な指数を持つ `Interval` は型として存在しない**（パターンマッチは可能）。
-//!
-//! 粗い→細かい（`Whole < DayPow{46} < … < DayPow{1} < Day < Hour < Minute < Second`）の
-//! 全順序を持つ。
-
 use crate::{SpatialIdError, error::Error};
 
-/// 全時間（[`Interval::Whole`]）の秒数 = 時間ドメインの排他的終端。
-///
-/// `86400 × 2^47`（約3,850億年）。UNIX秒 `[0, WHOLE_SECONDS)` が本ライブラリの
-/// 時間ドメインである。
+/// このライブラリが扱える全時間の秒数。86400 × 2^47`（約3,850億年）。
 pub const WHOLE_SECONDS: u64 = 86400 << 47;
 
-/// 二進層の最大指数（`Day·2^47` = [`Whole`](Interval::Whole)）。
 const WHOLE_POW: u8 = 47;
 
-/// 時間IDの間隔（カレンダー＋二進スケールの約数鎖）。
+/// 時間IDの時間間隔`i`を表現する型。
 ///
 /// | バリアント | 秒数 |
 /// |---|---|
-/// | [`Whole`](Self::Whole) | `86400·2^47`（全時間） |
+/// | [`Whole`](Self::Whole) | `86400·2^47` |
 /// | [`DayPow { k }`](Self::DayPow)（k=1..=46） | `86400·2^k` |
 /// | [`Day`](Self::Day) | 86400 |
 /// | [`Hour`](Self::Hour) | 3600 |
 /// | [`Minute`](Self::Minute) | 60 |
 /// | [`Second`](Self::Second) | 1 |
-///
-/// `DayPow` は指数に制約（`1..=46`）があるため外部から直接構築できない。
-/// [`day_pow`](Self::day_pow) または [`new`](Self::new) を使うこと。
-/// 読み取りは通常どおりパターンマッチできる（`Interval::DayPow { k, .. } => …`）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
 pub enum Interval {
-    /// 全時間（`86400 × 2^47` 秒 = 時間ドメイン全体）。
+    /// 全時間（`86400 × 2^47` 秒）
     Whole,
-    /// `86400 × 2^k` 秒（`k = 1..=46`）。日の二進倍スケール。
-    ///
-    /// 検証付きコンストラクタ（[`day_pow`](Interval::day_pow) など）からのみ構築できる。
+    /// `86400 × 2^k` 秒（`k = 1..=46`）
     #[non_exhaustive]
-    DayPow {
-        /// 指数（`1..=46`）。
-        k: u8,
-    },
-    /// 1日（86400 秒）。
+    DayPow { k: u8 },
+    /// 1日（86400 秒）
     Day,
-    /// 1時間（3600 秒）。
+    /// 1時間（3600 秒）
     Hour,
-    /// 1分（60 秒）。
+    /// 1分（60 秒）
     Minute,
-    /// 1秒（1 秒）。最細。
+    /// 1秒（1 秒）
     Second,
 }
 
@@ -109,12 +72,10 @@ impl Interval {
         }
     }
 
-    /// 二進層の間隔 `Day·2^k` を構築する（検証付き）。
+    /// 二進層の間隔 `Day·2^k` を作成する。
     ///
     /// `k = 0` は [`Day`](Self::Day)、`k = 47` は [`Whole`](Self::Whole) に一致する。
-    /// `k > 47` は
-    /// [`SpatialIdError::TDayPowOutOfRange`](crate::SpatialIdError::TDayPowOutOfRange)
-    /// を返す。
+    /// `k > 47` は[`SpatialIdError::TDayPowOutOfRange`](crate::SpatialIdError::TDayPowOutOfRange)を返す。
     ///
     /// # 例
     ///

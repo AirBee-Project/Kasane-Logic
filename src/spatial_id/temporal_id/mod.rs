@@ -33,49 +33,16 @@ pub use interval::Interval;
 /// 時間IDの区間表現を表す型である。
 ///
 /// [`TemporalId`] は、時間間隔 [`Interval`] と時間インデックス `t` の組み合わせで、
-/// 時間範囲 `[i*t, i*(t+1))` をUNIXタイムスタンプで表現する。
-/// これにより、異なるスケールの時間区間を統一的に扱うことができる。
-///
-/// # 時間ドメイン
-///
-/// このライブラリが扱う時間軸は半開区間 `[0, 86400·2^47)`（UNIX秒、約3,850億年 =
-/// [`TemporalId::DOMAIN_END`]）である。すべての [`TemporalId`] はこのドメイン内に
-/// 収まるよう検証され、[`WHOLE`](Self::WHOLE) はドメイン全体を表す。
-///
-/// # 時間間隔について
-///
-/// `i` の有効な値は**約数鎖**（[`Interval`] を参照）に限定される：
-/// - `1` / `60` / `3600` / `86400` — 秒・分・時・日（カレンダー層）
-/// - `86400·2^k`（`k = 1..=46`）— 日の二進倍（二進層）
-/// - `86400·2^47` — 全時間（[`Interval::Whole`]）
-///
-/// 各段が上の段を割り切るため、任意の2つの時間IDは必ず「入れ子」か「非交差」になる。
-/// この性質により交差が常に単一セルで表現でき、空間IDのズームレベル階層と
-/// 同型の代数構造が成立する。さらに二進層のおかげで、ドメイン内の任意の時間範囲は
-/// 高々数百個のセルで正確に分解できる（「全時間 − 有限セル」も膨張しない）。
-///
-/// # Ouranos 仕様（1.5.3）との関係
-///
-/// Ouranos 4D 時空間ID仕様は時間間隔 `i` に任意の秒数を許すが、本ライブラリは
-/// 上記の約数鎖のみをネイティブ表現とする（任意の `i` を許すと部分的な重なりが
-/// 生じ、交差・差分が単一IDで閉じないため）。仕様準拠の任意 `i/t`（例:
-/// `1800/809712`）は [`from_spec`](Self::from_spec) で等価なセル列へ正規化できる。
-///
-/// # 例
-///
+/// 時間範囲 `[i*t, i*(t+1))` を表現する。
 /// 1時間単位のIDの作成:
 /// ```
 /// # use kasane_logic::TemporalId;
 /// let id = TemporalId::from_seconds(3600, 10).unwrap();
 /// assert_eq!(id.start_unixtime(), 36000);
-/// assert_eq!(id.end_unixtime_inclusive(), 39599);
+/// assert_eq!(id.end_unixtime_exclusive(), 39600);
 /// ```
 pub struct TemporalId {
-    /// 時間間隔（[`Interval`] 型。空間の [`ZoomLevel`](crate::ZoomLevel) に相当）。
     interval: Interval,
-    /// 時間インデックス。
-    /// この値と時間間隔を組み合わせることで、
-    /// 実際の時間範囲 `[i*t, i*(t+1))` が決定される。
     t: u64,
 }
 
@@ -90,18 +57,9 @@ impl TemporalId {
     /// 時間ドメインの排他的終端（`86400 × 2^47` 秒）。
     pub const DOMAIN_END: u64 = interval::WHOLE_SECONDS;
 
-    /// 時間間隔（[`Interval`]）と時間インデックス `t` から新しい [`TemporalId`] を構築する。
-    ///
-    /// [`Interval`] は検証付きコンストラクタからのみ作れるため、間隔の正当性は
-    /// 型で保証済みである。ここでは時間インデックスの範囲のみを検証する。
-    ///
-    /// # パラメーター
-    ///
-    /// * `interval` — 時間間隔。
-    /// * `t` — 時間インデックス。
+    /// 時間間隔（[`Interval`]）と時間インデックス `t` から新しい [`TemporalId`] を作成する。
     ///
     /// # バリデーション
-    ///
     /// 区間終端 `i * (t + 1)` が時間ドメイン終端 [`Self::DOMAIN_END`] を超える場合、
     /// [`Error::TOutOfRange`](crate::SpatialIdError::TOutOfRange) を返す。
     ///
@@ -193,21 +151,6 @@ impl TemporalId {
     /// ```
     pub fn start_unixtime(&self) -> u64 {
         self.interval.seconds() * self.t
-    }
-
-    /// この時間区間の終了時刻をUNIXタイムスタンプ（秒単位、包括的）で取得する。
-    ///
-    /// 戻り値は `i * (t + 1) - 1` で、時間区間に含まれる最後の秒を表す。
-    ///
-    /// # 例
-    ///
-    /// ```
-    /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::from_seconds(3600, 10).unwrap();
-    /// assert_eq!(id.end_unixtime_inclusive(), 39599);
-    /// ```
-    pub fn end_unixtime_inclusive(&self) -> u64 {
-        self.end_unixtime_exclusive() - 1
     }
 
     /// この時間区間の終了時刻をUNIXタイムスタンプ（秒単位、排他的）で取得する。
@@ -308,7 +251,7 @@ impl TemporalId {
     ///
     /// # バリデーション
     ///
-    /// - `start >= end_exclusive` の場合、[`SpatialIdError::TRangeEmpty`] を返す。
+    /// - `start >= end_exclusive` の場合、空のベクトルを返す。
     /// - `end_exclusive` が [`Self::DOMAIN_END`] を超える場合、
     ///   [`SpatialIdError::TOutOfRange`] を返す。
     ///
@@ -338,11 +281,7 @@ impl TemporalId {
     /// ```
     pub fn from_range(start: u64, end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
         if start >= end_exclusive {
-            return Err(SpatialIdError::TRangeEmpty {
-                start,
-                end_exclusive,
-            }
-            .into());
+            return Ok(alloc::vec![]);
         }
         if end_exclusive > Self::DOMAIN_END {
             return Err(SpatialIdError::TOutOfRange {

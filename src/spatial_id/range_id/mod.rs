@@ -82,6 +82,17 @@ impl RangeId {
         self.y
     }
 
+    /// 空間成分はそのままに、時間IDを `temporal` に置き換えた [`RangeId`] を返す。
+    pub fn with_temporal(&self, temporal: TemporalId) -> RangeId {
+        RangeId {
+            z: self.z,
+            f: self.f,
+            x: self.x,
+            y: self.y,
+            temporal_id: temporal,
+        }
+    }
+
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
         let z = self.z.get();
         let mut value = value;

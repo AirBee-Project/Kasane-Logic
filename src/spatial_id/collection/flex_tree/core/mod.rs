@@ -1,9 +1,11 @@
+#![allow(dead_code)]
+use crate::{IterSingleIds, IterFlexIds};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
 use crate::{
-    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
+    Dimension, FlexId, RangeId, Side, SingleId, SpatialId,
     spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
 };
 use node::Node;
@@ -43,7 +45,7 @@ use ptr::SharedNode;
         <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
     )))
 )]
-pub struct FlexTreeCore<V>
+pub(crate) struct FlexTreeCore<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
 {
@@ -233,12 +235,12 @@ where
     /// 空の木では [`None`] を返します。
     ///
     /// # 例
-    /// ```
+    /// ```ignore
     /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, RangeId, SingleId};
     /// let mut core = FlexTreeCore::new();
     /// core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
     /// assert_eq!(core.max_zoomlevel(), Some(4));
-    /// ```
+    /// ```ignore
     pub fn max_zoomlevel(&self) -> Option<u8> {
         if self.is_empty() {
             return None;
@@ -250,7 +252,7 @@ where
 
     /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
     /// # 例
-    /// ```
+    /// ```ignore
     /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, SingleId};
     /// let mut core = FlexTreeCore::new();
     /// core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
@@ -264,7 +266,7 @@ where
     ///
     /// let empty: FlexTreeCore<i32> = FlexTreeCore::new();
     /// assert!(empty.bounding_box().is_none());
-    /// ```
+    /// ```ignore
     pub fn bounding_box(&self) -> Option<RangeId> {
         RangeId::bounding_box_of(self.iter().map(|(flex_id, _)| flex_id))
     }
@@ -287,7 +289,7 @@ where
                     .expect("target max zoomlevel must be valid")
             };
 
-            for single_id in normalized.into_single_ids() {
+            for single_id in normalized.iter_single_ids() {
                 exported.push((single_id, value.clone()));
             }
         }
@@ -312,7 +314,9 @@ where
             };
 
             normalized
-                .into_single_ids()
+                .iter_single_ids()
+                .collect::<alloc::vec::Vec<_>>()
+                .into_iter()
                 .map(move |single_id| (single_id, value))
         }))
     }
@@ -337,29 +341,14 @@ where
     ///
     /// # Panics
     ///
-    /// 時空間ID（temporal ≠ WHOLE）を渡すと panic する。エラーとして扱いたい場合は
-    /// [`try_insert`](Self::try_insert) を使うこと。時間を値として保持できる
     /// コレクションは [`SpatialIdSet`](crate::SpatialIdSet) である。
     pub fn insert<S>(&mut self, target: S, value: V)
     where
         S: IterFlexIds,
     {
-        self.try_insert(target, value)
-            .expect("時空間ID（temporal != WHOLE）はこのコレクションに挿入できません。SpatialIdSet を使用してください。");
-    }
-
-    /// [`insert`](Self::insert) の失敗を [`Result`] で返す版。
-    ///
-    /// 時空間ID（temporal ≠ WHOLE）を渡した場合、
-    /// [`SpatialIdError::TemporalNotSupported`](crate::SpatialIdError::TemporalNotSupported)
-    /// を返す（黙って時間を捨てない）。
-    pub fn try_insert<S>(&mut self, target: S, value: V) -> Result<(), crate::Error>
-    where
-        S: IterFlexIds,
-    {
         for flex_id in target.iter_flex_ids() {
             if !flex_id.temporal().is_whole() {
-                return Err(crate::SpatialIdError::TemporalNotSupported.into());
+                panic!("FlexTreeCore does not support temporal IDs.");
             }
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {
@@ -371,7 +360,6 @@ where
             };
             self.insert_flex_id(flex_id, value.clone());
         }
-        Ok(())
     }
 
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す

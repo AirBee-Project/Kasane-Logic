@@ -82,6 +82,17 @@ impl SingleId {
         self.y
     }
 
+    /// 空間成分はそのままに、時間IDを `temporal` に置き換えた [`SingleId`] を返す。
+    pub fn with_temporal(&self, temporal: TemporalId) -> SingleId {
+        SingleId {
+            z: self.z,
+            f: self.f,
+            x: self.x,
+            y: self.y,
+            temporal_id: temporal,
+        }
+    }
+
     /// F インデックスを更新します。
     ///
     /// 与えられた `value` が、現在のズームレベル `z` に対応する

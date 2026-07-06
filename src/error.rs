@@ -73,11 +73,6 @@ pub enum SpatialIdError {
     /// 二進層間隔 `Day·2^k` の指数 `k` が範囲（`0..=47`）外の場合のエラー。
     TDayPowOutOfRange { k: u8 },
 
-    /// 時間範囲が空（`start >= end_exclusive`）であることを示す。
-    TRangeEmpty { start: u64, end_exclusive: u64 },
-
-    /// 時空間ID（temporal ≠ WHOLE）を、時間非対応のコレクションに挿入しようとしたことを示す。
-    TemporalNotSupported,
 
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
@@ -210,22 +205,7 @@ impl fmt::Display for SpatialIdError {
                     i, t
                 )
             }
-            SpatialIdError::TRangeEmpty {
-                start,
-                end_exclusive,
-            } => {
-                write!(
-                    f,
-                    "time range is empty (start={}, end_exclusive={}).",
-                    start, end_exclusive
-                )
-            }
-            SpatialIdError::TemporalNotSupported => {
-                write!(
-                    f,
-                    "spatio-temporal ids (temporal != WHOLE) are not supported by this collection; use SpatialIdSet or strip the temporal part"
-                )
-            }
+
             SpatialIdError::TIntervalError { i } => {
                 write!(
                     f,

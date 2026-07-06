@@ -334,7 +334,7 @@ impl FromStr for SingleId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            SingleId::new_with_temporal(z, f, x, y, temporal_id)
+            SingleId::new(z, f, x, y).map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

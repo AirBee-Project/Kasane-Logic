@@ -160,29 +160,13 @@ impl<V: CellValue> BinaryOperator<TemporalMap<V>, TemporalMap<V>> for TMDifferen
 
 /// FlexId の空間部分だけを取り出す（temporal=WHOLE の空間セル）。ツリーのキーに使う。
 fn spatial_cell(f: &FlexId) -> FlexId {
-    FlexId::new_with_temporal(
-        f.f_zoomlevel(),
-        f.f_index(),
-        f.x_zoomlevel(),
-        f.x_index(),
-        f.y_zoomlevel(),
-        f.y_index(),
-        TemporalId::WHOLE,
-    )
+    FlexId::new(f.f_zoomlevel(), f.f_index(), f.x_zoomlevel(), f.x_index(), f.y_zoomlevel(), f.y_index()).map(|id| id.with_temporal(TemporalId::WHOLE))
     .expect("spatial part is valid")
 }
 
 /// 空間セルに時間セルを付けた FlexId を作る。
 fn with_temporal(spatial: &FlexId, t: TemporalId) -> FlexId {
-    FlexId::new_with_temporal(
-        spatial.f_zoomlevel(),
-        spatial.f_index(),
-        spatial.x_zoomlevel(),
-        spatial.x_index(),
-        spatial.y_zoomlevel(),
-        spatial.y_index(),
-        t,
-    )
+    FlexId::new(spatial.f_zoomlevel(), spatial.f_index(), spatial.x_zoomlevel(), spatial.x_index(), spatial.y_zoomlevel(), spatial.y_index()).map(|id| id.with_temporal(t))
     .expect("spatio-temporal id is valid")
 }
 
@@ -481,7 +465,7 @@ mod tests {
 
     /// 時間付き FlexId を作る（zoom, f=x=y、時間セル (i,t)）。
     fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
-        FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::from_seconds(i, t).unwrap())
+        FlexId::new(z, f, z, x, z, y).map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap()))
             .unwrap()
     }
 
@@ -533,15 +517,7 @@ mod tests {
     fn get_atom_oracle() {
         let a = build(&[cell(2, 0, 0, 0, 3600, 0), cell(2, 0, 1, 0, 60, 0)]);
         // クエリ: (1,0,0,0)@[0,120)  … 空間は (2,0,0,0)/(2,0,1,0) を含む粗いセル
-        let query = FlexId::new_with_temporal(
-            1u8,
-            0,
-            1u8,
-            0,
-            1u8,
-            0,
-            TemporalId::from_seconds(60, 1).unwrap(),
-        )
+        let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0).map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
         .unwrap(); // [60,120)
         let got: BTreeSet<Atom> = {
             let mut out = BTreeSet::new();
@@ -649,7 +625,7 @@ mod tests {
 
     fn tcell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64, v: i32) -> (FlexId, i32) {
         (
-            FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::from_seconds(i, t).unwrap())
+            FlexId::new(z, f, z, x, z, y).map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap()))
                 .unwrap(),
             v,
         )
@@ -724,15 +700,7 @@ mod tests {
     #[test]
     fn table_get() {
         let t = tbuild(&[tcell(2, 0, 0, 0, 3600, 0, 42)]); // (2,0,0,0)@[0,3600)=42
-        let query = FlexId::new_with_temporal(
-            2u8,
-            0,
-            2u8,
-            0,
-            2u8,
-            0,
-            TemporalId::from_seconds(60, 1).unwrap(),
-        )
+        let query = FlexId::new(2u8, 0, 2u8, 0, 2u8, 0).map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
         .unwrap(); // @[60,120)
         let got: Vec<((i32, u32, u32), u64, i32)> = {
             let mut out = Vec::new();

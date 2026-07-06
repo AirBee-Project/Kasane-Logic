@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 
 use super::{node::Node, split_child_id};
 use crate::{
-    FlexId, FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, Side, SingleId,
+    FlexId, FlexTreeCore, IterFlexIds, IterSingleIds, Side, SingleId,
 };
 
 pub struct LeavesIter<'a, V>
@@ -91,19 +91,7 @@ where
     }
 }
 
-impl<V> IntoFlexIds for FlexTreeCore<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
-{
-    type IntoIter = alloc::vec::IntoIter<FlexId>;
 
-    fn into_flex_ids(self) -> Self::IntoIter {
-        self.iter()
-            .map(|(flex_id, _value)| flex_id)
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-}
 
 impl<V> IterFlexIds for FlexTreeCore<V>
 where
@@ -119,19 +107,7 @@ where
     }
 }
 
-impl<V> IntoSingleIds for FlexTreeCore<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
-{
-    type IntoIter = alloc::vec::IntoIter<SingleId>;
 
-    fn into_single_ids(self) -> Self::IntoIter {
-        self.iter()
-            .flat_map(|(flex_id, _value)| flex_id.into_single_ids())
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-}
 
 impl<V> IterSingleIds for FlexTreeCore<V>
 where

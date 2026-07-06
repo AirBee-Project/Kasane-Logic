@@ -47,12 +47,7 @@ impl TemporalId {
         0
     }
 
-    /// 時間区間の終了時刻（包括的）をUNIXタイムスタンプで取得する。
-    ///
-    /// `temporal_id` feature が無効な場合、常に `DOMAIN_END - 1` を返す。
-    pub fn end_unixtime_inclusive(&self) -> u64 {
-        DOMAIN_END - 1
-    }
+
 
     /// 時間区間の終了時刻（排他的）をUNIXタイムスタンプで取得する。
     ///
@@ -93,6 +88,9 @@ impl TemporalId {
     ///
     /// `temporal_id` feature が無効な場合、常に全時間を表す1つの要素を含むベクトルを返す。
     pub fn from_range(_start: u64, _end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
+        if _start >= _end_exclusive {
+            return Ok(vec![]);
+        }
         Ok(vec![Self::WHOLE])
     }
 

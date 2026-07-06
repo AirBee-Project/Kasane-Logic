@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
-    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
+    FlexId, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
     spatial_id::zoom_level::ZoomLevel,
 };
 
@@ -51,45 +51,7 @@ impl From<&SingleId> for RangeId {
     }
 }
 
-impl IntoSingleIds for RangeId {
-    type IntoIter = Box<dyn Iterator<Item = SingleId>>;
-    fn into_single_ids(self) -> Self::IntoIter {
-        let z = self.z.get();
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
-        let t_id = self.temporal_id.clone();
 
-        let iter = f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-            let t_id = t_id.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
-            } else {
-                (self.x[0]..=ZoomLevel::new(z).unwrap().xy_max())
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
-            };
-
-            x_iter.into_iter().flat_map(move |x| {
-                let t_id = t_id.clone();
-                y_range.clone().map(move |y: u32| {
-                    #[cfg(feature = "temporal_id")]
-                    {
-                        SingleId::new_with_temporal(z, f, x, y, t_id.clone()).unwrap()
-                    }
-
-                    #[cfg(not(feature = "temporal_id"))]
-                    {
-                        let _ = &t_id;
-                        SingleId::new(z, f, x, y).unwrap()
-                    }
-                })
-            })
-        });
-        Box::new(iter)
-    }
-}
 
 impl IterSingleIds for RangeId {
     type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
@@ -110,10 +72,11 @@ impl IterSingleIds for RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
+                let t_id = self.temporal_id.clone();
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        SingleId::new_with_temporal(z, f, x, y, self.temporal_id.clone()).unwrap()
+                        SingleId::new(z, f, x, y).unwrap().with_temporal(t_id.clone())
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
@@ -127,10 +90,12 @@ impl IterSingleIds for RangeId {
     }
 }
 
-impl IntoFlexIds for RangeId {
-    type IntoIter = Box<dyn Iterator<Item = FlexId>>;
 
-    fn into_flex_ids(self) -> Self::IntoIter {
+
+impl IterFlexIds for RangeId {
+    type Iter<'a> = Box<dyn Iterator<Item = FlexId> + 'a>;
+
+    fn iter_flex_ids(&self) -> Self::Iter<'_> {
         let z = self.z.get();
         let f_list: Vec<_> = split_f(z, self.f).collect();
 
@@ -143,24 +108,29 @@ impl IntoFlexIds for RangeId {
         };
         let y_list: Vec<_> = split_xy(z, self.y).collect();
 
+        let t_id = self.temporal_id.clone();
         let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
             let y_list_inner = y_list.clone();
-            x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
-                let y_list_inner = y_list_inner.clone();
-                y_list_inner
+            let x_list_inner = x_list.clone();
+            let t_id_inner = t_id.clone();
+            x_list_inner.into_iter().flat_map(move |(x_z, x_i)| {
+                let y_list_inner2 = y_list_inner.clone();
+                let t_id_inner2 = t_id_inner.clone();
+                y_list_inner2
                     .into_iter()
-                    .map(move |(y_z, y_i)| FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap())
+                    .map(move |(y_z, y_i)| {
+                        #[cfg(feature = "temporal_id")]
+                        {
+                            FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap().with_temporal(t_id_inner2.clone())
+                        }
+                        #[cfg(not(feature = "temporal_id"))]
+                        {
+                            FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap()
+                        }
+                    })
             })
         });
         Box::new(iter)
-    }
-}
-
-impl IterFlexIds for RangeId {
-    type Iter<'a> = Box<dyn Iterator<Item = FlexId> + 'a>;
-
-    fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        self.clone().into_flex_ids()
     }
 }
 
