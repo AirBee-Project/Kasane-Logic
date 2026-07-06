@@ -267,7 +267,7 @@ impl<'a> ArchivedMap<'a> {
                             let cs = s.max(w0);
                             let ce = e.min(w1);
                             if cs < ce {
-                                for t in TemporalId::decompose(cs, ce) {
+                                for t in TemporalId::from_range(cs, ce).unwrap() {
                                     out.push((
                                         clipped.with_temporal(t),
                                         self.inner.dictionary[dict_idx as usize].as_slice(),
@@ -310,7 +310,7 @@ impl<'a> ArchivedMap<'a> {
                     for seg in segments.iter() {
                         let (s, e, dict_idx) =
                             (seg.0.to_native(), seg.1.to_native(), seg.2.to_native());
-                        for t in TemporalId::decompose(s, e) {
+                        for t in TemporalId::from_range(s, e).unwrap() {
                             out.push((
                                 current_id.with_temporal(t),
                                 self.inner.dictionary[dict_idx as usize].as_slice(),

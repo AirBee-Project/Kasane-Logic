@@ -5,7 +5,7 @@ use core::str::FromStr;
 
 use crate::error::Error;
 
-/// 時間ドメインの排他的終端（enabled 実装と同一値: `86400 × 2^47`）。
+/// 時間ドメインの排他的終端。
 const DOMAIN_END: u64 = 86400 << 47;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -13,7 +13,7 @@ const DOMAIN_END: u64 = 86400 << 47;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-/// 時間IDの時間間隔`i`を表現する型（temporal_id feature無効時のスタブ）。
+/// 時間IDの時間間隔`i`を表現する型。
 pub enum Interval {
     #[default]
     Whole,
@@ -178,13 +178,6 @@ impl TemporalId {
             return Ok(vec![]);
         }
         Ok(vec![Self::WHOLE])
-    }
-
-    /// 範囲をセル列へ分解する（クレート内部フック）。
-    ///
-    /// `temporal_id` feature が無効な場合、常に全時間1個を返す。
-    pub(crate) fn decompose(_start: u64, _end_exclusive: u64) -> Vec<TemporalId> {
-        vec![Self::WHOLE]
     }
 
     /// 2つの時間IDの差集合を計算する。

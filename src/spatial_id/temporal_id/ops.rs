@@ -78,12 +78,12 @@ impl TemporalId {
         // 約数鎖の最小分解で表す。
         let left_end = o0.min(s1);
         if s0 < left_end {
-            result.extend(Self::decompose(s0, left_end));
+            result.extend(Self::from_range(s0, left_end).unwrap());
         }
 
         let right_start = o1.max(s0);
         if right_start < s1 {
-            result.extend(Self::decompose(right_start, s1));
+            result.extend(Self::from_range(right_start, s1).unwrap());
         }
 
         result.into_iter()
@@ -109,17 +109,17 @@ impl TemporalId {
 
         // other が窓内の self と重ならない → クリップした self をそのまま分解
         if o1 <= s0 || o0 >= s1 {
-            return Self::decompose(s0, s1);
+            return Self::from_range(s0, s1).unwrap();
         }
 
         let left_end = o0.min(s1);
         if s0 < left_end {
-            result.extend(Self::decompose(s0, left_end));
+            result.extend(Self::from_range(s0, left_end).unwrap());
         }
 
         let right_start = o1.max(s0);
         if right_start < s1 {
-            result.extend(Self::decompose(right_start, s1));
+            result.extend(Self::from_range(right_start, s1).unwrap());
         }
 
         result
@@ -310,23 +310,5 @@ mod tests {
             TemporalId::WHOLE
         );
         assert!(TemporalId::from_seconds(u64::MAX, 0).is_err());
-    }
-
-    /// 仕様の任意間隔 `i/t` を正規化する from_spec。
-    #[test]
-    fn from_spec_normalizes_arbitrary_interval() {
-        // 仕様書の例: 1800/809712 = [1457481600, 1457483400)
-        let ids = TemporalId::from_spec(1800, 809712).unwrap();
-        assert_eq!(seconds_of(&ids), (1457481600u64..1457483400).collect());
-        assert_eq!(total_len(&ids), 1800, "ピースは非交差");
-
-        // 約数鎖に含まれる i は単一ID
-        let ids = TemporalId::from_spec(3600, 5).unwrap();
-        assert_eq!(ids, alloc::vec![TemporalId::from_seconds(3600, 5).unwrap()]);
-
-        // i=0 はエラー
-        assert!(TemporalId::from_spec(0, 1).is_err());
-        // ドメイン外はエラー
-        assert!(TemporalId::from_spec(Interval::WHOLE_SECONDS - 1, 2).is_err());
     }
 }

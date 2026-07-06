@@ -8,17 +8,15 @@ use crate::{SpatialIdError, error::Error};
 #[cfg(feature = "temporal_id")]
 use alloc::vec::Vec;
 #[cfg(feature = "temporal_id")]
+pub mod collection;
+#[cfg(feature = "temporal_id")]
 pub mod impls;
 #[cfg(feature = "temporal_id")]
 pub mod ops;
 #[cfg(feature = "temporal_id")]
-pub mod set;
+pub use collection::map::TemporalMap;
 #[cfg(feature = "temporal_id")]
-pub use set::TemporalSet;
-#[cfg(feature = "temporal_id")]
-pub mod map;
-#[cfg(feature = "temporal_id")]
-pub use map::TemporalMap;
+pub use collection::set::TemporalSet;
 #[cfg(feature = "temporal_id")]
 pub mod interval;
 #[cfg(feature = "temporal_id")]
@@ -193,54 +191,7 @@ impl TemporalId {
         self.t
     }
 
-    /// Ouranos 仕様の任意間隔 Temporal ID（`i/t`、`i` は任意の秒数）を、
-    /// 等価な約数鎖セル列へ正規化する。
-    ///
-    /// 仕様（1.5.3）では時間間隔 `i` に任意の秒数を指定できるが、本ライブラリの
-    /// ネイティブ表現は約数鎖（[`Interval`]）に限定される。この関数は
-    /// 仕様準拠のIDが表す時間範囲 `[i*t, i*(t+1))` を [`from_range`](Self::from_range)
-    /// で分解し、同じ範囲を過不足なく覆うセル列を返す。
-    ///
-    /// `i` が約数鎖に含まれる場合は単一のIDを返す。
-    ///
-    /// # バリデーション
-    ///
-    /// - `i == 0` の場合は [`SpatialIdError::TIntervalError`] を返す。
-    /// - 範囲終端が時間ドメイン `[0, DOMAIN_END)` を超える場合は
-    ///   [`SpatialIdError::TOutOfRange`] を返す。
-    ///
-    /// # 例
-    ///
-    /// 仕様書の例 `1800/809712`（30分間隔）の正規化:
-    /// ```
-    /// # use kasane_logic::{TemporalId, Interval};
-    /// let ids = TemporalId::from_spec(1800, 809712).unwrap();
-    /// // [1457481600, 1457483400) = 30個の分セル
-    /// assert_eq!(ids.len(), 30);
-    /// assert!(ids.iter().all(|id| id.i() == Interval::Minute));
-    /// assert_eq!(ids[0].start_unixtime(), 1457481600);
-    /// ```
-    pub fn from_spec(i: u64, t: u64) -> Result<Vec<TemporalId>, Error> {
-        if i == 0 {
-            return Err(SpatialIdError::TIntervalError { i }.into());
-        }
-        if let Ok(interval) = Interval::new(i) {
-            return Ok(alloc::vec![Self::new(interval, t)?]);
-        }
-        let start = i as u128 * t as u128;
-        let end_exclusive = i as u128 * (t as u128 + 1);
-        if end_exclusive > Interval::WHOLE_SECONDS as u128 {
-            return Err(SpatialIdError::TOutOfRange { i, t }.into());
-        }
-        Self::from_range(start as u64, end_exclusive as u64)
-    }
-
     /// 開始と終了（排他的）のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`] 列を生成する。
-    ///
-    /// 与えられた時間範囲 `[start, end_exclusive)` を表現するために、
-    /// 最も大きな時間間隔から貪欲に [`TemporalId`] を切り出す。
-    /// 約数鎖に二進層（`Day·2^k`）があるため、生成されるセル数はドメイン内の
-    /// どんな範囲でも高々数百個に収まる。
     ///
     /// # パラメーター
     ///
@@ -277,6 +228,7 @@ impl TemporalId {
     /// let ids = TemporalId::from_range(0, Interval::WHOLE_SECONDS).unwrap();
     /// assert_eq!(ids, vec![TemporalId::WHOLE]);
     /// ```
+    #[allow(clippy::manual_is_multiple_of)]
     pub fn from_range(start: u64, end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
         if start >= end_exclusive {
             return Ok(alloc::vec![]);
@@ -288,14 +240,6 @@ impl TemporalId {
             }
             .into());
         }
-        Ok(Self::decompose(start, end_exclusive))
-    }
-
-    /// `[start, end_exclusive)`（非空・ドメイン内であること）を約数鎖セル列へ貪欲分解する。
-    /// 二進層があるため出力は高々数百セル。
-    #[allow(clippy::manual_is_multiple_of)]
-    pub(crate) fn decompose(start: u64, end_exclusive: u64) -> Vec<TemporalId> {
-        debug_assert!(start < end_exclusive && end_exclusive <= Interval::WHOLE_SECONDS);
 
         let mut result = Vec::new();
         let mut current = start;
@@ -306,7 +250,6 @@ impl TemporalId {
             for interval in Interval::coarse_to_fine() {
                 let secs = interval.seconds();
                 if current % secs == 0 && remaining >= secs {
-                    // ドメイン内（current + secs <= end_exclusive <= WHOLE_SECONDS）なので直接構築できる。
                     result.push(TemporalId {
                         interval,
                         t: current / secs,
@@ -314,10 +257,9 @@ impl TemporalId {
                     current += secs;
                     break;
                 }
-                // Interval::SECOND（1秒）は必ず条件を満たすため、このループは必ず1セル進む。
             }
         }
 
-        result
+        Ok(result)
     }
 }
