@@ -78,21 +78,21 @@ pub use spatial_id::temporal_id::TemporalSet;
 
 // spatial_id: collection types
 #[doc(inline)]
-pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
+pub use spatial_id::collection::json::JsonValue;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::json::JsonValue;
+pub use spatial_id::collection::set::SpatialIdSet;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
+pub use spatial_id::collection::traits::{CellValue, SpatialIdCollection};
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::traits::{CellValue, SpatialIdCollection};
+pub(crate) use spatial_id::collection::tree::FlexTreeCore;
 
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
+pub use spatial_id::collection::map::SpatialIdMap;
 #[cfg(feature = "persist")]
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::persist::ArchivedMap;
+pub use spatial_id::collection::map::persist::ArchivedMap;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
+pub use spatial_id::collection::table::SpatialIdTable;
 
 // spatial_id: traits
 #[doc(inline)]
@@ -105,6 +105,6 @@ pub use spatial_id::traits::{IterFlexIds, IterSingleIds, SpatialId};
 pub use spatial_id::zoom_level::ZoomLevel;
 
 #[doc(inline)]
-pub use spatial_id::collection::expr::query::Query;
+pub use spatial_id::collection::query::Query;
 #[doc(inline)]
-pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
+pub use spatial_id::collection::query::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
