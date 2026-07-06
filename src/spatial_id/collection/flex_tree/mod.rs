@@ -6,7 +6,7 @@ use hashbrown::HashSet;
 
 use crate::{
     Dimension, FlexId, RangeId, Side, SingleId, SpatialId,
-    spatial_id::collection::tree::convert::{LeavesIter, LeavesIterRef},
+    spatial_id::collection::flex_tree::convert::{LeavesIter, LeavesIterRef},
 };
 use node::Node;
 mod convert;
@@ -47,7 +47,7 @@ use ptr::SharedNode;
 )]
 pub(crate) struct FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     pub(crate) lower_root: SharedNode<Node<V>>,
     pub(crate) upper_root: SharedNode<Node<V>>,
@@ -59,7 +59,7 @@ where
 
 impl<V> Default for FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     fn default() -> Self {
         Self::new()
@@ -68,18 +68,18 @@ where
 
 impl<V> PartialEq for FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     fn eq(&self, other: &Self) -> bool {
         self.lower_root == other.lower_root && self.upper_root == other.upper_root
     }
 }
 
-impl<V> Eq for FlexTree<V> where V: crate::spatial_id::collection::tree::ptr::SafeValue {}
+impl<V> Eq for FlexTree<V> where V: crate::spatial_id::collection::flex_tree::ptr::SafeValue {}
 
 impl<V> FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     /// 新しい空の[FlexTree]を作成する
     pub fn new() -> Self {

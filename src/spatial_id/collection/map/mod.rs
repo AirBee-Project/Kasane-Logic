@@ -20,14 +20,14 @@ pub mod tests;
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdMap<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     pub(crate) inner: SpatioTemporalCore<V>,
 }
 
 impl<V> SpatialIdMap<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     /// 空の [`SpatialIdMap`] を作成します。
     pub fn new() -> Self {

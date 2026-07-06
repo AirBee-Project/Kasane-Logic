@@ -30,7 +30,7 @@ use crate::{Dimension, FlexId, Side};
 )]
 pub enum Node<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     Branch {
         level: u8,
@@ -48,7 +48,7 @@ where
 
 impl<V> Node<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     /// 各ノード以下の (値が Some の) Leaf の合計数を返す。O(1)で取得可能。
     pub fn leaf_count(&self) -> usize {

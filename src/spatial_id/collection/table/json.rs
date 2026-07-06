@@ -7,7 +7,7 @@ use super::super::json::{write_envelope_open, write_id_open};
 
 impl<V> SpatialIdTable<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue + Ord + JsonValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue + Ord + JsonValue,
 {
     /// このテーブルを <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ
     /// 書き出す。外部クレート（serde 等）に依存せず、値型 `V` が [`JsonValue`] を実装していれば

@@ -27,7 +27,7 @@
 //! - [`traits`] / [`json`]: コレクション共通のトレイトと JSON 直列化。
 //! - `testing`: テスト専用の参照実装（本実装のオラクル）。
 
-pub(crate) mod tree;
+pub(crate) mod flex_tree;
 
 pub(crate) mod temporal;
 

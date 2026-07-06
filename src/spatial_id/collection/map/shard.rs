@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 
 impl<V> SpatialIdMap<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     /// 保持 [FlexId] 数が `max_flex_id_count` を超えていれば `true`（分割すべき）。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {

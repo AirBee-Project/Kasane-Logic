@@ -6,7 +6,7 @@ use crate::{FlexId, FlexTree, IterFlexIds, IterSingleIds, Side, SingleId};
 
 pub struct LeavesIter<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     pub stack: Vec<(&'a super::node::Node<V>, FlexId)>,
 }
@@ -14,14 +14,14 @@ where
 /// 葉ノードを参照のまま辿るイテレータである。
 pub struct LeavesIterRef<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     pub stack: Vec<(&'a super::node::Node<V>, FlexId)>,
 }
 
 impl<'a, V> Iterator for LeavesIter<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Item = (FlexId, V);
 
@@ -56,7 +56,7 @@ where
 
 impl<'a, V> Iterator for LeavesIterRef<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Item = (FlexId, &'a V);
 
@@ -91,7 +91,7 @@ where
 
 impl<V> IterFlexIds for FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Iter<'a>
         = Box<dyn Iterator<Item = FlexId> + 'a>
@@ -105,7 +105,7 @@ where
 
 impl<V> IterSingleIds for FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Iter<'a>
         = Box<dyn Iterator<Item = SingleId> + 'a>

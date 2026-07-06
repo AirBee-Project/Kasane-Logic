@@ -5,7 +5,7 @@ use crate::{FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdMap};
 
 impl<V> IterFlexIds for SpatialIdMap<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Iter<'a>
         = Box<dyn Iterator<Item = FlexId> + 'a>
@@ -19,7 +19,7 @@ where
 
 impl<V> IterSingleIds for SpatialIdMap<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Iter<'a>
         = alloc::vec::IntoIter<SingleId>

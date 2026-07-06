@@ -3,12 +3,12 @@ use alloc::vec::Vec;
 
 use super::ptr::SharedNode;
 use super::{FlexTree, split_child_id};
-use crate::{Dimension, FlexId, Side, spatial_id::collection::tree::node::Node};
+use crate::{Dimension, FlexId, Side, spatial_id::collection::flex_tree::node::Node};
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
 pub struct OverlapIter<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     target: FlexId,
     stack: Vec<(&'a Node<V>, FlexId)>,
@@ -17,7 +17,7 @@ where
 /// 重なり合う領域のみを参照付きで遅延評価で探索するイテレータ
 pub struct OverlapIterRef<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     target: FlexId,
     stack: Vec<(&'a Node<V>, FlexId)>,
@@ -25,7 +25,7 @@ where
 
 impl<'a, V> OverlapIter<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     fn push_branch_children(
         &mut self,
@@ -47,7 +47,7 @@ where
 
 impl<'a, V> Iterator for OverlapIter<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Item = (FlexId, V);
 
@@ -81,7 +81,7 @@ where
 
 impl<'a, V> Iterator for OverlapIterRef<'a, V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     type Item = (FlexId, &'a V);
 
@@ -122,7 +122,7 @@ where
 
 impl<V> FlexTree<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     pub fn overlap(&self, target: FlexId) -> impl Iterator<Item = (FlexId, V)> + '_ {
         OverlapIter {

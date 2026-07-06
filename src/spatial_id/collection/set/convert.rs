@@ -27,7 +27,7 @@ impl IterSingleIds for SpatialIdSet {
 
 impl<V> From<&SpatialIdTable<V>> for SpatialIdSet
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue + Ord,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue + Ord,
 {
     /// 値を捨て、占有空間だけを [`SpatialIdSet`] へ写し取る。元のテーブルは消費しない。
     fn from(table: &SpatialIdTable<V>) -> Self {
@@ -41,7 +41,7 @@ where
 
 impl<V> From<SpatialIdTable<V>> for SpatialIdSet
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue + Ord,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue + Ord,
 {
     /// [`SpatialIdTable`] を、値を捨てて占有空間だけを持つ [`SpatialIdSet`] へ変換する。
     ///

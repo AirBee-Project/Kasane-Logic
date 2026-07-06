@@ -32,7 +32,7 @@ macro_rules! join_nodes {
 /// この結合規則だけである。
 pub(crate) trait Combine<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     /// `b` 側が空葉のとき、`a` の部分木をそのまま結果にできるか。
     ///
@@ -62,7 +62,7 @@ where
 
 impl<V> Node<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
     /// 値結合 [`Combine`] を差し込んだ汎用の二項演算。
     ///

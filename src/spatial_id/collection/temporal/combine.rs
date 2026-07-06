@@ -4,9 +4,9 @@
 //! （[`combine_with`](crate::FlexTree::combine_with)）へ差し込むことで、
 //! 空間木の走査1回で時間軸の union / intersection / difference / 上書きを行う。
 
-use crate::spatial_id::collection::tree::node::Node;
-use crate::spatial_id::collection::tree::node_ops::Combine;
-use crate::spatial_id::collection::tree::ptr::SharedNode;
+use crate::spatial_id::collection::flex_tree::node::Node;
+use crate::spatial_id::collection::flex_tree::node_ops::Combine;
+use crate::spatial_id::collection::flex_tree::ptr::SharedNode;
 
 // ─── Combine 実装 ─────────────────────────────────────────────────────────────
 
@@ -17,7 +17,7 @@ use crate::spatial_id::collection::tree::ptr::SharedNode;
 pub(crate) struct TMapOverwrite;
 impl<V> Combine<crate::TemporalMap<V>> for TMapOverwrite
 where
-    crate::TemporalMap<V>: crate::spatial_id::collection::tree::ptr::SafeValue,
+    crate::TemporalMap<V>: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
     V: Clone + PartialEq,
 {
     const KEEP_A_WHEN_B_EMPTY: bool = true;
@@ -45,7 +45,7 @@ where
 pub(crate) struct TMapDifference;
 impl<V> Combine<crate::TemporalMap<V>> for TMapDifference
 where
-    crate::TemporalMap<V>: crate::spatial_id::collection::tree::ptr::SafeValue,
+    crate::TemporalMap<V>: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
     V: Clone + PartialEq,
 {
     const KEEP_A_WHEN_B_EMPTY: bool = true;

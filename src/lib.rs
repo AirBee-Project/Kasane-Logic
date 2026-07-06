@@ -78,13 +78,13 @@ pub use spatial_id::temporal_id::TemporalSet;
 
 // spatial_id: collection types
 #[doc(inline)]
+pub(crate) use spatial_id::collection::flex_tree::FlexTree;
+#[doc(inline)]
 pub use spatial_id::collection::json::JsonValue;
 #[doc(inline)]
 pub use spatial_id::collection::set::SpatialIdSet;
 #[doc(inline)]
 pub use spatial_id::collection::traits::{CellValue, SpatialIdCollection};
-#[doc(inline)]
-pub(crate) use spatial_id::collection::tree::FlexTree;
 
 #[doc(inline)]
 pub use spatial_id::collection::map::SpatialIdMap;

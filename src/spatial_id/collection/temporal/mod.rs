@@ -16,7 +16,7 @@ pub(crate) use combine::{TMapDifference, TMapIntersection, TMapOverwrite};
 
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::tree::node_ops::Combine;
+use crate::spatial_id::collection::flex_tree::node_ops::Combine;
 use crate::{FlexId, FlexTree, SpatialId, TemporalSet};
 
 // ─── SpatioTemporalCore ───────────────────────────────────────────────────────
@@ -56,12 +56,12 @@ use crate::{FlexId, FlexTree, SpatialId, TemporalSet};
     )))
 )]
 pub(crate) struct SpatioTemporalCore<
-    V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 > {
     pub(crate) inner: FlexTree<crate::TemporalMap<V>>,
 }
 
-impl<V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue>
+impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeValue>
     SpatioTemporalCore<V>
 {
     /// 空の [`SpatioTemporalCore`] を作成する。

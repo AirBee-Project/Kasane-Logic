@@ -6,10 +6,10 @@
 //! difference にわたり検査する。
 #![cfg(test)]
 
+use crate::spatial_id::collection::flex_tree::node::Node;
 use crate::spatial_id::collection::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
-use crate::spatial_id::collection::tree::node::Node;
 use crate::{SingleId, SpatialIdSet, SpatialIdTable};
 use proptest::prelude::*;
 
@@ -98,7 +98,7 @@ proptest! {
 }
 
 /// Branch の「両子が値として等しい」ノード数を数える（＝冗長な軸分割＝スキップで畳める）。
-fn count_equal_child_branches<V: crate::spatial_id::collection::tree::ptr::SafeValue>(
+fn count_equal_child_branches<V: crate::spatial_id::collection::flex_tree::ptr::SafeValue>(
     node: &Node<V>,
 ) -> usize {
     match node {
@@ -223,7 +223,7 @@ fn table_full_cube_same_value_collapses() {
 
 /// 「両子が等しい値の Leaf」な Branch が存在しないこと（未適用マージ＝バグ）を再帰検査する。
 /// 戻り値 false = 未適用マージを発見。
-fn no_unmerged_leaf_branch<V: crate::spatial_id::collection::tree::ptr::SafeValue>(
+fn no_unmerged_leaf_branch<V: crate::spatial_id::collection::flex_tree::ptr::SafeValue>(
     node: &Node<V>,
 ) -> bool {
     match node {

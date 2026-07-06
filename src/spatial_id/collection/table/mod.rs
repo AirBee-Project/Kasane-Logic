@@ -95,7 +95,7 @@ use crate::{FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
 )]
 pub struct SpatialIdTable<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue + Ord,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue + Ord,
 {
     // メインの空間ツリー (空間 -> 時間ごとの Rank)
     inner: SpatioTemporalCore<usize>,
@@ -120,7 +120,7 @@ where
 
 impl<V> SpatialIdTable<V>
 where
-    V: crate::spatial_id::collection::tree::ptr::SafeValue + Ord,
+    V: crate::spatial_id::collection::flex_tree::ptr::SafeValue + Ord,
 {
     /// 空の[SpatialIdTable]を作成します。
     pub fn new() -> Self {
