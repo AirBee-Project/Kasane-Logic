@@ -214,12 +214,13 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.segments.iter().map(|(s, e, v)| (*s, *e, v)).collect()
     }
 
-    // /// 正規化済みセグメント列から直接構築する（永続化復元用の内部フック）。
-    // ///
-    // /// 呼び出し側は列が正規化済み（昇順・互いに素・隣接同値マージ済み）であることを保証すること。
-    // pub(crate) fn from_raw_segments(segments: Vec<(u64, u64, V)>) -> Self {
-    //     Self { segments }
-    // }
+    /// 正規化済みセグメント列から直接構築する（永続化復元用の内部フック）。
+    ///
+    /// 呼び出し側は列が正規化済み（昇順・互いに素・隣接同値マージ済み）であることを保証すること。
+    #[cfg(feature = "persist")]
+    pub(crate) fn from_raw_segments(segments: Vec<(u64, u64, V)>) -> Self {
+        Self { segments }
+    }
 }
 
 impl<V: Clone + Ord> TemporalMap<V> {
