@@ -104,61 +104,6 @@ where
         self.shard.as_ref()
     }
 
-    /// 2つの [FlexTree] の和集合を計算します。
-    pub fn union(&self, other: &Self) -> Self {
-        Self {
-            lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
-            upper_root: Node::union(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
-            empty_leaf: self.empty_leaf.clone(),
-            shard: Self::shard_after_union(&self.shard, &other.shard),
-        }
-    }
-
-    pub fn intersection(&self, other: &Self) -> Self {
-        if let (Some(a), Some(b)) = (&self.shard, &other.shard)
-            && a.intersection(b).is_none()
-        {
-            return Self {
-                lower_root: self.empty_leaf.clone(),
-                upper_root: self.empty_leaf.clone(),
-                empty_leaf: self.empty_leaf.clone(),
-                shard: Self::shard_after_intersection(&self.shard, &other.shard),
-            };
-        }
-
-        Self {
-            lower_root: Node::intersection(
-                &self.lower_root,
-                &other.lower_root,
-                0,
-                &self.empty_leaf,
-            ),
-            upper_root: Node::intersection(
-                &self.upper_root,
-                &other.upper_root,
-                0,
-                &self.empty_leaf,
-            ),
-            empty_leaf: self.empty_leaf.clone(),
-            shard: Self::shard_after_intersection(&self.shard, &other.shard),
-        }
-    }
-
-    pub fn difference(&self, other: &Self) -> Self {
-        if let (Some(a), Some(b)) = (&self.shard, &other.shard)
-            && a.intersection(b).is_none()
-        {
-            return self.clone();
-        }
-
-        Self {
-            lower_root: Node::difference(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
-            upper_root: Node::difference(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
-            empty_leaf: self.empty_leaf.clone(),
-            shard: self.shard.clone(),
-        }
-    }
-
     /// 値結合 [`Combine`](node_ops::Combine) を差し込んだ汎用の二項演算。
     /// union/intersection/difference を値付き（時間集合など）で行うためのネイティブ経路。
     ///

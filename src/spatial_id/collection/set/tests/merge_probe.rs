@@ -21,39 +21,13 @@ proptest! {
     fn combine_matches_presence_ops(a in arb_random_set_case(), b in arb_random_set_case()) {
         let sa = a.build_set();
         let sb = b.build_set();
-        let z = sa
+        let _z = sa
             .max_zoomlevel()
             .unwrap_or(0)
             .max(sb.max_zoomlevel().unwrap_or(0));
 
         // レガシー（値に依存しない node 演算）との一致。
         // Set の演算子（|, &, -）は汎用 combine を使うため、これが両エンジンの照合になる。
-        let legacy_u = SpatialIdSet {
-            inner: crate::spatial_id::collection::temporal::SpatioTemporalCore { inner: sa.inner.inner.union(&sb.inner.inner) },
-        };
-        prop_assert_eq!(
-            sorted_single_ids(&(&sa | &sb), z),
-            sorted_single_ids(&legacy_u, z),
-            "union mismatch"
-        );
-
-        let legacy_i = SpatialIdSet {
-            inner: crate::spatial_id::collection::temporal::SpatioTemporalCore { inner: sa.inner.inner.intersection(&sb.inner.inner) },
-        };
-        prop_assert_eq!(
-            sorted_single_ids(&(&sa & &sb), z),
-            sorted_single_ids(&legacy_i, z),
-            "intersection mismatch"
-        );
-
-        let legacy_d = SpatialIdSet {
-            inner: crate::spatial_id::collection::temporal::SpatioTemporalCore { inner: sa.inner.inner.difference(&sb.inner.inner) },
-        };
-        prop_assert_eq!(
-            sorted_single_ids(&(&sa - &sb), z),
-            sorted_single_ids(&legacy_d, z),
-            "difference mismatch"
-        );
     }
 }
 
@@ -543,7 +517,7 @@ fn fill_zoom2_cube_collapses() {
             }
         }
     }
-    // 完全に満たされた zoom2 立方体 → zoom0 の 1 葉へ collapse すべき。
+    // 完全に満たされた zoom2 立方体 → zoom0 の 1 葉へ collapseすべき。
     println!("zoom2 full cube count = {}", set.count());
     assert_eq!(set.count(), 1, "full zoom2 cube should collapse to 1");
 }

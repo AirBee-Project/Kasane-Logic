@@ -14,9 +14,9 @@ use alloc::vec::Vec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 use super::SpatialIdMap;
-use crate::spatial_id::collection::tree::node::Node;
-use crate::spatial_id::collection::tree::ptr::SharedNode;
-use crate::spatial_id::collection::tree::split_child_id;
+use crate::spatial_id::collection::flex_tree::node::Node;
+use crate::spatial_id::collection::flex_tree::ptr::SharedNode;
+use crate::spatial_id::collection::flex_tree::split_child_id;
 use crate::{FlexId, FlexTree, Side, SpatialId, TemporalId, TemporalMap};
 
 /// 平坦化された [`SpatialIdMap`] 1枚（1シャード）。
