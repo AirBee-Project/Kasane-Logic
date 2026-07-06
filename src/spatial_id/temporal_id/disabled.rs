@@ -226,6 +226,7 @@ impl TemporalSet {
     }
 
     /// 正規化済み区間列を返す（クレート内部の走査用フック）。
+    #[allow(dead_code)]
     pub(crate) fn intervals(&self) -> &[(u64, u64)] {
         if self.whole { &[(0, DOMAIN_END)] } else { &[] }
     }
@@ -371,11 +372,13 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     }
 
     /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
+    #[allow(dead_code)]
     pub(crate) fn segments_ref(&self) -> Vec<(u64, u64, &V)> {
         self.value.iter().map(|v| (0, DOMAIN_END, v)).collect()
     }
 
     /// セグメント列から構築する（永続化復元用の内部フック）。
+    #[allow(dead_code)]
     pub(crate) fn from_raw_segments(mut segments: Vec<(u64, u64, V)>) -> Self {
         Self {
             value: segments.pop().map(|(_, _, v)| v),

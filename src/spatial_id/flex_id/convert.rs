@@ -107,13 +107,13 @@ impl IterSingleIds for FlexId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                let t_id = t_id_inner.clone();
+                let _t_id = t_id_inner.clone();
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
                         SingleId::new(z, f, x, y)
                             .unwrap()
-                            .with_temporal(t_id.clone())
+                            .with_temporal(_t_id.clone())
                     }
                     #[cfg(not(feature = "temporal_id"))]
                     {

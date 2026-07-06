@@ -70,13 +70,13 @@ impl IterSingleIds for RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                let t_id = self.temporal_id.clone();
+                let _t_id = self.temporal_id.clone();
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
                         SingleId::new(z, f, x, y)
                             .unwrap()
-                            .with_temporal(t_id.clone())
+                            .with_temporal(_t_id.clone())
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
@@ -113,13 +113,13 @@ impl IterFlexIds for RangeId {
             let t_id_inner = t_id.clone();
             x_list_inner.into_iter().flat_map(move |(x_z, x_i)| {
                 let y_list_inner2 = y_list_inner.clone();
-                let t_id_inner2 = t_id_inner.clone();
+                let _t_id_inner2 = t_id_inner.clone();
                 y_list_inner2.into_iter().map(move |(y_z, y_i)| {
                     #[cfg(feature = "temporal_id")]
                     {
                         FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i)
                             .unwrap()
-                            .with_temporal(t_id_inner2.clone())
+                            .with_temporal(_t_id_inner2.clone())
                     }
                     #[cfg(not(feature = "temporal_id"))]
                     {

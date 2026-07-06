@@ -8,6 +8,7 @@ use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 #[allow(unused_imports)]
 use alloc::vec::Vec;
+#[allow(unused_imports)]
 use kasane_logic::{Interval, SingleId, TemporalId};
 
 fn main() {
