@@ -10,7 +10,7 @@ use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::spatio_temporal::SpatioTemporalSet;
-use crate::{FlexId, SpatialId, SpatialIdSet, TemporalId};
+use crate::{FlexId, Interval, SpatialId, SpatialIdSet, TemporalId};
 
 type Atom = ((i32, u32, u32), u64);
 
@@ -211,7 +211,7 @@ fn whole_minus_finite_is_bounded_and_exact() {
         .iter()
         .map(|f| f.temporal().end_unixtime_exclusive() - f.temporal().start_unixtime())
         .sum();
-    assert_eq!(total, TemporalId::DOMAIN_END - 60);
+    assert_eq!(total, Interval::WHOLE_SECONDS - 60);
     // 穴 [0,60) の後ろだけが残っている
     assert!(ids.iter().all(|f| f.temporal().start_unixtime() >= 60));
     // 穴を埋め戻すと WHOLE に戻る（正規化の検証）

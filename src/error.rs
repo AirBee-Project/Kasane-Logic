@@ -63,8 +63,8 @@ pub enum SpatialIdError {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
 
-    /// 時間区間がドメイン `[0, TemporalId::DOMAIN_END)` の外に出ることを示す。
-    /// `i × (t + 1) <= DOMAIN_END` を満たす必要がある。
+    /// 時間区間がドメイン `[0, Interval::WHOLE_SECONDS)` の外に出ることを示す。
+    /// `i × (t + 1) <= WHOLE_SECONDS` を満たす必要がある。
     TOutOfRange { i: u64, t: u64 },
 
     /// 時間間隔 `i` が約数鎖に含まれない場合のエラー。
@@ -89,6 +89,12 @@ impl From<GeometryError> for Error {
 impl From<SpatialIdError> for Error {
     fn from(value: SpatialIdError) -> Self {
         Self::SpatialId(value)
+    }
+}
+
+impl From<core::convert::Infallible> for Error {
+    fn from(value: core::convert::Infallible) -> Self {
+        match value {}
     }
 }
 

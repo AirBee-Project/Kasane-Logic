@@ -134,7 +134,7 @@ impl TemporalId {
 
 #[cfg(test)]
 mod tests {
-    use crate::TemporalId;
+    use crate::{Interval, TemporalId};
     use alloc::collections::BTreeSet;
     use alloc::vec::Vec;
 
@@ -219,7 +219,10 @@ mod tests {
         let min = TemporalId::from_seconds(60, 0).unwrap(); // [0, 60)
         let d: Vec<_> = hour.difference(&min).collect();
         assert_eq!(d.len(), 59, "59個の分セルのはず");
-        assert!(d.iter().all(|c| c.i() == 60), "全て i=60（分単位）");
+        assert!(
+            d.iter().all(|c| c.i() == Interval::Minute),
+            "全て i=60（分単位）"
+        );
         assert_eq!(seconds_of(&d), (60u64..3600).collect());
     }
 
@@ -233,7 +236,7 @@ mod tests {
         assert!(d.len() < 400, "cells = {}", d.len());
         // 被覆の検証（秒展開せず区間で照合）:
         // 合計長 = ドメイン全長 − 60秒、穴の周辺だけピンポイントで欠けている。
-        assert_eq!(total_len(&d), TemporalId::DOMAIN_END - 60);
+        assert_eq!(total_len(&d), Interval::WHOLE_SECONDS - 60);
         assert!(
             d.iter()
                 .all(|c| { c.end_unixtime_exclusive() <= 36000 || c.start_unixtime() >= 36060 })
@@ -256,7 +259,7 @@ mod tests {
         let hour = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)
         let d = whole.difference_in_window(&min, &hour);
         assert_eq!(d.len(), 59);
-        assert!(d.iter().all(|c| c.i() == 60));
+        assert!(d.iter().all(|c| c.i() == Interval::Minute));
         let exp: BTreeSet<u64> = (36000u64..39600)
             .filter(|s| !(36000..36060).contains(s))
             .collect();
@@ -287,23 +290,23 @@ mod tests {
         }
     }
 
-    /// 時間ドメイン `[0, DOMAIN_END)` の境界検証。
+    /// 時間ドメイン `[0, WHOLE_SECONDS)` の境界検証。
     #[test]
     fn domain_boundary() {
         // 終端を超えるIDは構築できない
-        assert!(TemporalId::from_seconds(1, TemporalId::DOMAIN_END).is_err());
-        // 最終秒 [DOMAIN_END-1, DOMAIN_END) は有効で、WHOLE に含まれる
-        let last = TemporalId::from_seconds(1, TemporalId::DOMAIN_END - 1).unwrap();
-        assert_eq!(last.end_unixtime_exclusive(), TemporalId::DOMAIN_END);
+        assert!(TemporalId::from_seconds(1, Interval::WHOLE_SECONDS).is_err());
+        // 最終秒 [WHOLE_SECONDS-1, WHOLE_SECONDS) は有効で、WHOLE に含まれる
+        let last = TemporalId::from_seconds(1, Interval::WHOLE_SECONDS - 1).unwrap();
+        assert_eq!(last.end_unixtime_exclusive(), Interval::WHOLE_SECONDS);
         assert!(TemporalId::WHOLE.contains(&last));
         // WHOLE 自身の終端はドメイン終端
         assert_eq!(
             TemporalId::WHOLE.end_unixtime_exclusive(),
-            TemporalId::DOMAIN_END
+            Interval::WHOLE_SECONDS
         );
         // WHOLE の間隔はドメイン全長そのもの（u64::MAX は約数鎖に無い）
         assert_eq!(
-            TemporalId::from_seconds(TemporalId::DOMAIN_END, 0).unwrap(),
+            TemporalId::from_seconds(Interval::WHOLE_SECONDS, 0).unwrap(),
             TemporalId::WHOLE
         );
         assert!(TemporalId::from_seconds(u64::MAX, 0).is_err());
@@ -324,6 +327,6 @@ mod tests {
         // i=0 はエラー
         assert!(TemporalId::from_spec(0, 1).is_err());
         // ドメイン外はエラー
-        assert!(TemporalId::from_spec(TemporalId::DOMAIN_END - 1, 2).is_err());
+        assert!(TemporalId::from_spec(Interval::WHOLE_SECONDS - 1, 2).is_err());
     }
 }

@@ -78,6 +78,12 @@ impl<T: JsonValue + ?Sized> JsonValue for &T {
     }
 }
 
+impl JsonValue for crate::Interval {
+    fn write_json(&self, out: &mut String) {
+        self.seconds().write_json(out);
+    }
+}
+
 impl<T: JsonValue> JsonValue for Option<T> {
     fn write_json(&self, out: &mut String) {
         match self {

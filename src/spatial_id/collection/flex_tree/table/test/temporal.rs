@@ -10,7 +10,7 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::spatio_temporal::SpatioTemporalTable;
-use crate::{FlexId, SpatialId, SpatialIdMap, SpatialIdTable, TemporalId};
+use crate::{FlexId, Interval, SpatialId, SpatialIdMap, SpatialIdTable, TemporalId};
 
 type Key = ((i32, u32, u32), u64);
 
@@ -271,7 +271,7 @@ fn whole_value_partially_overwritten_keeps_rest() {
         .iter()
         .map(|(f, _)| f.temporal().end_unixtime_exclusive() - f.temporal().start_unixtime())
         .sum();
-    assert_eq!(total, TemporalId::DOMAIN_END);
+    assert_eq!(total, Interval::WHOLE_SECONDS);
 }
 
 /// 同値・同時間の空間セルは従来どおりマージされる（圧縮の退行なし）。

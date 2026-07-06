@@ -177,7 +177,7 @@ impl FlexId {
 
 #[cfg(all(test, feature = "temporal_id"))]
 mod temporal_tests {
-    use crate::{FlexId, SpatialId, TemporalId};
+    use crate::{FlexId, Interval, SpatialId, TemporalId};
     use alloc::collections::BTreeSet;
     use alloc::vec::Vec;
 
@@ -215,6 +215,7 @@ mod temporal_tests {
         set
     }
 
+    /// FlexId をそのセット全体の最小アトム集合へ展開する。
     fn atoms_of(fs: &[FlexId], z: u8) -> BTreeSet<Atom> {
         let mut set = BTreeSet::new();
         for f in fs {
@@ -237,7 +238,7 @@ mod temporal_tests {
         let b = st(TemporalId::from_seconds(60, 0).unwrap());
         let d: Vec<_> = a.difference(&b).collect();
         assert_eq!(d.len(), 59);
-        assert!(d.iter().all(|f| f.temporal().i() == 60));
+        assert!(d.iter().all(|f| f.temporal().i() == Interval::Minute));
         assert!(
             d.iter()
                 .all(|f| f.f_zoomlevel() == 1 && f.x_index() == 0 && f.y_index() == 0)
@@ -254,7 +255,7 @@ mod temporal_tests {
         let window = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)
         let d: Vec<_> = a.difference_in_window(&b, &window).collect();
         assert_eq!(d.len(), 59);
-        assert!(d.iter().all(|f| f.temporal().i() == 60));
+        assert!(d.iter().all(|f| f.temporal().i() == Interval::Minute));
     }
 
     /// WHOLE 時間の FlexId から有限時間を引いても有界（対数個）のセルで表現される。
@@ -269,7 +270,7 @@ mod temporal_tests {
             .iter()
             .map(|f| f.temporal().end_unixtime_exclusive() - f.temporal().start_unixtime())
             .sum();
-        assert_eq!(total, TemporalId::DOMAIN_END - 60);
+        assert_eq!(total, Interval::WHOLE_SECONDS - 60);
     }
 
     /// 空間・時間ともに異なる 4D 差分を (空間キー×秒) のアトムで厳密照合する。

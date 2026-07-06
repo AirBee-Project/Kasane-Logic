@@ -4,14 +4,14 @@
 //! 区間代数で union / intersection / difference を厳密に行い、出力（[`cells`](TemporalSet::cells)）は
 //! [`TemporalId`] のカレンダーセル列へ最小分解する（時/分/日などの慣例単位を保つ）。
 //!
-//! 時間ドメインは `[0, TemporalId::DOMAIN_END)`（[`TemporalId`] と同一）である。
+//! 時間ドメインは `[0, crate::Interval::WHOLE_SECONDS)` である。
 
 use alloc::vec::Vec;
 
 use crate::TemporalId;
 
 /// 時間ドメインの排他的終端（= WHOLE 区間の排他的終端）。
-const WHOLE_END: u64 = TemporalId::DOMAIN_END;
+const WHOLE_END: u64 = crate::Interval::WHOLE_SECONDS;
 
 /// カレンダー時間の集合。互いに素な半開区間 `[start, end)` の正規化列で表す。
 ///
@@ -183,7 +183,7 @@ impl TemporalSet {
 #[cfg(test)]
 mod tests {
     use super::TemporalSet;
-    use crate::TemporalId;
+    use crate::{Interval, TemporalId};
     use alloc::collections::BTreeSet;
     use alloc::vec::Vec;
 
@@ -324,7 +324,7 @@ mod tests {
             .iter()
             .map(|c| c.end_unixtime_exclusive() - c.start_unixtime())
             .sum();
-        assert_eq!(total, TemporalId::DOMAIN_END - 3600);
+        assert_eq!(total, Interval::WHOLE_SECONDS - 3600);
 
         // 窓で限定した分解
         let window = TemporalId::from_seconds(3600, 11).unwrap(); // [39600, 43200)

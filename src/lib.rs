@@ -67,7 +67,6 @@ pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
-#[cfg(feature = "temporal_id")]
 #[doc(inline)]
 pub use spatial_id::temporal_id::Interval;
 #[doc(inline)]

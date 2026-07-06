@@ -1,7 +1,7 @@
 #[cfg(not(feature = "temporal_id"))]
 mod disabled;
 #[cfg(not(feature = "temporal_id"))]
-pub use disabled::{TemporalId, TemporalMap, TemporalSet};
+pub use disabled::{Interval, TemporalId, TemporalMap, TemporalSet};
 
 #[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};
@@ -48,20 +48,13 @@ pub struct TemporalId {
 
 #[cfg(feature = "temporal_id")]
 impl TemporalId {
-    /// 全時間（ドメイン全体 `[0, DOMAIN_END)`）を表す時間ID。
+    /// 全時間（ドメイン全体 `[0, WHOLE_SECONDS)`）を表す時間ID。
     pub const WHOLE: TemporalId = TemporalId {
         interval: Interval::Whole,
         t: 0,
     };
 
-    /// 時間ドメインの排他的終端（`86400 × 2^47` 秒）。
-    pub const DOMAIN_END: u64 = interval::WHOLE_SECONDS;
-
     /// 時間間隔（[`Interval`]）と時間インデックス `t` から新しい [`TemporalId`] を作成する。
-    ///
-    /// # バリデーション
-    /// 区間終端 `i * (t + 1)` が時間ドメイン終端 [`Self::DOMAIN_END`] を超える場合、
-    /// [`Error::TOutOfRange`](crate::SpatialIdError::TOutOfRange) を返す。
     ///
     /// # 例
     ///
@@ -71,14 +64,19 @@ impl TemporalId {
     /// assert_eq!(id.interval(), Interval::Hour);
     /// assert_eq!(id.t(), 5);
     ///
-    /// // 二進層（Day·2^k）も型安全に構築できる
+    /// // Day·2^kも安全に構築できる
     /// let two_days = TemporalId::new(Interval::day_pow(1).unwrap(), 0).unwrap();
-    /// assert_eq!(two_days.i(), 86400 * 2);
+    /// assert_eq!(two_days.i().seconds(), 86400 * 2);
     /// ```
-    pub fn new(interval: Interval, t: u64) -> Result<Self, Error> {
+    pub fn new<I>(interval: I, t: u64) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+    {
+        let interval = interval.try_into()?;
         let i = interval.seconds();
         let end_exclusive = i as u128 * (t as u128 + 1);
-        if end_exclusive > Self::DOMAIN_END as u128 {
+        if end_exclusive > Interval::WHOLE_SECONDS as u128 {
             return Err(SpatialIdError::TOutOfRange { i, t }.into());
         }
         Ok(Self { interval, t })
@@ -86,23 +84,23 @@ impl TemporalId {
 
     /// 生の秒数 `i` と時間インデックス `t` から構築する（[`new`](Self::new) の秒数版）。
     ///
-    /// 文字列パースや外部データ（Ouranos 仕様の `i/t` 表記）の取り込みに使う。
+    /// 文字列パースや外部データ（Ouranos 仕様 of `i/t` 表記）の取り込みに使う。
     /// プログラム内で間隔が静的に決まっている場合は [`new`](Self::new) を推奨する。
     ///
     /// # バリデーション
     ///
     /// - `i` が約数鎖に含まれない場合、
     ///   [`Error::TIntervalError`](crate::SpatialIdError::TIntervalError) を返す。
-    /// - 区間終端 `i * (t + 1)` が時間ドメイン終端 [`Self::DOMAIN_END`] を超える場合、
+    /// - 区間終端 `i * (t + 1)` が時間ドメイン終端 [`Interval::WHOLE_SECONDS`] を超える場合、
     ///   [`Error::TOutOfRange`](crate::SpatialIdError::TOutOfRange) を返す。
     ///
     /// # 例
     ///
     /// 有効な時間IDの作成:
     /// ```
-    /// # use kasane_logic::TemporalId;
+    /// # use kasane_logic::{TemporalId, Interval};
     /// let id = TemporalId::from_seconds(3600, 5).unwrap();
-    /// assert_eq!(id.i(), 3600);
+    /// assert_eq!(id.i(), Interval::Hour);
     /// assert_eq!(id.t(), 5);
     /// ```
     ///
@@ -155,7 +153,7 @@ impl TemporalId {
 
     /// この時間区間の終了時刻をUNIXタイムスタンプ（秒単位、排他的）で取得する。
     ///
-    /// 戻り値は `i * (t + 1)` である。構築時に時間ドメイン `[0, DOMAIN_END)` へ
+    /// 戻り値は `i * (t + 1)` である。構築時に時間ドメイン `[0, WHOLE_SECONDS)` へ
     /// 収まることが検証されているため、`u64` に必ず収まる。
     ///
     /// # 例
@@ -169,17 +167,17 @@ impl TemporalId {
         self.interval.seconds() * (self.t + 1)
     }
 
-    /// 時間間隔 `i`（秒）を取得する。
+    /// 時間間隔を取得する。
     ///
     /// # 例
     ///
     /// ```
-    /// # use kasane_logic::TemporalId;
+    /// # use kasane_logic::{TemporalId, Interval};
     /// let id = TemporalId::from_seconds(3600, 5).unwrap();
-    /// assert_eq!(id.i(), 3600);
+    /// assert_eq!(id.i(), Interval::Hour);
     /// ```
-    pub fn i(&self) -> u64 {
-        self.interval.seconds()
+    pub fn i(&self) -> Interval {
+        self.interval
     }
 
     /// 時間インデックス `t` を取得する。
@@ -215,11 +213,11 @@ impl TemporalId {
     ///
     /// 仕様書の例 `1800/809712`（30分間隔）の正規化:
     /// ```
-    /// # use kasane_logic::TemporalId;
+    /// # use kasane_logic::{TemporalId, Interval};
     /// let ids = TemporalId::from_spec(1800, 809712).unwrap();
     /// // [1457481600, 1457483400) = 30個の分セル
     /// assert_eq!(ids.len(), 30);
-    /// assert!(ids.iter().all(|id| id.i() == 60));
+    /// assert!(ids.iter().all(|id| id.i() == Interval::Minute));
     /// assert_eq!(ids[0].start_unixtime(), 1457481600);
     /// ```
     pub fn from_spec(i: u64, t: u64) -> Result<Vec<TemporalId>, Error> {
@@ -231,7 +229,7 @@ impl TemporalId {
         }
         let start = i as u128 * t as u128;
         let end_exclusive = i as u128 * (t as u128 + 1);
-        if end_exclusive > Self::DOMAIN_END as u128 {
+        if end_exclusive > Interval::WHOLE_SECONDS as u128 {
             return Err(SpatialIdError::TOutOfRange { i, t }.into());
         }
         Self::from_range(start as u64, end_exclusive as u64)
@@ -252,14 +250,14 @@ impl TemporalId {
     /// # バリデーション
     ///
     /// - `start >= end_exclusive` の場合、空のベクトルを返す。
-    /// - `end_exclusive` が [`Self::DOMAIN_END`] を超える場合、
+    /// - `end_exclusive` が [`Interval::WHOLE_SECONDS`] を超える場合、
     ///   [`SpatialIdError::TOutOfRange`] を返す。
     ///
     /// # 例
     ///
     /// 1時間の範囲:
     /// ```
-    /// # use kasane_logic::TemporalId;
+    /// # use kasane_logic::{TemporalId, Interval};
     /// let ids = TemporalId::from_range(0, 3600).unwrap();
     /// assert_eq!(ids.len(), 1);
     /// assert_eq!(ids[0], TemporalId::from_seconds(3600, 0).unwrap());
@@ -275,15 +273,15 @@ impl TemporalId {
     ///
     /// ドメイン全体は単一の WHOLE セル:
     /// ```
-    /// # use kasane_logic::TemporalId;
-    /// let ids = TemporalId::from_range(0, TemporalId::DOMAIN_END).unwrap();
+    /// # use kasane_logic::{TemporalId, Interval};
+    /// let ids = TemporalId::from_range(0, Interval::WHOLE_SECONDS).unwrap();
     /// assert_eq!(ids, vec![TemporalId::WHOLE]);
     /// ```
     pub fn from_range(start: u64, end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
         if start >= end_exclusive {
             return Ok(alloc::vec![]);
         }
-        if end_exclusive > Self::DOMAIN_END {
+        if end_exclusive > Interval::WHOLE_SECONDS {
             return Err(SpatialIdError::TOutOfRange {
                 i: 1,
                 t: end_exclusive - 1,
@@ -294,10 +292,10 @@ impl TemporalId {
     }
 
     /// `[start, end_exclusive)`（非空・ドメイン内であること）を約数鎖セル列へ貪欲分解する。
-    ///
     /// 二進層があるため出力は高々数百セル。
+    #[allow(clippy::manual_is_multiple_of)]
     pub(crate) fn decompose(start: u64, end_exclusive: u64) -> Vec<TemporalId> {
-        debug_assert!(start < end_exclusive && end_exclusive <= Self::DOMAIN_END);
+        debug_assert!(start < end_exclusive && end_exclusive <= Interval::WHOLE_SECONDS);
 
         let mut result = Vec::new();
         let mut current = start;
@@ -307,8 +305,8 @@ impl TemporalId {
 
             for interval in Interval::coarse_to_fine() {
                 let secs = interval.seconds();
-                if current.is_multiple_of(secs) && remaining >= secs {
-                    // ドメイン内（current + secs <= end_exclusive <= DOMAIN_END）なので直接構築できる。
+                if current % secs == 0 && remaining >= secs {
+                    // ドメイン内（current + secs <= end_exclusive <= WHOLE_SECONDS）なので直接構築できる。
                     result.push(TemporalId {
                         interval,
                         t: current / secs,
