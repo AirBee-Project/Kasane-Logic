@@ -1,10 +1,10 @@
 //! 時空間コア層（[`SpatioTemporalCore`]）。
 //!
-//! [`FlexTreeCore`](crate::FlexTreeCore)（純空間の木）と公開コレクション
+//! [`FlexTree`](crate::FlexTree)（純空間の木）と公開コレクション
 //! （[`SpatialIdSet`](crate::SpatialIdSet) / [`SpatialIdMap`](crate::SpatialIdMap) /
 //! [`SpatialIdTable`](crate::SpatialIdTable)）の間に挟まる中間層で、
 //! 時間軸（[`TemporalSet`] / [`TemporalMap`]）に関するすべての操作をここに集約し、
-//! `FlexTreeCore` を純粋な空間インデックスとして保つ。
+//! `FlexTree` を純粋な空間インデックスとして保つ。
 //!
 //! - `combine`: 時間値の合成規則（[`Combine`] 実装群）
 //! - `value`: 葉の値の抽象（[`TemporalValue`]）
@@ -17,13 +17,13 @@ pub(crate) use combine::{TMapDifference, TMapIntersection, TMapOverwrite};
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::tree::node_ops::Combine;
-use crate::{FlexId, FlexTreeCore, SpatialId, TemporalSet};
+use crate::{FlexId, FlexTree, SpatialId, TemporalSet};
 
 // ─── SpatioTemporalCore ───────────────────────────────────────────────────────
 
 /// 時空間コア層。
 ///
-/// [`FlexTreeCore<TV>`] を内包し、時間軸（挿入・クエリ・結合）のロジックを集約する。
+/// [`FlexTree<TV>`] を内包し、時間軸（挿入・クエリ・結合）のロジックを集約する。
 /// `TV` は [`TemporalSet`] または [`TemporalMap<V>`](TemporalMap) のいずれか。
 ///
 /// [`SpatialIdSet`](crate::SpatialIdSet), [`SpatialIdMap`](crate::SpatialIdMap),
@@ -58,7 +58,7 @@ use crate::{FlexId, FlexTreeCore, SpatialId, TemporalSet};
 pub(crate) struct SpatioTemporalCore<
     V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue,
 > {
-    pub(crate) inner: FlexTreeCore<crate::TemporalMap<V>>,
+    pub(crate) inner: FlexTree<crate::TemporalMap<V>>,
 }
 
 impl<V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue>
@@ -67,14 +67,14 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue>
     /// 空の [`SpatioTemporalCore`] を作成する。
     pub(crate) fn new() -> Self {
         Self {
-            inner: FlexTreeCore::new(),
+            inner: FlexTree::new(),
         }
     }
 
     /// シャード領域に閉じた空の [`SpatioTemporalCore`] を作成する。
     pub(crate) fn new_in_shard(region: FlexId) -> Self {
         Self {
-            inner: FlexTreeCore::new_in_shard(region),
+            inner: FlexTree::new_in_shard(region),
         }
     }
 
@@ -161,7 +161,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue>
             );
         } else {
             let tv = crate::TemporalMap::from_temporal(&temporal, payload);
-            let mut single = FlexTreeCore::<crate::TemporalMap<V>>::new();
+            let mut single = FlexTree::<crate::TemporalMap<V>>::new();
             single.insert_flex_id(spatial, tv);
             let shard = self.inner.shard().cloned();
             self.inner = self.inner.combine_with::<TMapOverwrite>(&single, shard);
@@ -278,11 +278,11 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue>
 
     /// union のシャード合成規則。
     pub(crate) fn shard_for_union(a: &Self, b: &Self) -> Option<FlexId> {
-        FlexTreeCore::shard_for_union(&a.inner, &b.inner)
+        FlexTree::shard_for_union(&a.inner, &b.inner)
     }
 
     /// intersection のシャード合成規則。
     pub(crate) fn shard_for_intersection(a: &Self, b: &Self) -> Option<FlexId> {
-        FlexTreeCore::shard_for_intersection(&a.inner, &b.inner)
+        FlexTree::shard_for_intersection(&a.inner, &b.inner)
     }
 }

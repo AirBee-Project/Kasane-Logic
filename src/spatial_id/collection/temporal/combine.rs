@@ -1,7 +1,7 @@
 //! [`Combine`]: 時間値（[`TemporalSet`] / [`TemporalMap`]）の合成規則。
 //!
-//! [`FlexTreeCore`](crate::FlexTreeCore) の汎用二項演算
-//! （[`combine_with`](crate::FlexTreeCore::combine_with)）へ差し込むことで、
+//! [`FlexTree`](crate::FlexTree) の汎用二項演算
+//! （[`combine_with`](crate::FlexTree::combine_with)）へ差し込むことで、
 //! 空間木の走査1回で時間軸の union / intersection / difference / 上書きを行う。
 
 use crate::spatial_id::collection::tree::node::Node;

@@ -84,7 +84,7 @@ pub use spatial_id::collection::set::SpatialIdSet;
 #[doc(inline)]
 pub use spatial_id::collection::traits::{CellValue, SpatialIdCollection};
 #[doc(inline)]
-pub(crate) use spatial_id::collection::tree::FlexTreeCore;
+pub(crate) use spatial_id::collection::tree::FlexTree;
 
 #[doc(inline)]
 pub use spatial_id::collection::map::SpatialIdMap;

@@ -15,7 +15,7 @@
 
 - `TemporalId` は全範囲を表す `WHOLE` 相当の扱いになる。
 - `FlexId`、`SingleId`、`RangeId` の既定生成では時間は固定される。
-- `FlexTreeCore` は現時点では `WHOLE` 以外の時空間 ID を受け付けない。
+- `FlexTree` は現時点では `WHOLE` 以外の時空間 ID を受け付けない。
 - 時間を使わない空間専用ビルドとして扱う。
 
 ### 有効時
@@ -23,7 +23,7 @@
 - `TemporalId::new` による任意の時間区間を利用できる。
 - `TemporalId::intersection` や `TemporalId::difference` を使った時間演算が有効になる。
 - `FlexId`、`SingleId`、`RangeId` は保持した時間情報をそのまま伝播する。
-- `FlexTreeCore` は時間付きの挿入を受け入れる前提に切り替えられる。
+- `FlexTree` は時間付きの挿入を受け入れる前提に切り替えられる。
 
 ## 3. 時間 ID の役割
 
@@ -39,7 +39,7 @@
 
 - 空間 ID は `SingleId`、`RangeId`、`FlexId` を中心に扱う。
 - 時間は `TemporalId` として別フィールドに保持する。
-- `FlexTreeCore` は空間索引としての性格が強く、時間は現時点では制約付きでしか扱わない。
+- `FlexTree` は空間索引としての性格が強く、時間は現時点では制約付きでしか扱わない。
 
 このため、時間機能を使うかどうかは feature で明示的に選ぶ必要がある。
 
@@ -79,7 +79,7 @@ cargo doc --features temporal_id --no-deps
 
 ## 7. 将来の拡張
 
-今後、`FlexTreeCore` や関連コレクションが時間をネイティブに扱うようになったら、この文書を更新する。
+今後、`FlexTree` や関連コレクションが時間をネイティブに扱うようになったら、この文書を更新する。
 
 そのときは次の項目を明確化する。
 

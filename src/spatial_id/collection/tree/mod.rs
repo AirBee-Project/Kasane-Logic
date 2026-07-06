@@ -45,7 +45,7 @@ use ptr::SharedNode;
         <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
     )))
 )]
-pub(crate) struct FlexTreeCore<V>
+pub(crate) struct FlexTree<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
@@ -57,7 +57,7 @@ where
     pub(crate) shard: Option<FlexId>,
 }
 
-impl<V> Default for FlexTreeCore<V>
+impl<V> Default for FlexTree<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
@@ -66,7 +66,7 @@ where
     }
 }
 
-impl<V> PartialEq for FlexTreeCore<V>
+impl<V> PartialEq for FlexTree<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
@@ -75,13 +75,13 @@ where
     }
 }
 
-impl<V> Eq for FlexTreeCore<V> where V: crate::spatial_id::collection::tree::ptr::SafeValue {}
+impl<V> Eq for FlexTree<V> where V: crate::spatial_id::collection::tree::ptr::SafeValue {}
 
-impl<V> FlexTreeCore<V>
+impl<V> FlexTree<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
-    /// 新しい空の[FlexTreeCore]を作成する
+    /// 新しい空の[FlexTree]を作成する
     pub fn new() -> Self {
         let empty_leaf = SharedNode::new(Node::Leaf { value: None });
         Self {
@@ -92,7 +92,7 @@ where
         }
     }
 
-    /// シャード領域 `region` に閉じた空の[FlexTreeCore]を作成する。以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    /// シャード領域 `region` に閉じた空の[FlexTree]を作成する。以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         let mut core = Self::new();
         core.shard = Some(region);
@@ -104,7 +104,7 @@ where
         self.shard.as_ref()
     }
 
-    /// 2つの [FlexTreeCore] の和集合を計算します。
+    /// 2つの [FlexTree] の和集合を計算します。
     pub fn union(&self, other: &Self) -> Self {
         Self {
             lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
@@ -228,13 +228,13 @@ where
         self.lower_root.leaf_count() + self.upper_root.leaf_count()
     }
 
-    /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
+    /// この [`FlexTree`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
     /// 空の木では [`None`] を返します。
     ///
     /// # 例
     /// ```ignore
-    /// # use kasane_logic::{spatial_id::collection::tree::FlexTreeCore, RangeId, SingleId};
-    /// let mut core = FlexTreeCore::new();
+    /// # use kasane_logic::{spatial_id::collection::tree::FlexTree, RangeId, SingleId};
+    /// let mut core = FlexTree::new();
     /// core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
     /// assert_eq!(core.max_zoomlevel(), Some(4));
     /// ```ignore
@@ -250,8 +250,8 @@ where
     /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
     /// # 例
     /// ```ignore
-    /// # use kasane_logic::{spatial_id::collection::tree::FlexTreeCore, SingleId};
-    /// let mut core = FlexTreeCore::new();
+    /// # use kasane_logic::{spatial_id::collection::tree::FlexTree, SingleId};
+    /// let mut core = FlexTree::new();
     /// core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
     /// core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
     ///
@@ -261,14 +261,14 @@ where
     /// assert_eq!(bbox.x(), [0, 2]);
     /// assert_eq!(bbox.y(), [0, 3]);
     ///
-    /// let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+    /// let empty: FlexTree<i32> = FlexTree::new();
     /// assert!(empty.bounding_box().is_none());
     /// ```ignore
     pub fn bounding_box(&self) -> Option<RangeId> {
         RangeId::bounding_box_of(self.iter().map(|(flex_id, _)| flex_id))
     }
 
-    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。
+    /// この [`FlexTree`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Vec::new().into_iter();
@@ -294,7 +294,7 @@ where
         exported.into_iter()
     }
 
-    /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
+    /// この [`FlexTree`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
@@ -318,7 +318,7 @@ where
         }))
     }
 
-    /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueへの参照を全て取り出す。
+    /// [FlexTree]からtargetと重なりがある[FlexId]とそのValueへの参照を全て取り出す。
     pub fn get_ref<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: IterFlexIds + 'a,
@@ -334,7 +334,7 @@ where
         })
     }
 
-    /// [FlexTreeCore]に空間IDを挿入する。
+    /// [FlexTree]に空間IDを挿入する。
     ///
     /// # Panics
     ///
@@ -345,7 +345,7 @@ where
     {
         for flex_id in target.iter_flex_ids() {
             if !flex_id.temporal().is_whole() {
-                panic!("FlexTreeCore does not support temporal IDs.");
+                panic!("FlexTree does not support temporal IDs.");
             }
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {
@@ -359,7 +359,7 @@ where
         }
     }
 
-    /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
+    /// [FlexTree]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
         S: IterFlexIds + 'a,
@@ -375,7 +375,7 @@ where
         })
     }
 
-    /// [FlexTreeCore]からTargetが示す領域を削除して、返す。
+    /// [FlexTree]からTargetが示す領域を削除して、返す。
     pub fn remove<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
     where
         S: IterFlexIds,
@@ -497,14 +497,14 @@ where
         results.into_iter()
     }
 
-    /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
+    /// [FlexTree]から全ての[FlexId]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         LeavesIter {
             stack: self.root_node_stack(),
         }
     }
 
-    /// [FlexTreeCore]から全ての[FlexId]とValueへの参照を取り出す。
+    /// [FlexTree]から全ての[FlexId]とValueへの参照を取り出す。
     pub fn iter_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         LeavesIterRef {
             stack: self.root_node_stack(),

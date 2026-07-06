@@ -49,7 +49,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::SpatialIdCollection;
-    use crate::{FlexTreeCore, SingleId, SpatialIdTable};
+    use crate::{FlexTree, SingleId, SpatialIdTable};
 
     fn id(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId::new(z, f, x, y).unwrap()
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn bounding_box_returns_aabb_corners() {
-        let mut core = FlexTreeCore::<i32>::new();
+        let mut core = FlexTree::<i32>::new();
         core.insert(id(20, 0, 0, 0), 1);
         core.insert(id(20, 0, 2, 3), 1);
 
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn bounding_box_of_empty_is_none() {
-        let core = FlexTreeCore::<i32>::new();
+        let core = FlexTree::<i32>::new();
         assert!(core.bounding_box().is_none());
     }
 }

@@ -1,11 +1,11 @@
-use super::{FlexTreeCore, node::Node, ptr::SharedNode, split_child_id};
+use super::{FlexTree, node::Node, ptr::SharedNode, split_child_id};
 use crate::{FlexId, Side};
 
-impl<V> FlexTreeCore<V>
+impl<V> FlexTree<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
-    /// この[`FlexTreeCore`]をシャード分割すべきかを判定する。保持する[FlexId]数が `max_flex_id_count` を超えていれば `true`を返す。[FlexId]の個数はキャッシュされているため高速に動作する。
+    /// この[`FlexTree`]をシャード分割すべきかを判定する。保持する[FlexId]数が `max_flex_id_count` を超えていれば `true`を返す。[FlexId]の個数はキャッシュされているため高速に動作する。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
         self.count() > max_flex_id_count
     }

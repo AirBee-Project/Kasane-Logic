@@ -9,7 +9,7 @@
 //!   temporal_id  (TemporalId / TemporalSet / TemporalMap: 時間の値)
 //!        │  葉の値として保持
 //!        ▼
-//!   tree      … 純空間の永続二分木（FlexTreeCore）。時間を知らない。
+//!   tree      … 純空間の永続二分木（FlexTree）。時間を知らない。
 //!        │  Combine（値の合成規則）を差し込む
 //!        ▼
 //!   temporal  … 時空間コア（SpatioTemporalCore）。時間軸の合成を一手に担う。

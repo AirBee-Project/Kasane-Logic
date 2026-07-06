@@ -1,6 +1,6 @@
 //! [`SpatialIdMap`] の永続化（フラットアリーナ直列化）と ZeroCopy 読み出し。
 //!
-//! インメモリの作業構造（`Arc` ベースの [`FlexTreeCore`]）はそのままに、保存時のみ
+//! インメモリの作業構造（`Arc` ベースの [`FlexTree`]）はそのままに、保存時のみ
 //! 木を `Vec<PersistedNode>`（子ノードは配列インデックス参照）へ平坦化して rkyv で直列化する。
 //! 値は `dictionary: Vec<Vec<u8>>` に集約（重複排除）し、葉は dictionary のインデックス（+1、0 は空）を持つ。
 //!
@@ -17,7 +17,7 @@ use super::SpatialIdMap;
 use crate::spatial_id::collection::tree::node::Node;
 use crate::spatial_id::collection::tree::ptr::SharedNode;
 use crate::spatial_id::collection::tree::split_child_id;
-use crate::{FlexId, FlexTreeCore, Side, SpatialId, TemporalId, TemporalMap};
+use crate::{FlexId, FlexTree, Side, SpatialId, TemporalId, TemporalMap};
 
 /// 平坦化された [`SpatialIdMap`] 1枚（1シャード）。
 #[derive(Archive, Serialize, Deserialize, Debug)]
@@ -90,7 +90,7 @@ impl SpatialIdMap<Vec<u8>> {
         let persisted: PersistedMap =
             rkyv::deserialize::<PersistedMap, rkyv::rancor::Error>(archived)?;
 
-        let mut core = FlexTreeCore::<TemporalMap<Vec<u8>>>::new();
+        let mut core = FlexTree::<TemporalMap<Vec<u8>>>::new();
         let empty = core.empty_leaf.clone();
         core.lower_root = rebuild_node(
             persisted.lower_root,

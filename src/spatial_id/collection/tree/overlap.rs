@@ -2,7 +2,7 @@
 use alloc::vec::Vec;
 
 use super::ptr::SharedNode;
-use super::{FlexTreeCore, split_child_id};
+use super::{FlexTree, split_child_id};
 use crate::{Dimension, FlexId, Side, spatial_id::collection::tree::node::Node};
 
 /// 重なり合う領域のみを遅延評価で探索するイテレータ
@@ -120,7 +120,7 @@ where
     }
 }
 
-impl<V> FlexTreeCore<V>
+impl<V> FlexTree<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
