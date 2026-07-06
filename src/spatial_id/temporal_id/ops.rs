@@ -17,11 +17,11 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(3600, 5).unwrap();  // [18000, 21600)
-    /// let id2 = TemporalId::new(3600, 6).unwrap();  // [21600, 25200)
+    /// let id1 = TemporalId::from_seconds(3600, 5).unwrap();  // [18000, 21600)
+    /// let id2 = TemporalId::from_seconds(3600, 6).unwrap();  // [21600, 25200)
     /// assert_eq!(id1.intersection(&id2), None);     // 重なりなし
     ///
-    /// let id3 = TemporalId::new(1, 18000).unwrap(); // [18000, 18001)
+    /// let id3 = TemporalId::from_seconds(1, 18000).unwrap(); // [18000, 18001)
     /// assert_eq!(id1.intersection(&id3), Some(id3.clone())); // 入れ子 → 細かい方
     /// ```
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
@@ -45,8 +45,8 @@ impl TemporalId {
     /// 重なりがない場合（self全体が返される）:
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(3600, 0).unwrap();   // [0, 3600)
-    /// let id2 = TemporalId::new(3600, 5).unwrap();   // [18000, 21600)
+    /// let id1 = TemporalId::from_seconds(3600, 0).unwrap();   // [0, 3600)
+    /// let id2 = TemporalId::from_seconds(3600, 5).unwrap();   // [18000, 21600)
     /// let diff: Vec<_> = id1.difference(&id2).collect();
     /// assert_eq!(diff.len(), 1);
     /// assert_eq!(diff[0], id1);
@@ -55,8 +55,8 @@ impl TemporalId {
     /// 完全に包含される場合（空のイテレータ）:
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id1 = TemporalId::new(1, 19800).unwrap();  // [19800, 19801)
-    /// let id2 = TemporalId::new(3600, 5).unwrap();   // [18000, 21600)
+    /// let id1 = TemporalId::from_seconds(1, 19800).unwrap();  // [19800, 19801)
+    /// let id2 = TemporalId::from_seconds(3600, 5).unwrap();   // [18000, 21600)
     /// let diff: Vec<_> = id1.difference(&id2).collect();
     /// assert_eq!(diff.len(), 0);
     /// ```
@@ -164,13 +164,13 @@ mod tests {
     fn sample_cells() -> Vec<TemporalId> {
         let mut v = Vec::new();
         for t in [0u64, 1, 59, 60, 100, 3599, 3600, 7199] {
-            v.push(TemporalId::new(1, t).unwrap());
+            v.push(TemporalId::from_seconds(1, t).unwrap());
         }
         for t in [0u64, 1, 59, 60, 119] {
-            v.push(TemporalId::new(60, t).unwrap());
+            v.push(TemporalId::from_seconds(60, t).unwrap());
         }
         for t in [0u64, 1] {
-            v.push(TemporalId::new(3600, t).unwrap());
+            v.push(TemporalId::from_seconds(3600, t).unwrap());
         }
         v
     }
@@ -215,8 +215,8 @@ mod tests {
     /// 1時間 − 1分 が「59個の分セル」（秒断片でない）になる。
     #[test]
     fn hour_minus_minute_is_59_minute_cells() {
-        let hour = TemporalId::new(3600, 0).unwrap(); // [0, 3600)
-        let min = TemporalId::new(60, 0).unwrap(); // [0, 60)
+        let hour = TemporalId::from_seconds(3600, 0).unwrap(); // [0, 3600)
+        let min = TemporalId::from_seconds(60, 0).unwrap(); // [0, 60)
         let d: Vec<_> = hour.difference(&min).collect();
         assert_eq!(d.len(), 59, "59個の分セルのはず");
         assert!(d.iter().all(|c| c.i() == 60), "全て i=60（分単位）");
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn whole_minus_minute_is_bounded() {
         let whole = TemporalId::WHOLE;
-        let min = TemporalId::new(60, 600).unwrap(); // [36000, 36060)
+        let min = TemporalId::from_seconds(60, 600).unwrap(); // [36000, 36060)
         let d: Vec<_> = whole.difference(&min).collect();
         // 二進層のおかげで爆発しない（左側 + 右側で高々数百）。
         assert!(d.len() < 400, "cells = {}", d.len());
@@ -252,8 +252,8 @@ mod tests {
     #[test]
     fn whole_minus_minute_in_window_is_bounded() {
         let whole = TemporalId::WHOLE;
-        let min = TemporalId::new(60, 600).unwrap(); // [36000, 36060)
-        let hour = TemporalId::new(3600, 10).unwrap(); // [36000, 39600)
+        let min = TemporalId::from_seconds(60, 600).unwrap(); // [36000, 36060)
+        let hour = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)
         let d = whole.difference_in_window(&min, &hour);
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|c| c.i() == 60));
@@ -268,9 +268,9 @@ mod tests {
     fn window_difference_matches_clip_then_difference() {
         let cells = sample_cells();
         let windows = [
-            TemporalId::new(3600, 0).unwrap(),
-            TemporalId::new(3600, 1).unwrap(),
-            TemporalId::new(60, 30).unwrap(),
+            TemporalId::from_seconds(3600, 0).unwrap(),
+            TemporalId::from_seconds(3600, 1).unwrap(),
+            TemporalId::from_seconds(60, 30).unwrap(),
         ];
         for a in &cells {
             for b in &cells {
@@ -291,9 +291,9 @@ mod tests {
     #[test]
     fn domain_boundary() {
         // 終端を超えるIDは構築できない
-        assert!(TemporalId::new(1, TemporalId::DOMAIN_END).is_err());
+        assert!(TemporalId::from_seconds(1, TemporalId::DOMAIN_END).is_err());
         // 最終秒 [DOMAIN_END-1, DOMAIN_END) は有効で、WHOLE に含まれる
-        let last = TemporalId::new(1, TemporalId::DOMAIN_END - 1).unwrap();
+        let last = TemporalId::from_seconds(1, TemporalId::DOMAIN_END - 1).unwrap();
         assert_eq!(last.end_unixtime_exclusive(), TemporalId::DOMAIN_END);
         assert!(TemporalId::WHOLE.contains(&last));
         // WHOLE 自身の終端はドメイン終端
@@ -301,8 +301,12 @@ mod tests {
             TemporalId::WHOLE.end_unixtime_exclusive(),
             TemporalId::DOMAIN_END
         );
-        // 後方互換: i = u64::MAX は WHOLE として構築できる
-        assert_eq!(TemporalId::new(u64::MAX, 0).unwrap(), TemporalId::WHOLE);
+        // WHOLE の間隔はドメイン全長そのもの（u64::MAX は約数鎖に無い）
+        assert_eq!(
+            TemporalId::from_seconds(TemporalId::DOMAIN_END, 0).unwrap(),
+            TemporalId::WHOLE
+        );
+        assert!(TemporalId::from_seconds(u64::MAX, 0).is_err());
     }
 
     /// 仕様の任意間隔 `i/t` を正規化する from_spec。
@@ -315,7 +319,7 @@ mod tests {
 
         // 約数鎖に含まれる i は単一ID
         let ids = TemporalId::from_spec(3600, 5).unwrap();
-        assert_eq!(ids, alloc::vec![TemporalId::new(3600, 5).unwrap()]);
+        assert_eq!(ids, alloc::vec![TemporalId::from_seconds(3600, 5).unwrap()]);
 
         // i=0 はエラー
         assert!(TemporalId::from_spec(0, 1).is_err());

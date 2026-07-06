@@ -22,7 +22,7 @@ impl Default for TemporalId {
 /// 文字列表現から [`TemporalId`] を復元する。
 ///
 /// `"i/t"` 形式の文字列をパースして [`TemporalId`] を構築する。
-/// `i` は [`TemporalId::TEMPORAL_I`] に含まれる値である必要があり、
+/// `i` は約数鎖（[`Interval`](crate::Interval)）に含まれる秒数である必要があり、
 /// `t` は任意の `u64` 値である。
 ///
 /// # パラメーター
@@ -46,7 +46,7 @@ impl Default for TemporalId {
 /// # {
 /// # use kasane_logic::TemporalId;
 /// # use core::str::FromStr;
-/// let id = TemporalId::new(3600, 5).unwrap();
+/// let id = TemporalId::from_seconds(3600, 5).unwrap();
 /// let parsed: TemporalId = "3600/5".parse().unwrap();
 /// assert_eq!(id, parsed);
 /// # }
@@ -58,7 +58,7 @@ impl Default for TemporalId {
 /// # {
 /// # use kasane_logic::TemporalId;
 /// # use core::str::FromStr;
-/// let original = TemporalId::new(60, 120).unwrap();
+/// let original = TemporalId::from_seconds(60, 120).unwrap();
 /// let string_repr = original.to_string();
 /// let parsed = TemporalId::from_str(&string_repr).unwrap();
 /// assert_eq!(original, parsed);
@@ -90,6 +90,6 @@ impl FromStr for TemporalId {
                 input: s.to_string(),
             })?;
 
-        TemporalId::new(i, t)
+        TemporalId::from_seconds(i, t)
     }
 }

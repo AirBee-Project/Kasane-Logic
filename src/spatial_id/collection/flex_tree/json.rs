@@ -161,7 +161,7 @@ mod tests {
     /// 時間ID付きの [`RangeId`] を直接渡して検証する。
     #[test]
     fn write_id_open_emits_i_scalar_and_t_array() {
-        let temporal = TemporalId::new(3600, 5).unwrap();
+        let temporal = TemporalId::from_seconds(3600, 5).unwrap();
         let range = RangeId::new_with_temporal(20, [0, 0], [0, 0], [0, 0], temporal).unwrap();
 
         let mut out = String::new();

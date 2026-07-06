@@ -47,7 +47,7 @@ pub use interval::Interval;
 /// `i` の有効な値は**約数鎖**（[`Interval`] を参照）に限定される：
 /// - `1` / `60` / `3600` / `86400` — 秒・分・時・日（カレンダー層）
 /// - `86400·2^k`（`k = 1..=46`）— 日の二進倍（二進層）
-/// - `86400·2^47`（または別名 `u64::MAX`）— 全時間（[`Interval::Whole`]）
+/// - `86400·2^47` — 全時間（[`Interval::Whole`]）
 ///
 /// 各段が上の段を割り切るため、任意の2つの時間IDは必ず「入れ子」か「非交差」になる。
 /// この性質により交差が常に単一セルで表現でき、空間IDのズームレベル階層と
@@ -66,7 +66,7 @@ pub use interval::Interval;
 /// 1時間単位のIDの作成:
 /// ```
 /// # use kasane_logic::TemporalId;
-/// let id = TemporalId::new(3600, 10).unwrap();
+/// let id = TemporalId::from_seconds(3600, 10).unwrap();
 /// assert_eq!(id.start_unixtime(), 36000);
 /// assert_eq!(id.end_unixtime_inclusive(), 39599);
 /// ```
@@ -90,15 +90,46 @@ impl TemporalId {
     /// 時間ドメインの排他的終端（`86400 × 2^47` 秒）。
     pub const DOMAIN_END: u64 = interval::WHOLE_SECONDS;
 
-    /// 指定された時間間隔と時間インデックスから新しい [`TemporalId`] を構築する。
+    /// 時間間隔（[`Interval`]）と時間インデックス `t` から新しい [`TemporalId`] を構築する。
     ///
-    /// 与えられた `i` と `t` が有効な値であるかを検証し、
-    /// 検証に失敗した場合は [`Error`] を返す。
+    /// [`Interval`] は検証付きコンストラクタからのみ作れるため、間隔の正当性は
+    /// 型で保証済みである。ここでは時間インデックスの範囲のみを検証する。
     ///
     /// # パラメーター
     ///
-    /// * `i` — 時間間隔（秒単位）。約数鎖（[`Interval`]）に含まれる値である必要がある。
+    /// * `interval` — 時間間隔。
     /// * `t` — 時間インデックス。
+    ///
+    /// # バリデーション
+    ///
+    /// 区間終端 `i * (t + 1)` が時間ドメイン終端 [`Self::DOMAIN_END`] を超える場合、
+    /// [`Error::TOutOfRange`](crate::SpatialIdError::TOutOfRange) を返す。
+    ///
+    /// # 例
+    ///
+    /// ```
+    /// # use kasane_logic::{Interval, TemporalId};
+    /// let id = TemporalId::new(Interval::Hour, 5).unwrap();
+    /// assert_eq!(id.interval(), Interval::Hour);
+    /// assert_eq!(id.t(), 5);
+    ///
+    /// // 二進層（Day·2^k）も型安全に構築できる
+    /// let two_days = TemporalId::new(Interval::day_pow(1).unwrap(), 0).unwrap();
+    /// assert_eq!(two_days.i(), 86400 * 2);
+    /// ```
+    pub fn new(interval: Interval, t: u64) -> Result<Self, Error> {
+        let i = interval.seconds();
+        let end_exclusive = i as u128 * (t as u128 + 1);
+        if end_exclusive > Self::DOMAIN_END as u128 {
+            return Err(SpatialIdError::TOutOfRange { i, t }.into());
+        }
+        Ok(Self { interval, t })
+    }
+
+    /// 生の秒数 `i` と時間インデックス `t` から構築する（[`new`](Self::new) の秒数版）。
+    ///
+    /// 文字列パースや外部データ（Ouranos 仕様の `i/t` 表記）の取り込みに使う。
+    /// プログラム内で間隔が静的に決まっている場合は [`new`](Self::new) を推奨する。
     ///
     /// # バリデーション
     ///
@@ -112,7 +143,7 @@ impl TemporalId {
     /// 有効な時間IDの作成:
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 5).unwrap();
+    /// let id = TemporalId::from_seconds(3600, 5).unwrap();
     /// assert_eq!(id.i(), 3600);
     /// assert_eq!(id.t(), 5);
     /// ```
@@ -120,24 +151,12 @@ impl TemporalId {
     /// 無効な時間間隔の検知:
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(7200, 5);
+    /// let id = TemporalId::from_seconds(7200, 5);
     /// assert!(id.is_err());
     /// ```
-    pub fn new(i: u64, t: u64) -> Result<Self, Error> {
-        let interval = Interval::from_seconds(i).ok_or(SpatialIdError::TIntervalError { i })?;
-        Self::from_interval(interval, t)
-    }
-
-    /// [`Interval`] と時間インデックス `t` から構築する（型安全版）。
-    ///
-    /// 区間終端 `i * (t + 1)` が時間ドメイン `[0, DOMAIN_END)` に収まることを検証する。
-    pub fn from_interval(interval: Interval, t: u64) -> Result<Self, Error> {
-        let i = interval.seconds();
-        let end_exclusive = i as u128 * (t as u128 + 1);
-        if end_exclusive > Self::DOMAIN_END as u128 {
-            return Err(SpatialIdError::TOutOfRange { i, t }.into());
-        }
-        Ok(Self { interval, t })
+    pub fn from_seconds(i: u64, t: u64) -> Result<Self, Error> {
+        let interval = Interval::new(i)?;
+        Self::new(interval, t)
     }
 
     /// この時間IDの間隔（[`Interval`] 型）。
@@ -154,7 +173,7 @@ impl TemporalId {
     /// let whole = TemporalId::WHOLE;
     /// assert!(whole.is_whole());
     ///
-    /// let specific = TemporalId::new(3600, 5).unwrap();
+    /// let specific = TemporalId::from_seconds(3600, 5).unwrap();
     /// assert!(!specific.is_whole());
     /// ```
     pub fn is_whole(&self) -> bool {
@@ -169,7 +188,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 10).unwrap();
+    /// let id = TemporalId::from_seconds(3600, 10).unwrap();
     /// assert_eq!(id.start_unixtime(), 36000);
     /// ```
     pub fn start_unixtime(&self) -> u64 {
@@ -184,7 +203,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 10).unwrap();
+    /// let id = TemporalId::from_seconds(3600, 10).unwrap();
     /// assert_eq!(id.end_unixtime_inclusive(), 39599);
     /// ```
     pub fn end_unixtime_inclusive(&self) -> u64 {
@@ -200,7 +219,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 10).unwrap();
+    /// let id = TemporalId::from_seconds(3600, 10).unwrap();
     /// assert_eq!(id.end_unixtime_exclusive(), 39600);
     /// ```
     pub fn end_unixtime_exclusive(&self) -> u64 {
@@ -213,7 +232,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 5).unwrap();
+    /// let id = TemporalId::from_seconds(3600, 5).unwrap();
     /// assert_eq!(id.i(), 3600);
     /// ```
     pub fn i(&self) -> u64 {
@@ -226,7 +245,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 5).unwrap();
+    /// let id = TemporalId::from_seconds(3600, 5).unwrap();
     /// assert_eq!(id.t(), 5);
     /// ```
     pub fn t(&self) -> u64 {
@@ -264,8 +283,8 @@ impl TemporalId {
         if i == 0 {
             return Err(SpatialIdError::TIntervalError { i }.into());
         }
-        if let Some(interval) = Interval::from_seconds(i) {
-            return Ok(alloc::vec![Self::from_interval(interval, t)?]);
+        if let Ok(interval) = Interval::new(i) {
+            return Ok(alloc::vec![Self::new(interval, t)?]);
         }
         let start = i as u128 * t as u128;
         let end_exclusive = i as u128 * (t as u128 + 1);
@@ -300,7 +319,7 @@ impl TemporalId {
     /// # use kasane_logic::TemporalId;
     /// let ids = TemporalId::from_range(0, 3600).unwrap();
     /// assert_eq!(ids.len(), 1);
-    /// assert_eq!(ids[0], TemporalId::new(3600, 0).unwrap());
+    /// assert_eq!(ids[0], TemporalId::from_seconds(3600, 0).unwrap());
     /// ```
     ///
     /// 複雑な範囲（時間と分の組み合わせ）:
@@ -358,7 +377,7 @@ impl TemporalId {
                     current += secs;
                     break;
                 }
-                // Interval::Second（1秒）は必ず条件を満たすため、このループは必ず1セル進む。
+                // Interval::SECOND（1秒）は必ず条件を満たすため、このループは必ず1セル進む。
             }
         }
 

@@ -261,7 +261,7 @@ mod tests {
     }
 
     fn seg(i: u64, t: u64, v: i32) -> TemporalMap<i32> {
-        TemporalMap::from_temporal(&TemporalId::new(i, t).unwrap(), v)
+        TemporalMap::from_temporal(&TemporalId::from_seconds(i, t).unwrap(), v)
     }
 
     /// 正規化不変条件（昇順・互いに素・隣接同値なし）。
@@ -293,7 +293,7 @@ mod tests {
             let mut bb = TemporalMap::new();
             for t in 60..200u64 {
                 bb = bb.union(
-                    &TemporalMap::from_temporal(&TemporalId::new(1, t).unwrap(), 9),
+                    &TemporalMap::from_temporal(&TemporalId::from_seconds(1, t).unwrap(), 9),
                     &ConflictPolicy::Overwrite,
                 );
             }

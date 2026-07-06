@@ -200,7 +200,7 @@ mod tests {
     fn build(cells: &[(u64, u64)]) -> TemporalSet {
         let mut set = TemporalSet::new();
         for &(i, t) in cells {
-            set.insert(&TemporalId::new(i, t).unwrap());
+            set.insert(&TemporalId::from_seconds(i, t).unwrap());
         }
         set
     }
@@ -270,10 +270,10 @@ mod tests {
     fn contains_oracle() {
         let sets = sample_sets();
         let probes = [
-            TemporalId::new(60, 0).unwrap(),
-            TemporalId::new(60, 1).unwrap(),
-            TemporalId::new(3600, 0).unwrap(),
-            TemporalId::new(1, 3600).unwrap(),
+            TemporalId::from_seconds(60, 0).unwrap(),
+            TemporalId::from_seconds(60, 1).unwrap(),
+            TemporalId::from_seconds(3600, 0).unwrap(),
+            TemporalId::from_seconds(1, 3600).unwrap(),
         ];
         for set in &sets {
             let s = secs(set);
@@ -310,7 +310,7 @@ mod tests {
         assert!(w.is_whole());
         assert_eq!(w.cells(), alloc::vec![TemporalId::WHOLE]);
 
-        let hour = TemporalSet::from_temporal(&TemporalId::new(3600, 10).unwrap());
+        let hour = TemporalSet::from_temporal(&TemporalId::from_seconds(3600, 10).unwrap());
         let d = w.difference(&hour);
         assert_eq!(d.intervals.len(), 2, "WHOLE − 1時間 = 前後2区間");
         assert!(!d.contains_unixtime(36000)); // 穴の中
@@ -327,7 +327,7 @@ mod tests {
         assert_eq!(total, TemporalId::DOMAIN_END - 3600);
 
         // 窓で限定した分解
-        let window = TemporalId::new(3600, 11).unwrap(); // [39600, 43200)
+        let window = TemporalId::from_seconds(3600, 11).unwrap(); // [39600, 43200)
         let cells = d.cells_in_window(&window);
         assert_eq!(cells, alloc::vec![window]);
     }

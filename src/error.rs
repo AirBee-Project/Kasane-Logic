@@ -63,12 +63,15 @@ pub enum SpatialIdError {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
 
-    /// 時間方向が0-u64::MAX的有効範囲外であることを示す。
-    /// 0=<i×t=<u64::MAXを満たす必要がある
+    /// 時間区間がドメイン `[0, TemporalId::DOMAIN_END)` の外に出ることを示す。
+    /// `i × (t + 1) <= DOMAIN_END` を満たす必要がある。
     TOutOfRange { i: u64, t: u64 },
 
-    /// 時間間隔 `i` に 0 を指定した場合のエラー。
+    /// 時間間隔 `i` が約数鎖に含まれない場合のエラー。
     TIntervalError { i: u64 },
+
+    /// 二進層間隔 `Day·2^k` の指数 `k` が範囲（`0..=47`）外の場合のエラー。
+    TDayPowOutOfRange { k: u8 },
 
     /// 時間範囲が空（`start >= end_exclusive`）であることを示す。
     TRangeEmpty { start: u64, end_exclusive: u64 },
@@ -201,7 +204,11 @@ impl fmt::Display for SpatialIdError {
                 )
             }
             SpatialIdError::TOutOfRange { i, t } => {
-                write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
+                write!(
+                    f,
+                    "time range i*(t+1) exceeds the time domain end (i={}, t={}).",
+                    i, t
+                )
             }
             SpatialIdError::TRangeEmpty {
                 start,
@@ -222,9 +229,12 @@ impl fmt::Display for SpatialIdError {
             SpatialIdError::TIntervalError { i } => {
                 write!(
                     f,
-                    "Time interval i must be 1, 60, 3600, 86400, 86400*2^k (k<=47), or u64::MAX (whole) (i={}).",
+                    "Time interval i must be 1, 60, 3600, or 86400*2^k (k<=47) (i={}).",
                     i
                 )
+            }
+            SpatialIdError::TDayPowOutOfRange { k } => {
+                write!(f, "Day*2^k exponent k must be in 0..=47 (k={}).", k)
             }
             SpatialIdError::ParseSpatialIdFormat { kind, input } => {
                 write!(f, "{} '{}' has invalid display format", kind, input)

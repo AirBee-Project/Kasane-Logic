@@ -29,7 +29,7 @@ impl TemporalId {
     /// 全ての時間を表す時間IDを作成する。
     ///
     /// `temporal_id` feature が無効な場合、常に `Ok(Self::WHOLE)` を返す。
-    pub fn new(_i: u64, _t: u64) -> Result<Self, Error> {
+    pub fn from_seconds(_i: u64, _t: u64) -> Result<Self, Error> {
         Ok(Self::WHOLE)
     }
 

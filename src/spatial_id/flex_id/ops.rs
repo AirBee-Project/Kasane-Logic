@@ -231,8 +231,8 @@ mod temporal_tests {
     /// 同一空間・時間のみ差分：1時間 − 1分 = 59個（空間S × 分セル）。秒断片にならない。
     #[test]
     fn temporal_only_difference() {
-        let a = st(TemporalId::new(3600, 0).unwrap());
-        let b = st(TemporalId::new(60, 0).unwrap());
+        let a = st(TemporalId::from_seconds(3600, 0).unwrap());
+        let b = st(TemporalId::from_seconds(60, 0).unwrap());
         let d: Vec<_> = a.difference(&b).collect();
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|f| f.temporal().i() == 60));
@@ -248,8 +248,8 @@ mod temporal_tests {
     #[test]
     fn windowed_difference_bounds_whole() {
         let a = st(TemporalId::WHOLE);
-        let b = st(TemporalId::new(60, 600).unwrap()); // [36000, 36060)
-        let window = TemporalId::new(3600, 10).unwrap(); // [36000, 39600)
+        let b = st(TemporalId::from_seconds(60, 600).unwrap()); // [36000, 36060)
+        let window = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)
         let d: Vec<_> = a.difference_in_window(&b, &window).collect();
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|f| f.temporal().i() == 60));
@@ -259,7 +259,7 @@ mod temporal_tests {
     #[test]
     fn whole_difference_is_bounded() {
         let a = st(TemporalId::WHOLE);
-        let b = st(TemporalId::new(60, 600).unwrap()); // [36000, 36060)
+        let b = st(TemporalId::from_seconds(60, 600).unwrap()); // [36000, 36060)
         let d: Vec<_> = a.difference(&b).collect();
         assert!(d.len() < 400, "cells = {}", d.len());
         // 空間は不変、時間の被覆は「全時間 − 60秒」
@@ -274,10 +274,26 @@ mod temporal_tests {
     #[test]
     fn spatio_temporal_difference_atom_oracle() {
         // A = S1(zoom1) × [0,60),  B = S2(zoom2, S2⊂S1) × [0,1)
-        let a = FlexId::new_with_temporal(1u8, 0, 1u8, 0, 1u8, 0, TemporalId::new(60, 0).unwrap())
-            .unwrap();
-        let b = FlexId::new_with_temporal(2u8, 0, 2u8, 0, 2u8, 0, TemporalId::new(1, 0).unwrap())
-            .unwrap();
+        let a = FlexId::new_with_temporal(
+            1u8,
+            0,
+            1u8,
+            0,
+            1u8,
+            0,
+            TemporalId::from_seconds(60, 0).unwrap(),
+        )
+        .unwrap();
+        let b = FlexId::new_with_temporal(
+            2u8,
+            0,
+            2u8,
+            0,
+            2u8,
+            0,
+            TemporalId::from_seconds(1, 0).unwrap(),
+        )
+        .unwrap();
         let d: Vec<_> = a.difference(&b).collect();
         let got = atoms_of(&d, 2);
         let exp: BTreeSet<Atom> = atoms(&a, 2).difference(&atoms(&b, 2)).copied().collect();

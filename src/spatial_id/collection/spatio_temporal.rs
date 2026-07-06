@@ -481,7 +481,8 @@ mod tests {
 
     /// 時間付き FlexId を作る（zoom, f=x=y、時間セル (i,t)）。
     fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
-        FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::new(i, t).unwrap()).unwrap()
+        FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::from_seconds(i, t).unwrap())
+            .unwrap()
     }
 
     fn build(cells: &[FlexId]) -> SpatioTemporalSet {
@@ -532,9 +533,16 @@ mod tests {
     fn get_atom_oracle() {
         let a = build(&[cell(2, 0, 0, 0, 3600, 0), cell(2, 0, 1, 0, 60, 0)]);
         // クエリ: (1,0,0,0)@[0,120)  … 空間は (2,0,0,0)/(2,0,1,0) を含む粗いセル
-        let query =
-            FlexId::new_with_temporal(1u8, 0, 1u8, 0, 1u8, 0, TemporalId::new(60, 1).unwrap())
-                .unwrap(); // [60,120)
+        let query = FlexId::new_with_temporal(
+            1u8,
+            0,
+            1u8,
+            0,
+            1u8,
+            0,
+            TemporalId::from_seconds(60, 1).unwrap(),
+        )
+        .unwrap(); // [60,120)
         let got: BTreeSet<Atom> = {
             let mut out = BTreeSet::new();
             for f in a.get(&query) {
@@ -592,7 +600,7 @@ mod tests {
         // B: (2,0,0,0) @ [0,60)
         let b = build(&[cell(2, 0, 0, 0, 60, 0)]);
         // 窓: その1時間 [0,3600)
-        let window = TemporalId::new(3600, 0).unwrap();
+        let window = TemporalId::from_seconds(3600, 0).unwrap();
         let d = a.difference_in_window(&b, &window);
         // オラクル: (WHOLE − [0,60)) ∩ [0,3600) = [60,3600)、空間 (2,0,0,0)
         let got = atoms(&d, 2);
@@ -641,7 +649,8 @@ mod tests {
 
     fn tcell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64, v: i32) -> (FlexId, i32) {
         (
-            FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::new(i, t).unwrap()).unwrap(),
+            FlexId::new_with_temporal(z, f, z, x, z, y, TemporalId::from_seconds(i, t).unwrap())
+                .unwrap(),
             v,
         )
     }
@@ -715,9 +724,16 @@ mod tests {
     #[test]
     fn table_get() {
         let t = tbuild(&[tcell(2, 0, 0, 0, 3600, 0, 42)]); // (2,0,0,0)@[0,3600)=42
-        let query =
-            FlexId::new_with_temporal(2u8, 0, 2u8, 0, 2u8, 0, TemporalId::new(60, 1).unwrap())
-                .unwrap(); // @[60,120)
+        let query = FlexId::new_with_temporal(
+            2u8,
+            0,
+            2u8,
+            0,
+            2u8,
+            0,
+            TemporalId::from_seconds(60, 1).unwrap(),
+        )
+        .unwrap(); // @[60,120)
         let got: Vec<((i32, u32, u32), u64, i32)> = {
             let mut out = Vec::new();
             for (f, v) in t.get(&query) {
