@@ -75,16 +75,12 @@ impl From<&SingleId> for FlexId {
     }
 }
 
-
-
 impl IterFlexIds for FlexId {
     type Iter<'a> = core::iter::Once<FlexId>;
     fn iter_flex_ids(&self) -> Self::Iter<'_> {
         core::iter::once(self.clone())
     }
 }
-
-
 
 impl IterSingleIds for FlexId {
     type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
@@ -103,7 +99,9 @@ impl IterSingleIds for FlexId {
             let x_iter = if x_0 <= x_1 {
                 (x_0..=x_1).collect::<alloc::vec::Vec<_>>()
             } else {
-                (x_0..=crate::spatial_id::zoom_level::ZoomLevel::new(z).unwrap().xy_max())
+                (x_0..=crate::spatial_id::zoom_level::ZoomLevel::new(z)
+                    .unwrap()
+                    .xy_max())
                     .chain(0..=x_1)
                     .collect::<alloc::vec::Vec<_>>()
             };
@@ -113,7 +111,9 @@ impl IterSingleIds for FlexId {
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        SingleId::new(z, f, x, y).unwrap().with_temporal(t_id.clone())
+                        SingleId::new(z, f, x, y)
+                            .unwrap()
+                            .with_temporal(t_id.clone())
                     }
                     #[cfg(not(feature = "temporal_id"))]
                     {

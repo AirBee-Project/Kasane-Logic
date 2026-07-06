@@ -51,8 +51,6 @@ impl From<&SingleId> for RangeId {
     }
 }
 
-
-
 impl IterSingleIds for RangeId {
     type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
     fn iter_single_ids(&self) -> Self::Iter<'_> {
@@ -76,7 +74,9 @@ impl IterSingleIds for RangeId {
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        SingleId::new(z, f, x, y).unwrap().with_temporal(t_id.clone())
+                        SingleId::new(z, f, x, y)
+                            .unwrap()
+                            .with_temporal(t_id.clone())
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
@@ -89,8 +89,6 @@ impl IterSingleIds for RangeId {
         Box::new(iter)
     }
 }
-
-
 
 impl IterFlexIds for RangeId {
     type Iter<'a> = Box<dyn Iterator<Item = FlexId> + 'a>;
@@ -116,18 +114,18 @@ impl IterFlexIds for RangeId {
             x_list_inner.into_iter().flat_map(move |(x_z, x_i)| {
                 let y_list_inner2 = y_list_inner.clone();
                 let t_id_inner2 = t_id_inner.clone();
-                y_list_inner2
-                    .into_iter()
-                    .map(move |(y_z, y_i)| {
-                        #[cfg(feature = "temporal_id")]
-                        {
-                            FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap().with_temporal(t_id_inner2.clone())
-                        }
-                        #[cfg(not(feature = "temporal_id"))]
-                        {
-                            FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap()
-                        }
-                    })
+                y_list_inner2.into_iter().map(move |(y_z, y_i)| {
+                    #[cfg(feature = "temporal_id")]
+                    {
+                        FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i)
+                            .unwrap()
+                            .with_temporal(t_id_inner2.clone())
+                    }
+                    #[cfg(not(feature = "temporal_id"))]
+                    {
+                        FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap()
+                    }
+                })
             })
         });
         Box::new(iter)

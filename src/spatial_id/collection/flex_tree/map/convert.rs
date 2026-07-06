@@ -1,11 +1,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::{
-    FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdMap,
-};
-
-
+use crate::{FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdMap};
 
 impl<V> IterFlexIds for SpatialIdMap<V>
 where
@@ -20,8 +16,6 @@ where
         Box::new(self.iter().map(|(flex_id, _)| flex_id))
     }
 }
-
-
 
 impl<V> IterSingleIds for SpatialIdMap<V>
 where

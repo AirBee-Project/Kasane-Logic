@@ -47,8 +47,6 @@ impl TemporalId {
         0
     }
 
-
-
     /// 時間区間の終了時刻（排他的）をUNIXタイムスタンプで取得する。
     ///
     /// `temporal_id` feature が無効な場合、常に時間ドメイン終端 `DOMAIN_END` を返す。

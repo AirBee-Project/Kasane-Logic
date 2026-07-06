@@ -147,6 +147,4 @@ impl RangeId {
             temporal_id: TemporalId::WHOLE,
         }
     }
-
-
 }

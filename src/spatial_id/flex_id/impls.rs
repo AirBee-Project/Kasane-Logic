@@ -230,7 +230,15 @@ impl FromStr for FlexId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, y_zoomlevel, y_index).map(|id| id.with_temporal(temporal_id))
+            FlexId::new(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+            )
+            .map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

@@ -49,7 +49,9 @@ fn atoms_of<I: IntoIterator<Item = FlexId>>(ids: I, z: u8) -> BTreeSet<Atom> {
 
 /// 時間付き FlexId を作る（zoom, f/x/y、時間セル (i,t)）。
 fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
-    FlexId::new(z, f, z, x, z, y).map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap())).unwrap()
+    FlexId::new(z, f, z, x, z, y)
+        .map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap()))
+        .unwrap()
 }
 
 fn build(cells: &[FlexId]) -> SpatialIdSet {
@@ -161,8 +163,9 @@ fn matches_reference_implementation() {
 fn get_atom_oracle() {
     let a = build(&[cell(2, 0, 0, 0, 3600, 0), cell(2, 0, 1, 0, 60, 0)]);
     // クエリ: 粗い空間セル (zoom1) × [60,120)
-    let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0).map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
-    .unwrap();
+    let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0)
+        .map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
+        .unwrap();
     let got = atoms_of(a.get(&query), 2);
     let qa: BTreeSet<Atom> = spatial_keys(&query, 2)
         .into_iter()

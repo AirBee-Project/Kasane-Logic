@@ -59,8 +59,7 @@ mod persist_tests {
 
 use crate::spatial_id::collection::flex_tree::core::node_ops::TMapOverwrite;
 use crate::{
-    FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, SpatialIdSet, TemporalMap,
-    TemporalSet,
+    FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, SpatialIdSet, TemporalMap, TemporalSet,
 };
 
 /// 値(V)と時空間(FlexId)を相互に高速検索・管理するためのテーブル構造。

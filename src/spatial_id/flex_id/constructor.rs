@@ -48,6 +48,4 @@ impl FlexId {
             temporal_id: TemporalId::WHOLE,
         }
     }
-
-
 }

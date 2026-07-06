@@ -49,7 +49,9 @@ fn atom_map<I: IntoIterator<Item = (FlexId, i32)>>(pairs: I, z: u8) -> BTreeMap<
 
 /// 時間付き FlexId を作る（zoom, f/x/y、時間セル (i,t)）。
 fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
-    FlexId::new(z, f, z, x, z, y).map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap())).unwrap()
+    FlexId::new(z, f, z, x, z, y)
+        .map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap()))
+        .unwrap()
 }
 
 /// 逐次 insert の期待値（後勝ち）をアトム写像で構築するオラクル。
@@ -136,8 +138,9 @@ fn table_get_atom_oracle() {
     let t = table_of(&entries);
     let all = atom_map(t.iter().map(|(f, v)| (f, *v)), 2);
     // クエリ: 粗い空間セル (zoom1) × [60,120)
-    let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0).map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
-    .unwrap();
+    let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0)
+        .map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
+        .unwrap();
     let got = atom_map(t.get(&query).map(|(f, v)| (f, *v)), 2);
     let q_keys: alloc::collections::BTreeSet<Key> = spatial_keys(&query, 2)
         .into_iter()

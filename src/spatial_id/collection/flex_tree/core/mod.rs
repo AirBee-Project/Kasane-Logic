@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::{IterSingleIds, IterFlexIds};
+use crate::{IterFlexIds, IterSingleIds};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;

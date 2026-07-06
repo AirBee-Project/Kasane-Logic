@@ -2,9 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use super::{node::Node, split_child_id};
-use crate::{
-    FlexId, FlexTreeCore, IterFlexIds, IterSingleIds, Side, SingleId,
-};
+use crate::{FlexId, FlexTreeCore, IterFlexIds, IterSingleIds, Side, SingleId};
 
 pub struct LeavesIter<'a, V>
 where
@@ -91,8 +89,6 @@ where
     }
 }
 
-
-
 impl<V> IterFlexIds for FlexTreeCore<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
@@ -106,8 +102,6 @@ where
         Box::new(self.iter().map(|(flex_id, _value)| flex_id))
     }
 }
-
-
 
 impl<V> IterSingleIds for FlexTreeCore<V>
 where

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        FlexId, IterSingleIds, IterFlexIds, RangeId, SingleId, SpatialIdSet,
+        FlexId, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialIdSet,
         spatial_id::zoom_level::ZoomLevel,
     };
     ///単純なSingleIdを1つだけ挿入するケース

@@ -1,12 +1,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::{
-    FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdSet,
-    SpatialIdTable,
-};
-
-
+use crate::{FlexId, IterFlexIds, IterSingleIds, SingleId, SpatialIdSet, SpatialIdTable};
 
 impl IterFlexIds for SpatialIdSet {
     type Iter<'a>
@@ -18,8 +13,6 @@ impl IterFlexIds for SpatialIdSet {
         Box::new(self.iter())
     }
 }
-
-
 
 impl IterSingleIds for SpatialIdSet {
     type Iter<'a>

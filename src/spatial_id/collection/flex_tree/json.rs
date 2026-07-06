@@ -162,7 +162,9 @@ mod tests {
     #[test]
     fn write_id_open_emits_i_scalar_and_t_array() {
         let temporal = TemporalId::from_seconds(3600, 5).unwrap();
-        let range = RangeId::new(20, [0, 0], [0, 0], [0, 0]).unwrap().with_temporal(temporal);
+        let range = RangeId::new(20, [0, 0], [0, 0], [0, 0])
+            .unwrap()
+            .with_temporal(temporal);
 
         let mut out = String::new();
         write_id_open(&mut out, &range);

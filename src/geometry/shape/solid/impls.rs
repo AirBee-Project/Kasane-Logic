@@ -5,8 +5,7 @@ use alloc::collections::VecDeque;
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, RangeId, Shape, SingleId, Solid,
-    SpatialId,
+    Coordinate, Error, ExpandCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
     geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 

@@ -92,6 +92,4 @@ impl SingleId {
             temporal_id: TemporalId::WHOLE,
         }
     }
-
-
 }

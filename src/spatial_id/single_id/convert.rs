@@ -1,7 +1,5 @@
 use crate::{FlexId, IterFlexIds, IterSingleIds, SingleId};
 
-
-
 impl IterFlexIds for SingleId {
     type Iter<'a> = core::iter::Once<FlexId>;
     fn iter_flex_ids(&self) -> Self::Iter<'_> {

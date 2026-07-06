@@ -73,7 +73,6 @@ pub enum SpatialIdError {
     /// 二進層間隔 `Day·2^k` の指数 `k` が範囲（`0..=47`）外の場合のエラー。
     TDayPowOutOfRange { k: u8 },
 
-
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
 

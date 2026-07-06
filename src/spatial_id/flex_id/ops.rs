@@ -225,7 +225,9 @@ mod temporal_tests {
 
     /// 同一空間セル S=(zoom1, f=x=y=0)、時間だけ変える。
     fn st(temp: TemporalId) -> FlexId {
-        FlexId::new(1u8, 0, 1u8, 0, 1u8, 0).map(|id| id.with_temporal(temp)).unwrap()
+        FlexId::new(1u8, 0, 1u8, 0, 1u8, 0)
+            .map(|id| id.with_temporal(temp))
+            .unwrap()
     }
 
     /// 同一空間・時間のみ差分：1時間 − 1分 = 59個（空間S × 分セル）。秒断片にならない。
@@ -274,10 +276,12 @@ mod temporal_tests {
     #[test]
     fn spatio_temporal_difference_atom_oracle() {
         // A = S1(zoom1) × [0,60),  B = S2(zoom2, S2⊂S1) × [0,1)
-        let a = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0).map(|id| id.with_temporal(TemporalId::from_seconds(60, 0).unwrap()))
-        .unwrap();
-        let b = FlexId::new(2u8, 0, 2u8, 0, 2u8, 0).map(|id| id.with_temporal(TemporalId::from_seconds(1, 0).unwrap()))
-        .unwrap();
+        let a = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0)
+            .map(|id| id.with_temporal(TemporalId::from_seconds(60, 0).unwrap()))
+            .unwrap();
+        let b = FlexId::new(2u8, 0, 2u8, 0, 2u8, 0)
+            .map(|id| id.with_temporal(TemporalId::from_seconds(1, 0).unwrap()))
+            .unwrap();
         let d: Vec<_> = a.difference(&b).collect();
         let got = atoms_of(&d, 2);
         let exp: BTreeSet<Atom> = atoms(&a, 2).difference(&atoms(&b, 2)).copied().collect();
