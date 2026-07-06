@@ -10,7 +10,8 @@ use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::testing::SpatioTemporalSet;
-use crate::{FlexId, Interval, SpatialId, SpatialIdSet, TemporalId};
+use crate::{FlexId, Interval, SingleId, SpatialId, SpatialIdSet, TemporalId};
+use proptest::prelude::*;
 
 type Atom = ((i32, u32, u32), u64);
 
@@ -282,4 +283,62 @@ fn whole_time_cells_still_merge() {
         }
     }
     assert_eq!(set.count(), 1, "8 octants (same finite time) merge into 1");
+}
+
+fn arb_small_temporal_id() -> impl Strategy<Value = TemporalId> {
+    // Generate only Second or Minute intervals to avoid OOM in atoms_of oracle
+    let intervals = vec![Interval::Second, Interval::Minute];
+    let interval_strat = prop::sample::select(intervals);
+
+    interval_strat.prop_flat_map(|interval| {
+        // limit the time range to [0, 60] seconds
+        let max_t: u64 = if interval == Interval::Second { 60 } else { 1 };
+        (Just(interval), 0u64..=max_t).prop_map(|(i, t)| TemporalId::new(i, t).unwrap())
+    })
+}
+
+fn arb_temporal_single_id(max_zoom: u8) -> impl Strategy<Value = SingleId> {
+    (
+        crate::SingleId::arb_within(0..=max_zoom),
+        arb_small_temporal_id(),
+    )
+        .prop_map(|(sid, tid)| sid.with_temporal(tid))
+}
+
+fn arb_temporal_set_case() -> impl Strategy<Value = SpatialIdSet> {
+    prop::collection::vec(arb_temporal_single_id(2), 1..=8).prop_map(|sids| {
+        let mut set = SpatialIdSet::new();
+        for sid in sids {
+            set.insert(sid);
+        }
+        set
+    })
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(48))]
+
+    /// 時間付きのランダムな Set に対する演算（union, intersection, difference）が
+    /// アトムオラクル（空間キー × 秒）の演算結果と一致することを検証する。
+    #[test]
+    fn temporal_set_ops_atom_oracle_proptest(a in arb_temporal_set_case(), b in arb_temporal_set_case()) {
+        let aa = atoms_of(a.iter(), 2);
+        let ba = atoms_of(b.iter(), 2);
+
+        prop_assert_eq!(
+            atoms_of((&a | &b).iter(), 2),
+            aa.union(&ba).copied().collect::<BTreeSet<Atom>>(),
+            "union"
+        );
+        prop_assert_eq!(
+            atoms_of((&a & &b).iter(), 2),
+            aa.intersection(&ba).copied().collect::<BTreeSet<Atom>>(),
+            "intersection"
+        );
+        prop_assert_eq!(
+            atoms_of((&a - &b).iter(), 2),
+            aa.difference(&ba).copied().collect::<BTreeSet<Atom>>(),
+            "difference"
+        );
+    }
 }
