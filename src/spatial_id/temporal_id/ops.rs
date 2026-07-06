@@ -3,16 +3,7 @@ use alloc::vec::Vec;
 use crate::TemporalId;
 
 impl TemporalId {
-    /// 2つのTemporalIdの重なる時間範囲（Intersection）を計算して返す。
-    ///
-    /// 時間間隔は約数鎖（[`Interval`](crate::Interval)）に限定されるため、
-    /// 任意の2つの時間IDは必ず「入れ子」か「非交差」のいずれかになる。
-    /// したがって交差は常に細かい方のIDそのもの（`Some`）か、存在しない（`None`）である。
-    ///
-    /// # パラメーター
-    ///
-    /// * `other` — 交差を計算する相手の [`TemporalId`]。
-    ///
+    /// 2つのTemporalIdの重なる時間範囲（Intersection）を返す。
     /// # 例
     ///
     /// ```
@@ -22,7 +13,7 @@ impl TemporalId {
     /// assert_eq!(id1.intersection(&id2), None);     // 重なりなし
     ///
     /// let id3 = TemporalId::from_seconds(1, 18000).unwrap(); // [18000, 18001)
-    /// assert_eq!(id1.intersection(&id3), Some(id3.clone())); // 入れ子 → 細かい方
+    /// assert_eq!(id1.intersection(&id3), Some(id3.clone()));
     /// ```
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
         if self.contains(other) {
@@ -35,11 +26,6 @@ impl TemporalId {
     }
 
     /// 相手の [`TemporalId`] との差集合（self - other）を計算し、イテレータとして返す。
-    ///
-    /// `self` の時間範囲から `other` の時間範囲を除いた部分を、
-    /// 約数鎖の最小分解で表す。約数鎖に二進層があるため、
-    /// `WHOLE − 有限セル` のような巨大な残余も高々数百セルで正確に表現される。
-    ///
     /// # 例
     ///
     /// 重なりがない場合（self全体が返される）:
@@ -68,14 +54,11 @@ impl TemporalId {
 
         let mut result = Vec::new();
 
-        // 重なりなし → self をそのまま返す
         if o1 <= s0 || o0 >= s1 {
             result.push(self.clone());
             return result.into_iter();
         }
 
-        // 左側 [s0, min(o0, s1)) と右側 [max(o1, s0), s1) を、それぞれ
-        // 約数鎖の最小分解で表す。
         let left_end = o0.min(s1);
         if s0 < left_end {
             result.extend(Self::from_range(s0, left_end).unwrap());
@@ -93,7 +76,7 @@ impl TemporalId {
     ///
     /// 結果を `window` の範囲に切り詰めたい場合に使う。
     /// 集合論的に `(self ∩ window) − other = (self − other) ∩ window` と一致する。
-    pub fn difference_in_window(&self, other: &TemporalId, window: &TemporalId) -> Vec<TemporalId> {
+    pub fn difference_clipped(&self, other: &TemporalId, window: &TemporalId) -> Vec<TemporalId> {
         let w0 = window.start_unixtime();
         let w1 = window.end_unixtime_exclusive();
         let s0 = self.start_unixtime().max(w0);
@@ -107,7 +90,6 @@ impl TemporalId {
         let o0 = other.start_unixtime();
         let o1 = other.end_unixtime_exclusive();
 
-        // other が窓内の self と重ならない → クリップした self をそのまま分解
         if o1 <= s0 || o0 >= s1 {
             return Self::from_range(s0, s1).unwrap();
         }
@@ -257,7 +239,7 @@ mod tests {
         let whole = TemporalId::WHOLE;
         let min = TemporalId::from_seconds(60, 600).unwrap(); // [36000, 36060)
         let hour = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)
-        let d = whole.difference_in_window(&min, &hour);
+        let d = whole.difference_clipped(&min, &hour);
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|c| c.i() == Interval::Minute));
         let exp: BTreeSet<u64> = (36000u64..39600)
@@ -278,7 +260,7 @@ mod tests {
         for a in &cells {
             for b in &cells {
                 for w in &windows {
-                    let got = seconds_of(&a.difference_in_window(b, w));
+                    let got = seconds_of(&a.difference_clipped(b, w));
                     let in_w =
                         |s: &u64| w.start_unixtime() <= *s && *s < w.end_unixtime_exclusive();
                     let sa = seconds(a);

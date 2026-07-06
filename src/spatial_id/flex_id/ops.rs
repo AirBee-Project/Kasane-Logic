@@ -7,7 +7,7 @@ impl FlexId {
     ///
     /// `self` の時間を `window` に切り詰めてから [`difference`](Self::difference) する。
     /// 集合論的に `(A ∩ W) − B = (A − B) ∩ W` と一致する（空間は不変、時間のみ窓で限定）。
-    pub fn difference_in_window(
+    pub fn difference_clipped(
         &self,
         other: &FlexId,
         window: &TemporalId,
@@ -253,7 +253,7 @@ mod temporal_tests {
         let a = st(TemporalId::WHOLE);
         let b = st(TemporalId::from_seconds(60, 600).unwrap()); // [36000, 36060)
         let window = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)
-        let d: Vec<_> = a.difference_in_window(&b, &window).collect();
+        let d: Vec<_> = a.difference_clipped(&b, &window).collect();
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|f| f.temporal().i() == Interval::Minute));
     }

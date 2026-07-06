@@ -13,25 +13,14 @@ const DOMAIN_END: u64 = 86400 << 47;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-/// 時間IDの時間間隔`i`を表現する型。
+/// 時間IDの時間間隔`i`を表現する型（temporal_id feature無効時のスタブ）。
 pub enum Interval {
     #[default]
     Whole,
-    /// `86400 × 2^k` 秒（`k = 1..=46`）
-    #[non_exhaustive]
-    DayPow { k: u8 },
-    /// 1日（86400 秒）
-    Day,
-    /// 1時間（3600 秒）
-    Hour,
-    /// 1分（60 秒）
-    Minute,
-    /// 1秒（1 秒）
-    Second,
 }
 
 impl Interval {
-    /// このライブラリが扱える全時間の秒数。86400 × 2^47`（約3,850億年）。
+    /// このライブラリが扱える全時間の秒数。`86400 × 2^47`（約3,850億年）。
     pub const WHOLE_SECONDS: u64 = 86400 << 47;
 
     /// 最も粗い時間区間を表す二進層の指数。
@@ -39,36 +28,25 @@ impl Interval {
 
     /// 秒数から[Interval]型を作成する。
     pub fn new(seconds: u64) -> Result<Interval, Error> {
-        match seconds {
-            Self::WHOLE_SECONDS => Ok(Interval::Whole),
-            86400 => Ok(Interval::Day),
-            3600 => Ok(Interval::Hour),
-            60 => Ok(Interval::Minute),
-            1 => Ok(Interval::Second),
-            _ => Ok(Interval::Whole),
+        if seconds == Self::WHOLE_SECONDS {
+            Ok(Interval::Whole)
+        } else {
+            Err(crate::SpatialIdError::TIntervalError { i: seconds }.into())
         }
     }
 
     /// 二進層の間隔 `Day·2^k` を作成する。
     pub fn day_pow(k: u8) -> Result<Interval, Error> {
-        match k {
-            0 => Ok(Interval::Day),
-            1..=46 => Ok(Interval::DayPow { k }),
-            Self::WHOLE_POW => Ok(Interval::Whole),
-            _ => Ok(Interval::Whole),
+        if k == Self::WHOLE_POW {
+            Ok(Interval::Whole)
+        } else {
+            Err(crate::SpatialIdError::TIntervalError { i: k as u64 }.into())
         }
     }
 
     /// この間隔の秒数。
     pub const fn seconds(self) -> u64 {
-        match self {
-            Interval::Whole => Self::WHOLE_SECONDS,
-            Interval::DayPow { k } => 86400 << k,
-            Interval::Day => 86400,
-            Interval::Hour => 3600,
-            Interval::Minute => 60,
-            Interval::Second => 1,
-        }
+        Self::WHOLE_SECONDS
     }
 }
 
