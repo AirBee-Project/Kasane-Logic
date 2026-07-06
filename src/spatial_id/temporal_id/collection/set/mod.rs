@@ -1,7 +1,7 @@
 use crate::TemporalId;
 use alloc::vec::Vec;
 
-/// [temporalId]の集合を表す型。
+/// [`TemporalId`]の集合を表す型。
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(
     feature = "persist",

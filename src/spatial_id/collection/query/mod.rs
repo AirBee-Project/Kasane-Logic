@@ -1,7 +1,7 @@
 //! [`Query`]: コレクションに対する遅延演算の式木。
 //!
-//! [`SpatialIdCollection::query`](crate::SpatialIdCollection::query) で式を組み立て、
-//! [`run`](Query::run) で最適化（[`optimize`]）を経て実行する。
+//! [`SpatialIdCollection::query`] で式を組み立て、
+//! [`run`](Query::run) で最適化（`optimize`）を経て実行する。
 //! 演算子の実体は [`ops`]（unary: shift / stretch / spread / level / fill、
 //! binary: set / arith）、演算子定義のトレイトは [`traits`] にある。
 

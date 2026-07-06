@@ -63,7 +63,7 @@ use crate::{FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
 /// 値(V)と時空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 ///
 /// 空間は木構造（FlexTree）の一次索引として、時間ごとの値（のランク）は各空間セルの値
-/// （[`TemporalMap`]）として保持する（**時間ネイティブ**）。
+/// （[`TemporalMap`](crate::TemporalMap)）として保持する（**時間ネイティブ**）。
 /// 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間テーブルとして振る舞う。
 /// 挿入は後勝ち（同一時空間点は後から挿入した値で上書き）である。
 #[derive(Default, Clone, Debug)]

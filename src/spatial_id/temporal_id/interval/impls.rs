@@ -11,7 +11,7 @@ impl Interval {
     /// 秒数から[Interval]型を作成する。
     ///
     /// 約数鎖に無い秒数は
-    /// [`SpatialIdError::TIntervalError`](crate::SpatialIdError::TIntervalError) を返す。
+    /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// # 例
     ///
@@ -28,7 +28,7 @@ impl Interval {
     /// 二進層の間隔 `Day·2^k` を作成する。
     ///
     /// `k = 0` は [`Day`](Self::Day)、`k = 47` は [`Whole`](Self::Whole) に一致する。
-    /// `k > 47` は[`SpatialIdError::TDayPowOutOfRange`](crate::SpatialIdError::TDayPowOutOfRange)を返す。
+    /// `k > 47` は[`SpatialIdError::TDayPowOutOfRange`]を返す。
     ///
     /// # 例
     ///

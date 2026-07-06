@@ -142,7 +142,7 @@ impl<V> SpreadParam<V> {
 /// 中心セルからのユークリッド距離（ズーム `z` のセル数）が `radius` 以内の各セルへ、`decay`
 /// で減衰させた値を書き込む。対象軸が1つなら軸沿いの直線、2つなら円、3つなら球になる。
 /// `z` がセルのズームより細かい軸は、`shift_*` と同じく z のセルへ細分化されて広がる。
-/// 重なりは `conflict` で解決する（[`Query`](crate::spatial_id::collection::query::Query) の既定は [`ConflictPolicy::Max`]）。
+/// 重なりは `conflict` で解決する（[`Query`] の既定は [`ConflictPolicy::Max`]）。
 /// X 方向は地球を周回するため巡回し、Y / F が範囲外になるセルは捨てる。
 pub struct Spread;
 

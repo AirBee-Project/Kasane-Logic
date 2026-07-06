@@ -1,6 +1,6 @@
 //! [`TemporalMap`]: 時間 → 値 `V` の対応（1次元）。
 //!
-//! [`TemporalSet`](crate::TemporalSet) の値付き版。内部は **正規化済み**
+//! [`TemporalSet`] の値付き版。内部は **正規化済み**
 //! （昇順・互いに素・隣接同値マージ）の `(start, end, V)` セグメント列。
 //! union / intersection / difference は境界イベント走査（sweep）で厳密に行い、
 //! 重なりの値衝突は [`ConflictPolicy`] で解決する。出力（[`cells`](TemporalMap::cells)）は

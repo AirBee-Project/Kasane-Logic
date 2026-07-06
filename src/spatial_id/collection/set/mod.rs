@@ -16,7 +16,7 @@ pub mod tests;
 /// `SpatialIdSet` は「どの空間が、どの時間に存在するか」を表すための型として機能する。
 ///
 /// - 空間は木構造（FlexTree）の一次索引として、時間は各空間セルの値
-///   （[`TemporalSet`]）として保持する（**時間ネイティブ**）。
+///   （[`TemporalSet`](crate::TemporalSet)）として保持する（**時間ネイティブ**）。
 /// - 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間集合として振る舞う。
 /// - 集合同士の演算（和・積・差）は空間×時間の4次元で厳密に行われる。
 ///
@@ -194,7 +194,7 @@ impl SpatialIdSet {
 
     /// 保持している全ての時空間IDを返す。
     ///
-    /// 各空間セルの存在時間（[`TemporalSet`]）は約数鎖の最小セル列へ分解され、
+    /// 各空間セルの存在時間（[`TemporalSet`](crate::TemporalSet)）は約数鎖の最小セル列へ分解され、
     /// `(空間セル × 時間セル)` の [`FlexId`] として列挙される。
     /// 全時間（WHOLE）のセルは従来どおり1つの [`FlexId`]（temporal=WHOLE）になる。
     pub fn iter(&self) -> impl Iterator<Item = FlexId> + '_ {

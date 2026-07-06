@@ -1,6 +1,6 @@
 //! [`SpatialIdMap`] の永続化（フラットアリーナ直列化）と ZeroCopy 読み出し。
 //!
-//! インメモリの作業構造（`Arc` ベースの [`FlexTree`]）はそのままに、保存時のみ
+//! インメモリの作業構造（`Arc` ベースの `FlexTree`）はそのままに、保存時のみ
 //! 木を `Vec<PersistedNode>`（子ノードは配列インデックス参照）へ平坦化して rkyv で直列化する。
 //! 値は `dictionary: Vec<Vec<u8>>` に集約（重複排除）し、葉は dictionary のインデックス（+1、0 は空）を持つ。
 //!
