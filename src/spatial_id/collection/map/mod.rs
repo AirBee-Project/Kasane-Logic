@@ -2,7 +2,7 @@ use crate::IterSingleIds;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
-use crate::{FlexId, RangeId, SingleId, SpatialId, TemporalMap};
+use crate::{FlexId, RangeId, SingleId, SpatialId};
 
 pub mod convert;
 pub mod json;
@@ -22,7 +22,7 @@ pub struct SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::tree::ptr::SafeValue,
 {
-    pub(crate) inner: SpatioTemporalCore<TemporalMap<V>>,
+    pub(crate) inner: SpatioTemporalCore<V>,
 }
 
 impl<V> SpatialIdMap<V>

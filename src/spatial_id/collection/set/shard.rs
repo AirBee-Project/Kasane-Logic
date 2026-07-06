@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use super::SpatialIdSet;
-use crate::spatial_id::collection::temporal::{SpatioTemporalCore, TSetUnion};
+use crate::spatial_id::collection::temporal::{SpatioTemporalCore, TMapOverwrite};
 use crate::{Error, FlexId, SpatialIdError};
 
 impl SpatialIdSet {
@@ -57,7 +57,7 @@ impl SpatialIdSet {
 
         let mut inner = SpatioTemporalCore::new_in_shard(parent_region.clone());
         for c in children {
-            inner = inner.combine_with::<TSetUnion>(&c.inner, Some(parent_region.clone()));
+            inner = inner.combine_with::<TMapOverwrite>(&c.inner, Some(parent_region.clone()));
         }
         Ok(Self { inner })
     }

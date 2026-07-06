@@ -194,7 +194,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     }
 
     /// `window` に限定したセル列を参照で返す（`(self ∩ window)` の分解）。
-    pub fn cells_in_window_ref(&self, window: &TemporalId) -> Vec<(TemporalId, &V)> {
+    pub fn cells_clipped_ref(&self, window: &TemporalId) -> Vec<(TemporalId, &V)> {
         let (w0, w1) = (window.start_unixtime(), window.end_unixtime_exclusive());
         let mut out = Vec::new();
         for (s, e, v) in &self.segments {

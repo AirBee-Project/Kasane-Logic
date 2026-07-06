@@ -235,7 +235,7 @@ mod tests {
 
     /// WHOLE − 1分 を「窓（その1時間）」に限定すると 59分になる。
     #[test]
-    fn whole_minus_minute_in_window_is_bounded() {
+    fn whole_minus_minute_clipped_is_bounded() {
         let whole = TemporalId::WHOLE;
         let min = TemporalId::from_seconds(60, 600).unwrap(); // [36000, 36060)
         let hour = TemporalId::from_seconds(3600, 10).unwrap(); // [36000, 39600)

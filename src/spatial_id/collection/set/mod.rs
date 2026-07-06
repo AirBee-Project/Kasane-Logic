@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use hashbrown::HashSet;
 
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
-use crate::{FlexId, RangeId, SingleId, SpatialId, TemporalSet};
+use crate::{FlexId, RangeId, SingleId, SpatialId};
 pub mod convert;
 pub mod impls;
 pub mod json;
@@ -28,7 +28,7 @@ pub mod tests;
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
 pub struct SpatialIdSet {
-    pub(crate) inner: SpatioTemporalCore<TemporalSet>,
+    pub(crate) inner: SpatioTemporalCore<()>,
 }
 
 impl PartialEq for SpatialIdSet {

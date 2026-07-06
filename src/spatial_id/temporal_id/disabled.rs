@@ -271,7 +271,7 @@ impl TemporalSet {
     }
 
     /// `window` に限定したセル列を返す。
-    pub fn cells_in_window(&self, window: &TemporalId) -> Vec<TemporalId> {
+    pub fn cells_clipped(&self, window: &TemporalId) -> Vec<TemporalId> {
         self.intersection(&Self::from_temporal(window)).cells()
     }
 }
@@ -366,7 +366,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     }
 
     /// `window` に限定したセル列を参照で返す（feature 無効時は全時間のみ）。
-    pub fn cells_in_window_ref(&self, _window: &TemporalId) -> Vec<(TemporalId, &V)> {
+    pub fn cells_clipped_ref(&self, _window: &TemporalId) -> Vec<(TemporalId, &V)> {
         self.cells_ref()
     }
 
@@ -379,6 +379,31 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     pub(crate) fn from_raw_segments(mut segments: Vec<(u64, u64, V)>) -> Self {
         Self {
             value: segments.pop().map(|(_, _, v)| v),
+        }
+    }
+}
+
+impl<V: Clone + Ord> TemporalMap<V> {
+    /// 和（both は `policy` で値解決、片側はそのまま）。
+    pub fn union(&self, other: &Self, policy: &crate::ConflictPolicy<V>) -> Self {
+        Self {
+            value: match (&self.value, &other.value) {
+                (Some(a), Some(b)) => Some(policy.resolve(Some(a.clone()), b.clone())),
+                (Some(a), None) => Some(a.clone()),
+                (None, Some(b)) => Some(b.clone()),
+                (None, None) => None,
+            },
+        }
+    }
+
+    /// 積集合。両方が存在する場合のみ値を保持する。
+    pub fn intersection(&self, other: &Self, policy: &crate::ConflictPolicy<V>) -> Self {
+        Self {
+            value: if let (Some(a), Some(b)) = (&self.value, &other.value) {
+                Some(policy.resolve(Some(a.clone()), b.clone()))
+            } else {
+                None
+            },
         }
     }
 }

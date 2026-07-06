@@ -41,73 +41,57 @@ where
     }
 }
 
-/// 時間集合の和（both は union、片側はそのまま）。
-pub(crate) struct TSetUnion;
-impl Combine<crate::TemporalSet> for TSetUnion {
-    const KEEP_A_WHEN_B_EMPTY: bool = true;
-    const KEEP_B_WHEN_A_EMPTY: bool = true;
-
-    fn both(a: &crate::TemporalSet, b: &crate::TemporalSet) -> Option<crate::TemporalSet> {
-        Some(a.union(b))
-    }
-    fn a_only(a: &crate::TemporalSet) -> Option<crate::TemporalSet> {
-        Some(a.clone())
-    }
-    fn b_only(b: &crate::TemporalSet) -> Option<crate::TemporalSet> {
-        Some(b.clone())
-    }
-    fn on_identical(
-        a: &SharedNode<Node<crate::TemporalSet>>,
-        _empty_leaf: &SharedNode<Node<crate::TemporalSet>>,
-    ) -> SharedNode<Node<crate::TemporalSet>> {
-        a.clone()
-    }
-}
-
-/// 時間集合の積（both は intersection、片側のみは不在）。
-pub(crate) struct TSetIntersection;
-impl Combine<crate::TemporalSet> for TSetIntersection {
-    const KEEP_A_WHEN_B_EMPTY: bool = false;
-    const KEEP_B_WHEN_A_EMPTY: bool = false;
-
-    fn both(a: &crate::TemporalSet, b: &crate::TemporalSet) -> Option<crate::TemporalSet> {
-        let i = a.intersection(b);
-        if i.is_empty() { None } else { Some(i) }
-    }
-    fn a_only(_: &crate::TemporalSet) -> Option<crate::TemporalSet> {
-        None
-    }
-    fn b_only(_: &crate::TemporalSet) -> Option<crate::TemporalSet> {
-        None
-    }
-    fn on_identical(
-        a: &SharedNode<Node<crate::TemporalSet>>,
-        _empty_leaf: &SharedNode<Node<crate::TemporalSet>>,
-    ) -> SharedNode<Node<crate::TemporalSet>> {
-        a.clone()
-    }
-}
-
-/// 時間集合の差（both は difference、a のみはそのまま、b のみは不在）。
-pub(crate) struct TSetDifference;
-impl Combine<crate::TemporalSet> for TSetDifference {
+/// 時間マップの差集合（時間で other を除く。値は self 由来）。
+pub(crate) struct TMapDifference;
+impl<V> Combine<crate::TemporalMap<V>> for TMapDifference
+where
+    crate::TemporalMap<V>: crate::spatial_id::collection::tree::ptr::SafeValue,
+    V: Clone + PartialEq,
+{
     const KEEP_A_WHEN_B_EMPTY: bool = true;
     const KEEP_B_WHEN_A_EMPTY: bool = false;
 
-    fn both(a: &crate::TemporalSet, b: &crate::TemporalSet) -> Option<crate::TemporalSet> {
+    fn both(a: &crate::TemporalMap<V>, b: &crate::TemporalMap<V>) -> Option<crate::TemporalMap<V>> {
         let d = a.difference(b);
         if d.is_empty() { None } else { Some(d) }
     }
-    fn a_only(a: &crate::TemporalSet) -> Option<crate::TemporalSet> {
+    fn a_only(a: &crate::TemporalMap<V>) -> Option<crate::TemporalMap<V>> {
         Some(a.clone())
     }
-    fn b_only(_: &crate::TemporalSet) -> Option<crate::TemporalSet> {
+    fn b_only(_: &crate::TemporalMap<V>) -> Option<crate::TemporalMap<V>> {
         None
     }
     fn on_identical(
-        _a: &SharedNode<Node<crate::TemporalSet>>,
-        empty_leaf: &SharedNode<Node<crate::TemporalSet>>,
-    ) -> SharedNode<Node<crate::TemporalSet>> {
+        _a: &SharedNode<Node<crate::TemporalMap<V>>>,
+        empty_leaf: &SharedNode<Node<crate::TemporalMap<V>>>,
+    ) -> SharedNode<Node<crate::TemporalMap<V>>> {
         empty_leaf.clone()
+    }
+}
+
+/// 時間マップの積集合（V=() 専用）。
+pub(crate) struct TMapIntersection;
+impl Combine<crate::TemporalMap<()>> for TMapIntersection {
+    const KEEP_A_WHEN_B_EMPTY: bool = false;
+    const KEEP_B_WHEN_A_EMPTY: bool = false;
+
+    fn both(
+        a: &crate::TemporalMap<()>,
+        b: &crate::TemporalMap<()>,
+    ) -> Option<crate::TemporalMap<()>> {
+        let i = a.intersection(b, &crate::ConflictPolicy::Overwrite);
+        if i.is_empty() { None } else { Some(i) }
+    }
+    fn a_only(_: &crate::TemporalMap<()>) -> Option<crate::TemporalMap<()>> {
+        None
+    }
+    fn b_only(_: &crate::TemporalMap<()>) -> Option<crate::TemporalMap<()>> {
+        None
+    }
+    fn on_identical(
+        a: &SharedNode<Node<crate::TemporalMap<()>>>,
+        _empty_leaf: &SharedNode<Node<crate::TemporalMap<()>>>,
+    ) -> SharedNode<Node<crate::TemporalMap<()>>> {
+        a.clone()
     }
 }

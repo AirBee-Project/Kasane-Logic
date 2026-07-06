@@ -144,6 +144,6 @@ fn whole_handling() {
 
     // 窓で限定した分解
     let window = TemporalId::from_seconds(3600, 11).unwrap(); // [39600, 43200)
-    let cells = d.cells_in_window(&window);
+    let cells = d.cells_clipped(&window);
     assert_eq!(cells, alloc::vec![window]);
 }

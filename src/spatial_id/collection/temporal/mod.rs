@@ -11,10 +11,8 @@
 //! - 本モジュール: [`SpatioTemporalCore`]（挿入・クエリ・削除・列挙の共通ロジック）
 
 pub(crate) mod combine;
-pub(crate) mod value;
 
-pub(crate) use combine::{TMapOverwrite, TSetDifference, TSetIntersection, TSetUnion};
-pub(crate) use value::TemporalValue;
+pub(crate) use combine::{TMapDifference, TMapIntersection, TMapOverwrite};
 
 use alloc::vec::Vec;
 
@@ -35,7 +33,7 @@ use crate::{FlexId, FlexTreeCore, SpatialId, TemporalSet};
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-#[cfg_attr(feature = "persist", rkyv(archive_bounds(TV: 'static)))]
+#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
 #[cfg_attr(
     feature = "persist",
     rkyv(serialize_bounds(
@@ -57,11 +55,15 @@ use crate::{FlexId, FlexTreeCore, SpatialId, TemporalSet};
         <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
     )))
 )]
-pub(crate) struct SpatioTemporalCore<TV: TemporalValue> {
-    pub(crate) inner: FlexTreeCore<TV>,
+pub(crate) struct SpatioTemporalCore<
+    V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue,
+> {
+    pub(crate) inner: FlexTreeCore<crate::TemporalMap<V>>,
 }
 
-impl<TV: TemporalValue> SpatioTemporalCore<TV> {
+impl<V: Clone + PartialEq + crate::spatial_id::collection::tree::ptr::SafeValue>
+    SpatioTemporalCore<V>
+{
     /// 空の [`SpatioTemporalCore`] を作成する。
     pub(crate) fn new() -> Self {
         Self {
@@ -97,7 +99,11 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     }
 
     /// `combine_with` の委譲。
-    pub(crate) fn combine_with<C: Combine<TV>>(&self, other: &Self, shard: Option<FlexId>) -> Self {
+    pub(crate) fn combine_with<C: Combine<crate::TemporalMap<V>>>(
+        &self,
+        other: &Self,
+        shard: Option<FlexId>,
+    ) -> Self {
         Self {
             inner: self.inner.combine_with::<C>(&other.inner, shard),
         }
@@ -135,7 +141,7 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     ///
     /// - 全時間（WHOLE）の場合は `insert_flex_id` で直接置換する。
     /// - それ以外は `InsertCombine` で既存の時間と合成する。
-    pub(crate) fn insert_flex_id(&mut self, flex_id: FlexId, payload: TV::Payload) {
+    pub(crate) fn insert_flex_id(&mut self, flex_id: FlexId, payload: V) {
         // シャード領域外は無視し、はみ出しは切り詰める。
         let flex_id = match self.inner.shard() {
             Some(region) => match flex_id.intersection(region) {
@@ -149,13 +155,16 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
 
         if temporal.is_whole() {
             // 全時間は覆う領域を直接置換するだけで InsertCombine と同じ結果になる。
-            self.inner.insert_flex_id(spatial, TV::new_whole(payload));
+            self.inner.insert_flex_id(
+                spatial,
+                crate::TemporalMap::from_temporal(&crate::TemporalId::WHOLE, payload),
+            );
         } else {
-            let tv = TV::new_from_temporal(&temporal, payload);
-            let mut single = FlexTreeCore::<TV>::new();
+            let tv = crate::TemporalMap::from_temporal(&temporal, payload);
+            let mut single = FlexTreeCore::<crate::TemporalMap<V>>::new();
             single.insert_flex_id(spatial, tv);
             let shard = self.inner.shard().cloned();
-            self.inner = self.inner.combine_with::<TV::InsertCombine>(&single, shard);
+            self.inner = self.inner.combine_with::<TMapOverwrite>(&single, shard);
         }
     }
 
@@ -167,9 +176,9 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     pub(crate) fn get<'a, S: SpatialId>(
         &'a self,
         target: &'a S,
-    ) -> impl Iterator<Item = (FlexId, &'a TV::Payload)> + 'a {
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner.get_ref(target).flat_map(|(clipped, tv)| {
-            tv.cells_in_window_ref(clipped.temporal())
+            tv.cells_clipped_ref(clipped.temporal())
                 .into_iter()
                 .map(|(t, p)| (clipped.with_temporal(t), p))
                 .collect::<Vec<_>>()
@@ -180,7 +189,7 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     pub(crate) fn get_overlapping<'a, S: SpatialId + 'a>(
         &'a self,
         target: &'a S,
-    ) -> impl Iterator<Item = (FlexId, &'a TV::Payload)> + 'a {
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner
             .get_overlapping_ref(target)
             .flat_map(|(stored, tv)| {
@@ -195,7 +204,7 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     pub(crate) fn neighbors_share_face<'a, S: SpatialId + 'a>(
         &'a self,
         target: &'a S,
-    ) -> impl Iterator<Item = (FlexId, &'a TV::Payload)> + 'a {
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner
             .neighbors_share_face_ref(target)
             .flat_map(|(stored, tv)| {
@@ -209,7 +218,7 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     // ── 列挙 ──────────────────────────────────────────────────────────────────
 
     /// 保持するすべての `(FlexId, &Payload)` を返す。
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (FlexId, &TV::Payload)> + '_ {
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter_ref().flat_map(|(spatial, tv)| {
             tv.cells_ref()
                 .into_iter()
@@ -224,15 +233,13 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     ///
     /// 空間的に重なる葉を取り出し、query の空間外の残余と query の時間外の残余を
     /// 木へ戻す（外科的削除）。
-    pub(crate) fn remove<S: SpatialId>(
-        &mut self,
-        target: &S,
-    ) -> impl Iterator<Item = (FlexId, TV::Payload)> {
+    pub(crate) fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)> {
         let mut removed = Vec::new();
         for query in target.iter_flex_ids() {
             let q_spatial = query.spatial_part();
             let q_time = TemporalSet::from_temporal(query.temporal());
-            let affected: Vec<(FlexId, TV)> = self.inner.remove_overlapping(&q_spatial).collect();
+            let affected: Vec<(FlexId, crate::TemporalMap<V>)> =
+                self.inner.remove_overlapping(&q_spatial).collect();
             for (leaf, tv) in affected {
                 // query の空間外の残余はそのまま戻す。
                 for remnant in leaf.difference(&q_spatial) {
@@ -244,7 +251,7 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
                     if !kept.is_empty() {
                         self.inner.insert_flex_id(inter.clone(), kept);
                     }
-                    for (t, p) in tv.intersect_time(&q_time).cells_into() {
+                    for (t, p) in tv.intersect_time(&q_time).cells() {
                         removed.push((inter.with_temporal(t), p));
                     }
                 }
@@ -257,10 +264,10 @@ impl<TV: TemporalValue> SpatioTemporalCore<TV> {
     pub(crate) fn remove_overlapping<S: SpatialId>(
         &mut self,
         target: &S,
-    ) -> impl Iterator<Item = (FlexId, TV::Payload)> {
+    ) -> impl Iterator<Item = (FlexId, V)> {
         let mut removed = Vec::new();
         for (stored, tv) in self.inner.remove_overlapping(target) {
-            for (t, p) in tv.cells_into() {
+            for (t, p) in tv.cells() {
                 removed.push((stored.with_temporal(t), p));
             }
         }

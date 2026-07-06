@@ -332,7 +332,7 @@ impl SpatioTemporalSet {
     ///
     /// `self` の時間が WHOLE でも `window` が有界なら結果は有界になる
     /// （`(A ∩ W) − B = (A − B) ∩ W`）。
-    pub fn difference_in_window(&self, other: &Self, window: &TemporalId) -> Self {
+    pub fn difference_clipped(&self, other: &Self, window: &TemporalId) -> Self {
         self.clip_time(window).difference(other)
     }
 }
@@ -585,9 +585,9 @@ mod tests {
         assert_eq!(atoms(&a, 2), before.difference(&qa).copied().collect());
     }
 
-    /// difference_in_window: WHOLE 起点の差分を窓で有界化しつつ正しい。
+    /// difference_clipped: WHOLE 起点の差分を窓で有界化しつつ正しい。
     #[test]
-    fn difference_in_window_bounds_whole() {
+    fn difference_clipped_bounds_whole() {
         // A: (2,0,0,0) @ WHOLE
         let mut a = SpatioTemporalSet::new();
         a.insert(FlexId::new(2, 0, 2, 0, 2, 0).unwrap());
@@ -595,7 +595,7 @@ mod tests {
         let b = build(&[cell(2, 0, 0, 0, 60, 0)]);
         // 窓: その1時間 [0,3600)
         let window = TemporalId::from_seconds(3600, 0).unwrap();
-        let d = a.difference_in_window(&b, &window);
+        let d = a.difference_clipped(&b, &window);
         // オラクル: (WHOLE − [0,60)) ∩ [0,3600) = [60,3600)、空間 (2,0,0,0)
         let got = atoms(&d, 2);
         let exp: BTreeSet<Atom> = (60u64..3600).map(|s| ((0, 0, 0), s)).collect();

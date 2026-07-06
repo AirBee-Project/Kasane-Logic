@@ -160,7 +160,7 @@ impl TemporalSet {
     }
 
     /// `window` に限定したセル列を返す（`(self ∩ window)` の分解）。
-    pub fn cells_in_window(&self, window: &TemporalId) -> Vec<TemporalId> {
+    pub fn cells_clipped(&self, window: &TemporalId) -> Vec<TemporalId> {
         self.intersection(&Self::from_temporal(window)).cells()
     }
 }

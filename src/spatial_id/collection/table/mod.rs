@@ -58,7 +58,7 @@ mod persist_tests {
 }
 
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
-use crate::{FlexId, RangeId, SingleId, SpatialId, SpatialIdSet, TemporalMap};
+use crate::{FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と時空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 ///
@@ -98,7 +98,7 @@ where
     V: crate::spatial_id::collection::tree::ptr::SafeValue + Ord,
 {
     // メインの空間ツリー (空間 -> 時間ごとの Rank)
-    inner: SpatioTemporalCore<TemporalMap<usize>>,
+    inner: SpatioTemporalCore<usize>,
 
     // 辞書 (値 -> Rank)
     dictionary: BTreeMap<V, usize>,
