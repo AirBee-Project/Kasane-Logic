@@ -1,6 +1,6 @@
 //! [`SpatialIdSet`] の時間ネイティブ動作の検証。
 //!
-//! (1) (空間キー × 秒) のアトム集合オラクルで insert / union / intersection /
+//! (1) (空間キー × 秒) のアトム集合正解で insert / union / intersection /
 //! difference / get / remove を厳密照合し、(2) テスト専用の参照実装
 //! [`SpatioTemporalSet`](crate::spatial_id::collection::testing::SpatioTemporalSet)
 //! と突き合わせる。
@@ -109,7 +109,7 @@ fn spatial_only_data_stays_whole() {
     assert!(ids[0].temporal().is_whole());
 }
 
-/// union / intersection / difference をアトムオラクルで厳密照合。
+/// union / intersection / difference をアトム正解で厳密照合。
 #[test]
 fn set_ops_atom_oracle() {
     let a = build(&sample_a());
@@ -319,7 +319,7 @@ proptest! {
     #![proptest_config(ProptestConfig::with_cases(48))]
 
     /// 時間付きのランダムな Set に対する演算（union, intersection, difference）が
-    /// アトムオラクル（空間キー × 秒）の演算結果と一致することを検証する。
+    /// アトム正解（空間キー × 秒）の演算結果と一致することを検証する。
     #[test]
     fn temporal_set_ops_atom_oracle_proptest(a in arb_temporal_set_case(), b in arb_temporal_set_case()) {
         let aa = atoms_of(a.iter(), 2);

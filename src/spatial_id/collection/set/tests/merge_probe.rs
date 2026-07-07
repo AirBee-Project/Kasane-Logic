@@ -16,7 +16,7 @@ use proptest::prelude::*;
 proptest! {
     /// 汎用 combine（時間集合値）が、値に依存しないレガシー node 演算
     /// （union/intersection/difference）と全時間データにおいて厳密一致する
-    /// （＝汎用エンジンの挙動保存を単一IDオラクルで検証）。
+    /// （＝汎用エンジンの挙動保存を単一ID正解で検証）。
     #[test]
     fn combine_matches_presence_ops(a in arb_random_set_case(), b in arb_random_set_case()) {
         let sa = a.build_set();
@@ -38,7 +38,7 @@ proptest! {
     /// 展開）と照合する。union / intersection / difference を網羅。
     ///
     /// これは座標再構成まで含めて検証する gold-standard。素朴 collapse の座標破壊は
-    /// このオラクルでのみ検出できた（count 不変テストでは見逃した）ので常時実行する。
+    /// この正解でのみ検出できた（count 不変テストでは見逃した）ので常時実行する。
     #[test]
     fn ops_preserve_single_id_coverage(
         a in arb_random_set_case(),
@@ -345,7 +345,7 @@ fn union_recursive_collapse_deep() {
 }
 
 /// 格納されている全 FlexId から `max(f_zoom, x_zoom, y_zoom)` の最大値を直接計算する。
-/// キャッシュ済み `max_zoom` のオラクル。
+/// キャッシュ済み `max_zoom` の正解。
 fn brute_max_zoom(set: &SpatialIdSet) -> Option<u8> {
     set.iter()
         .map(|id| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))

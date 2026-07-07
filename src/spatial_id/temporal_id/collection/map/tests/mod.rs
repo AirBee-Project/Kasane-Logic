@@ -35,7 +35,7 @@ fn assert_normalized(m: &TemporalMap<i32>) {
     }
 }
 
-/// 秒写像オラクルで union/intersection/difference を照合。
+/// 秒写像正解で union/intersection/difference を照合。
 #[test]
 fn map_algebra_oracle() {
     // A: [0,120)=1, [180,240)=2   B: [60,200)=9

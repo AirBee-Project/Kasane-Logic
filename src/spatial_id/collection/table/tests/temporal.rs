@@ -1,6 +1,6 @@
 //! [`SpatialIdTable`] / [`SpatialIdMap`] の時間ネイティブ動作の検証。
 //!
-//! (1) `(空間キー × 秒) → 値` の写像オラクルで insert（後勝ち）/ get / remove /
+//! (1) `(空間キー × 秒) → 値` の写像正解で insert（後勝ち）/ get / remove /
 //! iter / value_get を厳密照合し、(2) テスト専用の参照実装
 //! [`SpatioTemporalTable`](crate::spatial_id::collection::testing::SpatioTemporalTable)
 //! と突き合わせる。
@@ -54,7 +54,7 @@ fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
         .unwrap()
 }
 
-/// 逐次 insert の期待値（後勝ち）をアトム写像で構築するオラクル。
+/// 逐次 insert の期待値（後勝ち）をアトム写像で構築する正解。
 fn oracle(entries: &[(FlexId, i32)], z: u8) -> BTreeMap<Key, i32> {
     let mut out = BTreeMap::new();
     for (f, v) in entries {
@@ -100,7 +100,7 @@ fn sample_entries() -> Vec<(FlexId, i32)> {
     ]
 }
 
-/// Table: insert（後勝ち）のアトム写像がオラクルと厳密一致する。
+/// Table: insert（後勝ち）のアトム写像が正解と厳密一致する。
 #[test]
 fn table_insert_overwrite_oracle() {
     let entries = sample_entries();
@@ -109,7 +109,7 @@ fn table_insert_overwrite_oracle() {
     assert_eq!(got, oracle(&entries, 2));
 }
 
-/// Map: insert（後勝ち）のアトム写像がオラクルと厳密一致する。
+/// Map: insert（後勝ち）のアトム写像が正解と厳密一致する。
 #[test]
 fn map_insert_overwrite_oracle() {
     let entries = sample_entries();
@@ -181,7 +181,7 @@ fn table_remove_atom_oracle() {
     );
 }
 
-/// Map: remove の同オラクル。
+/// Map: remove の同正解。
 #[test]
 fn map_remove_atom_oracle() {
     let entries = sample_entries();

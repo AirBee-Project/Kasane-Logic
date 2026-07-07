@@ -45,7 +45,7 @@ fn assert_normalized(set: &TemporalSet) {
     }
 }
 
-/// 厳格オラクル: 秒集合に展開して union/intersection/difference/contains を照合。
+/// 厳格正解: 秒集合に展開して union/intersection/difference/contains を照合。
 #[test]
 fn set_algebra_oracle() {
     let sets = sample_sets();

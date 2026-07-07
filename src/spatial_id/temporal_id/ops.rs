@@ -157,7 +157,7 @@ mod tests {
         v
     }
 
-    /// 厳格オラクル：秒集合に展開して intersection / difference / contains を照合する。
+    /// 厳格正解：秒集合に展開して intersection / difference / contains を照合する。
     #[test]
     fn second_set_oracle() {
         let cells = sample_cells();

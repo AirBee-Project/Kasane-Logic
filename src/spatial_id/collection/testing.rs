@@ -464,7 +464,7 @@ mod tests {
         out
     }
 
-    /// 時空間集合を (空間キー × 秒) のアトム集合へ展開（オラクル）。
+    /// 時空間集合を (空間キー × 秒) のアトム集合へ展開（正解）。
     fn atoms(set: &SpatioTemporalSet, z: u8) -> BTreeSet<Atom> {
         let mut out = BTreeSet::new();
         for f in set.iter() {
@@ -508,7 +508,7 @@ mod tests {
         assert_eq!(a, exp);
     }
 
-    /// union / intersection / difference をアトムオラクルで厳密照合。
+    /// union / intersection / difference をアトム正解で厳密照合。
     #[test]
     fn set_ops_atom_oracle() {
         // A: (2,0,0,0)@[0,3600)  と (2,0,1,0)@[0,60)
@@ -551,7 +551,7 @@ mod tests {
             }
             out
         };
-        // オラクル: atoms(a) のうち、query の (空間×時間) に入るもの
+        // 正解: atoms(a) のうち、query の (空間×時間) に入るもの
         let qa: BTreeSet<Atom> = spatial_keys(&query, 2)
             .into_iter()
             .flat_map(|k| (60u64..120).map(move |s| (k, s)))
@@ -596,7 +596,7 @@ mod tests {
         // 窓: その1時間 [0,3600)
         let window = TemporalId::from_seconds(3600, 0).unwrap();
         let d = a.difference_clipped(&b, &window);
-        // オラクル: (WHOLE − [0,60)) ∩ [0,3600) = [60,3600)、空間 (2,0,0,0)
+        // 正解: (WHOLE − [0,60)) ∩ [0,3600) = [60,3600)、空間 (2,0,0,0)
         let got = atoms(&d, 2);
         let exp: BTreeSet<Atom> = (60u64..3600).map(|s| ((0, 0, 0), s)).collect();
         assert_eq!(got, exp);
@@ -623,7 +623,7 @@ mod tests {
 
     type ValAtom = ((i32, u32, u32), u64, i32);
 
-    /// テーブルを (空間キー, 秒) → 値 の写像へ展開（オラクル）。
+    /// テーブルを (空間キー, 秒) → 値 の写像へ展開（正解）。
     fn table_atoms(
         t: &SpatioTemporalTable<i32>,
         z: u8,
@@ -669,7 +669,7 @@ mod tests {
         assert_eq!(a.len(), 60);
     }
 
-    /// union / intersection / difference を (空間キー,秒)→値 オラクルで照合。
+    /// union / intersection / difference を (空間キー,秒)→値 正解で照合。
     #[test]
     fn table_ops_atom_oracle() {
         // A: (2,0,0,0)@[0,120)=1
