@@ -57,15 +57,21 @@ impl TryFrom<u64> for Interval {
     }
 }
 
-impl TryFrom<i32> for Interval {
-    type Error = Error;
-    fn try_from(seconds: i32) -> Result<Self, Self::Error> {
-        if seconds < 0 {
-            return Err(crate::SpatialIdError::TIntervalError { i: seconds as u64 }.into());
-        }
-        Self::try_from(seconds as u64)
-    }
+macro_rules! impl_try_from_unsigned {
+    ($($t:ty),*) => {
+        $(
+            impl TryFrom<$t> for Interval {
+                type Error = Error;
+
+                fn try_from(seconds: $t) -> Result<Self, Self::Error> {
+                    Self::try_from(seconds as u64)
+                }
+            }
+        )*
+    };
 }
+
+impl_try_from_unsigned!(u8, u16, u32, u128, usize);
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord, Default)]
 #[cfg_attr(

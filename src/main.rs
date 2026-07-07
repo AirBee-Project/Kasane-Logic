@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 use kasane_logic::{Interval, SingleId, TemporalId};
 
 fn main() {
-    let temporal_id = TemporalId::new(30, 10).unwrap();
+    let temporal_id = TemporalId::new(30_u64, 10).unwrap();
     let single_id = SingleId::new(10, 10, 10, 10)
         .unwrap()
         .with_temporal(temporal_id);

@@ -24,8 +24,8 @@ fn try_from_numeric() {
     assert!(Interval::try_from(7200u64).is_err());
 
     // try_from for i32
-    assert_eq!(Interval::try_from(3600i32).unwrap(), Interval::Hour);
-    assert!(Interval::try_from(-3600i32).is_err());
+    assert_eq!(Interval::try_from(3600_u64).unwrap(), Interval::Hour);
+    assert!(Interval::try_from(-3600i32 as i64 as u64).is_err());
 }
 
 #[test]
