@@ -12,11 +12,6 @@ pub mod shard;
 pub mod tests;
 
 /// 時空間(FlexId)に値(V)を対応づけるマップ構造。
-///
-/// 空間は木構造（FlexTree）の一次索引として、時間ごとの値は各空間セルの値
-/// （[`TemporalMap<V>`](crate::TemporalMap)）として保持する（**時間ネイティブ**）。
-/// 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間マップとして振る舞う。
-/// 挿入は後勝ち（同一時空間点は後から挿入した値で上書き）である。
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdMap<V>
 where
@@ -50,19 +45,14 @@ where
         self.inner.shard()
     }
 
-    /// 時空間に値を挿入します（後勝ち）。
-    ///
-    /// 時間付きの空間ID（temporal ≠ WHOLE）もそのまま受け付ける。既存と時空間が
-    /// 重なる部分は新しい値で上書きされ、重ならない時間の値は保持される。
+    /// 時空間に値を挿入する。
     pub fn insert<S: SpatialId>(&mut self, target: S, value: V) {
         for flex_id in target.iter_flex_ids() {
             self.inner.insert_flex_id(flex_id, value.clone());
         }
     }
 
-    /// 特定の時空間（target）と交差するすべての領域と、その値への参照を返します。
-    ///
-    /// 空間・時間の両方が target に切り取られる。
+    /// 特定の時空間（target）と交差するすべての領域と、その値への参照を返す。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: SpatialId,
@@ -148,11 +138,7 @@ where
         self.inner.clear();
     }
 
-    /// マップに保持されている全ての時空間と値への参照のペアを返します。
-    ///
-    /// 各空間セルの時間別の値は約数鎖の最小セル列へ分解され、
-    /// `(空間セル × 時間セル, 値)` として列挙される。全時間（WHOLE）のセルは
-    /// 従来どおり1つの `(FlexId, &V)` になる。
+    /// マップに保持されている全ての時空間と値への参照のペアを返す。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter()
     }

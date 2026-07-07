@@ -114,9 +114,9 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner.is_empty()
     }
 
-    /// ノード（葉）の個数を返す。
+    /// 時間セルの個数を返す（iter() が返すセル数と一致）。
     pub(crate) fn count(&self) -> usize {
-        self.inner.count()
+        self.iter().count()
     }
 
     /// ツリーの最大ズームレベルを返す。
@@ -185,30 +185,32 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         })
     }
 
-    /// `target` と空間的に重なる葉を参照として返す（時間切り取りなし）。
+    /// `target` と空間・時間の両方で交差する葉を参照として返す。
     pub(crate) fn get_overlapping<'a, S: SpatialId + 'a>(
         &'a self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        let query_temporal = target.temporal().clone();
         self.inner
             .get_overlapping_ref(target)
-            .flat_map(|(stored, tv)| {
-                tv.cells_ref()
+            .flat_map(move |(stored, tv)| {
+                tv.cells_clipped_ref(&query_temporal)
                     .into_iter()
                     .map(|(t, p)| (stored.with_temporal(t), p))
                     .collect::<Vec<_>>()
             })
     }
 
-    /// `target` と空間的に重なる葉を参照として返す（時間切り取りなし）。
+    /// `target` と空間・時間の両方で隣接（面共有）する葉を参照として返す。
     pub(crate) fn neighbors_share_face<'a, S: SpatialId + 'a>(
         &'a self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        let query_temporal = target.temporal().clone();
         self.inner
             .neighbors_share_face_ref(target)
-            .flat_map(|(stored, tv)| {
-                tv.cells_ref()
+            .flat_map(move |(stored, tv)| {
+                tv.cells_clipped_ref(&query_temporal)
                     .into_iter()
                     .map(|(t, p)| (stored.with_temporal(t), p))
                     .collect::<Vec<_>>()

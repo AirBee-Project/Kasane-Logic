@@ -60,12 +60,7 @@ mod persist_tests {
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
 
-/// 値(V)と時空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
-///
-/// 空間は木構造（FlexTree）の一次索引として、時間ごとの値（のランク）は各空間セルの値
-/// （[`TemporalMap`](crate::TemporalMap)）として保持する（**時間ネイティブ**）。
-/// 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間テーブルとして振る舞う。
-/// 挿入は後勝ち（同一時空間点は後から挿入した値で上書き）である。
+/// 値(V)と時空間(FlexId)を相互に高速検索・管理するための型。
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
@@ -134,10 +129,7 @@ where
         }
     }
 
-    /// 時空間に値を挿入します（後勝ち）。
-    ///
-    /// 時間付きの空間ID（temporal ≠ WHOLE）もそのまま受け付ける。既存と時空間が
-    /// 重なる部分は新しい値で上書きされ、重ならない時間の値は保持される。
+    /// 時空間に値を挿入する。
     pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
             Some(v) => *v,
@@ -156,9 +148,7 @@ where
         self.value_index_built = false;
     }
 
-    /// 特定の時空間（target）と交差するすべての領域と、その値への参照を返します。
-    ///
-    /// 空間・時間の両方が target に切り取られる。
+    /// 特定の時空間（target）と交差するすべての領域と、その値への参照を返す。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: SpatialId,
@@ -169,7 +159,7 @@ where
         })
     }
 
-    /// 指定した時空間（target）をツリーからくり抜き、削除された領域とその値を返します。
+    /// 指定した時空間（target）をツリーからくり抜き、削除された領域とその値を返す。
     pub fn remove<S: SpatialId + Clone>(
         &mut self,
         target: &S,
@@ -187,8 +177,7 @@ where
         }
         results.into_iter()
     }
-    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`]と値をそのままの返します。
+    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった[`FlexId`]と値をそのままの返す。
     pub fn get_overlapping<'a, S>(
         &'a self,
         target: &'a S,
@@ -205,8 +194,7 @@ where
         })
     }
 
-    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`]と値をそのままの返します。
+    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった[`FlexId`]と値をそのまま返す。
     pub fn remove_overlapping<S: SpatialId>(
         &mut self,
         target: &S,
@@ -229,7 +217,7 @@ where
         results.into_iter()
     }
 
-    /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返す。入力された空間ID自身と重なる要素は除外する。
     pub fn neighbors_share_face<'a, S: SpatialId>(
         &'a self,
         target: &'a S,
@@ -283,9 +271,6 @@ where
     }
 
     /// `value_index` を `inner` から構築し、上書き等で消えたランクを辞書から取り除く。
-    ///
-    /// 逆引きインデックス（値 → 時空間）は時間ネイティブな [`SpatialIdSet`] なので、
-    /// 同じ値が存在する時空間そのものを保持する。
     pub fn rebuild_index(&mut self) {
         self.value_index.clear();
         for (flex_id, rank) in self.inner.iter() {

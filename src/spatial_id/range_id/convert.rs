@@ -51,32 +51,40 @@ impl From<&SingleId> for RangeId {
     }
 }
 
-impl IterSingleIds for RangeId {
-    type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
-    fn iter_single_ids(&self) -> Self::Iter<'_> {
+impl RangeId {
+    /// この [`RangeId`] を消費し、含まれる [`SingleId`] を所有イテレータとして返す。
+    ///
+    /// [`iter_single_ids`](IterSingleIds::iter_single_ids) の所有版。`self` を借用しないため、
+    /// 一時的な `RangeId` から `flat_map` などで直接ストリーミングでき、中間 `Vec` が不要になる。
+    pub fn single_ids(self) -> impl Iterator<Item = SingleId> {
         let z = self.z.get();
-        let f_range = self.f[0]..=self.f[1];
-        let y_range = self.y[0]..=self.y[1];
+        let (f0, f1) = (self.f[0], self.f[1]);
+        let (x0, x1) = (self.x[0], self.x[1]);
+        let (y0, y1) = (self.y[0], self.y[1]);
+        #[cfg(feature = "temporal_id")]
+        let temporal_id = self.temporal_id;
 
-        let iter = f_range.flat_map(move |f| {
-            let y_range = y_range.clone();
-
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
+        (f0..=f1).flat_map(move |f| {
+            // X は経度方向に巡回するため、境界跨ぎ（x0 > x1）は2区間に分ける。
+            let x_iter: Vec<u32> = if x0 <= x1 {
+                (x0..=x1).collect()
             } else {
-                (self.x[0]..=ZoomLevel::new(z).unwrap().xy_max())
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
+                (x0..=ZoomLevel::new(z).unwrap().xy_max())
+                    .chain(0..=x1)
+                    .collect()
             };
+            #[cfg(feature = "temporal_id")]
+            let temporal_id = temporal_id.clone();
 
             x_iter.into_iter().flat_map(move |x| {
-                let _t_id = self.temporal_id.clone();
-                y_range.clone().map(move |y: u32| {
+                #[cfg(feature = "temporal_id")]
+                let temporal_id = temporal_id.clone();
+                (y0..=y1).map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
                         SingleId::new(z, f, x, y)
                             .unwrap()
-                            .with_temporal(_t_id.clone())
+                            .with_temporal(temporal_id.clone())
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
@@ -85,8 +93,14 @@ impl IterSingleIds for RangeId {
                     }
                 })
             })
-        });
-        Box::new(iter)
+        })
+    }
+}
+
+impl IterSingleIds for RangeId {
+    type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
+    fn iter_single_ids(&self) -> Self::Iter<'_> {
+        Box::new(self.clone().single_ids())
     }
 }
 

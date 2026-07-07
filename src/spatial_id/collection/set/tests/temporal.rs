@@ -342,3 +342,99 @@ proptest! {
         );
     }
 }
+
+/// get_overlapping: target の時間で制限すべき。
+/// 現在は時間を無視して全時間セルを返している（バグ）。
+#[test]
+fn get_overlapping_should_respect_temporal() {
+    let mut set = SpatialIdSet::new();
+    // (0,0,0) に 2つの時間セルを挿入: [0,60) と [120,180)
+    set.insert(cell(2, 0, 0, 0, 60, 0)); // [0,60)
+    set.insert(cell(2, 0, 0, 0, 60, 2)); // [120,180)
+
+    // クエリ: (0,0,0) の [120,150) を指定
+    // 同じ空間セルで異なる時間範囲でクエリ
+    let query = FlexId::new(2, 0, 2, 0, 2, 0)
+        .map(|id| id.with_temporal(TemporalId::from_seconds(60, 2).unwrap()))
+        .unwrap(); // [120,180)
+
+    // 期待値: [120,180) が返されるべき（クエリの [120,180) と [120,180) の交差）
+    let results: Vec<FlexId> = set.get_overlapping(&query).collect();
+    let expected_atoms: BTreeSet<Atom> = (120u64..180).map(|s| ((0, 0, 0), s)).collect();
+    let actual_atoms = atoms_of(results, 2);
+
+    // 改善後: 時間を考慮して [120,180) のみ返される
+    // バグ時: [0,60) + [120,180) の両方が返されていた
+    assert_eq!(
+        actual_atoms, expected_atoms,
+        "get_overlapping should clip to query's temporal range"
+    );
+}
+
+/// neighbors_share_face: 時間的隣接も考慮すべき（現在は時間を無視している）。
+/// 空間的に隣接しているだけでなく、時間的に겹치는 部分でのみ隣接を返すべき。
+#[test]
+fn neighbors_share_face_should_respect_temporal() {
+    let mut set = SpatialIdSet::new();
+    // (0,0,0) @ [0,60)
+    set.insert(cell(2, 0, 0, 0, 60, 0));
+    // (1,0,0) @ [100,160) - 空間的には隣接だが、時間は [0,60) と겹치지 않음
+    set.insert(cell(2, 0, 1, 0, 60, 1)); // [60,120) ではなく [100,160)
+
+    // クエリ: (0,0,0) @ [0,60)
+    let query = cell(2, 0, 0, 0, 60, 0); // [0,60)
+
+    let neighbors: Vec<FlexId> = set.neighbors_share_face(&query).collect();
+    let neighbors_atoms = atoms_of(neighbors.iter().cloned(), 2);
+
+    // 実装上：neighbors_share_face は空間的隣接だけを見て、時間を無視する
+    // つまり (1,0,0) @ [100,160) が返される
+    // しかし、query は @ [0,60) なので、時間的に겹치는 部분がない
+    //
+    // 期待動作：
+    // - query の時間 [0,60) と겹치는 隣接セルだけを返すべき
+    // - 현재 (1,0,0) @ [100,160) は [0,60) と겹치지 않음
+    //
+    // 現재의 버그: get_overlapping과 같이, neighbors도 시간을 무시하고
+    // stored의 전체 시간을 반환한다
+
+    // 시간적 겹침이 없으므로 이웃이 반환되지 않거나,
+    // 또는 겹치는 시간 부분만 반환되어야 함
+    // (현재 구현상 전체 시간이 반환되므로 이 어설션이 실패함)
+    for atom in &neighbors_atoms {
+        assert!(
+            atom.1 < 60,
+            "neighbors should only be in query's temporal range [0,60), got time {}",
+            atom.1
+        );
+    }
+}
+
+/// count: iter() が返す FlexId の数を返すべき。
+/// 現在は空間ノード数だけを返している（バグ）。
+#[test]
+fn count_should_count_temporal_cells() {
+    let mut set = SpatialIdSet::new();
+
+    // 同一の空間セル (0,0,0) に 3 つの異なる時間セルを挿入
+    set.insert(cell(2, 0, 0, 0, 60, 0)); // [0,60)
+    set.insert(cell(2, 0, 0, 0, 60, 1)); // [60,120)
+    set.insert(cell(2, 0, 0, 0, 60, 2)); // [120,180)
+
+    // count() が返す値
+    let count = set.count();
+
+    // iter() が実際に返す FlexId の個数
+    let iter_count = set.iter().count();
+
+    // 改善後: count() = iter().count() となるべき
+    // バグ時: count() は 1（空間ノード数）を返していた
+    assert_eq!(count, iter_count, "count() should equal iter().count()");
+
+    // iter は 3 つの FlexId を返す（各時間セルごと）
+    assert_eq!(iter_count, 3, "3 temporal cells should be stored");
+
+    // atoms_of は各秒をアトムとして展開する（3 × 60秒 = 180アトム）
+    let atoms = atoms_of(set.iter(), 2);
+    assert_eq!(atoms.len(), 180, "180 seconds in total");
+}

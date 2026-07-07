@@ -1,6 +1,5 @@
 use crate::IterSingleIds;
 use alloc::vec::Vec;
-use hashbrown::HashSet;
 
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId};
@@ -12,16 +11,6 @@ pub mod shard;
 pub mod tests;
 
 /// 時空間IDの集合を表す型。
-///
-/// `SpatialIdSet` は「どの空間が、どの時間に存在するか」を表すための型として機能する。
-///
-/// - 空間は木構造（FlexTree）の一次索引として、時間は各空間セルの値
-///   （[`TemporalSet`](crate::TemporalSet)）として保持する（**時間ネイティブ**）。
-/// - 時間IDが全時間（WHOLE）のIDだけを扱う場合は、従来どおり純粋な空間集合として振る舞う。
-/// - 集合同士の演算（和・積・差）は空間×時間の4次元で厳密に行われる。
-///
-/// # 注意
-/// - 空間ごとに値を持たせたい、値から空間を引きたい、または値の管理が必要な場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
@@ -32,15 +21,10 @@ pub struct SpatialIdSet {
 }
 
 impl PartialEq for SpatialIdSet {
-    // Todo:等価検証が重いのでどうにかする
+    /// 木は正準化されている（同じ被覆 ⇔ 同じ構造）ため、内部ツリーの構造比較で
+    /// 等価判定できる。深いズームで単一IDへ全展開する必要はない（O(ノード数)）。
     fn eq(&self, other: &Self) -> bool {
-        let common_z = self
-            .max_zoomlevel()
-            .unwrap_or(0)
-            .max(other.max_zoomlevel().unwrap_or(0));
-
-        self.normalized_single_ids_at_zoom(common_z)
-            == other.normalized_single_ids_at_zoom(common_z)
+        self.inner.inner == other.inner.inner
     }
 }
 
@@ -215,26 +199,5 @@ impl SpatialIdSet {
     pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
         let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdSet>(bytes) };
         rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
-    }
-
-    fn normalized_single_ids_at_zoom(&self, target_z: u8) -> HashSet<SingleId> {
-        let mut normalized = HashSet::new();
-
-        for flex_id in self.iter() {
-            let range = RangeId::from(&flex_id);
-            let expanded = if range.z() == target_z {
-                range
-            } else {
-                range
-                    .spatial_children_at_zoom(target_z)
-                    .expect("target_z must be >= range.z")
-            };
-
-            for single_id in expanded.iter_single_ids() {
-                normalized.insert(single_id);
-            }
-        }
-
-        normalized
     }
 }
