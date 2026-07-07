@@ -92,7 +92,7 @@ impl TemporalId {
         let o1 = other.end_unixtime_exclusive();
 
         if o1 <= s0 || o0 >= s1 {
-            return Self::from_range(s0..s1).unwrap();
+            return Self::from_range(s0..s1).unwrap().collect();
         }
 
         let left_end = o0.min(s1);

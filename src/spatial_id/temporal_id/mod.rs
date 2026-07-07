@@ -6,8 +6,6 @@ pub use disabled::{Interval, TemporalId, TemporalMap, TemporalSet};
 #[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};
 #[cfg(feature = "temporal_id")]
-use alloc::vec::Vec;
-#[cfg(feature = "temporal_id")]
 pub mod collection;
 #[cfg(feature = "temporal_id")]
 pub mod impls;
@@ -175,7 +173,7 @@ impl TemporalId {
         self.t
     }
 
-    /// 開始と終了のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`] 列を生成する。
+    /// 開始と終了のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`] を生成する。
     ///
     /// # パラメーター
     ///
@@ -193,7 +191,7 @@ impl TemporalId {
     /// 1時間の範囲:
     /// ```
     /// # use kasane_logic::{TemporalId, Interval};
-    /// let ids = TemporalId::from_range(0..3600).unwrap();
+    /// let ids: Vec<_> = TemporalId::from_range(0..3600).unwrap().collect();
     /// assert_eq!(ids.len(), 1);
     /// assert_eq!(ids[0], TemporalId::new(3600_u64, 0).unwrap());
     /// ```
@@ -201,23 +199,15 @@ impl TemporalId {
     /// 複雑な範囲（時間と分の組み合わせ）:
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let ids = TemporalId::from_range(0..3720).unwrap(); // 1時間 + 2分
-    /// assert!(ids.len() >= 1);
-    /// // 最初の要素は3600秒（1時間）の間隔を持つ
+    /// let ids: Vec<_> = TemporalId::from_range(0..3720).unwrap().collect(); // 1時間 + 2分
+    /// assert!(ids.len() == 3);
     /// ```
-    ///
-    /// ドメイン全体は単一の WHOLE セル:
-    /// ```
-    /// # use kasane_logic::{TemporalId, Interval};
-    /// let ids = TemporalId::from_range(0..Interval::WHOLE_SECONDS).unwrap();
-    /// assert_eq!(ids, vec![TemporalId::WHOLE]);
-    /// ```
-    pub fn from_range(range: core::ops::Range<u64>) -> Result<Vec<TemporalId>, Error> {
-        let start = range.start;
+    pub fn from_range(
+        range: core::ops::Range<u64>,
+    ) -> Result<impl Iterator<Item = TemporalId>, Error> {
+        let mut current = range.start;
         let end_exclusive = range.end;
-        if start >= end_exclusive {
-            return Ok(alloc::vec![]);
-        }
+
         if end_exclusive > Interval::WHOLE_SECONDS {
             return Err(SpatialIdError::TOutOfRange {
                 i: 1,
@@ -226,60 +216,30 @@ impl TemporalId {
             .into());
         }
 
-        Ok(Self::cells_in_range(start, end_exclusive).collect())
-    }
-
-    /// `[start, end_exclusive)` を約数鎖の最小セル列へ**遅延**分解するイテレータを返す。
-    ///
-    /// [`from_range`](Self::from_range) の中間 `Vec` を省く軽量版で、走査系のホットパス
-    /// （列挙・切り取り・個数計上）で使う。呼び出し側は `end_exclusive <=`
-    /// [`Interval::WHOLE_SECONDS`] を保証すること（[`TemporalCore`](crate::spatial_id::temporal_id::collection::temporal_core::TemporalCore)
-    /// のセグメントは常に有効域内なので満たされる）。`start >= end_exclusive` は空を返す。
-    pub(crate) fn cells_in_range(start: u64, end_exclusive: u64) -> RangeCells {
-        RangeCells {
-            current: start,
-            end: end_exclusive,
-        }
-    }
-
-    /// `[start, end_exclusive)` が分解されるセル個数を、セルを生成せずに数える。
-    ///
-    /// 二進層（`Day·2^k`）のおかげで個数は対数オーダーに収まるため、割当なしで軽い。
-    pub(crate) fn count_range(start: u64, end_exclusive: u64) -> usize {
-        Self::cells_in_range(start, end_exclusive).count()
-    }
-}
-
-/// [`TemporalId::cells_in_range`] の遅延イテレータ。各 `next` で約数鎖の最coarse に
-/// 整合するセルを1つ返し、カーソルを進める（割当なし）。
-#[cfg(feature = "temporal_id")]
-pub(crate) struct RangeCells {
-    current: u64,
-    end: u64,
-}
-
-#[cfg(feature = "temporal_id")]
-impl Iterator for RangeCells {
-    type Item = TemporalId;
-
-    #[allow(clippy::manual_is_multiple_of)]
-    fn next(&mut self) -> Option<TemporalId> {
-        if self.current >= self.end {
-            return None;
-        }
-        let remaining = self.end - self.current;
-        for interval in Interval::coarse_to_fine() {
-            let secs = interval.seconds();
-            if self.current % secs == 0 && remaining >= secs {
-                let cell = TemporalId {
-                    interval,
-                    t: self.current / secs,
-                };
-                self.current += secs;
-                return Some(cell);
+        Ok(core::iter::from_fn(move || {
+            if current >= end_exclusive {
+                return None;
             }
-        }
-        // Second（secs=1）が必ず整合するため到達しない。
-        None
+            let remaining = end_exclusive - current;
+            for interval in Interval::coarse_to_fine() {
+                let secs = interval.seconds();
+                if current.is_multiple_of(secs) && remaining >= secs {
+                    let cell = TemporalId {
+                        interval,
+                        t: current / secs,
+                    };
+                    current += secs;
+                    return Some(cell);
+                }
+            }
+            None
+        }))
+    }
+
+    /// 開始と終了のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`]を生成し、その個数を返す。
+    ///
+    /// 内部的にはLLVMの最適化により、個数だけが取得されているので高速である。
+    pub(crate) fn count_range(range: core::ops::Range<u64>) -> usize {
+        Self::from_range(range).unwrap().count()
     }
 }

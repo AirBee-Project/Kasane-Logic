@@ -151,14 +151,18 @@ impl TemporalId {
         true
     }
 
-    /// 開始と終了から複数のTemporalIdを生成する。
-    ///
-    /// `temporal_id` feature が無効な場合、常に全時間を表す1つの要素を含むベクトルを返す。
-    pub fn from_range(_range: core::ops::Range<u64>) -> Result<Vec<TemporalId>, Error> {
-        if _start >= _end_exclusive {
-            return Ok(vec![]);
-        }
-        Ok(vec![Self::WHOLE])
+    pub fn from_range(
+        range: core::ops::Range<u64>,
+    ) -> Result<impl Iterator<Item = TemporalId>, Error> {
+        let mut yielded = false;
+        let empty = range.start >= range.end;
+        Ok(core::iter::from_fn(move || {
+            if empty || yielded {
+                return None;
+            }
+            yielded = true;
+            Some(TemporalId::WHOLE)
+        }))
     }
 
     /// 2つの時間IDの差集合を計算する。

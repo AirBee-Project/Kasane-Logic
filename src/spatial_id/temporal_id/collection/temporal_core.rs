@@ -234,7 +234,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
     pub(crate) fn count_cells(&self) -> usize {
         self.segments
             .iter()
-            .map(|(s, e, _)| TemporalId::count_range(*s, *e))
+            .map(|(s, e, _)| TemporalId::count_range(*s..*e))
             .sum()
     }
 
@@ -242,7 +242,11 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
     pub(crate) fn cells(&self) -> Vec<(TemporalId, V)> {
         self.segments
             .iter()
-            .flat_map(|(s, e, v)| TemporalId::cells_in_range(*s, *e).map(move |c| (c, v.clone())))
+            .flat_map(|(s, e, v)| {
+                TemporalId::from_range(*s..*e)
+                    .unwrap()
+                    .map(move |c| (c, v.clone()))
+            })
             .collect()
     }
 
@@ -255,7 +259,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
     pub(crate) fn cells_ref_iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
         self.segments
             .iter()
-            .flat_map(|(s, e, v)| TemporalId::cells_in_range(*s, *e).map(move |c| (c, v)))
+            .flat_map(|(s, e, v)| TemporalId::from_range(*s..*e).unwrap().map(move |c| (c, v)))
     }
 
     /// `window` に限定したセル列を参照で返す（`(self ∩ window)` の分解）。
@@ -276,7 +280,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         self.segments.iter().flat_map(move |(s, e, v)| {
             let cs = (*s).max(w0);
             let ce = (*e).min(w1);
-            TemporalId::cells_in_range(cs, ce).map(move |c| (c, v))
+            TemporalId::from_range(cs..ce).unwrap().map(move |c| (c, v))
         })
     }
 
