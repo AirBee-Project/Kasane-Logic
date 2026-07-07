@@ -106,7 +106,7 @@ where
     }
 
     /// ターゲットAABB(FlexId)が現在の空間境界を特定の軸で「完全に覆う（covers）」か判定する。
-    fn covers(target: &FlexId, level: u8) -> bool {
+    pub(crate) fn covers(target: &FlexId, level: u8) -> bool {
         let axis = Self::axis(level);
         let depth = Self::depth(level);
         Self::target_zoom(axis, target) <= depth
@@ -300,7 +300,7 @@ where
     }
 
     /// target の次元ごとのインデックスビットを取得し、Lower / Upper を判定する。
-    fn forking(target: &FlexId, level: u8) -> Side {
+    pub(crate) fn forking(target: &FlexId, level: u8) -> Side {
         let axis = Self::axis(level);
         let depth = Self::depth(level);
 

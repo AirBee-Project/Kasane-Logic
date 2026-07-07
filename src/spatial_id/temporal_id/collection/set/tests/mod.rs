@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 /// 集合が覆う秒（有界ドメイン前提。WHOLE は使わない）。
 fn secs(set: &TemporalSet) -> BTreeSet<u64> {
     let mut s = BTreeSet::new();
-    for &(a, b) in set.intervals() {
+    for (a, b) in set.intervals() {
         s.extend(a..b);
     }
     s
@@ -37,11 +37,12 @@ fn sample_sets() -> Vec<TemporalSet> {
 
 /// 正規化不変条件: 昇順・互いに素・隣接非連結。
 fn assert_normalized(set: &TemporalSet) {
-    for w in set.intervals().windows(2) {
-        assert!(w[0].1 < w[1].0, "not normalized: {:?}", set.intervals());
+    let iv = set.intervals();
+    for w in iv.windows(2) {
+        assert!(w[0].1 < w[1].0, "not normalized: {iv:?}");
     }
-    for &(s, e) in set.intervals() {
-        assert!(s < e, "empty interval: {:?}", set.intervals());
+    for &(s, e) in &iv {
+        assert!(s < e, "empty interval: {iv:?}");
     }
 }
 

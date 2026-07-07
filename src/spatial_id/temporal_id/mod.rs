@@ -228,7 +228,6 @@ impl TemporalId {
     /// let ids = TemporalId::from_range(0, Interval::WHOLE_SECONDS).unwrap();
     /// assert_eq!(ids, vec![TemporalId::WHOLE]);
     /// ```
-    #[allow(clippy::manual_is_multiple_of)]
     pub fn from_range(start: u64, end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
         if start >= end_exclusive {
             return Ok(alloc::vec![]);
@@ -241,25 +240,58 @@ impl TemporalId {
             .into());
         }
 
-        let mut result = Vec::new();
-        let mut current = start;
+        Ok(Self::cells_in_range(start, end_exclusive).collect())
+    }
 
-        while current < end_exclusive {
-            let remaining = end_exclusive - current;
+    /// `[start, end_exclusive)` を約数鎖の最小セル列へ**遅延**分解するイテレータを返す。
+    ///
+    /// [`from_range`](Self::from_range) の中間 `Vec` を省く軽量版で、走査系のホットパス
+    /// （列挙・切り取り・個数計上）で使う。呼び出し側は `end_exclusive <=`
+    /// [`Interval::WHOLE_SECONDS`] を保証すること（[`TemporalCore`](crate::spatial_id::temporal_id::collection::temporal_core::TemporalCore)
+    /// のセグメントは常に有効域内なので満たされる）。`start >= end_exclusive` は空を返す。
+    pub(crate) fn cells_in_range(start: u64, end_exclusive: u64) -> RangeCells {
+        RangeCells {
+            current: start,
+            end: end_exclusive,
+        }
+    }
 
-            for interval in Interval::coarse_to_fine() {
-                let secs = interval.seconds();
-                if current % secs == 0 && remaining >= secs {
-                    result.push(TemporalId {
-                        interval,
-                        t: current / secs,
-                    });
-                    current += secs;
-                    break;
-                }
+    /// `[start, end_exclusive)` が分解されるセル個数を、セルを生成せずに数える。
+    ///
+    /// 二進層（`Day·2^k`）のおかげで個数は対数オーダーに収まるため、割当なしで軽い。
+    pub(crate) fn count_range(start: u64, end_exclusive: u64) -> usize {
+        Self::cells_in_range(start, end_exclusive).count()
+    }
+}
+
+/// [`TemporalId::cells_in_range`] の遅延イテレータ。各 `next` で約数鎖の最coarse に
+/// 整合するセルを1つ返し、カーソルを進める（割当なし）。
+pub(crate) struct RangeCells {
+    current: u64,
+    end: u64,
+}
+
+impl Iterator for RangeCells {
+    type Item = TemporalId;
+
+    #[allow(clippy::manual_is_multiple_of)]
+    fn next(&mut self) -> Option<TemporalId> {
+        if self.current >= self.end {
+            return None;
+        }
+        let remaining = self.end - self.current;
+        for interval in Interval::coarse_to_fine() {
+            let secs = interval.seconds();
+            if self.current % secs == 0 && remaining >= secs {
+                let cell = TemporalId {
+                    interval,
+                    t: self.current / secs,
+                };
+                self.current += secs;
+                return Some(cell);
             }
         }
-
-        Ok(result)
+        // Second（secs=1）が必ず整合するため到達しない。
+        None
     }
 }

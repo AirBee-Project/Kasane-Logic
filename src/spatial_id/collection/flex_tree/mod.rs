@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use crate::{IterFlexIds, IterSingleIds};
-use alloc::boxed::Box;
+use crate::IterFlexIds;
+
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
@@ -214,14 +214,12 @@ where
     }
 
     /// この [`FlexTree`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。
-    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
-        let Some(max_zoomlevel) = self.max_zoomlevel() else {
-            return Vec::new().into_iter();
-        };
-
-        let mut exported = Vec::new();
-
-        for (flex_id, value) in self.iter() {
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> + '_
+    where
+        V: Clone,
+    {
+        let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
+        self.iter().flat_map(move |(flex_id, value)| {
             let range = RangeId::from(&flex_id);
             let normalized = if range.z() == max_zoomlevel {
                 range
@@ -230,22 +228,16 @@ where
                     .spatial_children_at_zoom(max_zoomlevel)
                     .expect("target max zoomlevel must be valid")
             };
-
-            for single_id in normalized.iter_single_ids() {
-                exported.push((single_id, value.clone()));
-            }
-        }
-
-        exported.into_iter()
+            normalized
+                .single_ids()
+                .map(move |single_id| (single_id, value.clone()))
+        })
     }
 
     /// この [`FlexTree`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
-    pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
-        let Some(max_zoomlevel) = self.max_zoomlevel() else {
-            return Box::new(core::iter::empty());
-        };
-
-        Box::new(self.iter_ref().flat_map(move |(flex_id, value)| {
+    pub fn flat_single_ids_ref(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
+        let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
+        self.iter_ref().flat_map(move |(flex_id, value)| {
             let range = RangeId::from(&flex_id);
             let normalized = if range.z() == max_zoomlevel {
                 range
@@ -254,13 +246,10 @@ where
                     .spatial_children_at_zoom(max_zoomlevel)
                     .expect("target max zoomlevel must be valid")
             };
-
             normalized
-                .iter_single_ids()
-                .collect::<alloc::vec::Vec<_>>()
-                .into_iter()
+                .single_ids()
                 .map(move |single_id| (single_id, value))
-        }))
+        })
     }
 
     /// [FlexTree]からtargetと重なりがある[FlexId]とそのValueへの参照を全て取り出す。
@@ -482,6 +471,22 @@ where
             &mut self.upper_root
         };
         Node::insert_mut(root, &flex_id, &value, 0, &self.empty_leaf);
+    }
+
+    /// 単一セル `target` の値を、既存の葉値と [`Combine`](node_ops::Combine) で**マージ**しながら
+    /// インプレース挿入する。使い捨ての単一要素木 + [`combine_with`](Self::combine_with) を
+    /// 経由せず、対象パスだけを Copy-on-Write で書き換える（有限時間挿入の定数倍削減）。
+    pub(crate) fn insert_combine_mut<C: node_ops::Combine<V>>(
+        &mut self,
+        target: &FlexId,
+        value: &V,
+    ) {
+        let root = if target.f_index().is_negative() {
+            &mut self.lower_root
+        } else {
+            &mut self.upper_root
+        };
+        Node::insert_combine_mut::<C>(root, target, value, 0, &self.empty_leaf);
     }
 
     /// unionのシャード領域を返す。

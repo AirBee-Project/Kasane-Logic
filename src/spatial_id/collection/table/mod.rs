@@ -1,9 +1,9 @@
-use crate::IterSingleIds;
 use alloc::vec::Vec;
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use core::ops::RangeBounds;
-pub mod convert;
+
+pub mod impls;
 pub mod json;
 pub mod tests;
 
@@ -246,13 +246,19 @@ where
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
     /// 各 [`SingleId`] には存在時間（時間セル）が付く。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        self.iter().flat_map(|(flex_id, value)| {
-            RangeId::from(&flex_id)
-                .iter_single_ids()
-                .collect::<alloc::vec::Vec<_>>()
-                .into_iter()
+        let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
+        self.iter().flat_map(move |(flex_id, value)| {
+            let range = RangeId::from(&flex_id);
+            let normalized = if range.z() == max_zoomlevel {
+                range
+            } else {
+                range
+                    .spatial_children_at_zoom(max_zoomlevel)
+                    .expect("target max zoomlevel must be valid")
+            };
+            normalized
+                .single_ids()
                 .map(move |single_id| (single_id, value))
-                .collect::<Vec<_>>()
         })
     }
 

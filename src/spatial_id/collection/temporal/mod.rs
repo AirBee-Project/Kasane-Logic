@@ -115,8 +115,11 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
     }
 
     /// 時間セルの個数を返す（iter() が返すセル数と一致）。
+    ///
+    /// 各葉の [`count_cells`](crate::TemporalMap::count_cells) を合算するだけで、
+    /// セルを1つも生成しない（O(空間ノード数 × セグメント数)、割当なし）。
     pub(crate) fn count(&self) -> usize {
-        self.iter().count()
+        self.inner.iter_ref().map(|(_, tv)| tv.count_cells()).sum()
     }
 
     /// ツリーの最大ズームレベルを返す。
@@ -160,11 +163,11 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
                 crate::TemporalMap::from_temporal(&crate::TemporalId::WHOLE, payload),
             );
         } else {
+            // 有限時間はインプレースで既存の時間マップへ後勝ちマージする。
+            // 使い捨ての単一要素木 + combine_with を経由しないため定数倍が軽い。
             let tv = crate::TemporalMap::from_temporal(&temporal, payload);
-            let mut single = FlexTree::<crate::TemporalMap<V>>::new();
-            single.insert_flex_id(spatial, tv);
-            let shard = self.inner.shard().cloned();
-            self.inner = self.inner.combine_with::<TMapOverwrite>(&single, shard);
+            self.inner
+                .insert_combine_mut::<TMapOverwrite>(&spatial, &tv);
         }
     }
 
@@ -178,8 +181,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner.get_ref(target).flat_map(|(clipped, tv)| {
-            tv.cells_clipped_ref(clipped.temporal())
-                .into_iter()
+            tv.cells_clipped_ref_iter(clipped.temporal().clone())
                 .map(move |(t, p)| (clipped.clone().with_temporal(t), p))
         })
     }
@@ -193,8 +195,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner
             .get_overlapping_ref(target)
             .flat_map(move |(stored, tv)| {
-                tv.cells_clipped_ref(&query_temporal)
-                    .into_iter()
+                tv.cells_clipped_ref_iter(query_temporal.clone())
                     .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
@@ -208,8 +209,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner
             .neighbors_share_face_ref(target)
             .flat_map(move |(stored, tv)| {
-                tv.cells_clipped_ref(&query_temporal)
-                    .into_iter()
+                tv.cells_clipped_ref_iter(query_temporal.clone())
                     .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
@@ -219,8 +219,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
     /// 保持するすべての `(FlexId, &Payload)` を返す。
     pub(crate) fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter_ref().flat_map(|(spatial, tv)| {
-            tv.cells_ref()
-                .into_iter()
+            tv.cells_ref_iter()
                 .map(move |(t, p)| (spatial.clone().with_temporal(t), p))
         })
     }
@@ -258,15 +257,28 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         removed.into_iter()
     }
 
-    /// `target` と空間的に重なる葉を（その全時間ごと）丸ごと取り除いて返す。
+    /// `target` と空間・時間の両方で交差する葉を削除して返す。
+    ///
+    /// `remove` とは異なり、空間的な残余の切り出しは行わず、交差した葉自体を取り除きます。
+    /// ただし、時間の残余（ターゲット時間外の部分）は同じ空間葉として木に戻されます。
     pub(crate) fn remove_overlapping<S: SpatialId>(
         &mut self,
         target: &S,
     ) -> impl Iterator<Item = (FlexId, V)> {
         let mut removed = Vec::new();
-        for (stored, tv) in self.inner.remove_overlapping(target) {
-            for (t, p) in tv.cells() {
-                removed.push((stored.with_temporal(t), p));
+        for query in target.iter_flex_ids() {
+            let q_spatial = query.spatial_part();
+            let q_time = TemporalSet::from_temporal(query.temporal());
+            let affected: Vec<(FlexId, crate::TemporalMap<V>)> =
+                self.inner.remove_overlapping(&q_spatial).collect();
+            for (leaf, tv) in affected {
+                let kept = tv.subtract_time(&q_time);
+                if !kept.is_empty() {
+                    self.inner.insert_flex_id(leaf.clone(), kept);
+                }
+                for (t, p) in tv.intersect_time(&q_time).cells() {
+                    removed.push((leaf.clone().with_temporal(t), p));
+                }
             }
         }
         removed.into_iter()

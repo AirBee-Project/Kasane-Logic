@@ -1,5 +1,6 @@
 use super::node::Node;
 use super::ptr::SharedNode;
+use crate::{FlexId, Side};
 
 /// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
 #[cfg(feature = "rayon")]
@@ -222,5 +223,178 @@ where
             lower_child: new_lower,
             upper_child: new_upper,
         })
+    }
+
+    /// 単一の空間セル `target` に値 `value` を、既存の葉値と [`Combine`] で**マージ**しながら
+    /// インプレース挿入する（Copy-on-Write）。
+    ///
+    /// [`insert_mut`](Node::insert_mut) が葉値を**置換**するのに対し、こちらは重なる葉で
+    /// `C::both` / 空セルで `C::b_only` を適用する。単一要素の `single` 木を作って
+    /// [`combine`](Self::combine) する経路と結果は同一だが、使い捨て木の確保と木構造の
+    /// 再構築を避けられる（有限時間挿入の定数倍を削減）。制御フロー（レベルスキップ・
+    /// 欠損レベルの prepend・枝再帰・collapse）は `insert_mut` と同型。
+    pub(crate) fn insert_combine_mut<C: Combine<V>>(
+        node: &mut SharedNode<Self>,
+        target: &FlexId,
+        value: &V,
+        level: u8,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) {
+        // target がこの node 領域全体を覆う → 配下すべてへ value を畳み込む。
+        if Self::completely_covers_public(target, level) {
+            Self::broadcast_combine::<C>(node, value, empty_leaf);
+            return;
+        }
+
+        let node_level = match **node {
+            Node::Branch { level: l, .. } => l,
+            Node::Leaf { .. } => 93,
+        };
+
+        let mut current_level = level;
+        while current_level < node_level && Self::covers(target, current_level) {
+            current_level += 1;
+        }
+
+        if current_level >= 93 {
+            Self::broadcast_combine::<C>(node, value, empty_leaf);
+            return;
+        }
+
+        // 欠損レベルの prepend: 分岐を作り、既存 node を両子へ複製（＝target 外は既存値を保持）、
+        // target 側だけ深く再帰してマージする。
+        if current_level < node_level {
+            let side = Self::forking(target, current_level);
+            let (new_lower, new_upper) = match side {
+                Side::Lower => {
+                    let mut lo = node.clone();
+                    Self::insert_combine_mut::<C>(
+                        &mut lo,
+                        target,
+                        value,
+                        current_level + 1,
+                        empty_leaf,
+                    );
+                    (lo, node.clone())
+                }
+                Side::Upper => {
+                    let mut hi = node.clone();
+                    Self::insert_combine_mut::<C>(
+                        &mut hi,
+                        target,
+                        value,
+                        current_level + 1,
+                        empty_leaf,
+                    );
+                    (node.clone(), hi)
+                }
+            };
+
+            if let Some(rep) =
+                Self::collapse_equal_children(&new_lower, &new_upper, current_level, empty_leaf)
+            {
+                *node = rep;
+                return;
+            }
+
+            *node = SharedNode::new(Node::Branch {
+                level: current_level,
+                leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+                max_zoom: Self::fold_max_zoom(current_level, &new_lower, &new_upper),
+                lower_child: new_lower,
+                upper_child: new_upper,
+            });
+            return;
+        }
+
+        // current_level == node_level: 枝の該当子へ降りる（CoW）。
+        let replacement = {
+            let mut_node = SharedNode::make_mut(node);
+            if let Node::Branch {
+                level: l,
+                lower_child,
+                upper_child,
+                leaf_count,
+                max_zoom,
+            } = mut_node
+            {
+                if Self::covers(target, *l) {
+                    Self::insert_combine_mut::<C>(lower_child, target, value, *l + 1, empty_leaf);
+                    Self::insert_combine_mut::<C>(upper_child, target, value, *l + 1, empty_leaf);
+                } else {
+                    match Self::forking(target, *l) {
+                        Side::Lower => Self::insert_combine_mut::<C>(
+                            lower_child,
+                            target,
+                            value,
+                            *l + 1,
+                            empty_leaf,
+                        ),
+                        Side::Upper => Self::insert_combine_mut::<C>(
+                            upper_child,
+                            target,
+                            value,
+                            *l + 1,
+                            empty_leaf,
+                        ),
+                    }
+                }
+
+                *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+                *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
+
+                Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
+            } else {
+                unreachable!()
+            }
+        };
+
+        if let Some(rep) = replacement {
+            *node = rep;
+        }
+    }
+
+    /// この node 領域全体へ `value` を [`Combine`] で畳み込む（葉ならマージ、枝なら両子へ再帰）。
+    fn broadcast_combine<C: Combine<V>>(
+        node: &mut SharedNode<Self>,
+        value: &V,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) {
+        match &**node {
+            Node::Leaf { value: existing } => {
+                let merged = match existing {
+                    Some(a) => C::both(a, value),
+                    None => C::b_only(value),
+                };
+                *node = match merged {
+                    Some(v) => SharedNode::new(Node::Leaf { value: Some(v) }),
+                    None => empty_leaf.clone(),
+                };
+            }
+            Node::Branch { .. } => {
+                let replacement = {
+                    let mut_node = SharedNode::make_mut(node);
+                    if let Node::Branch {
+                        level: l,
+                        lower_child,
+                        upper_child,
+                        leaf_count,
+                        max_zoom,
+                    } = mut_node
+                    {
+                        Self::broadcast_combine::<C>(lower_child, value, empty_leaf);
+                        Self::broadcast_combine::<C>(upper_child, value, empty_leaf);
+                        *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+                        *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
+                        Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
+                    } else {
+                        unreachable!()
+                    }
+                };
+                if let Some(rep) = replacement {
+                    *node = rep;
+                }
+            }
+        }
     }
 }

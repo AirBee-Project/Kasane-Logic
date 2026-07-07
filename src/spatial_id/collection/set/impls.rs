@@ -21,3 +21,23 @@ impl<S: IterFlexIds> Extend<S> for SpatialIdSet {
         }
     }
 }
+
+impl IntoIterator for SpatialIdSet {
+    type Item = crate::FlexId;
+    type IntoIter = alloc::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        // SpatialIdSet の所有権を奪うイテレータ。現在は一旦 Vec に収集して返す。
+        let vec: alloc::vec::Vec<_> = self.iter().collect();
+        vec.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a SpatialIdSet {
+    type Item = crate::FlexId;
+    type IntoIter = alloc::boxed::Box<dyn Iterator<Item = Self::Item> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        alloc::boxed::Box::new(self.iter())
+    }
+}

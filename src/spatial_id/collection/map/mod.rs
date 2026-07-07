@@ -1,10 +1,7 @@
-use crate::IterSingleIds;
-use alloc::vec::Vec;
-
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId};
 
-pub mod convert;
+pub mod impls;
 pub mod json;
 #[cfg(feature = "persist")]
 pub mod persist;
@@ -108,10 +105,9 @@ where
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
     /// 各 [`SingleId`] には存在時間（時間セル）が付く。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        let max_zoomlevel = self.max_zoomlevel();
+        let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |(flex_id, value)| {
             let range = RangeId::from(&flex_id);
-            let max_zoomlevel = max_zoomlevel.expect("non-empty iteration implies max zoom");
             let normalized = if range.z() == max_zoomlevel {
                 range
             } else {
@@ -120,11 +116,8 @@ where
                     .expect("target max zoomlevel must be valid")
             };
             normalized
-                .iter_single_ids()
-                .collect::<alloc::vec::Vec<_>>()
-                .into_iter()
+                .single_ids()
                 .map(move |single_id| (single_id, value))
-                .collect::<Vec<_>>()
         })
     }
 

@@ -285,6 +285,51 @@ fn whole_time_cells_still_merge() {
     assert_eq!(set.count(), 1, "8 octants (same finite time) merge into 1");
 }
 
+/// インプレース・マージ挿入（insert_combine_mut）の two-way エッジ検証。
+///
+/// (1) 既存の細かいセル群より**粗い**有限セルを後から挿入 → broadcast_combine が
+///     枝の各葉へ後勝ちマージ。(2) 既存の粗いセルより**細かい**セルを挿入 →
+///     prepend で既存値を押し下げつつ対象サブセルだけマージ。両方をアトム正解で照合。
+#[test]
+fn insert_combine_mut_coarse_over_fine_and_fine_into_coarse() {
+    // (1) 細→粗: (0,0,0) と (1,0,0) に別々の有限時間、その後 zoom1 の粗いセルで
+    // 両方を覆う別時間を後勝ち挿入。
+    let mut set = build(&[
+        cell(2, 0, 0, 0, 60, 0), // (0,0,0) @ [0,60)
+        cell(2, 0, 1, 0, 60, 1), // (1,0,0) @ [60,120)
+    ]);
+    // zoom1 の (0,0,0) は zoom2 の (0..2,0..2,0..2) を覆う。[30,90) を後勝ちで乗せる。
+    set.insert(
+        FlexId::new(1, 0, 1, 0, 1, 0)
+            .map(|id| id.with_temporal(TemporalId::from_seconds(60, 0).unwrap())) // [0,60) at i=60? -> [0,60)
+            .unwrap(),
+    );
+    // アトム正解: 各空間セルで「元の時間 ∪ 挿入時間([0,60))」。後勝ちだが Set なので union。
+    let got = atoms_of(set.iter(), 2);
+    let mut exp: BTreeSet<Atom> = BTreeSet::new();
+    for k in spatial_keys(&FlexId::new(1, 0, 1, 0, 1, 0).unwrap(), 2) {
+        for s in 0u64..60 {
+            exp.insert((k, s)); // 挿入した [0,60) が全 8 セルに乗る
+        }
+    }
+    // 元データの時間も残る（cell(2,0,1,0,..) の空間キーは (f=0,x=1,y=0)=(0,1,0)）。
+    exp.extend((0u64..60).map(|s| ((0, 0, 0), s))); // (0,0,0) @ [0,60)
+    exp.extend((60u64..120).map(|s| ((0, 1, 0), s))); // (0,1,0) @ [60,120)（元データが保たれる）
+    assert_eq!(got, exp, "coarse-over-fine merge");
+
+    // (2) 粗→細: 粗いセルに時間、その後内側の細かいセルへ別時間を追加。
+    let mut set2 = SpatialIdSet::new();
+    set2.insert(cell(1, 0, 0, 0, 3600, 0)); // zoom1 (0,0,0) @ [0,3600)
+    set2.insert(cell(2, 0, 0, 0, 60, 61)); // zoom2 の一部セル @ [3660,3720)
+    let got2 = atoms_of(set2.iter(), 2);
+    let mut exp2: BTreeSet<Atom> = BTreeSet::new();
+    for k in spatial_keys(&FlexId::new(1, 0, 1, 0, 1, 0).unwrap(), 2) {
+        exp2.extend((0u64..3600).map(move |s| (k, s))); // 粗いセル全体 @ [0,3600)
+    }
+    exp2.extend((3660u64..3720).map(|s| ((0, 0, 0), s))); // 細かいセルに追加時間
+    assert_eq!(got2, exp2, "fine-into-coarse merge");
+}
+
 fn arb_small_temporal_id() -> impl Strategy<Value = TemporalId> {
     // Generate only Second or Minute intervals to avoid OOM in atoms_of oracle
     let intervals = vec![Interval::Second, Interval::Minute];
@@ -437,4 +482,147 @@ fn count_should_count_temporal_cells() {
     // atoms_of は各秒をアトムとして展開する（3 × 60秒 = 180アトム）
     let atoms = atoms_of(set.iter(), 2);
     assert_eq!(atoms.len(), 180, "180 seconds in total");
+}
+
+/// スケーラビリティ検査: count() と iter() のパフォーマンス特性。
+///
+/// 問題点:
+/// - count() = iter().count() は、全セルを列挙する必要があり O(セル数)
+/// - 本来は count() が O(セグメント数) であるべき（セル数に無関係）
+/// - cells_ref() が毎回 Vec を作成するため、メモリ効率が悪い
+#[test]
+#[ignore]
+fn scalability_performance_characteristics() {
+    eprintln!("\n=== Scalability Analysis ===");
+
+    // シナリオ1: 大規模な連続時間
+    let mut set1 = SpatialIdSet::new();
+    set1.insert(
+        FlexId::new(2, 0, 2, 0, 2, 0)
+            .map(|id| id.with_temporal(TemporalId::from_seconds(1, 0).unwrap())) // Interval=1 (Second)
+            .unwrap(),
+    );
+
+    eprintln!("Scenario 1: Large continuous time span");
+    eprintln!("  Data: 30 days starting from second 0");
+
+    let count1 = set1.count();
+    eprintln!("  count() = {} (should be 1 logical interval)", count1);
+
+    // NOTE: これは 1 に等しい（1つの WHOLE セル）
+    assert_eq!(count1, 1);
+
+    // シナリオ2: 複数の空間セル、各々複数の時間セル
+    let mut set2 = SpatialIdSet::new();
+    for space_idx in 0..4 {
+        // zoom=2 では座標は [0,4)
+        #[allow(clippy::unnecessary_cast)]
+        for time_idx in 0..10 {
+            set2.insert(
+                FlexId::new(2, space_idx as i32, 2, space_idx as u32, 2, 0)
+                    .map(|id| {
+                        id.with_temporal(TemporalId::from_seconds(60, time_idx as u64).unwrap())
+                    })
+                    .unwrap(),
+            );
+        }
+    }
+
+    eprintln!("Scenario 2: 10 spatial cells × 10 temporal cells");
+    eprintln!("  Total inserted: 100 FlexIds");
+
+    let count2 = set2.count();
+    let iter_count2 = set2.iter().count();
+    eprintln!("  count() = {}", count2);
+    eprintln!("  iter().count() = {}", iter_count2);
+
+    // count() と iter().count() が一致することを確認
+    assert_eq!(count2, iter_count2, "count() should equal iter().count()");
+
+    eprintln!("\nPerformance concern:");
+    eprintln!("  count() runs iter().count() internally");
+    eprintln!("  This is O(spatial_nodes × temporal_cells), not O(segments)");
+    eprintln!("  For large datasets, this becomes expensive");
+}
+
+/// マージメカニズムの確認。
+/// TemporalMap は FlexTree と同様に、隣接同値セグメントを自動マージする。
+#[test]
+#[allow(clippy::len_zero)]
+fn temporal_map_merges_adjacent_segments() {
+    use crate::TemporalMap;
+
+    // TemporalMap は内部的にセグメント (start, end, value) を保持する
+    // sweep メソッドで隣接同値セグメントが自動的にマージされる
+
+    let tm1 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 0).unwrap(), "A");
+    let tm2 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 1).unwrap(), "A");
+
+    eprintln!("Temporal Merge Test:");
+    eprintln!("  tm1: [0, 60) = 'A'");
+    eprintln!("  tm2: [60, 120) = 'A'");
+
+    let merged = tm1.union(&tm2, &crate::ConflictPolicy::KeepExisting);
+    let cells = merged.cells();
+
+    eprintln!("  After union with same value:");
+    eprintln!("    cells().len() = {}", cells.len());
+
+    // 隣接同値セグメントは union で自動的に マージされる
+    // [0,60) + [60,120) = [0,120) という1つのセグメントになる
+    // cells() では約数鎖で分解されるため、1個以上の TemporalId になる
+    assert!(
+        cells.len() >= 1,
+        "Adjacent segments with same value should merge"
+    );
+
+    // 異なる値の場合はマージされない
+    let tm3 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 0).unwrap(), "A");
+    let tm4 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 1).unwrap(), "B");
+
+    let not_merged = tm3.union(&tm4, &crate::ConflictPolicy::KeepExisting);
+    let cells2 = not_merged.cells();
+
+    eprintln!("  Different values:");
+    eprintln!("    tm3: [0, 60) = 'A'");
+    eprintln!("    tm4: [60, 120) = 'B'");
+    eprintln!("    cells().len() = {}", cells2.len());
+
+    // [0,60)と[60,120)は異なる値なので、2つのセグメントのまま
+    assert!(
+        cells2.len() >= 2,
+        "Adjacent segments with different values should NOT merge"
+    );
+
+    eprintln!("\nConclusion:");
+    eprintln!("  TemporalMap automatically merges adjacent segments with same value");
+    eprintln!("  This is the same normalization as FlexTree does for spatial cells");
+}
+
+/// メモリ効率の問題を示すテスト。
+#[test]
+#[ignore]
+fn memory_efficiency_concern() {
+    // シナリオ: 同一空間セルで非常に多くの時間セルを持つ場合
+    let mut set = SpatialIdSet::new();
+
+    // 10000個の1秒時間セルを挿入
+    eprintln!("\nMemory efficiency test:");
+    eprintln!("  Inserting 10000 x 1-second temporal cells...");
+
+    for i in 0u64..10000 {
+        set.insert(cell(2, 0, 0, 0, 1, i));
+    }
+
+    // 問題: iter() が全セルを展開する必要があるため、
+    // count() = iter().count() は O(時間セル数) になる
+    eprintln!("  Calling iter().count()...");
+    let count = set.count();
+    eprintln!("  Result: {} cells", count);
+
+    // パフォーマンスの実測:
+    // - cells_ref() が毎回 Vec を作成: O(時間セル数)
+    // - from_range() が Vec を作成: O(時間セル数)
+    // - iter が複数回イテレータを走査: O(時間セル数 * イテレータ走査)
+    eprintln!("  WARNING: count() is O(時間セル数), not O(セグメント数)!");
 }

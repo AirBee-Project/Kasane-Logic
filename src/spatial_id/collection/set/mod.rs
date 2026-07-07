@@ -1,9 +1,6 @@
-use crate::IterSingleIds;
-use alloc::vec::Vec;
-
 use crate::spatial_id::collection::temporal::SpatioTemporalCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId};
-pub mod convert;
+
 pub mod impls;
 pub mod json;
 pub mod ops;
@@ -141,13 +138,9 @@ impl SpatialIdSet {
 
     /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
     /// 各 [`SingleId`] には存在時間（時間セル）が付く。
-    pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> {
-        let Some(max_zoomlevel) = self.max_zoomlevel() else {
-            return Vec::new().into_iter();
-        };
-
-        let mut exported = Vec::new();
-        for flex_id in self.iter() {
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
+        let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
+        self.iter().flat_map(move |flex_id| {
             let range = RangeId::from(&flex_id);
             let normalized = if range.z() == max_zoomlevel {
                 range
@@ -156,9 +149,8 @@ impl SpatialIdSet {
                     .spatial_children_at_zoom(max_zoomlevel)
                     .expect("target max zoomlevel must be valid")
             };
-            exported.extend(normalized.iter_single_ids());
-        }
-        exported.into_iter()
+            normalized.single_ids()
+        })
     }
 
     /// [SpatialIdSet]の内部の空間IDを全て削除します。

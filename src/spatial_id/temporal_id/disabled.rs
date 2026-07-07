@@ -361,14 +361,32 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
             .collect()
     }
 
+    /// 時間セル総数（feature 無効時は 0 か 1）。
+    pub fn count_cells(&self) -> usize {
+        self.value.iter().count()
+    }
+
     /// [`cells`](Self::cells) の参照版。
     pub fn cells_ref(&self) -> Vec<(TemporalId, &V)> {
         self.value.iter().map(|v| (TemporalId::WHOLE, v)).collect()
     }
 
+    /// [`cells_ref`](Self::cells_ref) の遅延イテレータ版。
+    pub fn cells_ref_iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
+        self.value.iter().map(|v| (TemporalId::WHOLE, v))
+    }
+
     /// `window` に限定したセル列を参照で返す（feature 無効時は全時間のみ）。
     pub fn cells_clipped_ref(&self, _window: &TemporalId) -> Vec<(TemporalId, &V)> {
         self.cells_ref()
+    }
+
+    /// [`cells_clipped_ref`](Self::cells_clipped_ref) の遅延イテレータ版（窓は値渡し）。
+    pub fn cells_clipped_ref_iter(
+        &self,
+        _window: TemporalId,
+    ) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
+        self.value.iter().map(|v| (TemporalId::WHOLE, v))
     }
 
     /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
