@@ -180,8 +180,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner.get_ref(target).flat_map(|(clipped, tv)| {
             tv.cells_clipped_ref(clipped.temporal())
                 .into_iter()
-                .map(|(t, p)| (clipped.with_temporal(t), p))
-                .collect::<Vec<_>>()
+                .map(move |(t, p)| (clipped.clone().with_temporal(t), p))
         })
     }
 
@@ -196,8 +195,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
             .flat_map(move |(stored, tv)| {
                 tv.cells_clipped_ref(&query_temporal)
                     .into_iter()
-                    .map(|(t, p)| (stored.with_temporal(t), p))
-                    .collect::<Vec<_>>()
+                    .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
 
@@ -212,8 +210,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
             .flat_map(move |(stored, tv)| {
                 tv.cells_clipped_ref(&query_temporal)
                     .into_iter()
-                    .map(|(t, p)| (stored.with_temporal(t), p))
-                    .collect::<Vec<_>>()
+                    .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
 
@@ -224,8 +221,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner.iter_ref().flat_map(|(spatial, tv)| {
             tv.cells_ref()
                 .into_iter()
-                .map(|(t, p)| (spatial.with_temporal(t), p))
-                .collect::<Vec<_>>()
+                .map(move |(t, p)| (spatial.clone().with_temporal(t), p))
         })
     }
 
