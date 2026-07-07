@@ -46,7 +46,7 @@ impl Default for TemporalId {
 /// # {
 /// # use kasane_logic::TemporalId;
 /// # use core::str::FromStr;
-/// let id = TemporalId::from_seconds(3600, 5).unwrap();
+/// let id = TemporalId::new(3600_u64, 5).unwrap();
 /// let parsed: TemporalId = "3600/5".parse().unwrap();
 /// assert_eq!(id, parsed);
 /// # }
@@ -58,7 +58,7 @@ impl Default for TemporalId {
 /// # {
 /// # use kasane_logic::TemporalId;
 /// # use core::str::FromStr;
-/// let original = TemporalId::from_seconds(60, 120).unwrap();
+/// let original = TemporalId::new(60_u64, 120).unwrap();
 /// let string_repr = original.to_string();
 /// let parsed = TemporalId::from_str(&string_repr).unwrap();
 /// assert_eq!(original, parsed);
@@ -90,6 +90,6 @@ impl FromStr for TemporalId {
                 input: s.to_string(),
             })?;
 
-        TemporalId::from_seconds(i, t)
+        TemporalId::new(i, t)
     }
 }

@@ -16,7 +16,7 @@ fn secs(set: &TemporalSet) -> BTreeSet<u64> {
 fn build(cells: &[(u64, u64)]) -> TemporalSet {
     let mut set = TemporalSet::new();
     for &(i, t) in cells {
-        set.insert(&TemporalId::from_seconds(i, t).unwrap());
+        set.insert(&TemporalId::new(i, t).unwrap());
     }
     set
 }
@@ -87,10 +87,10 @@ fn cells_roundtrip_preserves_coverage() {
 fn contains_oracle() {
     let sets = sample_sets();
     let probes = [
-        TemporalId::from_seconds(60, 0).unwrap(),
-        TemporalId::from_seconds(60, 1).unwrap(),
-        TemporalId::from_seconds(3600, 0).unwrap(),
-        TemporalId::from_seconds(1, 3600).unwrap(),
+        TemporalId::new(60_u64, 0).unwrap(),
+        TemporalId::new(60_u64, 1).unwrap(),
+        TemporalId::new(3600_u64, 0).unwrap(),
+        TemporalId::new(1_u64, 3600).unwrap(),
     ];
     for set in &sets {
         let s = secs(set);
@@ -127,7 +127,7 @@ fn whole_handling() {
     assert!(w.is_whole());
     assert_eq!(w.cells(), alloc::vec![TemporalId::WHOLE]);
 
-    let hour = TemporalSet::from_temporal(&TemporalId::from_seconds(3600, 10).unwrap());
+    let hour = TemporalSet::from_temporal(&TemporalId::new(3600_u64, 10).unwrap());
     let d = w.difference(&hour);
     assert_eq!(d.intervals().len(), 2, "WHOLE − 1時間 = 前後2区間");
     assert!(!d.contains_unixtime(36000)); // 穴の中
@@ -144,7 +144,7 @@ fn whole_handling() {
     assert_eq!(total, Interval::WHOLE_SECONDS - 3600);
 
     // 窓で限定した分解
-    let window = TemporalId::from_seconds(3600, 11).unwrap(); // [39600, 43200)
+    let window = TemporalId::new(3600_u64, 11).unwrap(); // [39600, 43200)
     let cells = d.cells_clipped(&window);
     assert_eq!(cells, alloc::vec![window]);
 }

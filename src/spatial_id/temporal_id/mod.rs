@@ -37,7 +37,7 @@ mod tests;
 /// 1時間単位のIDの作成:
 /// ```
 /// # use kasane_logic::TemporalId;
-/// let id = TemporalId::from_seconds(3600, 10).unwrap();
+/// let id = TemporalId::new(3600_u64, 10).unwrap();
 /// assert_eq!(id.start_unixtime(), 36000);
 /// assert_eq!(id.end_unixtime_exclusive(), 39600);
 /// ```
@@ -48,7 +48,7 @@ pub struct TemporalId {
 
 #[cfg(feature = "temporal_id")]
 impl TemporalId {
-    /// 全時間（ドメイン全体 `[0, WHOLE_SECONDS)`）を表す時間ID。
+    /// 全時間を表す時間ID。
     pub const WHOLE: TemporalId = TemporalId {
         interval: Interval::Whole,
         t: 0,
@@ -97,24 +97,6 @@ impl TemporalId {
     /// # 例
     ///
     /// 有効な時間IDの作成:
-    /// ```
-    /// # use kasane_logic::{TemporalId, Interval};
-    /// let id = TemporalId::from_seconds(3600, 5).unwrap();
-    /// assert_eq!(id.i(), Interval::Hour);
-    /// assert_eq!(id.t(), 5);
-    /// ```
-    ///
-    /// 無効な時間間隔の検知:
-    /// ```
-    /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::from_seconds(7200, 5);
-    /// assert!(id.is_err());
-    /// ```
-    pub fn from_seconds(i: u64, t: u64) -> Result<Self, Error> {
-        let interval = Interval::new(i)?;
-        Self::new(interval, t)
-    }
-
     /// この時間IDの間隔（[`Interval`] 型）。
     pub fn interval(&self) -> Interval {
         self.interval
@@ -129,7 +111,7 @@ impl TemporalId {
     /// let whole = TemporalId::WHOLE;
     /// assert!(whole.is_whole());
     ///
-    /// let specific = TemporalId::from_seconds(3600, 5).unwrap();
+    /// let specific = TemporalId::new(3600_u64, 5).unwrap();
     /// assert!(!specific.is_whole());
     /// ```
     pub fn is_whole(&self) -> bool {
@@ -144,7 +126,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::from_seconds(3600, 10).unwrap();
+    /// let id = TemporalId::new(3600_u64, 10).unwrap();
     /// assert_eq!(id.start_unixtime(), 36000);
     /// ```
     pub fn start_unixtime(&self) -> u64 {
@@ -160,7 +142,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::from_seconds(3600, 10).unwrap();
+    /// let id = TemporalId::new(3600_u64, 10).unwrap();
     /// assert_eq!(id.end_unixtime_exclusive(), 39600);
     /// ```
     pub fn end_unixtime_exclusive(&self) -> u64 {
@@ -173,7 +155,7 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::{TemporalId, Interval};
-    /// let id = TemporalId::from_seconds(3600, 5).unwrap();
+    /// let id = TemporalId::new(3600_u64, 5).unwrap();
     /// assert_eq!(id.i(), Interval::Hour);
     /// ```
     pub fn i(&self) -> Interval {
@@ -186,14 +168,14 @@ impl TemporalId {
     ///
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::from_seconds(3600, 5).unwrap();
+    /// let id = TemporalId::new(3600_u64, 5).unwrap();
     /// assert_eq!(id.t(), 5);
     /// ```
     pub fn t(&self) -> u64 {
         self.t
     }
 
-    /// 開始と終了（排他的）のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`] 列を生成する。
+    /// 開始と終了のUNIXタイムスタンプから、時間範囲を表す最小個数の [`TemporalId`] 列を生成する。
     ///
     /// # パラメーター
     ///
@@ -213,7 +195,7 @@ impl TemporalId {
     /// # use kasane_logic::{TemporalId, Interval};
     /// let ids = TemporalId::from_range(0, 3600).unwrap();
     /// assert_eq!(ids.len(), 1);
-    /// assert_eq!(ids[0], TemporalId::from_seconds(3600, 0).unwrap());
+    /// assert_eq!(ids[0], TemporalId::new(3600_u64, 0).unwrap());
     /// ```
     ///
     /// 複雑な範囲（時間と分の組み合わせ）:

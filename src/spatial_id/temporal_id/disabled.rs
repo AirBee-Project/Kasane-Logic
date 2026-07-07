@@ -101,9 +101,6 @@ impl TemporalId {
     /// 全ての時間を表す時間IDを作成する。
     ///
     /// `temporal_id` feature が無効な場合、常に `Ok(Self::WHOLE)` を返す。
-    pub fn from_seconds(_i: u64, _t: u64) -> Result<Self, Error> {
-        Ok(Self::WHOLE)
-    }
 
     /// このインスタンスが全時間を表すかを判定する。
     ///

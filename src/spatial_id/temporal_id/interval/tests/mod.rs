@@ -79,9 +79,9 @@ fn temporal_id_interval_accessor() {
     assert_eq!(id.i(), Interval::Hour);
     assert_eq!(id.start_unixtime(), 36000);
     // 生秒数の from_seconds とも一致
-    assert_eq!(id, TemporalId::from_seconds(3600, 10).unwrap());
+    assert_eq!(id, TemporalId::new(3600_u64, 10).unwrap());
     // 二進層も from_seconds で構築できる
-    let two_days = TemporalId::from_seconds(86400 * 2, 3).unwrap();
+    let two_days = TemporalId::new(86400_u64 * 2, 3).unwrap();
     assert_eq!(two_days.interval(), Interval::day_pow(1).unwrap());
     assert_eq!(two_days.start_unixtime(), 86400 * 6);
 }

@@ -51,7 +51,7 @@ fn atoms_of<I: IntoIterator<Item = FlexId>>(ids: I, z: u8) -> BTreeSet<Atom> {
 /// 時間付き FlexId を作る（zoom, f/x/y、時間セル (i,t)）。
 fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
     FlexId::new(z, f, z, x, z, y)
-        .map(|id| id.with_temporal(TemporalId::from_seconds(i, t).unwrap()))
+        .map(|id| id.with_temporal(TemporalId::new(i, t).unwrap()))
         .unwrap()
 }
 
@@ -165,7 +165,7 @@ fn get_atom_oracle() {
     let a = build(&[cell(2, 0, 0, 0, 3600, 0), cell(2, 0, 1, 0, 60, 0)]);
     // クエリ: 粗い空間セル (zoom1) × [60,120)
     let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0)
-        .map(|id| id.with_temporal(TemporalId::from_seconds(60, 1).unwrap()))
+        .map(|id| id.with_temporal(TemporalId::new(60_u64, 1).unwrap()))
         .unwrap();
     let got = atoms_of(a.get(&query), 2);
     let qa: BTreeSet<Atom> = spatial_keys(&query, 2)
@@ -253,7 +253,7 @@ fn flat_single_ids_carry_temporal() {
     let singles: Vec<_> = a.flat_single_ids().collect();
     assert!(!singles.is_empty());
     for s in singles {
-        assert_eq!(*s.temporal(), TemporalId::from_seconds(60, 5).unwrap());
+        assert_eq!(*s.temporal(), TemporalId::new(60_u64, 5).unwrap());
     }
 }
 
@@ -301,7 +301,7 @@ fn insert_combine_mut_coarse_over_fine_and_fine_into_coarse() {
     // zoom1 の (0,0,0) は zoom2 の (0..2,0..2,0..2) を覆う。[30,90) を後勝ちで乗せる。
     set.insert(
         FlexId::new(1, 0, 1, 0, 1, 0)
-            .map(|id| id.with_temporal(TemporalId::from_seconds(60, 0).unwrap())) // [0,60) at i=60? -> [0,60)
+            .map(|id| id.with_temporal(TemporalId::new(60_u64, 0).unwrap())) // [0,60) at i=60? -> [0,60)
             .unwrap(),
     );
     // アトム正解: 各空間セルで「元の時間 ∪ 挿入時間([0,60))」。後勝ちだが Set なので union。
@@ -400,7 +400,7 @@ fn get_overlapping_should_respect_temporal() {
     // クエリ: (0,0,0) の [120,150) を指定
     // 同じ空間セルで異なる時間範囲でクエリ
     let query = FlexId::new(2, 0, 2, 0, 2, 0)
-        .map(|id| id.with_temporal(TemporalId::from_seconds(60, 2).unwrap()))
+        .map(|id| id.with_temporal(TemporalId::new(60_u64, 2).unwrap()))
         .unwrap(); // [120,180)
 
     // 期待値: [120,180) が返されるべき（クエリの [120,180) と [120,180) の交差）
@@ -499,7 +499,7 @@ fn scalability_performance_characteristics() {
     let mut set1 = SpatialIdSet::new();
     set1.insert(
         FlexId::new(2, 0, 2, 0, 2, 0)
-            .map(|id| id.with_temporal(TemporalId::from_seconds(1, 0).unwrap())) // Interval=1 (Second)
+            .map(|id| id.with_temporal(TemporalId::new(1_u64, 0).unwrap())) // Interval=1 (Second)
             .unwrap(),
     );
 
@@ -520,9 +520,7 @@ fn scalability_performance_characteristics() {
         for time_idx in 0..10 {
             set2.insert(
                 FlexId::new(2, space_idx as i32, 2, space_idx as u32, 2, 0)
-                    .map(|id| {
-                        id.with_temporal(TemporalId::from_seconds(60, time_idx as u64).unwrap())
-                    })
+                    .map(|id| id.with_temporal(TemporalId::new(60_u64, time_idx as u64).unwrap()))
                     .unwrap(),
             );
         }
@@ -555,8 +553,8 @@ fn temporal_map_merges_adjacent_segments() {
     // TemporalMap は内部的にセグメント (start, end, value) を保持する
     // sweep メソッドで隣接同値セグメントが自動的にマージされる
 
-    let tm1 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 0).unwrap(), "A");
-    let tm2 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 1).unwrap(), "A");
+    let tm1 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 0).unwrap(), "A");
+    let tm2 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 1).unwrap(), "A");
 
     eprintln!("Temporal Merge Test:");
     eprintln!("  tm1: [0, 60) = 'A'");
@@ -577,8 +575,8 @@ fn temporal_map_merges_adjacent_segments() {
     );
 
     // 異なる値の場合はマージされない
-    let tm3 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 0).unwrap(), "A");
-    let tm4 = TemporalMap::from_temporal(&TemporalId::from_seconds(60, 1).unwrap(), "B");
+    let tm3 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 0).unwrap(), "A");
+    let tm4 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 1).unwrap(), "B");
 
     let not_merged = tm3.union(&tm4, &crate::ConflictPolicy::KeepExisting);
     let cells2 = not_merged.cells();
