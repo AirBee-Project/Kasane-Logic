@@ -217,11 +217,6 @@ impl TemporalSet {
         self.whole
     }
 
-    /// 1つの [`TemporalId`] が覆う時間の集合を作る（feature 無効時は常に全時間）。
-    pub fn from_temporal(_t: &TemporalId) -> Self {
-        Self::whole()
-    }
-
     /// [`TemporalId`] を集合へ追加する（union）。
     pub fn insert(&mut self, _t: &TemporalId) {
         self.whole = true;
@@ -279,8 +274,20 @@ impl TemporalSet {
     }
 
     /// `window` に限定したセル列を返す。
-    pub fn cells_clipped(&self, window: &TemporalId) -> Vec<TemporalId> {
-        self.intersection(&Self::from_temporal(window)).cells()
+    pub fn cells_clipped(&self, _window: &TemporalId) -> Vec<TemporalId> {
+        self.cells()
+    }
+}
+
+impl From<&TemporalId> for TemporalSet {
+    fn from(_t: &TemporalId) -> Self {
+        Self::whole()
+    }
+}
+
+impl From<TemporalId> for TemporalSet {
+    fn from(_t: TemporalId) -> Self {
+        Self::whole()
     }
 }
 
@@ -305,9 +312,9 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         Self { value: None }
     }
 
-    /// 1つの [`TemporalId`] に値 `v` を対応させる（feature 無効時は常に全時間）。
-    pub fn from_temporal(_t: &TemporalId, v: V) -> Self {
-        Self { value: Some(v) }
+    /// [`TemporalId`] に値 `v` を対応させる。
+    pub fn insert(&mut self, _t: &TemporalId, v: V) {
+        self.value = Some(v);
     }
 
     /// 空かどうか。

@@ -553,8 +553,14 @@ fn temporal_map_merges_adjacent_segments() {
     // TemporalMap は内部的にセグメント (start, end, value) を保持する
     // sweep メソッドで隣接同値セグメントが自動的にマージされる
 
-    let tm1 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 0).unwrap(), "A");
-    let tm2 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 1).unwrap(), "A");
+    fn map_from(t: &TemporalId, v: &'static str) -> TemporalMap<&'static str> {
+        let mut m = TemporalMap::new();
+        m.insert(t, v);
+        m
+    }
+
+    let tm1 = map_from(&TemporalId::new(60_u64, 0).unwrap(), "A");
+    let tm2 = map_from(&TemporalId::new(60_u64, 1).unwrap(), "A");
 
     eprintln!("Temporal Merge Test:");
     eprintln!("  tm1: [0, 60) = 'A'");
@@ -575,8 +581,8 @@ fn temporal_map_merges_adjacent_segments() {
     );
 
     // 異なる値の場合はマージされない
-    let tm3 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 0).unwrap(), "A");
-    let tm4 = TemporalMap::from_temporal(&TemporalId::new(60_u64, 1).unwrap(), "B");
+    let tm3 = map_from(&TemporalId::new(60_u64, 0).unwrap(), "A");
+    let tm4 = map_from(&TemporalId::new(60_u64, 1).unwrap(), "B");
 
     let not_merged = tm3.union(&tm4, &crate::ConflictPolicy::KeepExisting);
     let cells2 = not_merged.cells();

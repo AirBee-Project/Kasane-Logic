@@ -158,14 +158,14 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
 
         if temporal.is_whole() {
             // 全時間は覆う領域を直接置換するだけで InsertCombine と同じ結果になる。
-            self.inner.insert_flex_id(
-                spatial,
-                crate::TemporalMap::from_temporal(&crate::TemporalId::WHOLE, payload),
-            );
+            let mut tm = crate::TemporalMap::new();
+            tm.insert(&crate::TemporalId::WHOLE, payload);
+            self.inner.insert_flex_id(spatial, tm);
         } else {
             // 有限時間はインプレースで既存の時間マップへ後勝ちマージする。
-            // 使い捨ての単一要素木 + combine_with を経由しないため定数倍が軽い。
-            let tv = crate::TemporalMap::from_temporal(&temporal, payload);
+            // 使い捨て of 単一要素木 + combine_with を経由しないため定数倍が軽い。
+            let mut tv = crate::TemporalMap::new();
+            tv.insert(&temporal, payload);
             self.inner
                 .insert_combine_mut::<TMapOverwrite>(&spatial, &tv);
         }
@@ -234,7 +234,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         let mut removed = Vec::new();
         for query in target.iter_flex_ids() {
             let q_spatial = query.spatial_part();
-            let q_time = TemporalSet::from_temporal(query.temporal());
+            let q_time = TemporalSet::from(query.temporal());
             let affected: Vec<(FlexId, crate::TemporalMap<V>)> =
                 self.inner.remove_overlapping(&q_spatial).collect();
             for (leaf, tv) in affected {
@@ -268,7 +268,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         let mut removed = Vec::new();
         for query in target.iter_flex_ids() {
             let q_spatial = query.spatial_part();
-            let q_time = TemporalSet::from_temporal(query.temporal());
+            let q_time = TemporalSet::from(query.temporal());
             let affected: Vec<(FlexId, crate::TemporalMap<V>)> =
                 self.inner.remove_overlapping(&q_spatial).collect();
             for (leaf, tv) in affected {

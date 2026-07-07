@@ -18,9 +18,10 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         Self(TemporalCore::new())
     }
 
-    /// 1つの [`TemporalId`] に値 `v` を対応させる。
-    pub fn from_temporal(t: &TemporalId, v: V) -> Self {
-        Self(TemporalCore::from_temporal(t, v))
+    /// 指定された [`TemporalId`] に値 `v` を挿入する。時間範囲が重なる部分は上書きされる。
+    pub fn insert(&mut self, t: &TemporalId, v: V) {
+        self.0
+            .insert(t.start_unixtime(), t.end_unixtime_exclusive(), v);
     }
 
     /// 空かどうか。

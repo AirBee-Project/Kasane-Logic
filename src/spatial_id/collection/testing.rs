@@ -208,7 +208,7 @@ impl SpatioTemporalSet {
         for flex_id in target.iter_flex_ids() {
             single.insert(
                 spatial_cell(&flex_id),
-                TemporalSet::from_temporal(flex_id.temporal()),
+                TemporalSet::from(flex_id.temporal()),
             );
         }
         let merged: SpatialIdTable<TemporalSet> =
@@ -288,7 +288,7 @@ impl SpatioTemporalSet {
     /// UTM の衝突判定（「同じ空間 かつ 時間も重なる」）の中核。
     pub fn get(&self, query: &FlexId) -> impl Iterator<Item = FlexId> {
         let q_spatial = spatial_cell(query);
-        let q_time = TemporalSet::from_temporal(query.temporal());
+        let q_time = TemporalSet::from(query.temporal());
         // 空間交差（FlexId は交差領域・temporal=WHOLE）と、その時間集合を取り出す。
         let hits: Vec<(FlexId, TemporalSet)> = self
             .inner
@@ -317,7 +317,7 @@ impl SpatioTemporalSet {
 
     /// 各空間セルの時間を `window` に切り詰めた集合を返す（時間窓で限定）。
     pub fn clip_time(&self, window: &TemporalId) -> Self {
-        let w = TemporalSet::from_temporal(window);
+        let w = TemporalSet::from(window);
         let mut out = SpatialIdTable::<TemporalSet>::new();
         for (spatial, tset) in self.inner.iter() {
             let clipped = tset.intersection(&w);
@@ -364,10 +364,11 @@ impl<V: CellValue> SpatioTemporalTable<V> {
     pub fn insert<S: SpatialId>(&mut self, target: S, value: V) {
         let mut single = SpatialIdTable::<TemporalMap<V>>::new();
         for flex_id in target.iter_flex_ids() {
-            single.insert(
-                spatial_cell(&flex_id),
-                TemporalMap::from_temporal(flex_id.temporal(), value.clone()),
-            );
+            single.insert(spatial_cell(&flex_id), {
+                let mut tm = TemporalMap::new();
+                tm.insert(flex_id.temporal(), value.clone());
+                tm
+            });
         }
         self.inner = TMUnion::execution(self.inner.clone(), single, ConflictPolicy::Overwrite)
             .expect("temporal map union never fails");

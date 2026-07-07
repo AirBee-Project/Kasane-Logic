@@ -32,14 +32,10 @@ impl TemporalSet {
         self.0.segments() == [(0, crate::Interval::WHOLE_SECONDS, ())]
     }
 
-    /// 1つの [`TemporalId`] が覆う時間の集合を作る。
-    pub fn from_temporal(t: &TemporalId) -> Self {
-        Self(TemporalCore::from_temporal(t, ()))
-    }
-
     /// [`TemporalId`] を集合へ追加する（union）。
     pub fn insert(&mut self, t: &TemporalId) {
-        *self = self.union(&Self::from_temporal(t));
+        self.0
+            .insert(t.start_unixtime(), t.end_unixtime_exclusive(), ());
     }
 
     /// 空かどうか。
@@ -60,7 +56,7 @@ impl TemporalSet {
 
     /// `t` の時間範囲が完全に含まれるか（`t ⊆ self`）。
     pub fn contains(&self, t: &TemporalId) -> bool {
-        Self::from_temporal(t).difference(self).is_empty()
+        Self::from(t).difference(self).is_empty()
     }
 
     /// 和集合。
@@ -94,19 +90,23 @@ impl TemporalSet {
 
     /// `window` に限定したセル列を返す（`(self ∩ window)` の分解）。
     pub fn cells_clipped(&self, window: &TemporalId) -> Vec<TemporalId> {
-        self.intersection(&Self::from_temporal(window)).cells()
+        self.intersection(&Self::from(window)).cells()
     }
 }
 
 impl From<&TemporalId> for TemporalSet {
     fn from(t: &TemporalId) -> Self {
-        Self::from_temporal(t)
+        let mut set = Self::new();
+        set.insert(t);
+        set
     }
 }
 
 impl From<TemporalId> for TemporalSet {
     fn from(t: TemporalId) -> Self {
-        Self::from_temporal(&t)
+        let mut set = Self::new();
+        set.insert(&t);
+        set
     }
 }
 

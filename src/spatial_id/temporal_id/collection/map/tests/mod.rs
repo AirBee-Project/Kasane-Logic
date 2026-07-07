@@ -14,7 +14,9 @@ fn secmap(m: &TemporalMap<i32>) -> BTreeMap<u64, i32> {
 }
 
 fn seg(i: u64, t: u64, v: i32) -> TemporalMap<i32> {
-    TemporalMap::from_temporal(&TemporalId::new(i, t).unwrap(), v)
+    let mut tm = TemporalMap::new();
+    tm.insert(&TemporalId::new(i, t).unwrap(), v);
+    tm
 }
 
 /// 正規化不変条件（昇順・互いに素・隣接同値なし）。
@@ -47,7 +49,11 @@ fn map_algebra_oracle() {
         let mut bb = TemporalMap::new();
         for t in 60..200u64 {
             bb = bb.union(
-                &TemporalMap::from_temporal(&TemporalId::new(1_u64, t).unwrap(), 9),
+                &{
+                    let mut tm = TemporalMap::new();
+                    tm.insert(&TemporalId::new(1_u64, t).unwrap(), 9);
+                    tm
+                },
                 &ConflictPolicy::Overwrite,
             );
         }
@@ -114,7 +120,11 @@ fn cells_roundtrip() {
     let mut rebuilt = TemporalMap::new();
     for (c, v) in m.cells() {
         rebuilt = rebuilt.union(
-            &TemporalMap::from_temporal(&c, v),
+            &{
+                let mut tm = TemporalMap::new();
+                tm.insert(&c, v);
+                tm
+            },
             &ConflictPolicy::Overwrite,
         );
     }

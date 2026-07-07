@@ -127,7 +127,7 @@ fn whole_handling() {
     assert!(w.is_whole());
     assert_eq!(w.cells(), alloc::vec![TemporalId::WHOLE]);
 
-    let hour = TemporalSet::from_temporal(&TemporalId::new(3600_u64, 10).unwrap());
+    let hour = TemporalSet::from(&TemporalId::new(3600_u64, 10).unwrap());
     let d = w.difference(&hour);
     assert_eq!(d.intervals().len(), 2, "WHOLE − 1時間 = 前後2区間");
     assert!(!d.contains_unixtime(36000)); // 穴の中

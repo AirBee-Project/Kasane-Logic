@@ -1,46 +1,34 @@
-//! [`TemporalCore`]: 時間区間代数の中立エンジン。
-//!
-//! 正規化済み（昇順・互いに素・隣接同値マージ）の `(start, end, V)` セグメント列を
-//! 保持し、境界イベント走査（sweep）で union / intersection / difference / overwrite を
-//! 厳密に行う。時間窓での切り取り（`intersect_time` / `subtract_time`）と、
-//! 約数鎖セル列（[`TemporalId`]）への最小分解（`cells` 系）もここに集約する。
-//!
-//! これ自体は公開せず（`pub(crate)`）、値なしの [`TemporalSet`](crate::TemporalSet) と
-//! 値つきの [`TemporalMap<V>`](crate::TemporalMap) が薄い newtype ラッパとして被せる。
-//! `TemporalSet = TemporalCore<()>`、`TemporalMap<V> = TemporalCore<V>`。`()` は ZST の
-//! ため両者のメモリレイアウトに差はない。
-
+use crate::{ConflictPolicy, TemporalId};
 use alloc::vec::Vec;
 
-use crate::{ConflictPolicy, TemporalId};
-
-/// 時間区間代数の中立エンジン（正規化済みセグメント列 + sweep）。
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
 pub(crate) struct TemporalCore<V> {
-    /// 正規化済み（昇順・互いに素・隣接同値マージ）の `(start, end, V)`。
+    // Vecの中身は（開始時刻,終了時刻,値）となっている。
+    // 開始時刻と終了時刻から[Interval]のサイズが自動的に特定できる。[Interval]を保持するよりもその都度計算することにしている。
     segments: Vec<(u64, u64, V)>,
 }
 
 impl<V: Clone + PartialEq> TemporalCore<V> {
-    /// 空。
+    /// 空の[TemporalCore]を作成する。
     pub(crate) fn new() -> Self {
         Self {
             segments: Vec::new(),
         }
     }
 
-    /// 1つの [`TemporalId`] に値 `v` を対応させる。
-    pub(crate) fn from_temporal(t: &TemporalId, v: V) -> Self {
-        Self {
-            segments: alloc::vec![(t.start_unixtime(), t.end_unixtime_exclusive(), v)],
+    /// [TemporalCore]に新しい範囲を挿入する。
+    pub(crate) fn insert(&mut self, s: u64, e: u64, v: V) {
+        if s >= e {
+            return;
         }
+        let other = Self::from_segment(s, e, v);
+        *self = self.overwrite(&other);
     }
 
-    /// 単一セグメント `[s, e)` から作る。
     pub(crate) fn from_segment(s: u64, e: u64, v: V) -> Self {
         Self {
             segments: if s < e {
