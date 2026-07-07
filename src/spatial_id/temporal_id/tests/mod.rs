@@ -3,6 +3,7 @@ use crate::SingleId;
 use crate::TemporalId;
 use crate::{FlexId, RangeId};
 use core::str::FromStr;
+pub mod domain;
 
 #[test]
 /// temporal_idが正しく作成できることを検証する

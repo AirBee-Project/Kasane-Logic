@@ -1,9 +1,8 @@
+use crate::{SpatialIdError, TemporalId, error::Error};
 use alloc::string::ToString;
 use alloc::vec::Vec;
-
+use core::ops::{BitAnd, Sub};
 use core::{fmt::Display, str::FromStr};
-
-use crate::{SpatialIdError, TemporalId, error::Error};
 
 impl Display for TemporalId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -91,5 +90,19 @@ impl FromStr for TemporalId {
             })?;
 
         TemporalId::new(i, t)
+    }
+}
+
+impl BitAnd for &TemporalId {
+    type Output = Option<TemporalId>;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs)
+    }
+}
+
+impl Sub for &TemporalId {
+    type Output = Vec<TemporalId>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs).collect()
     }
 }
