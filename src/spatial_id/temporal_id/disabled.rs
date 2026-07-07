@@ -154,7 +154,7 @@ impl TemporalId {
     /// 開始と終了から複数のTemporalIdを生成する。
     ///
     /// `temporal_id` feature が無効な場合、常に全時間を表す1つの要素を含むベクトルを返す。
-    pub fn from_range(_start: u64, _end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
+    pub fn from_range(_range: core::ops::Range<u64>) -> Result<Vec<TemporalId>, Error> {
         if _start >= _end_exclusive {
             return Ok(vec![]);
         }

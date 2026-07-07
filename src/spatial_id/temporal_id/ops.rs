@@ -62,12 +62,12 @@ impl TemporalId {
 
         let left_end = o0.min(s1);
         if s0 < left_end {
-            result.extend(Self::from_range(s0, left_end).unwrap());
+            result.extend(Self::from_range(s0..left_end).unwrap());
         }
 
         let right_start = o1.max(s0);
         if right_start < s1 {
-            result.extend(Self::from_range(right_start, s1).unwrap());
+            result.extend(Self::from_range(right_start..s1).unwrap());
         }
 
         result.into_iter()
@@ -92,17 +92,17 @@ impl TemporalId {
         let o1 = other.end_unixtime_exclusive();
 
         if o1 <= s0 || o0 >= s1 {
-            return Self::from_range(s0, s1).unwrap();
+            return Self::from_range(s0..s1).unwrap();
         }
 
         let left_end = o0.min(s1);
         if s0 < left_end {
-            result.extend(Self::from_range(s0, left_end).unwrap());
+            result.extend(Self::from_range(s0..left_end).unwrap());
         }
 
         let right_start = o1.max(s0);
         if right_start < s1 {
-            result.extend(Self::from_range(right_start, s1).unwrap());
+            result.extend(Self::from_range(right_start..s1).unwrap());
         }
 
         result

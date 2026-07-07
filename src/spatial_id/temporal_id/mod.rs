@@ -193,7 +193,7 @@ impl TemporalId {
     /// 1時間の範囲:
     /// ```
     /// # use kasane_logic::{TemporalId, Interval};
-    /// let ids = TemporalId::from_range(0, 3600).unwrap();
+    /// let ids = TemporalId::from_range(0..3600).unwrap();
     /// assert_eq!(ids.len(), 1);
     /// assert_eq!(ids[0], TemporalId::new(3600_u64, 0).unwrap());
     /// ```
@@ -201,7 +201,7 @@ impl TemporalId {
     /// 複雑な範囲（時間と分の組み合わせ）:
     /// ```
     /// # use kasane_logic::TemporalId;
-    /// let ids = TemporalId::from_range(0, 3720).unwrap(); // 1時間 + 2分
+    /// let ids = TemporalId::from_range(0..3720).unwrap(); // 1時間 + 2分
     /// assert!(ids.len() >= 1);
     /// // 最初の要素は3600秒（1時間）の間隔を持つ
     /// ```
@@ -209,10 +209,12 @@ impl TemporalId {
     /// ドメイン全体は単一の WHOLE セル:
     /// ```
     /// # use kasane_logic::{TemporalId, Interval};
-    /// let ids = TemporalId::from_range(0, Interval::WHOLE_SECONDS).unwrap();
+    /// let ids = TemporalId::from_range(0..Interval::WHOLE_SECONDS).unwrap();
     /// assert_eq!(ids, vec![TemporalId::WHOLE]);
     /// ```
-    pub fn from_range(start: u64, end_exclusive: u64) -> Result<Vec<TemporalId>, Error> {
+    pub fn from_range(range: core::ops::Range<u64>) -> Result<Vec<TemporalId>, Error> {
+        let start = range.start;
+        let end_exclusive = range.end;
         if start >= end_exclusive {
             return Ok(alloc::vec![]);
         }
