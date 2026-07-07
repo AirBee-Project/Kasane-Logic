@@ -1,11 +1,3 @@
-//! [`TemporalMap`]: 時間 → 値 `V` の対応（1次元）。
-//!
-//! [`TemporalSet`] の値付き版。中立エンジン [`TemporalCore<V>`] を被せた薄い newtype で、
-//! 正規化済み（昇順・互いに素・隣接同値マージ）の `(start, end, V)` セグメント列を保持する。
-//! union / intersection / difference は境界イベント走査（sweep）で厳密に行い、
-//! 重なりの値衝突は [`ConflictPolicy`] で解決する。出力（[`cells`](TemporalMap::cells)）は
-//! カレンダーセル列 `(TemporalId, V)` へ最小分解する。
-
 use alloc::vec::Vec;
 use core::ops::Sub;
 

@@ -1,10 +1,3 @@
-//! [`TemporalSet`]: [`TemporalId`] の集合（値なし＝存在時間のみ）。
-//!
-//! 値付きの [`TemporalMap`](crate::TemporalMap) と同じ中立エンジン
-//! [`TemporalCore`] を `TemporalCore<()>` として被せた薄い newtype。`()` は ZST なので
-//! `TemporalMap<()>` と同一のメモリレイアウトで、区間代数（union / intersection /
-//! difference）はすべて共通の sweep で処理される。
-
 use alloc::vec::Vec;
 use core::ops::{BitAnd, BitOr, Sub};
 
