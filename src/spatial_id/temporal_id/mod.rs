@@ -266,11 +266,13 @@ impl TemporalId {
 
 /// [`TemporalId::cells_in_range`] の遅延イテレータ。各 `next` で約数鎖の最coarse に
 /// 整合するセルを1つ返し、カーソルを進める（割当なし）。
+#[cfg(feature = "temporal_id")]
 pub(crate) struct RangeCells {
     current: u64,
     end: u64,
 }
 
+#[cfg(feature = "temporal_id")]
 impl Iterator for RangeCells {
     type Item = TemporalId;
 
