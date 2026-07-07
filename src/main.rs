@@ -12,12 +12,10 @@ use alloc::vec::Vec;
 use kasane_logic::{Interval, SingleId, TemporalId};
 
 fn main() {
-    #[cfg(feature = "temporal_id")]
-    {
-        let interval = Interval::Day;
-        let temporal_id = TemporalId::new(interval, 10).unwrap();
-        let _single_id = SingleId::new(3, 10, 10, 10)
-            .unwrap()
-            .with_temporal(temporal_id);
-    }
+    let temporal_id = TemporalId::new(30, 10).unwrap();
+    let single_id = SingleId::new(10, 10, 10, 10)
+        .unwrap()
+        .with_temporal(temporal_id);
+
+    println!("{}", single_id)
 }

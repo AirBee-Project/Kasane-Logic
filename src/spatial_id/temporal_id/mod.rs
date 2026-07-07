@@ -21,6 +21,8 @@ pub use collection::set::TemporalSet;
 pub mod interval;
 #[cfg(feature = "temporal_id")]
 pub use interval::Interval;
+#[cfg(all(test, feature = "temporal_id"))]
+mod tests;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
