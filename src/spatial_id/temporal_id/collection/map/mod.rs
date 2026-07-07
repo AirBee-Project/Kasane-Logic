@@ -7,6 +7,7 @@
 //! カレンダーセル列 `(TemporalId, V)` へ最小分解する。
 
 use alloc::vec::Vec;
+use core::ops::Sub;
 
 use super::temporal_core::TemporalCore;
 use crate::{ConflictPolicy, TemporalId, TemporalSet};
@@ -119,7 +120,26 @@ impl<V: Clone + Ord> TemporalMap<V> {
 
     /// 積（both のみ・`policy` で値解決）。
     pub fn intersection(&self, other: &Self, policy: &ConflictPolicy<V>) -> Self {
-        Self(self.0.intersection(&other.0, policy))
+        Self(self.0.sweep(&other.0, |a, b| match (a, b) {
+            (Some(a), Some(b)) => Some(policy.resolve(Some(a.clone()), b.clone())),
+            _ => None,
+        }))
+    }
+}
+
+impl<V: Clone + PartialEq> Sub for &TemporalMap<V> {
+    type Output = TemporalMap<V>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs)
+    }
+}
+
+impl<V: Clone + PartialEq> IntoIterator for &TemporalMap<V> {
+    type Item = (TemporalId, V);
+    type IntoIter = alloc::vec::IntoIter<(TemporalId, V)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cells().into_iter()
     }
 }
 

@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use core::ops::{BitAnd, Sub};
 
 use crate::TemporalId;
 
@@ -111,6 +112,20 @@ impl TemporalId {
     pub fn contains(&self, other: &TemporalId) -> bool {
         self.start_unixtime() <= other.start_unixtime()
             && other.end_unixtime_exclusive() <= self.end_unixtime_exclusive()
+    }
+}
+
+impl BitAnd for &TemporalId {
+    type Output = Option<TemporalId>;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs)
+    }
+}
+
+impl Sub for &TemporalId {
+    type Output = Vec<TemporalId>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs).collect()
     }
 }
 

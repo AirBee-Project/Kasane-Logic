@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use core::ops::{BitAnd, Sub};
 
 use crate::SingleId;
 
@@ -125,5 +126,19 @@ impl SingleId {
         } else {
             None
         }
+    }
+}
+
+impl BitAnd for &SingleId {
+    type Output = Option<SingleId>;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs)
+    }
+}
+
+impl Sub for &SingleId {
+    type Output = Vec<SingleId>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs).collect()
     }
 }

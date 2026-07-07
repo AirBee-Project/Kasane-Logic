@@ -112,6 +112,14 @@ impl SpatialIdMap<Vec<u8>> {
     }
 }
 
+impl TryFrom<&[u8]> for SpatialIdMap<Vec<u8>> {
+    type Error = rkyv::rancor::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        unsafe { Self::from_bytes(bytes) }
+    }
+}
+
 /// 作業木の 1 ノードを後行順でアリーナへ書き出し、そのインデックスを返す。
 fn build_node(
     node: &SharedNode<Node<TemporalMap<Vec<u8>>>>,

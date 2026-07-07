@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::{FlexId, Side, SpatialId, TemporalId, spatial_id::zoom_level::ZoomLevel};
+use core::ops::{BitAnd, Sub};
 
 impl FlexId {
     /// 時間窓 `window` に限定して `self - other` を計算する。
@@ -172,6 +173,20 @@ impl FlexId {
         } else {
             None
         }
+    }
+}
+
+impl BitAnd for &FlexId {
+    type Output = Option<FlexId>;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs)
+    }
+}
+
+impl Sub for &FlexId {
+    type Output = Vec<FlexId>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs).collect()
     }
 }
 

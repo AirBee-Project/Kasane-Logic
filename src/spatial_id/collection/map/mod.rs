@@ -2,7 +2,7 @@ use crate::spatial_id::collection::temporal::SpatioTemporalCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId};
 
 pub mod impls;
-pub mod json;
+
 #[cfg(feature = "persist")]
 pub mod persist;
 pub mod shard;

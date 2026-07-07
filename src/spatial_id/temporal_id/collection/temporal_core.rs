@@ -307,6 +307,7 @@ impl<V: Clone + Ord> TemporalCore<V> {
     }
 
     /// 積（both のみ・`policy` で値解決）。
+    #[allow(dead_code)]
     pub(crate) fn intersection(&self, other: &Self, policy: &ConflictPolicy<V>) -> Self {
         self.sweep(other, |a, b| match (a, b) {
             (Some(a), Some(b)) => Some(policy.resolve(Some(a.clone()), b.clone())),

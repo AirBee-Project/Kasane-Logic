@@ -9,7 +9,7 @@ pub mod table;
 
 pub mod query;
 
-pub mod json;
+pub mod serde_impl;
 pub mod traits;
 
 /// 空間主体の時空間集合の参照実装

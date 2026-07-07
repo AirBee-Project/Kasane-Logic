@@ -490,6 +490,8 @@ dependencies = [
  "rand_chacha 0.10.0",
  "rayon",
  "rkyv",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

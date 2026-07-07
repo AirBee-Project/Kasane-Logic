@@ -2,7 +2,6 @@ use crate::spatial_id::collection::temporal::SpatioTemporalCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId};
 
 pub mod impls;
-pub mod json;
 pub mod ops;
 pub mod shard;
 pub mod tests;
@@ -191,5 +190,14 @@ impl SpatialIdSet {
     pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
         let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdSet>(bytes) };
         rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
+    }
+}
+
+#[cfg(feature = "persist")]
+impl TryFrom<&[u8]> for SpatialIdSet {
+    type Error = rkyv::rancor::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        unsafe { Self::from_bytes(bytes) }
     }
 }

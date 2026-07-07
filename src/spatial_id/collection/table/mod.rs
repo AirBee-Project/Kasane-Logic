@@ -4,7 +4,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use core::ops::RangeBounds;
 
 pub mod impls;
-pub mod json;
+
 pub mod tests;
 
 #[cfg(all(test, feature = "persist"))]
@@ -388,5 +388,14 @@ impl SpatialIdTable<Vec<u8>> {
     pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
         let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdTable<Vec<u8>>>(bytes) };
         rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
+    }
+}
+
+#[cfg(feature = "persist")]
+impl TryFrom<&[u8]> for SpatialIdTable<Vec<u8>> {
+    type Error = rkyv::rancor::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        unsafe { Self::from_bytes(bytes) }
     }
 }

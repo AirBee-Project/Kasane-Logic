@@ -6,6 +6,7 @@
 //! difference）はすべて共通の sweep で処理される。
 
 use alloc::vec::Vec;
+use core::ops::{BitAnd, BitOr, Sub};
 
 use super::temporal_core::TemporalCore;
 use crate::TemporalId;
@@ -101,6 +102,48 @@ impl TemporalSet {
     /// `window` に限定したセル列を返す（`(self ∩ window)` の分解）。
     pub fn cells_clipped(&self, window: &TemporalId) -> Vec<TemporalId> {
         self.intersection(&Self::from_temporal(window)).cells()
+    }
+}
+
+impl From<&TemporalId> for TemporalSet {
+    fn from(t: &TemporalId) -> Self {
+        Self::from_temporal(t)
+    }
+}
+
+impl From<TemporalId> for TemporalSet {
+    fn from(t: TemporalId) -> Self {
+        Self::from_temporal(&t)
+    }
+}
+
+impl BitOr for &TemporalSet {
+    type Output = TemporalSet;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self.union(rhs)
+    }
+}
+
+impl BitAnd for &TemporalSet {
+    type Output = TemporalSet;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs)
+    }
+}
+
+impl Sub for &TemporalSet {
+    type Output = TemporalSet;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs)
+    }
+}
+
+impl IntoIterator for &TemporalSet {
+    type Item = TemporalId;
+    type IntoIter = alloc::vec::IntoIter<TemporalId>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.cells().into_iter()
     }
 }
 
