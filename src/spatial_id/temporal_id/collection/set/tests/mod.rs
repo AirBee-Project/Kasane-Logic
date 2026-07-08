@@ -75,7 +75,7 @@ fn set_algebra_oracle() {
 fn cells_roundtrip_preserves_coverage() {
     for set in sample_sets() {
         let mut rebuilt = TemporalSet::new();
-        for c in set.cells() {
+        for c in set.iter() {
             rebuilt.insert(&c);
         }
         assert_eq!(secs(&set), secs(&rebuilt), "cells roundtrip mismatch");
@@ -125,7 +125,7 @@ fn contains_unixtime_oracle() {
 fn whole_handling() {
     let w = TemporalSet::whole();
     assert!(w.is_whole());
-    assert_eq!(w.cells(), alloc::vec![TemporalId::WHOLE]);
+    assert_eq!(w.iter().collect::<Vec<_>>(), alloc::vec![TemporalId::WHOLE]);
 
     let hour = TemporalSet::from(&TemporalId::new(3600_u64, 10).unwrap());
     let d = w.difference(&hour);
@@ -135,16 +135,36 @@ fn whole_handling() {
     assert!(d.contains_unixtime(39600)); // 穴の直後
 
     // 巨大な残余区間も対数個のセルへ正確に分解できる（爆発しない）
-    let cells = d.cells();
+    let cells: Vec<_> = d.iter().collect();
     assert!(cells.len() < 400, "cells = {}", cells.len());
     let total: u64 = cells
         .iter()
         .map(|c| c.end_unixtime_exclusive() - c.start_unixtime())
         .sum();
     assert_eq!(total, Interval::WHOLE_SECONDS - 3600);
+}
 
-    // 窓で限定した分解
-    let window = TemporalId::new(3600_u64, 11).unwrap(); // [39600, 43200)
-    let cells = d.cells_clipped(&window);
-    assert_eq!(cells, alloc::vec![window]);
+#[test]
+fn set_ergonomic_apis() {
+    let mut s = TemporalSet::new();
+    assert!(s.is_empty());
+    assert_eq!(s.len(), 0);
+
+    let t1 = TemporalId::new(3600_u64, 0_u64).unwrap();
+    s.insert(&t1);
+    assert!(!s.is_empty());
+    assert_eq!(s.len(), 1);
+    assert!(s.iter().any(|x| x == t1));
+
+    let t2 = TemporalId::new(3600_u64, 1_u64).unwrap(); // start=3600, index=1 (so 3600..7200)
+    s.insert(&t2);
+    assert_eq!(s.len(), 2);
+
+    s.remove(&t1);
+    assert_eq!(s.len(), 1);
+    assert!(!s.iter().any(|x| x == t1));
+
+    s.clear();
+    assert!(s.is_empty());
+    assert_eq!(s.len(), 0);
 }

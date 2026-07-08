@@ -116,10 +116,10 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
 
     /// 時間セルの個数を返す（iter() が返すセル数と一致）。
     ///
-    /// 各葉の [`count_cells`](crate::TemporalMap::count_cells) を合算するだけで、
+    /// 各葉の [`len`](crate::TemporalMap::len) を合算するだけで、
     /// セルを1つも生成しない（O(空間ノード数 × セグメント数)、割当なし）。
     pub(crate) fn count(&self) -> usize {
-        self.inner.iter_ref().map(|(_, tv)| tv.count_cells()).sum()
+        self.inner.iter_ref().map(|(_, tv)| tv.len()).sum()
     }
 
     /// ツリーの最大ズームレベルを返す。
@@ -181,7 +181,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner.get_ref(target).flat_map(|(clipped, tv)| {
-            tv.cells_clipped_ref_iter(clipped.temporal().clone())
+            tv.temporal_ids_clipped_iter(clipped.temporal().clone())
                 .map(move |(t, p)| (clipped.clone().with_temporal(t), p))
         })
     }
@@ -195,7 +195,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner
             .get_overlapping_ref(target)
             .flat_map(move |(stored, tv)| {
-                tv.cells_clipped_ref_iter(query_temporal.clone())
+                tv.temporal_ids_clipped_iter(query_temporal.clone())
                     .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
@@ -209,7 +209,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner
             .neighbors_share_face_ref(target)
             .flat_map(move |(stored, tv)| {
-                tv.cells_clipped_ref_iter(query_temporal.clone())
+                tv.temporal_ids_clipped_iter(query_temporal.clone())
                     .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
@@ -219,7 +219,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
     /// 保持するすべての `(FlexId, &Payload)` を返す。
     pub(crate) fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter_ref().flat_map(|(spatial, tv)| {
-            tv.cells_ref_iter()
+            tv.iter()
                 .map(move |(t, p)| (spatial.clone().with_temporal(t), p))
         })
     }
@@ -248,8 +248,8 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
                     if !kept.is_empty() {
                         self.inner.insert_flex_id(inter.clone(), kept);
                     }
-                    for (t, p) in tv.intersect_time(&q_time).cells() {
-                        removed.push((inter.with_temporal(t), p));
+                    for (t, p) in tv.intersect_time(&q_time).iter() {
+                        removed.push((inter.with_temporal(t), p.clone()));
                     }
                 }
             }
@@ -276,8 +276,8 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
                 if !kept.is_empty() {
                     self.inner.insert_flex_id(leaf.clone(), kept);
                 }
-                for (t, p) in tv.intersect_time(&q_time).cells() {
-                    removed.push((leaf.clone().with_temporal(t), p));
+                for (t, p) in tv.intersect_time(&q_time).iter() {
+                    removed.push((leaf.clone().with_temporal(t), p.clone()));
                 }
             }
         }

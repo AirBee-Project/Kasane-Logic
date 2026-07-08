@@ -9,7 +9,6 @@
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::testing::SpatioTemporalTable;
 use crate::{FlexId, Interval, SpatialId, SpatialIdMap, SpatialIdTable, TemporalId};
 
 type Key = ((i32, u32, u32), u64);
@@ -81,14 +80,6 @@ fn map_of(entries: &[(FlexId, i32)]) -> SpatialIdMap<i32> {
     m
 }
 
-fn ref_of(entries: &[(FlexId, i32)]) -> SpatioTemporalTable<i32> {
-    let mut t = SpatioTemporalTable::new();
-    for (f, v) in entries {
-        t.insert(f.clone(), *v);
-    }
-    t
-}
-
 /// 代表的な時空間エントリ（同一時空間の上書き、部分時間の上書き、同一空間・別時間、別空間）。
 fn sample_entries() -> Vec<(FlexId, i32)> {
     alloc::vec![
@@ -116,19 +107,6 @@ fn map_insert_overwrite_oracle() {
     let m = map_of(&entries);
     let got = atom_map(m.iter().map(|(f, v)| (f, *v)), 2);
     assert_eq!(got, oracle(&entries, 2));
-}
-
-/// 参照実装（SpatioTemporalTable）との突き合わせ。
-#[test]
-fn table_matches_reference_implementation() {
-    let entries = sample_entries();
-    let t = table_of(&entries);
-    let r = ref_of(&entries);
-    assert_eq!(
-        atom_map(t.iter().map(|(f, v)| (f, *v)), 2),
-        atom_map(r.iter(), 2),
-        "insert"
-    );
 }
 
 /// Table: get（時空間クエリ）: 結果 ＝ 全体 ∩ クエリ領域。

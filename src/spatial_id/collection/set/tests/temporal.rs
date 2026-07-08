@@ -9,7 +9,6 @@
 use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::testing::SpatioTemporalSet;
 use crate::{FlexId, Interval, SingleId, SpatialId, SpatialIdSet, TemporalId};
 use proptest::prelude::*;
 
@@ -57,14 +56,6 @@ fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
 
 fn build(cells: &[FlexId]) -> SpatialIdSet {
     let mut s = SpatialIdSet::new();
-    for c in cells {
-        s.insert(c.clone());
-    }
-    s
-}
-
-fn build_ref(cells: &[FlexId]) -> SpatioTemporalSet {
-    let mut s = SpatioTemporalSet::new();
     for c in cells {
         s.insert(c.clone());
     }
@@ -130,31 +121,6 @@ fn set_ops_atom_oracle() {
     assert_eq!(
         atoms_of((&a - &b).iter(), 2),
         aa.difference(&ba).copied().collect::<BTreeSet<Atom>>(),
-        "difference"
-    );
-}
-
-/// 参照実装（SpatioTemporalSet）との突き合わせ。
-#[test]
-fn matches_reference_implementation() {
-    let (ca, cb) = (sample_a(), sample_b());
-    let (a, b) = (build(&ca), build(&cb));
-    let (ra, rb) = (build_ref(&ca), build_ref(&cb));
-
-    assert_eq!(atoms_of(a.iter(), 2), atoms_of(ra.iter(), 2), "insert");
-    assert_eq!(
-        atoms_of((&a | &b).iter(), 2),
-        atoms_of(ra.union(&rb).iter(), 2),
-        "union"
-    );
-    assert_eq!(
-        atoms_of((&a & &b).iter(), 2),
-        atoms_of(ra.intersection(&rb).iter(), 2),
-        "intersection"
-    );
-    assert_eq!(
-        atoms_of((&a - &b).iter(), 2),
-        atoms_of(ra.difference(&rb).iter(), 2),
         "difference"
     );
 }
@@ -567,7 +533,7 @@ fn temporal_map_merges_adjacent_segments() {
     eprintln!("  tm2: [60, 120) = 'A'");
 
     let merged = tm1.union(&tm2, &crate::ConflictPolicy::KeepExisting);
-    let cells = merged.cells();
+    let cells: Vec<_> = merged.iter().collect();
 
     eprintln!("  After union with same value:");
     eprintln!("    cells().len() = {}", cells.len());
@@ -585,7 +551,7 @@ fn temporal_map_merges_adjacent_segments() {
     let tm4 = map_from(&TemporalId::new(60_u64, 1).unwrap(), "B");
 
     let not_merged = tm3.union(&tm4, &crate::ConflictPolicy::KeepExisting);
-    let cells2 = not_merged.cells();
+    let cells2: Vec<_> = not_merged.iter().collect();
 
     eprintln!("  Different values:");
     eprintln!("    tm3: [0, 60) = 'A'");

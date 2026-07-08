@@ -5,7 +5,6 @@ use core::str::FromStr;
 
 use crate::error::Error;
 
-/// 時間ドメインの排他的終端。
 const DOMAIN_END: u64 = 86400 << 47;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -13,7 +12,6 @@ const DOMAIN_END: u64 = 86400 << 47;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-/// 時間IDの時間間隔`i`を表現する型（temporal_id feature無効時のスタブ）。
 pub enum Interval {
     #[default]
     Whole,
@@ -264,18 +262,34 @@ impl TemporalSet {
         }
     }
 
-    /// 集合をセル列へ分解する（feature 無効時は WHOLE 1個か空）。
-    pub fn cells(&self) -> Vec<TemporalId> {
-        if self.whole {
-            vec![TemporalId::WHOLE]
-        } else {
-            Vec::new()
-        }
+    pub fn temporal_ids_iter(&self) -> impl Iterator<Item = TemporalId> + '_ {
+        let opt = self.whole.then_some(TemporalId::WHOLE);
+        opt.into_iter()
     }
 
-    /// `window` に限定したセル列を返す。
-    pub fn cells_clipped(&self, _window: &TemporalId) -> Vec<TemporalId> {
-        self.cells()
+    pub fn len(&self) -> usize {
+        if self.whole { 1 } else { 0 }
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = TemporalId> + '_ {
+        self.temporal_ids_iter()
+    }
+
+    pub fn remove(&mut self, _t: &TemporalId) {
+        self.whole = false;
+    }
+
+    pub fn clear(&mut self) {
+        self.whole = false;
+    }
+}
+
+impl IntoIterator for &TemporalSet {
+    type Item = TemporalId;
+    type IntoIter = alloc::vec::IntoIter<TemporalId>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.temporal_ids_iter().collect::<Vec<_>>().into_iter()
     }
 }
 
@@ -322,11 +336,6 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.value.is_none()
     }
 
-    /// 指定秒の値。
-    pub fn value_at(&self, _sec: u64) -> Option<&V> {
-        self.value.as_ref()
-    }
-
     /// 上書き合成（other が存在すれば other が勝つ）。
     pub fn overwrite(&self, other: &Self) -> Self {
         Self {
@@ -367,36 +376,41 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         }
     }
 
-    /// 全セグメントをセル列 `(TemporalId, V)` へ分解する。
-    pub fn cells(&self) -> Vec<(TemporalId, V)> {
-        self.value
-            .iter()
-            .map(|v| (TemporalId::WHOLE, v.clone()))
-            .collect()
-    }
-
-    /// 時間セル総数（feature 無効時は 0 か 1）。
-    pub fn count_cells(&self) -> usize {
-        self.value.iter().count()
-    }
-
-    /// [`cells`](Self::cells) の参照版。
-    pub fn cells_ref(&self) -> Vec<(TemporalId, &V)> {
-        self.value.iter().map(|v| (TemporalId::WHOLE, v)).collect()
-    }
-
-    /// [`cells_ref`](Self::cells_ref) の遅延イテレータ版。
-    pub fn cells_ref_iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
+    /// [`temporal_ids_iter`] の遅延イテレータ版。
+    pub fn temporal_ids_iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
         self.value.iter().map(|v| (TemporalId::WHOLE, v))
     }
 
-    /// `window` に限定したセル列を参照で返す（feature 無効時は全時間のみ）。
-    pub fn cells_clipped_ref(&self, _window: &TemporalId) -> Vec<(TemporalId, &V)> {
-        self.cells_ref()
+    pub fn iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
+        self.temporal_ids_iter()
     }
 
-    /// [`cells_clipped_ref`](Self::cells_clipped_ref) の遅延イテレータ版（窓は値渡し）。
-    pub fn cells_clipped_ref_iter(
+    pub fn temporal_ids(&self) -> impl Iterator<Item = TemporalId> + '_ {
+        self.iter().map(|(t, _)| t)
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
+        self.iter().map(|(_, v)| v)
+    }
+
+    pub fn len(&self) -> usize {
+        self.value.iter().count()
+    }
+
+    pub fn get(&self, _sec: u64) -> Option<&V> {
+        self.value.as_ref()
+    }
+
+    pub fn remove(&mut self, _t: &TemporalId) {
+        self.value = None;
+    }
+
+    pub fn clear(&mut self) {
+        self.value = None;
+    }
+
+    /// `window` に限定したセル列を参照で返す。
+    pub fn temporal_ids_clipped_iter(
         &self,
         _window: TemporalId,
     ) -> impl Iterator<Item = (TemporalId, &V)> + '_ {

@@ -101,14 +101,14 @@ fn map_algebra_oracle() {
     assert_eq!(secmap(&um), exp_um);
 }
 
-/// value_at（二分探索）の照合。
+/// get（二分探索）の照合。
 #[test]
-fn value_at_oracle() {
+fn get_oracle() {
     let mut m = seg(60, 0, 1);
     m = m.union(&seg(60, 3, 2), &ConflictPolicy::Overwrite); // [0,60)=1, [180,240)=2
     let s = secmap(&m);
     for probe in [0u64, 30, 59, 60, 179, 180, 239, 240, 1000] {
-        assert_eq!(m.value_at(probe), s.get(&probe), "value_at({probe})");
+        assert_eq!(m.get(probe), s.get(&probe), "get({probe})");
     }
 }
 
@@ -118,15 +118,46 @@ fn cells_roundtrip() {
     let mut m = seg(3600, 0, 7); // [0,3600)=7
     m = m.union(&seg(60, 60, 8), &ConflictPolicy::Overwrite); // [3600,3660)=8
     let mut rebuilt = TemporalMap::new();
-    for (c, v) in m.cells() {
+    for (c, v) in m.iter() {
         rebuilt = rebuilt.union(
             &{
                 let mut tm = TemporalMap::new();
-                tm.insert(&c, v);
+                tm.insert(&c, *v);
                 tm
             },
             &ConflictPolicy::Overwrite,
         );
     }
     assert_eq!(secmap(&m), secmap(&rebuilt));
+}
+
+#[test]
+fn map_ergonomic_apis() {
+    let mut m = TemporalMap::new();
+    assert!(m.is_empty());
+    assert_eq!(m.len(), 0);
+
+    let t1 = TemporalId::new(3600_u64, 0_u64).unwrap();
+    m.insert(&t1, 42);
+    assert!(!m.is_empty());
+    assert_eq!(m.len(), 1);
+    assert_eq!(m.get(1800), Some(&42));
+    assert_eq!(m.get(5000), None);
+
+    assert!(m.iter().any(|(t, v)| t == t1 && *v == 42));
+    assert!(m.temporal_ids().any(|t| t == t1));
+    assert!(m.values().any(|v| *v == 42));
+
+    let t2 = TemporalId::new(3600_u64, 1_u64).unwrap();
+    m.insert(&t2, 100);
+    assert_eq!(m.len(), 2);
+
+    m.remove(&t1);
+    assert_eq!(m.len(), 1);
+    assert_eq!(m.get(1800), None);
+    assert_eq!(m.get(5000), Some(&100));
+
+    m.clear();
+    assert!(m.is_empty());
+    assert_eq!(m.len(), 0);
 }

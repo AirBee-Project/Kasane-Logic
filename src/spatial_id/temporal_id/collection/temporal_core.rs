@@ -8,54 +8,51 @@ use alloc::vec::Vec;
 )]
 pub(crate) struct TemporalCore<V> {
     // Vecの中身は（開始時刻,終了時刻,値）となっている。
-    // 開始時刻と終了時刻から[Interval]のサイズが自動的に特定できる。[Interval]を保持するよりもその都度計算することにしている。
-    segments: Vec<(u64, u64, V)>,
+    // 開始時刻と終了時刻から[Interval]のサイズが自動的に特定できます。
+    pub(crate) ranges: Vec<(u64, u64, V)>,
+    pub(crate) cached_len: usize,
 }
 
 impl<V: Clone + PartialEq> TemporalCore<V> {
     /// 空の[TemporalCore]を作成する。
     pub(crate) fn new() -> Self {
         Self {
-            segments: Vec::new(),
+            ranges: Vec::new(),
+            cached_len: 0,
         }
     }
 
     /// [TemporalCore]に新しい範囲を挿入する。
-    pub(crate) fn insert(&mut self, s: u64, e: u64, v: V) {
+    pub(crate) fn insert(&mut self, range: core::ops::Range<u64>, v: V) {
+        let s = range.start;
+        let e = range.end;
         if s >= e {
             return;
         }
-        let other = Self::from_segment(s, e, v);
+        let other = Self {
+            ranges: alloc::vec![(s, e, v.clone())],
+            cached_len: TemporalId::count_range(s..e),
+        };
         *self = self.overwrite(&other);
-    }
-
-    pub(crate) fn from_segment(s: u64, e: u64, v: V) -> Self {
-        Self {
-            segments: if s < e {
-                alloc::vec![(s, e, v)]
-            } else {
-                Vec::new()
-            },
-        }
     }
 
     /// 空かどうか。
     pub(crate) fn is_empty(&self) -> bool {
-        self.segments.is_empty()
+        self.ranges.is_empty()
     }
 
     /// 正規化済みセグメント列を借用で返す。
-    pub(crate) fn segments(&self) -> &[(u64, u64, V)] {
-        &self.segments
+    pub(crate) fn ranges(&self) -> &[(u64, u64, V)] {
+        &self.ranges
     }
 
-    /// 指定秒の値（二分探索）。
-    pub(crate) fn value_at(&self, sec: u64) -> Option<&V> {
-        let idx = self.segments.partition_point(|(s, _, _)| *s <= sec);
+    /// 指定秒の値を取得します（二分探索）。
+    pub(crate) fn get(&self, sec: u64) -> Option<&V> {
+        let idx = self.ranges.partition_point(|(s, _, _)| *s <= sec);
         if idx == 0 {
             return None;
         }
-        let (_, e, v) = &self.segments[idx - 1];
+        let (_, e, v) = &self.ranges[idx - 1];
         (sec < *e).then_some(v)
     }
 
@@ -67,7 +64,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
     where
         F: Fn(Option<&V>, Option<&V>) -> Option<V>,
     {
-        let (a, b) = (&self.segments, &other.segments);
+        let (a, b) = (&self.ranges, &other.ranges);
         let mut pts: Vec<u64> = Vec::with_capacity((a.len() + b.len()) * 2);
 
         let (mut ia, mut ib) = (0, 0);
@@ -143,7 +140,14 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
                 out.push((p, q, v));
             }
         }
-        Self { segments: out }
+        let cached_len = out
+            .iter()
+            .map(|(s, e, _)| TemporalId::count_range(*s..*e))
+            .sum();
+        Self {
+            ranges: out,
+            cached_len,
+        }
     }
 
     /// 差集合 `self - other`（時間で other を除く。値は self 由来）。
@@ -161,10 +165,10 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
 
     /// 時間窓 `window`（値なしの区間列）に含まれる時間だけを残す（値は self 由来）。
     pub(crate) fn intersect_time(&self, window: &TemporalCore<()>) -> Self {
-        let iv = &window.segments;
+        let iv = &window.ranges;
         let mut out = Vec::new();
         let mut j = 0usize;
-        for (s, e, v) in &self.segments {
+        for (s, e, v) in &self.ranges {
             while j < iv.len() && iv[j].1 <= *s {
                 j += 1;
             }
@@ -181,15 +185,22 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
                 k += 1;
             }
         }
-        Self { segments: out }
+        let cached_len = out
+            .iter()
+            .map(|(s, e, _)| TemporalId::count_range(*s..*e))
+            .sum();
+        Self {
+            ranges: out,
+            cached_len,
+        }
     }
 
     /// 時間窓 `window`（値なしの区間列）に含まれる時間を取り除く（値は self 由来）。
     pub(crate) fn subtract_time(&self, window: &TemporalCore<()>) -> Self {
-        let iv = &window.segments;
+        let iv = &window.ranges;
         let mut out = Vec::new();
         let mut j = 0usize;
-        for (s, e, v) in &self.segments {
+        for (s, e, v) in &self.ranges {
             let mut cur = *s;
             while j < iv.len() && iv[j].1 <= cur {
                 j += 1;
@@ -212,78 +223,44 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
                 out.push((cur, *e, v.clone()));
             }
         }
-        Self { segments: out }
-    }
-
-    /// 保持する時間セルの総数を、セルを生成せずに数える（`cells().len()` と一致）。
-    ///
-    /// 各セグメントを [`TemporalId::count_range`] で計上するため割当なし・
-    /// O(セグメント数 × 対数) で済む（全セル展開の O(セル数) を回避）。
-    pub(crate) fn count_cells(&self) -> usize {
-        self.segments
+        let cached_len = out
             .iter()
             .map(|(s, e, _)| TemporalId::count_range(*s..*e))
-            .sum()
+            .sum();
+        Self {
+            ranges: out,
+            cached_len,
+        }
     }
 
-    /// 全セグメントを約数鎖セル列 `(TemporalId, V)` へ最小分解する。
-    pub(crate) fn cells(&self) -> Vec<(TemporalId, V)> {
-        self.segments
-            .iter()
-            .flat_map(|(s, e, v)| {
-                TemporalId::from_range(*s..*e)
-                    .unwrap()
-                    .map(move |c| (c, v.clone()))
-            })
-            .collect()
-    }
-
-    /// [`cells`](Self::cells) の参照版（値をクローンしない）。
-    pub(crate) fn cells_ref(&self) -> Vec<(TemporalId, &V)> {
-        self.cells_ref_iter().collect()
+    /// 保持する時間セルの総数を返します（O(1)）。
+    pub(crate) fn len(&self) -> usize {
+        self.cached_len
     }
 
     /// [`cells_ref`](Self::cells_ref) の遅延イテレータ版（中間 `Vec` を作らない）。
-    pub(crate) fn cells_ref_iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
-        self.segments
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
+        self.ranges
             .iter()
             .flat_map(|(s, e, v)| TemporalId::from_range(*s..*e).unwrap().map(move |c| (c, v)))
     }
 
-    /// `window` に限定したセル列を参照で返す（`(self ∩ window)` の分解）。
-    pub(crate) fn cells_clipped_ref(&self, window: &TemporalId) -> Vec<(TemporalId, &V)> {
-        self.cells_clipped_ref_iter(window.clone()).collect()
-    }
-
-    /// [`cells_clipped_ref`](Self::cells_clipped_ref) の遅延イテレータ版。
-    ///
-    /// 返すイテレータは `self`（`'a`）だけを借用する。窓は値で受け取り（`TemporalId` は
-    /// 小さく `Clone` 可能）、`w0/w1` を先に取り出すため入力ライフタイムを捕捉しない
-    /// ＝ 呼び出し側は同じ式内で他方を move できる。
-    pub(crate) fn cells_clipped_ref_iter(
-        &self,
-        window: TemporalId,
-    ) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
-        let (w0, w1) = (window.start_unixtime(), window.end_unixtime_exclusive());
-        self.segments.iter().flat_map(move |(s, e, v)| {
-            let cs = (*s).max(w0);
-            let ce = (*e).min(w1);
-            TemporalId::from_range(cs..ce).unwrap().map(move |c| (c, v))
-        })
-    }
-
     /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
     #[cfg_attr(not(any(test, feature = "persist")), allow(dead_code))]
-    pub(crate) fn segments_ref(&self) -> Vec<(u64, u64, &V)> {
-        self.segments.iter().map(|(s, e, v)| (*s, *e, v)).collect()
+    pub(crate) fn ranges_ref(&self) -> Vec<(u64, u64, &V)> {
+        self.ranges.iter().map(|(s, e, v)| (*s, *e, v)).collect()
     }
 
     /// 正規化済みセグメント列から直接構築する（永続化復元用の内部フック）。
     ///
     /// 呼び出し側は列が正規化済み（昇順・互いに素・隣接同値マージ済み）であることを保証すること。
     #[cfg(feature = "persist")]
-    pub(crate) fn from_raw_segments(segments: Vec<(u64, u64, V)>) -> Self {
-        Self { segments }
+    pub(crate) fn from_raw_ranges(ranges: Vec<(u64, u64, V)>) -> Self {
+        let cached_len = ranges
+            .iter()
+            .map(|(s, e, _)| TemporalId::count_range(*s..*e))
+            .sum();
+        Self { ranges, cached_len }
     }
 }
 

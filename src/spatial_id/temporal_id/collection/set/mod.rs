@@ -20,22 +20,21 @@ impl TemporalSet {
 
     /// 全ての時間を表すの集合を作成する。
     pub fn whole() -> Self {
-        Self(TemporalCore::from_segment(
-            0,
-            crate::Interval::WHOLE_SECONDS,
-            (),
-        ))
+        Self(TemporalCore {
+            ranges: alloc::vec![(0, crate::Interval::WHOLE_SECONDS, ())],
+            cached_len: 1,
+        })
     }
 
     /// この集合は全ての時間を表しているかを判定する。
     pub fn is_whole(&self) -> bool {
-        self.0.segments() == [(0, crate::Interval::WHOLE_SECONDS, ())]
+        self.0.ranges() == [(0, crate::Interval::WHOLE_SECONDS, ())]
     }
 
     /// [`TemporalId`] を集合へ追加する（union）。
     pub fn insert(&mut self, t: &TemporalId) {
         self.0
-            .insert(t.start_unixtime(), t.end_unixtime_exclusive(), ());
+            .insert(t.start_unixtime()..t.end_unixtime_exclusive(), ());
     }
 
     /// 空かどうか。
@@ -46,12 +45,12 @@ impl TemporalSet {
     /// 正規化済み区間列 `[start, end)` を所有権付きで返す（クレート内部・テスト用フック）。
     #[cfg(test)]
     pub(crate) fn intervals(&self) -> Vec<(u64, u64)> {
-        self.0.segments().iter().map(|&(s, e, ())| (s, e)).collect()
+        self.0.ranges().iter().map(|&(s, e, ())| (s, e)).collect()
     }
 
     /// 指定の UNIX 秒が含まれるか（二分探索）。
     pub fn contains_unixtime(&self, sec: u64) -> bool {
-        self.0.value_at(sec).is_some()
+        self.0.get(sec).is_some()
     }
 
     /// `t` の時間範囲が完全に含まれるか（`t ⊆ self`）。
@@ -80,17 +79,24 @@ impl TemporalSet {
         Self(self.0.difference(&other.0))
     }
 
-    /// 集合を約数鎖の最小セル列（[`TemporalId`]）へ分解する。
-    ///
-    /// 約数鎖に二進層（`Day·2^k`）があるため、どの区間も高々数百セルに収まる
-    /// （ドメイン全体は単一の [`TemporalId::WHOLE`] になる）。
-    pub fn cells(&self) -> Vec<TemporalId> {
-        self.0.cells().into_iter().map(|(t, ())| t).collect()
+    /// 保持する時間セルの総数を返します（O(1)）。
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 
-    /// `window` に限定したセル列を返す（`(self ∩ window)` の分解）。
-    pub fn cells_clipped(&self, window: &TemporalId) -> Vec<TemporalId> {
-        self.intersection(&Self::from(window)).cells()
+    /// `TemporalSet` の時間セルを走査するイテレータを返します。
+    pub fn iter(&self) -> impl Iterator<Item = TemporalId> + '_ {
+        self.0.iter().map(|(t, ())| t)
+    }
+
+    /// 指定された時間範囲を集合から取り除きます。
+    pub fn remove(&mut self, t: &TemporalId) {
+        *self = self.difference(&Self::from(t));
+    }
+
+    /// 集合をクリアして空にします。
+    pub fn clear(&mut self) {
+        self.0 = TemporalCore::new();
     }
 }
 
@@ -136,7 +142,7 @@ impl IntoIterator for &TemporalSet {
     type IntoIter = alloc::vec::IntoIter<TemporalId>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.cells().into_iter()
+        self.iter().collect::<Vec<_>>().into_iter()
     }
 }
 
