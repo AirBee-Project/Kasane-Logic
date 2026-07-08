@@ -293,3 +293,27 @@ impl<'a> ArchivedMap<'a> {
         out
     }
 }
+
+#[cfg(feature = "persist")]
+const _: () = {
+    // バイト列・文字列
+    impl_spatial_id_table_persist!(alloc::vec::Vec<u8>);
+    impl_spatial_id_table_persist!(alloc::string::String);
+
+    // 符号付き整数
+    impl_spatial_id_table_persist!(i8);
+    impl_spatial_id_table_persist!(i16);
+    impl_spatial_id_table_persist!(i32);
+    impl_spatial_id_table_persist!(i64);
+    impl_spatial_id_table_persist!(isize);
+
+    // 符号なし整数
+    impl_spatial_id_table_persist!(u8);
+    impl_spatial_id_table_persist!(u16);
+    impl_spatial_id_table_persist!(u32);
+    impl_spatial_id_table_persist!(u64);
+    impl_spatial_id_table_persist!(usize);
+
+    // 論理値
+    impl_spatial_id_table_persist!(bool);
+};
