@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 /// 集合が覆う秒（有界ドメイン前提。WHOLE は使わない）。
 fn secs(set: &TemporalSet) -> BTreeSet<u64> {
     let mut s = BTreeSet::new();
-    for (a, b) in set.intervals() {
+    for (a, b) in set.ranges() {
         s.extend(a..b);
     }
     s
@@ -37,7 +37,7 @@ fn sample_sets() -> Vec<TemporalSet> {
 
 /// 正規化不変条件: 昇順・互いに素・隣接非連結。
 fn assert_normalized(set: &TemporalSet) {
-    let iv = set.intervals();
+    let iv = set.ranges();
     for w in iv.windows(2) {
         assert!(w[0].1 < w[1].0, "not normalized: {iv:?}");
     }
@@ -105,7 +105,7 @@ fn contains_oracle() {
     }
 }
 
-/// contains_unixtime の二分探索照合。
+// contains_unixtime の二分探索照合。
 #[test]
 fn contains_unixtime_oracle() {
     for set in sample_sets() {
@@ -120,7 +120,7 @@ fn contains_unixtime_oracle() {
     }
 }
 
-/// WHOLE の扱い: cells() は単一 WHOLE、WHOLE − 1時間 は2区間で有界に分解できる。
+// WHOLE の扱い: cells() は単一 WHOLE、WHOLE − 1時間 は2区間で有界に分解できる。
 #[test]
 fn whole_handling() {
     let w = TemporalSet::whole();
@@ -129,7 +129,7 @@ fn whole_handling() {
 
     let hour = TemporalSet::from(&TemporalId::new(3600_u64, 10).unwrap());
     let d = w.difference(&hour);
-    assert_eq!(d.intervals().len(), 2, "WHOLE − 1時間 = 前後2区間");
+    assert_eq!(d.ranges().len(), 2, "WHOLE − 1時間 = 前後2区間");
     assert!(!d.contains_unixtime(36000)); // 穴の中
     assert!(d.contains_unixtime(35999)); // 穴の直前
     assert!(d.contains_unixtime(39600)); // 穴の直後

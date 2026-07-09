@@ -1,8 +1,7 @@
-use alloc::vec::Vec;
-use core::ops::{BitAnd, BitOr, Sub};
-
-use super::temporal_core::TemporalCore;
-use crate::TemporalId;
+use crate::{TemporalId, spatial_id::temporal_id::collection::core::TemporalCore};
+pub mod impls;
+#[cfg(test)]
+mod tests;
 
 /// [`TemporalId`]の集合を表す型。
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
@@ -20,10 +19,9 @@ impl TemporalSet {
 
     /// 全ての時間を表すの集合を作成する。
     pub fn whole() -> Self {
-        Self(TemporalCore {
-            ranges: alloc::vec![(0, crate::Interval::WHOLE_SECONDS, ())],
-            cached_len: 1,
-        })
+        let mut core: TemporalCore<()> = TemporalCore::new();
+        core.insert(0..crate::Interval::WHOLE_SECONDS, ());
+        Self(core)
     }
 
     /// この集合は全ての時間を表しているかを判定する。
@@ -31,10 +29,24 @@ impl TemporalSet {
         self.0.ranges() == [(0, crate::Interval::WHOLE_SECONDS, ())]
     }
 
-    /// [`TemporalId`] を集合へ追加する（union）。
+    /// [`TemporalId`] を集合へ追加する。
     pub fn insert(&mut self, t: &TemporalId) {
         self.0
             .insert(t.start_unixtime()..t.end_unixtime_exclusive(), ());
+    }
+
+    /// その時刻が含まれるか
+    pub fn contains_unixtime(&self, sec: u64) -> bool {
+        self.0.contains_unixtime_range(sec).is_some()
+    }
+
+    pub fn get(&self, target: TemporalId) -> impl Iterator<Item = TemporalId> + '_ {
+        let (w0, w1) = (target.start_unixtime(), target.end_unixtime_exclusive());
+        self.0.ranges().iter().flat_map(move |(s, e, _)| {
+            let cs = (*s).max(w0);
+            let ce = (*e).min(w1);
+            TemporalId::from_range(cs..ce).unwrap()
+        })
     }
 
     /// 空かどうか。
@@ -44,13 +56,8 @@ impl TemporalSet {
 
     /// 正規化済み区間列 `[start, end)` を所有権付きで返す（クレート内部・テスト用フック）。
     #[cfg(test)]
-    pub(crate) fn intervals(&self) -> Vec<(u64, u64)> {
+    pub(crate) fn ranges(&self) -> Vec<(u64, u64)> {
         self.0.ranges().iter().map(|&(s, e, ())| (s, e)).collect()
-    }
-
-    /// 指定の UNIX 秒が含まれるか（二分探索）。
-    pub fn contains_unixtime(&self, sec: u64) -> bool {
-        self.0.get(sec).is_some()
     }
 
     /// `t` の時間範囲が完全に含まれるか（`t ⊆ self`）。
@@ -99,52 +106,3 @@ impl TemporalSet {
         self.0 = TemporalCore::new();
     }
 }
-
-impl From<&TemporalId> for TemporalSet {
-    fn from(t: &TemporalId) -> Self {
-        let mut set = Self::new();
-        set.insert(t);
-        set
-    }
-}
-
-impl From<TemporalId> for TemporalSet {
-    fn from(t: TemporalId) -> Self {
-        let mut set = Self::new();
-        set.insert(&t);
-        set
-    }
-}
-
-impl BitOr for &TemporalSet {
-    type Output = TemporalSet;
-    fn bitor(self, rhs: Self) -> Self::Output {
-        self.union(rhs)
-    }
-}
-
-impl BitAnd for &TemporalSet {
-    type Output = TemporalSet;
-    fn bitand(self, rhs: Self) -> Self::Output {
-        self.intersection(rhs)
-    }
-}
-
-impl Sub for &TemporalSet {
-    type Output = TemporalSet;
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.difference(rhs)
-    }
-}
-
-impl IntoIterator for &TemporalSet {
-    type Item = TemporalId;
-    type IntoIter = alloc::vec::IntoIter<TemporalId>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter().collect::<Vec<_>>().into_iter()
-    }
-}
-
-#[cfg(test)]
-mod tests;

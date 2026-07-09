@@ -1,8 +1,10 @@
+use crate::{TemporalId, TemporalSet, spatial_id::temporal_id::collection::core::TemporalCore};
 use alloc::vec::Vec;
-use core::ops::Sub;
 
-use super::temporal_core::TemporalCore;
-use crate::{ConflictPolicy, TemporalId, TemporalSet};
+pub mod impls;
+
+#[cfg(test)]
+mod tests;
 
 /// 時間 → 値 `V` の対応。
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
@@ -10,7 +12,7 @@ use crate::{ConflictPolicy, TemporalId, TemporalSet};
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-pub struct TemporalMap<V>(pub(crate) TemporalCore<V>);
+pub struct TemporalMap<V>(TemporalCore<V>);
 
 impl<V: Clone + PartialEq> TemporalMap<V> {
     /// 空。
@@ -21,6 +23,20 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     pub fn insert(&mut self, t: &TemporalId, v: V) {
         self.0
             .insert(t.start_unixtime()..t.end_unixtime_exclusive(), v);
+    }
+
+    pub fn get(&self, target: TemporalId) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
+        let (w0, w1) = (target.start_unixtime(), target.end_unixtime_exclusive());
+        self.0.ranges().iter().flat_map(move |(s, e, v)| {
+            let cs = (*s).max(w0);
+            let ce = (*e).min(w1);
+            TemporalId::from_range(cs..ce).unwrap().map(move |c| (c, v))
+        })
+    }
+
+    /// その時刻が含まれるか
+    pub fn contains_unixtime(&self, sec: u64) -> Option<&V> {
+        self.0.contains_unixtime_range(sec).map(|(_, _, v)| v)
     }
 
     /// 空かどうか。
@@ -71,11 +87,6 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.0.len()
     }
 
-    /// 指定秒の値への参照を取得します（二分探索）。
-    pub fn get(&self, sec: u64) -> Option<&V> {
-        self.0.get(sec)
-    }
-
     /// 指定された時間範囲の値を取り除きます。
     pub fn remove(&mut self, t: &TemporalId) {
         *self = self.subtract_time(&TemporalSet::from(t));
@@ -84,19 +95,6 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     /// すべての時間と値の対応をクリアします。
     pub fn clear(&mut self) {
         self.0 = TemporalCore::new();
-    }
-
-    /// `window` に限定したセル列を参照で返す（`(self ∩ window)` の分解）。
-    pub fn temporal_ids_clipped_iter(
-        &self,
-        window: TemporalId,
-    ) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
-        let (w0, w1) = (window.start_unixtime(), window.end_unixtime_exclusive());
-        self.0.ranges.iter().flat_map(move |(s, e, v)| {
-            let cs = (*s).max(w0);
-            let ce = (*e).min(w1);
-            TemporalId::from_range(cs..ce).unwrap().map(move |c| (c, v))
-        })
     }
 
     /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
@@ -113,40 +111,3 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         Self(TemporalCore::from_raw_ranges(segments))
     }
 }
-
-impl<V: Clone + Ord> TemporalMap<V> {
-    /// 和（both は `policy` で値解決、片側はそのまま）。
-    pub fn union(&self, other: &Self, policy: &ConflictPolicy<V>) -> Self {
-        Self(self.0.union(&other.0, policy))
-    }
-
-    /// 積（both のみ・`policy` で値解決）。
-    pub fn intersection(&self, other: &Self, policy: &ConflictPolicy<V>) -> Self {
-        Self(self.0.sweep(&other.0, |a, b| match (a, b) {
-            (Some(a), Some(b)) => Some(policy.resolve(Some(a.clone()), b.clone())),
-            _ => None,
-        }))
-    }
-}
-
-impl<V: Clone + PartialEq> Sub for &TemporalMap<V> {
-    type Output = TemporalMap<V>;
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.difference(rhs)
-    }
-}
-
-impl<V: Clone + PartialEq> IntoIterator for &TemporalMap<V> {
-    type Item = (TemporalId, V);
-    type IntoIter = alloc::vec::IntoIter<(TemporalId, V)>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-            .map(|(t, v)| (t, v.clone()))
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-}
-
-#[cfg(test)]
-mod tests;

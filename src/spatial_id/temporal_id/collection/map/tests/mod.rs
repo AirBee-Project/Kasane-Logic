@@ -108,7 +108,7 @@ fn get_oracle() {
     m = m.union(&seg(60, 3, 2), &ConflictPolicy::Overwrite); // [0,60)=1, [180,240)=2
     let s = secmap(&m);
     for probe in [0u64, 30, 59, 60, 179, 180, 239, 240, 1000] {
-        assert_eq!(m.get(probe), s.get(&probe), "get({probe})");
+        assert_eq!(m.contains_unixtime(probe), s.get(&probe), "get({probe})");
     }
 }
 
@@ -141,8 +141,8 @@ fn map_ergonomic_apis() {
     m.insert(&t1, 42);
     assert!(!m.is_empty());
     assert_eq!(m.len(), 1);
-    assert_eq!(m.get(1800), Some(&42));
-    assert_eq!(m.get(5000), None);
+    assert_eq!(m.contains_unixtime(1800), Some(&42));
+    assert_eq!(m.contains_unixtime(5000), None);
 
     assert!(m.iter().any(|(t, v)| t == t1 && *v == 42));
     assert!(m.temporal_ids().any(|t| t == t1));
@@ -154,8 +154,8 @@ fn map_ergonomic_apis() {
 
     m.remove(&t1);
     assert_eq!(m.len(), 1);
-    assert_eq!(m.get(1800), None);
-    assert_eq!(m.get(5000), Some(&100));
+    assert_eq!(m.contains_unixtime(1800), None);
+    assert_eq!(m.contains_unixtime(5000), Some(&100));
 
     m.clear();
     assert!(m.is_empty());

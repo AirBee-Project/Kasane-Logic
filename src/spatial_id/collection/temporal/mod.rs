@@ -181,7 +181,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner.get_ref(target).flat_map(|(clipped, tv)| {
-            tv.temporal_ids_clipped_iter(clipped.temporal().clone())
+            tv.get(clipped.temporal().clone())
                 .map(move |(t, p)| (clipped.clone().with_temporal(t), p))
         })
     }
@@ -195,7 +195,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner
             .get_overlapping_ref(target)
             .flat_map(move |(stored, tv)| {
-                tv.temporal_ids_clipped_iter(query_temporal.clone())
+                tv.get(query_temporal.clone())
                     .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
@@ -209,7 +209,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner
             .neighbors_share_face_ref(target)
             .flat_map(move |(stored, tv)| {
-                tv.temporal_ids_clipped_iter(query_temporal.clone())
+                tv.get(query_temporal.clone())
                     .map(move |(t, p)| (stored.clone().with_temporal(t), p))
             })
     }
