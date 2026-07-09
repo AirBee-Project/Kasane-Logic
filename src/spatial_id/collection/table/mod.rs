@@ -373,29 +373,49 @@ where
     }
 }
 
-/// DB 用途（値＝バイト列）の永続化。ジェネリック境界を避けるため `Vec<u8>` 固定で提供する。
 #[cfg(feature = "persist")]
-impl SpatialIdTable<Vec<u8>> {
-    /// この [`SpatialIdTable`] を rkyv バイト列へ直列化する。
-    pub fn to_bytes(&self) -> Result<Vec<u8>, rkyv::rancor::Error> {
-        Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.to_vec())
-    }
+macro_rules! impl_spatial_id_table_persist {
+    ($t:ty) => {
+        impl SpatialIdTable<$t> {
+            /// この [`SpatialIdTable`] を rkyv バイト列へ直列化する。
+            pub fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, rkyv::rancor::Error> {
+                Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.to_vec())
+            }
 
-    /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から復元する。
-    ///
-    /// # Safety
-    /// `bytes` は [`SpatialIdTable::to_bytes`] が生成した正当なバイト列でなければならない。
-    pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
-        let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdTable<Vec<u8>>>(bytes) };
-        rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
-    }
+            /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から復元する。
+            ///
+            /// # Safety
+            /// `bytes` は [`SpatialIdTable::to_bytes`] が生成した正当なバイト列でなければならない。
+            pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
+                let archived =
+                    unsafe { rkyv::access_unchecked::<ArchivedSpatialIdTable<$t>>(bytes) };
+                rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
+            }
+        }
+    };
 }
 
+// DB用途・一般的な主要型に対する永続化機能の一括生成
 #[cfg(feature = "persist")]
-impl TryFrom<&[u8]> for SpatialIdTable<Vec<u8>> {
-    type Error = rkyv::rancor::Error;
+const _: () = {
+    // バイト列・文字列
+    impl_spatial_id_table_persist!(alloc::vec::Vec<u8>);
+    impl_spatial_id_table_persist!(alloc::string::String);
 
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        unsafe { Self::from_bytes(bytes) }
-    }
-}
+    // 符号付き整数
+    impl_spatial_id_table_persist!(i8);
+    impl_spatial_id_table_persist!(i16);
+    impl_spatial_id_table_persist!(i32);
+    impl_spatial_id_table_persist!(i64);
+    impl_spatial_id_table_persist!(isize);
+
+    // 符号なし整数
+    impl_spatial_id_table_persist!(u8);
+    impl_spatial_id_table_persist!(u16);
+    impl_spatial_id_table_persist!(u32);
+    impl_spatial_id_table_persist!(u64);
+    impl_spatial_id_table_persist!(usize);
+
+    // 論理値
+    impl_spatial_id_table_persist!(bool);
+};
