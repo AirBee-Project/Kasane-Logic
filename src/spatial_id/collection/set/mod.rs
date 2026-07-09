@@ -136,7 +136,6 @@ impl SpatialIdSet {
     }
 
     /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
-    /// 各 [`SingleId`] には存在時間（時間セル）が付く。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
         let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |flex_id| {
@@ -167,11 +166,7 @@ impl SpatialIdSet {
         self.inner.is_empty()
     }
 
-    /// 保持している全ての時空間IDを返す。
-    ///
-    /// 各空間セルの存在時間（[`TemporalSet`](crate::TemporalSet)）は約数鎖の最小セル列へ分解され、
-    /// `(空間セル × 時間セル)` の [`FlexId`] として列挙される。
-    /// 全時間（WHOLE）のセルは従来どおり1つの [`FlexId`]（temporal=WHOLE）になる。
+    /// 保持している全ての[FlexId]を返す。
     pub fn iter(&self) -> impl Iterator<Item = FlexId> + '_ {
         self.inner.iter().map(|(flex_id, _)| flex_id)
     }

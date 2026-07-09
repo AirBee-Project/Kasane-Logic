@@ -1,15 +1,3 @@
-//! 時空間コア層（[`SpatioTemporalCore`]）。
-//!
-//! [`FlexTree`](crate::FlexTree)（純空間の木）と公開コレクション
-//! （[`SpatialIdSet`](crate::SpatialIdSet) / [`SpatialIdMap`](crate::SpatialIdMap) /
-//! [`SpatialIdTable`](crate::SpatialIdTable)）の間に挟まる中間層で、
-//! 時間軸（[`TemporalSet`] / [`TemporalMap`]）に関するすべての操作をここに集約し、
-//! `FlexTree` を純粋な空間インデックスとして保つ。
-//!
-//! - `combine`: 時間値の合成規則（[`Combine`] 実装群）
-//! - `value`: 葉の値の抽象（[`TemporalValue`]）
-//! - 本モジュール: [`SpatioTemporalCore`]（挿入・クエリ・削除・列挙の共通ロジック）
-
 pub(crate) mod combine;
 
 pub(crate) use combine::{TMapDifference, TMapIntersection, TMapOverwrite};
@@ -19,15 +7,6 @@ use alloc::vec::Vec;
 use crate::spatial_id::collection::flex_tree::node_ops::Combine;
 use crate::{FlexId, FlexTree, SpatialId, TemporalSet};
 
-// ─── SpatioTemporalCore ───────────────────────────────────────────────────────
-
-/// 時空間コア層。
-///
-/// [`FlexTree<TV>`] を内包し、時間軸（挿入・クエリ・結合）のロジックを集約する。
-/// `TV` は [`TemporalSet`] または [`TemporalMap<V>`](TemporalMap) のいずれか。
-///
-/// [`SpatialIdSet`](crate::SpatialIdSet), [`SpatialIdMap`](crate::SpatialIdMap),
-/// [`SpatialIdTable`](crate::SpatialIdTable) はこの型を内包して使う。
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(
     feature = "persist",
@@ -114,10 +93,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner.is_empty()
     }
 
-    /// 時間セルの個数を返す（iter() が返すセル数と一致）。
-    ///
-    /// 各葉の [`len`](crate::TemporalMap::len) を合算するだけで、
-    /// セルを1つも生成しない（O(空間ノード数 × セグメント数)、割当なし）。
+    /// 保持している[TemporalId]の個数を返す
     pub(crate) fn count(&self) -> usize {
         self.inner.iter_ref().map(|(_, tv)| tv.len()).sum()
     }

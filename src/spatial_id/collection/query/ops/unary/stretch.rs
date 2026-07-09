@@ -114,8 +114,14 @@ where
         use rayon::prelude::*;
         ids.into_par_iter()
             .map(|id| stretch(&id, *z, *index))
-            .collect::<Result<Vec<Vec<_>>, Error>>()
-            .map(|grouped| grouped.into_iter().flatten().collect())
+            .try_fold(Vec::new, |mut acc, chunk| {
+                acc.extend(chunk?);
+                Ok(acc)
+            })
+            .try_reduce(Vec::new, |mut a, b| {
+                a.extend(b);
+                Ok(a)
+            })
     }
 
     #[cfg(not(feature = "rayon"))]

@@ -47,8 +47,8 @@ fn atoms_of<I: IntoIterator<Item = FlexId>>(ids: I, z: u8) -> BTreeSet<Atom> {
     out
 }
 
-/// 時間付き FlexId を作る（zoom, f/x/y、時間セル (i,t)）。
-fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
+/// 時間付き FlexId を作る
+fn make_flex_id(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
     FlexId::new(z, f, z, x, z, y)
         .map(|id| id.with_temporal(TemporalId::new(i, t).unwrap()))
         .unwrap()
@@ -65,24 +65,27 @@ fn build(cells: &[FlexId]) -> SpatialIdSet {
 /// 代表的な時空間セルの組（同一空間・別時間、部分空間、隣接時間、非交差）。
 fn sample_a() -> Vec<FlexId> {
     alloc::vec![
-        cell(2, 0, 0, 0, 3600, 0), // (0,0,0) @ [0,3600)
-        cell(2, 0, 1, 0, 60, 0),   // (1,0) @ [0,60)
-        cell(2, 0, 0, 0, 60, 61),  // 同一空間・別時間 → union される
+        make_flex_id(2, 0, 0, 0, 3600, 0), // (0,0,0) @ [0,3600)
+        make_flex_id(2, 0, 1, 0, 60, 0),   // (1,0) @ [0,60)
+        make_flex_id(2, 0, 0, 0, 60, 61),  // 同一空間・別時間 → union される
     ]
 }
 
 fn sample_b() -> Vec<FlexId> {
     alloc::vec![
-        cell(2, 0, 0, 0, 60, 0), // A の部分空間×部分時間
-        cell(2, 0, 2, 0, 60, 0), // A に無い空間
-        cell(2, 0, 1, 0, 1, 30), // A の (1,0) の中の1秒
+        make_flex_id(2, 0, 0, 0, 60, 0), // A の部分空間×部分時間
+        make_flex_id(2, 0, 2, 0, 60, 0), // A に無い空間
+        make_flex_id(2, 0, 1, 0, 1, 30), // A の (1,0) の中の1秒
     ]
 }
 
 /// insert が同一空間セルの別時間を union する（時間を潰さない）。
 #[test]
-fn insert_merges_temporal_at_same_cell() {
-    let s = build(&[cell(2, 0, 0, 0, 60, 0), cell(2, 0, 0, 0, 60, 2)]);
+fn insert_merges_temporal_at_same_make_flex_id() {
+    let s = build(&[
+        make_flex_id(2, 0, 0, 0, 60, 0),
+        make_flex_id(2, 0, 0, 0, 60, 2),
+    ]);
     let exp: BTreeSet<Atom> = (0..60u64)
         .chain(120..180)
         .map(|sec| ((0, 0, 0), sec))
@@ -128,7 +131,10 @@ fn set_ops_atom_oracle() {
 /// get（時空間クエリ）: 結果アトム == 集合アトム ∩ クエリアトム。
 #[test]
 fn get_atom_oracle() {
-    let a = build(&[cell(2, 0, 0, 0, 3600, 0), cell(2, 0, 1, 0, 60, 0)]);
+    let a = build(&[
+        make_flex_id(2, 0, 0, 0, 3600, 0),
+        make_flex_id(2, 0, 1, 0, 60, 0),
+    ]);
     // クエリ: 粗い空間セル (zoom1) × [60,120)
     let query = FlexId::new(1u8, 0, 1u8, 0, 1u8, 0)
         .map(|id| id.with_temporal(TemporalId::new(60_u64, 1).unwrap()))
@@ -145,9 +151,9 @@ fn get_atom_oracle() {
 /// remove: 削除アトム ＝ 元 ∩ クエリ、残り ＝ 元 − クエリ。
 #[test]
 fn remove_atom_oracle() {
-    let mut a = build(&[cell(2, 0, 0, 0, 3600, 0)]);
+    let mut a = build(&[make_flex_id(2, 0, 0, 0, 3600, 0)]);
     let before = atoms_of(a.iter(), 2);
-    let query = cell(2, 0, 0, 0, 60, 0); // [0,60)
+    let query = make_flex_id(2, 0, 0, 0, 60, 0); // [0,60)
     let removed = atoms_of(a.remove(&query), 2);
     let qa: BTreeSet<Atom> = (0u64..60).map(|s| ((0, 0, 0), s)).collect();
     assert_eq!(
@@ -168,7 +174,7 @@ fn remove_atom_oracle() {
 fn whole_minus_finite_is_bounded_and_exact() {
     let mut a = SpatialIdSet::new();
     a.insert(FlexId::new(2, 0, 2, 0, 2, 0).unwrap()); // (0,0,0) @ WHOLE
-    let b = build(&[cell(2, 0, 0, 0, 60, 0)]); // (0,0,0) @ [0,60)
+    let b = build(&[make_flex_id(2, 0, 0, 0, 60, 0)]); // (0,0,0) @ [0,60)
     let d = &a - &b;
     let ids: Vec<FlexId> = d.iter().collect();
     // 二進層のおかげでセル数は高々数百
@@ -191,15 +197,15 @@ fn whole_minus_finite_is_bounded_and_exact() {
 /// 等価判定: 別の時間分解（1時間 vs 60分）で構築しても等しい。
 #[test]
 fn equality_is_canonical_over_time() {
-    let hour = build(&[cell(2, 0, 0, 0, 3600, 0)]);
+    let hour = build(&[make_flex_id(2, 0, 0, 0, 3600, 0)]);
     let minutes = build(
         &(0..60u64)
-            .map(|t| cell(2, 0, 0, 0, 60, t))
+            .map(|t| make_flex_id(2, 0, 0, 0, 60, t))
             .collect::<Vec<_>>(),
     );
     assert_eq!(hour, minutes);
 
-    let not_same = build(&[cell(2, 0, 0, 0, 3600, 1)]);
+    let not_same = build(&[make_flex_id(2, 0, 0, 0, 3600, 1)]);
     assert_ne!(hour, not_same);
 }
 
@@ -212,10 +218,10 @@ fn iter_roundtrip_preserves_atoms() {
     assert_eq!(a, rebuilt);
 }
 
-/// flat_single_ids が時間セルを保持する。
+/// flat_single_ids がTemporalIdを保持する。
 #[test]
 fn flat_single_ids_carry_temporal() {
-    let a = build(&[cell(1, 0, 0, 0, 60, 5)]);
+    let a = build(&[make_flex_id(1, 0, 0, 0, 60, 5)]);
     let singles: Vec<_> = a.flat_single_ids().collect();
     assert!(!singles.is_empty());
     for s in singles {
@@ -244,7 +250,7 @@ fn whole_time_cells_still_merge() {
     for f in 0..2 {
         for x in 0..2 {
             for y in 0..2 {
-                set.insert(cell(1, f, x, y, 3600, 7));
+                set.insert(make_flex_id(1, f, x, y, 3600, 7));
             }
         }
     }
@@ -261,8 +267,8 @@ fn insert_combine_mut_coarse_over_fine_and_fine_into_coarse() {
     // (1) 細→粗: (0,0,0) と (1,0,0) に別々の有限時間、その後 zoom1 の粗いセルで
     // 両方を覆う別時間を後勝ち挿入。
     let mut set = build(&[
-        cell(2, 0, 0, 0, 60, 0), // (0,0,0) @ [0,60)
-        cell(2, 0, 1, 0, 60, 1), // (1,0,0) @ [60,120)
+        make_flex_id(2, 0, 0, 0, 60, 0), // (0,0,0) @ [0,60)
+        make_flex_id(2, 0, 1, 0, 60, 1), // (1,0,0) @ [60,120)
     ]);
     // zoom1 の (0,0,0) は zoom2 の (0..2,0..2,0..2) を覆う。[30,90) を後勝ちで乗せる。
     set.insert(
@@ -278,15 +284,15 @@ fn insert_combine_mut_coarse_over_fine_and_fine_into_coarse() {
             exp.insert((k, s)); // 挿入した [0,60) が全 8 セルに乗る
         }
     }
-    // 元データの時間も残る（cell(2,0,1,0,..) の空間キーは (f=0,x=1,y=0)=(0,1,0)）。
+    // 元データの時間も残る（make_flex_id(2,0,1,0,..) の空間キーは (f=0,x=1,y=0)=(0,1,0)）。
     exp.extend((0u64..60).map(|s| ((0, 0, 0), s))); // (0,0,0) @ [0,60)
     exp.extend((60u64..120).map(|s| ((0, 1, 0), s))); // (0,1,0) @ [60,120)（元データが保たれる）
     assert_eq!(got, exp, "coarse-over-fine merge");
 
     // (2) 粗→細: 粗いセルに時間、その後内側の細かいセルへ別時間を追加。
     let mut set2 = SpatialIdSet::new();
-    set2.insert(cell(1, 0, 0, 0, 3600, 0)); // zoom1 (0,0,0) @ [0,3600)
-    set2.insert(cell(2, 0, 0, 0, 60, 61)); // zoom2 の一部セル @ [3660,3720)
+    set2.insert(make_flex_id(1, 0, 0, 0, 3600, 0)); // zoom1 (0,0,0) @ [0,3600)
+    set2.insert(make_flex_id(2, 0, 0, 0, 60, 61)); // zoom2 の一部セル @ [3660,3720)
     let got2 = atoms_of(set2.iter(), 2);
     let mut exp2: BTreeSet<Atom> = BTreeSet::new();
     for k in spatial_keys(&FlexId::new(1, 0, 1, 0, 1, 0).unwrap(), 2) {
@@ -355,13 +361,13 @@ proptest! {
 }
 
 /// get_overlapping: target の時間で制限すべき。
-/// 現在は時間を無視して全時間セルを返している（バグ）。
+/// 現在は時間を無視して全TemporalIdを返している（バグ）。
 #[test]
 fn get_overlapping_should_respect_temporal() {
     let mut set = SpatialIdSet::new();
-    // (0,0,0) に 2つの時間セルを挿入: [0,60) と [120,180)
-    set.insert(cell(2, 0, 0, 0, 60, 0)); // [0,60)
-    set.insert(cell(2, 0, 0, 0, 60, 2)); // [120,180)
+    // (0,0,0) に 2つのTemporalIdを挿入: [0,60) と [120,180)
+    set.insert(make_flex_id(2, 0, 0, 0, 60, 0)); // [0,60)
+    set.insert(make_flex_id(2, 0, 0, 0, 60, 2)); // [120,180)
 
     // クエリ: (0,0,0) の [120,150) を指定
     // 同じ空間セルで異なる時間範囲でクエリ
@@ -388,12 +394,12 @@ fn get_overlapping_should_respect_temporal() {
 fn neighbors_share_face_should_respect_temporal() {
     let mut set = SpatialIdSet::new();
     // (0,0,0) @ [0,60)
-    set.insert(cell(2, 0, 0, 0, 60, 0));
+    set.insert(make_flex_id(2, 0, 0, 0, 60, 0));
     // (1,0,0) @ [100,160) - 空間的には隣接だが、時間は [0,60) と겹치지 않음
-    set.insert(cell(2, 0, 1, 0, 60, 1)); // [60,120) ではなく [100,160)
+    set.insert(make_flex_id(2, 0, 1, 0, 60, 1)); // [60,120) ではなく [100,160)
 
     // クエリ: (0,0,0) @ [0,60)
-    let query = cell(2, 0, 0, 0, 60, 0); // [0,60)
+    let query = make_flex_id(2, 0, 0, 0, 60, 0); // [0,60)
 
     let neighbors: Vec<FlexId> = set.neighbors_share_face(&query).collect();
     let neighbors_atoms = atoms_of(neighbors.iter().cloned(), 2);
@@ -427,10 +433,10 @@ fn neighbors_share_face_should_respect_temporal() {
 fn count_should_count_temporal_cells() {
     let mut set = SpatialIdSet::new();
 
-    // 同一の空間セル (0,0,0) に 3 つの異なる時間セルを挿入
-    set.insert(cell(2, 0, 0, 0, 60, 0)); // [0,60)
-    set.insert(cell(2, 0, 0, 0, 60, 1)); // [60,120)
-    set.insert(cell(2, 0, 0, 0, 60, 2)); // [120,180)
+    // 同一の空間セル (0,0,0) に 3 つの異なるTemporalIdを挿入
+    set.insert(make_flex_id(2, 0, 0, 0, 60, 0)); // [0,60)
+    set.insert(make_flex_id(2, 0, 0, 0, 60, 1)); // [60,120)
+    set.insert(make_flex_id(2, 0, 0, 0, 60, 2)); // [120,180)
 
     // count() が返す値
     let count = set.count();
@@ -442,7 +448,7 @@ fn count_should_count_temporal_cells() {
     // バグ時: count() は 1（空間ノード数）を返していた
     assert_eq!(count, iter_count, "count() should equal iter().count()");
 
-    // iter は 3 つの FlexId を返す（各時間セルごと）
+    // iter は 3 つの FlexId を返す（各TemporalIdごと）
     assert_eq!(iter_count, 3, "3 temporal cells should be stored");
 
     // atoms_of は各秒をアトムとして展開する（3 × 60秒 = 180アトム）
@@ -478,7 +484,7 @@ fn scalability_performance_characteristics() {
     // NOTE: これは 1 に等しい（1つの WHOLE セル）
     assert_eq!(count1, 1);
 
-    // シナリオ2: 複数の空間セル、各々複数の時間セル
+    // シナリオ2: 複数の空間セル、各々複数のTemporalId
     let mut set2 = SpatialIdSet::new();
     for space_idx in 0..4 {
         // zoom=2 では座標は [0,4)
@@ -573,26 +579,26 @@ fn temporal_map_merges_adjacent_segments() {
 #[test]
 #[ignore]
 fn memory_efficiency_concern() {
-    // シナリオ: 同一空間セルで非常に多くの時間セルを持つ場合
+    // シナリオ: 同一空間セルで非常に多くのTemporalIdを持つ場合
     let mut set = SpatialIdSet::new();
 
-    // 10000個の1秒時間セルを挿入
+    // 10000個の1秒TemporalIdを挿入
     eprintln!("\nMemory efficiency test:");
     eprintln!("  Inserting 10000 x 1-second temporal cells...");
 
     for i in 0u64..10000 {
-        set.insert(cell(2, 0, 0, 0, 1, i));
+        set.insert(make_flex_id(2, 0, 0, 0, 1, i));
     }
 
     // 問題: iter() が全セルを展開する必要があるため、
-    // count() = iter().count() は O(時間セル数) になる
+    // count() = iter().count() は O(TemporalId数) になる
     eprintln!("  Calling iter().count()...");
     let count = set.count();
     eprintln!("  Result: {} cells", count);
 
     // パフォーマンスの実測:
-    // - cells_ref() が毎回 Vec を作成: O(時間セル数)
-    // - from_range() が Vec を作成: O(時間セル数)
-    // - iter が複数回イテレータを走査: O(時間セル数 * イテレータ走査)
-    eprintln!("  WARNING: count() is O(時間セル数), not O(セグメント数)!");
+    // - cells_ref() が毎回 Vec を作成: O(TemporalId数)
+    // - from_range() が Vec を作成: O(TemporalId数)
+    // - iter が複数回イテレータを走査: O(TemporalId数 * イテレータ走査)
+    eprintln!("  WARNING: count() is O(TemporalId数), not O(セグメント数)!");
 }

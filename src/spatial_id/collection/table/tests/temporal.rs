@@ -46,8 +46,8 @@ fn atom_map<I: IntoIterator<Item = (FlexId, i32)>>(pairs: I, z: u8) -> BTreeMap<
     out
 }
 
-/// 時間付き FlexId を作る（zoom, f/x/y、時間セル (i,t)）。
-fn cell(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
+/// 時間付き FlexId を作る
+fn make_flex_id(z: u8, f: i32, x: u32, y: u32, i: u64, t: u64) -> FlexId {
     FlexId::new(z, f, z, x, z, y)
         .map(|id| id.with_temporal(TemporalId::new(i, t).unwrap()))
         .unwrap()
@@ -83,11 +83,11 @@ fn map_of(entries: &[(FlexId, i32)]) -> SpatialIdMap<i32> {
 /// 代表的な時空間エントリ（同一時空間の上書き、部分時間の上書き、同一空間・別時間、別空間）。
 fn sample_entries() -> Vec<(FlexId, i32)> {
     alloc::vec![
-        (cell(2, 0, 0, 0, 3600, 0), 1), // (0,0,0) @ [0,3600) = 1
-        (cell(2, 0, 0, 0, 60, 1), 2),   // 部分時間 [60,120) を 2 で上書き
-        (cell(2, 0, 1, 0, 60, 0), 3),   // 別空間
-        (cell(2, 0, 0, 0, 60, 100), 4), // 同一空間・別時間（時間外挿入）
-        (cell(2, 0, 1, 0, 1, 30), 5),   // (1,0) の中の1秒を上書き
+        (make_flex_id(2, 0, 0, 0, 3600, 0), 1), // (0,0,0) @ [0,3600) = 1
+        (make_flex_id(2, 0, 0, 0, 60, 1), 2),   // 部分時間 [60,120) を 2 で上書き
+        (make_flex_id(2, 0, 1, 0, 60, 0), 3),   // 別空間
+        (make_flex_id(2, 0, 0, 0, 60, 100), 4), // 同一空間・別時間（時間外挿入）
+        (make_flex_id(2, 0, 1, 0, 1, 30), 5),   // (1,0) の中の1秒を上書き
     ]
 }
 
@@ -138,7 +138,7 @@ fn table_remove_atom_oracle() {
     let entries = sample_entries();
     let mut t = table_of(&entries);
     let before = atom_map(t.iter().map(|(f, v)| (f, *v)), 2);
-    let query = cell(2, 0, 0, 0, 60, 1); // (0,0,0) @ [60,120)
+    let query = make_flex_id(2, 0, 0, 0, 60, 1); // (0,0,0) @ [60,120)
     let removed = atom_map(t.remove(&query).collect::<Vec<_>>(), 2);
     let q_keys: alloc::collections::BTreeSet<Key> = (60u64..120).map(|s| ((0, 0, 0), s)).collect();
     let exp_removed: BTreeMap<Key, i32> = before
@@ -165,7 +165,7 @@ fn map_remove_atom_oracle() {
     let entries = sample_entries();
     let mut m = map_of(&entries);
     let before = atom_map(m.iter().map(|(f, v)| (f, *v)), 2);
-    let query = cell(2, 0, 0, 0, 60, 1);
+    let query = make_flex_id(2, 0, 0, 0, 60, 1);
     let removed = atom_map(m.remove(&query).collect::<Vec<_>>(), 2);
     let q_keys: alloc::collections::BTreeSet<Key> = (60u64..120).map(|s| ((0, 0, 0), s)).collect();
     let exp_removed: BTreeMap<Key, i32> = before
@@ -232,15 +232,15 @@ fn spatial_only_data_stays_whole() {
 fn whole_value_partially_overwritten_keeps_rest() {
     let mut t = SpatialIdTable::new();
     t.insert(FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 1); // (0,0,0) @ WHOLE = 1
-    t.insert(cell(2, 0, 0, 0, 60, 0), 2); // [0,60) だけ 2
+    t.insert(make_flex_id(2, 0, 0, 0, 60, 0), 2); // [0,60) だけ 2
 
     // [0,60) は 2
-    let q = cell(2, 0, 0, 0, 60, 0);
+    let q = make_flex_id(2, 0, 0, 0, 60, 0);
     let got: Vec<i32> = t.get(&q).map(|(_, v)| *v).collect();
     assert!(!got.is_empty() && got.iter().all(|v| *v == 2));
 
     // [60,120) は 1 のまま
-    let q = cell(2, 0, 0, 0, 60, 1);
+    let q = make_flex_id(2, 0, 0, 0, 60, 1);
     let got: Vec<i32> = t.get(&q).map(|(_, v)| *v).collect();
     assert!(!got.is_empty() && got.iter().all(|v| *v == 1));
 
@@ -259,7 +259,7 @@ fn same_value_same_time_cells_still_merge() {
     for f in 0..2 {
         for x in 0..2 {
             for y in 0..2 {
-                t.insert(cell(1, f, x, y, 3600, 7), 9);
+                t.insert(make_flex_id(1, f, x, y, 3600, 7), 9);
             }
         }
     }

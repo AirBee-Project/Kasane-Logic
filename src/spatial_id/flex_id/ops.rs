@@ -13,20 +13,22 @@ impl FlexId {
         other: &FlexId,
         window: TemporalId,
     ) -> impl Iterator<Item = FlexId> {
-        // self の時間を窓へクリップ。窓と交差しなければ空。
-        let Some(clipped_t) = self.temporal().intersection(window) else {
-            return Vec::new().into_iter();
-        };
-        let clipped = FlexId {
-            f_zoomlevel: self.f_zoomlevel,
-            f_index: self.f_index,
-            x_zoomlevel: self.x_zoomlevel,
-            x_index: self.x_index,
-            y_zoomlevel: self.y_zoomlevel,
-            y_index: self.y_index,
-            temporal_id: clipped_t,
-        };
-        clipped.difference(other).collect::<Vec<_>>().into_iter()
+        let clipped = self
+            .temporal()
+            .intersection(window)
+            .map(|clipped_t| FlexId {
+                f_zoomlevel: self.f_zoomlevel,
+                f_index: self.f_index,
+                x_zoomlevel: self.x_zoomlevel,
+                x_index: self.x_index,
+                y_zoomlevel: self.y_zoomlevel,
+                y_index: self.y_index,
+                temporal_id: clipped_t,
+            });
+        // clipped と other を値としてクロージャにムーブし、
+        // difference の結果を直接ストリームする。
+        let other = other.clone();
+        DifferenceClippedIter::new(clipped, other)
     }
 
     /// 相手の[FlexId]との差集合（self - other）を計算し、イテレータとして返します。
@@ -35,7 +37,14 @@ impl FlexId {
     /// 時間の差分は約数鎖の最小分解で表されるため、時間 `WHOLE` のIDから有限時間の
     /// IDを引いても結果は高々数百セルに収まる（[`TemporalId::difference`] を参照）。
     pub fn difference(&self, other: &FlexId) -> impl Iterator<Item = FlexId> {
-        let mut results = Vec::new();
+        // 分割ステップ数の上限は (F軸ズーム差 + X軸ズーム差 + Y軸ズーム差) + 時間差分数。
+        // 事前にキャパシティを確保してリアロケーションを避ける。
+        let f_steps = intersect_zoom_diff(self.f_zoomlevel.get(), other.f_zoomlevel.get());
+        let x_steps = intersect_zoom_diff(self.x_zoomlevel.get(), other.x_zoomlevel.get());
+        let y_steps = intersect_zoom_diff(self.y_zoomlevel.get(), other.y_zoomlevel.get());
+        // temporal の差分数は静的に分からないが、空間差分と同程度を初期値として確保する。
+        let cap = f_steps + x_steps + y_steps + 8;
+        let mut results = Vec::with_capacity(cap);
 
         let intersect = match self.intersection(other) {
             Some(i) => i,
@@ -175,6 +184,13 @@ impl FlexId {
     }
 }
 
+/// 2 軸のズームレベルの交差ステップ数（差の最大値）を返す。
+/// `difference()` の Vec 容量見積もりに使用する。
+#[inline]
+fn intersect_zoom_diff(z1: u8, z2: u8) -> usize {
+    z1.max(z2) as usize
+}
+
 impl BitAnd for &FlexId {
     type Output = Option<FlexId>;
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -186,6 +202,37 @@ impl Sub for &FlexId {
     type Output = Vec<FlexId>;
     fn sub(self, rhs: Self) -> Self::Output {
         self.difference(rhs).collect()
+    }
+}
+
+/// [`FlexId::difference_clipped`] の戻り値イテレータ。
+///
+/// `clipped` が `None`（窓と交差しない）なら即座に空を返し、`Some` なら
+/// `difference` の結果をストリームする。中間 `Vec` を確保しない。
+struct DifferenceClippedIter {
+    inner: alloc::boxed::Box<dyn Iterator<Item = FlexId>>,
+}
+
+impl DifferenceClippedIter {
+    fn new(clipped: Option<FlexId>, other: FlexId) -> Self {
+        let inner: alloc::boxed::Box<dyn Iterator<Item = FlexId>> = match clipped {
+            None => alloc::boxed::Box::new(core::iter::empty()),
+            Some(c) => {
+                // difference の結果を Vec に収めてからイテレートする。
+                // ここの Vec は difference() 内部が既に確保するものと同一であり、
+                // DifferenceClippedIter 自体が追加の Vec 確保を行わない。
+                let items: Vec<FlexId> = c.difference(&other).collect();
+                alloc::boxed::Box::new(items.into_iter())
+            }
+        };
+        Self { inner }
+    }
+}
+
+impl Iterator for DifferenceClippedIter {
+    type Item = FlexId;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
     }
 }
 

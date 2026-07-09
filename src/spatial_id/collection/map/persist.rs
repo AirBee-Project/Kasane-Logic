@@ -143,7 +143,7 @@ fn build_node(
         }
         Node::Leaf { value: Some(tmap) } => {
             let segments = tmap
-                .segments_ref()
+                .ranges_refs()
                 .into_iter()
                 .map(|(start, end, v)| {
                     let dict_idx = match value_to_idx.get(v) {
@@ -191,7 +191,7 @@ fn rebuild_node(
     match &nodes[idx as usize] {
         PersistedNode::Leaf { segments } if segments.is_empty() => empty.clone(),
         PersistedNode::Leaf { segments } => SharedNode::new(Node::Leaf {
-            value: Some(TemporalMap::from_raw_segments(
+            value: Some(TemporalMap::from_raw_ranges(
                 segments
                     .iter()
                     .map(|&(start, end, dict_idx)| {

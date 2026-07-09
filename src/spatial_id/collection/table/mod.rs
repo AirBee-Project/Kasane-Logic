@@ -244,7 +244,6 @@ where
     }
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
-    /// 各 [`SingleId`] には存在時間（時間セル）が付く。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |(flex_id, value)| {
@@ -350,11 +349,7 @@ where
         self.inner.is_empty()
     }
 
-    /// テーブルに保持されている全ての時空間と値への参照のペアを返します。
-    ///
-    /// 各空間セルの時間別の値は約数鎖の最小セル列へ分解され、
-    /// `(空間セル × 時間セル, 値)` として列挙される。全時間（WHOLE）のセルは
-    /// 従来どおり1つの `(FlexId, &V)` になる。
+    /// テーブルに保持されている全ての[FlexId]と値への参照のペアを返します。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter().map(move |(flex_id, rank)| {
             let value = self

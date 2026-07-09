@@ -1,5 +1,4 @@
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 use crate::{
     FlexId, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
@@ -53,9 +52,6 @@ impl From<&SingleId> for RangeId {
 
 impl RangeId {
     /// この [`RangeId`] を消費し、含まれる [`SingleId`] を所有イテレータとして返す。
-    ///
-    /// [`iter_single_ids`](IterSingleIds::iter_single_ids) の所有版。`self` を借用しないため、
-    /// 一時的な `RangeId` から `flat_map` などで直接ストリーミングでき、中間 `Vec` が不要になる。
     pub fn single_ids(self) -> impl Iterator<Item = SingleId> {
         let z = self.z.get();
         let (f0, f1) = (self.f[0], self.f[1]);
@@ -66,17 +62,17 @@ impl RangeId {
 
         (f0..=f1).flat_map(move |f| {
             // X は経度方向に巡回するため、境界跨ぎ（x0 > x1）は2区間に分ける。
-            let x_iter: Vec<u32> = if x0 <= x1 {
-                (x0..=x1).collect()
+            // Vec を経由せず、2分岐を Box<dyn Iterator> で統一して直接ストリームする。
+            let xy_max = ZoomLevel::new(z).unwrap().xy_max();
+            let x_iter: Box<dyn Iterator<Item = u32>> = if x0 <= x1 {
+                Box::new(x0..=x1)
             } else {
-                (x0..=ZoomLevel::new(z).unwrap().xy_max())
-                    .chain(0..=x1)
-                    .collect()
+                Box::new((x0..=xy_max).chain(0..=x1))
             };
             #[cfg(feature = "temporal_id")]
             let temporal_id = temporal_id;
 
-            x_iter.into_iter().flat_map(move |x| {
+            x_iter.flat_map(move |x| {
                 #[cfg(feature = "temporal_id")]
                 let temporal_id = temporal_id;
                 (y0..=y1).map(move |y: u32| {
@@ -109,31 +105,29 @@ impl IterFlexIds for RangeId {
 
     fn iter_flex_ids(&self) -> Self::Iter<'_> {
         let z = self.z.get();
-        let f_list: Vec<_> = split_f(z, self.f).collect();
-
-        let x_list: Vec<_> = if self.x[0] <= self.x[1] {
-            split_xy(z, self.x).collect()
-        } else {
-            split_xy(z, [self.x[0], ZoomLevel::new(z).unwrap().xy_max()])
-                .chain(split_xy(z, [0, self.x[1]]))
-                .collect()
-        };
-        let y_list: Vec<_> = split_xy(z, self.y).collect();
+        // f / x / y の範囲はすべてコピー可能な値なので、各 flat_map 内で
+        // split_* を再計算することで Vec 確保とクローンを避ける。
+        let f_range = self.f;
+        let x_range = self.x;
+        let y_range = self.y;
+        let x_wraps = x_range[0] > x_range[1];
+        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
 
         let t_id = self.temporal_id;
-        let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
-            let y_list_inner = y_list.clone();
-            let x_list_inner = x_list.clone();
-            let t_id_inner = t_id;
-            x_list_inner.into_iter().flat_map(move |(x_z, x_i)| {
-                let y_list_inner2 = y_list_inner.clone();
-                let _t_id_inner2 = t_id_inner;
-                y_list_inner2.into_iter().map(move |(y_z, y_i)| {
+        let iter = split_f(z, f_range).flat_map(move |(f_z, f_i)| {
+            // X は巡回があるため 2 区間を chain してそれぞれ再計算する。
+            let x_iter: Box<dyn Iterator<Item = (u8, u32)>> = if !x_wraps {
+                Box::new(split_xy(z, x_range))
+            } else {
+                Box::new(split_xy(z, [x_range[0], xy_max]).chain(split_xy(z, [0, x_range[1]])))
+            };
+            x_iter.flat_map(move |(x_z, x_i)| {
+                split_xy(z, y_range).map(move |(y_z, y_i)| {
                     #[cfg(feature = "temporal_id")]
                     {
                         FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i)
                             .unwrap()
-                            .with_temporal(_t_id_inner2)
+                            .with_temporal(t_id)
                     }
                     #[cfg(not(feature = "temporal_id"))]
                     {

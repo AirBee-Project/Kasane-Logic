@@ -103,7 +103,6 @@ where
     }
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
-    /// 各 [`SingleId`] には存在時間（時間セル）が付く。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |(flex_id, value)| {

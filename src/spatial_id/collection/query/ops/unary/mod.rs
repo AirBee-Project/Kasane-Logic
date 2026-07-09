@@ -38,15 +38,18 @@ where
         use rayon::prelude::*;
         cells
             .into_par_iter()
-            .map(|(id, value)| {
+            .map(|(id, value)| -> Result<Vec<(FlexId, A)>, Error> {
                 let outputs = transform(&id)?;
-                Ok(outputs
-                    .into_iter()
-                    .map(move |o| (o, value.clone()))
-                    .collect::<Vec<_>>())
+                Ok(outputs.into_iter().map(|o| (o, value.clone())).collect())
             })
-            .collect::<Result<Vec<Vec<_>>, Error>>()
-            .map(|grouped| grouped.into_iter().flatten().collect())
+            .try_fold(Vec::new, |mut acc, chunk| {
+                acc.extend(chunk?);
+                Ok(acc)
+            })
+            .try_reduce(Vec::new, |mut a, b| {
+                a.extend(b);
+                Ok(a)
+            })
     }
 
     #[cfg(not(feature = "rayon"))]

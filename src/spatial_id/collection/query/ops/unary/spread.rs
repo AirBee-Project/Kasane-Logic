@@ -181,8 +181,14 @@ fn map_spread<A: CellValue>(
         cells
             .into_par_iter()
             .map(|(id, value)| expand(id, value, param))
-            .collect::<Result<Vec<Vec<_>>, Error>>()
-            .map(|grouped| grouped.into_iter().flatten().collect())
+            .try_fold(Vec::new, |mut acc, chunk| {
+                acc.extend(chunk?);
+                Ok(acc)
+            })
+            .try_reduce(Vec::new, |mut a, b| {
+                a.extend(b);
+                Ok(a)
+            })
     }
 
     #[cfg(not(feature = "rayon"))]
