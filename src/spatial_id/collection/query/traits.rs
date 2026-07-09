@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use crate::{CellValue, Error, FlexId, SpatialIdCollection};
 
-/// 空間IDコレクション同士から二項演算を行うTrait。
+/// `空間IDコレクション同士から二項演算を行うTrait`。
 ///
 /// 2つのコレクションはいずれも「空間ID → 値」の部分関数であり、ある空間IDにおいて各々は
 /// 値を持つ（`Some`）か持たない（`None`）。したがって同じ位置にある2つの空間IDの状態は
@@ -191,8 +191,8 @@ impl<V: Ord> ConflictPolicy<V> {
     }
 }
 
-/// 空間IDコレクションに対して単項演算を行うTrait。
-/// 必要な場合は[Self::CustomParameter]に[ConflictPolicy]を含む。
+/// `空間IDコレクションに対して単項演算を行うTrait`。
+/// 必要な場合は[`Self::CustomParameter`]に[`ConflictPolicy`]を含む。
 pub trait UnaryOperator<A: CellValue> {
     #[cfg(feature = "rayon")]
     type CustomParameter: Sync;

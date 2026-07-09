@@ -10,7 +10,7 @@ impl SpatialIdSet {
         self.inner.shard()
     }
 
-    /// 保持 [FlexId] 数が `max_flex_id_count` を超えていれば `true`（分割すべき）。
+    /// 保持 [`FlexId`] 数が `max_flex_id_count` を超えていれば `true`（分割すべき）。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
         self.inner.should_split_shard(max_flex_id_count)
     }
@@ -25,7 +25,7 @@ impl SpatialIdSet {
         ))
     }
 
-    /// シャードされている複数の[SpatialIdSet]を、`parent_region` に閉じた1つの[SpatialIdSet]へ統合する。
+    /// シャードされている複数の[`SpatialIdSet`]を、`parent_region` に閉じた1つの[`SpatialIdSet`]へ統合する。
     ///
     /// 次のいずれかに該当すると [`SpatialIdError::InvalidShardMerge`] を返す：
     /// - シャード領域が未設定（`None`）の子が含まれる。

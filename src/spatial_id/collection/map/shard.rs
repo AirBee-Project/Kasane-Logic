@@ -7,7 +7,7 @@ impl<V> SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
-    /// 保持 [FlexId] 数が `max_flex_id_count` を超えていれば `true`（分割すべき）。
+    /// 保持 [`FlexId`] 数が `max_flex_id_count` を超えていれば `true`（分割すべき）。
     pub fn should_split_shard(&self, max_flex_id_count: usize) -> bool {
         self.inner.should_split_shard(max_flex_id_count)
     }
@@ -21,7 +21,7 @@ where
         ))
     }
 
-    /// シャードされている複数の[SpatialIdMap]を、`parent_region` に閉じた1つの[SpatialIdMap]へ統合する。
+    /// シャードされている複数の[`SpatialIdMap`]を、`parent_region` に閉じた1つの[`SpatialIdMap`]へ統合する。
     ///
     /// 次のいずれかに該当すると [`SpatialIdError::InvalidShardMerge`] を返す：
     /// - シャード領域が未設定（`None`）の子が含まれる。

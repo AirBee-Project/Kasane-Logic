@@ -56,7 +56,7 @@ impl Default for TemporalId {
 /// # }
 /// ```
 ///
-/// Display と FromStr の往復:
+/// Display と `FromStr` の往復:
 /// ```
 /// # #[cfg(feature = "temporal_id")]
 /// # {

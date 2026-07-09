@@ -7,7 +7,7 @@ impl ExpandCoordinates for Solid {
     fn expand_coordinates(&self) -> impl Iterator<Item = Coordinate> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.expand_coordinates())
+            .flat_map(super::super::traits::ExpandCoordinates::expand_coordinates)
     }
 }
 
@@ -15,7 +15,7 @@ impl ExpandLines for Solid {
     fn expand_lines(&self) -> impl Iterator<Item = Line> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.expand_lines())
+            .flat_map(super::super::traits::ExpandLines::expand_lines)
     }
 }
 
@@ -23,7 +23,7 @@ impl ExpandTriangles for Solid {
     fn expand_triangles(&self) -> impl Iterator<Item = Triangle> {
         self.polygons
             .iter()
-            .flat_map(|polygon| polygon.expand_triangles())
+            .flat_map(super::super::traits::ExpandTriangles::expand_triangles)
     }
 }
 

@@ -26,9 +26,9 @@ impl From<&FlexId> for RangeId {
             [start, end]
         };
 
-        let f_range = scale_to_range(flex_id.f_index as i64, flex_id.f_zoomlevel.get());
-        let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel.get());
-        let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel.get());
+        let f_range = scale_to_range(i64::from(flex_id.f_index), flex_id.f_zoomlevel.get());
+        let x_range = scale_to_range(i64::from(flex_id.x_index), flex_id.x_zoomlevel.get());
+        let y_range = scale_to_range(i64::from(flex_id.y_index), flex_id.y_zoomlevel.get());
 
         #[cfg(feature = "temporal_id")]
         {

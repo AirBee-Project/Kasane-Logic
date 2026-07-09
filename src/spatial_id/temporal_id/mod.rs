@@ -90,13 +90,12 @@ impl TemporalId {
     {
         let interval = interval.try_into()?;
         let i = interval.seconds();
-        let end_exclusive = i as u128 * (t as u128 + 1);
-        if end_exclusive > Interval::WHOLE_SECONDS as u128 {
+        let end_exclusive = u128::from(i) * (u128::from(t) + 1);
+        if end_exclusive > u128::from(Interval::WHOLE_SECONDS) {
             return Err(SpatialIdError::TOutOfRange { i, t }.into());
         }
         Ok(Self { interval, t })
     }
-
     /// この時間区間の間隔（[`Interval`] 型）。
     pub fn interval(&self) -> Interval {
         self.interval

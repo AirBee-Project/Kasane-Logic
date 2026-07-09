@@ -6,7 +6,7 @@ use alloc::vec::Vec;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-/// Coreでは[TemporalId]は扱わない。このレイヤーでは始点と終点で考える。
+/// Coreでは[`TemporalId`]は扱わない。このレイヤーでは始点と終点で考える。
 /// このレイヤーでは数のキャッシュなども担当する。
 pub(crate) struct TemporalCore<V> {
     // Vecの中身は（開始時刻,終了時刻,値）となっている。
@@ -16,7 +16,7 @@ pub(crate) struct TemporalCore<V> {
 }
 
 impl<V: Clone + PartialEq> TemporalCore<V> {
-    /// 空の[TemporalCore]を作成する。
+    /// 空の[`TemporalCore`]を作成する。
     pub(crate) fn new() -> Self {
         Self {
             ranges: Vec::new(),
@@ -24,7 +24,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         }
     }
 
-    /// [TemporalCore]に新しい範囲を挿入する。
+    /// [`TemporalCore`]に新しい範囲を挿入する。
     pub(crate) fn insert(&mut self, range: core::ops::Range<u64>, v: V) {
         let s = range.start;
         let e = range.end;
@@ -234,7 +234,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         }
     }
 
-    /// 保持する[TemporalId]の個数を返す。
+    /// 保持する[`TemporalId`]の個数を返す。
     pub(crate) fn len(&self) -> usize {
         self.cached_len
     }

@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<'a, V> Iterator for OverlapIter<'a, V>
+impl<V> Iterator for OverlapIter<'_, V>
 where
     V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {

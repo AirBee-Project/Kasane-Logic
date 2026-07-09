@@ -20,19 +20,19 @@ where
     type CustomParameter = ();
     type ResultValue = V;
 
-    fn both_some(a: &V, b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn both_some(a: &V, b: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(a.clone() + b.clone()))
     }
 
-    fn a_only(a: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn a_only(a: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(a.clone()))
     }
 
-    fn b_only(b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn b_only(b: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(b.clone()))
     }
 
-    fn is_commutative(_: &Self::CustomParameter) -> bool {
+    fn is_commutative((): &Self::CustomParameter) -> bool {
         true
     }
 }
@@ -55,19 +55,19 @@ where
     type CustomParameter = ();
     type ResultValue = V;
 
-    fn both_some(a: &V, b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn both_some(a: &V, b: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(a.clone() - b.clone()))
     }
 
-    fn a_only(a: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn a_only(a: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(a.clone()))
     }
 
-    fn b_only(_b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn b_only(_b: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
     }
 
-    fn is_commutative(_: &Self::CustomParameter) -> bool {
+    fn is_commutative((): &Self::CustomParameter) -> bool {
         false
     }
 }
@@ -89,19 +89,19 @@ where
     type CustomParameter = ();
     type ResultValue = V;
 
-    fn both_some(a: &V, b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn both_some(a: &V, b: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(Some(a.clone() * b.clone()))
     }
 
-    fn a_only(_a: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn a_only(_a: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
     }
 
-    fn b_only(_b: &V, _: &Self::CustomParameter) -> Result<Option<V>, Error> {
+    fn b_only(_b: &V, (): &Self::CustomParameter) -> Result<Option<V>, Error> {
         Ok(None)
     }
 
-    fn is_commutative(_: &Self::CustomParameter) -> bool {
+    fn is_commutative((): &Self::CustomParameter) -> bool {
         true
     }
 }

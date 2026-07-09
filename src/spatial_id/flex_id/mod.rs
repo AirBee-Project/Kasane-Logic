@@ -52,18 +52,23 @@ impl FlexId {
     pub fn f_zoomlevel(&self) -> u8 {
         self.f_zoomlevel.get()
     }
+
     pub fn x_zoomlevel(&self) -> u8 {
         self.x_zoomlevel.get()
     }
+
     pub fn y_zoomlevel(&self) -> u8 {
         self.y_zoomlevel.get()
     }
+
     pub fn f_index(&self) -> i32 {
         self.f_index
     }
+
     pub fn x_index(&self) -> u32 {
         self.x_index
     }
+
     pub fn y_index(&self) -> u32 {
         self.y_index
     }
@@ -88,7 +93,7 @@ impl FlexId {
 
     /// このFlexIdを高さ（F）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
     ///
-    /// 移動量はズーム `z` を単位とするため、`z` がこのFlexIdのFズームレベルより
+    /// 移動量はズーム `z` を単位とするため、`z` `がこのFlexIdのFズームレベルより`
     /// 細かい場合は1セルに満たない移動となり、結果が複数セルへ分割されることがある。
     /// そのため複数の [`FlexId`] を生成するイテレーターを返す。XY方向の値は変更しない。
     ///
@@ -157,9 +162,9 @@ impl FlexId {
         // max_z における周長（Xセル数）。
         let circumference = 1_i64 << max_z;
         let cell_scale = 1_i64 << (max_z - x_zoomlevel);
-        let delta_index = index as i64 * (1_i64 << (max_z - z));
+        let delta_index = i64::from(index) * (1_i64 << (max_z - z));
 
-        let left = self.x_index() as i64 * cell_scale + delta_index;
+        let left = i64::from(self.x_index()) * cell_scale + delta_index;
         let right = left + cell_scale - 1;
 
         let left_wrapped = left.rem_euclid(circumference);
@@ -208,18 +213,18 @@ impl FlexId {
         let max_z = y_zoomlevel.max(z);
 
         let cell_scale = 1_i64 << (max_z - y_zoomlevel);
-        let delta_index = index as i64 * (1_i64 << (max_z - z));
+        let delta_index = i64::from(index) * (1_i64 << (max_z - z));
 
-        let left = self.y_index() as i64 * cell_scale + delta_index;
+        let left = i64::from(self.y_index()) * cell_scale + delta_index;
         let right = left + cell_scale - 1;
 
         // 移動後が max_z のY範囲 [0[max_z]] を超える場合はエラー。
-        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
+        let y_max = i64::from(ZoomLevel::new(max_z)?.xy_max());
         if left < 0 || right > y_max {
             let offending = if left < 0 { left } else { right };
             return Err(SpatialIdError::YOutOfRange {
                 z: max_z,
-                y: offending.clamp(0, u32::MAX as i64) as u32,
+                y: offending.clamp(0, i64::from(u32::MAX)) as u32,
             }
             .into());
         }
@@ -316,9 +321,9 @@ impl FlexId {
 
         let circumference = 1_i64 << max_z;
         let cell_scale = 1_i64 << (max_z - x_zoomlevel);
-        let delta = index as i64 * (1_i64 << (max_z - z));
+        let delta = i64::from(index) * (1_i64 << (max_z - z));
 
-        let base_left = self.x_index() as i64 * cell_scale;
+        let base_left = i64::from(self.x_index()) * cell_scale;
         let base_right = base_left + cell_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
@@ -375,9 +380,9 @@ impl FlexId {
         let max_z = y_zoomlevel.max(z);
 
         let cell_scale = 1_i64 << (max_z - y_zoomlevel);
-        let delta = index as i64 * (1_i64 << (max_z - z));
+        let delta = i64::from(index) * (1_i64 << (max_z - z));
 
-        let base_left = self.y_index() as i64 * cell_scale;
+        let base_left = i64::from(self.y_index()) * cell_scale;
         let base_right = base_left + cell_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
@@ -385,12 +390,12 @@ impl FlexId {
             (base_left + delta, base_right)
         };
 
-        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
+        let y_max = i64::from(ZoomLevel::new(max_z)?.xy_max());
         if left < 0 || right > y_max {
             let offending = if left < 0 { left } else { right };
             return Err(SpatialIdError::YOutOfRange {
                 z: max_z,
-                y: offending.clamp(0, u32::MAX as i64) as u32,
+                y: offending.clamp(0, i64::from(u32::MAX)) as u32,
             }
             .into());
         }
@@ -617,7 +622,7 @@ impl FlexId {
         }
 
         fn axis_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
-            let shift = (common - zoom) as i64;
+            let shift = i64::from(common - zoom);
             (index << shift, ((index + 1) << shift) - 1)
         }
 
@@ -641,20 +646,20 @@ impl FlexId {
 
         let cf = self.f_zoomlevel().max(other.f_zoomlevel());
         let rf = classify(
-            axis_range(self.f_zoomlevel(), self.f_index() as i64, cf),
-            axis_range(other.f_zoomlevel(), other.f_index() as i64, cf),
+            axis_range(self.f_zoomlevel(), i64::from(self.f_index()), cf),
+            axis_range(other.f_zoomlevel(), i64::from(other.f_index()), cf),
             None,
         );
         let cx = self.x_zoomlevel().max(other.x_zoomlevel());
         let rx = classify(
-            axis_range(self.x_zoomlevel(), self.x_index() as i64, cx),
-            axis_range(other.x_zoomlevel(), other.x_index() as i64, cx),
+            axis_range(self.x_zoomlevel(), i64::from(self.x_index()), cx),
+            axis_range(other.x_zoomlevel(), i64::from(other.x_index()), cx),
             Some(1i64 << cx),
         );
         let cy = self.y_zoomlevel().max(other.y_zoomlevel());
         let ry = classify(
-            axis_range(self.y_zoomlevel(), self.y_index() as i64, cy),
-            axis_range(other.y_zoomlevel(), other.y_index() as i64, cy),
+            axis_range(self.y_zoomlevel(), i64::from(self.y_index()), cy),
+            axis_range(other.y_zoomlevel(), i64::from(other.y_index()), cy),
             None,
         );
 
@@ -680,7 +685,7 @@ impl FlexId {
             (idx, idx)
         } else {
             let shift = tz_f - sz_f;
-            let si = self.f_index() as i64;
+            let si = i64::from(self.f_index());
             ((si << shift) as i32, (((si + 1) << shift) - 1) as i32)
         };
 
@@ -692,7 +697,7 @@ impl FlexId {
             (idx, idx)
         } else {
             let shift = tz_x - sz_x;
-            let si = self.x_index() as u64;
+            let si = u64::from(self.x_index());
             ((si << shift) as u32, (((si + 1) << shift) - 1) as u32)
         };
 
@@ -704,7 +709,7 @@ impl FlexId {
             (idx, idx)
         } else {
             let shift = tz_y - sz_y;
-            let si = self.y_index() as u64;
+            let si = u64::from(self.y_index());
             ((si << shift) as u32, (((si + 1) << shift) - 1) as u32)
         };
 

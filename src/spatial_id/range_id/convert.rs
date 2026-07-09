@@ -116,10 +116,10 @@ impl IterFlexIds for RangeId {
         let t_id = self.temporal_id;
         let iter = split_f(z, f_range).flat_map(move |(f_z, f_i)| {
             // X は巡回があるため 2 区間を chain してそれぞれ再計算する。
-            let x_iter: Box<dyn Iterator<Item = (u8, u32)>> = if !x_wraps {
-                Box::new(split_xy(z, x_range))
-            } else {
+            let x_iter: Box<dyn Iterator<Item = (u8, u32)>> = if x_wraps {
                 Box::new(split_xy(z, [x_range[0], xy_max]).chain(split_xy(z, [0, x_range[1]])))
+            } else {
+                Box::new(split_xy(z, x_range))
             };
             x_iter.flat_map(move |(x_z, x_i)| {
                 split_xy(z, y_range).map(move |(y_z, y_i)| {

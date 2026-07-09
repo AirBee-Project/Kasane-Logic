@@ -117,7 +117,7 @@ impl<V> SpatialIdTable<V>
 where
     V: crate::spatial_id::collection::flex_tree::ptr::SafeValue + Ord,
 {
-    /// 空の[SpatialIdTable]を作成します。
+    /// 空の[`SpatialIdTable`]を作成します。
     pub fn new() -> Self {
         Self {
             inner: SpatioTemporalCore::new(),
@@ -131,15 +131,14 @@ where
 
     /// 時空間に値を挿入する。
     pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
-        let rank = match self.dictionary.get(&value) {
-            Some(v) => *v,
-            None => {
-                self.current_rank += 1;
-                self.reverse_dictionary
-                    .insert(self.current_rank, value.clone());
-                self.dictionary.insert(value, self.current_rank);
-                self.current_rank
-            }
+        let rank = if let Some(v) = self.dictionary.get(&value) {
+            *v
+        } else {
+            self.current_rank += 1;
+            self.reverse_dictionary
+                .insert(self.current_rank, value.clone());
+            self.dictionary.insert(value, self.current_rank);
+            self.current_rank
         };
 
         for flex_id in target.iter_flex_ids() {
@@ -233,7 +232,7 @@ where
             })
     }
 
-    /// 保持している[FlexId]の総数を返します。
+    /// 保持している[`FlexId`]の総数を返します。
     pub fn count(&self) -> usize {
         self.inner.count()
     }
@@ -243,7 +242,7 @@ where
         self.inner.max_zoomlevel()
     }
 
-    /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
+    /// 最下層の[`SingleId`]レベルまで展開したイテレータを参照付きで返します。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |(flex_id, value)| {
@@ -267,7 +266,7 @@ where
         F: FnMut(&mut V),
     {
         let mut new_dict = BTreeMap::new();
-        for (&rank, val) in self.reverse_dictionary.iter_mut() {
+        for (&rank, val) in &mut self.reverse_dictionary {
             f(val);
             new_dict.insert(val.clone(), rank);
         }
@@ -288,7 +287,7 @@ where
         self.value_index_built = true;
     }
 
-    /// 特定の値に対応するすべての時空間[FlexId]を返す。
+    /// 特定の値に対応するすべての時空間[`FlexId`]を返す。
     pub fn value_get(&self, value: &V) -> impl Iterator<Item = FlexId> + '_ {
         let rank_opt = self.dictionary.get(value).copied();
         let use_index = self.value_index_built;
@@ -312,7 +311,7 @@ where
         })
     }
 
-    /// 範囲条件に一致する全ての値の[FlexId]と値への参照を返す。
+    /// 範囲条件に一致する全ての値の[`FlexId`]と値への参照を返す。
     pub fn value_range<R: RangeBounds<V>>(
         &self,
         range: R,
@@ -326,7 +325,7 @@ where
                     self.value_index
                         .get(&rank)
                         .into_iter()
-                        .flat_map(|set| set.iter())
+                        .flat_map(super::set::SpatialIdSet::iter)
                         .map(move |flex_id| (flex_id, val))
                 })
                 .collect();
@@ -349,7 +348,7 @@ where
         self.inner.is_empty()
     }
 
-    /// テーブルに保持されている全ての[FlexId]と値への参照のペアを返します。
+    /// テーブルに保持されている全ての[`FlexId`]と値への参照のペアを返します。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter().map(move |(flex_id, rank)| {
             let value = self

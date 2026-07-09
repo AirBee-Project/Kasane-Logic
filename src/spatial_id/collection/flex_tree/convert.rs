@@ -19,7 +19,7 @@ where
     pub stack: Vec<(&'a super::node::Node<V>, FlexId)>,
 }
 
-impl<'a, V> Iterator for LeavesIter<'a, V>
+impl<V> Iterator for LeavesIter<'_, V>
 where
     V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {

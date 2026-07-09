@@ -17,7 +17,7 @@ pub(crate) mod ptr;
 pub mod shard;
 use ptr::SharedNode;
 
-/// 拡張空間IDとそれに紐づいたValueを保存するための型
+/// `拡張空間IDとそれに紐づいたValueを保存するための型`
 #[derive(Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
@@ -81,7 +81,7 @@ impl<V> FlexTree<V>
 where
     V: crate::spatial_id::collection::flex_tree::ptr::SafeValue,
 {
-    /// 新しい空の[FlexTree]を作成する
+    /// 新しい空の[`FlexTree`]を作成する
     pub fn new() -> Self {
         let empty_leaf = SharedNode::new(Node::Leaf { value: None });
         Self {
@@ -92,7 +92,7 @@ where
         }
     }
 
-    /// シャード領域 `region` に閉じた空の[FlexTree]を作成する。以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    /// シャード領域 `region` に閉じた空の[`FlexTree`]を作成する。以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         let mut core = Self::new();
         core.shard = Some(region);
@@ -192,7 +192,7 @@ where
         Some(lower.max(upper))
     }
 
-    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    /// この集合が値を持つ全セルを包む最小の[`RangeId`]を返します。
     /// # 例
     /// ```ignore
     /// # use kasane_logic::{spatial_id::collection::tree::FlexTree, SingleId};
@@ -252,7 +252,7 @@ where
         })
     }
 
-    /// [FlexTree]からtargetと重なりがある[FlexId]とそのValueへの参照を全て取り出す。
+    /// [`FlexTree`]からtargetと重なりがある[`FlexId`]とそのValueへの参照を全て取り出す。
     pub fn get_ref<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: IterFlexIds + 'a,
@@ -268,7 +268,7 @@ where
         })
     }
 
-    /// [FlexTree]に空間IDを挿入する。
+    /// [`FlexTree`]に空間IDを挿入する。
     ///
     /// # Panics
     ///
@@ -278,9 +278,10 @@ where
         S: IterFlexIds,
     {
         for flex_id in target.iter_flex_ids() {
-            if !flex_id.temporal().is_whole() {
-                panic!("FlexTree does not support temporal IDs.");
-            }
+            assert!(
+                flex_id.temporal().is_whole(),
+                "FlexTree does not support temporal IDs."
+            );
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {
                 Some(region) => match flex_id.intersection(region) {
@@ -293,7 +294,7 @@ where
         }
     }
 
-    /// [FlexTree]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
+    /// [`FlexTree`]からtargetと重なりがある[`FlexId`]とそのValueを全て取り出す
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
         S: IterFlexIds + 'a,
@@ -309,7 +310,7 @@ where
         })
     }
 
-    /// [FlexTree]からTargetが示す領域を削除して、返す。
+    /// [`FlexTree`]からTargetが示す領域を削除して、返す。
     pub fn remove<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
     where
         S: IterFlexIds,
@@ -431,14 +432,14 @@ where
         results.into_iter()
     }
 
-    /// [FlexTree]から全ての[FlexId]とValueを取り出す
+    /// [`FlexTree`]から全ての[`FlexId`]とValueを取り出す
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
         LeavesIter {
             stack: self.root_node_stack(),
         }
     }
 
-    /// [FlexTree]から全ての[FlexId]とValueへの参照を取り出す。
+    /// [`FlexTree`]から全ての[`FlexId`]とValueへの参照を取り出す。
     pub fn iter_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         LeavesIterRef {
             stack: self.root_node_stack(),

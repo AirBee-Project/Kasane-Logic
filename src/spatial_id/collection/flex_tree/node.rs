@@ -60,9 +60,9 @@ where
     }
 
     /// このノードを `node_level`（自身の絶対ツリーレベル）に置いたときの、配下の値付き Leaf の
-    /// FlexId ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
+    /// `FlexId` ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
     ///
-    /// ツリーレベル `L` の Leaf が持つ FlexId のズームは `max(f, x, y) = ceil(L / 3)` に等しい
+    /// ツリーレベル `L` の Leaf が持つ `FlexId` のズームは `max(f, x, y) = ceil(L / 3)` に等しい
     /// （[`completely_covers`](Self::completely_covers) の式と整合）。値の無い Leaf は 0 を返す。
     pub(crate) fn max_zoom_at(&self, node_level: u8) -> u8 {
         match self {
@@ -96,7 +96,7 @@ where
         level / 3
     }
 
-    /// FlexId の指定次元に対するズームレベルを返す
+    /// `FlexId` の指定次元に対するズームレベルを返す
     fn target_zoom(axis: Dimension, target: &FlexId) -> u8 {
         match axis {
             Dimension::F => target.f_zoomlevel(),
@@ -222,10 +222,10 @@ where
                 } else {
                     match Self::forking(target, *l) {
                         Side::Lower => {
-                            Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf)
+                            Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf);
                         }
                         Side::Upper => {
-                            Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf)
+                            Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf);
                         }
                     }
                 }

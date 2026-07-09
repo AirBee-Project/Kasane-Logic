@@ -1,8 +1,6 @@
 use alloc::string::String;
 
 use core::{f64::consts::PI, fmt};
-/// Scale an inclusive range `[start, end]` by `scale` for children calculation.
-/// For integer types, result is `[start*scale, end*scale + scale - 1]`
 pub fn scale_range_i32(start: i32, end: i32, scale: i32) -> [i32; 2] {
     [
         start.saturating_mul(scale),
@@ -19,23 +17,23 @@ pub fn scale_range_u32(start: u32, end: u32, scale: u32) -> [u32; 2] {
 
 /// 経度 (longitude) を返す（実数 x 対応）
 ///
-/// x: 水平方向のタイル/セル座標（連続値）  
+/// x: 水平方向のタイル/セル座標（連続値）\
 /// z: ズームレベル  
 ///
 /// セル番号 x の左端なら x、中心なら x+0.5 を渡せる。
 pub fn longitude(x: f64, z: u8) -> f64 {
-    let n = libm::pow(2_f64, (z as i32) as f64);
+    let n = libm::pow(2_f64, f64::from(i32::from(z)));
     360.0 * (x / n) - 180.0
 }
 
 /// 緯度 (latitude) を返す（Web Mercator の逆変換, 実数 y 対応）
 ///
-/// y: 垂直方向のタイル/セル座標（連続値）  
+/// y: 垂直方向のタイル/セル座標（連続値）\
 /// z: ズームレベル  
 ///
 /// 公式: lat = atan( sinh( π * (1 - 2*y/n) ) )
 pub fn latitude(y: f64, z: u8) -> f64 {
-    let n = libm::pow(2_f64, (z as i32) as f64);
+    let n = libm::pow(2_f64, f64::from(i32::from(z)));
     let t = PI * (1.0 - 2.0 * (y / n));
     let lat_rad = libm::atan(libm::sinh(t));
     lat_rad.to_degrees()
@@ -43,11 +41,11 @@ pub fn latitude(y: f64, z: u8) -> f64 {
 
 /// 高度 (altitude) を返す（実数 f 対応）
 ///
-/// f: 高度方向 index（連続値）  
+/// f: 高度方向 index（連続値）\
 /// z: ズームレベル  
 ///
 pub fn altitude(f: f64, z: u8) -> f64 {
-    let n = libm::pow(2_f64, (z as i32) as f64);
+    let n = libm::pow(2_f64, f64::from(i32::from(z)));
     33_554_432.0 * (f / n)
 }
 
@@ -60,8 +58,8 @@ pub enum Dimension {
     Y = 2,
 }
 
-/// 座標軸で小さい側:[Side::Lower]
-/// 座標軸で大きい側:[Side::Upper]
+/// 座標軸で小さい側:[`Side::Lower`]
+/// 座標軸で大きい側:[`Side::Upper`]
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(C)]
 pub enum Side {
@@ -72,7 +70,7 @@ pub enum Side {
 }
 
 ///次元の区間表記の文字列を圧縮するための関数
-pub fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> String {
+pub fn format_dimension<T: PartialEq + fmt::Display>(dimension: &[T; 2]) -> String {
     if dimension[0] == dimension[1] {
         format!("{}", dimension[0])
     } else {

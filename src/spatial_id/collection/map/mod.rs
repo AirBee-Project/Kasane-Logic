@@ -28,7 +28,7 @@ where
         }
     }
 
-    /// シャード領域 `region` に閉じた空の[SpatialIdMap]を作成する。
+    /// シャード領域 `region` に閉じた空の[`SpatialIdMap`]を作成する。
     ///
     /// 以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
@@ -92,7 +92,7 @@ where
         self.inner.neighbors_share_face(target)
     }
 
-    /// 保持している[FlexId]の総数を返します。
+    /// 保持している[`FlexId`]の総数を返します。
     pub fn count(&self) -> usize {
         self.inner.count()
     }
@@ -102,7 +102,7 @@ where
         self.inner.max_zoomlevel()
     }
 
-    /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
+    /// 最下層の[`SingleId`]レベルまで展開したイテレータを参照付きで返します。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |(flex_id, value)| {

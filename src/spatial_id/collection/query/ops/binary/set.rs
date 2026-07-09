@@ -6,12 +6,12 @@ use crate::{BinaryOperator, CellValue, ConflictPolicy, Error, SpatialIdCollectio
 /// 和集合（A ∪ B）を行う二項演算。
 ///
 /// # 計算内容
-/// - AとBが両方存在する場合は[ConflictPolicy]に従って合成する。
+/// - AとBが両方存在する場合は[`ConflictPolicy`]に従って合成する。
 /// - Aのみの場合はAが残る。
 /// - Bのみの場合はBが残る。
 ///
 /// # 性質
-/// - 可換性：[ConflictPolicy::Min]か[ConflictPolicy::Max]の場合に可換
+/// - 可換性：[`ConflictPolicy::Min`]か[`ConflictPolicy::Max`]の場合に可換
 pub struct Union;
 
 impl<V: CellValue> BinaryOperator<V, V> for Union {
@@ -38,11 +38,11 @@ impl<V: CellValue> BinaryOperator<V, V> for Union {
 /// 積集合（A ∩ B）を行う二項演算。
 ///
 /// # 計算内容
-/// - AとBが両方存在する場合は[ConflictPolicy]に従って合成する。
+/// - AとBが両方存在する場合は[`ConflictPolicy`]に従って合成する。
 /// - どちらかが存在しない場合はNoneとなる。
 ///
 /// # 性質
-/// - 可換性：[ConflictPolicy::Min]か[ConflictPolicy::Max]の場合に可換
+/// - 可換性：[`ConflictPolicy::Min`]か[`ConflictPolicy::Max`]の場合に可換
 pub struct Intersection;
 
 impl<V: CellValue> BinaryOperator<V, V> for Intersection {
@@ -99,7 +99,7 @@ impl<A: CellValue, B: CellValue> BinaryOperator<A, B> for Difference {
 /// 対称差（A △ B）を行う二項演算。
 ///
 /// # 計算内容
-/// - AとBが両方存在する場合はNoneにする。
+/// - `AとBが両方存在する場合はNoneにする`。
 /// - Aのみの場合はAが残る。
 /// - Bのみの場合はBが残る。
 ///
@@ -131,7 +131,7 @@ impl<V: CellValue> BinaryOperator<V, V> for SymmetricDifference {
 /// マスク（AをBの存在範囲で切り取る）二項演算。
 ///
 /// # 計算内容
-/// - Bに値が存在する部分をNoneにしたAを返す。
+/// - `Bに値が存在する部分をNoneにしたAを返す`。
 ///
 /// # 性質
 /// - 可換性：非可換

@@ -16,7 +16,7 @@ where
         let mut reuslt = self;
 
         for rule in rules {
-            reuslt = rule(reuslt)
+            reuslt = rule(reuslt);
         }
 
         reuslt

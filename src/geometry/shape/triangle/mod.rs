@@ -43,7 +43,7 @@ impl Triangle {
     }
 
     pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
-        let steps_f = steps as f64;
+        let steps_f = f64::from(steps);
         let p0: Ecef = self.points[0].into();
         let p1: Ecef = self.points[1].into();
         let p2: Ecef = self.points[2].into();
@@ -66,7 +66,7 @@ impl Triangle {
             .scan(
                 (initial_row, current_row_buf),
                 move |(prev_row, current_row), i| {
-                    let i_f = i as f64;
+                    let i_f = f64::from(i);
 
                     // バッファをクリアして再利用（メモリ割り当てが発生しない）
                     current_row.clear();
@@ -80,7 +80,7 @@ impl Triangle {
 
                     // [最適化1] 頂点の「生成時」にのみ1回だけ型変換を行う
                     for j in 0..=i {
-                        let j_f = j as f64;
+                        let j_f = f64::from(j);
                         let ecef = Ecef::new(
                             start_x + step_x * j_f,
                             start_y + step_y * j_f,
@@ -112,12 +112,12 @@ impl Triangle {
                     Some(row_triangles)
                 },
             )
-            .flat_map(|triangles| triangles.into_iter());
+            .flat_map(std::iter::IntoIterator::into_iter);
 
         Ok(iter)
     }
 
-    ///[SingleId]の集合へ変換を行います。
+    ///[`SingleId`]の集合へ変換を行います。
     pub fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let points: [Vec3FractionalId; 3] = [
             Vec3FractionalId::from(self.points[0].fractional_id(z)?),
@@ -154,9 +154,9 @@ impl Triangle {
                     let mut sign_before = true;
                     for (i, pattern) in eight_patterns.iter().enumerate() {
                         let vec_p = Vec3FractionalId::new(
-                            f as f64 + pattern.a() - points[0].a(),
-                            x as f64 + pattern.b() - points[0].b(),
-                            y as f64 + pattern.c() - points[0].c(),
+                            f64::from(f) + pattern.a() - points[0].a(),
+                            f64::from(x) + pattern.b() - points[0].b(),
+                            f64::from(y) + pattern.c() - points[0].c(),
                         );
                         let sign = n.dot(&vec_p).is_sign_positive();
                         if i == 0 || sign_before == sign {
@@ -164,9 +164,9 @@ impl Triangle {
                         } else {
                             for pattern in eight_patterns {
                                 let cp = Vec3FractionalId::new(
-                                    f as f64 + pattern.a(),
-                                    x as f64 + pattern.b(),
-                                    y as f64 + pattern.c(),
+                                    f64::from(f) + pattern.a(),
+                                    f64::from(x) + pattern.b(),
+                                    f64::from(y) + pattern.c(),
                                 );
                                 let rel_p0 = cp - points[0];
                                 let rel_p1 = cp - points[1];

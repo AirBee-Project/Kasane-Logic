@@ -93,7 +93,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner.is_empty()
     }
 
-    /// 保持している[TemporalId]の個数を返す
+    /// 保持している[`TemporalId`]の個数を返す
     pub(crate) fn count(&self) -> usize {
         self.inner.iter_ref().map(|(_, tv)| tv.len()).sum()
     }

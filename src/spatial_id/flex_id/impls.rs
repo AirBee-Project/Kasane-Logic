@@ -25,7 +25,7 @@ impl fmt::Display for FlexId {
         //時間の情報があれば書き込み
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
-        };
+        }
         Ok(())
     }
 }
@@ -68,8 +68,8 @@ impl SpatialId for FlexId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = self.x_max() as i64 + 1;
-        let new = (self.x_index as i64 + by as i64).rem_euclid(max_len);
+        let max_len = i64::from(self.x_max()) + 1;
+        let new = (i64::from(self.x_index) + i64::from(by)).rem_euclid(max_len);
         self.x_index = new as u32;
     }
 
@@ -104,7 +104,7 @@ impl SpatialId for FlexId {
     }
 
     fn length_f_meters(&self) -> f64 {
-        libm::pow(2_f64, (25 - self.f_zoomlevel() as i32) as f64)
+        libm::pow(2_f64, f64::from(25 - i32::from(self.f_zoomlevel())))
     }
 
     fn length_x_meters(&self) -> f64 {
@@ -121,17 +121,17 @@ impl SpatialId for FlexId {
 
     fn spatial_center(&self) -> crate::Coordinate {
         Coordinate::new(
-            helpers::latitude(self.y_index as f64 + 0.5, self.y_zoomlevel.get()),
-            helpers::longitude(self.x_index as f64 + 0.5, self.x_zoomlevel.get()),
-            helpers::altitude(self.f_index as f64 + 0.5, self.f_zoomlevel.get()),
+            helpers::latitude(f64::from(self.y_index) + 0.5, self.y_zoomlevel.get()),
+            helpers::longitude(f64::from(self.x_index) + 0.5, self.x_zoomlevel.get()),
+            helpers::altitude(f64::from(self.f_index) + 0.5, self.f_zoomlevel.get()),
         )
         .unwrap()
     }
 
     fn spatial_vertices(&self) -> [crate::Coordinate; 8] {
-        let xs = [self.x_index as f64, self.x_index as f64 + 1.0];
-        let ys = [self.y_index as f64, self.y_index as f64 + 1.0];
-        let fs = [self.f_index as f64, self.f_index as f64 + 1.0];
+        let xs = [f64::from(self.x_index), f64::from(self.x_index) + 1.0];
+        let ys = [f64::from(self.y_index), f64::from(self.y_index) + 1.0];
+        let fs = [f64::from(self.f_index), f64::from(self.f_index) + 1.0];
 
         // 各端点の値を前計算しておく
         let lon2 = [

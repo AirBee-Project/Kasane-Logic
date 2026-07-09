@@ -43,7 +43,7 @@ impl<'a> IntoIterator for &'a TemporalSet {
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.0.iter().map(|(t, _)| t))
+        Box::new(self.0.iter().map(|(t, ())| t))
     }
 }
 
@@ -52,6 +52,6 @@ impl IntoIterator for TemporalSet {
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Box::new(self.0.into_iter().map(|(t, _)| t))
+        Box::new(self.0.into_iter().map(|(t, ())| t))
     }
 }

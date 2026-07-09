@@ -38,12 +38,11 @@ impl SingleId {
     pub fn difference(&self, other: &Self) -> impl Iterator<Item = Self> {
         let mut results = Vec::new();
 
-        let intersect = match self.intersection(other) {
-            Some(i) => i,
-            None => {
-                results.push(self.clone());
-                return results.into_iter();
-            }
+        let intersect = if let Some(i) = self.intersection(other) {
+            i
+        } else {
+            results.push(self.clone());
+            return results.into_iter();
         };
 
         if self == &intersect {
@@ -85,7 +84,7 @@ impl SingleId {
     /// * `other` - 交差判定する相手の [`SingleId`] である。
     ///
     /// # 動作コスト
-    /// 各辺（F、X、Y）ごとに1次元での区間の重なりを計算し、全次元で重なりがあればその交差部分からなる空間ID（[SingleId]）を返す。
+    /// 各辺（F、X、Y）ごとに1次元での区間の重なりを計算し、全次元で重なりがあればその交差部分からなる空間ID（[`SingleId`]）を返す。
     /// 時間軸の判定は [`crate::TemporalId::intersection`] の計算量に従う。
     ///
     /// # 動作例

@@ -22,13 +22,15 @@ impl CoverSingleIds for Line {
         let dz = ecef_a.z() - ecef_b.z();
         let distance = libm::sqrt(dx * dx + dy * dy + dz * dz);
         let (v1, v2) = (a.single_id(z)?, b.single_id(z)?);
-        let diff = ((v1.f() - v2.f()).abs()
-            + (v1.x() as i32 - v2.x() as i32).abs()
-            + (v1.y() as i32 - v2.y() as i32).abs()) as f64;
+        let diff = f64::from(
+            (v1.f() - v2.f()).abs()
+                + (v1.x() as i32 - v2.x() as i32).abs()
+                + (v1.y() as i32 - v2.y() as i32).abs(),
+        );
         let devide_num = 5 + libm::floor(diff / 120.0 + distance / 2000.0) as u16;
         let mut coordinates = Vec::with_capacity(devide_num as usize + 1);
         for i in 0..=devide_num {
-            let t = i as f64 / devide_num as f64;
+            let t = f64::from(i) / f64::from(devide_num);
             let x = ecef_a.x() * (1.0 - t) + ecef_b.x() * t;
             let y = ecef_a.y() * (1.0 - t) + ecef_b.y() * t;
             let z_pos = ecef_a.z() * (1.0 - t) + ecef_b.z() * t;
@@ -48,7 +50,7 @@ impl CoverSingleIds for Line {
     }
 }
 
-///DDAを用いたLine関数
+///`DDAを用いたLine関数`
 fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
     let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
     let z = zoom.get();
@@ -87,15 +89,15 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     let i2 = libm::floor(vp2[max_flag]) as i32;
     let j2 = libm::floor(vp2[other_flag_1]) as i32;
     let k2 = libm::floor(vp2[other_flag_2]) as i32;
-    let d_o1 = if vp2[other_flag_1] != vp1[other_flag_1] {
+    let d_o1 = if vp2[other_flag_1] == vp1[other_flag_1] {
+        f64::INFINITY
+    } else {
         d_total[max_flag] / d_total[other_flag_1]
-    } else {
-        f64::INFINITY
     };
-    let d_o2 = if vp2[other_flag_2] != vp1[other_flag_2] {
-        d_total[max_flag] / d_total[other_flag_2]
-    } else {
+    let d_o2 = if vp2[other_flag_2] == vp1[other_flag_2] {
         f64::INFINITY
+    } else {
+        d_total[max_flag] / d_total[other_flag_2]
     };
     let tm = if i2 > i1 {
         1.0 - vp1[max_flag] + libm::floor(vp1[max_flag])
@@ -137,8 +139,8 @@ fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = 
     )
     .unwrap();
     let iter = core::iter::once(first).chain((1..=max_steps).map(move |_| {
-        let min_wall = (tm_int as f64).min(to1).min(to2);
-        if min_wall == tm_int as f64 {
+        let min_wall = f64::from(tm_int).min(to1).min(to2);
+        if min_wall == f64::from(tm_int) {
             tm_int += 1;
             current[0] += sign_i;
         } else if min_wall == to1 {
@@ -165,10 +167,10 @@ fn coordinate_to_matrix(p: Coordinate, z: u8) -> [f64; 3] {
     let alt = p.altitude();
 
     // 空間idの高さはz=25でちょうど1mになるように定義されている
-    let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
+    let factor = libm::pow(2_f64, f64::from(i32::from(z) - 25));
     let f = factor * alt;
 
-    let n = 2u64.pow(z as u32) as f64;
+    let n = 2u64.pow(u32::from(z)) as f64;
     let x = (lon + 180.0) / 360.0 * n;
 
     let lat_rad = lat.to_radians();

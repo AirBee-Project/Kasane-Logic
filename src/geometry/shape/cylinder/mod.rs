@@ -45,7 +45,7 @@ impl Cylinder {
         let divide_num = 100_u32;
         let vertices: Vec<_> = (0..divide_num)
             .map(|i| {
-                let theta = 2.0 * PI * i as f64 / divide_num as f64;
+                let theta = 2.0 * PI * f64::from(i) / f64::from(divide_num);
                 let v = basis[0].scale(libm::cos(theta)) + basis[1].scale(libm::sin(theta));
                 [vecs[0] + v, vecs[1] + v]
             })

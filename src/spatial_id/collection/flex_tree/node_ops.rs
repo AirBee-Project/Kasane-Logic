@@ -53,7 +53,7 @@ where
     fn a_only(a: &V) -> Option<V>;
     /// b のみ値があるとき。
     fn b_only(b: &V) -> Option<V>;
-    /// a と b が同一部分木（ptr_eq）のときの結果。
+    /// a と b `が同一部分木（ptr_eq）のときの結果`。
     /// union/intersection は a をそのまま、difference は空。
     fn on_identical(
         a: &SharedNode<Node<V>>,
@@ -173,7 +173,7 @@ where
         unreachable!();
     }
 
-    /// 値から葉ノードを作る（`None` は共有 empty_leaf）。
+    /// 値から葉ノードを作る（`None` は共有 `empty_leaf`）。
     fn leaf_of(v: Option<V>, empty_leaf: &SharedNode<Node<V>>) -> SharedNode<Node<V>> {
         match v {
             None => empty_leaf.clone(),

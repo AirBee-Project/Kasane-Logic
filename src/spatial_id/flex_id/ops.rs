@@ -31,8 +31,8 @@ impl FlexId {
         DifferenceClippedIter::new(clipped, other)
     }
 
-    /// 相手の[FlexId]との差集合（self - other）を計算し、イテレータとして返します。
-    /// 空間と時間の両方を考慮し、相手にくり抜かれた「残りの領域」を過不足なく細かい FlexId に分割して返します。
+    /// 相手の[`FlexId`]との差集合（self - other）を計算し、イテレータとして返します。
+    /// 空間と時間の両方を考慮し、相手にくり抜かれた「残りの領域」を過不足なく細かい `FlexId` に分割して返します。
     ///
     /// 時間の差分は約数鎖の最小分解で表されるため、時間 `WHOLE` のIDから有限時間の
     /// IDを引いても結果は高々数百セルに収まる（[`TemporalId::difference`] を参照）。
@@ -46,12 +46,11 @@ impl FlexId {
         let cap = f_steps + x_steps + y_steps + 8;
         let mut results = Vec::with_capacity(cap);
 
-        let intersect = match self.intersection(other) {
-            Some(i) => i,
-            None => {
-                results.push(self.clone());
-                return results.into_iter();
-            }
+        let intersect = if let Some(i) = self.intersection(other) {
+            i
+        } else {
+            results.push(self.clone());
+            return results.into_iter();
         };
 
         if self == &intersect {

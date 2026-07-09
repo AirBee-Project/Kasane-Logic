@@ -9,7 +9,7 @@ use crate::{Coordinate, FlexId, SingleId, TemporalId, error::Error};
 #[cfg(doc)]
 use crate::RangeId;
 
-/// [SingleId],[RangeId],[FlexId]が共通して持つTrait
+/// [`SingleId`],[`RangeId`],[`FlexId`]が共通して持つTrait
 pub trait SpatialId:
     IterFlexIds + IterSingleIds + Debug + Display + Clone + Eq + Hash + Ord + PartialOrd + FromStr
 {
@@ -174,22 +174,22 @@ pub trait SpatialId:
     fn temporal_mut(&mut self) -> &mut TemporalId;
 }
 
-/// [SingleId] の参照列を返せることを保証するトレイト。
+/// [`SingleId`] の参照列を返せることを保証するトレイト。
 pub trait IterSingleIds {
     type Iter<'a>: Iterator<Item = SingleId> + 'a
     where
         Self: 'a;
 
-    /// 参照から [SingleId] の列を列挙する。
+    /// 参照から [`SingleId`] の列を列挙する。
     fn iter_single_ids(&self) -> Self::Iter<'_>;
 }
 
-/// [FlexId] の参照列を返せることを保証するトレイト。
+/// [`FlexId`] の参照列を返せることを保証するトレイト。
 pub trait IterFlexIds {
     type Iter<'a>: Iterator<Item = FlexId> + 'a
     where
         Self: 'a;
 
-    /// 参照から [FlexId] の列を列挙する。
+    /// 参照から [`FlexId`] の列を列挙する。
     fn iter_flex_ids(&self) -> Self::Iter<'_>;
 }

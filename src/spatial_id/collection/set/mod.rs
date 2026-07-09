@@ -41,7 +41,7 @@ impl SpatialIdSet {
         SpatialIdSet::default()
     }
 
-    /// 限定的な領域に閉じた空の[SpatialIdSet]を作成する。
+    /// 限定的な領域に閉じた空の[`SpatialIdSet`]を作成する。
     /// `region` の内側だけを保持し、`region` の外側への操作は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         Self {
@@ -49,7 +49,7 @@ impl SpatialIdSet {
         }
     }
 
-    /// 集合に対して空間IDを挿入する。[SpatialId] Traitが実装されていれば挿入ができる。
+    /// 集合に対して空間IDを挿入する。[`SpatialId`] Traitが実装されていれば挿入ができる。
     /// 挿入した際に重なりがある空間IDが既に存在する場合は自動的に重なりを解消する。
     ///
     /// # Examples
@@ -84,13 +84,13 @@ impl SpatialIdSet {
     where
         S: SpatialId,
     {
-        self.inner.get(target).map(|(flex_id, _)| flex_id)
+        self.inner.get(target).map(|(flex_id, ())| flex_id)
     }
 
     /// 集合から指定した時空間IDと重なる部分を切り出して削除する。
     /// 削除した部分の時空間IDを返す。
     pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
-        self.inner.remove(target).map(|(flex_id, _)| flex_id)
+        self.inner.remove(target).map(|(flex_id, ())| flex_id)
     }
 
     /// 指定した空間IDと接触していたすべての空間IDを返す。
@@ -101,7 +101,7 @@ impl SpatialIdSet {
     {
         self.inner
             .get_overlapping(target)
-            .map(|(flex_id, _)| flex_id)
+            .map(|(flex_id, ())| flex_id)
     }
 
     /// 指定した空間IDと接触していたすべての空間IDを削除する。削除した時空間IDを返す。
@@ -110,7 +110,7 @@ impl SpatialIdSet {
     pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
         self.inner
             .remove_overlapping(target)
-            .map(|(flex_id, _)| flex_id)
+            .map(|(flex_id, ())| flex_id)
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返す。入力された空間ID自身と重なる空間IDは除外する。
@@ -121,21 +121,21 @@ impl SpatialIdSet {
     ) -> impl Iterator<Item = FlexId> + 'a {
         self.inner
             .neighbors_share_face(target)
-            .map(move |(flex_id, _)| flex_id)
+            .map(move |(flex_id, ())| flex_id)
     }
 
-    /// 集合の内部にある[FlexId]の個数を返す。
+    /// 集合の内部にある[`FlexId`]の個数を返す。
     pub fn count(&self) -> usize {
         self.inner.count()
     }
 
-    /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
+    /// 集合の内部にある全ての[`FlexId`]のうち、最大のズームレベル値を返す。
     /// 内部に空間IDが存在しない場合は[None]を返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
     }
 
-    /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
+    /// [`SpatialIdSet`]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
         let max_zoomlevel = self.max_zoomlevel().unwrap_or(0);
         self.iter().flat_map(move |flex_id| {
@@ -151,7 +151,7 @@ impl SpatialIdSet {
         })
     }
 
-    /// [SpatialIdSet]の内部の空間IDを全て削除します。
+    /// [`SpatialIdSet`]の内部の空間IDを全て削除します。
     pub fn clear(&mut self) {
         self.inner.clear();
     }
@@ -161,14 +161,14 @@ impl SpatialIdSet {
         self.inner.root_ptr_eq(&other.inner)
     }
 
-    /// [SpatialIdSet]の内部が空かどうかを判定します。
+    /// [`SpatialIdSet`]の内部が空かどうかを判定します。
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    /// 保持している全ての[FlexId]を返す。
+    /// 保持している全ての[`FlexId`]を返す。
     pub fn iter(&self) -> impl Iterator<Item = FlexId> + '_ {
-        self.inner.iter().map(|(flex_id, _)| flex_id)
+        self.inner.iter().map(|(flex_id, ())| flex_id)
     }
 
     /// この [`SpatialIdSet`] を rkyv バイト列へ直列化する（`feature = "persist"`）。

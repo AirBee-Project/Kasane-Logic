@@ -52,7 +52,7 @@ impl TemporalSet {
 
     pub fn get(&self, target: TemporalId) -> impl Iterator<Item = TemporalId> + '_ {
         let (w0, w1) = (target.start_unixtime(), target.end_unixtime_exclusive());
-        self.0.ranges().iter().flat_map(move |(s, e, _)| {
+        self.0.ranges().iter().flat_map(move |(s, e, ())| {
             let cs = (*s).max(w0);
             let ce = (*e).min(w1);
             TemporalId::from_range(cs..ce).unwrap()
@@ -91,7 +91,7 @@ impl TemporalSet {
         Self(self.0.difference(&other.0))
     }
 
-    /// 保持する[TemporalId]の個数を返します。
+    /// 保持する[`TemporalId`]の個数を返します。
     pub fn len(&self) -> usize {
         self.0.len()
     }

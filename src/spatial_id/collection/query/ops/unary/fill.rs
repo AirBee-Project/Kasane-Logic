@@ -1,7 +1,5 @@
 use crate::spatial_id::collection::query::Query;
-use crate::{
-    CellValue, ConflictPolicy, Error, IterFlexIds, RangeId, SpatialIdCollection, UnaryOperator,
-};
+use crate::{CellValue, ConflictPolicy, Error, RangeId, SpatialIdCollection, UnaryOperator};
 
 /// 値を持つ領域を包む最小範囲の中で、まだ値が無いセルへ既定値を割り当てる演算。
 pub struct FillDefault;
@@ -20,7 +18,7 @@ impl<A: CellValue> UnaryOperator<A> for FillDefault {
         let defaults = bbox
             .as_ref()
             .into_iter()
-            .flat_map(|b| b.iter_flex_ids())
+            .flat_map(crate::spatial_id::traits::IterFlexIds::iter_flex_ids)
             .map(move |flex_id| (flex_id, default.clone()));
 
         Ok(O::from_cells(
