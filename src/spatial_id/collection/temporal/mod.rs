@@ -1,11 +1,9 @@
 pub(crate) mod combine;
-
 pub(crate) use combine::{TMapDifference, TMapIntersection, TMapOverwrite};
-
-use alloc::vec::Vec;
 
 use crate::spatial_id::collection::flex_tree::node_ops::Combine;
 use crate::{FlexId, FlexTree, SpatialId, TemporalSet};
+use alloc::vec::Vec;
 
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(
@@ -114,12 +112,6 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         self.inner.root_ptr_eq(&other.inner)
     }
 
-    // ── 挿入 ──────────────────────────────────────────────────────────────────
-
-    /// シャードを考慮して `flex_id` を挿入する汎用ロジック。
-    ///
-    /// - 全時間（WHOLE）の場合は `insert_flex_id` で直接置換する。
-    /// - それ以外は `InsertCombine` で既存の時間と合成する。
     pub(crate) fn insert_flex_id(&mut self, flex_id: FlexId, payload: V) {
         // シャード領域外は無視し、はみ出しは切り詰める。
         let flex_id = match self.inner.shard() {
@@ -133,13 +125,10 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         let spatial = flex_id.spatial_part();
 
         if temporal.is_whole() {
-            // 全時間は覆う領域を直接置換するだけで InsertCombine と同じ結果になる。
             let mut tm = crate::TemporalMap::new();
             tm.insert(&crate::TemporalId::WHOLE, payload);
             self.inner.insert_flex_id(spatial, tm);
         } else {
-            // 有限時間はインプレースで既存の時間マップへ後勝ちマージする。
-            // 使い捨て of 単一要素木 + combine_with を経由しないため定数倍が軽い。
             let mut tv = crate::TemporalMap::new();
             tv.insert(&temporal, payload);
             self.inner
@@ -147,11 +136,6 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         }
     }
 
-    // ── クエリ ────────────────────────────────────────────────────────────────
-
-    /// `target` と空間・時間の両方で交差する `(FlexId, &Payload)` を返す。
-    ///
-    /// 空間は `target` の範囲に切り取られ、時間は `target` の時間との交差が付く。
     pub(crate) fn get<'a, S: SpatialId>(
         &'a self,
         target: &'a S,
@@ -176,7 +160,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
             })
     }
 
-    /// `target` と空間・時間の両方で隣接（面共有）する葉を参照として返す。
+    /// `target` と空間・時間の両方で隣接する[FlexId]を参照として返す。
     pub(crate) fn neighbors_share_face<'a, S: SpatialId + 'a>(
         &'a self,
         target: &'a S,
@@ -190,9 +174,6 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
             })
     }
 
-    // ── 列挙 ──────────────────────────────────────────────────────────────────
-
-    /// 保持するすべての `(FlexId, &Payload)` を返す。
     pub(crate) fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter_ref().flat_map(|(spatial, tv)| {
             tv.iter()
@@ -200,12 +181,6 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         })
     }
 
-    // ── 削除 ──────────────────────────────────────────────────────────────────
-
-    /// `target` と空間・時間の両方で交差する部分を切り取り削除して返す。
-    ///
-    /// 空間的に重なる葉を取り出し、query の空間外の残余と query の時間外の残余を
-    /// 木へ戻す（外科的削除）。
     pub(crate) fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)> {
         let mut removed = Vec::new();
         for query in target.iter_flex_ids() {
@@ -214,11 +189,9 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
             let affected: Vec<(FlexId, crate::TemporalMap<V>)> =
                 self.inner.remove_overlapping(&q_spatial).collect();
             for (leaf, tv) in affected {
-                // query の空間外の残余はそのまま戻す。
                 for remnant in leaf.difference(&q_spatial) {
                     self.inner.insert_flex_id(remnant, tv.clone());
                 }
-                // 空間交差部は時間で分割する。
                 if let Some(inter) = leaf.intersection(&q_spatial) {
                     let kept = tv.subtract_time(&q_time);
                     if !kept.is_empty() {
@@ -233,10 +206,6 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         removed.into_iter()
     }
 
-    /// `target` と空間・時間の両方で交差する葉を削除して返す。
-    ///
-    /// `remove` とは異なり、空間的な残余の切り出しは行わず、交差した葉自体を取り除きます。
-    /// ただし、時間の残余（ターゲット時間外の部分）は同じ空間葉として木に戻されます。
     pub(crate) fn remove_overlapping<S: SpatialId>(
         &mut self,
         target: &S,
@@ -259,8 +228,6 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         }
         removed.into_iter()
     }
-
-    // ── シャード合成規則 ──────────────────────────────────────────────────────
 
     /// union のシャード合成規則。
     pub(crate) fn shard_for_union(a: &Self, b: &Self) -> Option<FlexId> {

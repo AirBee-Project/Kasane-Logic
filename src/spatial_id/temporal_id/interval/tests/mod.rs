@@ -56,7 +56,7 @@ fn chain_is_divisor_chain() {
             w[1]
         );
     }
-    // 最上段はドメイン全体
+    // 最上段は全体
     assert_eq!(chain[0], Interval::Whole);
     assert_eq!(Interval::Whole.seconds(), Interval::WHOLE_SECONDS);
 }

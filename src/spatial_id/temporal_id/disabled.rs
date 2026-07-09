@@ -39,7 +39,7 @@ impl TemporalId {
 
     /// 時間区間の終了時刻（排他的）をUNIXタイムスタンプで取得する。
     ///
-    /// `temporal_id` feature 無効時は常に時間ドメイン終端 [`Interval::WHOLE_SECONDS`] を返す。
+    /// `temporal_id` feature 無効時は常に時間終端 [`Interval::WHOLE_SECONDS`] を返す。
     pub fn end_unixtime_exclusive(&self) -> u64 {
         Interval::WHOLE_SECONDS
     }

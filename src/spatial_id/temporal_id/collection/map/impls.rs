@@ -1,4 +1,5 @@
 use crate::{ConflictPolicy, TemporalId, TemporalMap};
+use alloc::boxed::Box;
 
 impl<V: Clone + Ord> TemporalMap<V> {
     /// 和（both は `policy` で値解決、片側はそのまま）。

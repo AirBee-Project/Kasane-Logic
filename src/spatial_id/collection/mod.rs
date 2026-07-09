@@ -9,5 +9,5 @@ pub mod table;
 
 pub mod query;
 
-pub mod serde_impl;
+pub mod serde;
 pub mod traits;

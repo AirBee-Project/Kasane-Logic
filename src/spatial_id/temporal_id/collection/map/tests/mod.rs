@@ -2,7 +2,7 @@ use super::TemporalMap;
 use crate::{ConflictPolicy, TemporalId};
 use alloc::collections::BTreeMap;
 
-/// 秒 → 値 の写像へ展開（有界ドメイン）。
+/// 秒 → 値 の写像へ展開。
 fn secmap(m: &TemporalMap<i32>) -> BTreeMap<u64, i32> {
     let mut out = BTreeMap::new();
     for (s, e, v) in m.ranges_ref() {

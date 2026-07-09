@@ -3,7 +3,7 @@ use crate::{Interval, TemporalId};
 use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 
-/// 集合が覆う秒（有界ドメイン前提。WHOLE は使わない）。
+/// 集合が覆う秒。
 fn secs(set: &TemporalSet) -> BTreeSet<u64> {
     let mut s = BTreeSet::new();
     for (a, b) in set.ranges() {

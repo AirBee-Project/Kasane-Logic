@@ -63,7 +63,7 @@ pub enum SpatialIdError {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
 
-    /// 時間区間がドメイン `[0, Interval::WHOLE_SECONDS)` の外に出ることを示す。
+    /// 時間区間が `[0, Interval::WHOLE_SECONDS)` の外に出ることを示す。
     /// `i × (t + 1) <= WHOLE_SECONDS` を満たす必要がある。
     TOutOfRange { i: u64, t: u64 },
 
