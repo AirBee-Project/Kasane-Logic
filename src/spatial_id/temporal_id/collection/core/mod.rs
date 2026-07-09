@@ -32,6 +32,31 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         if s >= e {
             return;
         }
+
+        // Fast path: 時系列データなどの「末尾への追記」をO(1)で処理する
+        if let Some(last) = self.ranges.last_mut() {
+            if last.1 <= s {
+                if last.1 == s && last.2 == v {
+                    // 直前の区間と連続し、値も同じ場合は結合
+                    last.1 = e;
+                    self.cached_len += TemporalId::count_range(s..e);
+                    return;
+                }
+                if last.1 < s {
+                    // 隙間がある場合は単に追加
+                    self.ranges.push((s, e, v));
+                    self.cached_len += TemporalId::count_range(s..e);
+                    return;
+                }
+            }
+        } else {
+            // 空の場合は直接追加
+            self.ranges.push((s, e, v));
+            self.cached_len = TemporalId::count_range(s..e);
+            return;
+        }
+
+        // Slow path: O(N) スイープによる上書き合成（重なりがある場合など）
         let other = Self {
             ranges: alloc::vec![(s, e, v.clone())],
             cached_len: TemporalId::count_range(s..e),
@@ -60,102 +85,91 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
     }
 
     /// 境界イベント走査。各素区間 `[p, q)` について `self`/`other` の値を `combine` で合成する。
-    ///
-    /// 両列とも正規化済み（昇順）なので、境界点を昇順に処理しながら
-    /// 各列のカーソルを単調に進める（全体 O(n + m)、ソート不要）。
-    pub(crate) fn sweep<F>(&self, other: &Self, combine: F) -> Self
+    pub(crate) fn sweep<U, F>(&self, other: &TemporalCore<U>, mut combine: F) -> Self
     where
-        F: Fn(Option<&V>, Option<&V>) -> Option<V>,
+        F: FnMut(Option<&V>, Option<&U>) -> Option<V>,
     {
-        let (a, b) = (&self.ranges, &other.ranges);
-        let mut pts: Vec<u64> = Vec::with_capacity((a.len() + b.len()) * 2);
+        let a = &self.ranges;
+        let b = &other.ranges;
+        let mut out: Vec<(u64, u64, V)> = Vec::with_capacity(a.len() + b.len());
 
-        let (mut ia, mut ib) = (0, 0);
-        let mut add_pt = |p: u64| {
-            if pts.last() != Some(&p) {
-                pts.push(p);
-            }
+        let mut ia = 0;
+        let mut ib = 0;
+
+        // 最初のイベント時刻（探索開始地点）を決定
+        let mut cur = match (a.first(), b.first()) {
+            (Some(x), Some(y)) => x.0.min(y.0),
+            (Some(x), None) => x.0,
+            (None, Some(y)) => y.0,
+            (None, None) => return Self::new(),
         };
 
-        while ia < a.len() * 2 && ib < b.len() * 2 {
-            let pa = if ia % 2 == 0 {
-                a[ia / 2].0
+        while ia < a.len() || ib < b.len() {
+            // cur時点での a の状態（値と次の変化が起きる時刻）を判定
+            let (a_val, next_a) = if ia < a.len() {
+                if cur < a[ia].0 {
+                    (None, a[ia].0) // 空隙にいる
+                } else {
+                    (Some(&a[ia].2), a[ia].1) // 区間内にいる
+                }
             } else {
-                a[ia / 2].1
+                (None, u64::MAX) // 枯渇
             };
-            let pb = if ib % 2 == 0 {
-                b[ib / 2].0
+
+            // cur時点での b の状態を判定
+            let (b_val, next_b) = if ib < b.len() {
+                if cur < b[ib].0 {
+                    (None, b[ib].0)
+                } else {
+                    (Some(&b[ib].2), b[ib].1)
+                }
             } else {
-                b[ib / 2].1
+                (None, u64::MAX)
             };
-            if pa < pb {
-                add_pt(pa);
+
+            // 次のイベント（区間の切り替わり）は a と b の次時刻の小さい方
+            let next_event = next_a.min(next_b);
+
+            // この微小な区間 [cur, next_event) に対して値を合成
+            if let Some(v) = combine(a_val, b_val) {
+                if let Some(last) = out.last_mut() {
+                    if last.1 == cur && last.2 == v {
+                        // 直前の区間と連続し、値も同じならマージする
+                        last.1 = next_event;
+                    } else if cur < next_event {
+                        out.push((cur, next_event, v));
+                    }
+                } else if cur < next_event {
+                    out.push((cur, next_event, v));
+                }
+            }
+
+            // 時刻を次のイベントへ進める
+            cur = next_event;
+
+            // 区間の終端を過ぎたらインデックスを進める
+            if ia < a.len() && cur == a[ia].1 {
                 ia += 1;
-            } else if pb < pa {
-                add_pt(pb);
-                ib += 1;
-            } else {
-                add_pt(pa);
-                ia += 1;
+            }
+            if ib < b.len() && cur == b[ib].1 {
                 ib += 1;
             }
-        }
-        while ia < a.len() * 2 {
-            let pa = if ia % 2 == 0 {
-                a[ia / 2].0
-            } else {
-                a[ia / 2].1
-            };
-            add_pt(pa);
-            ia += 1;
-        }
-        while ib < b.len() * 2 {
-            let pb = if ib % 2 == 0 {
-                b[ib / 2].0
-            } else {
-                b[ib / 2].1
-            };
-            add_pt(pb);
-            ib += 1;
         }
 
-        let (mut ia, mut ib) = (0usize, 0usize);
-        let mut out: Vec<(u64, u64, V)> = Vec::new();
-        for w in pts.windows(2) {
-            let (p, q) = (w[0], w[1]);
-            while ia < a.len() && a[ia].1 <= p {
-                ia += 1;
-            }
-            while ib < b.len() && b[ib].1 <= p {
-                ib += 1;
-            }
-            let av = (ia < a.len() && a[ia].0 <= p).then(|| &a[ia].2);
-            let bv = (ib < b.len() && b[ib].0 <= p).then(|| &b[ib].2);
-            if let Some(v) = combine(av, bv) {
-                if let Some(last) = out.last_mut()
-                    && last.1 == p
-                    && last.2 == v
-                {
-                    last.1 = q;
-                    continue;
-                }
-                out.push((p, q, v));
-            }
-        }
         let cached_len = out
             .iter()
             .map(|(s, e, _)| TemporalId::count_range(*s..*e))
             .sum();
+
         Self {
             ranges: out,
             cached_len,
         }
     }
-
     /// 差集合 `self - other`（時間で other を除く。値は self 由来）。
     pub(crate) fn difference(&self, other: &Self) -> Self {
         self.sweep(other, |a, b| match (a, b) {
-            (Some(a), None) => Some(a.clone()),
+            (Some(a_val), None) => Some(a_val.clone()),
             _ => None,
         })
     }
@@ -167,72 +181,18 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
 
     /// 時間窓 `window`（値なしの区間列）に含まれる時間だけを残す（値は self 由来）。
     pub(crate) fn intersect_time(&self, window: &TemporalCore<()>) -> Self {
-        let iv = &window.ranges;
-        let mut out = Vec::new();
-        let mut j = 0usize;
-        for (s, e, v) in &self.ranges {
-            while j < iv.len() && iv[j].1 <= *s {
-                j += 1;
-            }
-            let mut k = j;
-            while k < iv.len() && iv[k].0 < *e {
-                let cs = (*s).max(iv[k].0);
-                let ce = (*e).min(iv[k].1);
-                if cs < ce {
-                    out.push((cs, ce, v.clone()));
-                }
-                if iv[k].1 >= *e {
-                    break;
-                }
-                k += 1;
-            }
-        }
-        let cached_len = out
-            .iter()
-            .map(|(s, e, _)| TemporalId::count_range(*s..*e))
-            .sum();
-        Self {
-            ranges: out,
-            cached_len,
-        }
+        self.sweep(window, |a, b| match (a, b) {
+            (Some(a_val), Some(_)) => Some(a_val.clone()),
+            _ => None,
+        })
     }
 
-    ///  `window`に含まれる時間を取り除く。
+    /// `window`に含まれる時間を取り除く。
     pub(crate) fn subtract_time(&self, window: &TemporalCore<()>) -> Self {
-        let iv = &window.ranges;
-        let mut out = Vec::new();
-        let mut j = 0usize;
-        for (s, e, v) in &self.ranges {
-            let mut cur = *s;
-            while j < iv.len() && iv[j].1 <= cur {
-                j += 1;
-            }
-            let mut k = j;
-            while k < iv.len() && iv[k].0 < *e {
-                let (b_s, b_e) = (iv[k].0, iv[k].1);
-                if b_s > cur {
-                    out.push((cur, b_s, v.clone()));
-                }
-                if b_e > cur {
-                    cur = b_e;
-                }
-                if cur >= *e {
-                    break;
-                }
-                k += 1;
-            }
-            if cur < *e {
-                out.push((cur, *e, v.clone()));
-            }
-        }
-        let cached_len = out
-            .iter()
-            .map(|(s, e, _)| TemporalId::count_range(*s..*e))
-            .sum();
-        Self {
-            ranges: out,
-            cached_len,
-        }
+        self.sweep(window, |a, b| match (a, b) {
+            (Some(a_val), None) => Some(a_val.clone()),
+            _ => None,
+        })
     }
 
     /// 保持する[`TemporalId`]の個数を返す。
