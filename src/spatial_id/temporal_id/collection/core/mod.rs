@@ -1,4 +1,5 @@
 use crate::{ConflictPolicy, TemporalId};
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]

@@ -464,6 +464,7 @@ fn count_should_count_temporal_cells() {
 /// - cells_ref() が毎回 Vec を作成するため、メモリ効率が悪い
 #[test]
 #[ignore]
+#[cfg(feature = "std")]
 fn scalability_performance_characteristics() {
     eprintln!("\n=== Scalability Analysis ===");
 
@@ -519,6 +520,7 @@ fn scalability_performance_characteristics() {
 /// TemporalMap は FlexTree と同様に、隣接同値セグメントを自動マージする。
 #[test]
 #[allow(clippy::len_zero)]
+#[cfg(feature = "std")]
 fn temporal_map_merges_adjacent_segments() {
     use crate::TemporalMap;
 
@@ -578,6 +580,7 @@ fn temporal_map_merges_adjacent_segments() {
 /// メモリ効率の問題を示すテスト。
 #[test]
 #[ignore]
+#[cfg(feature = "std")]
 fn memory_efficiency_concern() {
     // シナリオ: 同一空間セルで非常に多くのTemporalIdを持つ場合
     let mut set = SpatialIdSet::new();

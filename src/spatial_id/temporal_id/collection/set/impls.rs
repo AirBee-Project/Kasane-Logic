@@ -1,4 +1,5 @@
 use crate::{TemporalId, TemporalSet};
+use alloc::boxed::Box;
 use core::ops::{BitAnd, BitOr, Sub};
 
 impl From<&TemporalId> for TemporalSet {

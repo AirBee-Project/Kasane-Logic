@@ -66,7 +66,7 @@ impl TemporalSet {
 
     /// 正規化済み区間列 `[start, end)` を所有権付きで返す
     #[cfg(test)]
-    pub(crate) fn ranges(&self) -> Vec<(u64, u64)> {
+    pub(crate) fn ranges(&self) -> alloc::vec::Vec<(u64, u64)> {
         self.0.ranges().iter().map(|&(s, e, ())| (s, e)).collect()
     }
 

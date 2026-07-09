@@ -2,6 +2,7 @@ use crate::Interval;
 use crate::SingleId;
 use crate::TemporalId;
 use crate::{FlexId, RangeId};
+use alloc::string::ToString;
 use core::str::FromStr;
 pub mod domain;
 
