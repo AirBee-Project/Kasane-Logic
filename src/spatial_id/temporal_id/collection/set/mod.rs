@@ -54,7 +54,7 @@ impl TemporalSet {
         self.0.is_empty()
     }
 
-    /// 正規化済み区間列 `[start, end)` を所有権付きで返す（クレート内部・テスト用フック）。
+    /// 正規化済み区間列 `[start, end)` を所有権付きで返す
     #[cfg(test)]
     pub(crate) fn ranges(&self) -> Vec<(u64, u64)> {
         self.0.ranges().iter().map(|&(s, e, ())| (s, e)).collect()
@@ -81,7 +81,7 @@ impl TemporalSet {
         Self(self.0.difference(&other.0))
     }
 
-    /// 保持するTemporalIdの個数を返します。
+    /// 保持する[TemporalId]の個数を返します。
     pub fn len(&self) -> usize {
         self.0.len()
     }

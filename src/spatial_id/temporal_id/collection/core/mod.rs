@@ -43,7 +43,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         self.ranges.is_empty()
     }
 
-    /// 正規化済みセグメント列を借用で返す。
+    /// 正規化済みの時間範囲を借用で返す。
     pub(crate) fn ranges(&self) -> &[(u64, u64, V)] {
         &self.ranges
     }
@@ -196,7 +196,7 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         }
     }
 
-    /// 時間窓 `window`（値なしの区間列）に含まれる時間を取り除く（値は self 由来）。
+    ///  `window`に含まれる時間を取り除く。
     pub(crate) fn subtract_time(&self, window: &TemporalCore<()>) -> Self {
         let iv = &window.ranges;
         let mut out = Vec::new();
@@ -234,27 +234,23 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         }
     }
 
-    /// 保持する時間セルの総数を返します（O(1)）。
+    /// 保持する[TemporalId]の個数を返す。
     pub(crate) fn len(&self) -> usize {
         self.cached_len
     }
 
-    /// [`cells_ref`](Self::cells_ref) の遅延イテレータ版（中間 `Vec` を作らない）。
     pub(crate) fn iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
         self.ranges
             .iter()
             .flat_map(|(s, e, v)| TemporalId::from_range(*s..*e).unwrap().map(move |c| (c, v)))
     }
 
-    /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
     #[cfg_attr(not(any(test, feature = "persist")), allow(dead_code))]
     pub(crate) fn ranges_ref(&self) -> Vec<(u64, u64, &V)> {
         self.ranges.iter().map(|(s, e, v)| (*s, *e, v)).collect()
     }
 
-    /// 正規化済みセグメント列から直接構築する（永続化復元用の内部フック）。
-    ///
-    /// 呼び出し側は列が正規化済み（昇順・互いに素・隣接同値マージ済み）であることを保証すること。
+    /// 呼び出し側は列が正規化済みであることを保証すること。
     #[cfg(feature = "persist")]
     pub(crate) fn from_raw_ranges(ranges: Vec<(u64, u64, V)>) -> Self {
         let cached_len = ranges

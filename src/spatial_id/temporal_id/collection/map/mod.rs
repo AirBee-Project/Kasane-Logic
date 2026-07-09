@@ -57,12 +57,12 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         Self(self.0.overwrite(&other.0))
     }
 
-    /// 時間集合 `set` に含まれる時間だけを残す（値は self 由来）。
+    /// 時間集合 `set` に含まれる時間だけを残す。
     pub fn intersect_time(&self, set: &TemporalSet) -> Self {
         Self(self.0.intersect_time(&set.0))
     }
 
-    /// 時間集合 `set` に含まれる時間を取り除く（値は self 由来）。
+    /// 時間集合 `set` に含まれる時間を取り除く。
     pub fn subtract_time(&self, set: &TemporalSet) -> Self {
         Self(self.0.subtract_time(&set.0))
     }
@@ -72,7 +72,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.0.iter()
     }
 
-    /// `TemporalMap` のすべての時間セル（キー）を走査するイテレータを返します。
+    /// `TemporalMap` のすべての[TemporalId]を走査するイテレータを返します。
     pub fn temporal_ids(&self) -> impl Iterator<Item = TemporalId> + '_ {
         self.iter().map(|(t, _)| t)
     }
@@ -82,7 +82,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.iter().map(|(_, v)| v)
     }
 
-    /// 保持する時間セルの総数を返します（O(1)）。
+    /// 保持する[TemporalId]の個数を返します（O(1)）。
     pub fn len(&self) -> usize {
         self.0.len()
     }
