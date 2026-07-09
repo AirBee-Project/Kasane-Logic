@@ -54,4 +54,4 @@ macro_rules! impl_try_from_unsigned {
     };
 }
 
-impl_try_from_unsigned!(u8, u16, u32, u128, usize);
+impl_try_from_unsigned!(u8, u16, u32, u128, usize, i8, i16, i32, i128, isize);
