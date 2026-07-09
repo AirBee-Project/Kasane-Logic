@@ -2,6 +2,7 @@
 mod tests {
     use super::super::{TableEntry, build_table};
     use crate::{RangeId, SingleId};
+    use alloc::vec::Vec;
 
     fn assert_count_consistent(table: &crate::SpatialIdTable<i32>) {
         assert_eq!(table.count(), table.iter().count());

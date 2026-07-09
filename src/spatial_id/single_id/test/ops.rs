@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::SingleId;
+    use alloc::vec::Vec;
 
     #[test]
     fn intersection_returns_the_deeper_id_for_ancestor_descendant_pairs() {

@@ -1,5 +1,9 @@
 #[cfg(test)]
 use crate::IterSingleIds;
+#[cfg(test)]
+use alloc::string::String;
+#[cfg(test)]
+use alloc::vec::Vec;
 
 pub mod corner_cases;
 pub mod count;

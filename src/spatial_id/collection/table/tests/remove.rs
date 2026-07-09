@@ -2,6 +2,7 @@
 mod tests {
     use super::super::{TableEntry, build_table};
     use crate::{FlexId, SingleId};
+    use alloc::vec::Vec;
 
     /// remove() 後に index と count() が整合していることを検証する。
     #[test]

@@ -2,6 +2,7 @@
 mod tests {
     use super::super::{TableEntry, build_table};
     use crate::{FlexId, IterSingleIds, RangeId, SingleId, SpatialIdTable};
+    use alloc::vec::Vec;
 
     /// 同じターゲットへ再挿入したときに、古い値が新しい値へ置き換わることを検証する。
     #[test]

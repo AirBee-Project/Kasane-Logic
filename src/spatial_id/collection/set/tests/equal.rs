@@ -2,6 +2,7 @@
 mod tests {
     use super::super::arb_random_set_case;
     use crate::SpatialIdSet;
+    use alloc::vec::Vec;
     use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};

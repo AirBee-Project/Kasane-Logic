@@ -2,6 +2,7 @@
 mod tests {
     use super::super::{arb_random_set_case, decompose_set_to_single_ids_at_zoom};
     use crate::{SingleId, SpatialIdSet, spatial_id::collection::set::tests::sorted_single_ids};
+    use alloc::vec::Vec;
     use proptest::prelude::*;
 
     fn expected_union_single_ids(lhs: &SpatialIdSet, rhs: &SpatialIdSet) -> Vec<SingleId> {

@@ -4,6 +4,7 @@ mod tests {
         FlexId, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialIdSet,
         spatial_id::zoom_level::ZoomLevel,
     };
+    use alloc::vec::Vec;
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]
     fn first_insert_single_id() {

@@ -6,6 +6,7 @@ mod encode;
 #[cfg(test)]
 mod tests {
     use crate::{Error, SingleId, SpatialIdError};
+    use alloc::vec::Vec;
 
     #[test]
     fn children_at_zoom_works() {

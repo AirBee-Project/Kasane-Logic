@@ -11,6 +11,8 @@ use crate::spatial_id::collection::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
 use crate::{SingleId, SpatialIdSet, SpatialIdTable};
+use alloc::collections::BTreeSet;
+use alloc::vec::Vec;
 use proptest::prelude::*;
 
 proptest! {
@@ -500,7 +502,7 @@ fn seven_octants_partial() {
         }
     }
     assert_eq!(n, 7);
-    // 7 個入れて全く merge しなければ 7。merge が効けば 7 未満。
+    #[cfg(feature = "std")]
     println!("seven_octants count = {}", set.count());
     assert!(set.count() <= 7);
 }
@@ -518,6 +520,7 @@ fn fill_zoom2_cube_collapses() {
         }
     }
     // 完全に満たされた zoom2 立方体 → zoom0 の 1 葉へ collapseすべき。
+    #[cfg(feature = "std")]
     println!("zoom2 full cube count = {}", set.count());
     assert_eq!(set.count(), 1, "full zoom2 cube should collapse to 1");
 }
@@ -527,14 +530,14 @@ fn verify_f_strip_coverage_preserved() {
     use crate::spatial_id::zoom_level::ZoomLevel;
     // corner_cases と同じ 10 個の F 隣接セル（z=30, x=y=0）。
     let mut set = SpatialIdSet::new();
-    let mut expected = std::collections::BTreeSet::new();
+    let mut expected = BTreeSet::new();
     for i in 0..10 {
         let id = SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_max() - i, 0, 0).unwrap();
         set.insert(id);
         expected.insert((ZoomLevel::MAX.f_max() - i, 0u32, 0u32));
     }
     // マージ後 count は減るが、最細セルへ展開すると元の 10 セルと一致するはず（被覆不変）。
-    let mut got = std::collections::BTreeSet::new();
+    let mut got = BTreeSet::new();
     for (sid, _) in set.flat_single_ids().map(|s| (s, ())) {
         assert_eq!(sid.z(), ZoomLevel::MAX.get());
         got.insert((sid.f(), sid.x(), sid.y()));

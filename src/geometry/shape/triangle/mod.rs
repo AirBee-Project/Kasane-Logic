@@ -112,7 +112,7 @@ impl Triangle {
                     Some(row_triangles)
                 },
             )
-            .flat_map(std::iter::IntoIterator::into_iter);
+            .flat_map(core::iter::IntoIterator::into_iter);
 
         Ok(iter)
     }

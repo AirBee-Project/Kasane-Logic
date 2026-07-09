@@ -7,6 +7,7 @@
 #![cfg(test)]
 
 use crate::{FlexId, SingleId, SpatialIdSet};
+use alloc::vec::Vec;
 
 /// ズーム `z` の単一セルを表す [`FlexId`] 領域を作る。
 fn region(z: u8, f: i32, x: u32, y: u32) -> FlexId {
