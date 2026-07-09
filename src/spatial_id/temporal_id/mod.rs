@@ -15,16 +15,12 @@ pub use disabled::TemporalId;
 pub(crate) mod ops {
     pub mod disabled;
 }
-#[cfg(not(feature = "temporal_id"))]
-use ops::disabled as _; // モジュールを確実にコンパイルさせる
 
 /// `TemporalId` trait 実装（Display / FromStr / Default / BitAnd / Sub）。
 #[cfg(not(feature = "temporal_id"))]
 pub(crate) mod impls {
     pub mod disabled;
 }
-#[cfg(not(feature = "temporal_id"))]
-use impls::disabled as _; // モジュールを確実にコンパイルさせる
 
 /// コレクション型（TemporalSet / TemporalMap）。
 pub mod collection {

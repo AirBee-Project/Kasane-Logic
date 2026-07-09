@@ -122,7 +122,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     }
 
     /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
-    #[cfg_attr(not(any(test, feature = "persist")), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn ranges_ref(&self) -> Vec<(u64, u64, &V)> {
         self.value.iter().map(|v| (0, DOMAIN_END, v)).collect()
     }
@@ -165,22 +165,21 @@ impl<V: Clone + Ord> TemporalMap<V> {
 
 impl<'a, V: Clone + PartialEq + 'a> IntoIterator for &'a TemporalMap<V> {
     type Item = (TemporalId, &'a V);
-    type IntoIter = alloc::vec::IntoIter<(TemporalId, &'a V)>;
+    type IntoIter = core::option::IntoIter<(TemporalId, &'a V)>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter().collect::<Vec<_>>().into_iter()
+        self.value
+            .as_ref()
+            .map(|v| (TemporalId::WHOLE, v))
+            .into_iter()
     }
 }
 
 impl<V: Clone + PartialEq + 'static> IntoIterator for TemporalMap<V> {
     type Item = (TemporalId, V);
-    type IntoIter = alloc::vec::IntoIter<(TemporalId, V)>;
+    type IntoIter = core::option::IntoIter<(TemporalId, V)>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.value
-            .into_iter()
-            .map(|v| (TemporalId::WHOLE, v))
-            .collect::<Vec<_>>()
-            .into_iter()
+        self.value.map(|v| (TemporalId::WHOLE, v)).into_iter()
     }
 }

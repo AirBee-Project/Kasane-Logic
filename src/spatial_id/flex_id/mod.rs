@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 pub mod constructor;
 pub mod convert;
 pub mod encode;
@@ -166,19 +164,17 @@ impl FlexId {
 
         let left_wrapped = left.rem_euclid(circumference);
         let right_wrapped = right.rem_euclid(circumference);
-        let ranges: Vec<[u32; 2]> = if left_wrapped <= right_wrapped {
-            vec![[left_wrapped as u32, right_wrapped as u32]]
-        } else {
-            vec![
-                [left_wrapped as u32, (circumference - 1) as u32],
-                [0, right_wrapped as u32],
-            ]
-        };
 
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(max_z, range))
-            .collect();
+        // 巡回区間を最大 2 つの [u32; 2] として確定し、Vec を介さずに flat_map で分解する。
+        // 境界跨ぎなし → 1 区間、跨ぎあり → 2 区間。
+        let seg1 = [left_wrapped as u32, right_wrapped as u32];
+        let seg2 = [left_wrapped as u32, (circumference - 1) as u32];
+        let seg3 = [0u32, right_wrapped as u32];
+        let (range_a, range_b): ([u32; 2], Option<[u32; 2]>) = if left_wrapped <= right_wrapped {
+            (seg1, None)
+        } else {
+            (seg2, Some(seg3))
+        };
 
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
@@ -186,11 +182,13 @@ impl FlexId {
         let y_index = self.y_index();
         let temporal_id = self.temporal_id;
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                .map(|id| id.with_temporal(temporal_id))
-                .unwrap()
-        }))
+        Ok(split_xy(max_z, range_a)
+            .chain(range_b.into_iter().flat_map(move |r| split_xy(max_z, r)))
+            .map(move |(seg_z, seg_index)| {
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
+                    .unwrap()
+            }))
     }
 
     /// このFlexIdを南北（Y）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
@@ -329,25 +327,20 @@ impl FlexId {
         };
 
         // 占有幅が周長以上なら全周。そうでなければ巡回させ、境界跨ぎは2区間に分ける。
-        let ranges: Vec<[u32; 2]> = if right - left + 1 >= circumference {
-            vec![[0, (circumference - 1) as u32]]
+        let seg_full = [0u32, (circumference - 1) as u32];
+        let left_wrapped = left.rem_euclid(circumference);
+        let right_wrapped = right.rem_euclid(circumference);
+        let seg1 = [left_wrapped as u32, right_wrapped as u32];
+        let seg2 = [left_wrapped as u32, (circumference - 1) as u32];
+        let seg3 = [0u32, right_wrapped as u32];
+        let (range_a, range_b): ([u32; 2], Option<[u32; 2]>) = if right - left + 1 >= circumference
+        {
+            (seg_full, None)
+        } else if left_wrapped <= right_wrapped {
+            (seg1, None)
         } else {
-            let left_wrapped = left.rem_euclid(circumference);
-            let right_wrapped = right.rem_euclid(circumference);
-            if left_wrapped <= right_wrapped {
-                vec![[left_wrapped as u32, right_wrapped as u32]]
-            } else {
-                vec![
-                    [left_wrapped as u32, (circumference - 1) as u32],
-                    [0, right_wrapped as u32],
-                ]
-            }
+            (seg2, Some(seg3))
         };
-
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(max_z, range))
-            .collect();
 
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
@@ -355,11 +348,13 @@ impl FlexId {
         let y_index = self.y_index();
         let temporal_id = self.temporal_id;
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                .map(|id| id.with_temporal(temporal_id))
-                .unwrap()
-        }))
+        Ok(split_xy(max_z, range_a)
+            .chain(range_b.into_iter().flat_map(move |r| split_xy(max_z, r)))
+            .map(move |(seg_z, seg_index)| {
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
+                    .unwrap()
+            }))
     }
 
     /// このFlexIdを南北（Y）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
@@ -484,15 +479,15 @@ impl FlexId {
         }
 
         // from から東向きに to まで。境界跨ぎ（from > to）は2区間へ分ける。
-        let ranges: Vec<[u32; 2]> = if from <= to {
-            vec![[from, to]]
+        // Vec を介さず配列 + Option で区間を表現する。
+        let seg1 = [from, to];
+        let seg2 = [from, xy_max];
+        let seg3 = [0u32, to];
+        let (range_a, range_b): ([u32; 2], Option<[u32; 2]>) = if from <= to {
+            (seg1, None)
         } else {
-            vec![[from, xy_max], [0, to]]
+            (seg2, Some(seg3))
         };
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(z, range))
-            .collect();
 
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
@@ -500,11 +495,13 @@ impl FlexId {
         let y_index = self.y_index();
         let temporal_id = self.temporal_id;
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                .map(|id| id.with_temporal(temporal_id))
-                .unwrap()
-        }))
+        Ok(split_xy(z, range_a)
+            .chain(range_b.into_iter().flat_map(move |r| split_xy(z, r)))
+            .map(move |(seg_z, seg_index)| {
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
+                    .unwrap()
+            }))
     }
 
     /// このFlexIdのY方向の占有を、ズーム `z` の絶対座標範囲 `[lo, hi]` に置き換える。

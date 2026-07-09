@@ -1,17 +1,7 @@
-//! `temporal_id` feature 無効時の [`TemporalSet`] スタブ。
-//!
-//! 有効時（[`mod.rs`](super::mod) / [`impls.rs`](super::impls)）と同じ公開 API を保持しつつ、
-//! 「空」か「全時間（WHOLE）」の 2 状態だけを扱うシングルトン実装を提供する。
-
-use alloc::vec::Vec;
-
 use crate::TemporalId;
 
 const DOMAIN_END: u64 = crate::Interval::WHOLE_SECONDS;
 
-/// [`TemporalId`] の集合を表す型（`temporal_id` feature 無効時のスタブ）。
-///
-/// feature 無効時はすべての時間 ID が全時間（WHOLE）なので、集合は
 /// 「空」か「全時間」の 2 状態のみをとる。
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(
@@ -131,19 +121,19 @@ impl From<TemporalId> for TemporalSet {
 
 impl<'a> IntoIterator for &'a TemporalSet {
     type Item = TemporalId;
-    type IntoIter = alloc::vec::IntoIter<TemporalId>;
+    type IntoIter = core::option::IntoIter<TemporalId>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter().collect::<Vec<_>>().into_iter()
+        self.whole.then_some(TemporalId::WHOLE).into_iter()
     }
 }
 
 impl IntoIterator for TemporalSet {
     type Item = TemporalId;
-    type IntoIter = alloc::vec::IntoIter<TemporalId>;
+    type IntoIter = core::option::IntoIter<TemporalId>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter().collect::<Vec<_>>().into_iter()
+        self.whole.then_some(TemporalId::WHOLE).into_iter()
     }
 }
 

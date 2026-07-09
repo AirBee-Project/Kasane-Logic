@@ -2,7 +2,6 @@
 //!
 //! 有効時（[`impls.rs`](super::super::impls)）と同じ公開 API を保持する。
 
-use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::fmt::Display;
 use core::ops::{BitAnd, Sub};

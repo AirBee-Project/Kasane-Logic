@@ -14,9 +14,8 @@ impl FlexId {
         window: TemporalId,
     ) -> impl Iterator<Item = FlexId> {
         // self の時間を窓へクリップ。窓と交差しなければ空。
-        let clipped_t = match self.temporal().intersection(window) {
-            Some(t) => t,
-            None => return Vec::new().into_iter(),
+        let Some(clipped_t) = self.temporal().intersection(window) else {
+            return Vec::new().into_iter();
         };
         let clipped = FlexId {
             f_zoomlevel: self.f_zoomlevel,

@@ -95,6 +95,7 @@ impl TemporalId {
     }
 
     /// 開始と終了のUNIXタイムスタンプから、時間範囲を表す [`TemporalId`] の個数を返す。
+    #[allow(dead_code)]
     pub(crate) fn count_range(range: core::ops::Range<u64>) -> usize {
         Self::from_range(range).unwrap().count()
     }

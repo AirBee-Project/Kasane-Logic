@@ -164,18 +164,18 @@ where
         &mut self,
         target: &S,
     ) -> impl Iterator<Item = (FlexId, V)> {
-        let removed: Vec<(FlexId, usize)> = self.inner.remove(target).collect();
-        let results: Vec<(FlexId, V)> = removed
-            .into_iter()
+        let removed: Vec<(FlexId, V)> = self
+            .inner
+            .remove(target)
             .map(|(flex_id, rank)| {
                 let value = self.reverse_dictionary.get(&rank).unwrap().clone();
                 (flex_id, value)
             })
             .collect();
-        if !results.is_empty() {
+        if !removed.is_empty() {
             self.value_index_built = false;
         }
-        results.into_iter()
+        removed.into_iter()
     }
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった[`FlexId`]と値をそのままの返す。
     pub fn get_overlapping<'a, S>(
@@ -199,9 +199,9 @@ where
         &mut self,
         target: &S,
     ) -> impl Iterator<Item = (FlexId, V)> {
-        let removed: Vec<(FlexId, usize)> = self.inner.remove_overlapping(target).collect();
-        let results: Vec<(FlexId, V)> = removed
-            .into_iter()
+        let removed: Vec<(FlexId, V)> = self
+            .inner
+            .remove_overlapping(target)
             .map(|(flex_id, rank)| {
                 let value = self
                     .reverse_dictionary
@@ -211,10 +211,10 @@ where
                 (flex_id, value)
             })
             .collect();
-        if !results.is_empty() {
+        if !removed.is_empty() {
             self.value_index_built = false;
         }
-        results.into_iter()
+        removed.into_iter()
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返す。入力された空間ID自身と重なる要素は除外する。
@@ -291,21 +291,26 @@ where
 
     /// 特定の値に対応するすべての時空間[FlexId]を返す。
     pub fn value_get(&self, value: &V) -> impl Iterator<Item = FlexId> + '_ {
-        let mut out = Vec::new();
-        if let Some(&rank) = self.dictionary.get(value) {
-            if self.value_index_built {
-                if let Some(set) = self.value_index.get(&rank) {
-                    out.extend(set.iter());
-                }
+        let rank_opt = self.dictionary.get(value).copied();
+        let use_index = self.value_index_built;
+
+        // rank が存在しない → 空イテレータ
+        // rank が存在する → index 経由か inner 走査で FlexId を列挙
+        rank_opt.into_iter().flat_map(move |rank| {
+            let from_index: Vec<FlexId> = if use_index {
+                self.value_index
+                    .get(&rank)
+                    .map(|set| set.iter().collect())
+                    .unwrap_or_default()
             } else {
-                for (flex_id, r) in self.inner.iter() {
-                    if *r == rank {
-                        out.push(flex_id);
-                    }
-                }
-            }
-        }
-        out.into_iter()
+                self.inner
+                    .iter()
+                    .filter(move |(_, r)| **r == rank)
+                    .map(|(flex_id, _)| flex_id)
+                    .collect()
+            };
+            from_index.into_iter()
+        })
     }
 
     /// 範囲条件に一致する全ての値の[FlexId]と値への参照を返す。
@@ -313,23 +318,31 @@ where
         &self,
         range: R,
     ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        let wanted: Vec<(&V, usize)> = self.dictionary.range(range).map(|(v, r)| (v, *r)).collect();
-        let mut out: Vec<(FlexId, &V)> = Vec::new();
         if self.value_index_built {
-            for (val, rank) in &wanted {
-                if let Some(set) = self.value_index.get(rank) {
-                    out.extend(set.iter().map(|flex_id| (flex_id, *val)));
-                }
-            }
+            // index 構築済み：辞書を舐めて各ランクの FlexId 集合を展開する。
+            let out: Vec<(FlexId, &V)> = self
+                .dictionary
+                .range(range)
+                .flat_map(|(val, &rank)| {
+                    self.value_index
+                        .get(&rank)
+                        .into_iter()
+                        .flat_map(|set| set.iter())
+                        .map(move |flex_id| (flex_id, val))
+                })
+                .collect();
+            out.into_iter()
         } else {
-            let lookup: BTreeMap<usize, &V> = wanted.iter().map(|(v, r)| (*r, *v)).collect();
-            for (flex_id, rank) in self.inner.iter() {
-                if let Some(val) = lookup.get(rank) {
-                    out.push((flex_id, *val));
-                }
-            }
+            // index 未構築：辞書で lookup テーブルを作り inner を線形走査する。
+            let lookup: alloc::collections::BTreeMap<usize, &V> =
+                self.dictionary.range(range).map(|(v, &r)| (r, v)).collect();
+            let out: Vec<(FlexId, &V)> = self
+                .inner
+                .iter()
+                .filter_map(|(flex_id, rank)| lookup.get(rank).map(|val| (flex_id, *val)))
+                .collect();
+            out.into_iter()
         }
-        out.into_iter()
     }
 
     /// テーブルが空かどうかを返します
@@ -354,22 +367,25 @@ where
 
     /// テーブルに保持されている値への参照を返す。
     pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
-        let mut out: Vec<&V> = Vec::new();
         if self.value_index_built {
-            out.extend(self.dictionary.keys());
+            // 辞書のキーは既に重複なし・ソート済み。
+            let out: Vec<&V> = self.dictionary.keys().collect();
+            out.into_iter()
         } else {
-            let mut live: BTreeSet<usize> = BTreeSet::new();
+            // inner を走査して生きているランクの値だけを返す（重複排除 + ソート）。
+            let mut live_ranks: alloc::collections::BTreeSet<usize> =
+                alloc::collections::BTreeSet::new();
             for (_, rank) in self.inner.iter() {
-                live.insert(*rank);
+                live_ranks.insert(*rank);
             }
-            out = live
+            let mut out: Vec<&V> = live_ranks
                 .iter()
                 .filter_map(|rank| self.reverse_dictionary.get(rank))
                 .collect();
             out.sort();
             out.dedup();
+            out.into_iter()
         }
-        out.into_iter()
     }
 }
 
