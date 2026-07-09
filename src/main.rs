@@ -1,6 +1,4 @@
 extern crate alloc;
-use std::str::FromStr;
-use std::{fs, mem};
 
 #[allow(unused_imports)]
 use alloc::boxed::Box;
@@ -10,23 +8,14 @@ use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 #[allow(unused_imports)]
 use alloc::vec::Vec;
-use kasane_logic::{RangeId, SpatialIdSet};
+#[allow(unused_imports)]
+use kasane_logic::{Interval, SingleId, TemporalId};
 
 fn main() {
-    let mut raw_ids = fs::read_to_string("sample/bldg1.txt").unwrap();
-    raw_ids.retain(|c| !c.is_whitespace());
+    let temporal_id = TemporalId::new(30_u64, 10).unwrap();
+    let single_id = SingleId::new(10, 10, 10, 10)
+        .unwrap()
+        .with_temporal(temporal_id);
 
-    let mut set = SpatialIdSet::new();
-
-    for raw_range_id in raw_ids.split(",") {
-        let range_id = match RangeId::from_str(raw_range_id) {
-            Ok(v) => v,
-            Err(_) => {
-                continue;
-            }
-        };
-        set.insert(range_id);
-    }
-
-    println!("x size: {} bytes", mem::size_of_val(&set));
+    println!("{}", single_id)
 }

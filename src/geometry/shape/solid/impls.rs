@@ -1,11 +1,11 @@
+use crate::IterSingleIds;
 use alloc::vec::Vec;
 
 use alloc::collections::VecDeque;
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, IntoSingleIds, RangeId, Shape, SingleId, Solid,
-    SpatialId,
+    Coordinate, Error, ExpandCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
     geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 
@@ -43,7 +43,7 @@ impl CoverSingleIds for Solid {
             [result.1, result.4],
             [result.2, result.5],
         )?
-        .into_single_ids()
+        .iter_single_ids()
         .collect();
         let mut open_list: VecDeque<SingleId> = VecDeque::new();
 

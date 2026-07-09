@@ -199,13 +199,13 @@ impl Coordinate {
         Ok(())
     }
 
-    /// この座標を、指定されたズームレベルに対応する [SingleId] に変換する。
+    /// この座標を、指定されたズームレベルに対応する [`SingleId`] に変換する。
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル
     ///
     /// # 戻り値
-    /// * 指定されたズームレベルに対応する [SingleId]
+    /// * 指定されたズームレベルに対応する [`SingleId`]
     ///
     /// # Example
     /// ```
@@ -224,18 +224,18 @@ impl Coordinate {
         let lon = self.longitude;
         let alt = self.altitude;
 
-        let f_min = ZoomLevel::new(z).unwrap().f_min() as i64;
-        let f_max = ZoomLevel::new(z).unwrap().f_max() as i64;
-        let xy_max = ZoomLevel::new(z).unwrap().xy_max() as i64;
+        let f_min = i64::from(ZoomLevel::new(z).unwrap().f_min());
+        let f_max = i64::from(ZoomLevel::new(z).unwrap().f_max());
+        let xy_max = i64::from(ZoomLevel::new(z).unwrap().xy_max());
 
         //Z=25のとき高さはちょうど1m
-        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
+        let factor = libm::pow(2_f64, f64::from(i32::from(z) - 25));
 
         // インデックス値は半開区間 [lo, hi) のため、許容範囲の閉じた上端は floor で「最後のインデックス値」を指す。経度を max_x に折り返すのと同様、f/x/y すべてを有効インデックス値へクランプする。
 
         let f = (libm::floor(factor * alt) as i64).clamp(f_min, f_max) as i32;
 
-        let n = 2u64.pow(z as u32) as f64;
+        let n = 2u64.pow(u32::from(z)) as f64;
         let x = (libm::floor((lon + 180.0) / 360.0 * n) as i64).clamp(0, xy_max) as u32;
 
         let lat_rad = lat.to_radians();
@@ -250,13 +250,13 @@ impl Coordinate {
         Ok(SingleId::new(z, f, x, y).unwrap())
     }
 
-    /// この座標を、指定されたズームレベルに対応する [FractionalId] に変換する。
+    /// この座標を、指定されたズームレベルに対応する [`FractionalId`] に変換する。
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル
     ///
     /// # 戻り値
-    /// * 指定されたズームレベルに対応する [FractionalId]
+    /// * 指定されたズームレベルに対応する [`FractionalId`]
     ///
     /// # Example
     /// ```
@@ -276,10 +276,10 @@ impl Coordinate {
         let alt = self.altitude;
 
         //Z=25のとき高さはちょうど1m
-        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
+        let factor = libm::pow(2_f64, f64::from(i32::from(z) - 25));
         let f = factor * alt;
 
-        let n = 2u64.pow(z as u32) as f64;
+        let n = 2u64.pow(u32::from(z)) as f64;
         let x = (lon + 180.0) / 360.0 * n;
 
         let lat_rad = lat.to_radians();

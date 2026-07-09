@@ -5,10 +5,17 @@ edition = "2024"
 license = "MIT"
 description = "This is Kasane-logic"
 
+[workspace]
+members = [
+    ".",
+    "xtask"
+]
+
 [dependencies]
 # デフォルトで必要なもの
 hashbrown = "0.15.2"
 libm = "0.2.16"
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 
 # featuresで切り替え可能なもの
 rand = { version = "0.10.1", optional = true }
@@ -16,7 +23,7 @@ rayon = { version = "1.10", optional = true }
 rkyv = { version = "0.8", features = ["unaligned"], optional = true }
 
 [features]
-default = ["std", "rayon"]
+default = ["std", "rayon", "temporal_id"]
 std = []
 rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
@@ -27,6 +34,7 @@ persist = ["dep:rkyv", "std"]
 [dev-dependencies]
 rand = "0.10.1"
 proptest = "1.11.0"
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 rand_chacha = "0.10.0"
 insta = "1"
 criterion = { version = "0.8.2", features = ["html_reports"] }
@@ -36,6 +44,17 @@ version = "1"
 default-features = false
 features = ["precommit-hook","run-cargo-test", "run-cargo-clippy","run-cargo-fmt"]
 
+[profile.dev]
+debug = 0 
+codegen-units = 256
+split-debuginfo = "unpacked"
+
+[profile.test]
+debug = 0 
+codegen-units = 256
+
+[profile.dev.package."*"]
+opt-level = 3
 
 [[bin]]
 name = "kasane-logic"

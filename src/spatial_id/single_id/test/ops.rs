@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::SingleId;
+    use alloc::vec::Vec;
 
     #[test]
     fn intersection_returns_the_deeper_id_for_ancestor_descendant_pairs() {
@@ -33,9 +34,7 @@ mod tests {
     fn difference_returns_empty_when_ids_match() {
         let id = SingleId::new(20, 0, 931078, 413136).unwrap();
 
-        let diff: Vec<_> = id.difference(&id).collect();
-
-        assert!(diff.is_empty());
+        assert!(id.difference(&id).next().is_none());
     }
 
     #[test]

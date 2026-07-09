@@ -1,5 +1,3 @@
-use alloc::vec::Vec;
-
 pub mod constructor;
 pub mod convert;
 pub mod encode;
@@ -54,25 +52,48 @@ impl FlexId {
     pub fn f_zoomlevel(&self) -> u8 {
         self.f_zoomlevel.get()
     }
+
     pub fn x_zoomlevel(&self) -> u8 {
         self.x_zoomlevel.get()
     }
+
     pub fn y_zoomlevel(&self) -> u8 {
         self.y_zoomlevel.get()
     }
+
     pub fn f_index(&self) -> i32 {
         self.f_index
     }
+
     pub fn x_index(&self) -> u32 {
         self.x_index
     }
+
     pub fn y_index(&self) -> u32 {
         self.y_index
     }
 
+    /// 空間成分だけを残し、時間を全時間（WHOLE）に置き換えた [`FlexId`] を返す。
+    pub fn spatial_part(&self) -> FlexId {
+        self.with_temporal(TemporalId::WHOLE)
+    }
+
+    /// 空間成分はそのままに、時間IDを `temporal` に置き換えた [`FlexId`] を返す。
+    pub fn with_temporal(&self, temporal: TemporalId) -> FlexId {
+        FlexId {
+            f_zoomlevel: self.f_zoomlevel,
+            f_index: self.f_index,
+            x_zoomlevel: self.x_zoomlevel,
+            x_index: self.x_index,
+            y_zoomlevel: self.y_zoomlevel,
+            y_index: self.y_index,
+            temporal_id: temporal,
+        }
+    }
+
     /// このFlexIdを高さ（F）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
     ///
-    /// 移動量はズーム `z` を単位とするため、`z` がこのFlexIdのFズームレベルより
+    /// 移動量はズーム `z` を単位とするため、`z` `がこのFlexIdのFズームレベルより`
     /// 細かい場合は1セルに満たない移動となり、結果が複数セルへ分割されることがある。
     /// そのため複数の [`FlexId`] を生成するイテレーターを返す。XY方向の値は変更しない。
     ///
@@ -109,31 +130,14 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
         // 占有区間を整列したセル群へ分解し、F以外の成分を保ったままFlexIdを構築する。
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
+                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
                     .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                        .unwrap()
-                }
             }),
         )
     }
@@ -158,54 +162,38 @@ impl FlexId {
         // max_z における周長（Xセル数）。
         let circumference = 1_i64 << max_z;
         let cell_scale = 1_i64 << (max_z - x_zoomlevel);
-        let delta_index = index as i64 * (1_i64 << (max_z - z));
+        let delta_index = i64::from(index) * (1_i64 << (max_z - z));
 
-        let left = self.x_index() as i64 * cell_scale + delta_index;
+        let left = i64::from(self.x_index()) * cell_scale + delta_index;
         let right = left + cell_scale - 1;
 
         let left_wrapped = left.rem_euclid(circumference);
         let right_wrapped = right.rem_euclid(circumference);
-        let ranges: Vec<[u32; 2]> = if left_wrapped <= right_wrapped {
-            vec![[left_wrapped as u32, right_wrapped as u32]]
-        } else {
-            vec![
-                [left_wrapped as u32, (circumference - 1) as u32],
-                [0, right_wrapped as u32],
-            ]
-        };
 
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(max_z, range))
-            .collect();
+        // 巡回区間を最大 2 つの [u32; 2] として確定し、Vec を介さずに flat_map で分解する。
+        // 境界跨ぎなし → 1 区間、跨ぎあり → 2 区間。
+        let seg1 = [left_wrapped as u32, right_wrapped as u32];
+        let seg2 = [left_wrapped as u32, (circumference - 1) as u32];
+        let seg3 = [0u32, right_wrapped as u32];
+        let (range_a, range_b): ([u32; 2], Option<[u32; 2]>) = if left_wrapped <= right_wrapped {
+            (seg1, None)
+        } else {
+            (seg2, Some(seg3))
+        };
 
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    seg_z,
-                    seg_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
+        Ok(split_xy(max_z, range_a)
+            .chain(range_b.into_iter().flat_map(move |r| split_xy(max_z, r)))
+            .map(move |(seg_z, seg_index)| {
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
+                    .unwrap()
+            }))
     }
 
     /// このFlexIdを南北（Y）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
@@ -225,18 +213,18 @@ impl FlexId {
         let max_z = y_zoomlevel.max(z);
 
         let cell_scale = 1_i64 << (max_z - y_zoomlevel);
-        let delta_index = index as i64 * (1_i64 << (max_z - z));
+        let delta_index = i64::from(index) * (1_i64 << (max_z - z));
 
-        let left = self.y_index() as i64 * cell_scale + delta_index;
+        let left = i64::from(self.y_index()) * cell_scale + delta_index;
         let right = left + cell_scale - 1;
 
         // 移動後が max_z のY範囲 [0[max_z]] を超える場合はエラー。
-        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
+        let y_max = i64::from(ZoomLevel::new(max_z)?.xy_max());
         if left < 0 || right > y_max {
             let offending = if left < 0 { left } else { right };
             return Err(SpatialIdError::YOutOfRange {
                 z: max_z,
-                y: offending.clamp(0, u32::MAX as i64) as u32,
+                y: offending.clamp(0, i64::from(u32::MAX)) as u32,
             }
             .into());
         }
@@ -246,30 +234,13 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                        temporal_id.clone(),
-                    )
+                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
+                    .map(|id| id.with_temporal(temporal_id))
                     .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
-                        .unwrap()
-                }
             }),
         )
     }
@@ -321,30 +292,13 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
+                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
                     .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                        .unwrap()
-                }
             }),
         )
     }
@@ -367,9 +321,9 @@ impl FlexId {
 
         let circumference = 1_i64 << max_z;
         let cell_scale = 1_i64 << (max_z - x_zoomlevel);
-        let delta = index as i64 * (1_i64 << (max_z - z));
+        let delta = i64::from(index) * (1_i64 << (max_z - z));
 
-        let base_left = self.x_index() as i64 * cell_scale;
+        let base_left = i64::from(self.x_index()) * cell_scale;
         let base_right = base_left + cell_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
@@ -378,53 +332,34 @@ impl FlexId {
         };
 
         // 占有幅が周長以上なら全周。そうでなければ巡回させ、境界跨ぎは2区間に分ける。
-        let ranges: Vec<[u32; 2]> = if right - left + 1 >= circumference {
-            vec![[0, (circumference - 1) as u32]]
+        let seg_full = [0u32, (circumference - 1) as u32];
+        let left_wrapped = left.rem_euclid(circumference);
+        let right_wrapped = right.rem_euclid(circumference);
+        let seg1 = [left_wrapped as u32, right_wrapped as u32];
+        let seg2 = [left_wrapped as u32, (circumference - 1) as u32];
+        let seg3 = [0u32, right_wrapped as u32];
+        let (range_a, range_b): ([u32; 2], Option<[u32; 2]>) = if right - left + 1 >= circumference
+        {
+            (seg_full, None)
+        } else if left_wrapped <= right_wrapped {
+            (seg1, None)
         } else {
-            let left_wrapped = left.rem_euclid(circumference);
-            let right_wrapped = right.rem_euclid(circumference);
-            if left_wrapped <= right_wrapped {
-                vec![[left_wrapped as u32, right_wrapped as u32]]
-            } else {
-                vec![
-                    [left_wrapped as u32, (circumference - 1) as u32],
-                    [0, right_wrapped as u32],
-                ]
-            }
+            (seg2, Some(seg3))
         };
-
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(max_z, range))
-            .collect();
 
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    seg_z,
-                    seg_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
+        Ok(split_xy(max_z, range_a)
+            .chain(range_b.into_iter().flat_map(move |r| split_xy(max_z, r)))
+            .map(move |(seg_z, seg_index)| {
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
+                    .unwrap()
+            }))
     }
 
     /// このFlexIdを南北（Y）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
@@ -445,9 +380,9 @@ impl FlexId {
         let max_z = y_zoomlevel.max(z);
 
         let cell_scale = 1_i64 << (max_z - y_zoomlevel);
-        let delta = index as i64 * (1_i64 << (max_z - z));
+        let delta = i64::from(index) * (1_i64 << (max_z - z));
 
-        let base_left = self.y_index() as i64 * cell_scale;
+        let base_left = i64::from(self.y_index()) * cell_scale;
         let base_right = base_left + cell_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
@@ -455,12 +390,12 @@ impl FlexId {
             (base_left + delta, base_right)
         };
 
-        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
+        let y_max = i64::from(ZoomLevel::new(max_z)?.xy_max());
         if left < 0 || right > y_max {
             let offending = if left < 0 { left } else { right };
             return Err(SpatialIdError::YOutOfRange {
                 z: max_z,
-                y: offending.clamp(0, u32::MAX as i64) as u32,
+                y: offending.clamp(0, i64::from(u32::MAX)) as u32,
             }
             .into());
         }
@@ -469,30 +404,13 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                        temporal_id.clone(),
-                    )
+                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
+                    .map(|id| id.with_temporal(temporal_id))
                     .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
-                        .unwrap()
-                }
             }),
         )
     }
@@ -526,28 +444,12 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
         Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    seg_z,
-                    seg_index,
-                    x_zoomlevel,
-                    x_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
+            FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                .map(|id| id.with_temporal(temporal_id))
                 .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index).unwrap()
-            }
         }))
     }
 
@@ -582,43 +484,29 @@ impl FlexId {
         }
 
         // from から東向きに to まで。境界跨ぎ（from > to）は2区間へ分ける。
-        let ranges: Vec<[u32; 2]> = if from <= to {
-            vec![[from, to]]
+        // Vec を介さず配列 + Option で区間を表現する。
+        let seg1 = [from, to];
+        let seg2 = [from, xy_max];
+        let seg3 = [0u32, to];
+        let (range_a, range_b): ([u32; 2], Option<[u32; 2]>) = if from <= to {
+            (seg1, None)
         } else {
-            vec![[from, xy_max], [0, to]]
+            (seg2, Some(seg3))
         };
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(z, range))
-            .collect();
 
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    seg_z,
-                    seg_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
+        Ok(split_xy(z, range_a)
+            .chain(range_b.into_iter().flat_map(move |r| split_xy(z, r)))
+            .map(move |(seg_z, seg_index)| {
+                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                    .map(|id| id.with_temporal(temporal_id))
+                    .unwrap()
+            }))
     }
 
     /// このFlexIdのY方向の占有を、ズーム `z` の絶対座標範囲 `[lo, hi]` に置き換える。
@@ -645,28 +533,12 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
+        let temporal_id = self.temporal_id;
 
         Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    x_zoomlevel,
-                    x_index,
-                    seg_z,
-                    seg_index,
-                    temporal_id.clone(),
-                )
+            FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
+                .map(|id| id.with_temporal(temporal_id))
                 .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index).unwrap()
-            }
         }))
     }
 
@@ -675,36 +547,18 @@ impl FlexId {
         if self.f_zoomlevel() == ZoomLevel::MAX.get() {
             None
         } else {
-            #[cfg(feature = "temporal_id")]
-            {
-                Some(
-                    FlexId::new_with_temporal(
-                        self.f_zoomlevel() + 1,
-                        self.f_index() * 2 + side as i32,
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                        self.temporal_id.clone(),
-                    )
-                    .unwrap(),
+            Some(
+                FlexId::new(
+                    self.f_zoomlevel() + 1,
+                    self.f_index() * 2 + side as i32,
+                    self.x_zoomlevel(),
+                    self.x_index(),
+                    self.y_zoomlevel(),
+                    self.y_index(),
                 )
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                Some(
-                    FlexId::new(
-                        self.f_zoomlevel() + 1,
-                        self.f_index() * 2 + side as i32,
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                    )
-                    .unwrap(),
-                )
-            }
+                .map(|id| id.with_temporal(self.temporal_id))
+                .unwrap(),
+            )
         }
     }
 
@@ -713,36 +567,18 @@ impl FlexId {
         if self.x_zoomlevel() == ZoomLevel::MAX.get() {
             None
         } else {
-            #[cfg(feature = "temporal_id")]
-            {
-                Some(
-                    FlexId::new_with_temporal(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel() + 1,
-                        self.x_index() * 2 + side as u32,
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                        self.temporal_id.clone(),
-                    )
-                    .unwrap(),
+            Some(
+                FlexId::new(
+                    self.f_zoomlevel(),
+                    self.f_index(),
+                    self.x_zoomlevel() + 1,
+                    self.x_index() * 2 + side as u32,
+                    self.y_zoomlevel(),
+                    self.y_index(),
                 )
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                Some(
-                    FlexId::new(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel() + 1,
-                        self.x_index() * 2 + side as u32,
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                    )
-                    .unwrap(),
-                )
-            }
+                .map(|id| id.with_temporal(self.temporal_id))
+                .unwrap(),
+            )
         }
     }
 
@@ -751,36 +587,18 @@ impl FlexId {
         if self.y_zoomlevel() == ZoomLevel::MAX.get() {
             None
         } else {
-            #[cfg(feature = "temporal_id")]
-            {
-                Some(
-                    FlexId::new_with_temporal(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel() + 1,
-                        self.y_index() * 2 + side as u32,
-                        self.temporal_id.clone(),
-                    )
-                    .unwrap(),
+            Some(
+                FlexId::new(
+                    self.f_zoomlevel(),
+                    self.f_index(),
+                    self.x_zoomlevel(),
+                    self.x_index(),
+                    self.y_zoomlevel() + 1,
+                    self.y_index() * 2 + side as u32,
                 )
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                Some(
-                    FlexId::new(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel() + 1,
-                        self.y_index() * 2 + side as u32,
-                    )
-                    .unwrap(),
-                )
-            }
+                .map(|id| id.with_temporal(self.temporal_id))
+                .unwrap(),
+            )
         }
     }
 
@@ -804,7 +622,7 @@ impl FlexId {
         }
 
         fn axis_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
-            let shift = (common - zoom) as i64;
+            let shift = i64::from(common - zoom);
             (index << shift, ((index + 1) << shift) - 1)
         }
 
@@ -828,20 +646,20 @@ impl FlexId {
 
         let cf = self.f_zoomlevel().max(other.f_zoomlevel());
         let rf = classify(
-            axis_range(self.f_zoomlevel(), self.f_index() as i64, cf),
-            axis_range(other.f_zoomlevel(), other.f_index() as i64, cf),
+            axis_range(self.f_zoomlevel(), i64::from(self.f_index()), cf),
+            axis_range(other.f_zoomlevel(), i64::from(other.f_index()), cf),
             None,
         );
         let cx = self.x_zoomlevel().max(other.x_zoomlevel());
         let rx = classify(
-            axis_range(self.x_zoomlevel(), self.x_index() as i64, cx),
-            axis_range(other.x_zoomlevel(), other.x_index() as i64, cx),
+            axis_range(self.x_zoomlevel(), i64::from(self.x_index()), cx),
+            axis_range(other.x_zoomlevel(), i64::from(other.x_index()), cx),
             Some(1i64 << cx),
         );
         let cy = self.y_zoomlevel().max(other.y_zoomlevel());
         let ry = classify(
-            axis_range(self.y_zoomlevel(), self.y_index() as i64, cy),
-            axis_range(other.y_zoomlevel(), other.y_index() as i64, cy),
+            axis_range(self.y_zoomlevel(), i64::from(self.y_index()), cy),
+            axis_range(other.y_zoomlevel(), i64::from(other.y_index()), cy),
             None,
         );
 
@@ -867,7 +685,7 @@ impl FlexId {
             (idx, idx)
         } else {
             let shift = tz_f - sz_f;
-            let si = self.f_index() as i64;
+            let si = i64::from(self.f_index());
             ((si << shift) as i32, (((si + 1) << shift) - 1) as i32)
         };
 
@@ -879,7 +697,7 @@ impl FlexId {
             (idx, idx)
         } else {
             let shift = tz_x - sz_x;
-            let si = self.x_index() as u64;
+            let si = u64::from(self.x_index());
             ((si << shift) as u32, (((si + 1) << shift) - 1) as u32)
         };
 
@@ -891,7 +709,7 @@ impl FlexId {
             (idx, idx)
         } else {
             let shift = tz_y - sz_y;
-            let si = self.y_index() as u64;
+            let si = u64::from(self.y_index());
             ((si << shift) as u32, (((si + 1) << shift) - 1) as u32)
         };
 
@@ -903,63 +721,27 @@ impl FlexId {
         let self_xi = self.x_index();
         let self_yi = self.y_index();
 
-        #[cfg(feature = "temporal_id")]
-        {
-            let temporal_id = self.temporal_id.clone();
-            (f_start..=f_end).flat_map(move |f_idx| {
-                let temp_id1 = temporal_id.clone();
-                (x_start..=x_end).flat_map(move |x_idx| {
-                    let temp_id2 = temp_id1.clone();
-                    (y_start..=y_end).map(move |y_idx| {
-                        let seg_fi = if sz_f >= tz_f { self_fi } else { f_idx };
-                        let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
-                        let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
+        let temporal_id = self.temporal_id;
+        (f_start..=f_end).flat_map(move |f_idx| {
+            let temp_id1 = temporal_id;
+            (x_start..=x_end).flat_map(move |x_idx| {
+                let temp_id2 = temp_id1;
+                (y_start..=y_end).map(move |y_idx| {
+                    let seg_fi = if sz_f >= tz_f { self_fi } else { f_idx };
+                    let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
+                    let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
 
-                        let parent = FlexId::new_with_temporal(
-                            tz_f,
-                            f_idx,
-                            tz_x,
-                            x_idx,
-                            tz_y,
-                            y_idx,
-                            temp_id2.clone(),
-                        )
+                    let parent = FlexId::new(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx)
+                        .map(|id| id.with_temporal(temp_id2))
                         .unwrap();
 
-                        let seg = FlexId::new_with_temporal(
-                            seg_fz,
-                            seg_fi,
-                            seg_xz,
-                            seg_xi,
-                            seg_yz,
-                            seg_yi,
-                            temp_id2.clone(),
-                        )
+                    let seg = FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi)
+                        .map(|id| id.with_temporal(temp_id2))
                         .unwrap();
 
-                        (parent, seg)
-                    })
+                    (parent, seg)
                 })
             })
-        }
-
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            (f_start..=f_end).flat_map(move |f_idx| {
-                (x_start..=x_end).flat_map(move |x_idx| {
-                    (y_start..=y_end).map(move |y_idx| {
-                        let seg_fi = if sz_f >= tz_f { self_fi } else { f_idx };
-                        let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
-                        let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
-
-                        let parent = FlexId::new(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx).unwrap();
-                        let seg =
-                            FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi).unwrap();
-
-                        (parent, seg)
-                    })
-                })
-            })
-        }
+        })
     }
 }

@@ -59,9 +59,9 @@ impl FractionalId {
 
         // FractionalId は連続値のため、インデックス値の上限ではなく境界までを有効とする。
         // 上端（高度=2^25 / 経度=180° / 緯度の南端）は最後のインデックス値の上面 = 2^z に対応する。
-        let f_min = zoom.f_min() as f64;
-        let f_max = zoom.f_max() as f64 + 1.0;
-        let xy_max = zoom.xy_max() as f64 + 1.0;
+        let f_min = f64::from(zoom.f_min());
+        let f_max = f64::from(zoom.f_max()) + 1.0;
+        let xy_max = f64::from(zoom.xy_max()) + 1.0;
 
         if f < f_min || f > f_max || !f.is_finite() {
             return Err(GeometryError::FractionalFOutOfRange { f, z: zoom.get() }.into());
@@ -143,8 +143,8 @@ impl FractionalId {
     /// ```
     pub fn set_f(&mut self, value: f64) -> Result<(), Error> {
         let z = self.z.get();
-        let min = self.z.f_min() as f64;
-        let max = self.z.f_max() as f64;
+        let min = f64::from(self.z.f_min());
+        let max = f64::from(self.z.f_max());
         if value < min || value > max || !value.is_finite() {
             return Err(GeometryError::FractionalFOutOfRange { f: value, z }.into());
         }
@@ -167,7 +167,7 @@ impl FractionalId {
     /// ```
     pub fn set_x(&mut self, value: f64) -> Result<(), Error> {
         let z = self.z.get();
-        let max = self.z.xy_max() as f64;
+        let max = f64::from(self.z.xy_max());
         if value < 0.0 || value > max || !value.is_finite() {
             return Err(GeometryError::FractionalXOutOfRange { x: value, z }.into());
         }
@@ -190,7 +190,7 @@ impl FractionalId {
     /// ```
     pub fn set_y(&mut self, value: f64) -> Result<(), Error> {
         let z = self.z.get();
-        let max = self.z.xy_max() as f64;
+        let max = f64::from(self.z.xy_max());
         if value < 0.0 || value > max || !value.is_finite() {
             return Err(GeometryError::FractionalYOutOfRange { y: value, z }.into());
         }

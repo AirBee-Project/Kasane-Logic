@@ -39,12 +39,36 @@ impl CoverSingleIds for Sphere {
             }
         }
 
-        let x_min = corners.iter().map(|v| v.x()).min().unwrap();
-        let x_max = corners.iter().map(|v| v.x()).max().unwrap();
-        let y_min = corners.iter().map(|v| v.y()).min().unwrap();
-        let y_max = corners.iter().map(|v| v.y()).max().unwrap();
-        let f_min = corners.iter().map(|v| v.f()).min().unwrap();
-        let f_max = corners.iter().map(|v| v.f()).max().unwrap();
+        let x_min = corners
+            .iter()
+            .map(crate::spatial_id::single_id::SingleId::x)
+            .min()
+            .unwrap();
+        let x_max = corners
+            .iter()
+            .map(crate::spatial_id::single_id::SingleId::x)
+            .max()
+            .unwrap();
+        let y_min = corners
+            .iter()
+            .map(crate::spatial_id::single_id::SingleId::y)
+            .min()
+            .unwrap();
+        let y_max = corners
+            .iter()
+            .map(crate::spatial_id::single_id::SingleId::y)
+            .max()
+            .unwrap();
+        let f_min = corners
+            .iter()
+            .map(crate::spatial_id::single_id::SingleId::f)
+            .min()
+            .unwrap();
+        let f_max = corners
+            .iter()
+            .map(crate::spatial_id::single_id::SingleId::f)
+            .max()
+            .unwrap();
 
         Ok((x_min..=x_max)
             .flat_map(move |x| {
@@ -60,12 +84,12 @@ impl CoverSingleIds for Sphere {
 }
 
 pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
-    let n = libm::pow(2_f64, (z as i32) as f64);
+    let n = libm::pow(2_f64, f64::from(i32::from(z)));
 
     match axis {
         // 赤道周長 = 2πa
         Dimension::X | Dimension::Y => 2.0 * core::f64::consts::PI * WGS84_A / n,
         // F方向（高度）
-        Dimension::F => libm::pow(2_f64, (25 - z as i32) as f64),
+        Dimension::F => libm::pow(2_f64, f64::from(25 - i32::from(z))),
     }
 }

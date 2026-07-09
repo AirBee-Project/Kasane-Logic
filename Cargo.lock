@@ -490,6 +490,8 @@ dependencies = [
  "rand_chacha 0.10.0",
  "rayon",
  "rkyv",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1324,6 +1326,10 @@ dependencies = [
  "unicode-xid",
  "wasmparser",
 ]
+
+[[package]]
+name = "xtask"
+version = "0.1.0"
 
 [[package]]
 name = "zerocopy"

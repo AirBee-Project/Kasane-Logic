@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use core::ops::{BitAnd, Sub};
 
 use crate::SingleId;
 
@@ -13,7 +14,6 @@ impl SingleId {
     ///
     /// # 動作コスト
     /// 空間的な分割回数は、`self` と `other` の重なりを解消するために必要なズーム差に比例する。
-    /// 占有空間が一部でも重なっている場合はエラーになりません。
     /// 時間的な差分は [`crate::TemporalId::difference`] の結果個数に比例する。
     ///
     /// # 動作例
@@ -38,12 +38,11 @@ impl SingleId {
     pub fn difference(&self, other: &Self) -> impl Iterator<Item = Self> {
         let mut results = Vec::new();
 
-        let intersect = match self.intersection(other) {
-            Some(i) => i,
-            None => {
-                results.push(self.clone());
-                return results.into_iter();
-            }
+        let intersect = if let Some(i) = self.intersection(other) {
+            i
+        } else {
+            results.push(self.clone());
+            return results.into_iter();
         };
 
         if self == &intersect {
@@ -65,7 +64,7 @@ impl SingleId {
             }
         }
 
-        for t_diff in current.temporal_id.difference(&other.temporal_id) {
+        for t_diff in current.temporal_id.difference(other.temporal_id) {
             let mut diff_id = current.clone();
             diff_id.temporal_id = t_diff;
             results.push(diff_id);
@@ -85,7 +84,7 @@ impl SingleId {
     /// * `other` - 交差判定する相手の [`SingleId`] である。
     ///
     /// # 動作コスト
-    /// 各辺（F、X、Y）ごとに1次元での区間の重なりを計算し、全次元で重なりがあればその交差部分からなる空間ID（[SingleId]）を返す。
+    /// 各辺（F、X、Y）ごとに1次元での区間の重なりを計算し、全次元で重なりがあればその交差部分からなる空間ID（[`SingleId`]）を返す。
     /// 時間軸の判定は [`crate::TemporalId::intersection`] の計算量に従う。
     ///
     /// # 動作例
@@ -118,7 +117,7 @@ impl SingleId {
             && (deep.x() >> shift) == shallow.x()
             && (deep.y() >> shift) == shallow.y()
         {
-            let temporal_id = self.temporal_id.intersection(&other.temporal_id)?;
+            let temporal_id = self.temporal_id.intersection(other.temporal_id)?;
 
             let mut result = deep.clone();
             result.temporal_id = temporal_id;
@@ -126,5 +125,19 @@ impl SingleId {
         } else {
             None
         }
+    }
+}
+
+impl BitAnd for &SingleId {
+    type Output = Option<SingleId>;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.intersection(rhs)
+    }
+}
+
+impl Sub for &SingleId {
+    type Output = Vec<SingleId>;
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.difference(rhs).collect()
     }
 }

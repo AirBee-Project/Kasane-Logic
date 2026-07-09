@@ -6,6 +6,7 @@ mod encode;
 #[cfg(test)]
 mod tests {
     use crate::{Error, SingleId, SpatialIdError};
+    use alloc::vec::Vec;
 
     #[test]
     fn children_at_zoom_works() {
@@ -72,9 +73,7 @@ mod tests {
     fn spatial_parents_is_empty_at_root() {
         let id = SingleId::new(0, 0, 0, 0).unwrap();
 
-        let parents: Vec<_> = id.spatial_parents().collect();
-
-        assert!(parents.is_empty());
+        assert!(id.spatial_parents().next().is_none());
     }
 
     #[test]

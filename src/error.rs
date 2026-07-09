@@ -43,7 +43,7 @@ pub enum GeometryError {
     FractionalYOutOfRange { z: u8, y: f64 },
 }
 
-/// SpatialId 関連で発生するエラー。
+/// `SpatialId` 関連で発生するエラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpatialIdError {
     /// ズームレベルが有効範囲（0..=30）外であることを示す。
@@ -63,12 +63,16 @@ pub enum SpatialIdError {
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     YOutOfRange { z: u8, y: u32 },
 
-    /// 時間方向が0-u64::MAX的有効範囲外であることを示す。
-    /// 0=<i×t=<u64::MAXを満たす必要がある
+    /// 時間区間が `[0, Interval::WHOLE_SECONDS)` の外に出ることを示す。
+    /// `i × (t + 1) <= WHOLE_SECONDS` を満たす必要がある。
     TOutOfRange { i: u64, t: u64 },
 
-    /// 時間間隔 `i` に 0 を指定した場合のエラー。
+    /// 時間間隔 `i` が約数鎖に含まれない場合のエラー。
     TIntervalError { i: u64 },
+
+    /// 二進層間隔 `Day·2^k` の指数 `k` が範囲（`0..=47`）外の場合のエラー。
+    TDayPowOutOfRange { k: u8 },
+
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
 
@@ -88,6 +92,12 @@ impl From<SpatialIdError> for Error {
     }
 }
 
+impl From<core::convert::Infallible> for Error {
+    fn from(value: core::convert::Infallible) -> Self {
+        match value {}
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -103,53 +113,46 @@ impl fmt::Display for GeometryError {
             GeometryError::LatitudeOutOfRange { latitude } => {
                 write!(
                     f,
-                    "Latitude '{}' is out of range (valid: -85.0511..=85.0511)",
-                    latitude
+                    "Latitude '{latitude}' is out of range (valid: -85.0511..=85.0511)"
                 )
             }
             GeometryError::LongitudeOutOfRange { longitude } => {
                 write!(
                     f,
-                    "Longitude '{}' is out of range (valid: -180.0..=180.0)",
-                    longitude
+                    "Longitude '{longitude}' is out of range (valid: -180.0..=180.0)"
                 )
             }
             GeometryError::AltitudeOutOfRange { altitude } => {
                 write!(
                     f,
-                    "Altitude '{}' is out of range (valid: -33,554,432.0..=33,554,432.0)",
-                    altitude
+                    "Altitude '{altitude}' is out of range (valid: -33,554,432.0..=33,554,432.0)"
                 )
             }
             GeometryError::SolidNotWatertight { open_edge_count } => {
                 write!(
                     f,
-                    "Solid is not watertight (closed). Found {} open edges.",
-                    open_edge_count
+                    "Solid is not watertight (closed). Found {open_edge_count} open edges."
                 )
             }
             GeometryError::RadiusNegative { radius } => {
-                write!(f, "Radius need to be positive (radius = {}).", radius)
+                write!(f, "Radius need to be positive (radius = {radius}).")
             }
             GeometryError::FractionalFOutOfRange { z, f: fv } => {
                 write!(
                     f,
-                    "Fractional F coordinate '{}' is out of range for ZoomLevel '{}'",
-                    fv, z
+                    "Fractional F coordinate '{fv}' is out of range for ZoomLevel '{z}'"
                 )
             }
             GeometryError::FractionalXOutOfRange { z, x } => {
                 write!(
                     f,
-                    "Fractional X coordinate '{}' is out of range for ZoomLevel '{}'",
-                    x, z
+                    "Fractional X coordinate '{x}' is out of range for ZoomLevel '{z}'"
                 )
             }
             GeometryError::FractionalYOutOfRange { z, y } => {
                 write!(
                     f,
-                    "Fractional Y coordinate '{}' is out of range for ZoomLevel '{}'",
-                    y, z
+                    "Fractional Y coordinate '{y}' is out of range for ZoomLevel '{z}'"
                 )
             }
         }
@@ -160,7 +163,7 @@ impl fmt::Display for SpatialIdError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             SpatialIdError::ZOutOfRange { z } => {
-                write!(f, "ZoomLevel '{}' is out of range (valid: 0..=30)", z)
+                write!(f, "ZoomLevel '{z}' is out of range (valid: 0..=30)")
             }
             SpatialIdError::ZoomLevelTransitionOutOfRange {
                 current_z,
@@ -168,43 +171,36 @@ impl fmt::Display for SpatialIdError {
             } => {
                 write!(
                     f,
-                    "Target zoom level '{}' is invalid for current zoom level '{}'",
-                    target_z, current_z
+                    "Target zoom level '{target_z}' is invalid for current zoom level '{current_z}'"
                 )
             }
             SpatialIdError::FOutOfRange { z, f: fv } => {
-                write!(
-                    f,
-                    "F coordinate '{}' is out of range for ZoomLevel '{}'",
-                    fv, z
-                )
+                write!(f, "F coordinate '{fv}' is out of range for ZoomLevel '{z}'")
             }
             SpatialIdError::XOutOfRange { z, x } => {
-                write!(
-                    f,
-                    "X coordinate '{}' is out of range for ZoomLevel '{}'",
-                    x, z
-                )
+                write!(f, "X coordinate '{x}' is out of range for ZoomLevel '{z}'")
             }
             SpatialIdError::YOutOfRange { z, y } => {
-                write!(
-                    f,
-                    "Y coordinate '{}' is out of range for ZoomLevel '{}'",
-                    y, z
-                )
+                write!(f, "Y coordinate '{y}' is out of range for ZoomLevel '{z}'")
             }
             SpatialIdError::TOutOfRange { i, t } => {
-                write!(f, "i × t overflows u64 (i={}, t={}).", i, t)
+                write!(
+                    f,
+                    "time range i*(t+1) exceeds the time domain end (i={i}, t={t})."
+                )
             }
+
             SpatialIdError::TIntervalError { i } => {
                 write!(
                     f,
-                    "Time interval i is must u64::MAX or 86400 or 3600 or 60 or 1 (i={}).",
-                    i
+                    "Time interval i must be 1, 60, 3600, or 86400*2^k (k<=47) (i={i})."
                 )
             }
+            SpatialIdError::TDayPowOutOfRange { k } => {
+                write!(f, "Day*2^k exponent k must be in 0..=47 (k={k}).")
+            }
             SpatialIdError::ParseSpatialIdFormat { kind, input } => {
-                write!(f, "{} '{}' has invalid display format", kind, input)
+                write!(f, "{kind} '{input}' has invalid display format")
             }
             SpatialIdError::InvalidShardMerge => {
                 write!(

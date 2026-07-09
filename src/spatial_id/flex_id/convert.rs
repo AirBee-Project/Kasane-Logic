@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 
 use crate::{
-    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
+    FlexId, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
     spatial_id::zoom_level::ZoomLevel,
 };
 
@@ -26,19 +26,19 @@ impl From<&FlexId> for RangeId {
             [start, end]
         };
 
-        let f_range = scale_to_range(flex_id.f_index as i64, flex_id.f_zoomlevel.get());
-        let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel.get());
-        let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel.get());
+        let f_range = scale_to_range(i64::from(flex_id.f_index), flex_id.f_zoomlevel.get());
+        let x_range = scale_to_range(i64::from(flex_id.x_index), flex_id.x_zoomlevel.get());
+        let y_range = scale_to_range(i64::from(flex_id.y_index), flex_id.y_zoomlevel.get());
 
         #[cfg(feature = "temporal_id")]
         {
-            RangeId::new_with_temporal(
+            RangeId::new(
                 max_z,
                 [f_range[0] as i32, f_range[1] as i32],
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
-                flex_id.temporal().clone(),
             )
+            .map(|id| id.with_temporal(flex_id.temporal()))
             .unwrap()
         }
 
@@ -70,15 +70,8 @@ impl From<&SingleId> for FlexId {
             x_index: value.x(),
             y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             y_index: value.y(),
-            temporal_id: value.temporal().clone(),
+            temporal_id: value.temporal(),
         }
-    }
-}
-
-impl IntoFlexIds for FlexId {
-    type IntoIter = core::iter::Once<FlexId>;
-    fn into_flex_ids(self) -> Self::IntoIter {
-        core::iter::once(self)
     }
 }
 
@@ -89,16 +82,44 @@ impl IterFlexIds for FlexId {
     }
 }
 
-impl IntoSingleIds for FlexId {
-    type IntoIter = Box<dyn Iterator<Item = SingleId>>;
-    fn into_single_ids(self) -> Self::IntoIter {
-        RangeId::from(self).into_single_ids()
-    }
-}
-
 impl IterSingleIds for FlexId {
     type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
     fn iter_single_ids(&self) -> Self::Iter<'_> {
-        RangeId::from(self).into_single_ids()
+        let range = RangeId::from(self);
+        let z = range.z();
+        let f_range = range.f()[0]..=range.f()[1];
+        let y_range = range.y()[0]..=range.y()[1];
+        let x_0 = range.x()[0];
+        let x_1 = range.x()[1];
+        let t_id = range.temporal();
+
+        let iter = f_range.flat_map(move |f| {
+            let y_range = y_range.clone();
+            let t_id_inner = t_id;
+            let x_iter = if x_0 <= x_1 {
+                (x_0..=x_1).collect::<alloc::vec::Vec<_>>()
+            } else {
+                (x_0..=crate::spatial_id::zoom_level::ZoomLevel::new(z)
+                    .unwrap()
+                    .xy_max())
+                    .chain(0..=x_1)
+                    .collect::<alloc::vec::Vec<_>>()
+            };
+
+            x_iter.into_iter().flat_map(move |x| {
+                let _t_id = t_id_inner;
+                y_range.clone().map(move |y: u32| {
+                    #[cfg(feature = "temporal_id")]
+                    {
+                        SingleId::new(z, f, x, y).unwrap().with_temporal(_t_id)
+                    }
+                    #[cfg(not(feature = "temporal_id"))]
+                    {
+                        SingleId::new(z, f, x, y).unwrap()
+                    }
+                })
+            })
+        });
+        Box::new(iter)
     }
 }

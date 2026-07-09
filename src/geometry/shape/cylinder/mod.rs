@@ -45,7 +45,7 @@ impl Cylinder {
         let divide_num = 100_u32;
         let vertices: Vec<_> = (0..divide_num)
             .map(|i| {
-                let theta = 2.0 * PI * i as f64 / divide_num as f64;
+                let theta = 2.0 * PI * f64::from(i) / f64::from(divide_num);
                 let v = basis[0].scale(libm::cos(theta)) + basis[1].scale(libm::sin(theta));
                 [vecs[0] + v, vecs[1] + v]
             })
@@ -53,8 +53,15 @@ impl Cylinder {
 
         let to_coord = |v: Vec3Ecef| Coordinate::try_from(Ecef::from(v)).unwrap();
 
+        // 底面・上面を先に構築（vertices と to_coord を消費）
+        let bottom = Polygon::new(
+            vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
+            1e-10,
+        );
+        let top = Polygon::new(vertices.iter().map(|v| to_coord(v[1])).collect(), 1e-10);
+
         // 側面の頂点リスト（イテレータ）を作成
-        let side_surfaces = (0..divide_num).map(|i| {
+        let side_surfaces = (0..divide_num).map(move |i| {
             let next_i = (i + 1) % divide_num;
             let v_curr = vertices[i as usize];
             let v_next = vertices[next_i as usize];
@@ -70,20 +77,6 @@ impl Cylinder {
             )
         });
 
-        // 側面を全て集める
-        let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
-
-        // 底面
-        raw_surfaces.push(Polygon::new(
-            vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            1e-10,
-        ));
-        // 上面
-        raw_surfaces.push(Polygon::new(
-            vertices.iter().map(|v| to_coord(v[1])).collect(),
-            1e-10,
-        ));
-
-        raw_surfaces.into_iter()
+        side_surfaces.chain([bottom, top])
     }
 }

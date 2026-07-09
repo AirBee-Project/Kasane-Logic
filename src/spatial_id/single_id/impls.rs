@@ -121,8 +121,8 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.x(), 13);
     /// ```
     fn move_x(&mut self, by: i32) {
-        let max_len = self.x_max() as i64 + 1;
-        let new = (self.x as i64 + by as i64).rem_euclid(max_len);
+        let max_len = i64::from(self.x_max()) + 1;
+        let new = (i64::from(self.x) + i64::from(by)).rem_euclid(max_len);
         self.x = new as u32;
     }
 
@@ -199,9 +199,9 @@ impl SpatialId for SingleId {
     /// ```
     fn spatial_center(&self) -> Coordinate {
         Coordinate::new(
-            helpers::latitude(self.y as f64 + 0.5, self.z.get()),
-            helpers::longitude(self.x as f64 + 0.5, self.z.get()),
-            helpers::altitude(self.f as f64 + 0.5, self.z.get()),
+            helpers::latitude(f64::from(self.y) + 0.5, self.z.get()),
+            helpers::longitude(f64::from(self.x) + 0.5, self.z.get()),
+            helpers::altitude(f64::from(self.f) + 0.5, self.z.get()),
         )
         .unwrap()
     }
@@ -221,9 +221,9 @@ impl SpatialId for SingleId {
     ///  //[Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 14680064.0 }]
     /// ```
     fn spatial_vertices(&self) -> [Coordinate; 8] {
-        let xs = [self.x as f64, self.x as f64 + 1.0];
-        let ys = [self.y as f64, self.y as f64 + 1.0];
-        let fs = [self.f as f64, self.f as f64 + 1.0];
+        let xs = [f64::from(self.x), f64::from(self.x) + 1.0];
+        let ys = [f64::from(self.y), f64::from(self.y) + 1.0];
+        let fs = [f64::from(self.f), f64::from(self.f) + 1.0];
 
         // 各端点の値を前計算しておく
         let lon2 = [
@@ -266,7 +266,7 @@ impl SpatialId for SingleId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        libm::pow(2_f64, (25 - self.z() as i32) as f64)
+        libm::pow(2_f64, f64::from(25 - i32::from(self.z())))
     }
 
     ///その空間IDのX方向の長さをメートル単位で計算する関数
@@ -283,8 +283,8 @@ impl SpatialId for SingleId {
         r * 2.0 * core::f64::consts::PI / ((1_u64 << self.z()) as f64)
     }
 
-    fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+    fn temporal(&self) -> TemporalId {
+        self.temporal_id
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {
@@ -334,7 +334,7 @@ impl FromStr for SingleId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            SingleId::new_with_temporal(z, f, x, y, temporal_id)
+            SingleId::new(z, f, x, y).map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

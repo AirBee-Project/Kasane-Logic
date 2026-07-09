@@ -39,7 +39,7 @@ impl FlexId {
         // ズームレベル 3 つを 15 ビットに詰める
         // byte 0: [zf(5bit)][zx(5bit) 上位3bit]
         // byte 1: [zx(5bit) 下位2bit][zy(5bit)][padding(1bit)=0]
-        let header = ((zf as u16) << 10) | ((zx as u16) << 5) | (zy as u16);
+        let header = (u16::from(zf) << 10) | (u16::from(zx) << 5) | u16::from(zy);
         let byte0 = (header >> 7) as u8;
         let byte1 = ((header & 0x7F) << 1) as u8; // 下位 7bit を左に 1bit シフト（padding bit = 0）
 
@@ -72,7 +72,7 @@ impl FlexId {
     /// ```
     pub fn spatial_decode(bytes: &[u8; 14]) -> Result<Self, crate::error::Error> {
         // ヘッダー (15 ビット) を復元
-        let header = ((bytes[0] as u16) << 7) | ((bytes[1] as u16) >> 1);
+        let header = (u16::from(bytes[0]) << 7) | (u16::from(bytes[1]) >> 1);
         let zf = ((header >> 10) & 0x1F) as u8;
         let zx = ((header >> 5) & 0x1F) as u8;
         let zy = (header & 0x1F) as u8;
@@ -94,7 +94,7 @@ impl FlexId {
 
         // f_index をオフセットから実際の値へ戻す
         let f_min = ZoomLevel::new(zf).unwrap().f_min();
-        let f_index = f_shifted as i64 + f_min as i64;
+        let f_index = i64::from(f_shifted) + i64::from(f_min);
 
         FlexId::new(zf, f_index as i32, zx, x_index, zy, y_index)
     }

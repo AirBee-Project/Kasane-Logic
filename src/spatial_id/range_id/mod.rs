@@ -9,7 +9,7 @@ use crate::{
     spatial_id::{helpers, zoom_level::ZoomLevel},
 };
 
-/// RangeIdは空間IDの範囲表現を表す型です。
+/// `RangeIdは空間IDの範囲表現を表す型です`。
 ///
 /// 各インデックスを範囲で指定することができます。各次元の範囲を表す配列の順序には意味を持ちません。内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
 ///
@@ -80,6 +80,17 @@ impl RangeId {
     /// ```
     pub fn y(&self) -> [u32; 2] {
         self.y
+    }
+
+    /// 空間成分はそのままに、時間IDを `temporal` に置き換えた [`RangeId`] を返す。
+    pub fn with_temporal(&self, temporal: TemporalId) -> RangeId {
+        RangeId {
+            z: self.z,
+            f: self.f,
+            x: self.x,
+            y: self.y,
+            temporal_id: temporal,
+        }
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
@@ -176,8 +187,8 @@ impl RangeId {
         }
 
         let difference = target_z - z;
-        let scale_f = 1_i32 << difference as u32;
-        let scale_xy = 1_u32 << difference as u32;
+        let scale_f = 1_i32 << u32::from(difference);
+        let scale_xy = 1_u32 << u32::from(difference);
 
         let f = helpers::scale_range_i32(self.f[0], self.f[1], scale_f);
         let x = helpers::scale_range_u32(self.x[0], self.x[1], scale_xy);
@@ -189,7 +200,7 @@ impl RangeId {
             x,
             y,
 
-            temporal_id: self.temporal().clone(),
+            temporal_id: self.temporal(),
         })
     }
 
@@ -250,7 +261,7 @@ impl RangeId {
             return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
         }
 
-        let shift = (z - target_z) as u32;
+        let shift = u32::from(z - target_z);
 
         let f = [
             if self.f[0] == -1 {
@@ -274,7 +285,7 @@ impl RangeId {
             x,
             y,
 
-            temporal_id: self.temporal().clone(),
+            temporal_id: self.temporal(),
         })
     }
 }

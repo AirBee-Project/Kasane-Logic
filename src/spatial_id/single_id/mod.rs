@@ -10,7 +10,7 @@ use crate::{
     SpatialId, SpatialIdError, TemporalId, error::Error, spatial_id::zoom_level::ZoomLevel,
 };
 
-/// SingleIdは標準的な時空間 ID を表す型。
+/// `SingleIdは標準的な時空間` ID を表す型。
 ///
 /// 内部的には下記のような構造体で構成されている。
 ///
@@ -59,7 +59,6 @@ impl SingleId {
     pub fn f(&self) -> i32 {
         self.f
     }
-
     /// この `SingleId` が保持している X インデックス `x` を返します。
     ///
     /// ```
@@ -80,6 +79,17 @@ impl SingleId {
     /// ```
     pub fn y(&self) -> u32 {
         self.y
+    }
+
+    /// 空間成分はそのままに、時間IDを `temporal` に置き換えた [`SingleId`] を返す。
+    pub fn with_temporal(&self, temporal: TemporalId) -> SingleId {
+        SingleId {
+            z: self.z,
+            f: self.f,
+            x: self.x,
+            y: self.y,
+            temporal_id: temporal,
+        }
     }
 
     /// F インデックスを更新します。
@@ -228,8 +238,8 @@ impl SingleId {
 
         let difference = target_z - self.z();
 
-        let scale_f = 1_i32 << difference as u32;
-        let scale_xy = 1_u32 << difference as u32;
+        let scale_f = 1_i32 << u32::from(difference);
+        let scale_xy = 1_u32 << u32::from(difference);
 
         let f_start = self.f * scale_f;
         let x_start = self.x * scale_xy;
@@ -250,7 +260,7 @@ impl SingleId {
                     x,
                     y,
 
-                    temporal_id: self.temporal().clone(),
+                    temporal_id: self.temporal(),
                 })
             })
         }))
@@ -315,16 +325,15 @@ impl SingleId {
         } else {
             self.f >> difference
         };
-        let x = self.x >> (difference as u32);
-        let y = self.y >> (difference as u32);
+        let x = self.x >> u32::from(difference);
+        let y = self.y >> u32::from(difference);
 
         Ok(SingleId {
             z: target_zoom,
             f,
             x,
             y,
-
-            temporal_id: self.temporal().clone(),
+            temporal_id: self.temporal(),
         })
     }
 
@@ -370,56 +379,56 @@ impl SingleId {
                 f: f_start,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal(),
             },
         ];
 

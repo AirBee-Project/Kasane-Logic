@@ -37,16 +37,16 @@ impl fmt::Display for RangeId {
             f,
             "{}/{}/{}/{}",
             self.z.get(),
-            format_dimension(self.f),
-            format_dimension(self.x),
-            format_dimension(self.y),
+            format_dimension(&self.f),
+            format_dimension(&self.x),
+            format_dimension(&self.y),
         )?;
 
         //時間の情報があれば書き込み
 
         if !self.temporal_id.is_whole() {
             write!(f, "_{}", self.temporal_id)?;
-        };
+        }
         Ok(())
     }
 }
@@ -92,9 +92,9 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = self.x_max() as i64 + 1;
-        self.x[0] = ((self.x[0] as i64 + by as i64).rem_euclid(max_len)) as u32;
-        self.x[1] = ((self.x[1] as i64 + by as i64).rem_euclid(max_len)) as u32;
+        let max_len = i64::from(self.x_max()) + 1;
+        self.x[0] = ((i64::from(self.x[0]) + i64::from(by)).rem_euclid(max_len)) as u32;
+        self.x[1] = ((i64::from(self.x[1]) + i64::from(by)).rem_euclid(max_len)) as u32;
     }
 
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
@@ -150,9 +150,9 @@ impl SpatialId for RangeId {
     fn spatial_center(&self) -> Coordinate {
         let z = self.z.get();
 
-        let xf = (self.x[0] + self.x[1]) as f64 / 2.0 + 0.5;
-        let yf = (self.y[0] + self.y[1]) as f64 / 2.0 + 0.5;
-        let ff = (self.f[0] + self.f[1]) as f64 / 2.0 + 0.5;
+        let xf = f64::from(self.x[0] + self.x[1]) / 2.0 + 0.5;
+        let yf = f64::from(self.y[0] + self.y[1]) / 2.0 + 0.5;
+        let ff = f64::from(self.f[0] + self.f[1]) / 2.0 + 0.5;
 
         Coordinate::new(
             helpers::latitude(yf, z),
@@ -169,9 +169,9 @@ impl SpatialId for RangeId {
         let z = self.z.get();
 
         // 2 点ずつの端点
-        let xs = [self.x[0] as f64, (self.x[1] + 1) as f64];
-        let ys = [self.y[0] as f64, (self.y[1] + 1) as f64];
-        let fs = [self.f[0] as f64, (self.f[1] + 1) as f64];
+        let xs = [f64::from(self.x[0]), f64::from(self.x[1] + 1)];
+        let ys = [f64::from(self.y[0]), f64::from(self.y[1] + 1)];
+        let fs = [f64::from(self.f[0]), f64::from(self.f[1] + 1)];
 
         // 各軸方向の計算は 2 回だけにする
         let longitudes: [f64; 2] = [helpers::longitude(xs[0], z), helpers::longitude(xs[1], z)];
@@ -200,10 +200,10 @@ impl SpatialId for RangeId {
     ///その空間IDのＦ方向の長さをメートル単位で計算する関数
     fn length_f_meters(&self) -> f64 {
         //Z=25のとき、ちょうど高さが1mとなる
-        let one = libm::pow(2_f64, (25 - self.z() as i32) as f64);
+        let one = libm::pow(2_f64, f64::from(25 - i32::from(self.z())));
 
         //このRangeIdが表すセル数を計算（両端含む）
-        let range = (self.f()[1] - self.f()[0] + 1) as f64;
+        let range = f64::from(self.f()[1] - self.f()[0] + 1);
 
         //かけ合わせて答えを返却
         one * range
@@ -214,8 +214,9 @@ impl SpatialId for RangeId {
         //Todo:正確な実装ではないので将来的に置換
         let ecef: crate::Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        let one = r * 2.0 * core::f64::consts::PI / (libm::pow(2_f64, (self.z() as i32) as f64));
-        let count = self.x()[0].abs_diff(self.x()[1]) as f64 + 1.0;
+        let one =
+            r * 2.0 * core::f64::consts::PI / (libm::pow(2_f64, f64::from(i32::from(self.z()))));
+        let count = f64::from(self.x()[0].abs_diff(self.x()[1])) + 1.0;
 
         one * count
     }
@@ -225,14 +226,15 @@ impl SpatialId for RangeId {
         //Todo:正確な実装ではないので将来的に置換
         let ecef: crate::Ecef = self.spatial_center().into();
         let r = libm::sqrt(ecef.x() * ecef.x() + ecef.y() * ecef.y());
-        let one = r * 2.0 * core::f64::consts::PI / (libm::pow(2_f64, (self.z() as i32) as f64));
-        let count = self.y()[0].abs_diff(self.y()[1]) as f64 + 1.0;
+        let one =
+            r * 2.0 * core::f64::consts::PI / (libm::pow(2_f64, f64::from(i32::from(self.z()))));
+        let count = f64::from(self.y()[0].abs_diff(self.y()[1])) + 1.0;
 
         one * count
     }
 
-    fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+    fn temporal(&self) -> TemporalId {
+        self.temporal_id
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {
@@ -284,7 +286,7 @@ impl FromStr for RangeId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            RangeId::new_with_temporal(z, f, x, y, temporal_id)
+            RangeId::new(z, f, x, y).map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

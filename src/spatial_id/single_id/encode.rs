@@ -24,9 +24,10 @@ impl SingleId {
     pub fn spatial_encode(&self) -> [u8; 12] {
         let mut v: u128 = 0;
         let z = self.z();
-        let f_shifted = (self.f() as i64 - ZoomLevel::new(z).unwrap().f_min() as i64) as u128;
-        let x = self.x() as u128;
-        let y = self.y() as u128;
+        let f_shifted =
+            (i64::from(self.f()) - i64::from(ZoomLevel::new(z).unwrap().f_min())) as u128;
+        let x = u128::from(self.x());
+        let y = u128::from(self.y());
 
         let mut shift = 127;
         v |= ((f_shifted >> z) & 1) << shift;
@@ -41,7 +42,7 @@ impl SingleId {
             shift -= 1;
         }
 
-        v |= (z as u128) << 32;
+        v |= u128::from(z) << 32;
 
         let mut bytes = [0u8; 12];
         bytes.copy_from_slice(&v.to_be_bytes()[0..12]);
@@ -70,9 +71,10 @@ impl SingleId {
     pub fn spatial_encode_prefix_max(&self) -> [u8; 12] {
         let mut v: u128 = 0;
         let z = self.z();
-        let f_shifted = (self.f() as i64 - ZoomLevel::new(z).unwrap().f_min() as i64) as u128;
-        let x = self.x() as u128;
-        let y = self.y() as u128;
+        let f_shifted =
+            (i64::from(self.f()) - i64::from(ZoomLevel::new(z).unwrap().f_min())) as u128;
+        let x = u128::from(self.x());
+        let y = u128::from(self.y());
 
         let mut shift = 127;
         v |= ((f_shifted >> z) & 1) << shift;
@@ -149,7 +151,7 @@ impl SingleId {
             shift -= 1;
         }
 
-        let f = (f_shifted as i64 + ZoomLevel::new(z).unwrap().f_min() as i64) as i32;
+        let f = (f_shifted as i64 + i64::from(ZoomLevel::new(z).unwrap().f_min())) as i32;
 
         crate::spatial_id::single_id::SingleId::new(z, f, x, y)
     }

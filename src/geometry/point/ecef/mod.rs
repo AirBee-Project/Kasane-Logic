@@ -158,6 +158,7 @@ impl Ecef {
     }
 
     // 原点からの距離の2乗を取得する。
+
     pub fn norm_squared(&self) -> f64 {
         self.x * self.x + self.y * self.y + self.z * self.z
     }

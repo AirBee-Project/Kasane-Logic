@@ -9,20 +9,9 @@ use crate::{Coordinate, FlexId, SingleId, TemporalId, error::Error};
 #[cfg(doc)]
 use crate::RangeId;
 
-/// [SingleId],[RangeId],[FlexId]が共通して持つTrait
+/// [`SingleId`],[`RangeId`],[`FlexId`]が共通して持つTrait
 pub trait SpatialId:
-    IntoFlexIds
-    + IterFlexIds
-    + IterSingleIds
-    + IntoSingleIds
-    + Debug
-    + Display
-    + Clone
-    + Eq
-    + Hash
-    + Ord
-    + PartialOrd
-    + FromStr
+    IterFlexIds + IterSingleIds + Debug + Display + Clone + Eq + Hash + Ord + PartialOrd + FromStr
 {
     /// ズームレベルにおける最小のFインデックスを返す。
     ///
@@ -179,44 +168,28 @@ pub trait SpatialId:
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
     /// 時間 ID を参照で返す。
-    fn temporal(&self) -> &TemporalId;
+    fn temporal(&self) -> TemporalId;
 
     /// 時間 ID を可変参照で返す。
     fn temporal_mut(&mut self) -> &mut TemporalId;
 }
 
-/// [SingleId] の集合であることを保証するトレイト。
-pub trait IntoSingleIds {
-    type IntoIter: Iterator<Item = SingleId>;
-
-    /// 所有権ごと [SingleId] の列へ変換する。
-    fn into_single_ids(self) -> Self::IntoIter;
-}
-
-/// [SingleId] の参照列を返せることを保証するトレイト。
+/// [`SingleId`] の参照列を返せることを保証するトレイト。
 pub trait IterSingleIds {
     type Iter<'a>: Iterator<Item = SingleId> + 'a
     where
         Self: 'a;
 
-    /// 参照から [SingleId] の列を列挙する。
+    /// 参照から [`SingleId`] の列を列挙する。
     fn iter_single_ids(&self) -> Self::Iter<'_>;
 }
 
-/// [FlexId] の集合であることを保証するトレイト。
-pub trait IntoFlexIds {
-    type IntoIter: Iterator<Item = FlexId>;
-
-    /// 所有権ごと [FlexId] の列へ変換する。
-    fn into_flex_ids(self) -> Self::IntoIter;
-}
-
-/// [FlexId] の参照列を返せることを保証するトレイト。
+/// [`FlexId`] の参照列を返せることを保証するトレイト。
 pub trait IterFlexIds {
     type Iter<'a>: Iterator<Item = FlexId> + 'a
     where
         Self: 'a;
 
-    /// 参照から [FlexId] の列を列挙する。
+    /// 参照から [`FlexId`] の列を列挙する。
     fn iter_flex_ids(&self) -> Self::Iter<'_>;
 }

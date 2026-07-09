@@ -1,5 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(clippy::disallowed_methods)]
+#![deny(clippy::perf)]
+#![deny(clippy::needless_collect)]
+
 #[macro_use]
 extern crate alloc;
 
@@ -68,37 +71,41 @@ pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
 #[doc(inline)]
+pub use spatial_id::temporal_id::Interval;
+#[doc(inline)]
 pub use spatial_id::temporal_id::TemporalId;
+#[doc(inline)]
+pub use spatial_id::temporal_id::TemporalMap;
+#[doc(inline)]
+pub use spatial_id::temporal_id::TemporalSet;
 
 // spatial_id: collection types
 #[doc(inline)]
-pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
+pub(crate) use spatial_id::collection::flex_tree::FlexTree;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::json::JsonValue;
+pub use spatial_id::collection::set::SpatialIdSet;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::traits::{CellValue, SpatialIdCollection};
+pub use spatial_id::collection::traits::{CellValue, SpatialIdCollection};
 
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
+pub use spatial_id::collection::map::SpatialIdMap;
 #[cfg(feature = "persist")]
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::persist::ArchivedMap;
+pub use spatial_id::collection::map::persist::ArchivedMap;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
+pub use spatial_id::collection::table::SpatialIdTable;
 
 // spatial_id: traits
 #[doc(inline)]
 pub use spatial_id::helpers::{Dimension, Side};
 #[doc(inline)]
-pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialId};
+pub use spatial_id::traits::{IterFlexIds, IterSingleIds, SpatialId};
 
 // spatial_id: zoom level
 #[doc(inline)]
 pub use spatial_id::zoom_level::ZoomLevel;
 
 #[doc(inline)]
-pub use spatial_id::collection::expr::query::Query;
+pub use spatial_id::collection::query::Query;
 #[doc(inline)]
-pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};
+pub use spatial_id::collection::query::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};

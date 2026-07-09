@@ -25,7 +25,7 @@ impl Solid {
     /// # 処理内容
     /// - 各面を[Polygon] に変換。
     /// - 閉合性の検証。
-    /// - 穴がある場合は [GeometryError::SolidNotWatertight] を返します。
+    /// - 穴がある場合は [`GeometryError::SolidNotWatertight`] を返します。
     ///
     /// # 引数
     /// -  `polygons` - 立体を構成する面のリスト。
@@ -96,7 +96,7 @@ impl Solid {
         edge_counts.values().filter(|&count| count % 2 != 0).count()
     }
 
-    /// 指定されたズームレベル `z` における、この [Solid] の表面を覆う [SingleId] の集合を返す。
+    /// 指定されたズームレベル `z` における、この [Solid] の表面を覆う [`SingleId`] の集合を返す。
     pub fn surface_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         // HashSetで重複を除去
         let mut unique_ids = HashSet::new();
