@@ -11,7 +11,7 @@ impl FlexId {
     pub fn difference_clipped(
         &self,
         other: &FlexId,
-        window: &TemporalId,
+        window: TemporalId,
     ) -> impl Iterator<Item = FlexId> {
         // self の時間を窓へクリップ。窓と交差しなければ空。
         let clipped_t = match self.temporal().intersection(window) {
@@ -268,7 +268,7 @@ mod temporal_tests {
         let a = st(TemporalId::WHOLE);
         let b = st(TemporalId::new(60_u64, 600).unwrap()); // [36000, 36060)
         let window = TemporalId::new(3600_u64, 10).unwrap(); // [36000, 39600)
-        let d: Vec<_> = a.difference_clipped(&b, &window).collect();
+        let d: Vec<_> = a.difference_clipped(&b, window).collect();
         assert_eq!(d.len(), 59);
         assert!(d.iter().all(|f| f.temporal().i() == Interval::Minute));
     }

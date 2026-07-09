@@ -171,8 +171,8 @@ impl SpatialId for FlexId {
         out
     }
 
-    fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+    fn temporal(&self) -> TemporalId {
+        self.temporal_id
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {

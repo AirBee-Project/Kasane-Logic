@@ -46,7 +46,7 @@ impl From<&SingleId> for RangeId {
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
 
-            temporal_id: *id.temporal(),
+            temporal_id: id.temporal(),
         }
     }
 }

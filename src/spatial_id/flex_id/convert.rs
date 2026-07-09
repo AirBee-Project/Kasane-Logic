@@ -38,7 +38,7 @@ impl From<&FlexId> for RangeId {
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
             )
-            .map(|id| id.with_temporal(*flex_id.temporal()))
+            .map(|id| id.with_temporal(flex_id.temporal()))
             .unwrap()
         }
 
@@ -70,7 +70,7 @@ impl From<&SingleId> for FlexId {
             x_index: value.x(),
             y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             y_index: value.y(),
-            temporal_id: *value.temporal(),
+            temporal_id: value.temporal(),
         }
     }
 }
@@ -91,7 +91,7 @@ impl IterSingleIds for FlexId {
         let y_range = range.y()[0]..=range.y()[1];
         let x_0 = range.x()[0];
         let x_1 = range.x()[1];
-        let t_id = *range.temporal();
+        let t_id = range.temporal();
 
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();

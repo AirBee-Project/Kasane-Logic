@@ -51,7 +51,7 @@ mod tests {
                 let sb = seconds(b);
 
                 // intersection: 1セル or None、かつ秒集合が厳密一致
-                let inter = a.intersection(b);
+                let inter = a.intersection(*b);
                 let exp_inter: BTreeSet<u64> = sa.intersection(&sb).copied().collect();
                 match &inter {
                     Some(i) => assert_eq!(seconds(i), exp_inter, "inter {a:?} ∩ {b:?}"),
@@ -62,7 +62,7 @@ mod tests {
                 }
 
                 // difference: 被覆が厳密一致、ピース同士は非交差
-                let diff: Vec<TemporalId> = a.difference(b).collect();
+                let diff: Vec<TemporalId> = a.difference(*b).collect();
                 let got = seconds_of(&diff);
                 let exp_diff: BTreeSet<u64> = sa.difference(&sb).copied().collect();
                 assert_eq!(got, exp_diff, "diff {a:?} − {b:?}");
@@ -73,7 +73,7 @@ mod tests {
                 );
 
                 // contains
-                assert_eq!(a.contains(b), sb.is_subset(&sa), "contains {a:?} ⊇ {b:?}");
+                assert_eq!(a.contains(*b), sb.is_subset(&sa), "contains {a:?} ⊇ {b:?}");
             }
         }
     }
@@ -83,7 +83,7 @@ mod tests {
     fn hour_minus_minute_is_59_minute_cells() {
         let hour = TemporalId::new(3600_u64, 0).unwrap(); // [0, 3600)
         let min = TemporalId::new(60_u64, 0).unwrap(); // [0, 60)
-        let d: Vec<_> = hour.difference(&min).collect();
+        let d: Vec<_> = hour.difference(min).collect();
         assert_eq!(d.len(), 59, "59個の分セルのはず");
         assert!(
             d.iter().all(|c| c.i() == Interval::Minute),
@@ -97,7 +97,7 @@ mod tests {
     fn whole_minus_minute_is_bounded() {
         let whole = TemporalId::WHOLE;
         let min = TemporalId::new(60_u64, 600).unwrap(); // [36000, 36060)
-        let d: Vec<_> = whole.difference(&min).collect();
+        let d: Vec<_> = whole.difference(min).collect();
         // 二進層のおかげで爆発しない（左側 + 右側で高々数百）。
         assert!(d.len() < 400, "cells = {}", d.len());
         // 被覆の検証（秒展開せず区間で照合）:
@@ -164,7 +164,7 @@ mod tests {
         // 最終秒 [WHOLE_SECONDS-1, WHOLE_SECONDS) は有効で、WHOLE に含まれる
         let last = TemporalId::new(1_u64, Interval::WHOLE_SECONDS - 1).unwrap();
         assert_eq!(last.end_unixtime_exclusive(), Interval::WHOLE_SECONDS);
-        assert!(TemporalId::WHOLE.contains(&last));
+        assert!(TemporalId::WHOLE.contains(last));
         // WHOLE 自身の終端は終端
         assert_eq!(
             TemporalId::WHOLE.end_unixtime_exclusive(),

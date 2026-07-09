@@ -10,15 +10,15 @@ impl TemporalId {
     /// # use kasane_logic::TemporalId;
     /// let id1 = TemporalId::new(3600_u64, 5).unwrap();  // [18000, 21600)
     /// let id2 = TemporalId::new(3600_u64, 6).unwrap();  // [21600, 25200)
-    /// assert_eq!(id1.intersection(&id2), None);     // 重なりなし
+    /// assert_eq!(id1.intersection(id2), None);     // 重なりなし
     ///
     /// let id3 = TemporalId::new(1_u64, 18000).unwrap(); // [18000, 18001)
-    /// assert_eq!(id1.intersection(&id3), Some(id3.clone()));
+    /// assert_eq!(id1.intersection(id3), Some(id3.clone()));
     /// ```
-    pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
+    pub fn intersection(&self, other: TemporalId) -> Option<TemporalId> {
         if self.contains(other) {
-            Some(*other)
-        } else if other.contains(self) {
+            Some(other)
+        } else if other.contains(*self) {
             Some(*self)
         } else {
             None
@@ -33,7 +33,7 @@ impl TemporalId {
     /// # use kasane_logic::TemporalId;
     /// let id1 = TemporalId::new(3600_u64, 0).unwrap();   // [0, 3600)
     /// let id2 = TemporalId::new(3600_u64, 5).unwrap();   // [18000, 21600)
-    /// let diff: Vec<_> = id1.difference(&id2).collect();
+    /// let diff: Vec<_> = id1.difference(id2).collect();
     /// assert_eq!(diff.len(), 1);
     /// assert_eq!(diff[0], id1);
     /// ```
@@ -43,10 +43,10 @@ impl TemporalId {
     /// # use kasane_logic::TemporalId;
     /// let id1 = TemporalId::new(1_u64, 19800).unwrap();  // [19800, 19801)
     /// let id2 = TemporalId::new(3600_u64, 5).unwrap();   // [18000, 21600)
-    /// let diff: Vec<_> = id1.difference(&id2).collect();
+    /// let diff: Vec<_> = id1.difference(id2).collect();
     /// assert_eq!(diff.len(), 0);
     /// ```
-    pub fn difference(&self, other: &TemporalId) -> impl Iterator<Item = TemporalId> {
+    pub fn difference(&self, other: TemporalId) -> impl Iterator<Item = TemporalId> {
         let s0 = self.start_unixtime();
         let s1 = self.end_unixtime_exclusive();
         let o0 = other.start_unixtime();
@@ -106,7 +106,7 @@ impl TemporalId {
     }
 
     /// `other` の時間範囲が `self` に完全に含まれるかを判定する。
-    pub fn contains(&self, other: &TemporalId) -> bool {
+    pub fn contains(&self, other: TemporalId) -> bool {
         self.start_unixtime() <= other.start_unixtime()
             && other.end_unixtime_exclusive() <= self.end_unixtime_exclusive()
     }

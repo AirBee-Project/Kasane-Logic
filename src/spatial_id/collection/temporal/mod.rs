@@ -153,7 +153,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
             },
             None => flex_id,
         };
-        let temporal = *flex_id.temporal();
+        let temporal = flex_id.temporal();
         let spatial = flex_id.spatial_part();
 
         if temporal.is_whole() {
@@ -181,7 +181,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner.get_ref(target).flat_map(|(clipped, tv)| {
-            tv.get(*clipped.temporal())
+            tv.get(clipped.temporal())
                 .map(move |(t, p)| (clipped.clone().with_temporal(t), p))
         })
     }
@@ -191,7 +191,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         &'a self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        let query_temporal = *target.temporal();
+        let query_temporal = target.temporal();
         self.inner
             .get_overlapping_ref(target)
             .flat_map(move |(stored, tv)| {
@@ -205,7 +205,7 @@ impl<V: Clone + PartialEq + crate::spatial_id::collection::flex_tree::ptr::SafeV
         &'a self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        let query_temporal = *target.temporal();
+        let query_temporal = target.temporal();
         self.inner
             .neighbors_share_face_ref(target)
             .flat_map(move |(stored, tv)| {

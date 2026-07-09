@@ -65,7 +65,7 @@ impl SingleId {
             }
         }
 
-        for t_diff in current.temporal_id.difference(&other.temporal_id) {
+        for t_diff in current.temporal_id.difference(other.temporal_id) {
             let mut diff_id = current.clone();
             diff_id.temporal_id = t_diff;
             results.push(diff_id);
@@ -118,7 +118,7 @@ impl SingleId {
             && (deep.x() >> shift) == shallow.x()
             && (deep.y() >> shift) == shallow.y()
         {
-            let temporal_id = self.temporal_id.intersection(&other.temporal_id)?;
+            let temporal_id = self.temporal_id.intersection(other.temporal_id)?;
 
             let mut result = deep.clone();
             result.temporal_id = temporal_id;

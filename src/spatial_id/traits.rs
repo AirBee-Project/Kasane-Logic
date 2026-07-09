@@ -168,7 +168,7 @@ pub trait SpatialId:
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
     /// 時間 ID を参照で返す。
-    fn temporal(&self) -> &TemporalId;
+    fn temporal(&self) -> TemporalId;
 
     /// 時間 ID を可変参照で返す。
     fn temporal_mut(&mut self) -> &mut TemporalId;

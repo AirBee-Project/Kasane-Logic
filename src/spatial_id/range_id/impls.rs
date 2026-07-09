@@ -231,8 +231,8 @@ impl SpatialId for RangeId {
         one * count
     }
 
-    fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+    fn temporal(&self) -> TemporalId {
+        self.temporal_id
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {

@@ -283,8 +283,8 @@ impl SpatialId for SingleId {
         r * 2.0 * core::f64::consts::PI / ((1_u64 << self.z()) as f64)
     }
 
-    fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+    fn temporal(&self) -> TemporalId {
+        self.temporal_id
     }
 
     fn temporal_mut(&mut self) -> &mut TemporalId {

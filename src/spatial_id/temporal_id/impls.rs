@@ -93,14 +93,14 @@ impl FromStr for TemporalId {
     }
 }
 
-impl BitAnd for &TemporalId {
+impl BitAnd for TemporalId {
     type Output = Option<TemporalId>;
     fn bitand(self, rhs: Self) -> Self::Output {
         self.intersection(rhs)
     }
 }
 
-impl Sub for &TemporalId {
+impl Sub for TemporalId {
     type Output = Vec<TemporalId>;
     fn sub(self, rhs: Self) -> Self::Output {
         self.difference(rhs).collect()

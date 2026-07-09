@@ -219,7 +219,7 @@ fn flat_single_ids_carry_temporal() {
     let singles: Vec<_> = a.flat_single_ids().collect();
     assert!(!singles.is_empty());
     for s in singles {
-        assert_eq!(*s.temporal(), TemporalId::new(60_u64, 5).unwrap());
+        assert_eq!(s.temporal(), TemporalId::new(60_u64, 5).unwrap());
     }
 }
 

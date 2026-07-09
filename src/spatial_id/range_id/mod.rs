@@ -200,7 +200,7 @@ impl RangeId {
             x,
             y,
 
-            temporal_id: *self.temporal(),
+            temporal_id: self.temporal(),
         })
     }
 
@@ -285,7 +285,7 @@ impl RangeId {
             x,
             y,
 
-            temporal_id: *self.temporal(),
+            temporal_id: self.temporal(),
         })
     }
 }
