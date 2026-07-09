@@ -4,6 +4,10 @@ use alloc::vec::Vec;
 use core::ops::{BitAnd, Sub};
 use core::{fmt::Display, str::FromStr};
 
+#[cfg(not(feature = "temporal_id"))]
+pub mod disabled;
+
+#[cfg(feature = "temporal_id")]
 impl Display for TemporalId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}/", self.i().seconds())?;
@@ -12,6 +16,7 @@ impl Display for TemporalId {
     }
 }
 
+#[cfg(feature = "temporal_id")]
 impl Default for TemporalId {
     fn default() -> Self {
         Self::WHOLE
@@ -63,6 +68,7 @@ impl Default for TemporalId {
 /// assert_eq!(original, parsed);
 /// # }
 /// ```
+#[cfg(feature = "temporal_id")]
 impl FromStr for TemporalId {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -93,6 +99,7 @@ impl FromStr for TemporalId {
     }
 }
 
+#[cfg(feature = "temporal_id")]
 impl BitAnd for TemporalId {
     type Output = Option<TemporalId>;
     fn bitand(self, rhs: Self) -> Self::Output {
@@ -100,6 +107,7 @@ impl BitAnd for TemporalId {
     }
 }
 
+#[cfg(feature = "temporal_id")]
 impl Sub for TemporalId {
     type Output = Vec<TemporalId>;
     fn sub(self, rhs: Self) -> Self::Output {

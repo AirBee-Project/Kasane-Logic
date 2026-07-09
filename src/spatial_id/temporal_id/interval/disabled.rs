@@ -1,14 +1,5 @@
-//! `temporal_id` feature 無効時の [`Interval`] スタブ。
-//!
-//! 有効時（[`mod.rs`](super::mod)）と同じ公開 API を保持しつつ、
-//! 常に「全時間（WHOLE）」だけを扱うシングルトン実装を提供する。
-
 use crate::error::Error;
 
-/// 時間IDの時間間隔を表す型（`temporal_id` feature 無効時のスタブ）。
-///
-/// feature 無効時は全時間（`WHOLE`）のみが有効な値であり、
-/// 他の間隔を生成しようとするとエラーになる。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(
     feature = "persist",

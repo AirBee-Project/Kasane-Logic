@@ -2,6 +2,10 @@ use alloc::vec::Vec;
 
 use crate::TemporalId;
 
+#[cfg(not(feature = "temporal_id"))]
+pub mod disabled;
+
+#[cfg(feature = "temporal_id")]
 impl TemporalId {
     /// 2つのTemporalIdの重なる時間範囲（Intersection）を返す。
     /// # 例

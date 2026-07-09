@@ -1,24 +1,5 @@
-//! `temporal_id` feature 無効時の [`TemporalId`] 本体定義。
-//!
-//! 演算・trait 実装・コレクション型は以下の各スタブに分散している。
-//! 有効時のファイル構造と 1:1 で対応するため、追加・変更があれば有効時の
-//! 対応ファイルを参照すること。
-//!
-//! | 役割               | 有効時                         | 無効時（スタブ）                          |
-//! |--------------------|-------------------------------|------------------------------------------|
-//! | `TemporalId` 本体  | `temporal_id/mod.rs`          | `temporal_id/disabled.rs`（本ファイル）   |
-//! | `Interval` 型      | `temporal_id/interval/mod.rs` | `temporal_id/interval/disabled.rs`       |
-//! | 演算               | `temporal_id/ops.rs`          | `temporal_id/ops/disabled.rs`            |
-//! | trait 実装         | `temporal_id/impls.rs`        | `temporal_id/impls/disabled.rs`          |
-//! | `TemporalSet`      | `temporal_id/collection/set/` | `temporal_id/collection/set/disabled.rs` |
-//! | `TemporalMap`      | `temporal_id/collection/map/` | `temporal_id/collection/map/disabled.rs` |
-
 use crate::{Interval, error::Error};
 
-/// 時間IDの区間表現を表す型（`temporal_id` feature 無効時のスタブ）。
-///
-/// `temporal_id` feature が無効な場合、[`TemporalId`] は常に全時間を表す
-/// スタブ実装となる。すべてのメソッドは全時間を表す状態を返す。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[cfg_attr(
     feature = "persist",

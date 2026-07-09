@@ -1,6 +1,3 @@
-// ── temporal_id feature 無効時 ────────────────────────────────────────────────
-// 各スタブは有効時のファイル構造と 1:1 で対応する。
-
 /// 時間間隔型。
 pub mod interval;
 pub use interval::Interval;
@@ -10,19 +7,16 @@ mod disabled;
 #[cfg(not(feature = "temporal_id"))]
 pub use disabled::TemporalId;
 
-/// `TemporalId` 演算（intersection / difference）。
 #[cfg(not(feature = "temporal_id"))]
 pub(crate) mod ops {
     pub mod disabled;
 }
 
-/// `TemporalId` trait 実装（Display / FromStr / Default / BitAnd / Sub）。
 #[cfg(not(feature = "temporal_id"))]
 pub(crate) mod impls {
     pub mod disabled;
 }
 
-/// コレクション型（TemporalSet / TemporalMap）。
 pub mod collection {
     pub mod map;
     pub mod set;
@@ -32,8 +26,6 @@ pub mod collection {
 }
 pub use collection::map::TemporalMap;
 pub use collection::set::TemporalSet;
-
-// ── temporal_id feature 有効時 ────────────────────────────────────────────────
 
 #[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};
