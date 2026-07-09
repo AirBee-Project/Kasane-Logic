@@ -1,5 +1,3 @@
-use core::ops::Sub;
-
 use crate::{ConflictPolicy, TemporalId, TemporalMap};
 
 impl<V: Clone + Ord> TemporalMap<V> {
@@ -17,21 +15,20 @@ impl<V: Clone + Ord> TemporalMap<V> {
     }
 }
 
-impl<V: Clone + PartialEq> Sub for &TemporalMap<V> {
-    type Output = TemporalMap<V>;
-    fn sub(self, rhs: Self) -> Self::Output {
-        self.difference(rhs)
+impl<'a, V: Clone + PartialEq + 'a> IntoIterator for &'a TemporalMap<V> {
+    type Item = (TemporalId, &'a V);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.iter())
     }
 }
 
-impl<V: Clone + PartialEq> IntoIterator for &TemporalMap<V> {
+impl<V: Clone + PartialEq + 'static> IntoIterator for TemporalMap<V> {
     type Item = (TemporalId, V);
-    type IntoIter = alloc::vec::IntoIter<(TemporalId, V)>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-            .map(|(t, v)| (t, v.clone()))
-            .collect::<Vec<_>>()
-            .into_iter()
+        Box::new(self.0.into_iter())
     }
 }

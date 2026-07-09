@@ -60,11 +60,6 @@ impl TemporalSet {
         self.0.ranges().iter().map(|&(s, e, ())| (s, e)).collect()
     }
 
-    /// `t` の時間範囲が完全に含まれるか（`t ⊆ self`）。
-    pub fn contains(&self, t: &TemporalId) -> bool {
-        Self::from(t).difference(self).is_empty()
-    }
-
     /// 和集合。
     pub fn union(&self, other: &Self) -> Self {
         Self(
@@ -86,14 +81,9 @@ impl TemporalSet {
         Self(self.0.difference(&other.0))
     }
 
-    /// 保持する時間セルの総数を返します（O(1)）。
+    /// 保持するTemporalIdの個数を返します。
     pub fn len(&self) -> usize {
         self.0.len()
-    }
-
-    /// `TemporalSet` の時間セルを走査するイテレータを返します。
-    pub fn iter(&self) -> impl Iterator<Item = TemporalId> + '_ {
-        self.0.iter().map(|(t, ())| t)
     }
 
     /// 指定された時間範囲を集合から取り除きます。

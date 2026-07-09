@@ -285,3 +285,31 @@ impl<V: Clone + Ord> TemporalCore<V> {
         })
     }
 }
+
+impl<'a, V> IntoIterator for &'a TemporalCore<V>
+where
+    V: Clone + PartialEq,
+{
+    type Item = (TemporalId, &'a V);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(
+            self.ranges
+                .iter()
+                .flat_map(|(s, e, v)| TemporalId::from_range(*s..*e).unwrap().map(move |c| (c, v))),
+        )
+    }
+}
+
+impl<V: Clone + 'static> IntoIterator for TemporalCore<V> {
+    type Item = (TemporalId, V);
+    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.ranges.into_iter().flat_map(|(s, e, v)| {
+            TemporalId::from_range(s..e)
+                .unwrap()
+                .map(move |c| (c, v.clone()))
+        }))
+    }
+}

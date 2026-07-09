@@ -23,7 +23,7 @@ pub use interval::Interval;
 mod tests;
 
 #[cfg(feature = "temporal_id")]
-#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord, Copy)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)

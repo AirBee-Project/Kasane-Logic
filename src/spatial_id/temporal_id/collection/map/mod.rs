@@ -44,7 +44,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
         self.0.is_empty()
     }
 
-    /// 差集合 `self - other`（時間で other を除く。値は self 由来）。
+    /// 差集合 `self - other`
     pub fn difference(&self, other: &Self) -> Self {
         Self(self.0.difference(&other.0))
     }
@@ -99,7 +99,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
 
     /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
     #[cfg_attr(not(any(test, feature = "persist")), allow(dead_code))]
-    pub(crate) fn segments_ref(&self) -> Vec<(u64, u64, &V)> {
+    pub(crate) fn ranges_ref(&self) -> Vec<(u64, u64, &V)> {
         self.0.ranges_ref()
     }
 
@@ -107,7 +107,7 @@ impl<V: Clone + PartialEq> TemporalMap<V> {
     ///
     /// 呼び出し側は列が正規化済み（昇順・互いに素・隣接同値マージ済み）であることを保証すること。
     #[cfg(feature = "persist")]
-    pub(crate) fn from_raw_segments(segments: Vec<(u64, u64, V)>) -> Self {
+    pub(crate) fn from_raw_ranges(segments: Vec<(u64, u64, V)>) -> Self {
         Self(TemporalCore::from_raw_ranges(segments))
     }
 }

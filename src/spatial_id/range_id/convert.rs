@@ -46,7 +46,7 @@ impl From<&SingleId> for RangeId {
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
 
-            temporal_id: id.temporal().clone(),
+            temporal_id: *id.temporal(),
         }
     }
 }
@@ -74,17 +74,17 @@ impl RangeId {
                     .collect()
             };
             #[cfg(feature = "temporal_id")]
-            let temporal_id = temporal_id.clone();
+            let temporal_id = temporal_id;
 
             x_iter.into_iter().flat_map(move |x| {
                 #[cfg(feature = "temporal_id")]
-                let temporal_id = temporal_id.clone();
+                let temporal_id = temporal_id;
                 (y0..=y1).map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
                         SingleId::new(z, f, x, y)
                             .unwrap()
-                            .with_temporal(temporal_id.clone())
+                            .with_temporal(temporal_id)
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
@@ -120,20 +120,20 @@ impl IterFlexIds for RangeId {
         };
         let y_list: Vec<_> = split_xy(z, self.y).collect();
 
-        let t_id = self.temporal_id.clone();
+        let t_id = self.temporal_id;
         let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
             let y_list_inner = y_list.clone();
             let x_list_inner = x_list.clone();
-            let t_id_inner = t_id.clone();
+            let t_id_inner = t_id;
             x_list_inner.into_iter().flat_map(move |(x_z, x_i)| {
                 let y_list_inner2 = y_list_inner.clone();
-                let _t_id_inner2 = t_id_inner.clone();
+                let _t_id_inner2 = t_id_inner;
                 y_list_inner2.into_iter().map(move |(y_z, y_i)| {
                     #[cfg(feature = "temporal_id")]
                     {
                         FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i)
                             .unwrap()
-                            .with_temporal(_t_id_inner2.clone())
+                            .with_temporal(_t_id_inner2)
                     }
                     #[cfg(not(feature = "temporal_id"))]
                     {

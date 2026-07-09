@@ -73,35 +73,12 @@ fn set_algebra_oracle() {
 /// `cells()` が被覆を保つ（往復: 集合 → セル列 → 集合 で秒集合が一致）。
 #[test]
 fn cells_roundtrip_preserves_coverage() {
-    for set in sample_sets() {
+    for set in sample_sets().iter() {
         let mut rebuilt = TemporalSet::new();
-        for c in set.iter() {
+        for c in set.into_iter() {
             rebuilt.insert(&c);
         }
-        assert_eq!(secs(&set), secs(&rebuilt), "cells roundtrip mismatch");
-    }
-}
-
-/// contains の照合（秒の部分集合判定と一致）。
-#[test]
-fn contains_oracle() {
-    let sets = sample_sets();
-    let probes = [
-        TemporalId::new(60_u64, 0).unwrap(),
-        TemporalId::new(60_u64, 1).unwrap(),
-        TemporalId::new(3600_u64, 0).unwrap(),
-        TemporalId::new(1_u64, 3600).unwrap(),
-    ];
-    for set in &sets {
-        let s = secs(set);
-        for p in &probes {
-            let ps: BTreeSet<u64> = (p.start_unixtime()..p.end_unixtime_exclusive()).collect();
-            assert_eq!(
-                set.contains(p),
-                ps.is_subset(&s),
-                "contains {set:?} ⊇ {p:?}"
-            );
-        }
+        assert_eq!(secs(set), secs(&rebuilt), "cells roundtrip mismatch");
     }
 }
 
@@ -125,7 +102,10 @@ fn contains_unixtime_oracle() {
 fn whole_handling() {
     let w = TemporalSet::whole();
     assert!(w.is_whole());
-    assert_eq!(w.iter().collect::<Vec<_>>(), alloc::vec![TemporalId::WHOLE]);
+    assert_eq!(
+        w.clone().into_iter().collect::<Vec<_>>(),
+        alloc::vec![TemporalId::WHOLE]
+    );
 
     let hour = TemporalSet::from(&TemporalId::new(3600_u64, 10).unwrap());
     let d = w.difference(&hour);
@@ -135,7 +115,7 @@ fn whole_handling() {
     assert!(d.contains_unixtime(39600)); // 穴の直後
 
     // 巨大な残余区間も対数個のセルへ正確に分解できる（爆発しない）
-    let cells: Vec<_> = d.iter().collect();
+    let cells: Vec<_> = d.into_iter().collect();
     assert!(cells.len() < 400, "cells = {}", cells.len());
     let total: u64 = cells
         .iter()
@@ -154,7 +134,7 @@ fn set_ergonomic_apis() {
     s.insert(&t1);
     assert!(!s.is_empty());
     assert_eq!(s.len(), 1);
-    assert!(s.iter().any(|x| x == t1));
+    assert!(s.0.iter().any(|(x, _)| x == t1));
 
     let t2 = TemporalId::new(3600_u64, 1_u64).unwrap(); // start=3600, index=1 (so 3600..7200)
     s.insert(&t2);
@@ -162,7 +142,7 @@ fn set_ergonomic_apis() {
 
     s.remove(&t1);
     assert_eq!(s.len(), 1);
-    assert!(!s.iter().any(|x| x == t1));
+    assert!(!s.0.iter().any(|(x, _)| x == t1));
 
     s.clear();
     assert!(s.is_empty());

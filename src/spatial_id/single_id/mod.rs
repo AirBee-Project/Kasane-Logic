@@ -261,7 +261,7 @@ impl SingleId {
                     x,
                     y,
 
-                    temporal_id: self.temporal().clone(),
+                    temporal_id: *self.temporal(),
                 })
             })
         }))
@@ -335,7 +335,7 @@ impl SingleId {
             x,
             y,
 
-            temporal_id: self.temporal().clone(),
+            temporal_id: *self.temporal(),
         })
     }
 
@@ -381,56 +381,56 @@ impl SingleId {
                 f: f_start,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: *self.temporal(),
             },
         ];
 

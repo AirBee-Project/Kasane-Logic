@@ -17,9 +17,9 @@ impl TemporalId {
     /// ```
     pub fn intersection(&self, other: &TemporalId) -> Option<TemporalId> {
         if self.contains(other) {
-            Some(other.clone())
+            Some(*other)
         } else if other.contains(self) {
-            Some(self.clone())
+            Some(*self)
         } else {
             None
         }
@@ -55,7 +55,7 @@ impl TemporalId {
         let mut result = Vec::new();
 
         if o1 <= s0 || o0 >= s1 {
-            result.push(self.clone());
+            result.push(*self);
             return result.into_iter();
         }
 

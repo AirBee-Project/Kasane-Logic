@@ -38,7 +38,7 @@ impl From<&FlexId> for RangeId {
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
             )
-            .map(|id| id.with_temporal(flex_id.temporal().clone()))
+            .map(|id| id.with_temporal(*flex_id.temporal()))
             .unwrap()
         }
 
@@ -70,7 +70,7 @@ impl From<&SingleId> for FlexId {
             x_index: value.x(),
             y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             y_index: value.y(),
-            temporal_id: value.temporal().clone(),
+            temporal_id: *value.temporal(),
         }
     }
 }
@@ -91,11 +91,11 @@ impl IterSingleIds for FlexId {
         let y_range = range.y()[0]..=range.y()[1];
         let x_0 = range.x()[0];
         let x_1 = range.x()[1];
-        let t_id = range.temporal().clone();
+        let t_id = *range.temporal();
 
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();
-            let t_id_inner = t_id.clone();
+            let t_id_inner = t_id;
             let x_iter = if x_0 <= x_1 {
                 (x_0..=x_1).collect::<alloc::vec::Vec<_>>()
             } else {
@@ -107,13 +107,11 @@ impl IterSingleIds for FlexId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                let _t_id = t_id_inner.clone();
+                let _t_id = t_id_inner;
                 y_range.clone().map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        SingleId::new(z, f, x, y)
-                            .unwrap()
-                            .with_temporal(_t_id.clone())
+                        SingleId::new(z, f, x, y).unwrap().with_temporal(_t_id)
                     }
                     #[cfg(not(feature = "temporal_id"))]
                     {

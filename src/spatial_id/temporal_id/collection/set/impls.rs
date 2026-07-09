@@ -1,5 +1,4 @@
 use crate::{TemporalId, TemporalSet};
-use alloc::vec::Vec;
 use core::ops::{BitAnd, BitOr, Sub};
 
 impl From<&TemporalId> for TemporalSet {
@@ -39,11 +38,20 @@ impl Sub for &TemporalSet {
     }
 }
 
-impl IntoIterator for &TemporalSet {
+impl<'a> IntoIterator for &'a TemporalSet {
     type Item = TemporalId;
-    type IntoIter = alloc::vec::IntoIter<TemporalId>;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.iter().collect::<Vec<_>>().into_iter()
+        Box::new(self.0.iter().map(|(t, _)| t))
+    }
+}
+
+impl IntoIterator for TemporalSet {
+    type Item = TemporalId;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Box::new(self.0.into_iter().map(|(t, _)| t))
     }
 }

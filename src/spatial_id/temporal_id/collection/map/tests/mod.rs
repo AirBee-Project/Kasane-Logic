@@ -5,7 +5,7 @@ use alloc::collections::BTreeMap;
 /// 秒 → 値 の写像へ展開（有界ドメイン）。
 fn secmap(m: &TemporalMap<i32>) -> BTreeMap<u64, i32> {
     let mut out = BTreeMap::new();
-    for (s, e, v) in m.segments_ref() {
+    for (s, e, v) in m.ranges_ref() {
         for sec in s..e {
             out.insert(sec, *v);
         }
@@ -21,7 +21,7 @@ fn seg(i: u64, t: u64, v: i32) -> TemporalMap<i32> {
 
 /// 正規化不変条件（昇順・互いに素・隣接同値なし）。
 fn assert_normalized(m: &TemporalMap<i32>) {
-    let segments = m.segments_ref();
+    let segments = m.ranges_ref();
     for w in segments.windows(2) {
         // 昇順・非重なり
         assert!(w[0].1 <= w[1].0, "overlap/order: {:?}", segments);
