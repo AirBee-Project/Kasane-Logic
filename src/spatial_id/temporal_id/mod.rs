@@ -1,24 +1,53 @@
+// ── temporal_id feature 無効時 ────────────────────────────────────────────────
+// 各スタブは有効時のファイル構造と 1:1 で対応する。
+
+/// 時間間隔型。
+pub mod interval;
+pub use interval::Interval;
+
 #[cfg(not(feature = "temporal_id"))]
 mod disabled;
 #[cfg(not(feature = "temporal_id"))]
-pub use disabled::{Interval, TemporalId, TemporalMap, TemporalSet};
+pub use disabled::TemporalId;
+
+/// `TemporalId` 演算（intersection / difference）。
+#[cfg(not(feature = "temporal_id"))]
+pub(crate) mod ops {
+    pub mod disabled;
+}
+#[cfg(not(feature = "temporal_id"))]
+use ops::disabled as _; // モジュールを確実にコンパイルさせる
+
+/// `TemporalId` trait 実装（Display / FromStr / Default / BitAnd / Sub）。
+#[cfg(not(feature = "temporal_id"))]
+pub(crate) mod impls {
+    pub mod disabled;
+}
+#[cfg(not(feature = "temporal_id"))]
+use impls::disabled as _; // モジュールを確実にコンパイルさせる
+
+/// コレクション型（TemporalSet / TemporalMap）。
+pub mod collection {
+    pub mod map;
+    pub mod set;
+
+    #[cfg(feature = "temporal_id")]
+    pub mod core;
+}
+pub use collection::map::TemporalMap;
+pub use collection::set::TemporalSet;
+
+// ── temporal_id feature 有効時 ────────────────────────────────────────────────
 
 #[cfg(feature = "temporal_id")]
 use crate::{SpatialIdError, error::Error};
-#[cfg(feature = "temporal_id")]
-pub mod collection;
+
 #[cfg(feature = "temporal_id")]
 pub mod impls;
+
 #[cfg(feature = "temporal_id")]
 pub mod ops;
-#[cfg(feature = "temporal_id")]
-pub use collection::map::TemporalMap;
-#[cfg(feature = "temporal_id")]
-pub use collection::set::TemporalSet;
-#[cfg(feature = "temporal_id")]
-pub mod interval;
-#[cfg(feature = "temporal_id")]
-pub use interval::Interval;
+
 #[cfg(all(test, feature = "temporal_id"))]
 mod tests;
 
@@ -80,22 +109,7 @@ impl TemporalId {
         Ok(Self { interval, t })
     }
 
-    /// 生の秒数 `i` と時間インデックス `t` から構築する（[`new`](Self::new) の秒数版）。
-    ///
-    /// 文字列パースや外部データ（Ouranos 仕様 of `i/t` 表記）の取り込みに使う。
-    /// プログラム内で間隔が静的に決まっている場合は [`new`](Self::new) を推奨する。
-    ///
-    /// # バリデーション
-    ///
-    /// - `i` が約数鎖に含まれない場合、
-    ///   [`Error::TIntervalError`](crate::SpatialIdError::TIntervalError) を返す。
-    /// - 区間終端 `i * (t + 1)` が時間ドメイン終端 [`Interval::WHOLE_SECONDS`] を超える場合、
-    ///   [`Error::TOutOfRange`](crate::SpatialIdError::TOutOfRange) を返す。
-    ///
-    /// # 例
-    ///
-    /// 有効な時間IDの作成:
-    /// この時間IDの間隔（[`Interval`] 型）。
+    /// この時間区間の間隔（[`Interval`] 型）。
     pub fn interval(&self) -> Interval {
         self.interval
     }
@@ -182,7 +196,7 @@ impl TemporalId {
     ///
     /// # バリデーション
     ///
-    /// - `start >= end_exclusive` の場合、空のベクトルを返す。
+    /// - `start >= end_exclusive` の場合、空のイテレータを返す。
     /// - `end_exclusive` が [`Interval::WHOLE_SECONDS`] を超える場合、
     ///   [`SpatialIdError::TOutOfRange`] を返す。
     ///

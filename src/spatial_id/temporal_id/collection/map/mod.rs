@@ -1,12 +1,22 @@
+// temporal_id feature 無効時は専用のスタブを使う。
+#[cfg(not(feature = "temporal_id"))]
+mod disabled;
+#[cfg(not(feature = "temporal_id"))]
+pub use disabled::TemporalMap;
+
+#[cfg(feature = "temporal_id")]
 use crate::{TemporalId, TemporalSet, spatial_id::temporal_id::collection::core::TemporalCore};
+#[cfg(feature = "temporal_id")]
 use alloc::vec::Vec;
 
+#[cfg(feature = "temporal_id")]
 pub mod impls;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "temporal_id"))]
 mod tests;
 
 /// 時間 → 値 `V` の対応。
+#[cfg(feature = "temporal_id")]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(
     feature = "persist",
@@ -14,6 +24,7 @@ mod tests;
 )]
 pub struct TemporalMap<V>(TemporalCore<V>);
 
+#[cfg(feature = "temporal_id")]
 impl<V: Clone + PartialEq> TemporalMap<V> {
     /// 空。
     pub fn new() -> Self {

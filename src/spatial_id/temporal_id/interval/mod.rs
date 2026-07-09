@@ -1,8 +1,16 @@
+// temporal_id feature 無効時は専用のスタブを使う。
+#[cfg(not(feature = "temporal_id"))]
+mod disabled;
+#[cfg(not(feature = "temporal_id"))]
+pub use disabled::Interval;
+
+#[cfg(feature = "temporal_id")]
 use crate::{Error, SpatialIdError};
 
+#[cfg(feature = "temporal_id")]
 mod impls;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "temporal_id"))]
 mod tests;
 
 /// 時間IDの時間間隔`i`を表現する型。`i`が任意の0より大きい自然数を受け入れると、処理に不整合が生じるためパターンを限定する。
@@ -15,6 +23,7 @@ mod tests;
 /// | [`Hour`](Self::Hour) | 3600 |
 /// | [`Minute`](Self::Minute) | 60 |
 /// | [`Second`](Self::Second) | 1 |
+#[cfg(feature = "temporal_id")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "persist",
@@ -36,6 +45,7 @@ pub enum Interval {
     Second,
 }
 
+#[cfg(feature = "temporal_id")]
 impl Interval {
     /// このライブラリが扱える全時間の秒数。86400 × 2^47`（約3,850億年）。
     pub const WHOLE_SECONDS: u64 = 86400 << 47;

@@ -1,9 +1,18 @@
+// temporal_id feature 無効時は専用のスタブを使う。
+#[cfg(not(feature = "temporal_id"))]
+mod disabled;
+#[cfg(not(feature = "temporal_id"))]
+pub use disabled::TemporalSet;
+
+#[cfg(feature = "temporal_id")]
 use crate::{TemporalId, spatial_id::temporal_id::collection::core::TemporalCore};
+#[cfg(feature = "temporal_id")]
 pub mod impls;
-#[cfg(test)]
+#[cfg(all(test, feature = "temporal_id"))]
 mod tests;
 
 /// [`TemporalId`]の集合を表す型。
+#[cfg(feature = "temporal_id")]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 #[cfg_attr(
     feature = "persist",
@@ -11,6 +20,7 @@ mod tests;
 )]
 pub struct TemporalSet(pub(crate) TemporalCore<()>);
 
+#[cfg(feature = "temporal_id")]
 impl TemporalSet {
     /// 空集合を作る。
     pub fn new() -> Self {

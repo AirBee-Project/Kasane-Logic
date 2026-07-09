@@ -1,85 +1,29 @@
-use alloc::vec::Vec;
+//! `temporal_id` feature 無効時の [`TemporalId`] 本体定義。
+//!
+//! 演算・trait 実装・コレクション型は以下の各スタブに分散している。
+//! 有効時のファイル構造と 1:1 で対応するため、追加・変更があれば有効時の
+//! 対応ファイルを参照すること。
+//!
+//! | 役割               | 有効時                         | 無効時（スタブ）                          |
+//! |--------------------|-------------------------------|------------------------------------------|
+//! | `TemporalId` 本体  | `temporal_id/mod.rs`          | `temporal_id/disabled.rs`（本ファイル）   |
+//! | `Interval` 型      | `temporal_id/interval/mod.rs` | `temporal_id/interval/disabled.rs`       |
+//! | 演算               | `temporal_id/ops.rs`          | `temporal_id/ops/disabled.rs`            |
+//! | trait 実装         | `temporal_id/impls.rs`        | `temporal_id/impls/disabled.rs`          |
+//! | `TemporalSet`      | `temporal_id/collection/set/` | `temporal_id/collection/set/disabled.rs` |
+//! | `TemporalMap`      | `temporal_id/collection/map/` | `temporal_id/collection/map/disabled.rs` |
 
-use core::fmt::{Display, Formatter};
-use core::str::FromStr;
+use crate::{Interval, error::Error};
 
-use crate::error::Error;
-
-const DOMAIN_END: u64 = 86400 << 47;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-pub enum Interval {
-    #[default]
-    Whole,
-}
-
-impl Interval {
-    /// このライブラリが扱える全時間の秒数。`86400 × 2^47`（約3,850億年）。
-    pub const WHOLE_SECONDS: u64 = 86400 << 47;
-
-    /// 最も粗い時間区間を表す二進層の指数。
-    pub const WHOLE_POW: u8 = 47;
-
-    /// 秒数から[Interval]型を作成する。
-    pub fn new(seconds: u64) -> Result<Interval, Error> {
-        if seconds == Self::WHOLE_SECONDS {
-            Ok(Interval::Whole)
-        } else {
-            Err(crate::SpatialIdError::TIntervalError { i: seconds }.into())
-        }
-    }
-
-    /// 二進層の間隔 `Day·2^k` を作成する。
-    pub fn day_pow(k: u8) -> Result<Interval, Error> {
-        if k == Self::WHOLE_POW {
-            Ok(Interval::Whole)
-        } else {
-            Err(crate::SpatialIdError::TIntervalError { i: k as u64 }.into())
-        }
-    }
-
-    /// この間隔の秒数。
-    pub const fn seconds(self) -> u64 {
-        Self::WHOLE_SECONDS
-    }
-}
-
-impl TryFrom<u64> for Interval {
-    type Error = Error;
-    fn try_from(seconds: u64) -> Result<Self, Self::Error> {
-        Self::new(seconds)
-    }
-}
-
-macro_rules! impl_try_from_unsigned {
-    ($($t:ty),*) => {
-        $(
-            impl TryFrom<$t> for Interval {
-                type Error = Error;
-
-                fn try_from(seconds: $t) -> Result<Self, Self::Error> {
-                    Self::try_from(seconds as u64)
-                }
-            }
-        )*
-    };
-}
-
-impl_try_from_unsigned!(u8, u16, u32, u128, usize);
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord, Default)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-/// 時間IDの区間表現を表す型である（temporal_id feature無効時のスタブ）。
+/// 時間IDの区間表現を表す型（`temporal_id` feature 無効時のスタブ）。
 ///
 /// `temporal_id` feature が無効な場合、[`TemporalId`] は常に全時間を表す
 /// スタブ実装となる。すべてのメソッドは全時間を表す状態を返す。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
 pub struct TemporalId;
 
 impl TemporalId {
@@ -87,6 +31,8 @@ impl TemporalId {
     pub const WHOLE: TemporalId = TemporalId;
 
     /// 新しい [`TemporalId`] を作成する。
+    ///
+    /// `temporal_id` feature 無効時は [`Interval::WHOLE_SECONDS`] のみ受け付ける。
     pub fn new<I>(_interval: I, _t: u64) -> Result<Self, Error>
     where
         I: TryInto<Interval>,
@@ -96,59 +42,44 @@ impl TemporalId {
         Ok(Self::WHOLE)
     }
 
-    /// 全ての時間を表す時間IDを作成する。
-    ///
-    /// `temporal_id` feature が無効な場合、常に `Ok(Self::WHOLE)` を返す。
-
     /// このインスタンスが全時間を表すかを判定する。
     ///
-    /// `temporal_id` feature が無効な場合、常に `true` を返す。
+    /// `temporal_id` feature 無効時は常に `true` を返す。
     pub fn is_whole(&self) -> bool {
         true
     }
 
     /// 時間区間の開始時刻をUNIXタイムスタンプで取得する。
     ///
-    /// `temporal_id` feature が無効な場合、常に `0` を返す。
+    /// `temporal_id` feature 無効時は常に `0` を返す。
     pub fn start_unixtime(&self) -> u64 {
         0
     }
 
     /// 時間区間の終了時刻（排他的）をUNIXタイムスタンプで取得する。
     ///
-    /// `temporal_id` feature が無効な場合、常に時間ドメイン終端 `DOMAIN_END` を返す。
+    /// `temporal_id` feature 無効時は常に時間ドメイン終端 [`Interval::WHOLE_SECONDS`] を返す。
     pub fn end_unixtime_exclusive(&self) -> u64 {
-        DOMAIN_END
+        Interval::WHOLE_SECONDS
     }
 
     /// 時間間隔を取得する。
     ///
-    /// `temporal_id` feature が無効な場合、常に `Interval::Whole` を返す。
+    /// `temporal_id` feature 無効時は常に [`Interval::Whole`] を返す。
     pub fn i(&self) -> Interval {
         Interval::Whole
     }
 
     /// 時間インデックス `t` を取得する。
     ///
-    /// `temporal_id` feature が無効な場合、常に `0` を返す。
+    /// `temporal_id` feature 無効時は常に `0` を返す。
     pub fn t(&self) -> u64 {
         0
     }
 
-    /// 2つの時間IDの交差を計算する。
+    /// 開始と終了の UNIX タイムスタンプから [`TemporalId`] のイテレータを生成する。
     ///
-    /// `temporal_id` feature が無効な場合、常に全時間を返す。
-    pub fn intersection(&self, _other: &TemporalId) -> Option<TemporalId> {
-        Some(TemporalId::WHOLE)
-    }
-
-    /// `other` の時間範囲が `self` に完全に含まれるかを判定する。
-    ///
-    /// `temporal_id` feature が無効な場合、常に `true` を返す。
-    pub fn contains(&self, _other: &TemporalId) -> bool {
-        true
-    }
-
+    /// `temporal_id` feature 無効時は有効な範囲なら `WHOLE` を 1 つ返す。
     pub fn from_range(
         range: core::ops::Range<u64>,
     ) -> Result<impl Iterator<Item = TemporalId>, Error> {
@@ -163,296 +94,8 @@ impl TemporalId {
         }))
     }
 
-    /// 2つの時間IDの差集合を計算する。
-    ///
-    /// `temporal_id` feature が無効な場合、常に空（WHOLE − WHOLE = 空）を返す。
-    pub fn difference(&self, other: &TemporalId) -> impl Iterator<Item = TemporalId> {
-        let _ = other;
-        core::iter::empty()
-    }
-}
-
-impl Display for TemporalId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}/0", DOMAIN_END)
-    }
-}
-
-impl FromStr for TemporalId {
-    type Err = Error;
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        Ok(Self::WHOLE)
-    }
-}
-
-/// カレンダー時間の集合（temporal_id feature無効時のスタブ）。
-///
-/// feature 無効時はすべての時間IDが全時間（WHOLE）なので、集合は
-/// 「空」か「全時間」の2状態のみをとる。[`SpatialIdSet`](crate::SpatialIdSet) の
-/// 葉の値として、有効時の [`TemporalSet`](crate::TemporalSet) と同じ最小APIを提供する。
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-pub struct TemporalSet {
-    whole: bool,
-}
-
-impl TemporalSet {
-    /// 空集合を作る。
-    pub fn new() -> Self {
-        Self { whole: false }
-    }
-
-    /// 全時間（WHOLE）の集合を作る。
-    pub fn whole() -> Self {
-        Self { whole: true }
-    }
-
-    /// 全時間（WHOLE）と等しいか。
-    pub fn is_whole(&self) -> bool {
-        self.whole
-    }
-
-    /// [`TemporalId`] を集合へ追加する（union）。
-    pub fn insert(&mut self, _t: &TemporalId) {
-        self.whole = true;
-    }
-
-    /// 空かどうか。
-    pub fn is_empty(&self) -> bool {
-        !self.whole
-    }
-
-    /// 正規化済み区間列を返す（クレート内部の走査用フック）。
-    #[allow(dead_code)]
-    pub(crate) fn intervals(&self) -> &[(u64, u64)] {
-        if self.whole { &[(0, DOMAIN_END)] } else { &[] }
-    }
-
-    /// 指定の UNIX 秒が含まれるか。
-    pub fn contains_unixtime(&self, _sec: u64) -> bool {
-        self.whole
-    }
-
-    /// `t` の時間範囲が完全に含まれるか。
-    pub fn contains(&self, _t: &TemporalId) -> bool {
-        self.whole
-    }
-
-    /// 和集合。
-    pub fn union(&self, other: &Self) -> Self {
-        Self {
-            whole: self.whole || other.whole,
-        }
-    }
-
-    /// 積集合。
-    pub fn intersection(&self, other: &Self) -> Self {
-        Self {
-            whole: self.whole && other.whole,
-        }
-    }
-
-    /// 差集合 `self - other`。
-    pub fn difference(&self, other: &Self) -> Self {
-        Self {
-            whole: self.whole && !other.whole,
-        }
-    }
-
-    pub fn temporal_ids_iter(&self) -> impl Iterator<Item = TemporalId> + '_ {
-        let opt = self.whole.then_some(TemporalId::WHOLE);
-        opt.into_iter()
-    }
-
-    pub fn len(&self) -> usize {
-        if self.whole { 1 } else { 0 }
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = TemporalId> + '_ {
-        self.temporal_ids_iter()
-    }
-
-    pub fn remove(&mut self, _t: &TemporalId) {
-        self.whole = false;
-    }
-
-    pub fn clear(&mut self) {
-        self.whole = false;
-    }
-}
-
-impl IntoIterator for &TemporalSet {
-    type Item = TemporalId;
-    type IntoIter = alloc::vec::IntoIter<TemporalId>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.temporal_ids_iter().collect::<Vec<_>>().into_iter()
-    }
-}
-
-impl From<&TemporalId> for TemporalSet {
-    fn from(_t: &TemporalId) -> Self {
-        Self::whole()
-    }
-}
-
-impl From<TemporalId> for TemporalSet {
-    fn from(_t: TemporalId) -> Self {
-        Self::whole()
-    }
-}
-
-/// 時間 → 値 `V` の対応（temporal_id feature無効時のスタブ）。
-///
-/// feature 無効時はすべての時間IDが全時間（WHOLE）なので、マップは
-/// 「空」か「全時間 → 1つの値」の2状態のみをとる。
-/// [`SpatialIdMap`](crate::SpatialIdMap) / [`SpatialIdTable`](crate::SpatialIdTable) の
-/// 葉の値として、有効時の [`TemporalMap`](crate::TemporalMap) と同じ最小APIを提供する。
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-pub struct TemporalMap<V> {
-    value: Option<V>,
-}
-
-impl<V: Clone + PartialEq> TemporalMap<V> {
-    /// 空。
-    pub fn new() -> Self {
-        Self { value: None }
-    }
-
-    /// [`TemporalId`] に値 `v` を対応させる。
-    pub fn insert(&mut self, _t: &TemporalId, v: V) {
-        self.value = Some(v);
-    }
-
-    /// 空かどうか。
-    pub fn is_empty(&self) -> bool {
-        self.value.is_none()
-    }
-
-    /// 上書き合成（other が存在すれば other が勝つ）。
-    pub fn overwrite(&self, other: &Self) -> Self {
-        Self {
-            value: other.value.clone().or_else(|| self.value.clone()),
-        }
-    }
-
-    /// 差集合 `self - other`（時間で other を除く）。
-    pub fn difference(&self, other: &Self) -> Self {
-        Self {
-            value: if other.value.is_some() {
-                None
-            } else {
-                self.value.clone()
-            },
-        }
-    }
-
-    /// 時間集合 `set` に含まれる時間だけを残す。
-    pub fn intersect_time(&self, set: &TemporalSet) -> Self {
-        Self {
-            value: if set.is_whole() {
-                self.value.clone()
-            } else {
-                None
-            },
-        }
-    }
-
-    /// 時間集合 `set` に含まれる時間を取り除く。
-    pub fn subtract_time(&self, set: &TemporalSet) -> Self {
-        Self {
-            value: if set.is_empty() {
-                self.value.clone()
-            } else {
-                None
-            },
-        }
-    }
-
-    /// [`temporal_ids_iter`] の遅延イテレータ版。
-    pub fn temporal_ids_iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
-        self.value.iter().map(|v| (TemporalId::WHOLE, v))
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
-        self.temporal_ids_iter()
-    }
-
-    pub fn temporal_ids(&self) -> impl Iterator<Item = TemporalId> + '_ {
-        self.iter().map(|(t, _)| t)
-    }
-
-    pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
-        self.iter().map(|(_, v)| v)
-    }
-
-    pub fn len(&self) -> usize {
-        self.value.iter().count()
-    }
-
-    pub fn get(&self, _sec: u64) -> Option<&V> {
-        self.value.as_ref()
-    }
-
-    pub fn remove(&mut self, _t: &TemporalId) {
-        self.value = None;
-    }
-
-    pub fn clear(&mut self) {
-        self.value = None;
-    }
-
-    /// `window` に限定したセル列を参照で返す。
-    pub fn temporal_ids_clipped_iter(
-        &self,
-        _window: TemporalId,
-    ) -> impl Iterator<Item = (TemporalId, &V)> + '_ {
-        self.value.iter().map(|v| (TemporalId::WHOLE, v))
-    }
-
-    /// 正規化済みセグメント列 `(start, end, &V)` を返す（永続化・走査用の内部フック）。
-    #[allow(dead_code)]
-    pub(crate) fn segments_ref(&self) -> Vec<(u64, u64, &V)> {
-        self.value.iter().map(|v| (0, DOMAIN_END, v)).collect()
-    }
-
-    /// セグメント列から構築する（永続化復元用の内部フック）。
-    #[allow(dead_code)]
-    pub(crate) fn from_raw_segments(mut segments: Vec<(u64, u64, V)>) -> Self {
-        Self {
-            value: segments.pop().map(|(_, _, v)| v),
-        }
-    }
-}
-
-impl<V: Clone + Ord> TemporalMap<V> {
-    /// 和（both は `policy` で値解決、片側はそのまま）。
-    pub fn union(&self, other: &Self, policy: &crate::ConflictPolicy<V>) -> Self {
-        Self {
-            value: match (&self.value, &other.value) {
-                (Some(a), Some(b)) => Some(policy.resolve(Some(a.clone()), b.clone())),
-                (Some(a), None) => Some(a.clone()),
-                (None, Some(b)) => Some(b.clone()),
-                (None, None) => None,
-            },
-        }
-    }
-
-    /// 積集合。両方が存在する場合のみ値を保持する。
-    pub fn intersection(&self, other: &Self, policy: &crate::ConflictPolicy<V>) -> Self {
-        Self {
-            value: if let (Some(a), Some(b)) = (&self.value, &other.value) {
-                Some(policy.resolve(Some(a.clone()), b.clone()))
-            } else {
-                None
-            },
-        }
+    /// 開始と終了のUNIXタイムスタンプから、時間範囲を表す [`TemporalId`] の個数を返す。
+    pub(crate) fn count_range(range: core::ops::Range<u64>) -> usize {
+        Self::from_range(range).unwrap().count()
     }
 }
