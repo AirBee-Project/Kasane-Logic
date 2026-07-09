@@ -28,8 +28,7 @@ impl IntoIterator for SpatialIdSet {
 
     fn into_iter(self) -> Self::IntoIter {
         // SpatialIdSet の所有権を奪うイテレータ。現在は一旦 Vec に収集して返す。
-        let vec: alloc::vec::Vec<_> = self.iter().collect();
-        vec.into_iter()
+        self.iter().collect::<alloc::vec::Vec<_>>().into_iter()
     }
 }
 

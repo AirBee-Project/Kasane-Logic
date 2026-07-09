@@ -220,6 +220,8 @@ impl DifferenceClippedIter {
                 // difference の結果を Vec に収めてからイテレートする。
                 // ここの Vec は difference() 内部が既に確保するものと同一であり、
                 // DifferenceClippedIter 自体が追加の Vec 確保を行わない。
+                // c のライフタイムを切り離すために collect が必要。
+                #[allow(clippy::needless_collect)]
                 let items: Vec<FlexId> = c.difference(&other).collect();
                 alloc::boxed::Box::new(items.into_iter())
             }

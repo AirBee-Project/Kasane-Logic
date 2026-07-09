@@ -143,7 +143,7 @@ fn build_node(
         }
         Node::Leaf { value: Some(tmap) } => {
             let segments = tmap
-                .ranges_refs()
+                .ranges_ref()
                 .into_iter()
                 .map(|(start, end, v)| {
                     let dict_idx = match value_to_idx.get(v) {

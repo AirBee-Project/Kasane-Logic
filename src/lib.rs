@@ -1,6 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(clippy::disallowed_methods)]
-#![warn(clippy::perf)]
+#![deny(clippy::perf)]
+#![deny(clippy::needless_collect)]
+
 #[macro_use]
 extern crate alloc;
 

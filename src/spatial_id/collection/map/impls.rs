@@ -33,8 +33,10 @@ where
 
     fn into_iter(self) -> Self::IntoIter {
         // SpatialIdMap の所有権を奪うイテレータ。一旦 Vec に収集して返す。
-        let vec: alloc::vec::Vec<_> = self.iter().map(|(id, v)| (id, v.clone())).collect();
-        vec.into_iter()
+        self.iter()
+            .map(|(id, v)| (id, v.clone()))
+            .collect::<alloc::vec::Vec<_>>()
+            .into_iter()
     }
 }
 

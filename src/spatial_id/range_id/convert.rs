@@ -113,6 +113,7 @@ impl IterFlexIds for RangeId {
         let x_wraps = x_range[0] > x_range[1];
         let xy_max = ZoomLevel::new(z).unwrap().xy_max();
 
+        #[cfg(feature = "temporal_id")]
         let t_id = self.temporal_id;
         let iter = split_f(z, f_range).flat_map(move |(f_z, f_i)| {
             // X は巡回があるため 2 区間を chain してそれぞれ再計算する。

@@ -139,7 +139,7 @@ fn table_remove_atom_oracle() {
     let mut t = table_of(&entries);
     let before = atom_map(t.iter().map(|(f, v)| (f, *v)), 2);
     let query = make_flex_id(2, 0, 0, 0, 60, 1); // (0,0,0) @ [60,120)
-    let removed = atom_map(t.remove(&query).collect::<Vec<_>>(), 2);
+    let removed = atom_map(t.remove(&query), 2);
     let q_keys: alloc::collections::BTreeSet<Key> = (60u64..120).map(|s| ((0, 0, 0), s)).collect();
     let exp_removed: BTreeMap<Key, i32> = before
         .iter()
@@ -166,7 +166,7 @@ fn map_remove_atom_oracle() {
     let mut m = map_of(&entries);
     let before = atom_map(m.iter().map(|(f, v)| (f, *v)), 2);
     let query = make_flex_id(2, 0, 0, 0, 60, 1);
-    let removed = atom_map(m.remove(&query).collect::<Vec<_>>(), 2);
+    let removed = atom_map(m.remove(&query), 2);
     let q_keys: alloc::collections::BTreeSet<Key> = (60u64..120).map(|s| ((0, 0, 0), s)).collect();
     let exp_removed: BTreeMap<Key, i32> = before
         .iter()

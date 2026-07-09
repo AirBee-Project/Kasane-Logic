@@ -113,9 +113,8 @@ mod tests {
         let boundary_id = RangeId::new(3, [-1, 0], [0, 1], [0, 1]).unwrap();
         set.insert(boundary_id);
 
-        let flex_ids: Vec<_> = set.iter().collect();
         // 象限をまたぐため、F=0を境に2つに分かれる
-        assert_eq!(2, flex_ids.len());
+        assert_eq!(2, set.iter().count());
     }
 
     /// 7. 限界深度 (Zoom 30) での集合演算

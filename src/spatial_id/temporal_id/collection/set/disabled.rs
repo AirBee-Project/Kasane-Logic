@@ -119,7 +119,7 @@ impl From<TemporalId> for TemporalSet {
     }
 }
 
-impl<'a> IntoIterator for &'a TemporalSet {
+impl IntoIterator for &TemporalSet {
     type Item = TemporalId;
     type IntoIter = core::option::IntoIter<TemporalId>;
 

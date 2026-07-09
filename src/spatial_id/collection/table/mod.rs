@@ -334,12 +334,11 @@ where
             // index 未構築：辞書で lookup テーブルを作り inner を線形走査する。
             let lookup: alloc::collections::BTreeMap<usize, &V> =
                 self.dictionary.range(range).map(|(v, &r)| (r, v)).collect();
-            let out: Vec<(FlexId, &V)> = self
-                .inner
+            self.inner
                 .iter()
                 .filter_map(|(flex_id, rank)| lookup.get(rank).map(|val| (flex_id, *val)))
-                .collect();
-            out.into_iter()
+                .collect::<Vec<_>>()
+                .into_iter()
         }
     }
 
