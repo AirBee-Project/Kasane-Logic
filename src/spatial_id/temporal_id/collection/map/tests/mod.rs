@@ -161,3 +161,34 @@ fn map_ergonomic_apis() {
     assert!(m.is_empty());
     assert_eq!(m.len(), 0);
 }
+
+/// 回帰テスト: `TemporalMap` でも `insert()` の末尾追記高速パスにより隣接同値レンジが
+/// 結合されると、より粗いセル分解へ変わり得る（Hour×24 → Day×1）。`len()` はその
+/// 再分解後のセル数と一致し続けなければならない（`TemporalSet` 側と同じバグの写像）。
+#[test]
+fn len_matches_actual_cell_count_after_adjacent_merge() {
+    let mut m = TemporalMap::new();
+    for h in 0..24u64 {
+        m.insert(&TemporalId::new(3600_u64, h).unwrap(), 7);
+    }
+    let actual = m.iter().count();
+    assert_eq!(m.len(), actual);
+    assert_eq!(m.len(), 1);
+    assert_eq!(m.ranges_ref(), alloc::vec![(0, 86400, &7)]);
+}
+
+/// 回帰テスト: 同じ被覆・同じ値でも構築経路が違うと `TemporalMap` が等しくないと
+/// 判定されていた（`cached_len` が派生 `PartialEq` に混入していたため）。
+#[test]
+fn equal_coverage_built_differently_should_be_equal() {
+    let mut a = TemporalMap::new();
+    a.insert(&TemporalId::new(86400_u64, 0).unwrap(), 7);
+
+    let mut b = TemporalMap::new();
+    for h in 0..24u64 {
+        b.insert(&TemporalId::new(3600_u64, h).unwrap(), 7);
+    }
+
+    assert_eq!(a.len(), b.len());
+    assert_eq!(a, b);
+}

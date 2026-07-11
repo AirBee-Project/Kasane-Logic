@@ -2,6 +2,7 @@ use super::TemporalSet;
 use crate::{Interval, TemporalId};
 use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
+use proptest::prelude::*;
 
 /// 集合が覆う秒。
 fn secs(set: &TemporalSet) -> BTreeSet<u64> {
@@ -147,4 +148,104 @@ fn set_ergonomic_apis() {
     s.clear();
     assert!(s.is_empty());
     assert_eq!(s.len(), 0);
+}
+
+/// 回帰テスト: `insert()` の末尾追記高速パスは、隣接する同値レンジを結合した際に
+/// より粗いセル分解へ変わり得ること（例: Hour×12 + Hour×12 → Day×1）を考慮せず、
+/// 結合前の `count_range` を単純加算していたため `len()` が実際のセル数と食い違っていた。
+#[test]
+fn len_matches_actual_cell_count_after_adjacent_merge() {
+    let mut set = TemporalSet::new();
+    // 1時間セルを24個、[0,86400) を隙間なく順番に挿入する（= ちょうど1日）。
+    for h in 0..24u64 {
+        set.insert(&TemporalId::new(3600_u64, h).unwrap());
+    }
+
+    let actual_cells = set.get(TemporalId::WHOLE).count();
+    let reported_len = set.len();
+
+    assert_eq!(
+        reported_len, actual_cells,
+        "len() diverged from actual cell decomposition after adjacent-range merge"
+    );
+    // 実際に Day 1個へ粗く再分解されていることも確認する。
+    assert_eq!(reported_len, 1);
+    assert_eq!(set.ranges(), alloc::vec![(0, 86400)]);
+}
+
+/// 回帰テスト: 同じ被覆(ranges)でも構築経路が違うと `cached_len` が食い違い、
+/// 論理的に等しいはずの `TemporalSet` が `PartialEq` で等しくないと判定されていた
+/// （`cached_len` が派生 `PartialEq`/`Eq`/`Hash`/`Ord` に混入していたため）。
+#[test]
+fn equal_coverage_built_differently_should_be_equal() {
+    // 経路A: 1回で1日をまとめて挿入
+    let mut a = TemporalSet::new();
+    a.insert(&TemporalId::new(86400_u64, 0).unwrap());
+
+    // 経路B: 24個のHourセルを個別に挿入して同じ被覆を作る
+    let mut b = TemporalSet::new();
+    for h in 0..24u64 {
+        b.insert(&TemporalId::new(3600_u64, h).unwrap());
+    }
+
+    assert_eq!(
+        a.ranges(),
+        b.ranges(),
+        "same coverage should normalize to same ranges"
+    );
+    assert_eq!(
+        a.len(),
+        b.len(),
+        "len() must not depend on construction path"
+    );
+    assert_eq!(
+        a, b,
+        "same coverage (same ranges) must compare equal regardless of construction path"
+    );
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(256))]
+
+    /// `len()` は、どんな順序・粒度で `insert()` を積み重ねても、常に
+    /// 実際のセル分解数（`get(WHOLE).count()`）と一致し続けなければならない。
+    /// 末尾追記の高速パス（隣接同値マージ）が繰り返し発火する状況を広くカバーする。
+    #[test]
+    fn prop_len_always_matches_actual_cells(
+        // [0, 24) 時間分を Hour 単位で敷き詰め、ランダムに間引く（間引いた箇所が隙間になる）。
+        keep in prop::collection::vec(any::<bool>(), 24)
+    ) {
+        let mut set = TemporalSet::new();
+        for (h, keep) in keep.into_iter().enumerate() {
+            if keep {
+                set.insert(&TemporalId::new(3600_u64, h as u64).unwrap());
+            }
+        }
+        let actual = set.get(TemporalId::WHOLE).count();
+        prop_assert_eq!(set.len(), actual);
+    }
+
+    /// 挿入順序を入れ替えても（末尾追記の高速パスに乗らない順序も含めて）、
+    /// 最終的な `len()` は挿入順序に依存せず一致する。
+    #[test]
+    fn prop_len_independent_of_insertion_order(
+        perm_seed in any::<u64>(),
+        keep in prop::collection::vec(any::<bool>(), 24)
+    ) {
+        let mut hours: Vec<u64> = (0..24u64).filter(|&h| keep[h as usize]).collect();
+        // seed から簡易 Fisher-Yates で順序をシャッフルする（乱数クレート追加を避ける）。
+        let mut seed = perm_seed;
+        for i in (1..hours.len()).rev() {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let j = (seed >> 33) as usize % (i + 1);
+            hours.swap(i, j);
+        }
+
+        let mut set = TemporalSet::new();
+        for h in hours {
+            set.insert(&TemporalId::new(3600_u64, h).unwrap());
+        }
+        let actual = set.get(TemporalId::WHOLE).count();
+        prop_assert_eq!(set.len(), actual);
+    }
 }

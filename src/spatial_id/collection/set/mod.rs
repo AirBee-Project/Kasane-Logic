@@ -114,7 +114,7 @@ impl SpatialIdSet {
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返す。入力された空間ID自身と重なる空間IDは除外する。
-    /// 面共有の判定は空間3軸のみで行う（時間は考慮しない）。返る [`FlexId`] には存在時間が付く。
+    /// 面共有の判定は空間3軸のみで行う。返る [`FlexId`] の時間は target の時間との交差に切り取られる。
     pub fn neighbors_share_face<'a, S: SpatialId>(
         &'a self,
         target: &'a S,

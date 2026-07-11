@@ -2,7 +2,7 @@ use crate::{ConflictPolicy, TemporalId};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[derive(Clone, Debug, Default)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -13,7 +13,36 @@ pub(crate) struct TemporalCore<V> {
     // Vecの中身は（開始時刻,終了時刻,値）となっている。
     // 開始時刻と終了時刻から[Interval]のサイズが自動的に特定できます。
     ranges: Vec<(u64, u64, V)>,
+    // `ranges` から導出できるキャッシュ値（同じ被覆なら常に同じ値になるよう、
+    // 更新箇所は必ず再計算・差分計算で正しく保つこと）。
+    // 等価性・順序・ハッシュの判定には決して使わない（`ranges` のみで判定する。
+    // 下記の手動 impl を参照）。同じ被覆でも構築経路が違えばキャッシュ値が
+    // 一時的に食い違うバグを踏んだ実績があるため、意図的に比較対象から外している。
     cached_len: usize,
+}
+
+/// 等価性・順序・ハッシュは `ranges` のみで判定する（`cached_len` はキャッシュに過ぎず、
+/// 同じ被覆に対しては常に同じ値になるべきだが、それを比較の正としない）。
+impl<V: PartialEq> PartialEq for TemporalCore<V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ranges == other.ranges
+    }
+}
+impl<V: Eq> Eq for TemporalCore<V> {}
+impl<V: PartialOrd> PartialOrd for TemporalCore<V> {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.ranges.partial_cmp(&other.ranges)
+    }
+}
+impl<V: Ord> Ord for TemporalCore<V> {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.ranges.cmp(&other.ranges)
+    }
+}
+impl<V: core::hash::Hash> core::hash::Hash for TemporalCore<V> {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.ranges.hash(state);
+    }
 }
 
 impl<V: Clone + PartialEq> TemporalCore<V> {
@@ -37,9 +66,18 @@ impl<V: Clone + PartialEq> TemporalCore<V> {
         if let Some(last) = self.ranges.last_mut() {
             if last.1 <= s {
                 if last.1 == s && last.2 == v {
-                    // 直前の区間と連続し、値も同じ場合は結合
+                    // 直前の区間と連続し、値も同じ場合は結合。
+                    //
+                    // 注意: 結合後の区間は境界(s)が消えるぶん、より粗いセルへ
+                    // 再分解され得る（例: [0,43200)+[43200,86400)→[0,86400) は
+                    // Hourセル12個+12個ではなく、Dayセル1個に変わる）。そのため
+                    // 単純に `count_range(s..e)` を加算するのではなく、結合前後の
+                    // 区間全体を数え直して差分をキャッシュへ反映する。
+                    let start = last.0;
+                    let old_count = TemporalId::count_range(start..last.1);
                     last.1 = e;
-                    self.cached_len += TemporalId::count_range(s..e);
+                    let new_count = TemporalId::count_range(start..e);
+                    self.cached_len = self.cached_len - old_count + new_count;
                     return;
                 }
                 if last.1 < s {
