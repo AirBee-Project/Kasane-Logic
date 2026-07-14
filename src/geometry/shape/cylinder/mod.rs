@@ -93,8 +93,8 @@ impl Cylinder {
         let basis = vec_n
             .create_orthonormal_basis()
             .map(|v| v.scale(self.radius_m));
-        let divide_num =
-            (57_u32).max((self.radius_m * PI / (2_f64.powi(25 - u8::from(z) as i32) * 3.0)) as u32);
+        let divide_num = (57_u32)
+            .max((self.radius_m * PI / (libm::pow(2.0, (25 - u8::from(z)) as f64) * 3.0)) as u32);
         let vertices: Vec<_> = (0..divide_num)
             .map(|i| {
                 let theta = 2.0 * PI * i as f64 / divide_num as f64;
