@@ -95,15 +95,9 @@ mod persist_tests {
         let option_restored =
             unsafe { SpatialIdTable::<Option<i32>>::from_bytes(&option_bytes).unwrap() };
 
-        let mut opt_v: Vec<_> = option_table
-            .iter()
-            .map(|(f, val)| (f, val.clone()))
-            .collect();
+        let mut opt_v: Vec<_> = option_table.iter().map(|(f, val)| (f, *val)).collect();
         opt_v.sort();
-        let mut opt_restored_v: Vec<_> = option_restored
-            .iter()
-            .map(|(f, val)| (f, val.clone()))
-            .collect();
+        let mut opt_restored_v: Vec<_> = option_restored.iter().map(|(f, val)| (f, *val)).collect();
         opt_restored_v.sort();
         assert_eq!(opt_v, opt_restored_v);
 
