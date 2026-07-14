@@ -132,6 +132,7 @@ impl IntoFlexIds for RangeId {
 
     fn into_flex_ids(self) -> Self::IntoIter {
         let z = self.z.get();
+        #[allow(clippy::needless_collect)]
         let f_list: Vec<_> = split_f(z, self.f).collect();
 
         let x_list: Vec<_> = if self.x[0] <= self.x[1] {
