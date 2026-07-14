@@ -83,4 +83,44 @@ mod persist_tests {
         restored.insert(SingleId::new(20, 0, 100, 100).unwrap(), b"delta".to_vec());
         assert_eq!(restored.count(), before + 1);
     }
+
+    #[test]
+    fn round_trip_with_option_and_result() {
+        // Option<i32> のテスト
+        let mut option_table = SpatialIdTable::<Option<i32>>::new();
+        option_table.insert(SingleId::new(20, 0, 0, 0).unwrap(), Some(42));
+        option_table.insert(SingleId::new(20, 0, 1, 1).unwrap(), None);
+
+        let option_bytes = option_table.to_bytes().unwrap();
+        let option_restored =
+            unsafe { SpatialIdTable::<Option<i32>>::from_bytes(&option_bytes).unwrap() };
+
+        let mut opt_v: Vec<_> = option_table.iter().map(|(f, val)| (f, *val)).collect();
+        opt_v.sort();
+        let mut opt_restored_v: Vec<_> = option_restored.iter().map(|(f, val)| (f, *val)).collect();
+        opt_restored_v.sort();
+        assert_eq!(opt_v, opt_restored_v);
+
+        // Result<alloc::string::String, ()> のテスト
+        let mut result_table = SpatialIdTable::<Result<alloc::string::String, ()>>::new();
+        result_table.insert(SingleId::new(20, 0, 0, 0).unwrap(), Ok("Success".into()));
+        result_table.insert(SingleId::new(20, 0, 1, 1).unwrap(), Err(()));
+
+        let result_bytes = result_table.to_bytes().unwrap();
+        let result_restored = unsafe {
+            SpatialIdTable::<Result<alloc::string::String, ()>>::from_bytes(&result_bytes).unwrap()
+        };
+
+        let mut res_v: Vec<_> = result_table
+            .iter()
+            .map(|(f, val)| (f, val.clone()))
+            .collect();
+        res_v.sort();
+        let mut res_restored_v: Vec<_> = result_restored
+            .iter()
+            .map(|(f, val)| (f, val.clone()))
+            .collect();
+        res_restored_v.sort();
+        assert_eq!(res_v, res_restored_v);
+    }
 }
