@@ -54,3 +54,21 @@ mod cover_single_ids {
         insta::assert_debug_snapshot!(sorted_ids(&cylinder, 18));
     }
 }
+
+mod rough_surfaces_with_z {
+    use super::*;
+    use crate::ZoomLevel;
+
+    #[test]
+    fn test_zoom_level_over_25_panic() {
+        let start = Coordinate::new(35.681, 139.766, 0.0).unwrap();
+        let end = Coordinate::new(35.681, 139.766, 32.0).unwrap();
+        let cylinder = Cylinder::new(start, end, 5.0).unwrap();
+
+        // ZoomLevel::MAX (30) 以内だが、25を超える値
+        let z = ZoomLevel::new(26).unwrap();
+
+        // 現在の実装では、内部で (25 - u8::from(z)) がアンダーフローし、パニックする
+        let _ = cylinder.rough_surfaces_with_z(z);
+    }
+}
