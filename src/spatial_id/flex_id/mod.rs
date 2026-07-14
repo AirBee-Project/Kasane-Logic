@@ -174,11 +174,6 @@ impl FlexId {
             ]
         };
 
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(max_z, range))
-            .collect();
-
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
@@ -186,26 +181,30 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         let temporal_id = self.temporal_id.clone();
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    seg_z,
-                    seg_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
+        Ok(ranges
+            .into_iter()
+            .flat_map(move |range| split_xy(max_z, range))
+            .map(move |(seg_z, seg_index)| {
+                #[cfg(feature = "temporal_id")]
+                {
+                    FlexId::new_with_temporal(
+                        f_zoomlevel,
+                        f_index,
+                        seg_z,
+                        seg_index,
+                        y_zoomlevel,
+                        y_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
+                }
 
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
+                #[cfg(not(feature = "temporal_id"))]
+                {
+                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                        .unwrap()
+                }
+            }))
     }
 
     /// このFlexIdを南北（Y）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
@@ -393,11 +392,6 @@ impl FlexId {
             }
         };
 
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(max_z, range))
-            .collect();
-
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
@@ -405,26 +399,30 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         let temporal_id = self.temporal_id.clone();
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    seg_z,
-                    seg_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
+        Ok(ranges
+            .into_iter()
+            .flat_map(move |range| split_xy(max_z, range))
+            .map(move |(seg_z, seg_index)| {
+                #[cfg(feature = "temporal_id")]
+                {
+                    FlexId::new_with_temporal(
+                        f_zoomlevel,
+                        f_index,
+                        seg_z,
+                        seg_index,
+                        y_zoomlevel,
+                        y_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
+                }
 
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
+                #[cfg(not(feature = "temporal_id"))]
+                {
+                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                        .unwrap()
+                }
+            }))
     }
 
     /// このFlexIdを南北（Y）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
@@ -587,11 +585,6 @@ impl FlexId {
         } else {
             vec![[from, xy_max], [0, to]]
         };
-        let x_cells: Vec<(u8, u32)> = ranges
-            .into_iter()
-            .flat_map(|range| split_xy(z, range))
-            .collect();
-
         let f_zoomlevel = self.f_zoomlevel();
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
@@ -599,26 +592,30 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         let temporal_id = self.temporal_id.clone();
 
-        Ok(x_cells.into_iter().map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    seg_z,
-                    seg_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
+        Ok(ranges
+            .into_iter()
+            .flat_map(move |range| split_xy(z, range))
+            .map(move |(seg_z, seg_index)| {
+                #[cfg(feature = "temporal_id")]
+                {
+                    FlexId::new_with_temporal(
+                        f_zoomlevel,
+                        f_index,
+                        seg_z,
+                        seg_index,
+                        y_zoomlevel,
+                        y_index,
+                        temporal_id.clone(),
+                    )
+                    .unwrap()
+                }
 
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
+                #[cfg(not(feature = "temporal_id"))]
+                {
+                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
+                        .unwrap()
+                }
+            }))
     }
 
     /// このFlexIdのY方向の占有を、ズーム `z` の絶対座標範囲 `[lo, hi]` に置き換える。

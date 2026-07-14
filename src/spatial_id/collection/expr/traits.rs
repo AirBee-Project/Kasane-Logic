@@ -57,7 +57,9 @@ where
         SB: SpatialIdCollection<Value = B>,
         O: SpatialIdCollection<Value = Self::ResultValue>,
     {
+        #[allow(clippy::needless_collect)]
         let a_cells: Vec<_> = a.scan_ref().collect();
+        #[allow(clippy::needless_collect)]
         let b_cells: Vec<_> = b.scan_ref().collect();
 
         type MapResult<T> = Result<Vec<Vec<(crate::FlexId, T)>>, Error>;

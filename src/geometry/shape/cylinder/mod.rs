@@ -71,6 +71,7 @@ impl Cylinder {
         });
 
         // 側面を全て集める
+        #[allow(clippy::needless_collect)]
         let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
@@ -124,6 +125,7 @@ impl Cylinder {
         });
 
         // 側面を全て集める
+        #[allow(clippy::needless_collect)]
         let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
