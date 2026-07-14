@@ -94,7 +94,7 @@ pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 #[doc(inline)]
 pub use spatial_id::helpers::{Dimension, Side};
 #[doc(inline)]
-pub use spatial_id::traits::{IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialId};
+pub use spatial_id::traits::SpatialId;
 
 // spatial_id: zoom level
 #[doc(inline)]

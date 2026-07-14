@@ -2,10 +2,8 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{
-    Dimension, FlexId, IntoSingleIds, IterFlexIds, RangeId, Side, SingleId, SpatialId,
-    spatial_id::collection::flex_tree::core::convert::{LeavesIter, LeavesIterRef},
-};
+use crate::{Dimension, FlexId, RangeId, Side, SingleId, SpatialId};
+pub use convert::{LeavesIntoIter, LeavesIter, LeavesIterRef};
 use node::Node;
 mod convert;
 pub mod node;
@@ -248,7 +246,7 @@ where
                     .expect("target max zoomlevel must be valid")
             };
 
-            for single_id in normalized.into_single_ids() {
+            for single_id in normalized.single_ids() {
                 exported.push((single_id, value.clone()));
             }
         }
@@ -273,18 +271,18 @@ where
             };
 
             normalized
-                .into_single_ids()
+                .single_ids()
                 .map(move |single_id| (single_id, value))
         }))
     }
 
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueへの参照を全て取り出す。
-    pub fn get_ref<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
+    pub fn get_ref<'a, I>(&'a self, target: I) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
-        S: IterFlexIds + 'a,
+        I: IntoIterator<Item = FlexId> + 'a,
         V: 'a,
     {
-        target.iter_flex_ids().flat_map(move |item| {
+        target.into_iter().flat_map(move |item| {
             self.overlap_ref(item.clone())
                 .filter_map(move |(overlap_id, val)| {
                     overlap_id
@@ -295,11 +293,11 @@ where
     }
 
     /// [FlexTreeCore]に空間IDを挿入する
-    pub fn insert<S>(&mut self, target: S, value: V)
+    pub fn insert<I>(&mut self, target: I, value: V)
     where
-        S: IterFlexIds,
+        I: IntoIterator<Item = FlexId>,
     {
-        for flex_id in target.iter_flex_ids() {
+        for flex_id in target.into_iter() {
             if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
                 panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
             }
@@ -316,12 +314,12 @@ where
     }
 
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
-    pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    pub fn get<'a, I>(&'a self, target: I) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
-        S: IterFlexIds + 'a,
+        I: IntoIterator<Item = FlexId> + 'a,
         V: Clone + 'a,
     {
-        target.iter_flex_ids().flat_map(move |item| {
+        target.into_iter().flat_map(move |item| {
             self.overlap(item.clone())
                 .filter_map(move |(overlap_id, val)| {
                     overlap_id
@@ -332,13 +330,13 @@ where
     }
 
     /// [FlexTreeCore]からTargetが示す領域を削除して、返す。
-    pub fn remove<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
+    pub fn remove<I>(&mut self, target: I) -> impl Iterator<Item = (FlexId, V)>
     where
-        S: IterFlexIds,
+        I: IntoIterator<Item = FlexId>,
     {
         let mut actual_removed = Vec::new();
 
-        for t_id in target.iter_flex_ids() {
+        for t_id in target.into_iter() {
             let affected_leaves: Vec<(FlexId, V)> = self.overlap_remove(&t_id).collect();
 
             for (leaf_id, value) in affected_leaves {
@@ -356,14 +354,14 @@ where
 
     /// [`get`](Self::get) と同様に target と重なる要素を取り出しますが、
     /// 切り取りを行わず、[`FlexId`] をそのままの広さで返す。
-    pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, V)> + 'a
+    pub fn get_overlapping<'a, I>(&'a self, target: I) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
-        S: IterFlexIds + 'a,
+        I: IntoIterator<Item = FlexId> + 'a,
         V: Clone + 'a,
     {
         let mut seen = HashSet::new();
         let mut results = Vec::new();
-        for item in target.iter_flex_ids() {
+        for item in target.into_iter() {
             for (overlap_id, value) in self.overlap(item) {
                 if seen.insert(overlap_id.clone()) {
                     results.push((overlap_id, value));
@@ -374,17 +372,17 @@ where
     }
 
     /// [`get_overlapping`](Self::get_overlapping) の参照版。
-    pub fn get_overlapping_ref<'a, S>(
+    pub fn get_overlapping_ref<'a, I>(
         &'a self,
-        target: &'a S,
+        target: I,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
-        S: IterFlexIds + 'a,
+        I: IntoIterator<Item = FlexId> + 'a,
         V: 'a,
     {
         let mut seen = HashSet::new();
         let mut results = Vec::new();
-        for item in target.iter_flex_ids() {
+        for item in target.into_iter() {
             for (overlap_id, value) in self.overlap_ref(item) {
                 if seen.insert(overlap_id.clone()) {
                     results.push((overlap_id, value));
@@ -395,12 +393,12 @@ where
     }
 
     /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、 target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を そのままの広さで返す。
-    pub fn remove_overlapping<S>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)>
+    pub fn remove_overlapping<I>(&mut self, target: I) -> impl Iterator<Item = (FlexId, V)>
     where
-        S: IterFlexIds,
+        I: IntoIterator<Item = FlexId>,
     {
         let mut removed = Vec::new();
-        for t_id in target.iter_flex_ids() {
+        for t_id in target.into_iter() {
             removed.extend(self.overlap_remove(&t_id));
         }
         removed.into_iter()
@@ -414,7 +412,7 @@ where
     where
         S: SpatialId,
     {
-        let self_ids: Vec<FlexId> = id.iter_flex_ids().collect();
+        let self_ids: Vec<FlexId> = id.clone().into_iter().collect();
 
         let mut slabs: Vec<S> = Vec::new();
         for delta in [-1, 1] {
@@ -435,7 +433,7 @@ where
         let mut results: Vec<(FlexId, &'a V)> = Vec::new();
 
         for slab in &slabs {
-            for slab_id in slab.iter_flex_ids() {
+            for slab_id in slab.clone().into_iter() {
                 for (cand, value) in self.overlap_ref(slab_id) {
                     if self_ids.iter().any(|s| cand.intersection(s).is_some()) {
                         continue;
@@ -518,5 +516,33 @@ pub(crate) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -
         Dimension::F => current_id.split_f(side).unwrap(),
         Dimension::X => current_id.split_x(side).unwrap(),
         Dimension::Y => current_id.split_y(side).unwrap(),
+    }
+}
+
+impl<V> IntoIterator for FlexTreeCore<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    type Item = (FlexId, V);
+    type IntoIter = crate::spatial_id::collection::flex_tree::core::convert::LeavesIntoIter<V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let mut stack = Vec::new();
+
+        if !crate::spatial_id::collection::flex_tree::core::ptr::SharedNode::ptr_eq(
+            &self.upper_root,
+            &self.empty_leaf,
+        ) {
+            stack.push((self.upper_root, FlexId::UPPER_MAX));
+        }
+
+        if !crate::spatial_id::collection::flex_tree::core::ptr::SharedNode::ptr_eq(
+            &self.lower_root,
+            &self.empty_leaf,
+        ) {
+            stack.push((self.lower_root, FlexId::LOWER_MAX));
+        }
+
+        crate::spatial_id::collection::flex_tree::core::convert::LeavesIntoIter { stack }
     }
 }

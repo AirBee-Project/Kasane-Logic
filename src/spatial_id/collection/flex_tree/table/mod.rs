@@ -7,10 +7,10 @@ pub mod json;
 pub mod persist;
 pub mod test;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{CellValue, FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -100,7 +100,7 @@ where
     where
         S: SpatialId,
     {
-        self.inner.get(target).map(|(flex_id, rank)| {
+        self.inner.get(target.clone()).map(|(flex_id, rank)| {
             let value = self.reverse_dictionary.get(&rank).unwrap();
             (flex_id, value)
         })
@@ -111,7 +111,7 @@ where
         &'a mut self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        let removed_items: Vec<(FlexId, usize)> = self.inner.remove(target).collect();
+        let removed_items: Vec<(FlexId, usize)> = self.inner.remove(target.clone()).collect();
         let mut results = Vec::new();
 
         for (flex_id, rank) in removed_items {
@@ -134,7 +134,7 @@ where
         S: SpatialId,
     {
         self.inner
-            .get_overlapping_ref(target)
+            .get_overlapping_ref(target.clone())
             .map(|(flex_id, rank)| {
                 let value = self
                     .reverse_dictionary
@@ -150,7 +150,8 @@ where
         &'a mut self,
         target: &'a S,
     ) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        let removed_items: Vec<(FlexId, usize)> = self.inner.remove_overlapping(target).collect();
+        let removed_items: Vec<(FlexId, usize)> =
+            self.inner.remove_overlapping(target.clone()).collect();
         let mut results = Vec::new();
 
         for (flex_id, rank) in removed_items {
@@ -206,7 +207,7 @@ where
         self.inner.iter_ref().flat_map(|(flex_id, rank)| {
             let value = self.reverse_dictionary.get(rank).unwrap();
             RangeId::from(&flex_id)
-                .into_single_ids()
+                .single_ids()
                 .map(move |single_id| (single_id, value))
         })
     }
@@ -315,5 +316,61 @@ where
             out.dedup();
         }
         out.into_iter()
+    }
+}
+
+pub struct SpatialIdTableIntoIter<V: CellValue> {
+    inner: crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<usize>,
+    reverse_dictionary: alloc::collections::BTreeMap<usize, V>,
+}
+
+impl<V: CellValue> Iterator for SpatialIdTableIntoIter<V> {
+    type Item = (FlexId, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(flex_id, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch")
+                .clone();
+            (flex_id, value)
+        })
+    }
+}
+
+impl<V: CellValue> IntoIterator for SpatialIdTable<V> {
+    type Item = (FlexId, V);
+    type IntoIter = SpatialIdTableIntoIter<V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SpatialIdTableIntoIter {
+            inner: self.inner.into_iter(),
+            reverse_dictionary: self.reverse_dictionary,
+        }
+    }
+}
+
+impl<V: CellValue> FromIterator<(FlexId, V)> for SpatialIdTable<V> {
+    fn from_iter<T: IntoIterator<Item = (FlexId, V)>>(iter: T) -> Self {
+        let mut table = SpatialIdTable::new();
+        for (id, val) in iter {
+            table.insert(id, val);
+        }
+        table
+    }
+}
+
+impl<V: CellValue> Extend<(FlexId, V)> for SpatialIdTable<V> {
+    fn extend<T: IntoIterator<Item = (FlexId, V)>>(&mut self, iter: T) {
+        for (id, val) in iter {
+            self.insert(id, val);
+        }
+    }
+}
+
+impl<V: CellValue> Default for SpatialIdTable<V> {
+    fn default() -> Self {
+        Self::new()
     }
 }

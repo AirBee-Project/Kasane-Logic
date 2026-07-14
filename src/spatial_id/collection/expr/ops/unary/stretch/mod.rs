@@ -82,8 +82,7 @@ impl<A: CellValue> UnaryOperator<A> for Stretch {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
-        let cells: Vec<(FlexId, A)> = a.scan().collect();
-        let stretched = super::map_cells(cells, |id| expand(id.clone(), &param))?;
+        let stretched = super::map_cells(a, |id| expand(id.clone(), &param))?;
 
         Ok(O::from_cells(stretched, &param.conflict))
     }

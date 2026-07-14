@@ -1,23 +1,19 @@
-use crate::{IterFlexIds, SpatialIdSet};
+use crate::{FlexId, SpatialIdSet};
 
-impl<S: IterFlexIds> FromIterator<S> for SpatialIdSet {
-    fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
+impl FromIterator<FlexId> for SpatialIdSet {
+    fn from_iter<T: IntoIterator<Item = FlexId>>(iter: T) -> Self {
         let mut set = SpatialIdSet::new();
-        for items in iter {
-            for item in items.iter_flex_ids() {
-                set.insert(item);
-            }
+        for item in iter {
+            set.insert(item);
         }
         set
     }
 }
 
-impl<S: IterFlexIds> Extend<S> for SpatialIdSet {
-    fn extend<T: IntoIterator<Item = S>>(&mut self, iter: T) {
-        for items in iter {
-            for item in items.iter_flex_ids() {
-                self.insert(item);
-            }
+impl Extend<FlexId> for SpatialIdSet {
+    fn extend<T: IntoIterator<Item = FlexId>>(&mut self, iter: T) {
+        for item in iter {
+            self.insert(item);
         }
     }
 }

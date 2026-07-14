@@ -1,51 +1,14 @@
-use crate::{FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialIdTable};
+use crate::{FlexId, SingleId, SpatialIdTable};
 
-impl<V> IntoFlexIds for SpatialIdTable<V>
+impl<V> SpatialIdTable<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
 {
-    type IntoIter = <FlexTreeCore<V> as IntoFlexIds>::IntoIter;
-
-    fn into_flex_ids(self) -> Self::IntoIter {
-        self.inner.into_flex_ids()
+    pub fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
+        self.inner.iter().map(|(flex_id, _)| flex_id)
     }
-}
 
-impl<V> IterFlexIds for SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    type Iter<'a>
-        = <FlexTreeCore<V> as IterFlexIds>::Iter<'a>
-    where
-        Self: 'a;
-
-    fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_flex_ids()
-    }
-}
-
-impl<V> IntoSingleIds for SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    type IntoIter = <FlexTreeCore<V> as IntoSingleIds>::IntoIter;
-
-    fn into_single_ids(self) -> Self::IntoIter {
-        self.inner.into_single_ids()
-    }
-}
-
-impl<V> IterSingleIds for SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    type Iter<'a>
-        = <FlexTreeCore<V> as IterSingleIds>::Iter<'a>
-    where
-        Self: 'a;
-
-    fn iter_single_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_single_ids()
+    pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
+        self.inner.single_ids()
     }
 }

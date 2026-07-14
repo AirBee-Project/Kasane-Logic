@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::{TableEntry, build_table};
-    use crate::{FlexId, IterSingleIds, RangeId, SingleId, SpatialIdTable};
+    use crate::{FlexId, RangeId, SingleId, SpatialIdTable};
 
     /// 同じターゲットへ再挿入したときに、古い値が新しい値へ置き換わることを検証する。
     #[test]
@@ -49,7 +49,7 @@ mod tests {
             .map(|(single_id, value)| (single_id, *value))
             .collect();
         let expected: Vec<_> = range
-            .iter_single_ids()
+            .single_ids()
             .map(|single_id| (single_id, 30))
             .collect();
 

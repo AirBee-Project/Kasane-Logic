@@ -57,10 +57,10 @@ where
         SB: SpatialIdCollection<Value = B>,
         O: SpatialIdCollection<Value = Self::ResultValue>,
     {
-        #[allow(clippy::needless_collect)]
-        let a_cells: Vec<_> = a.scan_ref().collect();
-        #[allow(clippy::needless_collect)]
-        let b_cells: Vec<_> = b.scan_ref().collect();
+        #[cfg(feature = "rayon")]
+        let a_cells: Vec<_> = a.iter().collect();
+        #[cfg(feature = "rayon")]
+        let b_cells: Vec<_> = b.iter().collect();
 
         type MapResult<T> = Result<Vec<Vec<(crate::FlexId, T)>>, Error>;
 
@@ -117,8 +117,8 @@ where
             MapResult<Self::ResultValue>,
             MapResult<Self::ResultValue>,
         ) = {
-            let res_a: MapResult<Self::ResultValue> = a_cells
-                .into_iter()
+            let res_a: MapResult<Self::ResultValue> = a
+                .iter()
                 .map(|(a_id, a_value)| {
                     let mut local = Vec::new();
                     let mut covered = Vec::new();
@@ -137,8 +137,8 @@ where
                 })
                 .collect();
 
-            let res_b: MapResult<Self::ResultValue> = b_cells
-                .into_iter()
+            let res_b: MapResult<Self::ResultValue> = b
+                .iter()
                 .map(|(b_id, b_value)| {
                     let mut local = Vec::new();
                     let covered: Vec<FlexId> = a.get_ref(&b_id).map(|(id, _)| id).collect();

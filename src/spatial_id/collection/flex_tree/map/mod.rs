@@ -51,12 +51,12 @@ where
     where
         S: SpatialId,
     {
-        self.inner.get_ref(target)
+        self.inner.get_ref(target.clone())
     }
 
     /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
     pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)> {
-        self.inner.remove(target)
+        self.inner.remove(target.clone())
     }
 
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
@@ -68,7 +68,7 @@ where
     where
         S: SpatialId + 'a,
     {
-        self.inner.get_overlapping_ref(target)
+        self.inner.get_overlapping_ref(target.clone())
     }
 
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった
@@ -77,7 +77,7 @@ where
         &mut self,
         target: &S,
     ) -> impl Iterator<Item = (FlexId, V)> {
-        self.inner.remove_overlapping(target)
+        self.inner.remove_overlapping(target.clone())
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返します。

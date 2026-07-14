@@ -1,6 +1,6 @@
 use hashbrown::HashSet;
 
-use crate::{FlexId, FlexTreeCore, IntoSingleIds, RangeId, SingleId, SpatialId};
+use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
 pub mod convert;
 pub mod impls;
 pub mod json;
@@ -96,13 +96,15 @@ impl SpatialIdSet {
     where
         S: SpatialId,
     {
-        self.inner.get(target).map(move |(flex_id, _value)| flex_id)
+        self.inner
+            .get(target.clone())
+            .map(move |(flex_id, _value)| flex_id)
     }
     /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
     /// 削除した部分の空間IDを返す。
     pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
         self.inner
-            .remove(target)
+            .remove(target.clone())
             .map(move |(flex_id, _value)| flex_id)
     }
 
@@ -113,7 +115,7 @@ impl SpatialIdSet {
         S: SpatialId + 'a,
     {
         self.inner
-            .get_overlapping(target)
+            .get_overlapping(target.clone())
             .map(|(flex_id, _value)| flex_id)
     }
 
@@ -121,7 +123,7 @@ impl SpatialIdSet {
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった [`FlexId`] をそのまま返す。
     pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
         self.inner
-            .remove_overlapping(target)
+            .remove_overlapping(target.clone())
             .map(move |(flex_id, _value)| flex_id)
     }
 
@@ -201,11 +203,34 @@ impl SpatialIdSet {
                     .expect("target_z must be >= range.z")
             };
 
-            for single_id in expanded.into_single_ids() {
+            for single_id in expanded.single_ids() {
                 normalized.insert(single_id);
             }
         }
 
         normalized
+    }
+}
+
+pub struct SpatialIdSetIntoIter {
+    inner: crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<()>,
+}
+
+impl Iterator for SpatialIdSetIntoIter {
+    type Item = (FlexId, ());
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(flex_id, _)| (flex_id, ()))
+    }
+}
+
+impl IntoIterator for SpatialIdSet {
+    type Item = (FlexId, ());
+    type IntoIter = SpatialIdSetIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SpatialIdSetIntoIter {
+            inner: self.inner.into_iter(),
+        }
     }
 }
