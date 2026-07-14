@@ -12,8 +12,6 @@ pub mod sharded;
 pub mod union;
 
 #[cfg(test)]
-use crate::IntoSingleIds;
-#[cfg(test)]
 use crate::ZoomLevel;
 #[cfg(test)]
 use crate::{RangeId, SingleId, SpatialIdSet};
@@ -237,7 +235,7 @@ pub(crate) fn decompose_set_to_single_ids_at_zoom(
                 .expect("target_z must be >= range.z")
         };
 
-        for single_id in expanded.into_single_ids() {
+        for single_id in expanded.single_ids() {
             normalized.insert(single_id);
         }
     }

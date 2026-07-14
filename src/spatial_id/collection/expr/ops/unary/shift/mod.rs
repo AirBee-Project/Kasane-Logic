@@ -80,8 +80,7 @@ impl<A: CellValue> UnaryOperator<A> for Shift {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
-        let cells: Vec<(FlexId, A)> = a.scan().collect();
-        let shifted = super::map_cells(cells, |id| apply(id.clone(), &param))?;
+        let shifted = super::map_cells(a, |id| apply(id.clone(), &param))?;
 
         Ok(O::from_cells(shifted, &ConflictPolicy::Overwrite))
     }

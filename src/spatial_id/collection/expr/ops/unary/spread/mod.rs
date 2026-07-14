@@ -161,9 +161,8 @@ impl<A: CellValue> UnaryOperator<A> for Spread {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
-        let cells: Vec<(FlexId, A)> = a.scan().collect();
-        let spread = map_spread(cells, &param)?;
-        Ok(O::from_cells(spread, &param.conflict))
+        let spread_cells = map_spread(a, &param)?;
+        Ok(O::from_cells(spread_cells, &param.conflict))
     }
 
     fn is_identity(_param: &Self::CustomParameter) -> bool {
@@ -173,10 +172,10 @@ impl<A: CellValue> UnaryOperator<A> for Spread {
 }
 
 /// 各セルを同心円（球）状に展開し、`(FlexId, 減衰後の値)` の列へ平坦化する。
-fn map_spread<A: CellValue>(
-    cells: Vec<(FlexId, A)>,
-    param: &SpreadParam<A>,
-) -> Result<Vec<(FlexId, A)>, Error> {
+fn map_spread<I, A: CellValue>(cells: I, param: &SpreadParam<A>) -> Result<Vec<(FlexId, A)>, Error>
+where
+    I: IntoIterator<Item = (FlexId, A)>,
+{
     if param.z > ZoomLevel::MAX.get() {
         return Err(SpatialIdError::ZOutOfRange { z: param.z }.into());
     }
@@ -184,7 +183,8 @@ fn map_spread<A: CellValue>(
     #[cfg(feature = "rayon")]
     {
         use rayon::prelude::*;
-        cells
+        let cells_vec: Vec<_> = cells.into_iter().collect();
+        cells_vec
             .into_par_iter()
             .map(|(id, value)| expand(id, value, param))
             .collect::<Result<Vec<Vec<_>>, Error>>()
@@ -194,7 +194,7 @@ fn map_spread<A: CellValue>(
     #[cfg(not(feature = "rayon"))]
     {
         let mut out = Vec::new();
-        for (id, value) in cells {
+        for (id, value) in cells.into_iter() {
             out.extend(expand(id, value, param)?);
         }
         Ok(out)

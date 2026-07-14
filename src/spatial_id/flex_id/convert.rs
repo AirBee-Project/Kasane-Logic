@@ -1,9 +1,6 @@
 use alloc::boxed::Box;
 
-use crate::{
-    FlexId, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, RangeId, SingleId, SpatialId,
-    spatial_id::zoom_level::ZoomLevel,
-};
+use crate::{FlexId, RangeId, SingleId, SpatialId, spatial_id::zoom_level::ZoomLevel};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {
@@ -75,30 +72,16 @@ impl From<&SingleId> for FlexId {
     }
 }
 
-impl IntoFlexIds for FlexId {
+impl IntoIterator for FlexId {
+    type Item = FlexId;
     type IntoIter = core::iter::Once<FlexId>;
-    fn into_flex_ids(self) -> Self::IntoIter {
+    fn into_iter(self) -> Self::IntoIter {
         core::iter::once(self)
     }
 }
 
-impl IterFlexIds for FlexId {
-    type Iter<'a> = core::iter::Once<FlexId>;
-    fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        core::iter::once(self.clone())
-    }
-}
-
-impl IntoSingleIds for FlexId {
-    type IntoIter = Box<dyn Iterator<Item = SingleId>>;
-    fn into_single_ids(self) -> Self::IntoIter {
-        RangeId::from(self).into_single_ids()
-    }
-}
-
-impl IterSingleIds for FlexId {
-    type Iter<'a> = Box<dyn Iterator<Item = SingleId> + 'a>;
-    fn iter_single_ids(&self) -> Self::Iter<'_> {
-        RangeId::from(self).into_single_ids()
+impl FlexId {
+    pub fn single_ids(self) -> Box<dyn Iterator<Item = SingleId>> {
+        Box::new(RangeId::from(self).single_ids())
     }
 }

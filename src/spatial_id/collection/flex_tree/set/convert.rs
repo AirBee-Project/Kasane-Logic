@@ -1,42 +1,12 @@
-use crate::{
-    FlexTreeCore, IntoFlexIds, IntoSingleIds, IterFlexIds, IterSingleIds, SpatialIdSet,
-    SpatialIdTable,
-};
+use crate::{FlexId, SingleId, SpatialIdSet, SpatialIdTable};
 
-impl IntoFlexIds for SpatialIdSet {
-    type IntoIter = <FlexTreeCore<()> as IntoFlexIds>::IntoIter;
-
-    fn into_flex_ids(self) -> Self::IntoIter {
-        self.inner.into_flex_ids()
+impl SpatialIdSet {
+    pub fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
+        self.inner.iter().map(|(flex_id, _)| flex_id)
     }
-}
 
-impl IterFlexIds for SpatialIdSet {
-    type Iter<'a>
-        = <FlexTreeCore<()> as IterFlexIds>::Iter<'a>
-    where
-        Self: 'a;
-
-    fn iter_flex_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_flex_ids()
-    }
-}
-
-impl IntoSingleIds for SpatialIdSet {
-    type IntoIter = <FlexTreeCore<()> as IntoSingleIds>::IntoIter;
-
-    fn into_single_ids(self) -> Self::IntoIter {
-        self.inner.into_single_ids()
-    }
-}
-
-impl IterSingleIds for SpatialIdSet {
-    type Iter<'a>
-        = <FlexTreeCore<()> as IterSingleIds>::Iter<'a>
-    where
-        Self: 'a;
-    fn iter_single_ids(&self) -> Self::Iter<'_> {
-        self.inner.iter_single_ids()
+    pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
+        self.inner.single_ids()
     }
 }
 
@@ -47,7 +17,7 @@ where
     /// 値を捨て、占有空間だけを [`SpatialIdSet`] へ写し取る。元のテーブルは消費しない。
     fn from(table: &SpatialIdTable<V>) -> Self {
         let mut set = SpatialIdSet::new();
-        for flex_id in table.iter_flex_ids() {
+        for flex_id in table.flex_ids() {
             set.insert(flex_id);
         }
         set

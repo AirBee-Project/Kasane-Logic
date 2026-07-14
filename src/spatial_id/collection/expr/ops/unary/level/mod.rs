@@ -80,8 +80,7 @@ impl<A: CellValue> UnaryOperator<A> for Level {
         S: SpatialIdCollection<Value = A>,
         O: SpatialIdCollection<Value = A>,
     {
-        let cells: Vec<(FlexId, A)> = a.scan().collect();
-        let leveled = super::map_cells(cells, |id| expand(id.clone(), &param))?;
+        let leveled = super::map_cells(a, |id| expand(id.clone(), &param))?;
         Ok(O::from_cells(leveled, &param.conflict))
     }
 

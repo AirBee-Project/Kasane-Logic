@@ -24,12 +24,11 @@ pub trait SpatialIdCollectionBounds: Sized {}
 #[cfg(not(feature = "rayon"))]
 impl<T: Sized> SpatialIdCollectionBounds for T {}
 
-pub trait SpatialIdCollection: SpatialIdCollectionBounds + Clone {
+pub trait SpatialIdCollection:
+    SpatialIdCollectionBounds + Clone + Default + IntoIterator<Item = (FlexId, Self::Value)>
+{
     /// 各空間IDに紐づく値の型。値を持たない集合では `()`。
     type Value: CellValue;
-
-    /// 空のコレクションを作る（演算結果の組み立て先）。
-    fn empty() -> Self;
 
     /// 1 つの `(FlexId, Value)` を書き込む。
     fn insert(&mut self, key: FlexId, value: Self::Value);
@@ -54,13 +53,13 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds + Clone {
                 .collect();
             ordered.sort_unstable_by_key(|(pos, _, _)| *pos);
 
-            let mut result = Self::empty();
+            let mut result = Self::default();
             for (_, id, value) in ordered {
                 result.insert(id, value);
             }
             result
         } else {
-            let mut result = Self::empty();
+            let mut result = Self::default();
             for (cell, value) in cells {
                 let current = result.get(&cell).next().map(|(_, v)| v);
                 let resolved = conflict.resolve(current, value);
@@ -70,11 +69,8 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds + Clone {
         }
     }
 
-    /// 保持している全ての `(FlexId, Value)` を走査する。
-    fn scan(&self) -> impl Iterator<Item = (FlexId, Self::Value)> + '_;
-
-    /// [`scan`](Self::scan) の参照版。値をクローンせず参照で返す（重い値型でのコピー削減）。
-    fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
+    /// コレクションの要素を参照で走査する。
+    fn iter(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
 
     /// `target` と重なる `(FlexId, Value)` を取得する（2項演算の重なり判定に使う）。
     fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, Self::Value)> + 'a;
@@ -146,19 +142,11 @@ where
 {
     type Value = V;
 
-    fn empty() -> Self {
-        SpatialIdTable::new()
-    }
-
     fn insert(&mut self, key: FlexId, value: V) {
         SpatialIdTable::insert(self, key, value);
     }
 
-    fn scan(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
-        self.iter().map(|(id, v)| (id, v.clone()))
-    }
-
-    fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+    fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.iter()
     }
 
@@ -189,20 +177,12 @@ where
 impl SpatialIdCollection for SpatialIdSet {
     type Value = ();
 
-    fn empty() -> Self {
-        SpatialIdSet::new()
-    }
-
     fn insert(&mut self, key: FlexId, _value: ()) {
         SpatialIdSet::insert(self, key);
     }
 
-    fn scan(&self) -> impl Iterator<Item = (FlexId, ())> + '_ {
-        self.iter().map(|id| (id, ()))
-    }
-
-    fn scan_ref(&self) -> impl Iterator<Item = (FlexId, &())> + '_ {
-        self.iter().map(|id| (id, &UNIT))
+    fn iter(&self) -> impl Iterator<Item = (FlexId, &())> + '_ {
+        SpatialIdSet::iter(self).map(|id| (id, &UNIT))
     }
 
     fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, ())> + 'a {
