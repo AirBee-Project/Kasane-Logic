@@ -1,6 +1,7 @@
 use crate::{FlexId, FlexTreeCore, SingleId, SpatialId};
 
 pub mod convert;
+#[cfg(feature = "json")]
 pub mod json;
 #[cfg(feature = "persist")]
 pub mod persist;

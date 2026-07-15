@@ -1,17 +1,20 @@
 use alloc::string::String;
-use alloc::vec::Vec;
 
-use crate::{JsonValue, RangeId, SpatialIdMap};
+use serde::Serialize;
+use serde::de::DeserializeOwned;
 
-use super::super::json::{write_envelope_open, write_id_open};
+use crate::SpatialIdMap;
+
+use super::super::json::{JsonError, from_json_with_values, to_json_with_values};
 
 impl<V> SpatialIdMap<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + JsonValue,
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue
+        + Serialize
+        + DeserializeOwned,
 {
     /// このマップを <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列へ
-    /// 書き出す。外部クレート（serde 等）に依存せず、値型 `V` が [`JsonValue`] を実装していれば
-    /// いつでも利用できる。
+    /// 書き出す。値型 `V` が [`serde::Serialize`] を実装していればいつでも利用できる。
     ///
     /// 値は `data[].value` に重複なく列挙し、各空間 ID は `ref` でその添字を参照する。
     ///
@@ -27,46 +30,28 @@ where
     /// assert!(json.contains("\"ref\":0"));
     /// ```
     pub fn to_json(&self) -> String {
-        // 値を出現順で重複排除し、各 ID から添字（ref）で参照する。
-        let mut unique: Vec<&V> = Vec::new();
-        for (_, val) in self.iter() {
-            if !unique.contains(&val) {
-                unique.push(val);
-            }
+        to_json_with_values(self.iter())
+    }
+
+    /// [`to_json`](Self::to_json) が書き出した JSON 文字列からマップを復元する。
+    /// 値型 `V` が [`serde::de::DeserializeOwned`] を実装していればいつでも利用できる。
+    ///
+    /// # 例
+    ///
+    /// ```
+    /// use kasane_logic::{SingleId, SpatialIdMap};
+    /// let mut map: SpatialIdMap<i32> = SpatialIdMap::new();
+    /// map.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
+    ///
+    /// let restored = SpatialIdMap::<i32>::from_json(&map.to_json()).unwrap();
+    /// assert_eq!(restored.count(), map.count());
+    /// ```
+    pub fn from_json(json: &str) -> Result<Self, JsonError> {
+        let mut map = Self::new();
+        for (range_id, value) in from_json_with_values(json)? {
+            map.insert(range_id, value);
         }
-
-        let mut out = String::new();
-        write_envelope_open(&mut out);
-
-        out.push_str("\"value\":[");
-        let mut first = true;
-        for v in &unique {
-            if !first {
-                out.push(',');
-            }
-            first = false;
-            (**v).write_json(&mut out);
-        }
-        out.push_str("],\"ids\":[");
-
-        let mut first = true;
-        for (flex_id, val) in self.iter() {
-            if !first {
-                out.push(',');
-            }
-            first = false;
-
-            let range_id = RangeId::from(&flex_id);
-            write_id_open(&mut out, &range_id);
-            if let Some(idx) = unique.iter().position(|&u| u == val) {
-                out.push_str(",\"ref\":");
-                idx.write_json(&mut out);
-            }
-            out.push('}');
-        }
-
-        out.push_str("]}]}");
-        out
+        Ok(map)
     }
 }
 
@@ -107,5 +92,28 @@ mod tests {
         let json = map.to_json();
         assert!(json.contains("\"value\":[]"));
         assert!(json.contains("\"ids\":[]"));
+    }
+
+    #[test]
+    fn from_json_round_trips_values_and_ids() {
+        let mut map = SpatialIdMap::<i32>::new();
+        map.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
+        map.insert(SingleId::new(20, 1, 0, 0).unwrap(), 20);
+        map.insert(SingleId::new(20, 2, 0, 0).unwrap(), 10);
+
+        let json = map.to_json();
+        let restored = SpatialIdMap::<i32>::from_json(&json).unwrap();
+
+        assert_eq!(restored.count(), map.count());
+        for (flex_id, value) in map.iter() {
+            let (_, restored_value) = restored.get(&flex_id).next().unwrap();
+            assert_eq!(restored_value, value);
+        }
+    }
+
+    #[test]
+    fn from_json_rejects_out_of_range_zoom_level() {
+        let json = r#"{"$schema":"https://airbee-project.github.io/schemas/json/v1.0.json","meta":{"version":"v1.0","description":""},"option":{},"data":[{"name":"","value":[10],"ids":[{"z":68,"f":[0],"x":[0],"y":[0],"ref":0}]}]}"#;
+        assert!(SpatialIdMap::<i32>::from_json(json).is_err());
     }
 }

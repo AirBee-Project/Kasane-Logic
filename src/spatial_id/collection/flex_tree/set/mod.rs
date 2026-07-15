@@ -3,6 +3,7 @@ use hashbrown::HashSet;
 use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
 pub mod convert;
 pub mod impls;
+#[cfg(feature = "json")]
 pub mod json;
 pub mod ops;
 pub mod shard;

@@ -20,15 +20,18 @@ libm = "0.2.16"
 rand = { version = "0.10.1", optional = true }
 rayon = { version = "1.10", optional = true }
 rkyv = { version = "0.8", features = ["unaligned"], optional = true }
+serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
+serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
 
 [features]
-default = ["std", "rayon"]
+default = ["std", "rayon", "json"]
 std = []
 rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]
 persist = ["dep:rkyv", "std"]
+json = ["dep:serde", "dep:serde_json"]
 
 [dev-dependencies]
 rand = "0.10.1"

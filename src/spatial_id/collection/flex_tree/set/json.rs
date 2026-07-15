@@ -1,30 +1,22 @@
 use alloc::string::String;
 
-use crate::{RangeId, SpatialIdSet};
+use crate::SpatialIdSet;
 
-use super::super::json::{write_envelope_open, write_id_open};
+use super::super::json::{JsonError, from_json_without_values, to_json_without_values};
 
 impl SpatialIdSet {
     /// この集合を <https://airbee-project.github.io/schemas/json/v1.0.json> 準拠の JSON 文字列として書き出す。
     pub fn to_json(&self) -> String {
-        let mut out = String::new();
-        write_envelope_open(&mut out);
-        out.push_str("\"ids\":[");
+        to_json_without_values(self.iter())
+    }
 
-        let mut first = true;
-        for flex_id in self.iter() {
-            if !first {
-                out.push(',');
-            }
-            first = false;
-
-            let range_id = RangeId::from(&flex_id);
-            write_id_open(&mut out, &range_id);
-            out.push('}');
+    /// [`to_json`](Self::to_json) が書き出した JSON 文字列から集合を復元する。
+    pub fn from_json(json: &str) -> Result<Self, JsonError> {
+        let mut set = Self::new();
+        for range_id in from_json_without_values(json)? {
+            set.insert(range_id);
         }
-
-        out.push_str("]}]}");
-        out
+        Ok(set)
     }
 }
 
@@ -70,5 +62,26 @@ mod tests {
         let json = set.to_json();
         assert!(json.contains("\"x\":[0,1]"));
         assert!(json.contains("\"f\":[0]"));
+    }
+
+    #[test]
+    fn from_json_round_trips_a_set() {
+        let mut set = SpatialIdSet::new();
+        set.insert(SingleId::new(20, 0, 0, 0).unwrap());
+        set.insert(SingleId::new(20, 1, 0, 0).unwrap());
+
+        let json = set.to_json();
+        let restored = SpatialIdSet::from_json(&json).unwrap();
+
+        assert_eq!(restored.count(), set.count());
+        for flex_id in set.iter() {
+            assert!(restored.get(&flex_id).next().is_some());
+        }
+    }
+
+    #[test]
+    fn from_json_rejects_malformed_pair_length() {
+        let json = r#"{"$schema":"https://airbee-project.github.io/schemas/json/v1.0.json","meta":{"version":"v1.0","description":""},"option":{},"data":[{"name":"","ids":[{"z":20,"f":[0,1,2],"x":[0],"y":[0]}]}]}"#;
+        assert!(SpatialIdSet::from_json(json).is_err());
     }
 }
