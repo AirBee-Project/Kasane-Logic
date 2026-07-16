@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use alloc::collections::{BTreeMap, BTreeSet};
 use core::ops::RangeBounds;
 pub mod convert;
+#[cfg(feature = "json")]
 pub mod json;
 pub mod persist;
 pub mod test;

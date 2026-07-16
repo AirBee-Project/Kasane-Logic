@@ -75,8 +75,7 @@ pub use spatial_id::temporal_id::TemporalId;
 // spatial_id: collection types
 #[doc(inline)]
 pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::json::JsonValue;
+
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
 #[doc(inline)]
