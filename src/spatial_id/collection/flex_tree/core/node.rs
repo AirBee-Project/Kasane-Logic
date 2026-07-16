@@ -34,7 +34,7 @@ where
 {
     Branch {
         level: u8,
-        leaf_count: usize,
+        leaf_count: u32,
         max_zoom: u8,
         #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         lower_child: SharedNode<Node<V>>,
@@ -65,7 +65,7 @@ where
     /// 各ノード以下の (値が Some の) Leaf の合計数を返す。O(1)で取得可能。
     pub fn leaf_count(&self) -> usize {
         match self {
-            Node::Branch { leaf_count, .. } => *leaf_count,
+            Node::Branch { leaf_count, .. } => *leaf_count as usize,
             Node::Leaf { value: Some(_) } => 1,
             Node::Leaf { value: None } => 0,
         }
@@ -223,7 +223,7 @@ where
 
             *node = SharedNode::new(Node::Branch {
                 level: current_level,
-                leaf_count: new_lower.leaf_count() + new_upper.leaf_count(),
+                leaf_count: (new_lower.leaf_count() + new_upper.leaf_count()) as u32,
                 max_zoom: Self::fold_max_zoom(current_level, &new_lower, &new_upper),
                 lower_child: new_lower,
                 upper_child: new_upper,
@@ -257,7 +257,7 @@ where
                     }
                 }
 
-                *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+                *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
                 *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
 
                 Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)

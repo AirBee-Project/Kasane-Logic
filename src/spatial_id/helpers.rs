@@ -53,7 +53,7 @@ pub fn altitude(f: f64, z: u8) -> f64 {
 
 ///次元を選択するEnum
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(C)]
+#[repr(u8)]
 pub enum Dimension {
     F = 0,
     X = 1,
@@ -63,7 +63,7 @@ pub enum Dimension {
 /// 座標軸で小さい側:[Side::Lower]
 /// 座標軸で大きい側:[Side::Upper]
 #[derive(Debug, PartialEq, Clone, Copy)]
-#[repr(C)]
+#[repr(u8)]
 pub enum Side {
     /// 座標が小さい方 (Left, Down, Low-F)
     Lower = 0,
