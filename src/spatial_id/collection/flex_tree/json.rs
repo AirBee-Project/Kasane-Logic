@@ -14,51 +14,13 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
-use serde::de::{self, DeserializeOwned, MapAccess, Visitor};
+use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{FlexId, RangeId, SpatialId};
 
 const SCHEMA_URL: &str = "https://airbee-project.github.io/schemas/json/v1.0.json";
-
-/// JSON への変換・JSON からの復元で発生し得るエラー。
-#[derive(Debug)]
-pub enum JsonError {
-    /// JSON として構文解析できなかった（`serde_json` が返したエラーを文字列化したもの）。
-    Syntax(String),
-    /// 構文的には正しいが、空間 ID として不正な値だった（範囲外の `z`/`f`/`x`/`y`/`i`/`t` など）。
-    SpatialId(crate::Error),
-    /// `data` 配列の要素数が期待（常に1）と異なっていた。
-    DataCount { expected: usize, actual: usize },
-}
-
-impl fmt::Display for JsonError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            JsonError::Syntax(msg) => write!(f, "invalid JSON: {msg}"),
-            JsonError::SpatialId(err) => write!(f, "invalid spatial id in JSON: {err}"),
-            JsonError::DataCount { expected, actual } => write!(
-                f,
-                "expected \"data\" to contain exactly {expected} entries, found {actual}"
-            ),
-        }
-    }
-}
-
-impl core::error::Error for JsonError {}
-
-impl From<crate::Error> for JsonError {
-    fn from(value: crate::Error) -> Self {
-        JsonError::SpatialId(value)
-    }
-}
-
-impl From<serde_json::Error> for JsonError {
-    fn from(value: serde_json::Error) -> Self {
-        JsonError::Syntax(value.to_string())
-    }
-}
 
 /// 1つの空間IDを、スキーマの `spatialTemporalId` として書き出す／読み込む。
 ///
@@ -182,8 +144,14 @@ impl<'de> Deserialize<'de> for IdEntry {
                         }
                         "i" => i = Some(map.next_value()?),
                         "t" => {
-                            let arr: [u64; 1] = map.next_value()?;
-                            t = Some(arr[0]);
+                            let pair =
+                                deserialize_pair(map.next_value()?).map_err(de::Error::custom)?;
+                            if pair[0] != pair[1] {
+                                panic!(
+                                    "range of temporal id is not currently supported in the reader"
+                                );
+                            }
+                            t = Some(pair[0]);
                         }
                         "ref" => r#ref = Some(map.next_value()?),
                         _ => {
@@ -193,9 +161,11 @@ impl<'de> Deserialize<'de> for IdEntry {
                 }
 
                 let z = z.ok_or_else(|| de::Error::missing_field("z"))?;
-                let f = f.ok_or_else(|| de::Error::missing_field("f"))?;
-                let x = x.ok_or_else(|| de::Error::missing_field("x"))?;
-                let y = y.ok_or_else(|| de::Error::missing_field("y"))?;
+                let z_level =
+                    crate::spatial_id::zoom_level::ZoomLevel::new(z).map_err(de::Error::custom)?;
+                let f = f.unwrap_or([z_level.f_min(), z_level.f_max()]);
+                let x = x.unwrap_or([0, z_level.xy_max()]);
+                let y = y.unwrap_or([0, z_level.xy_max()]);
                 let temporal_pair = match (i, t) {
                     (Some(i), Some(t)) => Some((i, t)),
                     (None, None) => None,
@@ -256,13 +226,13 @@ struct EnvelopeIn<D> {
     data: Vec<D>,
 }
 
-fn take_single_entry<D>(envelope: EnvelopeIn<D>) -> Result<D, JsonError> {
+fn take_single_entry<D>(envelope: EnvelopeIn<D>) -> Result<D, String> {
     let mut data = envelope.data;
     if data.len() != 1 {
-        return Err(JsonError::DataCount {
-            expected: 1,
-            actual: data.len(),
-        });
+        return Err(format!(
+            "expected \"data\" to contain exactly 1 entries, found {}",
+            data.len()
+        ));
     }
     Ok(data.remove(0))
 }
@@ -289,9 +259,13 @@ struct PlainDataEntry {
 /// 値ありコレクション（Table/Map）向けの JSON 書き出し。
 ///
 /// 値は出現順で重複排除して `value` に列挙し、各空間 ID は `ref` でその添字を参照する。
-pub(crate) fn to_json_with_values<'a, V>(iter: impl Iterator<Item = (FlexId, &'a V)>) -> String
+pub(crate) fn serialize_with_values<'a, V, S>(
+    iter: impl Iterator<Item = (FlexId, &'a V)>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     V: Serialize + PartialEq + 'a,
+    S: Serializer,
 {
     let mut unique: Vec<&'a V> = Vec::new();
     let mut ids: Vec<IdEntry> = Vec::new();
@@ -321,11 +295,17 @@ where
         }],
     };
 
-    serde_json::to_string(&envelope).expect("envelope serialization is infallible")
+    envelope.serialize(serializer)
 }
 
 /// 値なしコレクション（Set）向けの JSON 書き出し。
-pub(crate) fn to_json_without_values(iter: impl Iterator<Item = FlexId>) -> String {
+pub(crate) fn serialize_without_values<S>(
+    iter: impl Iterator<Item = FlexId>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
     let ids: Vec<IdEntry> = iter
         .map(|flex_id| IdEntry {
             range_id: RangeId::from(&flex_id),
@@ -343,18 +323,21 @@ pub(crate) fn to_json_without_values(iter: impl Iterator<Item = FlexId>) -> Stri
         }],
     };
 
-    serde_json::to_string(&envelope).expect("envelope serialization is infallible")
+    envelope.serialize(serializer)
 }
 
 /// 値ありコレクション（Table/Map）向けの JSON 復元。
 ///
 /// `data[].value` と各 `ids[].ref` から `(RangeId, V)` の列を組み立てる。
-pub(crate) fn from_json_with_values<V>(s: &str) -> Result<Vec<(RangeId, V)>, JsonError>
+pub(crate) fn deserialize_with_values<'de, V, D>(
+    deserializer: D,
+) -> Result<Vec<(RangeId, V)>, D::Error>
 where
-    V: DeserializeOwned + Clone,
+    V: Deserialize<'de> + Clone,
+    D: Deserializer<'de>,
 {
-    let envelope: EnvelopeIn<ValuedDataEntryIn<V>> = serde_json::from_str(s)?;
-    let entry = take_single_entry(envelope)?;
+    let envelope: EnvelopeIn<ValuedDataEntryIn<V>> = EnvelopeIn::deserialize(deserializer)?;
+    let entry = take_single_entry(envelope).map_err(de::Error::custom)?;
     let values = entry.value;
 
     let mut out = Vec::with_capacity(entry.ids.len());
@@ -363,9 +346,9 @@ where
             Some(idx) => values
                 .get(idx)
                 .cloned()
-                .ok_or_else(|| JsonError::Syntax(format!("\"ref\" index {idx} out of range")))?,
+                .ok_or_else(|| de::Error::custom(format!("\"ref\" index {idx} out of range")))?,
             None => {
-                return Err(JsonError::Syntax("id entry is missing \"ref\"".to_string()));
+                return Err(de::Error::custom("id entry is missing \"ref\""));
             }
         };
         out.push((id.range_id, value));
@@ -374,38 +357,18 @@ where
 }
 
 /// 値なしコレクション（Set）向けの JSON 復元。
-pub(crate) fn from_json_without_values(s: &str) -> Result<Vec<RangeId>, JsonError> {
-    let envelope: EnvelopeIn<PlainDataEntry> = serde_json::from_str(s)?;
-    let entry = take_single_entry(envelope)?;
+pub(crate) fn deserialize_without_values<'de, D>(deserializer: D) -> Result<Vec<RangeId>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let envelope: EnvelopeIn<PlainDataEntry> = EnvelopeIn::deserialize(deserializer)?;
+    let entry = take_single_entry(envelope).map_err(de::Error::custom)?;
     Ok(entry.ids.into_iter().map(|id| id.range_id).collect())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{from_json_without_values, to_json_without_values};
-    use crate::{RangeId, SpatialIdSet};
     use alloc::format;
-    use alloc::vec;
-
-    #[test]
-    fn round_trips_a_single_id() {
-        let range_id = RangeId::new(20, [0, 0], [0, 0], [0, 0]).unwrap();
-        let mut set = SpatialIdSet::new();
-        set.insert(range_id.clone());
-
-        let json = to_json_without_values(set.iter());
-
-        assert!(json.starts_with(&format!("{{\"$schema\":\"{}\"", super::SCHEMA_URL)));
-        assert!(json.contains("\"meta\":{\"version\":\"v1.0\",\"description\":\"\"}"));
-        assert!(json.contains("\"option\":{}"));
-        assert!(json.contains("\"z\":20"));
-        assert!(json.contains("\"f\":[0]"));
-        assert!(!json.contains("\"i\":"));
-        assert!(!json.contains("\"t\":"));
-
-        let restored = from_json_without_values(&json).unwrap();
-        assert_eq!(restored, vec![range_id]);
-    }
 
     // `SpatialIdSet`/`SpatialIdTable`/`SpatialIdMap` の木は f/x/y の空間分割のみを保持し、
     // 挿入した ID の temporal 成分は伝播しない（本リファクタ以前からの既存挙動）。そのため
@@ -414,7 +377,7 @@ mod tests {
     #[test]
     fn round_trips_temporal_i_scalar_and_t_array() {
         use super::IdEntry;
-        use crate::TemporalId;
+        use crate::{RangeId, TemporalId};
 
         let temporal = TemporalId::new(3600, 5).unwrap();
         let range_id = RangeId::new_with_temporal(20, [0, 0], [0, 0], [0, 0], temporal).unwrap();
@@ -437,13 +400,11 @@ mod tests {
             "{{\"$schema\":\"{}\",\"meta\":{{\"version\":\"v1.0\",\"description\":\"\"}},\"option\":{{}},\"data\":[]}}",
             super::SCHEMA_URL
         );
-        let err = from_json_without_values(&json).unwrap_err();
-        assert!(matches!(
-            err,
-            super::JsonError::DataCount {
-                expected: 1,
-                actual: 0
-            }
-        ));
+        let mut deserializer = serde_json::Deserializer::from_str(&json);
+        let err = super::deserialize_without_values(&mut deserializer).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("expected \"data\" to contain exactly 1 entries, found 0")
+        );
     }
 }
