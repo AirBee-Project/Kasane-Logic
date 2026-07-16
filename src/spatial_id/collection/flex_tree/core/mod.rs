@@ -480,6 +480,42 @@ where
         stack
     }
 
+    #[cfg(feature = "rayon")]
+    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = (FlexId, &V)> + '_ {
+        use rayon::prelude::*;
+        let initial_stack = self.root_node_stack();
+
+        rayon::iter::split(initial_stack, |mut stack| {
+            if let Some((node, current_id)) = stack.pop() {
+                match node {
+                    Node::Branch {
+                        level,
+                        lower_child,
+                        upper_child,
+                        ..
+                    } => {
+                        let axis = Node::<V>::axis(*level);
+                        let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                        let lower_id = split_child_id(&current_id, axis, Side::Lower);
+
+                        let right_stack = alloc::vec![(upper_child.as_ref(), upper_id)];
+
+                        stack.push((lower_child.as_ref(), lower_id));
+
+                        (stack, Some(right_stack))
+                    }
+                    Node::Leaf { .. } => {
+                        stack.push((node, current_id));
+                        (stack, None)
+                    }
+                }
+            } else {
+                (stack, None)
+            }
+        })
+        .flat_map_iter(|stack| convert::LeavesIterRef { stack })
+    }
+
     fn insert_flex_id(&mut self, flex_id: FlexId, value: V) {
         let root = if flex_id.f_index().is_negative() {
             &mut self.lower_root

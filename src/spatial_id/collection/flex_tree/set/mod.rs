@@ -175,6 +175,12 @@ impl SpatialIdSet {
         self.inner.iter().map(|(flex_id, _)| flex_id)
     }
 
+    #[cfg(feature = "rayon")]
+    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = FlexId> + '_ {
+        use rayon::prelude::*;
+        self.inner.par_iter().map(|(flex_id, _)| flex_id)
+    }
+
     /// この [`SpatialIdSet`] を rkyv バイト列へ直列化する（`feature = "persist"`）。
     #[cfg(feature = "persist")]
     pub fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, rkyv::rancor::Error> {

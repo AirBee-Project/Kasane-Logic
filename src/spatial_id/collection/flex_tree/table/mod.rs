@@ -299,6 +299,18 @@ where
         })
     }
 
+    #[cfg(feature = "rayon")]
+    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = (FlexId, &V)> + '_ {
+        use rayon::prelude::*;
+        self.inner.par_iter().map(move |(flex_id, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(rank)
+                .expect("Dictionary mismatch");
+            (flex_id, value)
+        })
+    }
+
     /// テーブルに保持されている値への参照を返す。
     pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
         let mut out: Vec<&V> = Vec::new();

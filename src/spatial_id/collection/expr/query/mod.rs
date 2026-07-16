@@ -1,39 +1,35 @@
+use crate::{BinaryOperator, Error, SpatialIdCollection, UnaryOperator};
 use alloc::boxed::Box;
 
-mod optimize;
-
-use super::ops::binary::BinaryOp;
-use super::ops::unary::UnaryOp;
-
-use crate::{Error, SpatialIdCollection};
-
 /// 式全体を表現する型
-pub enum Query<C: SpatialIdCollection> {
+pub enum Query<S: SpatialIdCollection, U: UnaryOperator, B: BinaryOperator> {
     /// 演算の起点となるデータ
-    Source(C),
+    Source(S),
     /// 単項演算
-    Unary(UnaryOp<C>, Box<Query<C>>),
-    /// 二項演算
-    Binary(BinaryOp<C>, Box<Query<C>>, Box<Query<C>>),
+    Unary(U, Box<Query<S, U, B>>),
+    // 二項演算
+    Binary(B, Box<Query<S, U, B>>, Box<Query<S, U, B>>),
 }
 
-impl<C: SpatialIdCollection> From<C> for Query<C> {
-    fn from(collection: C) -> Self {
+impl<S: SpatialIdCollection, U: UnaryOperator, B: BinaryOperator> Query<S, U, B> {
+    #[allow(dead_code)]
+    fn from(collection: S) -> Self {
         collection.query()
     }
 }
 
-impl<C: SpatialIdCollection> Query<C>
+impl<S: SpatialIdCollection, U: UnaryOperator, B: BinaryOperator> Query<S, U, B>
 where
-    C::Value: 'static,
+    S::Value: 'static,
 {
     /// 最適化して[Query]を実行
-    pub fn run(self) -> Result<C, Error> {
-        match self.optimize() {
+    pub fn run(self) -> Result<S, Error> {
+        match self {
             Query::Source(collection) => Ok(collection),
             Query::Unary(op, input) => {
-                let input = input.run()?;
-                op.run(input)
+                let mut input = input.run()?;
+                op.run(&mut input).unwrap();
+                Ok(input)
             }
             Query::Binary(op, lhs, rhs) => {
                 #[cfg(feature = "rayon")]
@@ -42,27 +38,10 @@ where
                 #[cfg(not(feature = "rayon"))]
                 let (lhs_res, rhs_res) = (lhs.run(), rhs.run());
 
-                op.run(lhs_res?, rhs_res?)
-            }
-        }
-    }
-
-    /// 最適化せずに[Query]を実行
-    pub fn run_raw(self) -> Result<C, Error> {
-        match self {
-            Query::Source(collection) => Ok(collection),
-            Query::Unary(op, input) => {
-                let input = input.run_raw()?;
-                op.run(input)
-            }
-            Query::Binary(op, lhs, rhs) => {
-                #[cfg(feature = "rayon")]
-                let (lhs_res, rhs_res) = rayon::join(|| lhs.run_raw(), || rhs.run_raw());
-
-                #[cfg(not(feature = "rayon"))]
-                let (lhs_res, rhs_res) = (lhs.run_raw(), rhs.run_raw());
-
-                op.run(lhs_res?, rhs_res?)
+                let mut lhs_res = lhs_res?;
+                let rhs_res = rhs_res?;
+                op.run(&mut lhs_res, &rhs_res).unwrap();
+                Ok(lhs_res)
             }
         }
     }
