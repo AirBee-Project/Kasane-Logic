@@ -14,7 +14,7 @@ use alloc::vec::Vec;
 use rkyv::{Archive, Deserialize, Serialize};
 
 use super::SpatialIdMap;
-use crate::spatial_id::collection::flex_tree::core::node::Node;
+use crate::spatial_id::collection::flex_tree::core::node::{Node, OverlappingChildren};
 use crate::spatial_id::collection::flex_tree::core::ptr::SharedNode;
 use crate::spatial_id::collection::flex_tree::core::split_child_id;
 use crate::{FlexId, FlexTreeCore, Side};
@@ -218,14 +218,17 @@ impl<'a> ArchivedMap<'a> {
     /// `target` と重なる (FlexId, 値) を、`target` で切り取って返す（インメモリ `get` と同義）。
     pub fn get(&self, target: &FlexId) -> Vec<(FlexId, &'a [u8])> {
         let mut out = Vec::new();
-        let mut stack = alloc::vec![
-            (self.inner.upper_root.to_native(), FlexId::UPPER_MAX),
-            (self.inner.lower_root.to_native(), FlexId::LOWER_MAX),
-        ];
+
+        // 走査はインメモリ側（`OverlapIter`）と同じ枝刈りに揃えてある。
+        // F はズーム0で2セルしかないので、符号が属する側のルートだけを降りればよい。
+        let root = if target.f_index().is_negative() {
+            (self.inner.lower_root.to_native(), FlexId::LOWER_MAX)
+        } else {
+            (self.inner.upper_root.to_native(), FlexId::UPPER_MAX)
+        };
+        let mut stack = alloc::vec![root];
+
         while let Some((idx, current_id)) = stack.pop() {
-            if current_id.intersection(target).is_none() {
-                continue;
-            }
             match &self.inner.nodes[idx as usize] {
                 ArchivedPersistedNode::Branch {
                     level,
@@ -233,17 +236,25 @@ impl<'a> ArchivedMap<'a> {
                     upper,
                 } => {
                     let axis = Node::<Vec<u8>>::axis(*level);
-                    stack.push((
-                        upper.to_native(),
-                        split_child_id(&current_id, axis, Side::Upper),
-                    ));
-                    stack.push((
-                        lower.to_native(),
-                        split_child_id(&current_id, axis, Side::Lower),
-                    ));
+                    let mut push = |side: Side, child: u32| {
+                        stack.push((child, split_child_id(&current_id, axis, side)));
+                    };
+                    match Node::<Vec<u8>>::overlapping_children(target, *level) {
+                        OverlappingChildren::Both => {
+                            push(Side::Upper, upper.to_native());
+                            push(Side::Lower, lower.to_native());
+                        }
+                        OverlappingChildren::Only(Side::Lower) => {
+                            push(Side::Lower, lower.to_native())
+                        }
+                        OverlappingChildren::Only(Side::Upper) => {
+                            push(Side::Upper, upper.to_native())
+                        }
+                    }
                 }
                 ArchivedPersistedNode::Leaf { value } => {
                     let v = value.to_native();
+                    // 交差する子しか積んでいないので、葉は必ず target と交差する。
                     if v != EMPTY_LEAF
                         && let Some(clipped) = current_id.intersection(target)
                     {

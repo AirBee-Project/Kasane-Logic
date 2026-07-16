@@ -46,6 +46,18 @@ where
     },
 }
 
+/// ある Branch を降りるとき、target と交差しうる子。
+///
+/// [`Node::overlapping_children`] が返す。反対側の子は交差しえないので、
+/// [`Only`](Self::Only) なら部分木を丸ごと枝刈りできる。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum OverlappingChildren {
+    /// target がこの軸を丸ごと覆うため、両方の子が交差しうる。
+    Both,
+    /// この側の子だけが交差する。
+    Only(Side),
+}
+
 impl<V> Node<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
@@ -63,7 +75,7 @@ where
     /// FlexId ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
     ///
     /// ツリーレベル `L` の Leaf が持つ FlexId のズームは `max(f, x, y) = ceil(L / 3)` に等しい
-    /// （[`completely_covers`](Self::completely_covers) の式と整合）。値の無い Leaf は 0 を返す。
+    /// （[`covers_all_axes`](Self::covers_all_axes) の式と整合）。値の無い Leaf は 0 を返す。
     pub(crate) fn max_zoom_at(&self, node_level: u8) -> u8 {
         match self {
             Node::Branch { max_zoom, .. } => *max_zoom,
@@ -105,15 +117,31 @@ where
         }
     }
 
-    /// ターゲットAABB(FlexId)が現在の空間境界を特定の軸で「完全に覆う（covers）」か判定する。
+    /// レベル `level` の Branch を降りるとき、target と交差しうる子を返す。
+    ///
+    /// 木を降りる操作（挿入・走査・削除）は、どれもこの判断を起点にする。
+    /// 交差判定を [`FlexId::intersection`] に委ねると、真偽値が欲しいだけの場所で
+    /// FlexId を構築してしまう。ここは [`covers`](Self::covers) /
+    /// [`forking`](Self::forking) のビット演算だけで同じ結論を出す。
+    pub(crate) fn overlapping_children(target: &FlexId, level: u8) -> OverlappingChildren {
+        if Self::covers(target, level) {
+            OverlappingChildren::Both
+        } else {
+            OverlappingChildren::Only(Self::forking(target, level))
+        }
+    }
+
+    /// target が、この `level` が担当する**1軸**について現在の空間境界を完全に覆うか判定する。
+    /// 全軸をまとめて見るのは [`covers_all_axes`](Self::covers_all_axes)。
     fn covers(target: &FlexId, level: u8) -> bool {
         let axis = Self::axis(level);
         let depth = Self::depth(level);
         Self::target_zoom(axis, target) <= depth
     }
 
-    /// ターゲットAABB(FlexId)が現在の空間境界を全軸で完全に覆うか判定する。
-    pub(crate) fn completely_covers_public(target: &FlexId, level: u8) -> bool {
+    /// target が現在の空間境界を**全軸（F/X/Y）**で完全に覆うか判定する。
+    /// 1軸だけ見るのは [`covers`](Self::covers)。
+    pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
         let passed_f = level.div_ceil(3);
         let passed_x = (level + 1) / 3;
         let passed_y = level / 3;
@@ -142,7 +170,7 @@ where
         }
 
         // 完全にターゲットが現在の空間全体を覆う場合、O(1)でLeafに置換する
-        if Self::completely_covers_public(target, level) {
+        if Self::covers_all_axes(target, level) {
             *node = SharedNode::new(Node::Leaf {
                 value: Some(value.clone()),
             });
@@ -216,17 +244,16 @@ where
                 max_zoom,
             } = mut_node
             {
-                if Self::covers(target, *l) {
-                    Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf);
-                    Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf);
-                } else {
-                    match Self::forking(target, *l) {
-                        Side::Lower => {
-                            Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf)
-                        }
-                        Side::Upper => {
-                            Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf)
-                        }
+                match Self::overlapping_children(target, *l) {
+                    OverlappingChildren::Both => {
+                        Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf);
+                        Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf);
+                    }
+                    OverlappingChildren::Only(Side::Lower) => {
+                        Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf)
+                    }
+                    OverlappingChildren::Only(Side::Upper) => {
+                        Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf)
                     }
                 }
 
