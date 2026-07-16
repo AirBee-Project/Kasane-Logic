@@ -186,7 +186,7 @@ fn rebuild_node(
         } => {
             let lower_child = rebuild_node(*lower, nodes, dictionary, empty);
             let upper_child = rebuild_node(*upper, nodes, dictionary, empty);
-            let leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+            let leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
             let max_zoom = Node::<Vec<u8>>::fold_max_zoom(*level, &lower_child, &upper_child);
             SharedNode::new(Node::Branch {
                 level: *level,

@@ -85,7 +85,7 @@ where
                 Self::prune_path(upper_child, upper_id, region, keep, empty_leaf);
             }
 
-            *leaf_count = lower_child.leaf_count() + upper_child.leaf_count();
+            *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
             *max_zoom = Node::<V>::fold_max_zoom(*level, lower_child, upper_child);
         }
     }
