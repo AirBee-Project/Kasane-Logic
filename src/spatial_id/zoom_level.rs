@@ -98,6 +98,18 @@ impl ZoomLevel {
         ZoomLevel(z)
     }
 
+    /// 1段深いズームレベルを返す。[`ZoomLevel::MAX`] なら [`None`]。
+    ///
+    /// 自身が有効なので `+1` が [`MAX`](Self::MAX) 以下であることをここで確かめきれる。
+    /// 呼び出し側は改めて範囲検証をする必要がない。
+    pub const fn deeper(self) -> Option<ZoomLevel> {
+        if self.0 >= Self::MAX.0 {
+            None
+        } else {
+            Some(ZoomLevel(self.0 + 1))
+        }
+    }
+
     /// 保持しているズームレベルを `u8` として返す。
     pub const fn get(self) -> u8 {
         self.0

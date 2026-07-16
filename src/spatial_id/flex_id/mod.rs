@@ -667,118 +667,63 @@ impl FlexId {
         }))
     }
 
-    ///F方向で二つに切り分ける
+    /// F方向で二つに切り分ける。[`ZoomLevel::MAX`] なら [`None`]。
+    ///
+    /// 分割後も各軸が有効範囲に収まることは構築時に保証される（F は
+    /// `[-2^z, 2^z-1]` を2倍して `side` を足すと過不足なく `z+1` の範囲になり、
+    /// X/Y は値を変えずに引き継ぐ）ため、[`FlexId::new`] の再検証を通さない。
     pub fn split_f(&self, side: Side) -> Option<FlexId> {
-        if self.f_zoomlevel() == ZoomLevel::MAX.get() {
-            None
-        } else {
-            #[cfg(feature = "temporal_id")]
-            {
-                Some(
-                    FlexId::new_with_temporal(
-                        self.f_zoomlevel() + 1,
-                        self.f_index() * 2 + side as i32,
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                        self.temporal_id.clone(),
-                    )
-                    .unwrap(),
-                )
-            }
+        let f_zoomlevel = self.f_zoomlevel.deeper()?;
+        let f_index = self.f_index * 2 + side as i32;
+        debug_assert!(f_zoomlevel.check_f(f_index).is_ok(), "分割後のFが範囲外");
 
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                Some(
-                    FlexId::new(
-                        self.f_zoomlevel() + 1,
-                        self.f_index() * 2 + side as i32,
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                    )
-                    .unwrap(),
-                )
-            }
-        }
+        Some(FlexId {
+            f_zoomlevel,
+            f_index,
+            x_zoomlevel: self.x_zoomlevel,
+            x_index: self.x_index,
+            y_zoomlevel: self.y_zoomlevel,
+            y_index: self.y_index,
+            temporal_id: self.temporal_id.clone(),
+        })
     }
 
-    ///X方向で二つに切り分ける
+    /// X方向で二つに切り分ける。[`ZoomLevel::MAX`] なら [`None`]。
+    ///
+    /// 再検証を省ける理由は [`split_f`](Self::split_f) と同じ。
     pub fn split_x(&self, side: Side) -> Option<FlexId> {
-        if self.x_zoomlevel() == ZoomLevel::MAX.get() {
-            None
-        } else {
-            #[cfg(feature = "temporal_id")]
-            {
-                Some(
-                    FlexId::new_with_temporal(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel() + 1,
-                        self.x_index() * 2 + side as u32,
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                        self.temporal_id.clone(),
-                    )
-                    .unwrap(),
-                )
-            }
+        let x_zoomlevel = self.x_zoomlevel.deeper()?;
+        let x_index = self.x_index * 2 + side as u32;
+        debug_assert!(x_zoomlevel.check_x(x_index).is_ok(), "分割後のXが範囲外");
 
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                Some(
-                    FlexId::new(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel() + 1,
-                        self.x_index() * 2 + side as u32,
-                        self.y_zoomlevel(),
-                        self.y_index(),
-                    )
-                    .unwrap(),
-                )
-            }
-        }
+        Some(FlexId {
+            f_zoomlevel: self.f_zoomlevel,
+            f_index: self.f_index,
+            x_zoomlevel,
+            x_index,
+            y_zoomlevel: self.y_zoomlevel,
+            y_index: self.y_index,
+            temporal_id: self.temporal_id.clone(),
+        })
     }
 
-    ///Y方向で二つに切り分ける
+    /// Y方向で二つに切り分ける。[`ZoomLevel::MAX`] なら [`None`]。
+    ///
+    /// 再検証を省ける理由は [`split_f`](Self::split_f) と同じ。
     pub fn split_y(&self, side: Side) -> Option<FlexId> {
-        if self.y_zoomlevel() == ZoomLevel::MAX.get() {
-            None
-        } else {
-            #[cfg(feature = "temporal_id")]
-            {
-                Some(
-                    FlexId::new_with_temporal(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel() + 1,
-                        self.y_index() * 2 + side as u32,
-                        self.temporal_id.clone(),
-                    )
-                    .unwrap(),
-                )
-            }
+        let y_zoomlevel = self.y_zoomlevel.deeper()?;
+        let y_index = self.y_index * 2 + side as u32;
+        debug_assert!(y_zoomlevel.check_y(y_index).is_ok(), "分割後のYが範囲外");
 
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                Some(
-                    FlexId::new(
-                        self.f_zoomlevel(),
-                        self.f_index(),
-                        self.x_zoomlevel(),
-                        self.x_index(),
-                        self.y_zoomlevel() + 1,
-                        self.y_index() * 2 + side as u32,
-                    )
-                    .unwrap(),
-                )
-            }
-        }
+        Some(FlexId {
+            f_zoomlevel: self.f_zoomlevel,
+            f_index: self.f_index,
+            x_zoomlevel: self.x_zoomlevel,
+            x_index: self.x_index,
+            y_zoomlevel,
+            y_index,
+            temporal_id: self.temporal_id.clone(),
+        })
     }
 
     /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。
