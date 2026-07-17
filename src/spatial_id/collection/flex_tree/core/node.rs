@@ -36,6 +36,11 @@ where
         level: u8,
         leaf_count: u32,
         max_zoom: u8,
+        /// この部分木が分割している軸の集合（F=0b001 / X=0b010 / Y=0b100 の OR）。
+        /// `leaf_count` / `max_zoom` と同じく子から畳み上げてキャッシュする。
+        /// [`collapse_equal_children`](Node::collapse_equal_children) の畳み込みガード
+        /// （「この軸をそれ以深で分割していないか」）を O(1) で判定するために持つ。
+        split_mask: u8,
         #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         lower_child: SharedNode<Node<V>>,
         #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
@@ -91,6 +96,57 @@ where
         lower
             .max_zoom_at(child_level)
             .max(upper.max_zoom_at(child_level))
+    }
+
+    /// 軸に対応する `split_mask` の1ビット（F=0b001 / X=0b010 / Y=0b100）。
+    pub(crate) fn axis_bit(axis: Dimension) -> u8 {
+        match axis {
+            Dimension::F => 0b001,
+            Dimension::X => 0b010,
+            Dimension::Y => 0b100,
+        }
+    }
+
+    /// このノード配下が分割している軸の集合。Branch はキャッシュ済みで O(1)、Leaf は 0。
+    pub(crate) fn split_mask(&self) -> u8 {
+        match self {
+            Node::Branch { split_mask, .. } => *split_mask,
+            Node::Leaf { .. } => 0,
+        }
+    }
+
+    /// レベル `level` の Branch を構築・更新する際の `split_mask` を、両子から畳み上げる。
+    /// 自身が分割する軸 `axis(level)` に、両子の分割軸を OR する。
+    pub(crate) fn fold_split_mask(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
+        Self::axis_bit(Self::axis(level)) | lower.split_mask() | upper.split_mask()
+    }
+
+    /// Branch を構築する唯一の入口（smart constructor）。
+    ///
+    /// 常に正規形（FXY-正規形）を構成的に保証する。
+    /// - N1: 両子が等価で、かつ畳む軸をそれ以深で分割していなければ、片方の子へ畳む。
+    /// - N2: 両子が空（`Leaf{None}`）なら `empty_leaf` シングルトンへ畳む（上記に含まれる）。
+    /// - キャッシュ（`leaf_count` / `max_zoom` / `split_mask`）を畳み上げて格納する。
+    ///
+    /// 木を構築・更新するすべての経路（挿入・集合演算・削除・値変換・シャード）は、
+    /// 巻き戻しでこの関数を通すことで正規形を保つ。
+    pub(crate) fn mk(
+        level: u8,
+        lower: SharedNode<Node<V>>,
+        upper: SharedNode<Node<V>>,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> SharedNode<Node<V>> {
+        if let Some(rep) = Self::collapse_equal_children(&lower, &upper, level, empty_leaf) {
+            return rep;
+        }
+        SharedNode::new(Node::Branch {
+            level,
+            leaf_count: (lower.leaf_count() + upper.leaf_count()) as u32,
+            max_zoom: Self::fold_max_zoom(level, &lower, &upper),
+            split_mask: Self::fold_split_mask(level, &lower, &upper),
+            lower_child: lower,
+            upper_child: upper,
+        })
     }
 
     /// level から対象とする軸(F, X, Y) を返す
@@ -214,20 +270,7 @@ where
                 }
             };
 
-            if let Some(rep) =
-                Self::collapse_equal_children(&new_lower, &new_upper, current_level, empty_leaf)
-            {
-                *node = rep;
-                return;
-            }
-
-            *node = SharedNode::new(Node::Branch {
-                level: current_level,
-                leaf_count: (new_lower.leaf_count() + new_upper.leaf_count()) as u32,
-                max_zoom: Self::fold_max_zoom(current_level, &new_lower, &new_upper),
-                lower_child: new_lower,
-                upper_child: new_upper,
-            });
+            *node = Self::mk(current_level, new_lower, new_upper, empty_leaf);
             return;
         }
 
@@ -242,6 +285,7 @@ where
                 upper_child,
                 leaf_count,
                 max_zoom,
+                split_mask,
             } = mut_node
             {
                 match Self::overlapping_children(target, *l) {
@@ -259,6 +303,7 @@ where
 
                 *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
                 *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
+                *split_mask = Self::fold_split_mask(*l, lower_child, upper_child);
 
                 Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
             } else {
@@ -291,11 +336,19 @@ where
         // その軸の最深分割のときに限る。さもないと軸の分割深さに途中ギャップができ、
         // 階層細分として表現不能になって座標再構成（[`LeavesIter`] / [`split_child_id`]）が
         // 壊れる（接頭辞のみ＝接尾辞トリムだけが許される不変条件）。
+        //
+        // 「畳む軸を子がそれ以深で分割しているか」はキャッシュ済み `split_mask` の
+        // ビットテストで O(1) に判定する（旧 subtree_splits_axis の O(部分木) 走査を排除）。
+        // 子が等価なら両子の split_mask は一致するため、lower 側だけ見れば足りる。
+        // ここを先に弾くことで、非等価な大半の枝は深い比較（O(部分木)）に入らない。
+        let axis_bit = Self::axis_bit(Self::axis(level));
+        if (lower_child.split_mask() & axis_bit) != 0 {
+            return None;
+        }
+
         // ptr_eq なら値も必ず等価なので、深い等価比較（O(部分木)）を省く。
         // union 後など構造共有された左右の子で効く。
-        if (SharedNode::ptr_eq(lower_child, upper_child) || **lower_child == **upper_child)
-            && !Self::subtree_splits_axis(lower_child, Self::axis(level))
-        {
+        if SharedNode::ptr_eq(lower_child, upper_child) || **lower_child == **upper_child {
             Some(if matches!(&**lower_child, Node::Leaf { value: None }) {
                 empty_leaf.clone()
             } else {
@@ -303,26 +356,6 @@ where
             })
         } else {
             None
-        }
-    }
-
-    /// `node` 配下に `axis` を分割する [`Node::Branch`] が1つでも存在するか。
-    ///
-    /// 等価サブツリーを畳む際、その軸の「より深い分割」が下に残っていないかの
-    /// 判定に使う（残っているとギャップになるため畳めない）。
-    fn subtree_splits_axis(node: &SharedNode<Node<V>>, axis: Dimension) -> bool {
-        match &**node {
-            Node::Leaf { .. } => false,
-            Node::Branch {
-                level,
-                lower_child,
-                upper_child,
-                ..
-            } => {
-                Self::axis(*level) == axis
-                    || Self::subtree_splits_axis(lower_child, axis)
-                    || Self::subtree_splits_axis(upper_child, axis)
-            }
         }
     }
 
@@ -348,23 +381,107 @@ where
     }
 
     /// ノード以下すべての値をインプレースで更新します。
-    pub fn map_values_mut<F>(&mut self, f: &mut F)
-    where
+    ///
+    /// 値の書き換えで隣接領域が同値になった場合は巻き戻しで畳み込む（[`mk`](Self::mk) と
+    /// 同じ規則）ため、変換後も正規形を保つ。子が畳み込みで縮むと `leaf_count` /
+    /// `max_zoom` も変わりうるため、全キャッシュを再計算する。
+    pub(crate) fn map_values_mut<F>(
+        node: &mut SharedNode<Node<V>>,
+        f: &mut F,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) where
         F: FnMut(&mut V),
     {
-        match self {
-            Node::Branch {
-                lower_child,
-                upper_child,
-                ..
-            } => {
-                SharedNode::make_mut(lower_child).map_values_mut(f);
-                SharedNode::make_mut(upper_child).map_values_mut(f);
+        let replacement = {
+            let mut_node = SharedNode::make_mut(node);
+            match mut_node {
+                Node::Branch {
+                    level,
+                    lower_child,
+                    upper_child,
+                    leaf_count,
+                    max_zoom,
+                    split_mask,
+                } => {
+                    Self::map_values_mut(lower_child, f, empty_leaf);
+                    Self::map_values_mut(upper_child, f, empty_leaf);
+                    *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
+                    *max_zoom = Self::fold_max_zoom(*level, lower_child, upper_child);
+                    *split_mask = Self::fold_split_mask(*level, lower_child, upper_child);
+                    Self::collapse_equal_children(lower_child, upper_child, *level, empty_leaf)
+                }
+                Node::Leaf { value: Some(v) } => {
+                    f(v);
+                    None
+                }
+                Node::Leaf { value: None } => None,
             }
-            Node::Leaf { value: Some(v) } => {
-                f(v);
-            }
-            Node::Leaf { value: None } => {}
+        };
+        if let Some(rep) = replacement {
+            *node = rep;
         }
+    }
+}
+
+#[cfg(test)]
+impl<V> Node<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    /// FXY-正規形（N1〜N4）をこのノード配下について再帰検査する。違反時は理由を返す。
+    ///
+    /// - N1: 畳める Branch（両子が等価かつその軸をそれ以深で分割しない）が存在しない。
+    /// - N2: `leaf_count == 0` の Branch が存在しない（空は葉で表現される）。
+    /// - N4: 子も正規形。
+    /// - あわせてキャッシュ（`leaf_count` / `max_zoom` / `split_mask`）の整合も検査する。
+    pub(crate) fn check_canonical(&self) -> Result<(), alloc::string::String> {
+        let Node::Branch {
+            level,
+            leaf_count,
+            max_zoom,
+            split_mask,
+            lower_child,
+            upper_child,
+        } = self
+        else {
+            return Ok(());
+        };
+
+        lower_child.check_canonical()?;
+        upper_child.check_canonical()?;
+
+        let expected_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
+        if *leaf_count != expected_count {
+            return Err(alloc::format!(
+                "level {level}: stale leaf_count {leaf_count} != {expected_count}"
+            ));
+        }
+        let expected_zoom = Self::fold_max_zoom(*level, lower_child, upper_child);
+        if *max_zoom != expected_zoom {
+            return Err(alloc::format!(
+                "level {level}: stale max_zoom {max_zoom} != {expected_zoom}"
+            ));
+        }
+        let expected_mask = Self::fold_split_mask(*level, lower_child, upper_child);
+        if *split_mask != expected_mask {
+            return Err(alloc::format!(
+                "level {level}: stale split_mask {split_mask:#05b} != {expected_mask:#05b}"
+            ));
+        }
+
+        // N2: 空の Branch は存在してはならない。
+        if *leaf_count == 0 {
+            return Err(alloc::format!("level {level}: empty branch violates N2"));
+        }
+
+        // N1: 畳めるのに畳んでいない Branch は存在してはならない。
+        let axis_bit = Self::axis_bit(Self::axis(*level));
+        if (lower_child.split_mask() & axis_bit) == 0 && **lower_child == **upper_child {
+            return Err(alloc::format!(
+                "level {level}: collapsible branch violates N1"
+            ));
+        }
+
+        Ok(())
     }
 }

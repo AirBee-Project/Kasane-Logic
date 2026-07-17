@@ -59,34 +59,47 @@ where
             return;
         }
 
-        let mut_node = SharedNode::make_mut(node);
-        if let Node::Branch {
-            level,
-            lower_child,
-            upper_child,
-            leaf_count,
-            max_zoom,
-        } = mut_node
-        {
-            let axis = Node::<V>::axis(*level);
-            let lower_id = split_child_id(&current_id, axis, Side::Lower);
-            let upper_id = split_child_id(&current_id, axis, Side::Upper);
+        let replacement = {
+            let mut_node = SharedNode::make_mut(node);
+            if let Node::Branch {
+                level,
+                lower_child,
+                upper_child,
+                leaf_count,
+                max_zoom,
+                split_mask,
+            } = mut_node
+            {
+                let axis = Node::<V>::axis(*level);
+                let lower_id = split_child_id(&current_id, axis, Side::Lower);
+                let upper_id = split_child_id(&current_id, axis, Side::Upper);
 
-            // region は子のちょうど一方に含まれる。
-            if lower_id.intersection(region).is_some() {
-                if keep {
-                    *upper_child = empty_leaf.clone();
+                // region は子のちょうど一方に含まれる。
+                if lower_id.intersection(region).is_some() {
+                    if keep {
+                        *upper_child = empty_leaf.clone();
+                    }
+                    Self::prune_path(lower_child, lower_id, region, keep, empty_leaf);
+                } else {
+                    if keep {
+                        *lower_child = empty_leaf.clone();
+                    }
+                    Self::prune_path(upper_child, upper_id, region, keep, empty_leaf);
                 }
-                Self::prune_path(lower_child, lower_id, region, keep, empty_leaf);
+
+                *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
+                *max_zoom = Node::<V>::fold_max_zoom(*level, lower_child, upper_child);
+                *split_mask = Node::<V>::fold_split_mask(*level, lower_child, upper_child);
+
+                // 片側を空にした結果、左右が等価化／両側空になったら畳んで正規形を保つ。
+                Node::<V>::collapse_equal_children(lower_child, upper_child, *level, empty_leaf)
             } else {
-                if keep {
-                    *lower_child = empty_leaf.clone();
-                }
-                Self::prune_path(upper_child, upper_id, region, keep, empty_leaf);
+                None
             }
+        };
 
-            *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
-            *max_zoom = Node::<V>::fold_max_zoom(*level, lower_child, upper_child);
+        if let Some(rep) = replacement {
+            *node = rep;
         }
     }
 }

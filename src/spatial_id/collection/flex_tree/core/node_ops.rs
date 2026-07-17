@@ -303,11 +303,8 @@ where
         b: &SharedNode<Node<V>>,
         empty_leaf: &SharedNode<Node<V>>,
     ) -> SharedNode<Self> {
-        if let Some(rep) = Self::collapse_equal_children(&new_lower, &new_upper, level, empty_leaf)
-        {
-            return rep;
-        }
-
+        // 入力 a / b が既に正規形なので、子が変わらなければ元ノードをそのまま共有できる
+        // （Result Reuse）。正規形の a は畳めないため、この再利用と mk の畳み込みは排他。
         if let Node::Branch {
             lower_child: al,
             upper_child: au,
@@ -329,12 +326,6 @@ where
             return b.clone();
         }
 
-        SharedNode::new(Node::Branch {
-            level,
-            leaf_count: (new_lower.leaf_count() + new_upper.leaf_count()) as u32,
-            max_zoom: Self::fold_max_zoom(level, &new_lower, &new_upper),
-            lower_child: new_lower,
-            upper_child: new_upper,
-        })
+        Self::mk(level, new_lower, new_upper, empty_leaf)
     }
 }

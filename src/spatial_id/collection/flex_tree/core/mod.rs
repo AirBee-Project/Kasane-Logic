@@ -165,13 +165,24 @@ where
             && SharedNode::ptr_eq(&self.upper_root, &other.upper_root)
     }
 
+    /// 上下ルートが FXY-正規形を満たすことを検査し、違反があれば panic する（テスト用）。
+    #[cfg(test)]
+    pub(crate) fn assert_canonical(&self) {
+        if let Err(reason) = self.lower_root.check_canonical() {
+            panic!("lower_root not canonical: {reason}");
+        }
+        if let Err(reason) = self.upper_root.check_canonical() {
+            panic!("upper_root not canonical: {reason}");
+        }
+    }
+
     /// コレクション内のすべての値をインプレースで更新します。
     pub fn map_values_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut V),
     {
-        SharedNode::make_mut(&mut self.lower_root).map_values_mut(&mut f);
-        SharedNode::make_mut(&mut self.upper_root).map_values_mut(&mut f);
+        Node::map_values_mut(&mut self.lower_root, &mut f, &self.empty_leaf);
+        Node::map_values_mut(&mut self.upper_root, &mut f, &self.empty_leaf);
     }
 
     ///クリアする
