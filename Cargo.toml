@@ -149,3 +149,8 @@ name = "spatial_id_set_memory"
 path = "benches/spatial_id_set/memory_usage.rs"
 harness = false
 
+[[bench]]
+name = "spatial_id_set_parallel_build"
+path = "benches/spatial_id_set/parallel_build.rs"
+harness = false
+

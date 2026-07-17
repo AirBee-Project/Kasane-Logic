@@ -1,6 +1,10 @@
 extern crate alloc;
+use std::fs;
+use std::fs::File;
+use std::io::BufWriter;
 use std::str::FromStr;
-use std::{fs, mem};
+
+use std::io::Write;
 
 #[allow(unused_imports)]
 use alloc::boxed::Box;
@@ -28,5 +32,18 @@ fn main() {
         set.insert(range_id);
     }
 
-    println!("x size: {} bytes", mem::size_of_val(&set));
+    // 1. 書き込み用のファイルを作成
+    let file = File::create("output.txt").unwrap();
+
+    // 2. 高速化のためにBufWriterでラップする
+    let mut writer = BufWriter::new(file);
+
+    for ele in set.iter() {
+        writeln!(writer, "{},", RangeId::from(ele)).unwrap();
+    }
+
+    writer.flush().unwrap();
+
+    println!("ファイルの書き込みが完了しました。");
+    println!("{}", set.iter().count())
 }

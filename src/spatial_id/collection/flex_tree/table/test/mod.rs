@@ -3,6 +3,7 @@
 pub mod count;
 pub mod from_cells;
 pub mod insert;
+pub mod par;
 pub mod query;
 pub mod remove;
 
