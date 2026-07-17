@@ -3,12 +3,16 @@ use alloc::vec::Vec;
 use hashbrown::HashSet;
 
 use crate::{Dimension, FlexId, RangeId, Side, SingleId, SpatialId};
-pub use convert::{LeavesIntoIter, LeavesIter, LeavesIterRef};
+pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::Node;
+use node_ops::MergeOp;
+pub use ptr::SafeValue;
 mod convert;
 pub mod node;
 pub mod node_ops;
 mod overlap;
+#[cfg(feature = "rayon")]
+mod parallel;
 pub(crate) mod ptr;
 pub mod shard;
 use ptr::SharedNode;
@@ -43,7 +47,7 @@ use ptr::SharedNode;
 )]
 pub struct FlexTreeCore<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     pub(crate) lower_root: SharedNode<Node<V>>,
     pub(crate) upper_root: SharedNode<Node<V>>,
@@ -55,7 +59,7 @@ where
 
 impl<V> Default for FlexTreeCore<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     fn default() -> Self {
         Self::new()
@@ -64,21 +68,18 @@ where
 
 impl<V> PartialEq for FlexTreeCore<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     fn eq(&self, other: &Self) -> bool {
         self.lower_root == other.lower_root && self.upper_root == other.upper_root
     }
 }
 
-impl<V> Eq for FlexTreeCore<V> where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue
-{
-}
+impl<V> Eq for FlexTreeCore<V> where V: SafeValue {}
 
 impl<V> FlexTreeCore<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     /// 新しい空の[FlexTreeCore]を作成する
     pub fn new() -> Self {
@@ -103,11 +104,22 @@ where
         self.shard.as_ref()
     }
 
+    /// 上下いずれかのルート同士を `op`（union / intersection / difference）で突き合わせる、
+    /// レベル0起点の薄いラッパ。
+    fn merge_roots(
+        &self,
+        a: &SharedNode<Node<V>>,
+        b: &SharedNode<Node<V>>,
+        op: MergeOp,
+    ) -> SharedNode<Node<V>> {
+        Node::merge(a, b, op, 0, &self.empty_leaf)
+    }
+
     /// 2つの [FlexTreeCore] の和集合を計算します。
     pub fn union(&self, other: &Self) -> Self {
         Self {
-            lower_root: Node::union(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
-            upper_root: Node::union(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
+            lower_root: self.merge_roots(&self.lower_root, &other.lower_root, MergeOp::Union),
+            upper_root: self.merge_roots(&self.upper_root, &other.upper_root, MergeOp::Union),
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_union(&self.shard, &other.shard),
         }
@@ -126,17 +138,15 @@ where
         }
 
         Self {
-            lower_root: Node::intersection(
+            lower_root: self.merge_roots(
                 &self.lower_root,
                 &other.lower_root,
-                0,
-                &self.empty_leaf,
+                MergeOp::Intersection,
             ),
-            upper_root: Node::intersection(
+            upper_root: self.merge_roots(
                 &self.upper_root,
                 &other.upper_root,
-                0,
-                &self.empty_leaf,
+                MergeOp::Intersection,
             ),
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_intersection(&self.shard, &other.shard),
@@ -151,8 +161,8 @@ where
         }
 
         Self {
-            lower_root: Node::difference(&self.lower_root, &other.lower_root, 0, &self.empty_leaf),
-            upper_root: Node::difference(&self.upper_root, &other.upper_root, 0, &self.empty_leaf),
+            lower_root: self.merge_roots(&self.lower_root, &other.lower_root, MergeOp::Difference),
+            upper_root: self.merge_roots(&self.upper_root, &other.upper_root, MergeOp::Difference),
             empty_leaf: self.empty_leaf.clone(),
             shard: self.shard.clone(),
         }
@@ -462,11 +472,10 @@ where
         results.into_iter()
     }
 
-    /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す
+    /// [FlexTreeCore]から全ての[FlexId]とValueを取り出す（値はクローン）。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, V)> + '_ {
-        LeavesIter {
-            stack: self.root_node_stack(),
-        }
+        self.iter_ref()
+            .map(|(flex_id, value)| (flex_id, value.clone()))
     }
 
     /// [FlexTreeCore]から全ての[FlexId]とValueへの参照を取り出す。
@@ -532,7 +541,7 @@ pub(crate) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -
 
 impl<V> IntoIterator for FlexTreeCore<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     type Item = (FlexId, V);
     type IntoIter = crate::spatial_id::collection::flex_tree::core::convert::LeavesIntoIter<V>;

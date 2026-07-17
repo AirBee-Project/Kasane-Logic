@@ -1,5 +1,12 @@
-use super::ptr::SharedNode;
+use super::ptr::{SafeValue, SharedNode};
 use crate::{Dimension, FlexId, Side};
+
+/// 葉ノードの仮想ツリーレベル（ズーム30相当）。木を降りる操作で「葉に達した」ことを表す
+/// 番兵として使う。実在の Branch はこれ未満のレベルしか持たない。
+pub(crate) const LEAF_LEVEL: u8 = 93;
+
+/// Branch の両子（下・上）への参照ペア。
+type ChildRefs<'a, V> = (&'a SharedNode<Node<V>>, &'a SharedNode<Node<V>>);
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 #[cfg_attr(
@@ -30,7 +37,7 @@ use crate::{Dimension, FlexId, Side};
 )]
 pub enum Node<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     Branch {
         level: u8,
@@ -38,7 +45,7 @@ where
         max_zoom: u8,
         /// この部分木が分割している軸の集合（F=0b001 / X=0b010 / Y=0b100 の OR）。
         /// `leaf_count` / `max_zoom` と同じく子から畳み上げてキャッシュする。
-        /// [`collapse_equal_children`](Node::collapse_equal_children) の畳み込みガード
+        /// `collapse_equal_children` の畳み込みガード
         /// （「この軸をそれ以深で分割していないか」）を O(1) で判定するために持つ。
         split_mask: u8,
         #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
@@ -65,7 +72,7 @@ pub(crate) enum OverlappingChildren {
 
 impl<V> Node<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     /// 各ノード以下の (値が Some の) Leaf の合計数を返す。O(1)で取得可能。
     pub fn leaf_count(&self) -> usize {
@@ -112,6 +119,26 @@ where
         match self {
             Node::Branch { split_mask, .. } => *split_mask,
             Node::Leaf { .. } => 0,
+        }
+    }
+
+    /// このノードのツリーレベル。葉は仮想的に [`LEAF_LEVEL`] を返す（降下の番兵）。
+    pub(crate) fn node_level(&self) -> u8 {
+        match self {
+            Node::Branch { level, .. } => *level,
+            Node::Leaf { .. } => LEAF_LEVEL,
+        }
+    }
+
+    /// Branch なら両子（下・上）への参照を返す。葉なら `None`。
+    pub(crate) fn children(&self) -> Option<ChildRefs<'_, V>> {
+        match self {
+            Node::Branch {
+                lower_child,
+                upper_child,
+                ..
+            } => Some((lower_child, upper_child)),
+            Node::Leaf { .. } => None,
         }
     }
 
@@ -233,10 +260,7 @@ where
             return;
         }
 
-        let node_level = match **node {
-            Node::Branch { level: l, .. } => l,
-            Node::Leaf { .. } => 93, // 葉ノードの場合は仮想的に最大レベル (zoom 30)
-        };
+        let node_level = node.node_level();
 
         let mut current_level = level;
 
@@ -246,7 +270,7 @@ where
         }
 
         // 完全に target に覆い尽くされた場合、全体を塗りつぶす
-        if current_level >= 93 {
+        if current_level >= LEAF_LEVEL {
             *node = SharedNode::new(Node::Leaf {
                 value: Some(value.clone()),
             });
@@ -426,7 +450,7 @@ where
 #[cfg(test)]
 impl<V> Node<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     /// FXY-正規形（N1〜N4）をこのノード配下について再帰検査する。違反時は理由を返す。
     ///

@@ -1,23 +1,16 @@
 use alloc::vec::Vec;
 
-use super::ptr::SharedNode;
+use super::node::{Node, OverlappingChildren};
+use super::ptr::{SafeValue, SharedNode};
 use super::{FlexTreeCore, split_child_id};
-use crate::spatial_id::collection::flex_tree::core::node::{Node, OverlappingChildren};
 use crate::{FlexId, Side};
 
-/// 重なり合う領域のみを遅延評価で探索するイテレータ
-pub struct OverlapIter<'a, V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
-{
-    target: FlexId,
-    stack: Vec<(&'a Node<V>, FlexId)>,
-}
-
-/// 重なり合う領域のみを参照付きで遅延評価で探索するイテレータ
+/// target と重なる領域のみを参照付きで遅延探索するイテレータ。所有権を返す
+/// [`FlexTreeCore::overlap`] はこれを `map(clone)` して構築するため、枝刈り走査は
+/// ここ 1 か所に集約されている。
 pub struct OverlapIterRef<'a, V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     target: FlexId,
     stack: Vec<(&'a Node<V>, FlexId)>,
@@ -35,7 +28,7 @@ fn push_overlapping_children<'a, V>(
     upper_child: &'a SharedNode<Node<V>>,
     current_id: &FlexId,
 ) where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     let axis = Node::<V>::axis(level);
     let mut push = |side: Side, child: &'a SharedNode<Node<V>>| {
@@ -52,46 +45,9 @@ fn push_overlapping_children<'a, V>(
     }
 }
 
-impl<'a, V> Iterator for OverlapIter<'a, V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
-{
-    type Item = (FlexId, V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some((node, current_id)) = self.stack.pop() {
-            match node {
-                Node::Branch {
-                    level,
-                    lower_child,
-                    upper_child,
-                    ..
-                } => {
-                    push_overlapping_children(
-                        &mut self.stack,
-                        &self.target,
-                        *level,
-                        lower_child,
-                        upper_child,
-                        &current_id,
-                    );
-                }
-                // 交差する子しか積んでいないので、辿り着いた葉は必ず target と交差する。
-                Node::Leaf { value: Some(value) } => {
-                    return Some((current_id, value.clone()));
-                }
-                Node::Leaf { value: None } => {
-                    // Skip
-                }
-            }
-        }
-        None
-    }
-}
-
 impl<'a, V> Iterator for OverlapIterRef<'a, V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     type Item = (FlexId, &'a V);
 
@@ -103,22 +59,17 @@ where
                     lower_child,
                     upper_child,
                     ..
-                } => {
-                    push_overlapping_children(
-                        &mut self.stack,
-                        &self.target,
-                        *level,
-                        lower_child,
-                        upper_child,
-                        &current_id,
-                    );
-                }
-                Node::Leaf { value: Some(value) } => {
-                    return Some((current_id, value));
-                }
-                Node::Leaf { value: None } => {
-                    // Skip
-                }
+                } => push_overlapping_children(
+                    &mut self.stack,
+                    &self.target,
+                    *level,
+                    lower_child,
+                    upper_child,
+                    &current_id,
+                ),
+                // 交差する子しか積んでいないので、辿り着いた葉は必ず target と交差する。
+                Node::Leaf { value: Some(value) } => return Some((current_id, value)),
+                Node::Leaf { value: None } => {}
             }
         }
         None
@@ -127,13 +78,11 @@ where
 
 impl<V> FlexTreeCore<V>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+    V: SafeValue,
 {
     pub fn overlap(&self, target: FlexId) -> impl Iterator<Item = (FlexId, V)> + '_ {
-        OverlapIter {
-            stack: self.overlap_root_stack(&target),
-            target,
-        }
+        self.overlap_ref(target)
+            .map(|(flex_id, value)| (flex_id, value.clone()))
     }
 
     pub fn overlap_ref(&self, target: FlexId) -> impl Iterator<Item = (FlexId, &V)> + '_ {
@@ -532,6 +481,29 @@ mod tests {
             }
             tree.map_values_mut(|v| *v = 0);
             tree.assert_canonical();
+        }
+    }
+
+    // 並列バルク構築が逐次 insert と構造的に一致し、正規形であることを検証する。
+    // 定数値で挿入するため、チャンク境界・簡約順に依らず一意（集合）に定まる。
+    #[cfg(feature = "rayon")]
+    proptest! {
+        #[test]
+        fn par_build_matches_sequential(ids in prop::collection::vec(arb_range_id(), 1..40)) {
+            let mut seq: FlexTreeCore<u32> = FlexTreeCore::new();
+            for id in &ids {
+                seq.insert(id.clone(), 1u32);
+            }
+
+            let items: Vec<(FlexId, u32)> = ids
+                .iter()
+                .flat_map(|r| r.clone().into_iter().map(|f| (f, 1u32)))
+                .collect();
+            let par = FlexTreeCore::<u32>::par_build_vec(items);
+
+            par.assert_canonical();
+            prop_assert!(seq == par, "parallel build diverged from sequential");
+            prop_assert_eq!(seq.count(), par.count());
         }
     }
 }
