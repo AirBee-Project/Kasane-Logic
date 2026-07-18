@@ -9,3 +9,6 @@ pub mod execution;
 
 /// 複数の値が同じ空間で衝突した際の解決ポリシー
 pub mod merge_policy;
+
+/// クエリ実装に共通するユーティリティ関数
+pub mod utils;

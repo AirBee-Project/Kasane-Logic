@@ -1,10 +1,6 @@
 extern crate alloc;
 use std::fs;
-use std::fs::File;
-use std::io::BufWriter;
 use std::str::FromStr;
-
-use std::io::Write;
 
 #[allow(unused_imports)]
 use alloc::boxed::Box;
@@ -14,38 +10,26 @@ use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 #[allow(unused_imports)]
 use alloc::vec::Vec;
-use kasane_logic::{RangeId, SpatialIdCollection, SpatialIdSet};
+use kasane_logic::spatial_id::collection::query::merge_policy::Max;
+use kasane_logic::{SingleId, SpatialIdCollection, SpatialIdTable};
 
 fn main() {
-    let mut raw_ids = fs::read_to_string("sample/bldg1.txt").unwrap();
-    raw_ids.retain(|c| !c.is_whitespace());
+    let single_id = SingleId::from_str("20/0/931386/412903").unwrap();
+    let single_id_2 = SingleId::from_str("20/5/931386/412903").unwrap();
 
-    let mut set = SpatialIdSet::new();
+    let mut table = SpatialIdTable::new();
 
-    for raw_range_id in raw_ids.split(",") {
-        let range_id = match RangeId::from_str(raw_range_id) {
-            Ok(v) => v,
-            Err(_) => {
-                continue;
-            }
-        };
-        set.insert(range_id);
-    }
+    table.insert(single_id, 100);
+    table.insert(single_id_2, 100);
 
-    // 1. 書き込み用のファイルを作成
-    let file = File::create("output.txt").unwrap();
+    let table = table
+        .query()
+        .falloff_linear_x(24, 20, Max)
+        .falloff_linear_f(24, 100, Max)
+        .run()
+        .unwrap();
 
-    // 2. 高速化のためにBufWriterでラップする
-    let mut writer = BufWriter::new(file);
+    let json_string = serde_json::to_string_pretty(&table).unwrap();
 
-    let set = set.query().shift_x(25, 10).run().unwrap();
-
-    for ele in set.iter() {
-        writeln!(writer, "{},", RangeId::from(ele)).unwrap();
-    }
-
-    writer.flush().unwrap();
-
-    println!("ファイルの書き込みが完了しました。");
-    println!("{}", set.iter().count())
+    fs::write("output.json", json_string).unwrap();
 }

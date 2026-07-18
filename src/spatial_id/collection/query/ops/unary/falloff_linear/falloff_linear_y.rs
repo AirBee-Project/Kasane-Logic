@@ -105,7 +105,13 @@ where
             merged.push((curr_id, curr_val));
         }
 
-        *target = S::from_items(merged);
+        let mut new_target = S::from_items(alloc::vec::Vec::new());
+        crate::spatial_id::collection::query::utils::insert_with_policy::<S, P>(
+            &mut new_target,
+            merged,
+        )?;
+
+        *target = new_target;
         Ok(())
     }
 }

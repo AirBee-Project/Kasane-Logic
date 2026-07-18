@@ -21,9 +21,8 @@ impl<T: Sized + Sync + Send> SpatialIdCollectionBounds for T {}
 
 pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     type Value: CellValue;
-    type Error;
 
-    fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Self::Error>;
+    fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Error>;
 
     fn try_get<'a>(
         &'a self,
@@ -121,9 +120,8 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
 
 impl SpatialIdCollection for SpatialIdSet {
     type Value = ();
-    type Error = Error;
 
-    fn try_insert(&mut self, target: FlexId, _value: Self::Value) -> Result<(), Self::Error> {
+    fn try_insert(&mut self, target: FlexId, _value: Self::Value) -> Result<(), Error> {
         self.insert(target);
         Ok(())
     }
@@ -166,9 +164,8 @@ where
     V: CellValue,
 {
     type Value = V;
-    type Error = Error;
 
-    fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Self::Error> {
+    fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Error> {
         self.insert(target, value);
         Ok(())
     }
