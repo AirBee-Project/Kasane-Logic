@@ -29,7 +29,7 @@ impl ShiftFXY {
 }
 
 impl<T: SpatialIdCollection> UnaryOperator<T> for ShiftFXY {
-    fn run(&self, target: &mut T) -> Result<(), Box<dyn std::error::Error + 'static>> {
+    fn run(&self, target: &mut T) -> Result<(), Box<dyn core::error::Error + 'static>> {
         if self.f.1 == 0 && self.x.1 == 0 && self.y.1 == 0 {
             return Ok(());
         }

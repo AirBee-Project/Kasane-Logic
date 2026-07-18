@@ -40,7 +40,7 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// `(FlexId, Value)` 列からこのコレクションを構築する。
     ///
     /// FlexTree 実装はマルチコアを活かして並列に構築する（集合は
-    /// [`FlexTreeCore::par_build_vec`](crate::FlexTreeCore::par_build_vec)）。
+    /// `FlexTreeCore::par_build_vec`）。
     /// `map_rebuild` の再構築段はこのメソッドに委ねられる。
     fn from_items(items: alloc::vec::Vec<(FlexId, Self::Value)>) -> Self;
 
@@ -48,13 +48,13 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// 写した全体からコレクションを再構築して返す。
     ///
     /// `shift` のような「全要素を独立に写して作り直す」単項演算の共通土台。各要素の写像は
-    /// 互いに独立なので、`rayon` 有効時は写像段（`f` の適用）と再構築段（[`from_items`]）の
+    /// 互いに独立なので、`rayon` 有効時は写像段（`f` の適用）と再構築段（`from_items`）の
     /// 双方が並列化され、FlexTree のマルチコア実装を最大限に活かす。
     ///
     /// `f` はエラーを返しうる（範囲外シフト等）。1 要素でもエラーになれば全体を中断して返す。
     ///
     /// # 値の衝突
-    /// 写像先が重なる場合、再構築は [`from_items`] の合成規則に従う（集合は和、テーブルは
+    /// 写像先が重なる場合、再構築は `from_items` の合成規則に従う（集合は和、テーブルは
     /// 後勝ち）。`shift` は平行移動で単射のため衝突しない。
     fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
     where

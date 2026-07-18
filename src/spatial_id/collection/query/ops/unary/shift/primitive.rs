@@ -2,6 +2,7 @@ use crate::{
     Error, FlexId, SpatialIdError, ZoomLevel,
     spatial_id::range_id::convert::{split_f, split_xy},
 };
+use alloc::vec::Vec;
 
 #[cfg(feature = "temporal_id")]
 use crate::SpatialId;

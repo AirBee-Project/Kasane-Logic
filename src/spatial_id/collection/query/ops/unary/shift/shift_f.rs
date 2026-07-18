@@ -21,7 +21,7 @@ impl ShiftF {
 }
 
 impl<T: SpatialIdCollection> UnaryOperator<T> for ShiftF {
-    fn run(&self, target: &mut T) -> Result<(), Box<dyn std::error::Error + 'static>> {
+    fn run(&self, target: &mut T) -> Result<(), Box<dyn core::error::Error + 'static>> {
         let z = self.z.get();
         let index = self.f;
 
