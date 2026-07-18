@@ -1,14 +1,14 @@
-name: main merge tests
+name: draft tests
 
 on:
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened]
 
 jobs:
   fmt:
-    if: github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == true
     name: cargo fmt
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
@@ -29,32 +29,27 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  verify:
-    if: github.event.pull_request.draft == false
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    needs: fmt
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-latest, blacksmith-4vcpu-windows-2025]
+  test:
+    if: github.event.pull_request.draft == true
+    name: cargo test (nextest)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
 
       - name: Setup mold
-        if: matrix.os == 'blacksmith-4vcpu-ubuntu-2404'
         uses: rui314/setup-mold@v1
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "verify-${{ matrix.os }}"
+          shared-key: "test-blacksmith-4vcpu-ubuntu-2404"
 
       - name: Test (std; various features)
         shell: bash
@@ -62,7 +57,7 @@ jobs:
           set -euo pipefail
           features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
           for feature in "${features[@]}"; do
-            cargo test --locked --lib --bins --tests --no-default-features --features "$feature"
+            cargo nextest run --locked --no-default-features --features "$feature"
           done
 
       - name: Test ignored
@@ -71,7 +66,7 @@ jobs:
           set -euo pipefail
           features=("std" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,persist")
           for feature in "${features[@]}"; do
-            cargo test --locked --lib --bins --tests --no-default-features --features "$feature" -- --ignored
+            cargo nextest run --locked --no-default-features --features "$feature" --run-ignored ignored-only
           done
 
       - name: Doctest
@@ -83,6 +78,40 @@ jobs:
             cargo test --locked --doc --no-default-features --features "$feature"
           done
 
+      - name: Build (no_std)
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("" "temporal_id")
+          for feature in "${features[@]}"; do
+            if [ -n "$feature" ]; then
+              cargo build --locked --lib --no-default-features --features "$feature"
+            else
+              cargo build --locked --lib --no-default-features
+            fi
+          done
+
+  clippy:
+    if: github.event.pull_request.draft == true
+    name: cargo clippy
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Setup mold
+        uses: rui314/setup-mold@v1
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "clippy-blacksmith-4vcpu-ubuntu-2404"
+
       - name: Clippy (std)
         shell: bash
         run: |
@@ -92,20 +121,37 @@ jobs:
             cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
           done
 
-      - name: Build & Clippy (no_std)
+      - name: Clippy (no_std)
         shell: bash
         run: |
           set -euo pipefail
           features=("" "temporal_id")
           for feature in "${features[@]}"; do
             if [ -n "$feature" ]; then
-              cargo build --locked --lib --no-default-features --features "$feature"
               cargo clippy --locked --lib --no-default-features --features "$feature" -- -D warnings
             else
-              cargo build --locked --lib --no-default-features
               cargo clippy --locked --lib --no-default-features -- -D warnings
             fi
           done
+
+  doc:
+    if: github.event.pull_request.draft == true
+    name: cargo doc
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup mold
+        uses: rui314/setup-mold@v1
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "doc-blacksmith-4vcpu-ubuntu-2404"
 
       - name: Rustdoc (std)
         shell: bash
