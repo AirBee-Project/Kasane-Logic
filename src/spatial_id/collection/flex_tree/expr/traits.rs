@@ -1,10 +1,4 @@
 use crate::SpatialIdCollection;
-use alloc::boxed::Box;
-
-#[cfg(not(feature = "std"))]
-use core::error::Error;
-#[cfg(feature = "std")]
-use std::error::Error;
 
 pub trait BinaryOperator: Send + Sync {
     /// この演算子に特有のパラメーターを設定する
@@ -18,7 +12,7 @@ pub trait BinaryOperator: Send + Sync {
         &self,
         target_a: &mut T,
         target_b: &T,
-    ) -> Result<(), Box<dyn Error + 'static>>;
+    ) -> Result<(), Box<dyn std::error::Error + 'static>>;
 }
 
 /// 空間IDコレクションに対して単項演算を行うTrait。
@@ -27,11 +21,11 @@ pub trait UnaryOperator: Send + Sync {
     /// この演算子に特有のパラメーターを設定する
     type Parameter: Sync;
 
-    /// 演算子の作成
-    fn new(parameter: Self::Parameter) -> Self;
-
     /// コレクションに対する単項演算の定義
-    fn run<T: SpatialIdCollection>(&self, target: &mut T) -> Result<(), Box<dyn Error + 'static>>;
+    fn run<T: SpatialIdCollection>(
+        &self,
+        target: &mut T,
+    ) -> Result<(), Box<dyn std::error::Error + 'static>>;
 }
 
 /// 同一の空間に複数の値が集まったときに、それらを1つの値にする方法。
