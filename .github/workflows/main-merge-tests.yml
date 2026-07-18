@@ -7,6 +7,20 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
+  setup-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set matrix for OS
+        id: set-matrix
+        run: |
+          if [ "${{ github.event.pull_request.draft }}" == "true" ]; then
+            echo 'matrix=["blacksmith-4vcpu-ubuntu-2404"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix=["blacksmith-4vcpu-ubuntu-2404", "blacksmith-6vcpu-macos-latest", "blacksmith-4vcpu-windows-2025"]' >> $GITHUB_OUTPUT
+          fi
+
   fmt:
     name: cargo fmt
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -31,12 +45,11 @@ jobs:
   verify:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: fmt
-    if: github.event.pull_request.draft == false || matrix.os == 'blacksmith-4vcpu-ubuntu-2404'
+    needs: [setup-matrix, fmt]
     strategy:
       fail-fast: false
       matrix:
-        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-6vcpu-macos-latest, blacksmith-4vcpu-windows-2025]
+        os: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
