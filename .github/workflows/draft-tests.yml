@@ -7,9 +7,9 @@ on:
     types: [opened, synchronize, reopened]
 
 jobs:
-  fmt:
+  fmt_and_doc:
     if: github.event.pull_request.draft == true
-    name: cargo fmt
+    name: cargo fmt & doc
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -25,14 +25,38 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "fmt-doc-blacksmith-4vcpu-ubuntu-2404"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Rustdoc (std)
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
+          for feature in "${features[@]}"; do
+            RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
+          done
+
+      - name: Rustdoc (no_std)
+        shell: bash
+        run: |
+          set -euo pipefail
+          features=("" "temporal_id")
+          for feature in "${features[@]}"; do
+            if [ -n "$feature" ]; then
+              RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
+            else
+              RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features
+            fi
+          done
+
   test:
     if: github.event.pull_request.draft == true
     name: cargo test (nextest)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,7 +73,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "test-blacksmith-4vcpu-ubuntu-2404"
+          shared-key: "test-blacksmith-8vcpu-ubuntu-2404"
 
       - name: Test (std; various features)
         shell: bash
@@ -131,46 +155,5 @@ jobs:
               cargo clippy --locked --lib --no-default-features --features "$feature" -- -D warnings
             else
               cargo clippy --locked --lib --no-default-features -- -D warnings
-            fi
-          done
-
-  doc:
-    if: github.event.pull_request.draft == true
-    name: cargo doc
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Setup mold
-        uses: rui314/setup-mold@v1
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "doc-blacksmith-4vcpu-ubuntu-2404"
-
-      - name: Rustdoc (std)
-        shell: bash
-        run: |
-          set -euo pipefail
-          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
-          for feature in "${features[@]}"; do
-            RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
-          done
-
-      - name: Rustdoc (no_std)
-        shell: bash
-        run: |
-          set -euo pipefail
-          features=("" "temporal_id")
-          for feature in "${features[@]}"; do
-            if [ -n "$feature" ]; then
-              RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
-            else
-              RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features
             fi
           done
