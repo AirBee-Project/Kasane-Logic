@@ -14,7 +14,7 @@ use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 #[allow(unused_imports)]
 use alloc::vec::Vec;
-use kasane_logic::{RangeId, SpatialIdSet};
+use kasane_logic::{RangeId, SpatialIdCollection, SpatialIdSet};
 
 fn main() {
     let mut raw_ids = fs::read_to_string("sample/bldg1.txt").unwrap();
@@ -37,6 +37,8 @@ fn main() {
 
     // 2. 高速化のためにBufWriterでラップする
     let mut writer = BufWriter::new(file);
+
+    let set = set.query().shift_x(25, 10).run().unwrap();
 
     for ele in set.iter() {
         writeln!(writer, "{},", RangeId::from(ele)).unwrap();

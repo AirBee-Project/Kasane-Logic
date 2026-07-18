@@ -10,6 +10,8 @@ pub enum Query<S: SpatialIdCollection> {
     Unary(Box<dyn UnaryOperator<S>>, Box<Query<S>>),
     // 二項演算
     Binary(Box<dyn BinaryOperator<S>>, Box<Query<S>>, Box<Query<S>>),
+    /// エラー状態を保持（AST構築時の遅延評価用）
+    Error(Error),
 }
 
 impl<S: SpatialIdCollection> Query<S>
@@ -37,6 +39,7 @@ where
                 op.run(&mut lhs_res, &rhs_res).unwrap();
                 Ok(lhs_res)
             }
+            Query::Error(e) => Err(e),
         }
     }
 }
