@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   fmt:
@@ -31,6 +32,7 @@ jobs:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: fmt
+    if: github.event.pull_request.draft == false || matrix.os == 'blacksmith-4vcpu-ubuntu-2404'
     strategy:
       fail-fast: false
       matrix:

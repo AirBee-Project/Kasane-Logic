@@ -1,24 +1,18 @@
-use crate::{BinaryOperator, Error, SpatialIdCollection, UnaryOperator};
+use super::traits::{BinaryOperator, UnaryOperator};
+use crate::{Error, SpatialIdCollection};
 use alloc::boxed::Box;
 
 /// 式全体を表現する型
-pub enum Query<S: SpatialIdCollection, U: UnaryOperator, B: BinaryOperator> {
+pub enum Query<S: SpatialIdCollection> {
     /// 演算の起点となるデータ
     Source(S),
     /// 単項演算
-    Unary(U, Box<Query<S, U, B>>),
+    Unary(Box<dyn UnaryOperator<S>>, Box<Query<S>>),
     // 二項演算
-    Binary(B, Box<Query<S, U, B>>, Box<Query<S, U, B>>),
+    Binary(Box<dyn BinaryOperator<S>>, Box<Query<S>>, Box<Query<S>>),
 }
 
-impl<S: SpatialIdCollection, U: UnaryOperator, B: BinaryOperator> Query<S, U, B> {
-    #[allow(dead_code)]
-    fn from(collection: S) -> Self {
-        collection.query()
-    }
-}
-
-impl<S: SpatialIdCollection, U: UnaryOperator, B: BinaryOperator> Query<S, U, B>
+impl<S: SpatialIdCollection> Query<S>
 where
     S::Value: 'static,
 {
