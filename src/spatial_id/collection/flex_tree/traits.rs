@@ -150,10 +150,10 @@ where
 
     fn into_core(self) -> FlexTreeCore<V> {
         // rank ツリーを辞書で実体値へ展開。Table のセルは互いに素なので union（par_build_vec）で正しい。
-        let items: alloc::vec::Vec<(FlexId, V)> = self.into_iter().collect();
-        // 小入力では rayon 起動コストが利得を上回るので逐次挿入で組む（単発クエリの入口変換の固定費を削る）。
         #[cfg(feature = "rayon")]
         {
+            let items: alloc::vec::Vec<(FlexId, V)> = self.into_iter().collect();
+            // 小入力では rayon 起動コストが利得を上回るので逐次挿入で組む（単発クエリの入口変換の固定費を削る）。
             if items.len() < SEQ_CONVERT_THRESHOLD {
                 let mut core = FlexTreeCore::new();
                 for (id, value) in items {
@@ -167,7 +167,7 @@ where
         #[cfg(not(feature = "rayon"))]
         {
             let mut core = FlexTreeCore::new();
-            for (id, value) in items {
+            for (id, value) in self {
                 core.insert(id, value);
             }
             core
@@ -176,9 +176,9 @@ where
 
     fn from_core(core: FlexTreeCore<V>) -> Self {
         // 実体値の互いに素なセルを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
-        let cells: alloc::vec::Vec<(FlexId, V)> = core.into_iter().collect();
         #[cfg(feature = "rayon")]
         {
+            let cells: alloc::vec::Vec<(FlexId, V)> = core.into_iter().collect();
             use rayon::iter::FromParallelIterator;
             if cells.len() < SEQ_CONVERT_THRESHOLD {
                 cells.into_iter().collect()
@@ -188,7 +188,7 @@ where
         }
         #[cfg(not(feature = "rayon"))]
         {
-            cells.into_iter().collect()
+            core.into_iter().collect()
         }
     }
 }

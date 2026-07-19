@@ -266,8 +266,8 @@ where
     ///
     /// 「写像先が空間的に非単射」な per-cell 演算子（falloff / dilate / 拡大 / downsample …）の
     /// 汎用 recombiner。`resolve` には `MergePolicy::resolve` 相当のクロージャを渡す（FlexTreeCore は
-    /// query 層の `MergePolicy` に依存しない）。合成は [`from_items_with_policy`](Self::from_items_with_policy)
-    /// の木マージに委ねられる。
+    /// query 層の `MergePolicy` に依存しない）。合成は `par_build_vec_with` や `insert_with`
+    /// に委ねられる。
     pub fn map_rebuild_with<F, I, R>(&self, f: F, resolve: R) -> Result<Self, Error>
     where
         F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,

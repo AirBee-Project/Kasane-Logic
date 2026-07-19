@@ -17,7 +17,7 @@ pub trait BinaryOperator<V: SafeValue>: Send + Sync {
 /// クエリ実行の作業表現である [`FlexTreeCore`] に対する単項演算子の定義。
 ///
 /// 演算子は「各セルの値の反映先を決める写像」であり、反映先が単射なら union（[`FlexTreeCore::map_rebuild`]
-/// または構造シフト [`FlexTreeCore::shift_x`]）、非単射なら merge_with（[`FlexTreeCore::map_rebuild_with`]）で
+/// または構造シフト `shift_x`）、非単射なら merge_with（[`FlexTreeCore::map_rebuild_with`]）で
 /// 組み直す。パラメーターは各演算子の構造体フィールドが保持する。
 pub trait UnaryOperator<V: SafeValue>: Send + Sync {
     /// 作業木 `target` をインプレースで単項演算した結果へ更新する。
