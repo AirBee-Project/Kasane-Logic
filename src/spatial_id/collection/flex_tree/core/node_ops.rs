@@ -1,5 +1,5 @@
 use super::node::Node;
-use super::ptr::{SafeValue, SharedNode};
+use super::ptr::{MaybeSync, SafeValue, SharedNode};
 
 /// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
 #[cfg(feature = "rayon")]
@@ -107,7 +107,7 @@ where
     ) -> SharedNode<Self>
     where
         T: Fn(&SharedNode<Self>, &SharedNode<Self>, &SharedNode<Self>) -> Option<SharedNode<Self>>
-            + Sync,
+            + MaybeSync,
     {
         if let Some(result) = terminal(a, b, empty_leaf) {
             return result;

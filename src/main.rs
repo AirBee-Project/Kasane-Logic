@@ -13,7 +13,7 @@ use kasane_logic::spatial_id::collection::query::merge_policy::Max;
 use kasane_logic::{SpatialIdCollection, SpatialIdTable};
 
 fn main() {
-    let bldg_risk: SpatialIdTable<u32> =
+    let bldg_risk: SpatialIdTable<u8> =
         serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
 
     let risk = bldg_risk

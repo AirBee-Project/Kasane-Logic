@@ -15,7 +15,7 @@ mod overlap;
 mod parallel;
 pub(crate) mod ptr;
 pub mod shard;
-use ptr::SharedNode;
+use ptr::{MaybeSend, MaybeSendSync, MaybeSync, SharedNode};
 pub mod tests;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
@@ -136,7 +136,7 @@ where
     /// シャードの扱いは [`union`](Self::union) と同じ。
     pub fn merge_with<R>(&self, other: &Self, resolve: R) -> Self
     where
-        R: Fn(&V, &V) -> V + Sync,
+        R: Fn(&V, &V) -> V + MaybeSync,
     {
         // 終端規則: 片側が空なら相手を通し（構造共有）、両側が値付き葉なら resolve で合成。
         // `resolve(v, v) != v` になりうる（例: 加算）ため MergeOp のような ptr_eq ショートカットは
@@ -174,8 +174,8 @@ where
 
     fn map_expand<F, I>(&self, f: F) -> Result<Vec<(FlexId, V)>, Error>
     where
-        F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, V)> + Send,
+        F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
+        I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
     {
         let total_leaves = self.lower_root.leaf_count() + self.upper_root.leaf_count();
         if total_leaves == 0 {
@@ -243,8 +243,8 @@ where
     /// 重なる場合の値は union に従う。
     pub fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
     where
-        F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, V)> + Send,
+        F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
+        I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
     {
         let expanded = self.map_expand(f)?;
         // 小入力では rayon（par_sort / par_chunks / reduce）起動コストが利得を上回るので逐次挿入で組む。
@@ -270,9 +270,9 @@ where
     /// の木マージに委ねられる。
     pub fn map_rebuild_with<F, I, R>(&self, f: F, resolve: R) -> Result<Self, Error>
     where
-        F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, V)> + Send,
-        R: Fn(&V, &V) -> V + Sync,
+        F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
+        I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
+        R: Fn(&V, &V) -> V + MaybeSync,
     {
         let expanded = self.map_expand(f)?;
         #[cfg(feature = "rayon")]
@@ -501,7 +501,7 @@ where
     pub fn insert_with<I, R>(&mut self, target: I, value: V, resolve: &R)
     where
         I: IntoIterator<Item = FlexId>,
-        R: Fn(&V, &V) -> V + Sync,
+        R: Fn(&V, &V) -> V + MaybeSync,
     {
         for flex_id in target.into_iter() {
             if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
@@ -696,7 +696,7 @@ where
 
     fn insert_flex_id_with<R>(&mut self, flex_id: FlexId, value: V, resolve: &R)
     where
-        R: Fn(&V, &V) -> V + Sync,
+        R: Fn(&V, &V) -> V + MaybeSync,
     {
         let root = if flex_id.f_index().is_negative() {
             &mut self.lower_root
@@ -728,10 +728,12 @@ where
 }
 
 /// 空間ソートキーの1軸あたりビット数（F/X/Y の3軸で 3×20 = 60bit、u64 に収まる）。
+#[cfg(feature = "rayon")]
 const SORT_KEY_BITS: u32 = 20;
 
 /// 軸のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
 /// 粗い（浅い）セルは上位ビット側に、細かいセルは下位ビットまで伸びる。
+#[cfg(feature = "rayon")]
 #[inline]
 fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
     let z = zoom as u32;
@@ -748,6 +750,7 @@ fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
 /// 「空間的に近い ID を連続させる」ことが目的で、これによりチャンクが空間的に局所化し、
 /// チャンク木同士の [`union`](FlexTreeCore::union) / [`merge_with`](FlexTreeCore::merge_with) が
 /// 互いにほぼ素になって簡約が軽くなる。並列バルク構築と値解決構築の双方で使う。
+#[cfg(feature = "rayon")]
 #[inline]
 pub(crate) fn spatial_sort_key(id: &FlexId) -> u64 {
     const B: u32 = SORT_KEY_BITS;

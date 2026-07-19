@@ -60,6 +60,7 @@ opt-level = 3
 [[bin]]
 name = "kasane-logic"
 bench = false
+required-features = ["json"]
 
 [lib]
 bench = false
