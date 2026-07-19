@@ -11,7 +11,7 @@ jobs:
     if: github.event.pull_request.draft == true
     name: cargo fmt & doc (Blacksmith)
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    timeout-minutes: 15
+    timeout-minutes: 3
     continue-on-error: true
     outputs:
       success: ${{ steps.mark_success.outputs.success }}
