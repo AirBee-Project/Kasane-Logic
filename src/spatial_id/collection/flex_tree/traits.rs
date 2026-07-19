@@ -11,8 +11,14 @@ static UNIT: () = ();
 #[cfg(feature = "rayon")]
 const SEQ_CONVERT_THRESHOLD: usize = 512;
 
-/// コレクションが格納する値型に共通して要求される性質。
+#[cfg(not(feature = "rayon"))]
+pub trait CellValue: Ord + Clone {}
+#[cfg(not(feature = "rayon"))]
+impl<T: Ord + Clone> CellValue for T {}
+
+#[cfg(feature = "rayon")]
 pub trait CellValue: Ord + Clone + Send + Sync {}
+#[cfg(feature = "rayon")]
 impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 
 #[cfg(not(feature = "rayon"))]

@@ -84,5 +84,29 @@ fn bench_shift_and_falloff(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_shift, bench_falloff, bench_shift_and_falloff,);
+use kasane_logic::{
+    spatial_id::collection::query::merge_policy::Average, spatial_id::zoom_level::ZoomLevel,
+};
+
+fn bench_zoom_out(c: &mut Criterion) {
+    bench_workflow(
+        c,
+        "Workflow/BldgRisk_ZoomOut_Average",
+        &[100, 1000, 5000],
+        |t| {
+            t.query()
+                .zoom_out(ZoomLevel::new(18).unwrap(), Average)
+                .run()
+                .unwrap()
+        },
+    );
+}
+
+criterion_group!(
+    benches,
+    bench_shift,
+    bench_falloff,
+    bench_shift_and_falloff,
+    bench_zoom_out
+);
 criterion_main!(benches);

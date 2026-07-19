@@ -1,9 +1,3 @@
-//! クエリ単項演算子（falloff / shift）の正しさ検証。
-//!
-//! falloff は「1 セルを近傍へ減衰伝播し、重なりを [`MergePolicy`] で合成する」演算で、
-//! 合成は構造マージ（[`FlexTreeCore::from_items_with_policy`]）に委ねられる。ここでは
-//! 重なりのある入力で Sum と Max が異なる結果になることを確認し、合成経路を検証する。
-
 use alloc::collections::BTreeMap;
 
 use crate::spatial_id::collection::query::merge_policy::{Max, Sum};
@@ -88,20 +82,4 @@ fn falloff_x_radius_zero_is_noop() {
 
     assert_eq!(r.len(), 1);
     assert_eq!(r.get(&100), Some(&7));
-}
-
-/// X shift はセルを平行移動する（値は保つ）。
-#[test]
-fn shift_x_moves_cell() {
-    let mut table = SpatialIdTable::new();
-    table.insert(cell(100, 9).0, 9);
-    table.insert(cell(200, 3).0, 3);
-
-    let out = table.query().shift_x(20, 5).run().unwrap();
-    let r = row(&out);
-
-    assert_eq!(r.len(), 2);
-    assert_eq!(r.get(&105), Some(&9));
-    assert_eq!(r.get(&205), Some(&3));
-    assert_eq!(r.get(&100), None);
 }

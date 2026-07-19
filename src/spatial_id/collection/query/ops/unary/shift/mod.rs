@@ -15,3 +15,6 @@ pub mod primitive;
 
 /// Query型への実装
 pub mod query;
+
+#[cfg(test)]
+mod test;

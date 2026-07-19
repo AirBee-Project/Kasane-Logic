@@ -156,13 +156,23 @@ path = "benches/spatial_id_set/parallel_build.rs"
 harness = false
 
 [[bench]]
-name = "query_unary_ops"
-path = "benches/query/unary_ops.rs"
+name = "query_ops_unary_shift"
+path = "benches/query/ops/unary/shift.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_falloff_linear"
+path = "benches/query/ops/unary/falloff_linear.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_zoom_out"
+path = "benches/query/ops/unary/zoom_out.rs"
 harness = false
 
 [[bench]]
 name = "query_workflow_bldg_risk"
-path = "benches/query/workflow_bldg_risk.rs"
+path = "benches/query/workflow/bldg_risk.rs"
 harness = false
 
 [[example]]

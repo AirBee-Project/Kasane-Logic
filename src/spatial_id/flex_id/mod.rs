@@ -70,6 +70,47 @@ impl FlexId {
         self.y_index
     }
 
+    /// 指定したズームレベルでの空間的な親ID（包含する最小のFlexId）を返す。
+    /// 指定されたズームが現在のズーム以上の場合は、各軸についてそのままのズームとインデックスを返す。
+    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<FlexId, Error> {
+        let f_zoomlevel = self.f_zoomlevel().min(target_z);
+        let x_zoomlevel = self.x_zoomlevel().min(target_z);
+        let y_zoomlevel = self.y_zoomlevel().min(target_z);
+
+        let shift_f = self.f_zoomlevel() - f_zoomlevel;
+        let shift_x = self.x_zoomlevel() - x_zoomlevel;
+        let shift_y = self.y_zoomlevel() - y_zoomlevel;
+
+        let f_index = self.f_index() >> shift_f;
+        let x_index = self.x_index() >> shift_x;
+        let y_index = self.y_index() >> shift_y;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            FlexId::new_with_temporal(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+                self.temporal_id.clone(),
+            )
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            FlexId::new(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+            )
+        }
+    }
+
     /// このFlexIdを高さ（F）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
     ///
     /// [`shift_f`](Self::shift_f) がセルを移動するのに対し、こちらは元のセルを残したまま
