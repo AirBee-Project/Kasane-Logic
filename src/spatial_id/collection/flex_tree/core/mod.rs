@@ -177,59 +177,6 @@ where
     /// [`par_build_vec`](Self::par_build_vec) が重なりを左優先（union）で潰すのに対し、こちらは
     /// 値ポリシー（例: 加算・最大）で合成する。falloff のように「1 セルが近傍へ値を撒いて互いに
     /// 重なる」出力を、逐次 remove/difference/insert（旧 `insert_with_policy`）ではなく
-    /// [`merge_with`](Self::merge_with) の木マージで畳む。
-    ///
-    /// `rayon` 有効時は各要素を単体木にして並列 fold/reduce で畳む。重なりは常に `merge_with`
-    /// を通るため、チャンク内・チャンク間を問わず必ず `resolve` で解決される（左優先の取りこぼしがない）。
-    pub fn from_items_with_policy<R>(mut items: Vec<(FlexId, V)>, resolve: R) -> Self
-    where
-        R: Fn(&V, &V) -> V + Sync,
-    {
-        if items.is_empty() {
-            return Self::new();
-        }
-
-        // `par_build_vec` と同じ空間局所化。空間的に近い ID を連続させ、チャンク木同士の
-        // merge_with が互いにほぼ素になって簡約が軽くなる（単一スレッドでもキャッシュに効く）。
-        #[cfg(feature = "rayon")]
-        {
-            use rayon::prelude::*;
-
-            items.par_sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
-
-            let threads = rayon::current_num_threads().max(1);
-            let chunk_size = (items.len() / (threads * 4)).max(parallel::MIN_PAR_CHUNK);
-
-            items
-                .par_chunks(chunk_size)
-                .map(|chunk| Self::build_chunk_with_policy(chunk, &resolve))
-                .reduce(Self::new, |a, b| a.merge_with(&b, &resolve))
-        }
-        #[cfg(not(feature = "rayon"))]
-        {
-            items.sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
-            Self::build_chunk_with_policy(&items, &resolve)
-        }
-    }
-
-    /// 1 チャンク分の `(FlexId, V)` を、重なりを `resolve` で解決しながら 1 本の木に畳む。
-    ///
-    /// 各要素を単体木にして [`merge_with`](Self::merge_with) で重ねる。単体木は 1 本の降下パス
-    /// なので、`merge_with` は空側を即座に相手へ返し、実質そのパスだけを触る（アキュムレータが
-    /// どれだけ育っても 1 要素あたり O(深さ)）。チャンクが空間的に局所なので降下パスも近接する。
-    fn build_chunk_with_policy<R>(chunk: &[(FlexId, V)], resolve: &R) -> Self
-    where
-        R: Fn(&V, &V) -> V + Sync,
-    {
-        let mut core = Self::new();
-        for (id, value) in chunk {
-            let mut single = Self::new();
-            single.insert(id.clone(), value.clone());
-            core = core.merge_with(&single, resolve);
-        }
-        core
-    }
-
     /// 各セル `(FlexId, &V)` を `f` で 0 個以上の `(FlexId, V)` に写し、平坦に集める。
     ///
     /// per-cell 演算子（falloff / scale / downsample …）の展開段の共通土台。値はクローンせず参照で
@@ -237,7 +184,7 @@ where
     fn map_expand<F, I>(&self, f: F) -> Result<Vec<(FlexId, V)>, Error>
     where
         F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, V)>,
+        I: IntoIterator<Item = (FlexId, V)> + Send,
     {
         let snapshot: Vec<(FlexId, &V)> = self.iter_ref().collect();
 
@@ -246,14 +193,27 @@ where
             use rayon::prelude::*;
             let mapped = snapshot
                 .into_par_iter()
-                .map(|(id, v)| f(id, v).map(|it| it.into_iter().collect::<Vec<_>>()))
-                .collect::<Result<Vec<_>, Error>>()?;
-            Ok(mapped.into_iter().flatten().collect())
+                .map(|(id, v)| f(id, v))
+                .try_fold(Vec::new, |mut acc, res| {
+                    acc.extend(res?);
+                    Ok::<_, Error>(acc)
+                })
+                .try_reduce(Vec::new, |mut a, b| {
+                    if a.len() < b.len() {
+                        let mut tmp = b;
+                        tmp.extend(a);
+                        Ok::<_, Error>(tmp)
+                    } else {
+                        a.extend(b);
+                        Ok::<_, Error>(a)
+                    }
+                })?;
+            Ok(mapped)
         }
         #[cfg(not(feature = "rayon"))]
         {
             let mut out = Vec::new();
-            for (id, v) in snapshot {
+            for (id, v) in self.iter_ref() {
                 out.extend(f(id, v)?);
             }
             Ok(out)
@@ -267,7 +227,7 @@ where
     pub fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
     where
         F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, V)>,
+        I: IntoIterator<Item = (FlexId, V)> + Send,
     {
         let expanded = self.map_expand(f)?;
         // 小入力では rayon（par_sort / par_chunks / reduce）起動コストが利得を上回るので逐次挿入で組む。
@@ -294,11 +254,11 @@ where
     pub fn map_rebuild_with<F, I, R>(&self, f: F, resolve: R) -> Result<Self, Error>
     where
         F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, V)>,
+        I: IntoIterator<Item = (FlexId, V)> + Send,
         R: Fn(&V, &V) -> V + Sync,
     {
         let expanded = self.map_expand(f)?;
-        Ok(Self::from_items_with_policy(expanded, resolve))
+        Ok(Self::par_build_vec_with(expanded, resolve))
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
@@ -510,6 +470,28 @@ where
         }
     }
 
+    /// [FlexTreeCore]に空間IDをポリシー付きで挿入する
+    pub fn insert_with<I, R>(&mut self, target: I, value: V, resolve: &R)
+    where
+        I: IntoIterator<Item = FlexId>,
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        for flex_id in target.into_iter() {
+            if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
+                panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
+            }
+            // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
+            let flex_id = match &self.shard {
+                Some(region) => match flex_id.intersection(region) {
+                    Some(clipped) => clipped,
+                    None => continue,
+                },
+                None => flex_id,
+            };
+            self.insert_flex_id_with(flex_id, value.clone(), resolve);
+        }
+    }
+
     /// [FlexTreeCore]からtargetと重なりがある[FlexId]とそのValueを全て取り出す
     pub fn get<'a, I>(&'a self, target: I) -> impl Iterator<Item = (FlexId, V)> + 'a
     where
@@ -683,6 +665,18 @@ where
             &mut self.upper_root
         };
         Node::insert_mut(root, &flex_id, &value, 0, &self.empty_leaf);
+    }
+
+    fn insert_flex_id_with<R>(&mut self, flex_id: FlexId, value: V, resolve: &R)
+    where
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        let root = if flex_id.f_index().is_negative() {
+            &mut self.lower_root
+        } else {
+            &mut self.upper_root
+        };
+        Node::insert_mut_with(root, &flex_id, &value, 0, &self.empty_leaf, resolve);
     }
 
     /// unionのシャード領域を返す。

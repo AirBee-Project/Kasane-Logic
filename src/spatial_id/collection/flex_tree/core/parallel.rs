@@ -58,4 +58,44 @@ where
             })
             .reduce(Self::new, |a, b| a.union(&b))
     }
+
+    /// ポリシー付きの in-place 挿入を利用して、配列から並列に木を構築する。
+    pub fn par_build_vec_with<R>(mut items: Vec<(FlexId, V)>, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        if items.is_empty() {
+            return Self::new();
+        }
+
+        #[cfg(feature = "rayon")]
+        {
+            use rayon::prelude::*;
+
+            items.par_sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+
+            let threads = rayon::current_num_threads().max(1);
+            let chunk_size = (items.len() / (threads * 4)).max(MIN_PAR_CHUNK);
+
+            items
+                .par_chunks(chunk_size)
+                .map(|chunk| {
+                    let mut core = Self::new();
+                    for (id, value) in chunk {
+                        core.insert_with(id.clone(), value.clone(), &resolve);
+                    }
+                    core
+                })
+                .reduce(Self::new, |a, b| a.merge_with(&b, &resolve))
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            items.sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+            let mut core = Self::new();
+            for (id, value) in items {
+                core.insert_with(id, value, &resolve);
+            }
+            core
+        }
+    }
 }

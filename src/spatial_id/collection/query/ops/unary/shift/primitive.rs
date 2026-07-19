@@ -24,7 +24,7 @@ impl FlexId {
         &self,
         z: Z,
         index: i32,
-    ) -> Result<impl Iterator<Item = FlexId>, Error> {
+    ) -> Result<impl Iterator<Item = FlexId> + use<Z>, Error> {
         let z = z.into();
         // ズームレベルのチェック
         let zoom = ZoomLevel::new(z)?;
@@ -94,7 +94,7 @@ impl FlexId {
         &self,
         z: Z,
         index: i32,
-    ) -> Result<impl Iterator<Item = FlexId>, Error> {
+    ) -> Result<impl Iterator<Item = FlexId> + use<Z>, Error> {
         let z = z.into();
         let _zoom = ZoomLevel::new(z)?;
 
@@ -165,7 +165,7 @@ impl FlexId {
         &self,
         z: Z,
         index: i32,
-    ) -> Result<impl Iterator<Item = FlexId>, Error> {
+    ) -> Result<impl Iterator<Item = FlexId> + use<Z>, Error> {
         let z = z.into();
         let _zoom = ZoomLevel::new(z)?;
 

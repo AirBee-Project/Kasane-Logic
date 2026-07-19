@@ -19,7 +19,7 @@ impl FlexId {
         let z = ZoomLevel::new(z.into())?.get();
         let rad = radius as i32;
 
-        let mut out = Vec::new();
+        let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
         if rad == 0 {
             out.push((self.clone(), value.clone()));
             return Ok(out.into_iter());
@@ -56,7 +56,7 @@ impl FlexId {
         let z = ZoomLevel::new(z.into())?.get();
         let rad = radius as i32;
 
-        let mut out = Vec::new();
+        let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
         if rad == 0 {
             out.push((self.clone(), value.clone()));
             return Ok(out.into_iter());
@@ -93,7 +93,7 @@ impl FlexId {
         let z = ZoomLevel::new(z.into())?.get();
         let rad = radius as i32;
 
-        let mut out = Vec::new();
+        let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
         if rad == 0 {
             out.push((self.clone(), value.clone()));
             return Ok(out.into_iter());
@@ -134,11 +134,16 @@ impl FlexId {
         let x_rad = x_radius as i32;
         let y_rad = y_radius as i32;
 
-        let mut out = Vec::new();
+        let est_cap = (f_rad * 2 + 1) * (x_rad * 2 + 1) * (y_rad * 2 + 1);
+        let mut out = Vec::with_capacity(est_cap as usize);
         if f_rad == 0 && x_rad == 0 && y_rad == 0 {
             out.push((self.clone(), value.clone()));
             return Ok(out.into_iter());
         }
+
+        // Hoist buffers to avoid inner loop allocations
+        let mut current_ids = Vec::with_capacity(8);
+        let mut next_ids = Vec::with_capacity(8);
 
         for df in -f_rad..=f_rad {
             for dx in -x_rad..=x_rad {
@@ -178,36 +183,38 @@ impl FlexId {
                     let attenuated =
                         (value.clone() * (v_radius - v_distance)) / V::try_from(max_den).unwrap();
 
-                    let mut current_ids = alloc::vec![self.clone()];
+                    current_ids.clear();
+                    current_ids.push(self.clone());
+
                     if df != 0 {
-                        let mut next = alloc::vec::Vec::new();
-                        for i in current_ids {
+                        next_ids.clear();
+                        for i in &current_ids {
                             if let Ok(moved) = i.shift_f(z, df) {
-                                next.extend(moved);
+                                next_ids.extend(moved);
                             }
                         }
-                        current_ids = next;
+                        core::mem::swap(&mut current_ids, &mut next_ids);
                     }
                     if dx != 0 {
-                        let mut next = alloc::vec::Vec::new();
-                        for i in current_ids {
+                        next_ids.clear();
+                        for i in &current_ids {
                             if let Ok(moved) = i.shift_x(z, dx) {
-                                next.extend(moved);
+                                next_ids.extend(moved);
                             }
                         }
-                        current_ids = next;
+                        core::mem::swap(&mut current_ids, &mut next_ids);
                     }
                     if dy != 0 {
-                        let mut next = alloc::vec::Vec::new();
-                        for i in current_ids {
+                        next_ids.clear();
+                        for i in &current_ids {
                             if let Ok(moved) = i.shift_y(z, dy) {
-                                next.extend(moved);
+                                next_ids.extend(moved);
                             }
                         }
-                        current_ids = next;
+                        core::mem::swap(&mut current_ids, &mut next_ids);
                     }
 
-                    for moved in current_ids {
+                    for moved in current_ids.drain(..) {
                         out.push((moved, attenuated.clone()));
                     }
                 }

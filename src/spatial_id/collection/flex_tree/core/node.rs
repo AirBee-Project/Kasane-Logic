@@ -340,6 +340,181 @@ where
         }
     }
 
+    /// 持続的データ構造にポリシー付きで挿入します。
+    /// 重なりが生じた場合は、指定された resolve ポリシーで値を解決します。
+    pub fn insert_mut_with<R>(
+        node: &mut SharedNode<Self>,
+        target: &FlexId,
+        value: &V,
+        level: u8,
+        empty_leaf: &SharedNode<Node<V>>,
+        resolve: &R,
+    ) where
+        R: Fn(&V, &V) -> V,
+    {
+        // 完全にターゲットが現在の空間全体を覆う場合
+        if Self::covers_all_axes(target, level) {
+            Self::fill_or_merge_mut(node, value, empty_leaf, resolve);
+            return;
+        }
+
+        let node_level = node.node_level();
+        let mut current_level = level;
+
+        // 無関係な次元をスキップ
+        while current_level < node_level && Self::covers(target, current_level) {
+            current_level += 1;
+        }
+
+        // 完全に target に覆い尽くされた場合、全体を塗りつぶす/マージする
+        if current_level >= LEAF_LEVEL {
+            Self::fill_or_merge_mut(node, value, empty_leaf, resolve);
+            return;
+        }
+
+        // 既存のツリーに欠けている階層を補うために Branch を作成する
+        if current_level < node_level {
+            let side = Self::forking(target, current_level);
+
+            let (new_lower, new_upper) = match side {
+                Side::Lower => {
+                    let mut lo = node.clone();
+                    Self::insert_mut_with(
+                        &mut lo,
+                        target,
+                        value,
+                        current_level + 1,
+                        empty_leaf,
+                        resolve,
+                    );
+                    (lo, node.clone())
+                }
+                Side::Upper => {
+                    let mut hi = node.clone();
+                    Self::insert_mut_with(
+                        &mut hi,
+                        target,
+                        value,
+                        current_level + 1,
+                        empty_leaf,
+                        resolve,
+                    );
+                    (node.clone(), hi)
+                }
+            };
+
+            *node = Self::mk(current_level, new_lower, new_upper, empty_leaf);
+            return;
+        }
+
+        // current_level == node_level の場合 (Copy-on-Write)
+        let replacement = {
+            let mut_node = SharedNode::make_mut(node);
+
+            if let Node::Branch {
+                level: l,
+                lower_child,
+                upper_child,
+                leaf_count,
+                max_zoom,
+                split_mask,
+            } = mut_node
+            {
+                match Self::overlapping_children(target, *l) {
+                    OverlappingChildren::Both => {
+                        Self::insert_mut_with(
+                            lower_child,
+                            target,
+                            value,
+                            *l + 1,
+                            empty_leaf,
+                            resolve,
+                        );
+                        Self::insert_mut_with(
+                            upper_child,
+                            target,
+                            value,
+                            *l + 1,
+                            empty_leaf,
+                            resolve,
+                        );
+                    }
+                    OverlappingChildren::Only(Side::Lower) => Self::insert_mut_with(
+                        lower_child,
+                        target,
+                        value,
+                        *l + 1,
+                        empty_leaf,
+                        resolve,
+                    ),
+                    OverlappingChildren::Only(Side::Upper) => Self::insert_mut_with(
+                        upper_child,
+                        target,
+                        value,
+                        *l + 1,
+                        empty_leaf,
+                        resolve,
+                    ),
+                }
+
+                *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
+                *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
+                *split_mask = Self::fold_split_mask(*l, lower_child, upper_child);
+
+                Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
+            } else {
+                unreachable!()
+            }
+        };
+
+        if let Some(rep) = replacement {
+            *node = rep;
+        }
+    }
+
+    /// node 配下のすべての Leaf について、値があれば resolve(v, value) を適用し、
+    /// 空 (None) であれば value で埋める。
+    fn fill_or_merge_mut<R>(
+        node: &mut SharedNode<Self>,
+        value: &V,
+        empty_leaf: &SharedNode<Node<V>>,
+        resolve: &R,
+    ) where
+        R: Fn(&V, &V) -> V,
+    {
+        let replacement = {
+            let mut_node = SharedNode::make_mut(node);
+            match mut_node {
+                Node::Branch {
+                    level,
+                    lower_child,
+                    upper_child,
+                    leaf_count,
+                    max_zoom,
+                    split_mask,
+                } => {
+                    Self::fill_or_merge_mut(lower_child, value, empty_leaf, resolve);
+                    Self::fill_or_merge_mut(upper_child, value, empty_leaf, resolve);
+                    *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
+                    *max_zoom = Self::fold_max_zoom(*level, lower_child, upper_child);
+                    *split_mask = Self::fold_split_mask(*level, lower_child, upper_child);
+                    Self::collapse_equal_children(lower_child, upper_child, *level, empty_leaf)
+                }
+                Node::Leaf { value: existing } => {
+                    if let Some(v) = existing {
+                        *v = resolve(v, value);
+                    } else {
+                        *existing = Some(value.clone());
+                    }
+                    None
+                }
+            }
+        };
+        if let Some(rep) = replacement {
+            *node = rep;
+        }
+    }
+
     /// 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳む置換ノードを返す。
     ///
     /// 葉同士（同値）の uniform-fill だけでなく、**等価な非葉サブツリー**（＝その軸が
