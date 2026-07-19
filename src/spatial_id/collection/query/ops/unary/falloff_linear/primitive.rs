@@ -11,7 +11,7 @@ impl FlexId {
         z: Z,
         radius: u32,
         value: &V,
-    ) -> Result<impl Iterator<Item = (FlexId, V)>, Error>
+    ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
         V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
         <V as TryFrom<u32>>::Error: Debug,
@@ -48,7 +48,7 @@ impl FlexId {
         z: Z,
         radius: u32,
         value: &V,
-    ) -> Result<impl Iterator<Item = (FlexId, V)>, Error>
+    ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
         V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
         <V as TryFrom<u32>>::Error: Debug,
@@ -85,7 +85,7 @@ impl FlexId {
         z: Z,
         radius: u32,
         value: &V,
-    ) -> Result<impl Iterator<Item = (FlexId, V)>, Error>
+    ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
         V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
         <V as TryFrom<u32>>::Error: Debug,
@@ -124,7 +124,7 @@ impl FlexId {
         x_radius: u32,
         y_radius: u32,
         value: &V,
-    ) -> Result<impl Iterator<Item = (FlexId, V)>, Error>
+    ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
         V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
         <V as TryFrom<u32>>::Error: Debug,

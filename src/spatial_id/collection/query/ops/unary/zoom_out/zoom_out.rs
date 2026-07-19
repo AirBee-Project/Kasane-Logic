@@ -51,7 +51,7 @@ where
         });
 
         // 連続する同じ親IDのグループごとに resolve_many を適用
-        let mut new_items = Vec::new();
+        let mut new_items = Vec::with_capacity(leaves.len());
 
         // chunk_by は Rust 1.77+ で安定化（旧 group_by）
         for chunk in leaves.chunk_by(|a, b| {

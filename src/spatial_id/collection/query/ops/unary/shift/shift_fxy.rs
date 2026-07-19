@@ -43,7 +43,7 @@ impl<V: SafeValue> UnaryOperator<V> for ShiftFXY {
 
             if self.f.1 != 0 {
                 let z = self.f.0.get();
-                let mut next = Vec::new();
+                let mut next = Vec::with_capacity(ids.len());
                 for i in ids {
                     next.extend(i.shift_f(z, self.f.1)?);
                 }
@@ -52,7 +52,7 @@ impl<V: SafeValue> UnaryOperator<V> for ShiftFXY {
 
             if self.x.1 != 0 {
                 let z = self.x.0.get();
-                let mut next = Vec::new();
+                let mut next = Vec::with_capacity(ids.len());
                 for i in ids {
                     next.extend(i.shift_x(z, self.x.1)?);
                 }
@@ -61,7 +61,7 @@ impl<V: SafeValue> UnaryOperator<V> for ShiftFXY {
 
             if self.y.1 != 0 {
                 let z = self.y.0.get();
-                let mut next = Vec::new();
+                let mut next = Vec::with_capacity(ids.len());
                 for i in ids {
                     next.extend(i.shift_y(z, self.y.1)?);
                 }
@@ -69,10 +69,7 @@ impl<V: SafeValue> UnaryOperator<V> for ShiftFXY {
             }
 
             let value = value.clone();
-            Ok(ids
-                .into_iter()
-                .map(move |i| (i, value.clone()))
-                .collect::<Vec<_>>())
+            Ok(ids.into_iter().map(move |i| (i, value.clone())))
         })?;
 
         *target = shifted;

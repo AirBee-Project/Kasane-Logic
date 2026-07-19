@@ -1,12 +1,11 @@
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::ops::{Div, Mul, Sub};
 
 use crate::{
-    Error, FlexId, FlexTreeCore, ZoomLevel,
+    Error, FlexTreeCore, ZoomLevel,
     spatial_id::collection::flex_tree::core::SafeValue,
     spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
 };
@@ -47,10 +46,7 @@ where
         // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。数値の減衰はクロージャ
         // 側で行うため FlexTreeCore は数値境界を持たない。
         *target = target.map_rebuild_with(
-            |id, value| {
-                let cells: Vec<(FlexId, V)> = id.falloff_linear_x(z, radius, value)?.collect();
-                Ok(cells)
-            },
+            |id, value| id.falloff_linear_x(z, radius, value),
             |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
         Ok(())

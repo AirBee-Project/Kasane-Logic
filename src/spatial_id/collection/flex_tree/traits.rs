@@ -65,29 +65,6 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     fn query(self) -> Query<Self> {
         Query::Source(self)
     }
-
-    // /// [Query]を用いて空間IDの集合を処理します。
-    // /// 指定した空間IDの集合を参照して新しい集合を構築するため、元の集合の所有権を消費しません。
-    // ///
-    // /// 新しい集合の構築は必要部分で行われるため、軽量に動作します。
-    // ///
-    // /// # Examples
-    // ///
-    // /// 元の集合を残しつつ、新しい集合を作成する場合:
-    // ///
-    // /// ```no_run
-    // /// use kasane_logic::{SpatialIdTable, SpatialIdCollection};
-    // ///
-    // /// let table: SpatialIdTable<i32> = SpatialIdTable::new();
-    // /// // ... tableに要素を追加 ...
-    // ///
-    // /// // as_query()は所有権を消費せず、元のtableを維持したまま新しいtableを構築します。
-    // /// // 内部では軽量なcloneが行われます。
-    // /// let new_table = table.as_query().shift_x(15, 1).run().unwrap();
-    // /// ```
-    // fn as_query(&self) -> Query<Self> {
-    //     (*self).clone().query()
-    // }
 }
 
 impl SpatialIdCollection for SpatialIdSet {

@@ -1,8 +1,7 @@
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 
 use crate::{
-    Error, FlexId, FlexTreeCore, ZoomLevel, spatial_id::collection::flex_tree::core::SafeValue,
+    Error, FlexTreeCore, ZoomLevel, spatial_id::collection::flex_tree::core::SafeValue,
     spatial_id::collection::query::traits::UnaryOperator,
 };
 
@@ -36,11 +35,7 @@ impl<V: SafeValue> UnaryOperator<V> for ShiftY {
 
         *target = target.map_rebuild(|id, value| {
             let value = value.clone();
-            let cells: Vec<(FlexId, V)> = id
-                .shift_y(z, index)?
-                .map(move |m| (m, value.clone()))
-                .collect();
-            Ok(cells)
+            Ok(id.shift_y(z, index)?.map(move |m| (m, value.clone())))
         })?;
         Ok(())
     }

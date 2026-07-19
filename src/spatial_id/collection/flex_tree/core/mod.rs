@@ -172,6 +172,13 @@ where
         }
     }
 
+    /// 木を降りながら各葉へ `f` を適用し、結果を1本の `Vec` へ集約する。
+    ///
+    /// 旧実装は「逐次DFSで全葉を `Vec<(FlexId,&V)>` へ平坦化 → その後に並列で `f` を適用」という
+    /// 2段構成だった。フェーズ1が木の大きさに関わらず常に逐次だったため、大きな木ほど
+    /// 相対的なボトルネックになっていた。ここでは走査と `f` の適用を1回の再帰に融合し、
+    /// [`Node::merge`] と同じ `leaf_count` ガード付き `rayon::join` で並列化する
+    /// （[`node_ops::PARALLEL_LEAF_CUTOFF`] は既に掃引済みの閾値を共有）。
     fn map_expand<F, I>(&self, f: F) -> Result<Vec<(FlexId, V)>, Error>
     where
         F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
@@ -182,58 +189,99 @@ where
             return Ok(Vec::new());
         }
 
-        // Collect into flat snapshot via iterative DFS (very cheap)
-        let mut snapshot = Vec::with_capacity(total_leaves);
-        let mut stack = self.root_node_stack();
-        while let Some((node, current_id)) = stack.pop() {
-            match node {
-                Node::Branch {
-                    level,
-                    lower_child,
-                    upper_child,
-                    ..
-                } => {
-                    let axis = Node::<V>::axis(*level);
-                    let lower_id = split_child_id(&current_id, axis, Side::Lower);
-                    let upper_id = split_child_id(&current_id, axis, Side::Upper);
-                    stack.push((upper_child.as_ref(), upper_id));
-                    stack.push((lower_child.as_ref(), lower_id));
+        let mut out = Vec::with_capacity(total_leaves);
+        Self::expand_into(self.lower_root.as_ref(), FlexId::LOWER_MAX, &f, &mut out)?;
+        Self::expand_into(self.upper_root.as_ref(), FlexId::UPPER_MAX, &f, &mut out)?;
+        Ok(out)
+    }
+
+    /// [`map_expand`](Self::map_expand) の再帰本体。しきい値未満の部分木は `out` へ直接
+    /// 追記（追加のVec確保なし）、しきい値以上は `rayon::join` で両側を独立な `Vec` に集めてから
+    /// 結合する（並列境界だけがVecを新規確保する）。
+    #[cfg(feature = "rayon")]
+    fn expand_into<F, I>(
+        node: &Node<V>,
+        current_id: FlexId,
+        f: &F,
+        out: &mut Vec<(FlexId, V)>,
+    ) -> Result<(), Error>
+    where
+        F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
+        I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
+    {
+        match node {
+            Node::Leaf { value: None } => Ok(()),
+            Node::Leaf { value: Some(v) } => {
+                out.extend(f(current_id, v)?);
+                Ok(())
+            }
+            Node::Branch {
+                level,
+                leaf_count,
+                lower_child,
+                upper_child,
+                ..
+            } => {
+                let axis = Node::<V>::axis(*level);
+                let lower_id = split_child_id(&current_id, axis, Side::Lower);
+                let upper_id = split_child_id(&current_id, axis, Side::Upper);
+
+                if *leaf_count as usize >= node_ops::PARALLEL_LEAF_CUTOFF {
+                    let (lr, ur): (Result<Vec<_>, Error>, Result<Vec<_>, Error>) = rayon::join(
+                        || {
+                            let mut lo = Vec::with_capacity(lower_child.leaf_count());
+                            Self::expand_into(lower_child.as_ref(), lower_id, f, &mut lo)?;
+                            Ok(lo)
+                        },
+                        || {
+                            let mut hi = Vec::with_capacity(upper_child.leaf_count());
+                            Self::expand_into(upper_child.as_ref(), upper_id, f, &mut hi)?;
+                            Ok(hi)
+                        },
+                    );
+                    out.extend(lr?);
+                    out.extend(ur?);
+                    return Ok(());
                 }
-                Node::Leaf { value: Some(v) } => {
-                    snapshot.push((current_id, v));
-                }
-                Node::Leaf { value: None } => {}
+
+                Self::expand_into(lower_child.as_ref(), lower_id, f, out)?;
+                Self::expand_into(upper_child.as_ref(), upper_id, f, out)?;
+                Ok(())
             }
         }
+    }
 
-        #[cfg(feature = "rayon")]
-        {
-            // If the size is small, run sequentially to avoid Rayon task scheduling overhead.
-            if snapshot.len() < 512 {
-                let mut out = Vec::with_capacity(snapshot.len());
-                for (id, v) in snapshot {
-                    out.extend(f(id, v)?);
-                }
-                return Ok(out);
+    /// [`expand_into`](Self::expand_into) の非rayon版。並列分岐がないぶん単純な逐次再帰。
+    #[cfg(not(feature = "rayon"))]
+    fn expand_into<F, I>(
+        node: &Node<V>,
+        current_id: FlexId,
+        f: &F,
+        out: &mut Vec<(FlexId, V)>,
+    ) -> Result<(), Error>
+    where
+        F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
+        I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
+    {
+        match node {
+            Node::Leaf { value: None } => Ok(()),
+            Node::Leaf { value: Some(v) } => {
+                out.extend(f(current_id, v)?);
+                Ok(())
             }
-
-            use rayon::prelude::*;
-            let mapped: Result<Vec<(FlexId, V)>, Error> = snapshot
-                .into_par_iter()
-                .flat_map_iter(|(id, v)| match f(id, v) {
-                    Ok(iter) => iter.into_iter().map(Ok).collect::<Vec<_>>(),
-                    Err(e) => vec![Err(e)],
-                })
-                .collect();
-            mapped
-        }
-        #[cfg(not(feature = "rayon"))]
-        {
-            let mut out = Vec::with_capacity(snapshot.len());
-            for (id, v) in snapshot {
-                out.extend(f(id, v)?);
+            Node::Branch {
+                level,
+                lower_child,
+                upper_child,
+                ..
+            } => {
+                let axis = Node::<V>::axis(*level);
+                let lower_id = split_child_id(&current_id, axis, Side::Lower);
+                let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                Self::expand_into(lower_child.as_ref(), lower_id, f, out)?;
+                Self::expand_into(upper_child.as_ref(), upper_id, f, out)?;
+                Ok(())
             }
-            Ok(out)
         }
     }
 
@@ -418,7 +466,8 @@ where
             return Vec::new().into_iter();
         };
 
-        let mut exported = Vec::new();
+        // 1葉が複数のSingleIdへ分解されうるため下限のヒント（葉数）を与える。
+        let mut exported = Vec::with_capacity(self.count());
 
         for (flex_id, value) in self.iter() {
             let range = RangeId::from(&flex_id);
