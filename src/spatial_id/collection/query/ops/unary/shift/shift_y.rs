@@ -2,11 +2,14 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
-    Error, FlexId, SpatialIdCollection, ZoomLevel,
+    Error, FlexId, FlexTreeCore, ZoomLevel, spatial_id::collection::flex_tree::core::SafeValue,
     spatial_id::collection::query::traits::UnaryOperator,
 };
 
-/// コレクション全体を南北（Y）方向へ、ズームレベル `z` のセル `y` 個分だけ平行移動する単項演算。
+/// 作業木全体を南北（Y）方向へ、ズームレベル `z` のセル `y` 個分だけ平行移動する単項演算。
+///
+/// Y-shift は空間的に単射なので union で組み直す（[`FlexTreeCore::map_rebuild`]）。Y は巡回せず、
+/// 移動後が範囲外になる場合は [`Error`] を返す。
 pub struct ShiftY {
     z: ZoomLevel,
     y: i32,
@@ -20,25 +23,25 @@ impl ShiftY {
     }
 }
 
-impl<T: SpatialIdCollection> UnaryOperator<T> for ShiftY {
-    fn run(&self, target: &mut T) -> Result<(), Box<dyn core::error::Error + 'static>> {
+impl<V: SafeValue> UnaryOperator<V> for ShiftY {
+    fn run(
+        &self,
+        target: &mut FlexTreeCore<V>,
+    ) -> Result<(), Box<dyn core::error::Error + 'static>> {
         let z = self.z.get();
         let index = self.y;
-
         if index == 0 {
             return Ok(());
         }
 
-        let shifted = target.map_rebuild(|id, value| {
+        *target = target.map_rebuild(|id, value| {
             let value = value.clone();
-            let cells: Vec<(FlexId, T::Value)> = id
+            let cells: Vec<(FlexId, V)> = id
                 .shift_y(z, index)?
-                .map(move |moved| (moved, value.clone()))
+                .map(move |m| (m, value.clone()))
                 .collect();
             Ok(cells)
         })?;
-
-        *target = shifted;
         Ok(())
     }
 }

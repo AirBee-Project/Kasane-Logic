@@ -154,6 +154,11 @@ name = "spatial_id_set_parallel_build"
 path = "benches/spatial_id_set/parallel_build.rs"
 harness = false
 
+[[bench]]
+name = "query_unary_ops"
+path = "benches/query/unary_ops.rs"
+harness = false
+
 [[example]]
 name = "table_json"
 required-features = ["json"]

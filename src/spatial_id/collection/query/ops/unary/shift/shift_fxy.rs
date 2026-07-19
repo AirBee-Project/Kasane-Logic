@@ -2,7 +2,8 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
-    Error, SpatialIdCollection, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator,
+    Error, FlexTreeCore, ZoomLevel, spatial_id::collection::flex_tree::core::SafeValue,
+    spatial_id::collection::query::traits::UnaryOperator,
 };
 
 /// コレクション全体をF, X, Yの各方向へ同時に平行移動する単項演算。
@@ -28,8 +29,11 @@ impl ShiftFXY {
     }
 }
 
-impl<T: SpatialIdCollection> UnaryOperator<T> for ShiftFXY {
-    fn run(&self, target: &mut T) -> Result<(), Box<dyn core::error::Error + 'static>> {
+impl<V: SafeValue> UnaryOperator<V> for ShiftFXY {
+    fn run(
+        &self,
+        target: &mut FlexTreeCore<V>,
+    ) -> Result<(), Box<dyn core::error::Error + 'static>> {
         if self.f.1 == 0 && self.x.1 == 0 && self.y.1 == 0 {
             return Ok(());
         }

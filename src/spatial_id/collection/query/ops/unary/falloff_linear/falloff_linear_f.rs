@@ -1,11 +1,13 @@
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::ops::{Div, Mul, Sub};
 
 use crate::{
-    Error, SpatialIdCollection, ZoomLevel,
+    Error, FlexId, FlexTreeCore, ZoomLevel,
+    spatial_id::collection::flex_tree::core::SafeValue,
     spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
 };
 
@@ -26,92 +28,30 @@ impl<P> FalloffLinearF<P> {
     }
 }
 
-impl<S, P> UnaryOperator<S> for FalloffLinearF<P>
+impl<V, P> UnaryOperator<V> for FalloffLinearF<P>
 where
-    S: SpatialIdCollection,
-    P: MergePolicy<S::Value> + Send + Sync,
-    S::Value: Mul<Output = S::Value>
-        + Div<Output = S::Value>
-        + Sub<Output = S::Value>
-        + TryFrom<u32>
-        + Clone
-        + Send
-        + Sync,
-    <S::Value as TryFrom<u32>>::Error: Debug,
+    V: SafeValue + Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
+    <V as TryFrom<u32>>::Error: Debug,
+    P: MergePolicy<V> + Send + Sync,
 {
-    fn run(&self, target: &mut S) -> Result<(), Box<dyn core::error::Error + 'static>> {
-        let z = self.z.get();
-        let radius = self.radius as i32;
-
-        if radius == 0 {
+    fn run(
+        &self,
+        target: &mut FlexTreeCore<V>,
+    ) -> Result<(), Box<dyn core::error::Error + 'static>> {
+        if self.radius == 0 {
             return Ok(());
         }
+        let z = self.z.get();
+        let radius = self.radius;
 
-        let snapshot: alloc::vec::Vec<_> = target.iter().map(|(id, v)| (id, v.clone())).collect();
-
-        #[cfg(feature = "rayon")]
-        let mut mapped: alloc::vec::Vec<_> = {
-            use rayon::prelude::*;
-            snapshot
-                .into_par_iter()
-                .map(|(id, value)| {
-                    let mut cells = alloc::vec::Vec::new();
-                    if let Ok(iter) = id.falloff_linear_f(z, self.radius, &value) {
-                        cells.extend(iter);
-                    }
-                    cells
-                })
-                .flatten()
-                .collect()
-        };
-        #[cfg(not(feature = "rayon"))]
-        let mut mapped: alloc::vec::Vec<_> = {
-            let mut out = alloc::vec::Vec::new();
-            for (id, value) in snapshot {
-                if let Ok(iter) = id.falloff_linear_f(z, self.radius, &value) {
-                    out.extend(iter);
-                }
-            }
-            out
-        };
-
-        #[cfg(feature = "rayon")]
-        {
-            use rayon::prelude::*;
-            mapped.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
-        }
-        #[cfg(not(feature = "rayon"))]
-        mapped.sort_unstable_by(|a, b| a.0.cmp(&b.0));
-
-        let mut merged = alloc::vec::Vec::new();
-        let mut current = None;
-
-        for (id, value) in mapped {
-            match current {
-                Some((curr_id, curr_val)) if curr_id == id => {
-                    let resolved = P::resolve(curr_val, value);
-                    current = Some((curr_id, resolved));
-                }
-                Some((curr_id, curr_val)) => {
-                    merged.push((curr_id, curr_val));
-                    current = Some((id, value));
-                }
-                None => {
-                    current = Some((id, value));
-                }
-            }
-        }
-        if let Some((curr_id, curr_val)) = current {
-            merged.push((curr_id, curr_val));
-        }
-
-        let mut new_target = S::from_items(alloc::vec::Vec::new());
-        crate::spatial_id::collection::query::utils::insert_with_policy::<S, P>(
-            &mut new_target,
-            merged,
+        // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
+        *target = target.map_rebuild_with(
+            |id, value| {
+                let cells: Vec<(FlexId, V)> = id.falloff_linear_f(z, radius, value)?.collect();
+                Ok(cells)
+            },
+            |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
-
-        *target = new_target;
         Ok(())
     }
 }

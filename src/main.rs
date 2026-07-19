@@ -25,6 +25,7 @@ fn main() {
     let table = table
         .query()
         .falloff_linear_x(24, 20, Max)
+        .falloff_linear_y(24, 100, Max)
         .falloff_linear_f(24, 100, Max)
         .run()
         .unwrap();

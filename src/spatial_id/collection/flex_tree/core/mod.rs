@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{Dimension, FlexId, RangeId, Side, SingleId, SpatialId};
+use crate::{Dimension, Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::Node;
 use node_ops::MergeOp;
@@ -16,6 +16,7 @@ mod parallel;
 pub(crate) mod ptr;
 pub mod shard;
 use ptr::SharedNode;
+pub mod tests;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
 #[derive(Clone, Debug)]
@@ -104,15 +105,15 @@ where
         self.shard.as_ref()
     }
 
-    /// 上下いずれかのルート同士を `op`（union / intersection / difference）で突き合わせる、
-    /// レベル0起点の薄いラッパ。
+    /// 上下いずれかのルート同士を集合演算 `op` で突き合わせる、レベル0起点の薄いラッパ。
+    /// 終端規則 [`MergeOp::terminal`] をクロージャに包んで [`Node::merge`] へ渡す。
     fn merge_roots(
         &self,
         a: &SharedNode<Node<V>>,
         b: &SharedNode<Node<V>>,
         op: MergeOp,
     ) -> SharedNode<Node<V>> {
-        Node::merge(a, b, op, 0, &self.empty_leaf)
+        Node::merge(a, b, &|x, y, e| op.terminal(x, y, e), 0, &self.empty_leaf)
     }
 
     /// 2つの [FlexTreeCore] の和集合を計算します。
@@ -123,6 +124,181 @@ where
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_union(&self.shard, &other.shard),
         }
+    }
+
+    /// 2つの [FlexTreeCore] を値解決付きで重ね合わせる。
+    ///
+    /// [`union`](Self::union) と同じ構造マージ（構造共有・並列・枝刈り）だが、両側にセルが
+    /// 存在する領域では `resolve(a側の値, b側の値)` で値を合成する。片側だけが持つ領域は相手の
+    /// 部分木をそのまま共有する。`insert_with_policy` のようなセル単位の逐次
+    /// remove/difference/insert ループを、木マージ 1 本へ置き換えるための土台。
+    ///
+    /// シャードの扱いは [`union`](Self::union) と同じ。
+    pub fn merge_with<R>(&self, other: &Self, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        // 終端規則: 片側が空なら相手を通し（構造共有）、両側が値付き葉なら resolve で合成。
+        // `resolve(v, v) != v` になりうる（例: 加算）ため MergeOp のような ptr_eq ショートカットは
+        // 使わず、両側に値のある領域は必ず葉まで降りて解決する。
+        let terminal = |a: &SharedNode<Node<V>>, b: &SharedNode<Node<V>>, _e: &_| match (&**a, &**b)
+        {
+            (Node::Leaf { value: None }, _) => Some(b.clone()),
+            (_, Node::Leaf { value: None }) => Some(a.clone()),
+            (Node::Leaf { value: Some(av) }, Node::Leaf { value: Some(bv) }) => {
+                Some(SharedNode::new(Node::Leaf {
+                    value: Some(resolve(av, bv)),
+                }))
+            }
+            _ => None,
+        };
+        Self {
+            lower_root: Node::merge(
+                &self.lower_root,
+                &other.lower_root,
+                &terminal,
+                0,
+                &self.empty_leaf,
+            ),
+            upper_root: Node::merge(
+                &self.upper_root,
+                &other.upper_root,
+                &terminal,
+                0,
+                &self.empty_leaf,
+            ),
+            empty_leaf: self.empty_leaf.clone(),
+            shard: Self::shard_after_union(&self.shard, &other.shard),
+        }
+    }
+
+    /// `(FlexId, V)` 列から、重なるセルを `resolve` で合成しつつ木を構築する。
+    ///
+    /// [`par_build_vec`](Self::par_build_vec) が重なりを左優先（union）で潰すのに対し、こちらは
+    /// 値ポリシー（例: 加算・最大）で合成する。falloff のように「1 セルが近傍へ値を撒いて互いに
+    /// 重なる」出力を、逐次 remove/difference/insert（旧 `insert_with_policy`）ではなく
+    /// [`merge_with`](Self::merge_with) の木マージで畳む。
+    ///
+    /// `rayon` 有効時は各要素を単体木にして並列 fold/reduce で畳む。重なりは常に `merge_with`
+    /// を通るため、チャンク内・チャンク間を問わず必ず `resolve` で解決される（左優先の取りこぼしがない）。
+    pub fn from_items_with_policy<R>(mut items: Vec<(FlexId, V)>, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        if items.is_empty() {
+            return Self::new();
+        }
+
+        // `par_build_vec` と同じ空間局所化。空間的に近い ID を連続させ、チャンク木同士の
+        // merge_with が互いにほぼ素になって簡約が軽くなる（単一スレッドでもキャッシュに効く）。
+        #[cfg(feature = "rayon")]
+        {
+            use rayon::prelude::*;
+
+            items.par_sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+
+            let threads = rayon::current_num_threads().max(1);
+            let chunk_size = (items.len() / (threads * 4)).max(parallel::MIN_PAR_CHUNK);
+
+            items
+                .par_chunks(chunk_size)
+                .map(|chunk| Self::build_chunk_with_policy(chunk, &resolve))
+                .reduce(Self::new, |a, b| a.merge_with(&b, &resolve))
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            items.sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+            Self::build_chunk_with_policy(&items, &resolve)
+        }
+    }
+
+    /// 1 チャンク分の `(FlexId, V)` を、重なりを `resolve` で解決しながら 1 本の木に畳む。
+    ///
+    /// 各要素を単体木にして [`merge_with`](Self::merge_with) で重ねる。単体木は 1 本の降下パス
+    /// なので、`merge_with` は空側を即座に相手へ返し、実質そのパスだけを触る（アキュムレータが
+    /// どれだけ育っても 1 要素あたり O(深さ)）。チャンクが空間的に局所なので降下パスも近接する。
+    fn build_chunk_with_policy<R>(chunk: &[(FlexId, V)], resolve: &R) -> Self
+    where
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        let mut core = Self::new();
+        for (id, value) in chunk {
+            let mut single = Self::new();
+            single.insert(id.clone(), value.clone());
+            core = core.merge_with(&single, resolve);
+        }
+        core
+    }
+
+    /// 各セル `(FlexId, &V)` を `f` で 0 個以上の `(FlexId, V)` に写し、平坦に集める。
+    ///
+    /// per-cell 演算子（falloff / scale / downsample …）の展開段の共通土台。値はクローンせず参照で
+    /// 集め、`f` が出力ごとに必要分だけ複製する。`rayon` 有効時は写像を並列化する。
+    fn map_expand<F, I>(&self, f: F) -> Result<Vec<(FlexId, V)>, Error>
+    where
+        F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
+        I: IntoIterator<Item = (FlexId, V)>,
+    {
+        let snapshot: Vec<(FlexId, &V)> = self.iter_ref().collect();
+
+        #[cfg(feature = "rayon")]
+        {
+            use rayon::prelude::*;
+            let mapped = snapshot
+                .into_par_iter()
+                .map(|(id, v)| f(id, v).map(|it| it.into_iter().collect::<Vec<_>>()))
+                .collect::<Result<Vec<_>, Error>>()?;
+            Ok(mapped.into_iter().flatten().collect())
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            let mut out = Vec::new();
+            for (id, v) in snapshot {
+                out.extend(f(id, v)?);
+            }
+            Ok(out)
+        }
+    }
+
+    /// 各セルを `f` で写し、**union**（左優先）で組み直した木を返す。
+    ///
+    /// 「写像先が空間的に単射」な per-cell 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
+    /// 重なる場合の値は union に従う。
+    pub fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
+    where
+        F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
+        I: IntoIterator<Item = (FlexId, V)>,
+    {
+        let expanded = self.map_expand(f)?;
+        // 小入力では rayon（par_sort / par_chunks / reduce）起動コストが利得を上回るので逐次挿入で組む。
+        // insert は挿入順に依らず O(深さ) なのでソート不要。単発 shift 等の固定床を削る。
+        #[cfg(feature = "rayon")]
+        {
+            if expanded.len() >= parallel::MIN_PAR_CHUNK {
+                return Ok(Self::par_build_vec(expanded));
+            }
+        }
+        let mut core = Self::new();
+        for (id, value) in expanded {
+            core.insert(id, value);
+        }
+        Ok(core)
+    }
+
+    /// 各セルを `f` で写し、**写像先の重なりを `resolve` で合成**して組み直した木を返す。
+    ///
+    /// 「写像先が空間的に非単射」な per-cell 演算子（falloff / dilate / 拡大 / downsample …）の
+    /// 汎用 recombiner。`resolve` には `MergePolicy::resolve` 相当のクロージャを渡す（FlexTreeCore は
+    /// query 層の `MergePolicy` に依存しない）。合成は [`from_items_with_policy`](Self::from_items_with_policy)
+    /// の木マージに委ねられる。
+    pub fn map_rebuild_with<F, I, R>(&self, f: F, resolve: R) -> Result<Self, Error>
+    where
+        F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
+        I: IntoIterator<Item = (FlexId, V)>,
+        R: Fn(&V, &V) -> V + Sync,
+    {
+        let expanded = self.map_expand(f)?;
+        Ok(Self::from_items_with_policy(expanded, resolve))
     }
 
     pub fn intersection(&self, other: &Self) -> Self {
@@ -528,6 +704,38 @@ where
             (None, None) => None,
         }
     }
+}
+
+/// 空間ソートキーの1軸あたりビット数（F/X/Y の3軸で 3×20 = 60bit、u64 に収まる）。
+const SORT_KEY_BITS: u32 = 20;
+
+/// 軸のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
+/// 粗い（浅い）セルは上位ビット側に、細かいセルは下位ビットまで伸びる。
+#[inline]
+fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
+    let z = zoom as u32;
+    let a = if z <= bits {
+        index << (bits - z)
+    } else {
+        index >> (z - bits)
+    };
+    a & ((1u64 << bits) - 1)
+}
+
+/// [`FlexId`] の空間位置を単調なキーへ写す。F→X→Y の順にビットを詰め、木の降下順
+/// （レベル 0=F, 1=X, 2=Y, …）と整合する粗いクラスタリングを与える。厳密な木順ではなく
+/// 「空間的に近い ID を連続させる」ことが目的で、これによりチャンクが空間的に局所化し、
+/// チャンク木同士の [`union`](FlexTreeCore::union) / [`merge_with`](FlexTreeCore::merge_with) が
+/// 互いにほぼ素になって簡約が軽くなる。並列バルク構築と値解決構築の双方で使う。
+#[inline]
+pub(crate) fn spatial_sort_key(id: &FlexId) -> u64 {
+    const B: u32 = SORT_KEY_BITS;
+    // F は符号付き。木は最初に符号でルートを分けるため、符号ビットを最上位に置く。
+    let f_biased = (id.f_index() as i64 + (1i64 << 30)) as u64;
+    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B);
+    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B);
+    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B);
+    (fa << (2 * B)) | (xa << B) | ya
 }
 
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。

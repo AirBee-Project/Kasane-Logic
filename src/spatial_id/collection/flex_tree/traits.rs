@@ -1,9 +1,15 @@
 use crate::{
-    Error, FlexId, SpatialIdSet, SpatialIdTable, spatial_id::collection::query::execution::Query,
+    Error, FlexId, FlexTreeCore, SpatialIdSet, SpatialIdTable,
+    spatial_id::collection::query::execution::Query,
 };
 
 /// `SpatialIdSet`（値を持たない集合）の参照版走査で返す `&()` の実体。
 static UNIT: () = ();
+
+/// Table の入口/出口変換（`into_core`/`from_core`）で、これ未満なら rayon を使わず逐次で組む閾値。
+/// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
+#[cfg(feature = "rayon")]
+const SEQ_CONVERT_THRESHOLD: usize = 512;
 
 /// コレクションが格納する値型に共通して要求される性質。
 pub trait CellValue: Ord + Clone + Send + Sync {}
@@ -36,56 +42,16 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
 
     fn iter<'a>(&'a self) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a;
 
-    /// `(FlexId, Value)` 列からこのコレクションを構築する。
+    /// クエリ実行の**入口変換**: 所有権ごと実体値の [`FlexTreeCore`] へ写す。
     ///
-    /// FlexTree 実装はマルチコアを活かして並列に構築する（集合は
-    /// `FlexTreeCore::par_build_vec`）。
-    /// `map_rebuild` の再構築段はこのメソッドに委ねられる。
-    fn from_items(items: alloc::vec::Vec<(FlexId, Self::Value)>) -> Self;
+    /// 実行器は連鎖の入口で 1 回だけこれを呼び、以降の全演算子を `FlexTreeCore<Self::Value>` 上で
+    /// 回す。Table は rank ツリーを辞書で実体値へ展開する（演算子ごとの再 intern を無くすための境界）。
+    fn into_core(self) -> FlexTreeCore<Self::Value>;
 
-    /// 各格納要素 `(FlexId, &Value)` を関数 `f` で 0 個以上の `(FlexId, Value)` へ写し、
-    /// 写した全体からコレクションを再構築して返す。
+    /// クエリ実行の**出口変換**: 実体値の [`FlexTreeCore`] からコレクションを組む。
     ///
-    /// `shift` のような「全要素を独立に写して作り直す」単項演算の共通土台。各要素の写像は
-    /// 互いに独立なので、`rayon` 有効時は写像段（`f` の適用）と再構築段（`from_items`）の
-    /// 双方が並列化され、FlexTree のマルチコア実装を最大限に活かす。
-    ///
-    /// `f` はエラーを返しうる（範囲外シフト等）。1 要素でもエラーになれば全体を中断して返す。
-    ///
-    /// # 値の衝突
-    /// 写像先が重なる場合、再構築は `from_items` の合成規則に従う（集合は和、テーブルは
-    /// 後勝ち）。`shift` は平行移動で単射のため衝突しない。
-    fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
-    where
-        Self: Sized,
-        F: Fn(FlexId, &Self::Value) -> Result<I, Error> + Send + Sync,
-        I: IntoIterator<Item = (FlexId, Self::Value)>,
-    {
-        let snapshot: alloc::vec::Vec<(FlexId, Self::Value)> =
-            self.iter().map(|(id, v)| (id, v.clone())).collect();
-
-        #[cfg(feature = "rayon")]
-        let mapped: alloc::vec::Vec<(FlexId, Self::Value)> = {
-            use rayon::prelude::*;
-            snapshot
-                .into_par_iter()
-                .map(|(id, v)| f(id, &v).map(|it| it.into_iter().collect::<alloc::vec::Vec<_>>()))
-                .collect::<Result<alloc::vec::Vec<_>, Error>>()?
-                .into_iter()
-                .flatten()
-                .collect()
-        };
-        #[cfg(not(feature = "rayon"))]
-        let mapped: alloc::vec::Vec<(FlexId, Self::Value)> = {
-            let mut out = alloc::vec::Vec::new();
-            for (id, v) in snapshot {
-                out.extend(f(id, &v)?);
-            }
-            out
-        };
-
-        Ok(Self::from_items(mapped))
-    }
+    /// 実行器は連鎖の出口で 1 回だけ呼ぶ。Table は実体値を辞書へ intern し直す。
+    fn from_core(core: FlexTreeCore<Self::Value>) -> Self;
 
     /// [Query]を用いて空間IDの集合を処理します。
     /// 指定した空間IDの集合を直接操作するため、所有権を消費します。
@@ -144,18 +110,12 @@ impl SpatialIdCollection for SpatialIdSet {
         self.iter().map(|id| (id, &UNIT))
     }
 
-    fn from_items(items: alloc::vec::Vec<(FlexId, Self::Value)>) -> Self {
-        // 集合は FlexId のみを並列構築する（値は ()）。rayon 有効時は
-        // `FromParallelIterator`（内部で `par_build_vec`）が並列に組み立てる。
-        #[cfg(feature = "rayon")]
-        {
-            use rayon::prelude::*;
-            items.into_par_iter().map(|(id, _)| id).collect()
-        }
-        #[cfg(not(feature = "rayon"))]
-        {
-            items.into_iter().map(|(id, _)| id).collect()
-        }
+    fn into_core(self) -> FlexTreeCore<()> {
+        SpatialIdSet::into_core(self)
+    }
+
+    fn from_core(core: FlexTreeCore<()>) -> Self {
+        SpatialIdSet::from_core(core)
     }
 }
 
@@ -188,13 +148,47 @@ where
         self.iter()
     }
 
-    fn from_items(items: alloc::vec::Vec<(FlexId, Self::Value)>) -> Self {
-        // テーブルは値の辞書索引を持つため、現状は逐次挿入で構築する
-        // （値の重複排除を伴う並列構築は今後の課題）。
-        let mut table = SpatialIdTable::new();
-        for (id, value) in items {
-            table.insert(id, value);
+    fn into_core(self) -> FlexTreeCore<V> {
+        // rank ツリーを辞書で実体値へ展開。Table のセルは互いに素なので union（par_build_vec）で正しい。
+        let items: alloc::vec::Vec<(FlexId, V)> = self.into_iter().collect();
+        // 小入力では rayon 起動コストが利得を上回るので逐次挿入で組む（単発クエリの入口変換の固定費を削る）。
+        #[cfg(feature = "rayon")]
+        {
+            if items.len() < SEQ_CONVERT_THRESHOLD {
+                let mut core = FlexTreeCore::new();
+                for (id, value) in items {
+                    core.insert(id, value);
+                }
+                core
+            } else {
+                FlexTreeCore::par_build_vec(items)
+            }
         }
-        table
+        #[cfg(not(feature = "rayon"))]
+        {
+            let mut core = FlexTreeCore::new();
+            for (id, value) in items {
+                core.insert(id, value);
+            }
+            core
+        }
+    }
+
+    fn from_core(core: FlexTreeCore<V>) -> Self {
+        // 実体値の互いに素なセルを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
+        let cells: alloc::vec::Vec<(FlexId, V)> = core.into_iter().collect();
+        #[cfg(feature = "rayon")]
+        {
+            use rayon::iter::FromParallelIterator;
+            if cells.len() < SEQ_CONVERT_THRESHOLD {
+                cells.into_iter().collect()
+            } else {
+                SpatialIdTable::from_par_iter(cells)
+            }
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            cells.into_iter().collect()
+        }
     }
 }

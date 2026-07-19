@@ -15,41 +15,12 @@ use rayon::prelude::*;
 
 use super::FlexTreeCore;
 use super::ptr::SafeValue;
+use super::spatial_sort_key;
 use crate::FlexId;
 
 /// 1 チャンクの最小サイズ。これ未満に刻むと union 簡約の回数がかさんで逆効果になる。
-const MIN_PAR_CHUNK: usize = 512;
-
-/// 空間ソートキーの1軸あたりビット数（F/X/Y の3軸で 3×20 = 60bit、u64 に収まる）。
-const SORT_KEY_BITS: u32 = 20;
-
-/// 軸のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
-/// 粗い（浅い）セルは上位ビット側に、細かいセルは下位ビットまで伸びる。
-#[inline]
-fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
-    let z = zoom as u32;
-    let a = if z <= bits {
-        index << (bits - z)
-    } else {
-        index >> (z - bits)
-    };
-    a & ((1u64 << bits) - 1)
-}
-
-/// [`FlexId`] の空間位置を単調なキーへ写す。F→X→Y の順にビットを詰め、木の降下順
-/// （レベル 0=F, 1=X, 2=Y, …）と整合する粗いクラスタリングを与える。厳密な木順ではなく
-/// 「空間的に近い ID を連続させる」ことが目的で、これによりチャンクが空間的に局所化し、
-/// チャンク木同士の [`union`] が互いにほぼ素になって簡約が軽くなる。
-#[inline]
-fn spatial_sort_key(id: &FlexId) -> u64 {
-    const B: u32 = SORT_KEY_BITS;
-    // F は符号付き。木は最初に符号でルートを分けるため、符号ビットを最上位に置く。
-    let f_biased = (id.f_index() as i64 + (1i64 << 30)) as u64;
-    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B);
-    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B);
-    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B);
-    (fa << (2 * B)) | (xa << B) | ya
-}
+/// [`from_items_with_policy`](FlexTreeCore::from_items_with_policy) のチャンク分割でも使う。
+pub(crate) const MIN_PAR_CHUNK: usize = 512;
 
 impl<V> FlexTreeCore<V>
 where
