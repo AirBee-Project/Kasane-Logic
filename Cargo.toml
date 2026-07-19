@@ -159,6 +159,11 @@ name = "query_unary_ops"
 path = "benches/query/unary_ops.rs"
 harness = false
 
+[[bench]]
+name = "query_workflow_bldg_risk"
+path = "benches/query/workflow_bldg_risk.rs"
+harness = false
+
 [[example]]
 name = "table_json"
 required-features = ["json"]

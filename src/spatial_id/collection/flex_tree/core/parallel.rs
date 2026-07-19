@@ -30,28 +30,34 @@ where
     ///
     /// 手順は次の3段でいずれも並列化される:
     /// 1. 空間ソートキーで並べ替え、空間的に近い ID を連続させる（`par_sort`）。
-    /// 2. 連続チャンクごとに部分木を構築する（各チャンクは空間的に局所）。
+    ///    空間ソートキーをキャッシュすることで再計算を防ぐ。
+    /// 2. 連続チャンクごとに部分木を構築する（各チャンクは空間的に局）。
     /// 3. 部分木を `union` のツリー簡約で畳み込む。局所化により隣接チャンクはほぼ素で、
     ///    union は分岐の浅い段で枝刈りされて軽い。
     ///
     /// 入力規模がスレッド数に対して小さい場合はチャンクが 1 個に畳まれ、実質逐次で動く。
-    pub fn par_build_vec(mut items: Vec<(FlexId, V)>) -> Self {
+    pub fn par_build_vec(items: Vec<(FlexId, V)>) -> Self {
         if items.is_empty() {
             return Self::new();
         }
 
-        // 空間局所化。union 簡約のコストを大きく左右する。
-        items.par_sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+        // 空間ソートキーのキャッシュ
+        let mut keyed_items: Vec<(u64, (FlexId, V))> = items
+            .into_iter()
+            .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
+            .collect();
+
+        keyed_items.par_sort_unstable_by_key(|(key, _)| *key);
 
         let threads = rayon::current_num_threads().max(1);
         // 1 スレッドあたり数チャンクに割って負荷を均しつつ、下限で刻み過ぎを防ぐ。
-        let chunk_size = (items.len() / (threads * 4)).max(MIN_PAR_CHUNK);
+        let chunk_size = (keyed_items.len() / (threads * 4)).max(MIN_PAR_CHUNK);
 
-        items
+        keyed_items
             .par_chunks(chunk_size)
             .map(|chunk| {
                 let mut core = Self::new();
-                for (id, value) in chunk {
+                for (_, (id, value)) in chunk {
                     core.insert(id.clone(), value.clone());
                 }
                 core
@@ -60,7 +66,7 @@ where
     }
 
     /// ポリシー付きの in-place 挿入を利用して、配列から並列に木を構築する。
-    pub fn par_build_vec_with<R>(mut items: Vec<(FlexId, V)>, resolve: R) -> Self
+    pub fn par_build_vec_with<R>(items: Vec<(FlexId, V)>, resolve: R) -> Self
     where
         R: Fn(&V, &V) -> V + Sync,
     {
@@ -72,16 +78,22 @@ where
         {
             use rayon::prelude::*;
 
-            items.par_sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+            // 空間ソートキーのキャッシュ
+            let mut keyed_items: Vec<(u64, (FlexId, V))> = items
+                .into_iter()
+                .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
+                .collect();
+
+            keyed_items.par_sort_unstable_by_key(|(key, _)| *key);
 
             let threads = rayon::current_num_threads().max(1);
-            let chunk_size = (items.len() / (threads * 4)).max(MIN_PAR_CHUNK);
+            let chunk_size = (keyed_items.len() / (threads * 4)).max(MIN_PAR_CHUNK);
 
-            items
+            keyed_items
                 .par_chunks(chunk_size)
                 .map(|chunk| {
                     let mut core = Self::new();
-                    for (id, value) in chunk {
+                    for (_, (id, value)) in chunk {
                         core.insert_with(id.clone(), value.clone(), &resolve);
                     }
                     core
@@ -90,9 +102,13 @@ where
         }
         #[cfg(not(feature = "rayon"))]
         {
-            items.sort_unstable_by_key(|(id, _)| spatial_sort_key(id));
+            let mut keyed_items: Vec<(u64, (FlexId, V))> = items
+                .into_iter()
+                .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
+                .collect();
+            keyed_items.sort_unstable_by_key(|(key, _)| *key);
             let mut core = Self::new();
-            for (id, value) in items {
+            for (_, (id, value)) in keyed_items {
                 core.insert_with(id, value, &resolve);
             }
             core

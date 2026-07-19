@@ -172,48 +172,65 @@ where
         }
     }
 
-    /// `(FlexId, V)` 列から、重なるセルを `resolve` で合成しつつ木を構築する。
-    ///
-    /// [`par_build_vec`](Self::par_build_vec) が重なりを左優先（union）で潰すのに対し、こちらは
-    /// 値ポリシー（例: 加算・最大）で合成する。falloff のように「1 セルが近傍へ値を撒いて互いに
-    /// 重なる」出力を、逐次 remove/difference/insert（旧 `insert_with_policy`）ではなく
-    /// 各セル `(FlexId, &V)` を `f` で 0 個以上の `(FlexId, V)` に写し、平坦に集める。
-    ///
-    /// per-cell 演算子（falloff / scale / downsample …）の展開段の共通土台。値はクローンせず参照で
-    /// 集め、`f` が出力ごとに必要分だけ複製する。`rayon` 有効時は写像を並列化する。
     fn map_expand<F, I>(&self, f: F) -> Result<Vec<(FlexId, V)>, Error>
     where
         F: Fn(FlexId, &V) -> Result<I, Error> + Send + Sync,
         I: IntoIterator<Item = (FlexId, V)> + Send,
     {
-        let snapshot: Vec<(FlexId, &V)> = self.iter_ref().collect();
+        let total_leaves = self.lower_root.leaf_count() + self.upper_root.leaf_count();
+        if total_leaves == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Collect into flat snapshot via iterative DFS (very cheap)
+        let mut snapshot = Vec::with_capacity(total_leaves);
+        let mut stack = self.root_node_stack();
+        while let Some((node, current_id)) = stack.pop() {
+            match node {
+                Node::Branch {
+                    level,
+                    lower_child,
+                    upper_child,
+                    ..
+                } => {
+                    let axis = Node::<V>::axis(*level);
+                    let lower_id = split_child_id(&current_id, axis, Side::Lower);
+                    let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                    stack.push((upper_child.as_ref(), upper_id));
+                    stack.push((lower_child.as_ref(), lower_id));
+                }
+                Node::Leaf { value: Some(v) } => {
+                    snapshot.push((current_id, v));
+                }
+                Node::Leaf { value: None } => {}
+            }
+        }
 
         #[cfg(feature = "rayon")]
         {
+            // If the size is small, run sequentially to avoid Rayon task scheduling overhead.
+            if snapshot.len() < 512 {
+                let mut out = Vec::with_capacity(snapshot.len());
+                for (id, v) in snapshot {
+                    out.extend(f(id, v)?);
+                }
+                return Ok(out);
+            }
+
             use rayon::prelude::*;
-            let mapped = snapshot
+            let mapped: Result<Vec<(FlexId, V)>, Error> = snapshot
                 .into_par_iter()
-                .map(|(id, v)| f(id, v))
-                .try_fold(Vec::new, |mut acc, res| {
-                    acc.extend(res?);
-                    Ok::<_, Error>(acc)
+                .flat_map_iter(|(id, v)| match f(id, v) {
+                    Ok(iter) => iter.into_iter().map(Ok).collect::<Vec<_>>(),
+                    Err(e) => vec![Err(e)],
                 })
-                .try_reduce(Vec::new, |mut a, b| {
-                    if a.len() < b.len() {
-                        let mut tmp = b;
-                        tmp.extend(a);
-                        Ok::<_, Error>(tmp)
-                    } else {
-                        a.extend(b);
-                        Ok::<_, Error>(a)
-                    }
-                })?;
-            Ok(mapped)
+                .collect();
+            mapped
         }
         #[cfg(not(feature = "rayon"))]
         {
-            let mut out = Vec::new();
-            for (id, v) in self.iter_ref() {
+            let mut out = Vec::with_capacity(snapshot.len());
+            for (id, v) in snapshot {
                 out.extend(f(id, v)?);
             }
             Ok(out)
@@ -258,7 +275,17 @@ where
         R: Fn(&V, &V) -> V + Sync,
     {
         let expanded = self.map_expand(f)?;
-        Ok(Self::par_build_vec_with(expanded, resolve))
+        #[cfg(feature = "rayon")]
+        {
+            if expanded.len() >= parallel::MIN_PAR_CHUNK {
+                return Ok(Self::par_build_vec_with(expanded, resolve));
+            }
+        }
+        let mut core = Self::new();
+        for (id, value) in expanded {
+            core.insert_with(id, value, &resolve);
+        }
+        Ok(core)
     }
 
     pub fn intersection(&self, other: &Self) -> Self {

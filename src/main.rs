@@ -18,13 +18,12 @@ fn main() {
 
     let risk = bldg_risk
         .query()
-        .falloff_linear_x(24, 5, Max)
-        .falloff_linear_y(24, 5, Max)
-        .falloff_linear_f(24, 15, Max)
+        .falloff_linear_x(25, 10, Max)
+        .falloff_linear_y(25, 10, Max)
         .run()
         .unwrap();
 
-    let json_string = serde_json::to_string(&risk).unwrap();
+    let json_string = serde_json::to_string_pretty(&risk).unwrap();
 
     fs::write("output.json", json_string).unwrap();
 }
