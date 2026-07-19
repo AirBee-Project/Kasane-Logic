@@ -6,7 +6,7 @@ use crate::{
 /// `SpatialIdSet`（値を持たない集合）の参照版走査で返す `&()` の実体。
 static UNIT: () = ();
 
-/// Table の入口/出口変換（`into_core`/`from_core`）で、これ未満なら rayon を使わず逐次で組む閾値。
+/// Table の入口/出口変換（`try_into_core`/`try_from_core`）で、これ未満なら rayon を使わず逐次で組む閾値。
 /// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
 #[cfg(feature = "rayon")]
 const SEQ_CONVERT_THRESHOLD: usize = 512;
@@ -52,12 +52,13 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     ///
     /// 実行器は連鎖の入口で 1 回だけこれを呼び、以降の全演算子を `FlexTreeCore<Self::Value>` 上で
     /// 回す。Table は rank ツリーを辞書で実体値へ展開する（演算子ごとの再 intern を無くすための境界）。
-    fn into_core(self) -> FlexTreeCore<Self::Value>;
+    /// 他の `try_*` と同じく `Result` で包む（ディスク実装等、失敗しうる変換を将来許容するため）。
+    fn try_into_core(self) -> Result<FlexTreeCore<Self::Value>, Error>;
 
     /// クエリ実行の**出口変換**: 実体値の [`FlexTreeCore`] からコレクションを組む。
     ///
     /// 実行器は連鎖の出口で 1 回だけ呼ぶ。Table は実体値を辞書へ intern し直す。
-    fn from_core(core: FlexTreeCore<Self::Value>) -> Self;
+    fn try_from_core(core: FlexTreeCore<Self::Value>) -> Result<Self, Error>;
 
     /// [Query]を用いて空間IDの集合を処理します。
     /// 指定した空間IDの集合を直接操作するため、所有権を消費します。
@@ -93,12 +94,12 @@ impl SpatialIdCollection for SpatialIdSet {
         self.iter().map(|id| (id, &UNIT))
     }
 
-    fn into_core(self) -> FlexTreeCore<()> {
-        SpatialIdSet::into_core(self)
+    fn try_into_core(self) -> Result<FlexTreeCore<()>, Error> {
+        Ok(SpatialIdSet::into_core(self))
     }
 
-    fn from_core(core: FlexTreeCore<()>) -> Self {
-        SpatialIdSet::from_core(core)
+    fn try_from_core(core: FlexTreeCore<()>) -> Result<Self, Error> {
+        Ok(SpatialIdSet::from_core(core))
     }
 }
 
@@ -131,7 +132,7 @@ where
         self.iter()
     }
 
-    fn into_core(self) -> FlexTreeCore<V> {
+    fn try_into_core(self) -> Result<FlexTreeCore<V>, Error> {
         // rank ツリーを辞書で実体値へ展開。Table のセルは互いに素なので union（par_build_vec）で正しい。
         #[cfg(feature = "rayon")]
         {
@@ -142,9 +143,9 @@ where
                 for (id, value) in items {
                     core.insert(id, value);
                 }
-                core
+                Ok(core)
             } else {
-                FlexTreeCore::par_build_vec(items)
+                Ok(FlexTreeCore::par_build_vec(items))
             }
         }
         #[cfg(not(feature = "rayon"))]
@@ -153,25 +154,25 @@ where
             for (id, value) in self {
                 core.insert(id, value);
             }
-            core
+            Ok(core)
         }
     }
 
-    fn from_core(core: FlexTreeCore<V>) -> Self {
+    fn try_from_core(core: FlexTreeCore<V>) -> Result<Self, Error> {
         // 実体値の互いに素なセルを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
         #[cfg(feature = "rayon")]
         {
             let cells: alloc::vec::Vec<(FlexId, V)> = core.into_iter().collect();
             use rayon::iter::FromParallelIterator;
             if cells.len() < SEQ_CONVERT_THRESHOLD {
-                cells.into_iter().collect()
+                Ok(cells.into_iter().collect())
             } else {
-                SpatialIdTable::from_par_iter(cells)
+                Ok(SpatialIdTable::from_par_iter(cells))
             }
         }
         #[cfg(not(feature = "rayon"))]
         {
-            core.into_iter().collect()
+            Ok(core.into_iter().collect())
         }
     }
 }

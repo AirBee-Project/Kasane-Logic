@@ -24,17 +24,18 @@ where
 {
     /// 最適化して[Query]を実行する。
     ///
-    /// 連鎖の**入口で 1 回** [`into_core`](SpatialIdCollection::into_core) し、全演算子を作業木
-    /// `FlexTreeCore<S::Value>` 上で回し、**出口で 1 回** [`from_core`](SpatialIdCollection::from_core)
-    /// する。演算子ごとの再構築・（Table の）rank 再 intern を撤廃する。
+    /// 連鎖の**入口で 1 回** [`try_into_core`](SpatialIdCollection::try_into_core) し、全演算子を
+    /// 作業木 `FlexTreeCore<S::Value>` 上で回し、**出口で 1 回**
+    /// [`try_from_core`](SpatialIdCollection::try_from_core) する。演算子ごとの再構築・（Table の）
+    /// rank 再 intern を撤廃する。
     pub fn run(self) -> Result<S, Error> {
-        Ok(S::from_core(self.run_core()?))
+        S::try_from_core(self.run_core()?)
     }
 
     /// 作業木を返す内部実行。連鎖の中間表現は `FlexTreeCore<S::Value>` のまま保たれる。
     fn run_core(self) -> Result<FlexTreeCore<S::Value>, Error> {
         match self {
-            Query::Source(collection) => Ok(collection.into_core()),
+            Query::Source(collection) => collection.try_into_core(),
             Query::Unary(op, input) => {
                 let mut core = input.run_core()?;
                 op.run(&mut core).unwrap();
