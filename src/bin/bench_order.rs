@@ -1,7 +1,7 @@
 use std::fs;
 use std::time::Instant;
 
-use kasane_logic::spatial_id::collection::query::merge_policy::{Average, Max};
+use kasane_logic::spatial_id::collection::query::merge_policy::Max;
 use kasane_logic::{SpatialIdCollection, SpatialIdTable};
 
 fn main() {
@@ -9,11 +9,13 @@ fn main() {
         serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
     println!("Loaded bldg_risk.json");
 
+    println!("{}", bldg_risk.count());
+
     let base_query = || {
         bldg_risk
             .clone()
             .query()
-            .zoom_out(22, Average)
+            // .zoom_out(22, Average)
             .extrude_f(25, 0, 5, Max)
     };
 

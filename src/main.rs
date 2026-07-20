@@ -9,7 +9,7 @@ use alloc::rc::Rc;
 use alloc::string::{String, ToString};
 #[allow(unused_imports)]
 use alloc::vec::Vec;
-use kasane_logic::spatial_id::collection::query::merge_policy::{Average, Max};
+use kasane_logic::spatial_id::collection::query::merge_policy::Max;
 use kasane_logic::{SpatialIdCollection, SpatialIdTable};
 
 fn main() {
@@ -18,16 +18,12 @@ fn main() {
 
     let risk = bldg_risk
         .query()
-        .zoom_out(22, Average)
-        .extrude_f(25, 0, 50, Max)
-        .falloff_linear_x(25, 10, Max)
-        .falloff_linear_y(25, 10, Max)
-        .falloff_linear_f(25, 5, Max)
-        .fill_empty(0)
+        .falloff_linear_x(24, 5, Max)
+        .falloff_linear_y(24, 5, Max)
         .raw_run()
         .unwrap();
 
-    let json_string = serde_json::to_string_pretty(&risk).unwrap();
+    let json_string = serde_json::to_string(&risk).unwrap();
 
     fs::write("output.json", json_string).unwrap();
 }

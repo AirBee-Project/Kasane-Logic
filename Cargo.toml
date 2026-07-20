@@ -176,6 +176,11 @@ path = "benches/query/ops/unary/zoom_out.rs"
 harness = false
 
 [[bench]]
+name = "query_ops_unary_extrude"
+path = "benches/query/ops/unary/extrude.rs"
+harness = false
+
+[[bench]]
 name = "query_workflow_bldg_risk"
 path = "benches/query/workflow/bldg_risk.rs"
 harness = false

@@ -82,9 +82,8 @@ where
         &self,
         _other: &dyn UnaryOperator<W>,
     ) -> Option<alloc::boxed::Box<dyn UnaryOperator<W>>> {
-        // マージ（Fxy化）による次元の呪い（Cullingの遅延）を防ぐため、
-        // 意図的にマージを無効化し、各軸ごとに逐次適用・合成させる。
-        // MergeAccumulatorのTrait実装自体は構造的に残している。
+        // マージ（Fxy化）による次元の呪い（Cullingの遅延および3D直方体計算量の爆増）を防ぐため、
+        // 意図的にマージを無効化し、各軸ごとに1D分離適用・合成させる。
         None
     }
 
