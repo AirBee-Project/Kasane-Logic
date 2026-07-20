@@ -1,13 +1,13 @@
 use alloc::boxed::Box;
 
 use crate::{
-    Error, FlexTreeCore, ZoomLevel, spatial_id::collection::flex_tree::core::SafeValue,
-    spatial_id::collection::query::traits::UnaryOperator,
+    Error, ZoomLevel,
+    spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
 };
 
 /// 作業木全体を南北（Y）方向へ、ズームレベル `z` のセル `y` 個分だけ平行移動する単項演算。
 ///
-/// Y-shift は空間的に単射なので union で組み直す（[`FlexTreeCore::map_rebuild`]）。Y は巡回せず、
+/// Y-shift は空間的に単射なので union で組み直す（[`WorkingTree::map_rebuild`]）。Y は巡回せず、
 /// 移動後が範囲外になる場合は [`Error`] を返す。
 pub struct ShiftY {
     z: ZoomLevel,
@@ -22,11 +22,8 @@ impl ShiftY {
     }
 }
 
-impl<V: SafeValue> UnaryOperator<V> for ShiftY {
-    fn run(
-        &self,
-        target: &mut FlexTreeCore<V>,
-    ) -> Result<(), Box<dyn core::error::Error + 'static>> {
+impl<W: WorkingTree> UnaryOperator<W> for ShiftY {
+    fn run(&self, target: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
         let z = self.z.get();
         let index = self.y;
         if index == 0 {

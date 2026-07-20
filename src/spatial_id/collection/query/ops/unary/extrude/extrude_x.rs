@@ -1,7 +1,10 @@
 use crate::{
-    FlexId, FlexTreeCore,
+    FlexId,
     spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
+        collection::query::{
+            merge_policy::MergePolicy,
+            traits::{UnaryOperator, WorkingTree},
+        },
         zoom_level::ZoomLevel,
     },
 };
@@ -29,13 +32,13 @@ impl<P> ExtrudeX<P> {
     }
 }
 
-impl<V, P> UnaryOperator<V> for ExtrudeX<P>
+impl<W, P> UnaryOperator<W> for ExtrudeX<P>
 where
-    V: crate::spatial_id::collection::flex_tree::core::SafeValue,
-    P: MergePolicy<V>,
+    W: WorkingTree,
+    P: MergePolicy<W::Value>,
 {
-    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Box<dyn core::error::Error + 'static>> {
-        let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(core.count());
+    fn run(&self, core: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+        let mut extruded: Vec<(FlexId, W::Value)> = Vec::with_capacity(core.count());
 
         // 元のツリーから全セルを取り出し、それぞれを引き延ばす
         for (id, v) in core.iter_ref() {
@@ -63,18 +66,7 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        #[cfg(feature = "rayon")]
-        {
-            *core = FlexTreeCore::par_build_vec(new_items);
-        }
-        #[cfg(not(feature = "rayon"))]
-        {
-            let mut new_core = FlexTreeCore::new();
-            for (id, val) in new_items {
-                new_core.insert(id, val);
-            }
-            *core = new_core;
-        }
+        *core = W::from_items(new_items);
 
         Ok(())
     }

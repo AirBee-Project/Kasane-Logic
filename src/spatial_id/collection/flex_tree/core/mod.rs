@@ -285,6 +285,22 @@ where
         }
     }
 
+    /// `(FlexId, V)` 列からツリーを構築する。件数に応じて逐次/並列を自動選択する
+    /// （`map_rebuild` の再構築段と同じ閾値 `parallel::MIN_PAR_CHUNK`）。union（左優先）で組む。
+    pub fn from_items(items: Vec<(FlexId, V)>) -> Self {
+        #[cfg(feature = "rayon")]
+        {
+            if items.len() >= parallel::MIN_PAR_CHUNK {
+                return Self::par_build_vec(items);
+            }
+        }
+        let mut core = Self::new();
+        for (id, value) in items {
+            core.insert(id, value);
+        }
+        core
+    }
+
     /// 各セルを `f` で写し、**union**（左優先）で組み直した木を返す。
     ///
     /// 「写像先が空間的に単射」な per-cell 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
@@ -294,20 +310,9 @@ where
         F: Fn(FlexId, &V) -> Result<I, Error> + MaybeSendSync,
         I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
     {
-        let expanded = self.map_expand(f)?;
         // 小入力では rayon（par_sort / par_chunks / reduce）起動コストが利得を上回るので逐次挿入で組む。
-        // insert は挿入順に依らず O(深さ) なのでソート不要。単発 shift 等の固定床を削る。
-        #[cfg(feature = "rayon")]
-        {
-            if expanded.len() >= parallel::MIN_PAR_CHUNK {
-                return Ok(Self::par_build_vec(expanded));
-            }
-        }
-        let mut core = Self::new();
-        for (id, value) in expanded {
-            core.insert(id, value);
-        }
-        Ok(core)
+        // insert は挿入順に依らず O(深さ) なのでソート不要。単発 shift 等の固定床を削る（[`from_items`](Self::from_items)へ委譲）。
+        Ok(Self::from_items(self.map_expand(f)?))
     }
 
     /// 各セルを `f` で写し、**写像先の重なりを `resolve` で合成**して組み直した木を返す。

@@ -1,5 +1,5 @@
 use super::traits::{BinaryOperator, UnaryOperator};
-use crate::{Error, FlexTreeCore, SpatialIdCollection};
+use crate::{Error, SpatialIdCollection};
 use alloc::boxed::Box;
 
 /// 式全体を表現する型
@@ -7,10 +7,10 @@ pub enum Query<S: SpatialIdCollection> {
     /// 演算の起点となるデータ
     Source(S),
     /// 単項演算
-    Unary(Box<dyn UnaryOperator<S::Value>>, Box<Query<S>>),
+    Unary(Box<dyn UnaryOperator<S::Working>>, Box<Query<S>>),
     // 二項演算
     Binary(
-        Box<dyn BinaryOperator<S::Value>>,
+        Box<dyn BinaryOperator<S::Working>>,
         Box<Query<S>>,
         Box<Query<S>>,
     ),
@@ -24,18 +24,18 @@ where
 {
     /// 最適化して[Query]を実行する。
     ///
-    /// 連鎖の**入口で 1 回** [`try_into_core`](SpatialIdCollection::try_into_core) し、全演算子を
-    /// 作業木 `FlexTreeCore<S::Value>` 上で回し、**出口で 1 回**
-    /// [`try_from_core`](SpatialIdCollection::try_from_core) する。演算子ごとの再構築・（Table の）
+    /// 連鎖の**入口で 1 回** [`try_into_working`](SpatialIdCollection::try_into_working) し、全演算子を
+    /// 作業表現 `S::Working` 上で回し、**出口で 1 回**
+    /// [`try_from_working`](SpatialIdCollection::try_from_working) する。演算子ごとの再構築・（Table の）
     /// rank 再 intern を撤廃する。
     pub fn run(self) -> Result<S, Error> {
-        S::try_from_core(self.run_core()?)
+        S::try_from_working(self.run_core()?)
     }
 
-    /// 作業木を返す内部実行。連鎖の中間表現は `FlexTreeCore<S::Value>` のまま保たれる。
-    fn run_core(self) -> Result<FlexTreeCore<S::Value>, Error> {
+    /// 作業表現を返す内部実行。連鎖の中間表現は `S::Working` のまま保たれる。
+    fn run_core(self) -> Result<S::Working, Error> {
         match self {
-            Query::Source(collection) => collection.try_into_core(),
+            Query::Source(collection) => collection.try_into_working(),
             Query::Unary(op, input) => {
                 let mut core = input.run_core()?;
                 op.run(&mut core).unwrap();

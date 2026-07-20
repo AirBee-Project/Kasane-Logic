@@ -1,7 +1,10 @@
 use crate::{
-    FlexId, FlexTreeCore,
+    FlexId,
     spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
+        collection::query::{
+            merge_policy::MergePolicy,
+            traits::{UnaryOperator, WorkingTree},
+        },
         zoom_level::ZoomLevel,
     },
 };
@@ -27,13 +30,14 @@ impl<V, P> ZoomOut<V, P> {
     }
 }
 
-impl<V, P> UnaryOperator<V> for ZoomOut<V, P>
+impl<W, P> UnaryOperator<W> for ZoomOut<W::Value, P>
 where
-    V: crate::spatial_id::collection::flex_tree::core::SafeValue,
-    P: MergePolicy<V>,
+    W: WorkingTree,
+    P: MergePolicy<W::Value>,
 {
-    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Box<dyn core::error::Error + 'static>> {
-        let mut leaves: Vec<(FlexId, V)> = core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
+    fn run(&self, core: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+        let mut leaves: Vec<(FlexId, W::Value)> =
+            core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
 
         // 親IDを基準にソートして、同じ親に属する子ボクセルを連続させる
         #[cfg(feature = "rayon")]
@@ -69,18 +73,7 @@ where
 
         // 重複のない (ParentId, V) のリストからツリーを再構築
         // （すでに一意になっているため、マージ競合は発生しない）
-        #[cfg(feature = "rayon")]
-        {
-            *core = FlexTreeCore::par_build_vec(new_items);
-        }
-        #[cfg(not(feature = "rayon"))]
-        {
-            let mut new_core = FlexTreeCore::new();
-            for (id, val) in new_items {
-                new_core.insert(id, val);
-            }
-            *core = new_core;
-        }
+        *core = W::from_items(new_items);
 
         Ok(())
     }
