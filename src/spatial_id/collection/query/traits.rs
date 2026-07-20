@@ -1,16 +1,12 @@
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSend, MaybeSendSync, MaybeSync};
-use crate::{Error, FlexId, FlexTreeCore};
+use crate::{Error, FlexId, FlexTreeCore, RangeId};
 use alloc::vec::Vec;
 
 /// クエリ実行器・演算子が触れる「作業表現」の境界。演算子が実際に呼ぶメソッドだけを持つ
 /// （`map_rebuild`/`map_rebuild_with` = per-cell 写像の recombiner、`from_items` = 展開結果からの
 /// 再構築、`iter_ref`/`count` = 走査）。具象型 [`FlexTreeCore`] を `SpatialIdCollection` の公開
 /// シグネチャへ露出させないための境界で、`SpatialIdCollection::Working` はこれを実装する。
-///
-/// 現状は [`FlexTreeCore`] のみが実装する。`merge_with`/`union`/`intersection`/`difference` は
-/// 現時点でどの演算子からも呼ばれていないため含めない（今後 `BinaryOperator` の実装を追加する
-/// たびに、実際に使うものだけを合わせて追加する）。
 pub trait WorkingTree: Sized + MaybeSendSync {
     type Value: SafeValue;
 
@@ -20,8 +16,14 @@ pub trait WorkingTree: Sized + MaybeSendSync {
     /// 全セルを参照で走査する。
     fn iter_ref(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
 
+    /// このツリーに含まれる全セルを包む最小の [`RangeId`] を返す。空の場合は [`None`]。
+    fn bounding_box(&self) -> Option<RangeId>;
+
     /// `(FlexId, Value)` 列からツリーを構築する（重なりは union・左優先）。
     fn from_items(items: Vec<(FlexId, Self::Value)>) -> Self;
+
+    /// 自分自身をベースとし、`other` のセルで上書き重ね合わせを行った新しいツリーを返す。
+    fn overlay(&self, other: &Self) -> Self;
 
     /// 各セルを `f` で写し、union（左優先）で組み直す。写像先が空間的に単射な演算子向け。
     fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
@@ -55,8 +57,16 @@ impl<V: SafeValue> WorkingTree for FlexTreeCore<V> {
         FlexTreeCore::iter_ref(self)
     }
 
+    fn bounding_box(&self) -> Option<RangeId> {
+        FlexTreeCore::bounding_box(self)
+    }
+
     fn from_items(items: Vec<(FlexId, V)>) -> Self {
         FlexTreeCore::from_items(items)
+    }
+
+    fn overlay(&self, other: &Self) -> Self {
+        self.merge_with(other, |_base, top| top.clone())
     }
 
     fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
