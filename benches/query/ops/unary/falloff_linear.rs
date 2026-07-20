@@ -38,7 +38,7 @@ fn bench_falloff_x(c: &mut Criterion) {
     bench_scaling(c, "UnaryOps/falloff_linear_x", &[1, 10, 50, 100], |t| {
         t.query()
             .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
-            .run()
+            .raw_run()
             .unwrap()
     });
 }
@@ -49,7 +49,7 @@ fn bench_falloff_x_y_chained(c: &mut Criterion) {
         t.query()
             .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
             .falloff_linear_y(OP_ZOOM, FALLOFF_RADIUS, Max)
-            .run()
+            .raw_run()
             .unwrap()
     });
 }

@@ -1,3 +1,4 @@
+use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSend, MaybeSendSync, MaybeSync};
 use crate::{Error, FlexId, FlexTreeCore, RangeId};
@@ -99,6 +100,11 @@ impl<V: SafeValue> WorkingTree for FlexTreeCore<V> {
 /// 実行器は連鎖の入口で 1 回だけコレクションを `S::Working` へ変換し、以降の演算子はすべて
 /// これに対して動く。
 pub trait BinaryOperator<W: WorkingTree>: MaybeSendSync {
+    /// 実行前の事前検証（パラメータ検証など）。デフォルトは何もしない（`Ok(())`）。
+    fn validate(&self) -> Result<(), Error> {
+        Ok(())
+    }
+
     /// 作業木 `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
     fn run(&self, target_a: &mut W, target_b: &W) -> Result<(), Error>;
 }
@@ -108,7 +114,16 @@ pub trait BinaryOperator<W: WorkingTree>: MaybeSendSync {
 /// 演算子は「各セルの値の反映先を決める写像」であり、反映先が単射なら union（[`WorkingTree::map_rebuild`]）、
 /// 非単射なら値解決付き（[`WorkingTree::map_rebuild_with`]）で組み直す。パラメーターは各演算子の
 /// 構造体フィールドが保持する。
-pub trait UnaryOperator<W: WorkingTree>: MaybeSendSync {
+pub trait UnaryOperator<W: WorkingTree>: MaybeSendSync + core::any::Any {
+    /// 実行前の事前検証（パラメータ検証など）。
+    fn validate(&self) -> Result<(), Error>;
+
     /// 作業木 `target` をインプレースで単項演算した結果へ更新する。
     fn run(&self, target: &mut W) -> Result<(), Error>;
+
+    /// この演算子の可換性情報を返す。
+    fn commutativity_info(&self) -> CommutativityInfo;
+
+    /// ダウンキャスト用
+    fn as_any(&self) -> &dyn core::any::Any;
 }

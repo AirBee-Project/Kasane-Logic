@@ -1,3 +1,6 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::{
+    CommutativityInfo, OperatorClass, PolicyCommutativity,
+};
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -36,6 +39,14 @@ where
     W: WorkingTree,
     P: MergePolicy<W::Value>,
 {
+    fn validate(&self) -> Result<(), Error> {
+        let z = self.target_z.get();
+        let zl = ZoomLevel::new(z)?;
+        zl.check_f(self.start_f)?;
+        zl.check_f(self.end_f)?;
+        Ok(())
+    }
+
     fn run(&self, core: &mut W) -> Result<(), Error> {
         let mut extruded: Vec<(FlexId, W::Value)> = Vec::with_capacity(core.count());
 
@@ -68,5 +79,20 @@ where
         *core = W::from_items(new_items);
 
         Ok(())
+    }
+
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo {
+            operator_class: OperatorClass::Separable,
+            policy: if P::IS_COMMUTATIVE {
+                PolicyCommutativity::Commutative(core::any::TypeId::of::<P>())
+            } else {
+                PolicyCommutativity::NonCommutative
+            },
+        }
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
     }
 }

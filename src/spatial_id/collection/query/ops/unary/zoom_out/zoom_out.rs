@@ -1,3 +1,6 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::{
+    CommutativityInfo, OperatorClass, PolicyCommutativity,
+};
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -33,7 +36,12 @@ impl<W, P> UnaryOperator<W> for ZoomOut<W::Value, P>
 where
     W: WorkingTree,
     P: MergePolicy<W::Value>,
+    W::Value: 'static,
 {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn run(&self, core: &mut W) -> Result<(), Error> {
         let mut leaves: Vec<(FlexId, W::Value)> =
             core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
@@ -75,5 +83,16 @@ where
         *core = W::from_items(new_items);
 
         Ok(())
+    }
+
+    fn validate(&self) -> Result<(), crate::Error> {
+        Ok(())
+    }
+
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo {
+            operator_class: OperatorClass::Other,
+            policy: PolicyCommutativity::NonCommutative,
+        }
     }
 }

@@ -4,7 +4,6 @@ use crate::{
     SpatialIdCollection,
     spatial_id::{collection::query::execution::Query, zoom_level::ZoomLevel},
 };
-use alloc::boxed::Box;
 
 impl<S: SpatialIdCollection> Query<S>
 where
@@ -19,7 +18,7 @@ where
         match ZoomLevel::new(target_z.into()) {
             Ok(v) => {
                 let op = ZoomOut::<S::Value, P>::new(v);
-                Query::Unary(Box::new(op), Box::new(self))
+                self.wrap_unary(op)
             }
             Err(e) => Query::Error(e),
         }

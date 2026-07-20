@@ -19,7 +19,7 @@ fn test_fill_empty_bounding_box() {
     table.insert(cell(102, 20).0, 20);
 
     // x=100(10) と x=102(20) の間にある x=101(空) を 0 で埋める
-    let out = table.query().fill_empty(0).run().unwrap();
+    let out = table.query().fill_empty(0).raw_run().unwrap();
     let r = row(&out);
 
     assert_eq!(r.len(), 3);
@@ -31,6 +31,6 @@ fn test_fill_empty_bounding_box() {
 #[test]
 fn test_fill_empty_on_empty_table() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
-    let out = table.query().fill_empty(0).run().unwrap();
+    let out = table.query().fill_empty(0).raw_run().unwrap();
     assert_eq!(out.count(), 0);
 }

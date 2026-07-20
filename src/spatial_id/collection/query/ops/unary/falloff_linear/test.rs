@@ -22,7 +22,11 @@ fn falloff_x_single_cell() {
     let (id, v) = cell(100, 4);
     table.insert(id, v);
 
-    let out = table.query().falloff_linear_x(20, 2, Sum).run().unwrap();
+    let out = table
+        .query()
+        .falloff_linear_x(20, 2, Sum)
+        .raw_run()
+        .unwrap();
     let r = row(&out);
 
     // d=0:4, d=±1:2, d=±2:0
@@ -40,7 +44,11 @@ fn falloff_x_overlap_sum() {
     table.insert(cell(100, 4).0, 4);
     table.insert(cell(102, 4).0, 4);
 
-    let out = table.query().falloff_linear_x(20, 2, Sum).run().unwrap();
+    let out = table
+        .query()
+        .falloff_linear_x(20, 2, Sum)
+        .raw_run()
+        .unwrap();
     let r = row(&out);
 
     // A(x100) → x98:0 x99:2 x100:4 x101:2 x102:0
@@ -62,7 +70,11 @@ fn falloff_x_overlap_max() {
     table.insert(cell(100, 4).0, 4);
     table.insert(cell(102, 4).0, 4);
 
-    let out = table.query().falloff_linear_x(20, 2, Max).run().unwrap();
+    let out = table
+        .query()
+        .falloff_linear_x(20, 2, Max)
+        .raw_run()
+        .unwrap();
     let r = row(&out);
 
     // Max → x100:4 x101:2 x102:4（x101 は max(2,2)=2、Sum の 4 と異なる）
@@ -77,7 +89,11 @@ fn falloff_x_radius_zero_is_noop() {
     let mut table = SpatialIdTable::new();
     table.insert(cell(100, 7).0, 7);
 
-    let out = table.query().falloff_linear_x(20, 0, Sum).run().unwrap();
+    let out = table
+        .query()
+        .falloff_linear_x(20, 0, Sum)
+        .raw_run()
+        .unwrap();
     let r = row(&out);
 
     assert_eq!(r.len(), 1);

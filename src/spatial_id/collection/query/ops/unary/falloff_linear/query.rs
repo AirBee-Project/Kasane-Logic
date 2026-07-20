@@ -6,7 +6,6 @@ use crate::{
     SpatialIdCollection,
     spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
 };
-use alloc::boxed::Box;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::ops::{Div, Mul, Sub};
@@ -39,7 +38,7 @@ where
             return self;
         }
         match FalloffLinearFxy::<P>::new(z, f_radius, x_radius, y_radius) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }
@@ -61,7 +60,7 @@ where
             return self;
         }
         match FalloffLinearF::<P>::new(z, radius) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }
@@ -83,7 +82,7 @@ where
             return self;
         }
         match FalloffLinearX::<P>::new(z, radius) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }
@@ -105,7 +104,7 @@ where
             return self;
         }
         match FalloffLinearY::<P>::new(z, radius) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }

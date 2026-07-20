@@ -24,7 +24,7 @@ fn main() {
         .falloff_linear_y(25, 10, Max)
         .falloff_linear_f(25, 5, Max)
         .fill_empty(0)
-        .run()
+        .raw_run()
         .unwrap();
 
     let json_string = serde_json::to_string_pretty(&risk).unwrap();

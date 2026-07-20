@@ -1,3 +1,6 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::{
+    CommutativityInfo, OperatorClass, PolicyCommutativity,
+};
 use alloc::vec::Vec;
 
 use crate::{
@@ -29,6 +32,17 @@ impl ShiftFXY {
 }
 
 impl<W: WorkingTree> UnaryOperator<W> for ShiftFXY {
+    fn validate(&self) -> Result<(), Error> {
+        self.f.0.check_f(self.f.1)?;
+        self.x.0.check_x(self.x.1.unsigned_abs())?;
+        self.y.0.check_y(self.y.1.unsigned_abs())?;
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn run(&self, target: &mut W) -> Result<(), Error> {
         if self.f.1 == 0 && self.x.1 == 0 && self.y.1 == 0 {
             return Ok(());
@@ -70,5 +84,12 @@ impl<W: WorkingTree> UnaryOperator<W> for ShiftFXY {
 
         *target = shifted;
         Ok(())
+    }
+
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo {
+            operator_class: OperatorClass::Separable,
+            policy: PolicyCommutativity::CollisionFree,
+        }
     }
 }

@@ -5,7 +5,6 @@ use crate::{
     SpatialIdCollection, ZoomLevel,
     spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
 };
-use alloc::boxed::Box;
 
 impl<S: SpatialIdCollection> Query<S>
 where
@@ -20,10 +19,7 @@ where
             return self;
         }
         match ZoomLevel::new(z.into()) {
-            Ok(zl) => Query::Unary(
-                Box::new(ExtrudeX::<P>::new(zl, start_x, end_x)),
-                Box::new(self),
-            ),
+            Ok(zl) => self.wrap_unary(ExtrudeX::<P>::new(zl, start_x, end_x)),
             Err(e) => Query::Error(e),
         }
     }
@@ -37,10 +33,7 @@ where
             return self;
         }
         match ZoomLevel::new(z.into()) {
-            Ok(zl) => Query::Unary(
-                Box::new(ExtrudeY::<P>::new(zl, start_y, end_y)),
-                Box::new(self),
-            ),
+            Ok(zl) => self.wrap_unary(ExtrudeY::<P>::new(zl, start_y, end_y)),
             Err(e) => Query::Error(e),
         }
     }
@@ -54,10 +47,7 @@ where
             return self;
         }
         match ZoomLevel::new(z.into()) {
-            Ok(zl) => Query::Unary(
-                Box::new(ExtrudeF::<P>::new(zl, start_f, end_f)),
-                Box::new(self),
-            ),
+            Ok(zl) => self.wrap_unary(ExtrudeF::<P>::new(zl, start_f, end_f)),
             Err(e) => Query::Error(e),
         }
     }
@@ -84,7 +74,7 @@ where
         match ZoomLevel::new(z.into()) {
             Ok(zl) => {
                 let op = ExtrudeFXY::<P>::new(zl, start_f, end_f, start_x, end_x, start_y, end_y);
-                Query::Unary(Box::new(op), Box::new(self))
+                self.wrap_unary(op)
             }
             Err(e) => Query::Error(e),
         }

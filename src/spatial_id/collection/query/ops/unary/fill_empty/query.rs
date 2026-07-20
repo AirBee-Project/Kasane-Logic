@@ -1,6 +1,5 @@
 use super::FillEmpty;
 use crate::{SpatialIdCollection, spatial_id::collection::query::execution::Query};
-use alloc::boxed::Box;
 
 impl<S: SpatialIdCollection> Query<S>
 where
@@ -12,6 +11,6 @@ where
             return self;
         }
         let op = FillEmpty::new(default_value);
-        Query::Unary(Box::new(op), Box::new(self))
+        self.wrap_unary(op)
     }
 }

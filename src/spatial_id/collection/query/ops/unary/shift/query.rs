@@ -1,6 +1,5 @@
 use super::{shift_f::ShiftF, shift_fxy::ShiftFXY, shift_x::ShiftX, shift_y::ShiftY};
 use crate::{SpatialIdCollection, spatial_id::collection::query::execution::Query};
-use alloc::boxed::Box;
 
 impl<S: SpatialIdCollection> Query<S>
 where
@@ -17,7 +16,7 @@ where
             return self;
         }
         match ShiftFXY::new(f, x, y) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }
@@ -28,7 +27,7 @@ where
             return self;
         }
         match ShiftF::new(z, index) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }
@@ -39,7 +38,7 @@ where
             return self;
         }
         match ShiftX::new(z, index) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }
@@ -50,7 +49,7 @@ where
             return self;
         }
         match ShiftY::new(z, index) {
-            Ok(op) => Query::Unary(Box::new(op), Box::new(self)),
+            Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }
     }

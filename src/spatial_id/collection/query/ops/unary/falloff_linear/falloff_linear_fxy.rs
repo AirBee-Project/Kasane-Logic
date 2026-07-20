@@ -1,3 +1,6 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::{
+    CommutativityInfo, OperatorClass, PolicyCommutativity,
+};
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -43,8 +46,23 @@ where
     W::Value:
         Mul<Output = W::Value> + Div<Output = W::Value> + Sub<Output = W::Value> + TryFrom<u32>,
     <W::Value as TryFrom<u32>>::Error: Debug,
-    P: MergePolicy<W::Value> + Send + Sync,
+    P: MergePolicy<W::Value> + Send + Sync + 'static,
+    W::Value: 'static,
 {
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo {
+            operator_class: OperatorClass::Separable,
+            policy: if P::IS_COMMUTATIVE {
+                PolicyCommutativity::Commutative(core::any::TypeId::of::<P>())
+            } else {
+                PolicyCommutativity::NonCommutative
+            },
+        }
+    }
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn run(&self, target: &mut W) -> Result<(), Error> {
         if self.f_radius == 0 && self.x_radius == 0 && self.y_radius == 0 {
             return Ok(());
@@ -57,6 +75,10 @@ where
             |id, value| id.falloff_linear_fxy(z, f_radius, x_radius, y_radius, value),
             |a: &W::Value, b: &W::Value| P::resolve(a.clone(), b.clone()),
         )?;
+        Ok(())
+    }
+
+    fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
     }
 }

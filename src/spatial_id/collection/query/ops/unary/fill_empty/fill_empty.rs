@@ -1,3 +1,6 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::{
+    CommutativityInfo, OperatorClass, PolicyCommutativity,
+};
 use crate::{
     Error, FlexId,
     spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
@@ -18,6 +21,7 @@ impl<V> FillEmpty<V> {
 impl<W> UnaryOperator<W> for FillEmpty<W::Value>
 where
     W: WorkingTree,
+    W::Value: 'static,
 {
     fn run(&self, core: &mut W) -> Result<(), Error> {
         let Some(bbox) = core.bounding_box() else {
@@ -33,5 +37,20 @@ where
         *core = default_tree.overlay(core);
 
         Ok(())
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
+    fn validate(&self) -> Result<(), crate::Error> {
+        Ok(())
+    }
+
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo {
+            operator_class: OperatorClass::Other,
+            policy: PolicyCommutativity::NonCommutative,
+        }
     }
 }

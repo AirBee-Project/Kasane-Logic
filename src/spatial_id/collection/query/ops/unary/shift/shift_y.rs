@@ -1,3 +1,6 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::{
+    CommutativityInfo, OperatorClass, PolicyCommutativity,
+};
 use crate::{
     Error, ZoomLevel,
     spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
@@ -21,6 +24,16 @@ impl ShiftY {
 }
 
 impl<W: WorkingTree> UnaryOperator<W> for ShiftY {
+    fn validate(&self) -> Result<(), Error> {
+        let zl = ZoomLevel::new(self.z.get())?;
+        zl.check_y(self.y.unsigned_abs())?;
+        Ok(())
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
     fn run(&self, target: &mut W) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.y;
@@ -33,5 +46,12 @@ impl<W: WorkingTree> UnaryOperator<W> for ShiftY {
             Ok(id.shift_y(z, index)?.map(move |m| (m, value.clone())))
         })?;
         Ok(())
+    }
+
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo {
+            operator_class: OperatorClass::Separable,
+            policy: PolicyCommutativity::CollisionFree,
+        }
     }
 }
