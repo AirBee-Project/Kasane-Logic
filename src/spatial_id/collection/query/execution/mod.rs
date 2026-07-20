@@ -38,7 +38,7 @@ where
             Query::Source(collection) => collection.try_into_working(),
             Query::Unary(op, input) => {
                 let mut core = input.run_core()?;
-                op.run(&mut core).unwrap();
+                op.run(&mut core)?;
                 Ok(core)
             }
             Query::Binary(op, lhs, rhs) => {
@@ -50,7 +50,7 @@ where
 
                 let mut lhs_res = lhs_res?;
                 let rhs_res = rhs_res?;
-                op.run(&mut lhs_res, &rhs_res).unwrap();
+                op.run(&mut lhs_res, &rhs_res)?;
                 Ok(lhs_res)
             }
             Query::Error(e) => Err(e),

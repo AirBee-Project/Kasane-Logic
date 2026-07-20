@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -46,7 +45,7 @@ where
     <W::Value as TryFrom<u32>>::Error: Debug,
     P: MergePolicy<W::Value> + Send + Sync,
 {
-    fn run(&self, target: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+    fn run(&self, target: &mut W) -> Result<(), Error> {
         if self.f_radius == 0 && self.x_radius == 0 && self.y_radius == 0 {
             return Ok(());
         }

@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
@@ -30,7 +29,7 @@ impl ShiftFXY {
 }
 
 impl<W: WorkingTree> UnaryOperator<W> for ShiftFXY {
-    fn run(&self, target: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+    fn run(&self, target: &mut W) -> Result<(), Error> {
         if self.f.1 == 0 && self.x.1 == 0 && self.y.1 == 0 {
             return Ok(());
         }

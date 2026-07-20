@@ -1,5 +1,5 @@
 use crate::{
-    FlexId,
+    Error, FlexId,
     spatial_id::{
         collection::query::{
             merge_policy::MergePolicy,
@@ -8,7 +8,6 @@ use crate::{
         zoom_level::ZoomLevel,
     },
 };
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 #[cfg(feature = "rayon")]
@@ -35,7 +34,7 @@ where
     W: WorkingTree,
     P: MergePolicy<W::Value>,
 {
-    fn run(&self, core: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+    fn run(&self, core: &mut W) -> Result<(), Error> {
         let mut leaves: Vec<(FlexId, W::Value)> =
             core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
 

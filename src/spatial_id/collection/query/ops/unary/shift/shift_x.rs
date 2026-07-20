@@ -1,5 +1,3 @@
-use alloc::boxed::Box;
-
 use crate::{
     Error, ZoomLevel,
     spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
@@ -23,7 +21,7 @@ impl ShiftX {
 }
 
 impl<W: WorkingTree> UnaryOperator<W> for ShiftX {
-    fn run(&self, target: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+    fn run(&self, target: &mut W) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.x;
         if index == 0 {

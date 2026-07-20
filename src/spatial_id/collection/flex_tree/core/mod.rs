@@ -172,6 +172,58 @@ where
         }
     }
 
+    /// 2つの [FlexTreeCore] を、片側が空の領域も `default` で埋めてから `resolve` で重ね合わせる。
+    ///
+    /// [`merge_with`](Self::merge_with) は片側が空ならもう片方をそのまま構造共有するが、こちらは
+    /// 「データが無い」ことを表す `default` を代入したうえで必ず `resolve` を呼ぶ（例:
+    /// `resolve(default, b)`）。両側とも空の領域は resolve を呼ばずそのまま空を保つ。
+    /// 片側が丸ごと構造共有できる最適化が効かないぶん、非空の葉は必ず降りて解決する。
+    ///
+    /// シャードの扱いは [`union`](Self::union) と同じ。
+    pub fn merge_with_default<R>(&self, other: &Self, default: &V, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + MaybeSync,
+    {
+        let terminal = |a: &SharedNode<Node<V>>, b: &SharedNode<Node<V>>, _e: &_| match (&**a, &**b)
+        {
+            (Node::Leaf { value: None }, Node::Leaf { value: None }) => Some(a.clone()),
+            (Node::Leaf { value: None }, Node::Leaf { value: Some(bv) }) => {
+                Some(SharedNode::new(Node::Leaf {
+                    value: Some(resolve(default, bv)),
+                }))
+            }
+            (Node::Leaf { value: Some(av) }, Node::Leaf { value: None }) => {
+                Some(SharedNode::new(Node::Leaf {
+                    value: Some(resolve(av, default)),
+                }))
+            }
+            (Node::Leaf { value: Some(av) }, Node::Leaf { value: Some(bv) }) => {
+                Some(SharedNode::new(Node::Leaf {
+                    value: Some(resolve(av, bv)),
+                }))
+            }
+            _ => None,
+        };
+        Self {
+            lower_root: Node::merge(
+                &self.lower_root,
+                &other.lower_root,
+                &terminal,
+                0,
+                &self.empty_leaf,
+            ),
+            upper_root: Node::merge(
+                &self.upper_root,
+                &other.upper_root,
+                &terminal,
+                0,
+                &self.empty_leaf,
+            ),
+            empty_leaf: self.empty_leaf.clone(),
+            shard: Self::shard_after_union(&self.shard, &other.shard),
+        }
+    }
+
     /// 木を降りながら各葉へ `f` を適用し、結果を1本の `Vec` へ集約する。
     ///
     /// 旧実装は「逐次DFSで全葉を `Vec<(FlexId,&V)>` へ平坦化 → その後に並列で `f` を適用」という

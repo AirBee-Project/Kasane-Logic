@@ -1,7 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSend, MaybeSendSync, MaybeSync};
 use crate::{Error, FlexId, FlexTreeCore};
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 /// クエリ実行器・演算子が触れる「作業表現」の境界。演算子が実際に呼ぶメソッドだけを持つ
@@ -10,8 +9,8 @@ use alloc::vec::Vec;
 /// シグネチャへ露出させないための境界で、`SpatialIdCollection::Working` はこれを実装する。
 ///
 /// 現状は [`FlexTreeCore`] のみが実装する。`merge_with`/`union`/`intersection`/`difference` は
-/// 現時点でどの演算子からも呼ばれていないため含めない（`BinaryOperator` の実装を追加するときに
-/// 合わせて追加する）。
+/// 現時点でどの演算子からも呼ばれていないため含めない（今後 `BinaryOperator` の実装を追加する
+/// たびに、実際に使うものだけを合わせて追加する）。
 pub trait WorkingTree: Sized + MaybeSendSync {
     type Value: SafeValue;
 
@@ -36,6 +35,12 @@ pub trait WorkingTree: Sized + MaybeSendSync {
     where
         F: Fn(FlexId, &Self::Value) -> Result<I, Error> + MaybeSendSync,
         I: IntoIterator<Item = (FlexId, Self::Value)> + MaybeSend,
+        R: Fn(&Self::Value, &Self::Value) -> Self::Value + MaybeSync;
+
+    /// 2つの作業木を、片側が空の領域も `default` で埋めてから `resolve` で重ね合わせる
+    /// （両側とも空の領域は resolve を呼ばず空のまま）。二項演算子向け。
+    fn merge_with_default<R>(&self, other: &Self, default: &Self::Value, resolve: R) -> Self
+    where
         R: Fn(&Self::Value, &Self::Value) -> Self::Value + MaybeSync;
 }
 
@@ -70,6 +75,13 @@ impl<V: SafeValue> WorkingTree for FlexTreeCore<V> {
     {
         FlexTreeCore::map_rebuild_with(self, f, resolve)
     }
+
+    fn merge_with_default<R>(&self, other: &Self, default: &V, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + MaybeSync,
+    {
+        FlexTreeCore::merge_with_default(self, other, default, resolve)
+    }
 }
 
 /// クエリ実行の作業表現である [`WorkingTree`] に対する二項演算子の定義。
@@ -78,11 +90,7 @@ impl<V: SafeValue> WorkingTree for FlexTreeCore<V> {
 /// これに対して動く。
 pub trait BinaryOperator<W: WorkingTree>: MaybeSendSync {
     /// 作業木 `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
-    fn run(
-        &self,
-        target_a: &mut W,
-        target_b: &W,
-    ) -> Result<(), Box<dyn core::error::Error + 'static>>;
+    fn run(&self, target_a: &mut W, target_b: &W) -> Result<(), Error>;
 }
 
 /// クエリ実行の作業表現である [`WorkingTree`] に対する単項演算子の定義。
@@ -92,5 +100,5 @@ pub trait BinaryOperator<W: WorkingTree>: MaybeSendSync {
 /// 構造体フィールドが保持する。
 pub trait UnaryOperator<W: WorkingTree>: MaybeSendSync {
     /// 作業木 `target` をインプレースで単項演算した結果へ更新する。
-    fn run(&self, target: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>>;
+    fn run(&self, target: &mut W) -> Result<(), Error>;
 }

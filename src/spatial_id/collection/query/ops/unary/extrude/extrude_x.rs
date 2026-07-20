@@ -1,5 +1,5 @@
 use crate::{
-    FlexId,
+    Error, FlexId,
     spatial_id::{
         collection::query::{
             merge_policy::MergePolicy,
@@ -8,7 +8,6 @@ use crate::{
         zoom_level::ZoomLevel,
     },
 };
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -37,7 +36,7 @@ where
     W: WorkingTree,
     P: MergePolicy<W::Value>,
 {
-    fn run(&self, core: &mut W) -> Result<(), Box<dyn core::error::Error + 'static>> {
+    fn run(&self, core: &mut W) -> Result<(), Error> {
         let mut extruded: Vec<(FlexId, W::Value)> = Vec::with_capacity(core.count());
 
         // 元のツリーから全セルを取り出し、それぞれを引き延ばす
