@@ -73,7 +73,12 @@ where
         }
         match ZoomLevel::new(z.into()) {
             Ok(zl) => {
-                let op = ExtrudeFXY::<P>::new(zl, start_f, end_f, start_x, end_x, start_y, end_y);
+                let op = ExtrudeFXY::<P>::new(
+                    zl,
+                    Some((start_f, end_f)),
+                    Some((start_x, end_x)),
+                    Some((start_y, end_y)),
+                );
                 self.wrap_unary(op)
             }
             Err(e) => Query::Error(e),

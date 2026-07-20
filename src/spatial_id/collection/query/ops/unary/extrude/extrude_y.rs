@@ -1,6 +1,4 @@
-use crate::spatial_id::collection::query::execution::group_commutative::types::{
-    CommutativityInfo, OperatorClass, PolicyCommutativity,
-};
+use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -11,6 +9,7 @@ use crate::{
         zoom_level::ZoomLevel,
     },
 };
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -36,7 +35,7 @@ impl<P> ExtrudeY<P> {
 
 impl<W, P> UnaryOperator<W> for ExtrudeY<P>
 where
-    W: WorkingTree,
+    W: WorkingTree + 'static,
     P: MergePolicy<W::Value>,
 {
     fn validate(&self) -> Result<(), Error> {
@@ -82,17 +81,31 @@ where
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo {
-            operator_class: OperatorClass::Separable,
-            policy: if P::IS_COMMUTATIVE {
-                PolicyCommutativity::Commutative(core::any::TypeId::of::<P>())
-            } else {
-                PolicyCommutativity::NonCommutative
-            },
-        }
+        CommutativityInfo::absolute_target::<P>(P::IS_COMMUTATIVE)
     }
 
     fn as_any(&self) -> &dyn core::any::Any {
         self
+    }
+
+    fn try_merge(&self, _other: &dyn UnaryOperator<W>) -> Option<Box<dyn UnaryOperator<W>>> {
+        // マージ（FXY化）による次元の呪い（Cullingの遅延）を防ぐため、
+        // 意図的にマージを無効化し、各軸ごとに逐次適用・合成させる。
+        // MergeAccumulatorのTrait実装自体は構造的に残している。
+        None
+    }
+
+    fn expansion_ratio(&self) -> f32 {
+        self.start_y.abs_diff(self.end_y) as f32 + 1.0
+    }
+
+    fn effective_expansion_ratio(&self, bbox: Option<&crate::RangeId>) -> f32 {
+        if let Some(bb) = bbox {
+            let y = bb.y();
+            let s_y = y[1].saturating_sub(y[0]) as f32 + 1.0;
+            <Self as UnaryOperator<W>>::expansion_ratio(self) / s_y
+        } else {
+            <Self as UnaryOperator<W>>::expansion_ratio(self)
+        }
     }
 }

@@ -1,12 +1,17 @@
 use super::traits::{BinaryOperator, UnaryOperator};
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::traits::WorkingTree;
 use crate::{Error, SpatialIdCollection};
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
 pub mod group_commutative;
+pub mod merge_commutative;
 pub mod validate;
+
+#[cfg(test)]
+mod test;
 
 /// 式全体を表現する型
 pub enum Query<S: SpatialIdCollection> {
@@ -78,8 +83,17 @@ where
                     }
                     Ok(core)
                 }
-                Query::CommutativeGroup(_, ops, input) => {
+                Query::CommutativeGroup(_, mut ops, input) => {
                     let mut core = run_internal(*input)?;
+
+                    // 実行時（データ確定後）にバウンディングボックスを取得し、動的ソートを行う
+                    let bbox = core.bounding_box();
+                    ops.sort_by(|a, b| {
+                        a.effective_expansion_ratio(bbox.as_ref())
+                            .partial_cmp(&b.effective_expansion_ratio(bbox.as_ref()))
+                            .unwrap_or(core::cmp::Ordering::Equal)
+                    });
+
                     for op in &ops {
                         op.run(&mut core)?;
                     }
@@ -102,5 +116,19 @@ where
             }
         }
         S::try_from_working(run_internal(self)?)
+    }
+
+    /// AST最適化（① 可換な区間の検知 → ② 同型演算子のmerge）を適用してから実行する。
+    ///
+    /// 実行前に [`validate`](Self::validate) でパラメータ・遅延エラーを検証するため、
+    /// 最適化や実データ変換より先に構築時の問題を検出できる。
+    pub fn run(self) -> Result<S, Error>
+    where
+        S::Working: 'static,
+    {
+        self.validate()?;
+        self.group_commutative_ops()
+            .merge_commutative_ops()
+            .raw_run()
     }
 }

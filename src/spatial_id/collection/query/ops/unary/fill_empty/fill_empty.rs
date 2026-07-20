@@ -1,6 +1,4 @@
-use crate::spatial_id::collection::query::execution::group_commutative::types::{
-    CommutativityInfo, OperatorClass, PolicyCommutativity,
-};
+use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error, FlexId,
     spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
@@ -48,9 +46,6 @@ where
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo {
-            operator_class: OperatorClass::Other,
-            policy: PolicyCommutativity::NonCommutative,
-        }
+        CommutativityInfo::none()
     }
 }

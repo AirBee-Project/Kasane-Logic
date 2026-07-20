@@ -163,18 +163,15 @@ impl FlexId {
     pub fn extrude_fxy(
         &self,
         z: u8,
-        start_f: i32,
-        end_f: i32,
-        start_x: u32,
-        end_x: u32,
-        start_y: u32,
-        end_y: u32,
+        f_range: Option<(i32, i32)>,
+        x_range: Option<(u32, u32)>,
+        y_range: Option<(u32, u32)>,
     ) -> Result<impl Iterator<Item = FlexId>, Error> {
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
 
-        let f_ranges = {
+        let f_pieces = if let Some((start_f, end_f)) = f_range {
             let (left, right) = (start_f.min(end_f), start_f.max(end_f));
             if left < ZoomLevel::new(z).unwrap().f_min() {
                 return Err(SpatialIdError::FOutOfRange { z, f: left }.into());
@@ -182,64 +179,69 @@ impl FlexId {
             if right > ZoomLevel::new(z).unwrap().f_max() {
                 return Err(SpatialIdError::FOutOfRange { z, f: right }.into());
             }
-            vec![[left, right]]
+            split_f(z, [left, right]).collect::<Vec<_>>()
+        } else {
+            vec![(self.f_zoomlevel(), self.f_index())]
         };
 
         let xy_max = ZoomLevel::new(z).unwrap().xy_max();
-        if start_x > xy_max {
-            return Err(SpatialIdError::XOutOfRange { z, x: start_x }.into());
-        }
-        if end_x > xy_max {
-            return Err(SpatialIdError::XOutOfRange { z, x: end_x }.into());
-        }
-        let x_ranges: Vec<[u32; 2]> = if start_x <= end_x {
-            vec![[start_x, end_x]]
+        let x_pieces = if let Some((start_x, end_x)) = x_range {
+            if start_x > xy_max {
+                return Err(SpatialIdError::XOutOfRange { z, x: start_x }.into());
+            }
+            if end_x > xy_max {
+                return Err(SpatialIdError::XOutOfRange { z, x: end_x }.into());
+            }
+            let ranges: Vec<[u32; 2]> = if start_x <= end_x {
+                vec![[start_x, end_x]]
+            } else {
+                vec![[start_x, xy_max], [0, end_x]]
+            };
+            ranges
+                .into_iter()
+                .flat_map(|r| split_xy(z, r))
+                .collect::<Vec<_>>()
         } else {
-            vec![[start_x, xy_max], [0, end_x]]
+            vec![(self.x_zoomlevel(), self.x_index())]
         };
 
-        let y_ranges = {
+        let y_pieces = if let Some((start_y, end_y)) = y_range {
             let (left, right) = (start_y.min(end_y), start_y.max(end_y));
             if right > xy_max {
                 return Err(SpatialIdError::YOutOfRange { z, y: right }.into());
             }
-            vec![[left, right]]
+            split_xy(z, [left, right]).collect::<Vec<_>>()
+        } else {
+            vec![(self.y_zoomlevel(), self.y_index())]
         };
 
         #[cfg(feature = "temporal_id")]
         let temporal_id = self.temporal().clone();
 
         let mut out = Vec::new();
-        for f_r in f_ranges {
-            for (seg_fz, seg_fi) in split_f(z, f_r) {
-                for x_r in &x_ranges {
-                    for (seg_xz, seg_xi) in split_xy(z, *x_r) {
-                        for y_r in &y_ranges {
-                            for (seg_yz, seg_yi) in split_xy(z, *y_r) {
-                                #[cfg(feature = "temporal_id")]
-                                {
-                                    out.push(
-                                        FlexId::new_with_temporal(
-                                            seg_fz,
-                                            seg_fi,
-                                            seg_xz,
-                                            seg_xi,
-                                            seg_yz,
-                                            seg_yi,
-                                            temporal_id.clone(),
-                                        )
-                                        .unwrap(),
-                                    );
-                                }
-                                #[cfg(not(feature = "temporal_id"))]
-                                {
-                                    out.push(
-                                        FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi)
-                                            .unwrap(),
-                                    );
-                                }
-                            }
-                        }
+        for (seg_fz, seg_fi) in f_pieces {
+            for &(seg_xz, seg_xi) in &x_pieces {
+                for &(seg_yz, seg_yi) in &y_pieces {
+                    #[cfg(feature = "temporal_id")]
+                    {
+                        out.push(
+                            FlexId::new_with_temporal(
+                                seg_fz,
+                                seg_fi,
+                                seg_xz,
+                                seg_xi,
+                                seg_yz,
+                                seg_yi,
+                                temporal_id.clone(),
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    #[cfg(not(feature = "temporal_id"))]
+                    {
+                        out.push(
+                            FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi).unwrap(),
+                        );
                     }
                 }
             }

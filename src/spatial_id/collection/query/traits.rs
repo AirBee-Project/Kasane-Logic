@@ -2,6 +2,7 @@ use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSend, MaybeSendSync, MaybeSync};
 use crate::{Error, FlexId, FlexTreeCore, RangeId};
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 /// クエリ実行器・演算子が触れる「作業表現」の境界。演算子が実際に呼ぶメソッドだけを持つ
@@ -126,4 +127,62 @@ pub trait UnaryOperator<W: WorkingTree>: MaybeSendSync + core::any::Any {
 
     /// ダウンキャスト用
     fn as_any(&self) -> &dyn core::any::Any;
+
+    /// `other` が自分と同じ具象型かつパラメータ的に合成可能なら、両者を1つに統合した演算子を
+    /// 返す。デフォルトは「常にマージ不可」。個々の演算子は `other.as_any().downcast_ref::<Self>()`
+    /// で同型判定した後、完全に型付きのRustでパラメータを合成して実装する
+    /// （`Query::CommutativeGroup` 内、つまり互いに可換であることが既に保証された演算子同士でのみ
+    /// 呼ばれる）。
+    fn try_merge(&self, other: &dyn UnaryOperator<W>) -> Option<Box<dyn UnaryOperator<W>>> {
+        let _ = other;
+        None
+    }
+
+    /// 演算子を適用した際のデータサイズ（セル数）の推定拡大倍率（概算）。
+    /// 1.0はサイズ不変、<1.0は縮小、>1.0は拡大を表す。
+    /// 可換グループ内では、この倍率が小さい順に実行されるよう自動的に並べ替えられ、
+    /// 複数の中間データ拡大操作が連続した場合の処理コスト総和を最小化する。
+    fn expansion_ratio(&self) -> f32 {
+        1.0
+    }
+
+    /// 対象データのバウンディングボックス（空間的な広がり）を考慮して、
+    /// オペレータ適用時の実質的なデータ拡張倍率（概算）を計算する。
+    /// 空間が既に広い（データが密集している）場合はマージにより実際の拡張倍率が小さくなることを反映する。
+    fn effective_expansion_ratio(&self, _bbox: Option<&crate::RangeId>) -> f32 {
+        self.expansion_ratio()
+    }
+}
+
+/// 演算子family の「正準蓄積器」。互いに可換な複数の具象型演算子（自分自身を含む）を1つに
+/// 畳み込むための型が実装する（例: Shift familyの `ShiftFXY`）。`try_merge` を家族の各メンバーが
+/// 個別に総当たりで実装する代わりに、「どの具象型がfamilyに属し、どう合成するか」をこの1箇所
+/// （蓄積器側）へ集約できる。新しい家族（例: 将来のRotate系）を増やす際は、その正準型に対して
+/// このtraitを実装し、家族の各メンバーの `try_merge` を [`try_merge_via_accumulator`] へ委譲する
+/// だけでよい。
+pub trait MergeAccumulator<W: WorkingTree>: UnaryOperator<W> + Sized {
+    /// `op` がこのfamilyに属するなら、それを表す蓄積器を生成する。
+    fn seed(op: &dyn UnaryOperator<W>) -> Option<Self>;
+
+    /// `op` を `self` へ合成する。`op` がこのfamilyに属さない、またはパラメータ的に合成不能
+    /// なら `false` を返し `self` は変更しない（部分的な適用も行わない）。
+    fn absorb(&mut self, op: &dyn UnaryOperator<W>) -> bool;
+}
+
+/// `A` をfamilyの正準蓄積器として、`lhs`・`rhs` を1つの演算子へ畳み込めるか試す。
+/// family内の各メンバーの `try_merge` はこれへ委譲するだけでよい。
+pub fn try_merge_via_accumulator<W, A>(
+    lhs: &dyn UnaryOperator<W>,
+    rhs: &dyn UnaryOperator<W>,
+) -> Option<Box<dyn UnaryOperator<W>>>
+where
+    W: WorkingTree + 'static,
+    A: MergeAccumulator<W> + 'static,
+{
+    let mut acc = A::seed(lhs)?;
+    if acc.absorb(rhs) {
+        Some(Box::new(acc))
+    } else {
+        None
+    }
 }

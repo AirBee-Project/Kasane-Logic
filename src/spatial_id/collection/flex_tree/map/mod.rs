@@ -17,6 +17,22 @@ where
     inner: FlexTreeCore<V>,
 }
 
+impl<V> PartialEq for SpatialIdMap<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    /// 内部の [`FlexTreeCore`] 同士の構造比較に委譲する（[`SpatialIdSet`](super::set::SpatialIdSet)
+    /// と同じ理由で、値そのものを保持する `Map` では展開・辞書引きが一切不要で最も高速）。
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+impl<V> Eq for SpatialIdMap<V> where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue
+{
+}
+
 impl<V> SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,

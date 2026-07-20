@@ -123,6 +123,7 @@ impl FlexId {
         f_radius: u32,
         x_radius: u32,
         y_radius: u32,
+        order: &[crate::spatial_id::collection::query::ops::unary::falloff_linear::falloff_linear_fxy::FalloffAxis],
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
@@ -152,36 +153,32 @@ impl FlexId {
                     let dx_num = dx.unsigned_abs();
                     let dy_num = dy.unsigned_abs();
 
-                    let mut max_num = 0;
-                    let mut max_den = 1;
-
-                    if f_radius > 0
-                        && df_num as u64 * max_den as u64 > max_num as u64 * f_radius as u64
-                    {
-                        max_num = df_num;
-                        max_den = f_radius;
+                    let mut attenuated = value.clone();
+                    for axis in order {
+                        match axis {
+                            crate::spatial_id::collection::query::ops::unary::falloff_linear::falloff_linear_fxy::FalloffAxis::X => {
+                                if x_radius > 0 {
+                                    let v_distance = V::try_from(dx_num).unwrap();
+                                    let v_radius = V::try_from(x_radius).unwrap();
+                                    attenuated = (attenuated * (v_radius - v_distance)) / V::try_from(x_radius).unwrap();
+                                }
+                            }
+                            crate::spatial_id::collection::query::ops::unary::falloff_linear::falloff_linear_fxy::FalloffAxis::Y => {
+                                if y_radius > 0 {
+                                    let v_distance = V::try_from(dy_num).unwrap();
+                                    let v_radius = V::try_from(y_radius).unwrap();
+                                    attenuated = (attenuated * (v_radius - v_distance)) / V::try_from(y_radius).unwrap();
+                                }
+                            }
+                            crate::spatial_id::collection::query::ops::unary::falloff_linear::falloff_linear_fxy::FalloffAxis::F => {
+                                if f_radius > 0 {
+                                    let v_distance = V::try_from(df_num).unwrap();
+                                    let v_radius = V::try_from(f_radius).unwrap();
+                                    attenuated = (attenuated * (v_radius - v_distance)) / V::try_from(f_radius).unwrap();
+                                }
+                            }
+                        }
                     }
-                    if x_radius > 0
-                        && dx_num as u64 * max_den as u64 > max_num as u64 * x_radius as u64
-                    {
-                        max_num = dx_num;
-                        max_den = x_radius;
-                    }
-                    if y_radius > 0
-                        && dy_num as u64 * max_den as u64 > max_num as u64 * y_radius as u64
-                    {
-                        max_num = dy_num;
-                        max_den = y_radius;
-                    }
-
-                    if max_num > max_den {
-                        continue;
-                    }
-
-                    let v_distance = V::try_from(max_num).unwrap();
-                    let v_radius = V::try_from(max_den).unwrap();
-                    let attenuated =
-                        (value.clone() * (v_radius - v_distance)) / V::try_from(max_den).unwrap();
 
                     current_ids.clear();
                     current_ids.push(self.clone());

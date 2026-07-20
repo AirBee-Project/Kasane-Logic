@@ -62,6 +62,11 @@ name = "kasane-logic"
 bench = false
 required-features = ["json"]
 
+[[bin]]
+name = "bench_order"
+path = "src/bin/bench_order.rs"
+required-features = ["json", "rayon"]
+
 [lib]
 bench = false
 

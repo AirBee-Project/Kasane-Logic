@@ -1,11 +1,11 @@
-use crate::spatial_id::collection::query::execution::group_commutative::types::{
-    CommutativityInfo, OperatorClass, PolicyCommutativity,
-};
+use super::{shift_f::ShiftF, shift_x::ShiftX, shift_y::ShiftY};
+use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::{
     Error, ZoomLevel,
-    spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
+    spatial_id::collection::query::traits::{MergeAccumulator, UnaryOperator, WorkingTree},
 };
 
 /// コレクション全体をF, X, Yの各方向へ同時に平行移動する単項演算。
@@ -31,7 +31,7 @@ impl ShiftFXY {
     }
 }
 
-impl<W: WorkingTree> UnaryOperator<W> for ShiftFXY {
+impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftFXY {
     fn validate(&self) -> Result<(), Error> {
         self.f.0.check_f(self.f.1)?;
         self.x.0.check_x(self.x.1.unsigned_abs())?;
@@ -87,9 +87,84 @@ impl<W: WorkingTree> UnaryOperator<W> for ShiftFXY {
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo {
-            operator_class: OperatorClass::Separable,
-            policy: PolicyCommutativity::CollisionFree,
+        CommutativityInfo::separable_injective()
+    }
+
+    /// `ShiftX`/`ShiftY`/`ShiftF`/`ShiftFXY`（自分自身を含む）は、軸ごとにオフセットを加算した
+    /// 1つの `ShiftFXY` に統合できる（平行移動の合成は軸ごとの加算そのもの）。
+    fn try_merge(&self, other: &dyn UnaryOperator<W>) -> Option<Box<dyn UnaryOperator<W>>> {
+        crate::spatial_id::collection::query::traits::try_merge_via_accumulator::<W, ShiftFXY>(
+            self, other,
+        )
+    }
+}
+
+/// `ShiftFXY` の1軸ぶんの状態 `(ZoomLevel, オフセット)` を合成する。
+/// オフセット0は「未使用（恒等）」を表す。片方が未使用ならもう片方を採用し、両方使用中なら
+/// ズームレベルが一致する場合のみオフセットを加算する（不一致は合成不能）。
+fn merge_axis(cur: (ZoomLevel, i32), add: (ZoomLevel, i32)) -> Option<(ZoomLevel, i32)> {
+    if add.1 == 0 {
+        Some(cur)
+    } else if cur.1 == 0 {
+        Some(add)
+    } else if cur.0 == add.0 {
+        Some((cur.0, cur.1 + add.1))
+    } else {
+        None
+    }
+}
+
+impl<W: WorkingTree + 'static> MergeAccumulator<W> for ShiftFXY {
+    fn seed(op: &dyn UnaryOperator<W>) -> Option<Self> {
+        let any = op.as_any();
+        if let Some(o) = any.downcast_ref::<ShiftFXY>() {
+            return Some(Self {
+                f: o.f,
+                x: o.x,
+                y: o.y,
+            });
         }
+        if let Some(o) = any.downcast_ref::<ShiftX>() {
+            let z = o.z();
+            return Some(Self {
+                f: (z, 0),
+                x: (z, o.x()),
+                y: (z, 0),
+            });
+        }
+        if let Some(o) = any.downcast_ref::<ShiftY>() {
+            let z = o.z();
+            return Some(Self {
+                f: (z, 0),
+                x: (z, 0),
+                y: (z, o.y()),
+            });
+        }
+        if let Some(o) = any.downcast_ref::<ShiftF>() {
+            let z = o.z();
+            return Some(Self {
+                f: (z, o.f()),
+                x: (z, 0),
+                y: (z, 0),
+            });
+        }
+        None
+    }
+
+    fn absorb(&mut self, op: &dyn UnaryOperator<W>) -> bool {
+        let Some(delta) = <Self as MergeAccumulator<W>>::seed(op) else {
+            return false;
+        };
+        let (Some(f), Some(x), Some(y)) = (
+            merge_axis(self.f, delta.f),
+            merge_axis(self.x, delta.x),
+            merge_axis(self.y, delta.y),
+        ) else {
+            return false;
+        };
+        self.f = f;
+        self.x = x;
+        self.y = y;
+        true
     }
 }

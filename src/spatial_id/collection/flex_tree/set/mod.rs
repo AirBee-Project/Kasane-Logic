@@ -1,6 +1,4 @@
-use hashbrown::HashSet;
-
-use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
+use crate::{FlexId, FlexTreeCore, SingleId, SpatialId};
 pub mod convert;
 pub mod impls;
 #[cfg(feature = "json")]
@@ -29,15 +27,14 @@ pub struct SpatialIdSet {
 }
 
 impl PartialEq for SpatialIdSet {
-    // Todo:等価検証が重いのでどうにかする
+    /// 内部の [`FlexTreeCore`] 同士の構造比較に委譲する。正規形（canonical form）の下では
+    /// 同じ論理内容の集合は常に同じ木構造になるため、共通ズームへ展開してからの比較
+    /// （挿入順や表現に依存しうる `SingleId` の組み合わせ数だけ展開が必要で、コースな範囲と
+    /// 深いズームの要素が混在すると組み合わせ爆発しうる）は不要。`leaf_count`/`max_zoom`/
+    /// `split_mask` などのO(1)フィールドで早期に不一致を検出できるぶん、木全体が実際に等しい
+    /// 場合を除き展開よりも高速。
     fn eq(&self, other: &Self) -> bool {
-        let common_z = self
-            .max_zoomlevel()
-            .unwrap_or(0)
-            .max(other.max_zoomlevel().unwrap_or(0));
-
-        self.normalized_single_ids_at_zoom(common_z)
-            == other.normalized_single_ids_at_zoom(common_z)
+        self.inner == other.inner
     }
 }
 
@@ -199,27 +196,6 @@ impl SpatialIdSet {
     pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
         let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdSet>(bytes) };
         rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
-    }
-
-    fn normalized_single_ids_at_zoom(&self, target_z: u8) -> HashSet<SingleId> {
-        let mut normalized = HashSet::new();
-
-        for flex_id in self.iter() {
-            let range = RangeId::from(&flex_id);
-            let expanded = if range.z() == target_z {
-                range
-            } else {
-                range
-                    .spatial_children_at_zoom(target_z)
-                    .expect("target_z must be >= range.z")
-            };
-
-            for single_id in expanded.single_ids() {
-                normalized.insert(single_id);
-            }
-        }
-
-        normalized
     }
 }
 

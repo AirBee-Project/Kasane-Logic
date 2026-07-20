@@ -37,7 +37,8 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     /// クエリ実行器が演算子を回すための作業表現。具象型（[`FlexTreeCore`] 等）はここに閉じ込め、
     /// `SpatialIdCollection` の公開シグネチャには現れない。実装は [`WorkingTree`] を満たす必要がある
     /// （`map_rebuild`/`map_rebuild_with` など、演算子が実際に使うメソッドのみを持つ境界）。
-    type Working: WorkingTree<Value = Self::Value>;
+    /// `'static` は `Box<dyn UnaryOperator<Self::Working>>` を AST（`Query`）に保持するために必要。
+    type Working: WorkingTree<Value = Self::Value> + 'static;
 
     fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Error>;
 
@@ -111,7 +112,7 @@ impl SpatialIdCollection for SpatialIdSet {
 
 impl<V> SpatialIdCollection for SpatialIdTable<V>
 where
-    V: CellValue,
+    V: CellValue + 'static,
 {
     type Value = V;
     type Working = FlexTreeCore<V>;
