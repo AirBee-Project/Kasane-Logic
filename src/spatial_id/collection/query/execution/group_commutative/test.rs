@@ -21,9 +21,6 @@ where
 #[test]
 fn test_group_commutative_ops() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
-    // Shift is not currently mapped in commutativity_info (Unknown by default),
-    // Extrude is explicitly mapped as Extrude (commutative).
-    // Let's chain extrude_f, extrude_x, extrude_y using the SAME merge policy (Max).
     let query = table
         .query()
         .extrude_f(10, 0, 5, Max)
@@ -63,9 +60,6 @@ fn extrude_and_falloff_with_same_policy_do_not_group_together() {
         .falloff_linear_x(10, 2, Max);
 
     let grouped = query.group_commutative_ops();
-
-    // 修正前は operator_class(Separable) + policyのTypeId一致だけで可換判定していたため、
-    // 数式的なパターンが異なるこの2つも誤って同じCommutativeGroupにまとめられていた。
     assert!(
         !contains_commutative_group(&grouped),
         "ExtrudeXとFalloffLinearXは可換グループにまとめられてはいけない"

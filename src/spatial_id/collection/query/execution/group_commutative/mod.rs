@@ -11,7 +11,7 @@ impl<S: SpatialIdCollection> Query<S>
 where
     S::Value: 'static,
 {
-    /// ① 可換な部分を検知して囲む（型で表現）
+    /// 可換な部分を検知して囲む
     ///
     /// ASTの `Query::Unary` 内に直列に並んだ演算子（`ops`）を走査し、
     /// 互いに可換な連続区間を見つけたら `CommutativeGroup` にラップします。

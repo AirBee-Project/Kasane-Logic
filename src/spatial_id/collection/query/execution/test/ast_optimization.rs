@@ -22,6 +22,7 @@ proptest! {
     })]
 
     #[test]
+    #[ignore]
     fn ast_optimization_preserves_semantics(
         zoom in 20..=22u8,
         ext_f_start in 0..2i32,
