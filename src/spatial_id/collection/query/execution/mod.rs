@@ -147,6 +147,7 @@ where
     }
 
     /// `bounds` で要求される最終結果を得るために必要な入力を `Query` ツリーの下位へと逆算していく。
+    #[allow(dead_code)]
     pub(crate) fn inverse_bounds(&self, bounds: crate::RangeId) -> Vec<crate::RangeId> {
         match self {
             Query::Source(_) => alloc::vec![bounds],
@@ -233,45 +234,54 @@ pub(crate) fn intersects_flex_range(flex: &crate::FlexId, range: &crate::RangeId
 }
 
 impl<S: SpatialIdCollection> Query<S> {
-    pub(crate) fn run_on_subset(&self, bounds: &[crate::RangeId]) -> Result<S::Working, Error>
+    pub(crate) fn run_on_subset(&self, bounds: Vec<crate::RangeId>) -> Result<S::Working, Error>
     where
         S::Working: 'static,
     {
         match self {
             Query::Source(s) => {
                 let mut subset = Vec::new();
-                for (id, val) in s.iter() {
-                    if bounds.iter().any(|b| intersects_flex_range(&id, b)) {
+                for b in &bounds {
+                    let iter = s.try_get_range(b)?;
+                    for (id, val) in iter {
                         subset.push((id, val.clone()));
                     }
+                }
+                if bounds.len() > 1 {
+                    subset.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                    subset.dedup_by(|a, b| a.0 == b.0);
                 }
                 Ok(S::Working::from_flexids(subset))
             }
             Query::Unary(ops, input) => {
-                let mut req = bounds.to_vec();
+                let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
                     for r in req {
                         next.extend(op.inverse_bounds(r));
                     }
+                    next.sort_unstable();
+                    next.dedup();
                     req = next;
                 }
-                let mut working = input.run_on_subset(&req)?;
+                let mut working = input.run_on_subset(req)?;
                 for op in ops {
                     op.run(&mut working)?;
                 }
                 Ok(working)
             }
             Query::CommutativeGroup(_, ops, input) => {
-                let mut req = bounds.to_vec();
+                let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
                     for r in req {
                         next.extend(op.inverse_bounds(r));
                     }
+                    next.sort_unstable();
+                    next.dedup();
                     req = next;
                 }
-                let mut working = input.run_on_subset(&req)?;
+                let mut working = input.run_on_subset(req)?;
                 for op in ops {
                     op.run(&mut working)?;
                 }
@@ -285,8 +295,12 @@ impl<S: SpatialIdCollection> Query<S> {
                     lhs_bounds.extend(l);
                     rhs_bounds.extend(r);
                 }
-                let mut lhs_working = lhs.run_on_subset(&lhs_bounds)?;
-                let rhs_working = rhs.run_on_subset(&rhs_bounds)?;
+                lhs_bounds.sort_unstable();
+                lhs_bounds.dedup();
+                rhs_bounds.sort_unstable();
+                rhs_bounds.dedup();
+                let mut lhs_working = lhs.run_on_subset(lhs_bounds)?;
+                let rhs_working = rhs.run_on_subset(rhs_bounds)?;
                 op.run(&mut lhs_working, &rhs_working)?;
                 Ok(lhs_working)
             }
@@ -294,7 +308,7 @@ impl<S: SpatialIdCollection> Query<S> {
         }
     }
 
-    /// クエリを評価せずに遅延ビュー（Lazy View）を作成する。
+    /// 遅延Viewを作成する。
     pub fn lazy(&self) -> LazyView<'_, S> {
         LazyView { query: self }
     }

@@ -181,6 +181,16 @@ name = "query_workflow_bldg_risk"
 path = "benches/query/workflow/bldg_risk.rs"
 harness = false
 
+[[bench]]
+name = "query_lazy_get"
+path = "benches/query/lazy/get.rs"
+harness = false
+
+[[bench]]
+name = "query_lazy_workflow_bldg_risk"
+path = "benches/query/lazy/bldg_risk.rs"
+harness = false
+
 [[example]]
 name = "table_json"
 required-features = ["json"]

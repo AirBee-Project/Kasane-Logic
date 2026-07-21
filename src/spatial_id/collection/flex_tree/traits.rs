@@ -47,6 +47,11 @@ pub trait SpatialIdCollection: SpatialIdCollectionBounds {
         target: &'a FlexId,
     ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error>;
 
+    fn try_get_range<'a>(
+        &'a self,
+        target: &'a crate::RangeId,
+    ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error>;
+
     fn try_remove<'a>(
         &'a mut self,
         target: &'a FlexId,
@@ -90,6 +95,13 @@ impl SpatialIdCollection for SpatialIdSet {
         Ok(self.get(target).map(|id| (id, &UNIT)))
     }
 
+    fn try_get_range<'a>(
+        &'a self,
+        target: &'a crate::RangeId,
+    ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error> {
+        Ok(self.get_range(target).map(|id| (id, &UNIT)))
+    }
+
     fn try_remove<'a>(
         &'a mut self,
         target: &'a FlexId,
@@ -127,6 +139,13 @@ where
         target: &'a FlexId,
     ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error> {
         Ok(self.get(target))
+    }
+
+    fn try_get_range<'a>(
+        &'a self,
+        target: &'a crate::RangeId,
+    ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error> {
+        Ok(self.get_range(target))
     }
 
     fn try_remove<'a>(

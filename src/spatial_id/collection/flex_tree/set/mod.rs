@@ -102,6 +102,17 @@ impl SpatialIdSet {
             .get(target.clone())
             .map(move |(flex_id, _value)| flex_id)
     }
+
+    /// 指定した範囲（RangeId）と重なる空間IDを切り出して返す。
+    pub fn get_range<'a>(
+        &'a self,
+        target: &'a crate::RangeId,
+    ) -> impl Iterator<Item = FlexId> + 'a {
+        self.inner
+            .range_overlap_ref(target)
+            .map(|(flex_id, _value)| flex_id)
+    }
+
     /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
     /// 削除した部分の空間IDを返す。
     pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {

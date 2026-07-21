@@ -76,6 +76,78 @@ where
     }
 }
 
+fn push_overlapping_children_range<'a, V>(
+    stack: &mut Vec<(&'a Node<V>, FlexId)>,
+    target: &crate::RangeId,
+    level: u8,
+    lower_child: &'a SharedNode<Node<V>>,
+    upper_child: &'a SharedNode<Node<V>>,
+    current_id: &FlexId,
+) where
+    V: SafeValue,
+{
+    let axis = Node::<V>::axis(level);
+    let mut push = |side: Side, child: &'a SharedNode<Node<V>>| {
+        stack.push((child.as_ref(), split_child_id(current_id, axis, side)));
+    };
+
+    match Node::<V>::overlapping_children_range(target, level) {
+        OverlappingChildren::Both => {
+            push(Side::Upper, upper_child);
+            push(Side::Lower, lower_child);
+        }
+        OverlappingChildren::Only(Side::Lower) => push(Side::Lower, lower_child),
+        OverlappingChildren::Only(Side::Upper) => push(Side::Upper, upper_child),
+    }
+}
+
+pub struct RangeOverlapIterRef<'a, V>
+where
+    V: SafeValue,
+{
+    roots: Vec<(&'a Node<V>, FlexId, crate::RangeId)>,
+    current_target: Option<crate::RangeId>,
+    stack: Vec<(&'a Node<V>, FlexId)>,
+}
+
+impl<'a, V> Iterator for RangeOverlapIterRef<'a, V>
+where
+    V: SafeValue,
+{
+    type Item = (FlexId, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            while let Some((node, current_id)) = self.stack.pop() {
+                let target = self.current_target.as_ref().unwrap();
+                match node {
+                    Node::Branch {
+                        level,
+                        lower_child,
+                        upper_child,
+                        ..
+                    } => push_overlapping_children_range(
+                        &mut self.stack,
+                        target,
+                        *level,
+                        lower_child,
+                        upper_child,
+                        &current_id,
+                    ),
+                    Node::Leaf { value: Some(value) } => return Some((current_id, value)),
+                    Node::Leaf { value: None } => {}
+                }
+            }
+            if let Some((root_node, root_id, root_target)) = self.roots.pop() {
+                self.current_target = Some(root_target);
+                self.stack.push((root_node, root_id));
+            } else {
+                return None;
+            }
+        }
+    }
+}
+
 impl<V> FlexTreeCore<V>
 where
     V: SafeValue,
@@ -89,6 +161,17 @@ where
         OverlapIterRef {
             stack: self.overlap_root_stack(&target),
             target,
+        }
+    }
+
+    pub fn range_overlap_ref(
+        &self,
+        target: &crate::RangeId,
+    ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+        RangeOverlapIterRef {
+            roots: self.range_overlap_root_stack(target),
+            current_target: None,
+            stack: Vec::new(),
         }
     }
 
@@ -109,6 +192,35 @@ where
         } else {
             alloc::vec![(root.as_ref(), root_id)]
         }
+    }
+
+    fn range_overlap_root_stack(
+        &self,
+        target: &crate::RangeId,
+    ) -> Vec<(&Node<V>, FlexId, crate::RangeId)> {
+        let mut stack = Vec::new();
+
+        if target.f()[0] < 0 {
+            let mut lower_target = target.clone();
+            lower_target
+                .set_f([target.f()[0], target.f()[1].min(-1)])
+                .unwrap();
+            if !SharedNode::ptr_eq(&self.lower_root, &self.empty_leaf) {
+                stack.push((self.lower_root.as_ref(), FlexId::LOWER_MAX, lower_target));
+            }
+        }
+
+        if target.f()[1] >= 0 {
+            let mut upper_target = target.clone();
+            upper_target
+                .set_f([target.f()[0].max(0), target.f()[1]])
+                .unwrap();
+            if !SharedNode::ptr_eq(&self.upper_root, &self.empty_leaf) {
+                stack.push((self.upper_root.as_ref(), FlexId::UPPER_MAX, upper_target));
+            }
+        }
+
+        stack
     }
 
     pub fn overlap_remove(&mut self, target: &FlexId) -> impl Iterator<Item = (FlexId, V)> {
