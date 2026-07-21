@@ -15,7 +15,6 @@ members = [
 # デフォルトで必要なもの
 hashbrown = "0.15.2"
 libm = "0.2.16"
-smallvec = "1.13.2"
 
 # featuresで切り替え可能なもの
 rand = { version = "0.10.2", optional = true }
