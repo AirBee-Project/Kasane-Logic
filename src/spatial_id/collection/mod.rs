@@ -6,4 +6,3 @@ pub use query::execution::Query;
 pub use query::lazy::LazyView;
 pub use query::merge_policy;
 pub use query::merge_policy::MergePolicy;
-

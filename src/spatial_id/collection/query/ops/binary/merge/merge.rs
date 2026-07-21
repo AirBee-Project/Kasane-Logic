@@ -36,8 +36,17 @@ where
         Ok(())
     }
 
-    fn inverse_bounds(&self, output_bounds: crate::RangeId) -> (alloc::vec::Vec<crate::RangeId>, alloc::vec::Vec<crate::RangeId>) {
-        (alloc::vec![output_bounds.clone()], alloc::vec![output_bounds])
+    fn inverse_bounds(
+        &self,
+        output_bounds: crate::RangeId,
+    ) -> (
+        alloc::vec::Vec<crate::RangeId>,
+        alloc::vec::Vec<crate::RangeId>,
+    ) {
+        (
+            alloc::vec![output_bounds.clone()],
+            alloc::vec![output_bounds],
+        )
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

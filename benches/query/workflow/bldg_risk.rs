@@ -85,7 +85,6 @@ fn bench_shift_and_falloff(c: &mut Criterion) {
     });
 }
 
-
 fn bench_zoom_out(c: &mut Criterion) {
     bench_workflow(
         c,

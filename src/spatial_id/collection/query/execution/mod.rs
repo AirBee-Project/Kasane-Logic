@@ -211,9 +211,25 @@ pub(crate) fn intersects_flex_range(flex: &crate::FlexId, range: &crate::RangeId
         !(deep_shallow_max < shallow_min || deep_shallow_min > shallow_max)
     }
 
-    intersect_axis(flex.f_zoomlevel(), flex.f_index() as i64, range.z(), range.f()[0] as i64, range.f()[1] as i64)
-        && intersect_axis(flex.x_zoomlevel(), flex.x_index() as i64, range.z(), range.x()[0] as i64, range.x()[1] as i64)
-        && intersect_axis(flex.y_zoomlevel(), flex.y_index() as i64, range.z(), range.y()[0] as i64, range.y()[1] as i64)
+    intersect_axis(
+        flex.f_zoomlevel(),
+        flex.f_index() as i64,
+        range.z(),
+        range.f()[0] as i64,
+        range.f()[1] as i64,
+    ) && intersect_axis(
+        flex.x_zoomlevel(),
+        flex.x_index() as i64,
+        range.z(),
+        range.x()[0] as i64,
+        range.x()[1] as i64,
+    ) && intersect_axis(
+        flex.y_zoomlevel(),
+        flex.y_index() as i64,
+        range.z(),
+        range.y()[0] as i64,
+        range.y()[1] as i64,
+    )
 }
 
 impl<S: SpatialIdCollection> Query<S> {

@@ -94,20 +94,20 @@ where
         let target_z = self.target_z.get();
         let bounds_z = bounds.z();
         let max_z = target_z.max(bounds_z);
-        
+
         let scale_t = max_z - target_z;
         let scale_b = max_z - bounds_z;
-        
+
         let target_min_max_z = (self.start_x as i64) * (1i64 << scale_t);
         let target_max_max_z = ((self.end_x as i64) + 1) * (1i64 << scale_t) - 1;
-        
+
         let bounds_min_max_z = (bounds.x()[0] as i64) * (1i64 << scale_b);
         let bounds_max_max_z = ((bounds.x()[1] as i64) + 1) * (1i64 << scale_b) - 1;
-        
+
         if target_max_max_z < bounds_min_max_z || bounds_max_max_z < target_min_max_z {
             return alloc::vec![];
         }
-        
+
         let xy_max = crate::ZoomLevel::new(bounds_z).unwrap().xy_max();
         bounds.set_x([0, xy_max]).unwrap();
         alloc::vec![bounds]

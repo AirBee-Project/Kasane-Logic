@@ -108,4 +108,3 @@ pub use spatial_id::collection::query::lazy::LazyView;
 pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
-

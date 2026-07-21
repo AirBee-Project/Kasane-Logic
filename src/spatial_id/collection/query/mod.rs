@@ -19,4 +19,3 @@ pub mod fmt;
 pub use execution::Query;
 pub use lazy::LazyView;
 pub use merge_policy::MergePolicy;
-
