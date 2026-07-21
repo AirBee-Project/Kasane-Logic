@@ -5,7 +5,7 @@ use core::fmt::Debug;
 use core::ops::{Div, Mul, Sub};
 
 impl FlexId {
-    /// F方向へ指定した半径(radius)の範囲で、元の値(value)を減衰しながら伝播するIDと値のペアを返す。
+    /// F方向のへ値をリニアに減少させる。指定した距離で0になる。
     pub fn falloff_linear_f<Z: Into<u8>, V>(
         &self,
         z: Z,
@@ -42,7 +42,7 @@ impl FlexId {
         Ok(out.into_iter())
     }
 
-    /// X方向へ指定した半径(radius)の範囲で、元の値(value)を減衰しながら伝播するIDと値のペアを返す。
+    /// F方向のへ値をリニアに減少させる。指定した距離で0になる。
     pub fn falloff_linear_x<Z: Into<u8>, V>(
         &self,
         z: Z,
@@ -79,7 +79,7 @@ impl FlexId {
         Ok(out.into_iter())
     }
 
-    /// Y方向へ指定した半径(radius)の範囲で、元の値(value)を減衰しながら伝播するIDと値のペアを返す。
+    /// F方向のへ値をリニアに減少させる。指定した距離で0になる。
     pub fn falloff_linear_y<Z: Into<u8>, V>(
         &self,
         z: Z,

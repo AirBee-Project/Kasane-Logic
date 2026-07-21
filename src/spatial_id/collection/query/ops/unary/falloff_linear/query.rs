@@ -14,7 +14,8 @@ impl<S: SpatialIdCollection> Query<S>
 where
     S::Value: 'static,
 {
-    /// F方向の FalloffLinear 演算を適用する
+    /// F方向のへ値をリニアに減少させる。
+    /// 指定した距離で0になる。
     pub fn falloff_linear_f<Z: Into<u8>, P>(self, z: Z, radius: u32, _policy: P) -> Self
     where
         P: MergePolicy<S::Value> + Send + Sync,
@@ -36,7 +37,8 @@ where
         }
     }
 
-    /// X方向の FalloffLinear 演算を適用する
+    /// X方向のへ値をリニアに減少させる。
+    /// 指定した距離で0になる。
     pub fn falloff_linear_x<Z: Into<u8>, P>(self, z: Z, radius: u32, _policy: P) -> Self
     where
         P: MergePolicy<S::Value> + Send + Sync,
@@ -58,7 +60,8 @@ where
         }
     }
 
-    /// Y方向の FalloffLinear 演算を適用する
+    /// Y方向のへ値をリニアに減少させる。
+    /// 指定した距離で0になる。
     pub fn falloff_linear_y<Z: Into<u8>, P>(self, z: Z, radius: u32, _policy: P) -> Self
     where
         P: MergePolicy<S::Value> + Send + Sync,

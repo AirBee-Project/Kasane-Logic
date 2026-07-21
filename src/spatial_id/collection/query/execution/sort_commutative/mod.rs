@@ -6,7 +6,7 @@ impl<S: SpatialIdCollection> Query<S>
 where
     S::Value: 'static,
 {
-    /// 可換グループ内の演算子を「拡大率（[`expansion_ratio`]）」が小さい順へ並び替える。
+    /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
     pub fn sort_commutative_ops(self) -> Self
     where
         S::Working: 'static,
