@@ -5,15 +5,6 @@
 #[macro_use]
 extern crate alloc;
 
-/// `fast-alloc` feature 有効時の高速グローバルアロケータ（mimalloc）。
-///
-/// ライブラリ自身は `#[global_allocator]` を設定しない（それは最終バイナリの責務）。
-/// このクレートのバイナリ／ベンチが `#[global_allocator] static G: FastAllocator = FastAllocator;`
-/// として使えるように型だけ再公開する。downstream の std アプリも同様に採用できる。
-/// no_std ビルドでは `fast-alloc` を有効化できない（std必須）ため一切現れない。
-#[cfg(feature = "fast-alloc")]
-pub use mimalloc::MiMalloc as FastAllocator;
-
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 

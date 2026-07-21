@@ -1,7 +1,3 @@
-#[cfg(feature = "fast-alloc")]
-#[global_allocator]
-static GLOBAL: kasane_logic::FastAllocator = kasane_logic::FastAllocator;
-
 fn main() {
     // let bldg_risk: SpatialIdTable<u32> =
     //     serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();

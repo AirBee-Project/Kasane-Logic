@@ -1,7 +1,4 @@
 //! 単項クエリ演算子（shift）のベンチマーク。
-#[cfg(feature = "fast-alloc")]
-#[global_allocator]
-static GLOBAL: kasane_logic::FastAllocator = kasane_logic::FastAllocator;
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{SingleId, SpatialIdCollection, SpatialIdTable};

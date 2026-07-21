@@ -3,9 +3,6 @@
 //! extrude_fは列（X,Y footprint）ごとにまとめて展開する実装になっているため、
 //! 「同じ(X,Y)列を多数のセルが共有するケース」（列単位resolve_manyが効く）と
 //! 「列がほぼ互いに素なケース」（従来と同程度になるはず）の両方を計測する。
-#[cfg(feature = "fast-alloc")]
-#[global_allocator]
-static GLOBAL: kasane_logic::FastAllocator = kasane_logic::FastAllocator;
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
