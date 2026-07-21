@@ -1,2 +1,5 @@
 [alias]
 ci = "run --package xtask --"
+
+[build]
+rustflags = ["-C", "target-cpu=native"]

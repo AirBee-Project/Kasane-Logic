@@ -9,8 +9,7 @@ impl<S: SpatialIdCollection> Query<S>
 where
     S::Value: 'static,
 {
-    /// 指定されたズームレベルまで情報を落とし（親IDへ集約し）、
-    /// 複数の子ボクセルを `MergePolicy` に従って一括マージする。
+    /// 指定されたズームレベルまで情報を落とし、複数の子ボクセルを`MergePolicy::resolve_many` で一括マージする単項演算子。
     pub fn zoom_out<P: MergePolicy<S::Value>, Z: Into<u8>>(self, target_z: Z, _policy: P) -> Self {
         if matches!(self, Query::Error(_)) {
             return self;

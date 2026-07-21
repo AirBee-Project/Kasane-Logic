@@ -4,10 +4,7 @@ use crate::{
     spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
 };
 
-/// 作業木全体を東西（X）方向へ、ズームレベル `z` のセル `x` 個分だけ平行移動する単項演算。
-///
-/// X-shift は空間的に単射（各セル → 移動先が重ならない）なので union で組み直す
-/// （[`WorkingTree::map_rebuild`]）。X 方向は経度 ±180 度で巡回する。
+/// 作業木全体を東西（X）方向へ、ズームレベル `z` のインデックス値 `x` 個分だけ平行移動する単項演算。
 pub struct ShiftX {
     z: ZoomLevel,
     x: i32,

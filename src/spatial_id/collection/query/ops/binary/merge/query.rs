@@ -9,7 +9,7 @@ where
 {
     /// 2つのクエリ連鎖の結果を `MergePolicy` で重ね合わせる。
     /// 片側にしか値が無いセルは `default` を相手側の値とみなして解決する
-    /// （両側とも値の無いセルはそのまま空）。
+    /// 両側とも値の無いセルはそのまま空となる。
     pub fn merge<P: MergePolicy<S::Value>>(
         self,
         other: Self,

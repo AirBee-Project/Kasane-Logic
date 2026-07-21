@@ -7,9 +7,6 @@ use crate::{
 };
 
 /// 2つの作業木を `MergePolicy` で重ね合わせる二項演算子。
-///
-/// 片側にしか値が無いセルは、もう片方を `default` とみなして `MergePolicy::resolve` に渡す
-/// （例: `resolve(default, b)`）。両側とも値の無いセルは演算を行わず空のままにする。
 pub struct Merge<V, P> {
     default: V,
     _marker: core::marker::PhantomData<fn() -> P>,

@@ -5,7 +5,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 
-/// コレクションを包む包摂境界（`RangeId`）内の空領域をデフォルト値で埋める単項演算子。
+/// コレクションを包む最小の[RangeId]内の空領域をデフォルト値で埋める単項演算子。
 pub struct FillEmpty<V> {
     pub default_value: V,
 }

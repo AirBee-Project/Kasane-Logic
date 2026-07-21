@@ -8,10 +8,10 @@ use alloc::vec::Vec;
 use crate::SpatialId;
 
 impl FlexId {
-    /// このFlexIdを高さ（F）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
+    /// このFlexIdを高さ（F）方向へ、ズームレベル `z` のインデックス値 `index` 個分だけ平行移動した結果を返す。
     ///
     /// 移動量はズーム `z` を単位とするため、`z` がこのFlexIdのFズームレベルより
-    /// 細かい場合は1セルに満たない移動となり、結果が複数セルへ分割されることがある。
+    /// 細かい場合は1インデックス値に満たない移動となり、結果が複数インデックス値へ分割されることがある。
     /// そのため複数の [`FlexId`] を生成するイテレーターを返す。XY方向の値は変更しない。
     ///
     /// # バリデーション
@@ -55,7 +55,7 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         let temporal_id = self.temporal().clone();
 
-        // 占有区間を整列したセル群へ分解し、F以外の成分を保ったままFlexIdを構築する。
+        // 占有区間を整列したインデックス値群へ分解し、F以外の成分を保ったままFlexIdを構築する。
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
@@ -81,7 +81,7 @@ impl FlexId {
         )
     }
 
-    /// このFlexIdを東西（X）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
+    /// このFlexIdを東西（X）方向へ、ズームレベル `z` のインデックス値 `index` 個分だけ平行移動した結果を返す。
     ///
     /// X方向はWebメルカトル図法において東西に巡回するため、移動量がどれだけ大きくても
     /// エラーにはならず、`max(x_zoomlevel, z)` の周長を法として循環する。境界（経度±180度）を
@@ -101,7 +101,7 @@ impl FlexId {
         let x_zoomlevel = self.x_zoomlevel();
         let max_z = x_zoomlevel.max(z);
 
-        // max_z における周長（Xセル数）。
+        // max_z における周長（Xインデックス値数）。
         let circumference = 1_i64 << max_z;
         let cell_scale = 1_i64 << (max_z - x_zoomlevel);
         let delta_index = index as i64 * (1_i64 << (max_z - z));
@@ -153,7 +153,7 @@ impl FlexId {
             }))
     }
 
-    /// このFlexIdを南北（Y）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
+    /// このFlexIdを南北（Y）方向へ、ズームレベル `z` のインデックス値 `index` 個分だけ平行移動した結果を返す。
     ///
     /// Y方向は巡回せず `[0[z]]` に制限される。`z` が このFlexIdのYズームレベルより細かい場合は結果が分割されることがある。F・X方向の値は変更しない。
     ///
