@@ -34,7 +34,6 @@ mod tests {
     proptest! {
         #[test]
         /// 同じ要素を逆順で挿入しても Set の等価性が保たれることをプロパティテストで検証する。
-        #[ignore]
         fn equal_even_if_insert_order_differs_proptest(case in arb_random_set_case()) {
             let mut lhs = SpatialIdSet::new();
             insert_all(&mut lhs, &case.inserts);
@@ -48,7 +47,6 @@ mod tests {
 
         #[test]
         /// 同じ要素をシード付きランダム順で挿入しても Set の等価性が保たれることをプロパティテストで検証する。
-        #[ignore]
         fn equal_even_if_insert_order_is_random_proptest(
             case in arb_random_set_case(),
             shuffle_seed in any::<u64>(),

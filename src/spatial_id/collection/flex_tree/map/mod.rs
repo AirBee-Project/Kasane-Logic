@@ -17,6 +17,20 @@ where
     inner: FlexTreeCore<V>,
 }
 
+impl<V> PartialEq for SpatialIdMap<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+impl<V> Eq for SpatialIdMap<V> where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue
+{
+}
+
 impl<V> SpatialIdMap<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,

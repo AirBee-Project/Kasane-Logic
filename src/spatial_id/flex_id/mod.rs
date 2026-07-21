@@ -70,207 +70,45 @@ impl FlexId {
         self.y_index
     }
 
-    /// このFlexIdを高さ（F）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
-    ///
-    /// 移動量はズーム `z` を単位とするため、`z` がこのFlexIdのFズームレベルより
-    /// 細かい場合は1セルに満たない移動となり、結果が複数セルへ分割されることがある。
-    /// そのため複数の [`FlexId`] を生成するイテレーターを返す。XY方向の値は変更しない。
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `index` がズーム `z` のF範囲（`ZoomLevel::new(z as u8).unwrap().f_min()..=ZoomLevel::new(z as u8).unwrap().f_max()`）外の場合は
-    ///   [`SpatialIdError::FOutOfRange`] を返す。
-    /// - 移動後の位置が、両者を合わせたズーム `max(f_zoomlevel, z)` のF範囲を超える場合は
-    ///   [`SpatialIdError::FOutOfRange`] を返す。
-    pub fn shift_f(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
-        // ズームレベルのチェック
-        let zoom = ZoomLevel::new(z)?;
-        zoom.check_f(index)?;
+    /// 指定したズームレベルでの空間的な親ID（包含する最小のFlexId）を返す。
+    /// 指定されたズームが現在のズーム以上の場合は、各軸についてそのままのズームとインデックスを返す。
+    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<FlexId, Error> {
+        let f_zoomlevel = self.f_zoomlevel().min(target_z);
+        let x_zoomlevel = self.x_zoomlevel().min(target_z);
+        let y_zoomlevel = self.y_zoomlevel().min(target_z);
 
-        let f_zoomlevel = self.f_zoomlevel();
-        let max_z = f_zoomlevel.max(z);
+        let shift_f = self.f_zoomlevel() - f_zoomlevel;
+        let shift_x = self.x_zoomlevel() - x_zoomlevel;
+        let shift_y = self.y_zoomlevel() - y_zoomlevel;
 
-        let cell_scale = 1_i32 << (max_z - f_zoomlevel);
-        let delta_index = index * (1_i32 << (max_z - z));
+        let f_index = self.f_index() >> shift_f;
+        let x_index = self.x_index() >> shift_x;
+        let y_index = self.y_index() >> shift_y;
 
-        let left = self.f_index() * cell_scale + delta_index;
-        let right = left + cell_scale - 1;
-
-        // 移動後が max_z のF範囲を超える場合はエラー。
-        if left < ZoomLevel::new(max_z)?.f_min() {
-            return Err(SpatialIdError::FOutOfRange { z: max_z, f: left }.into());
-        }
-        if right > ZoomLevel::new(max_z)?.f_max() {
-            return Err(SpatialIdError::FOutOfRange { z: max_z, f: right }.into());
-        }
-
-        // F以外の成分は値で捕捉し、返すイテレーターが self を借用しないようにする。
-        let x_zoomlevel = self.x_zoomlevel();
-        let x_index = self.x_index();
-        let y_zoomlevel = self.y_zoomlevel();
-        let y_index = self.y_index();
         #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
-
-        // 占有区間を整列したセル群へ分解し、F以外の成分を保ったままFlexIdを構築する。
-        Ok(
-            split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                        .unwrap()
-                }
-            }),
-        )
-    }
-
-    /// このFlexIdを東西（X）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
-    ///
-    /// X方向はWebメルカトル図法において東西に巡回するため、移動量がどれだけ大きくても
-    /// エラーにはならず、`max(x_zoomlevel, z)` の周長を法として循環する。境界（経度±180度）を
-    /// またぐ場合は、[`RangeId`](crate::RangeId) の巡回表現と同様に分割される。
-    /// F・Y方向の値は変更しない。
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    pub fn shift_x(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
-        if z > ZoomLevel::MAX.get() {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        {
+            FlexId::new_with_temporal(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+                self.temporal_id.clone(),
+            )
         }
 
-        let x_zoomlevel = self.x_zoomlevel();
-        let max_z = x_zoomlevel.max(z);
-
-        // max_z における周長（Xセル数）。
-        let circumference = 1_i64 << max_z;
-        let cell_scale = 1_i64 << (max_z - x_zoomlevel);
-        let delta_index = index as i64 * (1_i64 << (max_z - z));
-
-        let left = self.x_index() as i64 * cell_scale + delta_index;
-        let right = left + cell_scale - 1;
-
-        let left_wrapped = left.rem_euclid(circumference);
-        let right_wrapped = right.rem_euclid(circumference);
-        let ranges: Vec<[u32; 2]> = if left_wrapped <= right_wrapped {
-            vec![[left_wrapped as u32, right_wrapped as u32]]
-        } else {
-            vec![
-                [left_wrapped as u32, (circumference - 1) as u32],
-                [0, right_wrapped as u32],
-            ]
-        };
-
-        let f_zoomlevel = self.f_zoomlevel();
-        let f_index = self.f_index();
-        let y_zoomlevel = self.y_zoomlevel();
-        let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
-
-        Ok(ranges
-            .into_iter()
-            .flat_map(move |range| split_xy(max_z, range))
-            .map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                        .unwrap()
-                }
-            }))
-    }
-
-    /// このFlexIdを南北（Y）方向へ、ズームレベル `z` のセル `index` 個分だけ平行移動した結果を返す。
-    ///
-    /// Y方向は巡回せず `[0[z]]` に制限される。`z` が このFlexIdのYズームレベルより細かい場合は結果が分割されることがある。F・X方向の値は変更しない。
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - 移動後の位置が、両者を合わせたズーム `max(y_zoomlevel, z)` のY範囲を超える場合は
-    ///   [`SpatialIdError::YOutOfRange`] を返す。
-    pub fn shift_y(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
-        if z > ZoomLevel::MAX.get() {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            FlexId::new(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+            )
         }
-
-        let y_zoomlevel = self.y_zoomlevel();
-        let max_z = y_zoomlevel.max(z);
-
-        let cell_scale = 1_i64 << (max_z - y_zoomlevel);
-        let delta_index = index as i64 * (1_i64 << (max_z - z));
-
-        let left = self.y_index() as i64 * cell_scale + delta_index;
-        let right = left + cell_scale - 1;
-
-        // 移動後が max_z のY範囲 [0[max_z]] を超える場合はエラー。
-        let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
-        if left < 0 || right > y_max {
-            let offending = if left < 0 { left } else { right };
-            return Err(SpatialIdError::YOutOfRange {
-                z: max_z,
-                y: offending.clamp(0, u32::MAX as i64) as u32,
-            }
-            .into());
-        }
-
-        // F・X以外の成分は値で捕捉する。
-        let f_zoomlevel = self.f_zoomlevel();
-        let f_index = self.f_index();
-        let x_zoomlevel = self.x_zoomlevel();
-        let x_index = self.x_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
-
-        Ok(
-            split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
-                        .unwrap()
-                }
-            }),
-        )
     }
 
     /// このFlexIdを高さ（F）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
@@ -493,178 +331,6 @@ impl FlexId {
                 }
             }),
         )
-    }
-
-    /// このFlexIdのF方向の占有を、ズーム `z` の絶対座標範囲 `[lo, hi]` に置き換える。
-    ///
-    /// [`stretch_f`](Self::stretch_f) が元の占有を相対的に継ぎ足して起伏を保存するのに対し、
-    /// `level_f` は元のF位置を捨てて全セルを同じ絶対範囲 `[lo, hi]` に揃える。よってF方向の
-    /// 起伏（凹凸）は平坦化され、`hi` を越えていた占有は削られ、足りない区間は埋められる。
-    /// `lo`/`hi` は順不同で、内部で小さい方を下端として扱う。XY方向の値は変更しない。
-    /// 占有区間は整列したセル群へ分解されるため複数の [`FlexId`] を返す。
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `lo` または `hi` がズーム `z` のF範囲（`ZoomLevel::new(z as u8).unwrap().f_min()..=ZoomLevel::new(z as u8).unwrap().f_max()`）外の場合は
-    ///   [`SpatialIdError::FOutOfRange`] を返す。
-    pub fn level_f(&self, z: u8, lo: i32, hi: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
-        if z > ZoomLevel::MAX.get() {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let (left, right) = (lo.min(hi), lo.max(hi));
-        if left < ZoomLevel::new(z).unwrap().f_min() {
-            return Err(SpatialIdError::FOutOfRange { z, f: left }.into());
-        }
-        if right > ZoomLevel::new(z).unwrap().f_max() {
-            return Err(SpatialIdError::FOutOfRange { z, f: right }.into());
-        }
-
-        let x_zoomlevel = self.x_zoomlevel();
-        let x_index = self.x_index();
-        let y_zoomlevel = self.y_zoomlevel();
-        let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
-
-        Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    seg_z,
-                    seg_index,
-                    x_zoomlevel,
-                    x_index,
-                    y_zoomlevel,
-                    y_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index).unwrap()
-            }
-        }))
-    }
-
-    /// このFlexIdのX方向の占有を、ズーム `z` の絶対座標範囲（`from` から東向きに `to` まで）へ
-    /// 置き換える。
-    ///
-    /// [`level_f`](Self::level_f) のX版だが、X方向は東西に巡回するため `from` から東向きに
-    /// `to` まで進む弧として解釈する。`from <= to` なら連続した一区間、`from > to` なら境界を
-    /// またいで2区間に分割される。元のX位置は捨てられ、X方向の起伏は平坦化される。
-    /// F・Y方向の値は変更しない。
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `from` または `to` がズーム `z` のX範囲（`0..=ZoomLevel::new(z as u8).unwrap().xy_max()`）外の場合は
-    ///   [`SpatialIdError::XOutOfRange`] を返す。
-    pub fn level_x(
-        &self,
-        z: u8,
-        from: u32,
-        to: u32,
-    ) -> Result<impl Iterator<Item = FlexId>, Error> {
-        if z > ZoomLevel::MAX.get() {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
-        if from > xy_max {
-            return Err(SpatialIdError::XOutOfRange { z, x: from }.into());
-        }
-        if to > xy_max {
-            return Err(SpatialIdError::XOutOfRange { z, x: to }.into());
-        }
-
-        // from から東向きに to まで。境界跨ぎ（from > to）は2区間へ分ける。
-        let ranges: Vec<[u32; 2]> = if from <= to {
-            vec![[from, to]]
-        } else {
-            vec![[from, xy_max], [0, to]]
-        };
-        let f_zoomlevel = self.f_zoomlevel();
-        let f_index = self.f_index();
-        let y_zoomlevel = self.y_zoomlevel();
-        let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
-
-        Ok(ranges
-            .into_iter()
-            .flat_map(move |range| split_xy(z, range))
-            .map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                        .unwrap()
-                }
-            }))
-    }
-
-    /// このFlexIdのY方向の占有を、ズーム `z` の絶対座標範囲 `[lo, hi]` に置き換える。
-    ///
-    /// [`level_f`](Self::level_f) のY版。Y方向は巡回せず `[0[z]]` に制限される。
-    /// `lo`/`hi` は順不同で、内部で小さい方を下端として扱う。元のY位置は捨てられ、Y方向の
-    /// 起伏は平坦化される。F・X方向の値は変更しない。
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    /// - `lo` または `hi` がズーム `z` のY範囲（`0..=ZoomLevel::new(z as u8).unwrap().xy_max()`）外の場合は
-    ///   [`SpatialIdError::YOutOfRange`] を返す。
-    pub fn level_y(&self, z: u8, lo: u32, hi: u32) -> Result<impl Iterator<Item = FlexId>, Error> {
-        if z > ZoomLevel::MAX.get() {
-            return Err(SpatialIdError::ZOutOfRange { z }.into());
-        }
-
-        let (left, right) = (lo.min(hi), lo.max(hi));
-        if right > ZoomLevel::new(z).unwrap().xy_max() {
-            return Err(SpatialIdError::YOutOfRange { z, y: right }.into());
-        }
-
-        let f_zoomlevel = self.f_zoomlevel();
-        let f_index = self.f_index();
-        let x_zoomlevel = self.x_zoomlevel();
-        let x_index = self.x_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal_id.clone();
-
-        Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
-            #[cfg(feature = "temporal_id")]
-            {
-                FlexId::new_with_temporal(
-                    f_zoomlevel,
-                    f_index,
-                    x_zoomlevel,
-                    x_index,
-                    seg_z,
-                    seg_index,
-                    temporal_id.clone(),
-                )
-                .unwrap()
-            }
-
-            #[cfg(not(feature = "temporal_id"))]
-            {
-                FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index).unwrap()
-            }
-        }))
     }
 
     /// F方向で二つに切り分ける。[`ZoomLevel::MAX`] なら [`None`]。

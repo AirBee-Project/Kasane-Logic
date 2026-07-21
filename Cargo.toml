@@ -17,9 +17,9 @@ hashbrown = "0.15.2"
 libm = "0.2.16"
 
 # featuresで切り替え可能なもの
-rand = { version = "0.10.1", optional = true }
+rand = { version = "0.10.2", optional = true }
 rayon = { version = "1.10", optional = true }
-rkyv = { version = "0.8", features = ["unaligned"], optional = true }
+rkyv = { version = "0.8.17", features = ["unaligned"], optional = true }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
 
@@ -54,12 +54,14 @@ split-debuginfo = "unpacked"
 debug = 0 
 codegen-units = 256
 
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
 [profile.dev.package."*"]
 opt-level = 3
-
-[[bin]]
-name = "kasane-logic"
-bench = false
 
 [lib]
 bench = false
@@ -154,3 +156,31 @@ name = "spatial_id_set_parallel_build"
 path = "benches/spatial_id_set/parallel_build.rs"
 harness = false
 
+[[bench]]
+name = "query_ops_unary_shift"
+path = "benches/query/ops/unary/shift.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_falloff_linear"
+path = "benches/query/ops/unary/falloff_linear.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_zoom_out"
+path = "benches/query/ops/unary/zoom_out.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_extrude"
+path = "benches/query/ops/unary/extrude.rs"
+harness = false
+
+[[bench]]
+name = "query_workflow_bldg_risk"
+path = "benches/query/workflow/bldg_risk.rs"
+harness = false
+
+[[example]]
+name = "table_json"
+required-features = ["json"]

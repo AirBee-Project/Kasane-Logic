@@ -98,8 +98,3 @@ pub use spatial_id::traits::SpatialId;
 // spatial_id: zoom level
 #[doc(inline)]
 pub use spatial_id::zoom_level::ZoomLevel;
-
-#[doc(inline)]
-pub use spatial_id::collection::expr::query::Query;
-#[doc(inline)]
-pub use spatial_id::collection::expr::traits::{BinaryOperator, ConflictPolicy, UnaryOperator};

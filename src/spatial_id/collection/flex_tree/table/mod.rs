@@ -375,3 +375,22 @@ impl<V: CellValue> Default for SpatialIdTable<V> {
         Self::new()
     }
 }
+
+impl<V> PartialEq for SpatialIdTable<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
+{
+    fn eq(&self, other: &Self) -> bool {
+        // 論理的に等しいテーブルは使われている値の種類数（distinct value数）も一致するはず
+        // なので、木を辿る前にO(1)で弾ける安価なガードとして先に見る。
+        if self.count() != other.count() || self.dictionary.len() != other.dictionary.len() {
+            return false;
+        }
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<V> Eq for SpatialIdTable<V> where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord
+{
+}

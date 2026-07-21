@@ -1,210 +1,186 @@
-use alloc::vec::Vec;
-
 use crate::{
-    ConflictPolicy, FlexId, SpatialIdSet, SpatialIdTable,
-    spatial_id::collection::expr::query::Query,
+    Error, FlexId, FlexTreeCore, SpatialIdSet, SpatialIdTable,
+    spatial_id::collection::query::{execution::Query, traits::WorkingTree},
 };
 
 /// `SpatialIdSet`（値を持たない集合）の参照版走査で返す `&()` の実体。
 static UNIT: () = ();
 
-/// コレクションが格納する値型に共通して要求される性質。
-pub trait CellValue: Ord + Clone + Send + Sync {}
-impl<T: Ord + Clone + Send + Sync> CellValue for T {}
+/// Table の入口/出口変換（`try_into_working`/`try_from_working`）で、これ未満なら rayon を使わず逐次で組む閾値。
+/// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
+#[cfg(feature = "rayon")]
+const SEQ_CONVERT_THRESHOLD: usize = 512;
 
-/// 演算の対象となる空間IDコレクションの性質。
-///
+#[cfg(not(feature = "rayon"))]
+pub trait CellValue: Ord + Clone {}
+#[cfg(not(feature = "rayon"))]
+impl<T: Ord + Clone> CellValue for T {}
+
 #[cfg(feature = "rayon")]
-pub trait SpatialIdCollectionBounds: Sized + Sync + Send {}
+pub trait CellValue: Ord + Clone + Send + Sync {}
 #[cfg(feature = "rayon")]
-impl<T: Sized + Sync + Send> SpatialIdCollectionBounds for T {}
+impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 
 #[cfg(not(feature = "rayon"))]
 pub trait SpatialIdCollectionBounds: Sized {}
 #[cfg(not(feature = "rayon"))]
 impl<T: Sized> SpatialIdCollectionBounds for T {}
 
-pub trait SpatialIdCollection:
-    SpatialIdCollectionBounds + Clone + Default + IntoIterator<Item = (FlexId, Self::Value)>
-{
-    /// 各空間IDに紐づく値の型。値を持たない集合では `()`。
+#[cfg(feature = "rayon")]
+pub trait SpatialIdCollectionBounds: Sized + Sync + Send {}
+#[cfg(feature = "rayon")]
+impl<T: Sized + Sync + Send> SpatialIdCollectionBounds for T {}
+
+pub trait SpatialIdCollection: SpatialIdCollectionBounds {
     type Value: CellValue;
 
-    /// 1 つの `(FlexId, Value)` を書き込む。
-    fn insert(&mut self, key: FlexId, value: Self::Value);
+    /// クエリ実行器が演算子を回すための作業表現。具象型（[`FlexTreeCore`] 等）はここに閉じ込め、
+    /// `SpatialIdCollection` の公開シグネチャには現れない。実装は [`WorkingTree`] を満たす必要がある
+    /// （`map_rebuild`/`map_rebuild_with` など、演算子が実際に使うメソッドのみを持つ境界）。
+    /// `'static` は `Box<dyn UnaryOperator<Self::Working>>` を AST（`Query`）に保持するために必要。
+    type Working: WorkingTree<Value = Self::Value> + 'static;
 
-    /// 解決済みセル列から結果コレクションを一括構築する
-    /// 全演算子の結果組み立ての共通経路として機能する。
-    fn from_cells<I>(cells: I, conflict: &ConflictPolicy<Self::Value>) -> Self
-    where
-        I: IntoIterator<Item = (FlexId, Self::Value)>,
-    {
-        if let ConflictPolicy::Overwrite = conflict {
-            // 完全一致セルは (最後の出現位置, 最後の値) だけ残す。
-            let mut latest: hashbrown::HashMap<FlexId, (usize, Self::Value)> =
-                hashbrown::HashMap::new();
-            for (pos, (cell, value)) in cells.into_iter().enumerate() {
-                latest.insert(cell, (pos, value));
-            }
-            // 最後の出現順に並べ直してから積む（後勝ちの相対順を保存）。
-            let mut ordered: Vec<(usize, FlexId, Self::Value)> = latest
-                .into_iter()
-                .map(|(id, (pos, value))| (pos, id, value))
-                .collect();
-            ordered.sort_unstable_by_key(|(pos, _, _)| *pos);
+    fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Error>;
 
-            let mut result = Self::default();
-            for (_, id, value) in ordered {
-                result.insert(id, value);
-            }
-            result
-        } else {
-            let mut result = Self::default();
-            for (cell, value) in cells {
-                let current = result.get(&cell).next().map(|(_, v)| v);
-                let resolved = conflict.resolve(current, value);
-                result.insert(cell, resolved);
-            }
-            result
-        }
-    }
-
-    /// コレクションの要素を参照で走査する。
-    fn iter(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
-
-    /// `target` と重なる `(FlexId, Value)` を取得する（2項演算の重なり判定に使う）。
-    fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, Self::Value)> + 'a;
-
-    /// [`query`](Self::query) の参照版。値をクローンせず参照で返す。
-    fn get_ref<'a>(
+    fn try_get<'a>(
         &'a self,
         target: &'a FlexId,
-    ) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a;
+    ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error>;
 
-    /// 含まれる要素の最大ズームレベル（正規化・最適化に使う）。
-    fn max_zoomlevel(&self) -> Option<u8>;
+    fn try_remove<'a>(
+        &'a mut self,
+        target: &'a FlexId,
+    ) -> Result<impl Iterator<Item = (FlexId, Self::Value)> + 'a, Error>;
 
-    /// 空かどうか。
-    fn is_empty(&self) -> bool;
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a;
+
+    /// クエリ実行の**入口変換**: 所有権ごと作業表現 [`Self::Working`](Self::Working) へ写す。
+    ///
+    /// 実行器は連鎖の入口で 1 回だけこれを呼び、以降の全演算子を `Self::Working` 上で回す。Table は
+    /// rank ツリーを辞書で実体値へ展開する（演算子ごとの再 intern を無くすための境界）。他の
+    /// `try_*` と同じく `Result` で包む（ディスク実装等、失敗しうる変換を将来許容するため）。
+    fn try_into_working(self) -> Result<Self::Working, Error>;
+
+    /// クエリ実行の**出口変換**: 作業表現 [`Self::Working`](Self::Working) からコレクションを組む。
+    ///
+    /// 実行器は連鎖の出口で 1 回だけ呼ぶ。Table は実体値を辞書へ intern し直す。
+    fn try_from_working(working: Self::Working) -> Result<Self, Error>;
 
     /// [Query]を用いて空間IDの集合を処理します。
     /// 指定した空間IDの集合を直接操作するため、所有権を消費します。
-    ///
-    /// # Examples
-    ///
-    /// 元のコレクションを直接書き換える場合:
-    ///
-    /// ```rust
-    /// use kasane_logic::{SpatialIdTable, SpatialIdCollection};
-    ///
-    /// let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
-    /// // ... tableに要素を追加 ...
-    ///
-    /// // query()は所有権を消費し、メモリを再利用して高速に元のtableを直接書き換えます。
-    /// table = table.query().shift_x(15, 1).run().unwrap();
-    /// ```
+    /// コレクションに対するクエリを開始する
     fn query(self) -> Query<Self> {
         Query::Source(self)
-    }
-
-    /// [Query]を用いて空間IDの集合を処理します。
-    /// 指定した空間IDの集合を参照して新しい集合を構築するため、元の集合の所有権を消費しません。
-    ///
-    /// 新しい集合の構築は必要部分で行われるため、軽量に動作します。
-    ///
-    /// # Examples
-    ///
-    /// 元の集合を残しつつ、新しい集合を作成する場合:
-    ///
-    /// ```rust
-    /// use kasane_logic::{SpatialIdTable, SpatialIdCollection};
-    ///
-    /// let table: SpatialIdTable<i32> = SpatialIdTable::new();
-    /// // ... tableに要素を追加 ...
-    ///
-    /// // as_query()は所有権を消費せず、元のtableを維持したまま新しいtableを構築します。
-    /// // 内部では軽量なcloneが行われます。
-    /// let new_table = table.as_query().shift_x(15, 1).run().unwrap();
-    /// ```
-    fn as_query(&self) -> Query<Self> {
-        (*self).clone().query()
-    }
-
-    /// コレクション内のすべての値を更新します。
-    fn map_values_in_place<F>(&mut self, f: F)
-    where
-        F: FnMut(&mut Self::Value);
-}
-
-impl<V> SpatialIdCollection for SpatialIdTable<V>
-where
-    V: CellValue,
-{
-    type Value = V;
-
-    fn insert(&mut self, key: FlexId, value: V) {
-        SpatialIdTable::insert(self, key, value);
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.iter()
-    }
-
-    fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        self.get(target).map(|(id, v)| (id, v.clone()))
-    }
-
-    fn get_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        self.get(target)
-    }
-
-    fn max_zoomlevel(&self) -> Option<u8> {
-        SpatialIdTable::max_zoomlevel(self)
-    }
-
-    fn is_empty(&self) -> bool {
-        SpatialIdTable::is_empty(self)
-    }
-
-    fn map_values_in_place<F>(&mut self, f: F)
-    where
-        F: FnMut(&mut Self::Value),
-    {
-        SpatialIdTable::map_values_in_place(self, f);
     }
 }
 
 impl SpatialIdCollection for SpatialIdSet {
     type Value = ();
+    type Working = FlexTreeCore<()>;
 
-    fn insert(&mut self, key: FlexId, _value: ()) {
-        SpatialIdSet::insert(self, key);
+    fn try_insert(&mut self, target: FlexId, _value: Self::Value) -> Result<(), Error> {
+        self.insert(target);
+        Ok(())
     }
 
-    fn iter(&self) -> impl Iterator<Item = (FlexId, &())> + '_ {
-        SpatialIdSet::iter(self).map(|id| (id, &UNIT))
+    fn try_get<'a>(
+        &'a self,
+        target: &'a FlexId,
+    ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error> {
+        Ok(self.get(target).map(|id| (id, &UNIT)))
     }
 
-    fn get<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, ())> + 'a {
-        self.get(target).map(|id| (id, ()))
+    fn try_remove<'a>(
+        &'a mut self,
+        target: &'a FlexId,
+    ) -> Result<impl Iterator<Item = (FlexId, Self::Value)> + 'a, Error> {
+        Ok(self.remove(target).map(|id| (id, ())))
     }
 
-    fn get_ref<'a>(&'a self, target: &'a FlexId) -> impl Iterator<Item = (FlexId, &'a ())> + 'a {
-        self.get(target).map(|id| (id, &UNIT))
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a {
+        self.iter().map(|id| (id, &UNIT))
     }
 
-    fn max_zoomlevel(&self) -> Option<u8> {
-        SpatialIdSet::max_zoomlevel(self)
+    fn try_into_working(self) -> Result<FlexTreeCore<()>, Error> {
+        Ok(SpatialIdSet::into_core(self))
     }
 
-    fn is_empty(&self) -> bool {
-        SpatialIdSet::is_empty(self)
+    fn try_from_working(working: FlexTreeCore<()>) -> Result<Self, Error> {
+        Ok(SpatialIdSet::from_core(working))
+    }
+}
+
+impl<V> SpatialIdCollection for SpatialIdTable<V>
+where
+    V: CellValue + 'static,
+{
+    type Value = V;
+    type Working = FlexTreeCore<V>;
+
+    fn try_insert(&mut self, target: FlexId, value: Self::Value) -> Result<(), Error> {
+        self.insert(target, value);
+        Ok(())
     }
 
-    fn map_values_in_place<F>(&mut self, _f: F)
-    where
-        F: FnMut(&mut Self::Value),
-    {
-        // SpatialIdSet's value is (), so no mutation is needed.
+    fn try_get<'a>(
+        &'a self,
+        target: &'a FlexId,
+    ) -> Result<impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a, Error> {
+        Ok(self.get(target))
+    }
+
+    fn try_remove<'a>(
+        &'a mut self,
+        target: &'a FlexId,
+    ) -> Result<impl Iterator<Item = (FlexId, Self::Value)> + 'a, Error> {
+        Ok(self.remove(target))
+    }
+
+    fn iter<'a>(&'a self) -> impl Iterator<Item = (FlexId, &'a Self::Value)> + 'a {
+        self.iter()
+    }
+
+    fn try_into_working(self) -> Result<FlexTreeCore<V>, Error> {
+        // rank ツリーを辞書で実体値へ展開。Table のセルは互いに素なので union（par_build_vec）で正しい。
+        #[cfg(feature = "rayon")]
+        {
+            let items: alloc::vec::Vec<(FlexId, V)> = self.into_iter().collect();
+            // 小入力では rayon 起動コストが利得を上回るので逐次挿入で組む（単発クエリの入口変換の固定費を削る）。
+            if items.len() < SEQ_CONVERT_THRESHOLD {
+                let mut core = FlexTreeCore::new();
+                for (id, value) in items {
+                    core.insert(id, value);
+                }
+                Ok(core)
+            } else {
+                Ok(FlexTreeCore::par_build_vec(items))
+            }
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            let mut core = FlexTreeCore::new();
+            for (id, value) in self {
+                core.insert(id, value);
+            }
+            Ok(core)
+        }
+    }
+
+    fn try_from_working(core: FlexTreeCore<V>) -> Result<Self, Error> {
+        // 実体値の互いに素なセルを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
+        #[cfg(feature = "rayon")]
+        {
+            let cells: alloc::vec::Vec<(FlexId, V)> = core.into_iter().collect();
+            use rayon::iter::FromParallelIterator;
+            if cells.len() < SEQ_CONVERT_THRESHOLD {
+                Ok(cells.into_iter().collect())
+            } else {
+                Ok(SpatialIdTable::from_par_iter(cells))
+            }
+        }
+        #[cfg(not(feature = "rayon"))]
+        {
+            Ok(core.into_iter().collect())
+        }
     }
 }

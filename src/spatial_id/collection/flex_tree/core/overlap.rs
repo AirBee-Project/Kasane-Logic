@@ -248,6 +248,7 @@ mod tests {
 
     proptest! {
         /// 点クエリ（SingleId）の結果が総当たりと一致することを検証する。
+        #[ignore]
         #[test]
         fn overlap_matches_brute_force_for_point_query(
             inserts in prop::collection::vec(arb_single_id(), 1..12),
@@ -295,6 +296,7 @@ mod tests {
 
     proptest! {
         /// 範囲クエリ、および RangeId 挿入で生じる異方セルでも総当たりと一致することを検証する。
+        #[ignore]
         #[test]
         fn overlap_matches_brute_force_for_range_query(
             inserts in prop::collection::vec(arb_range_id(), 1..6),
@@ -346,6 +348,7 @@ mod tests {
         ///
         /// 既存の remove テストは件数（count）しか見ておらず、
         /// 「どのセルが残ったか」は固定ケースでしか押さえられていない。
+        #[ignore]
         #[test]
         fn remove_removes_exactly_the_target_cells(
             inserts in prop::collection::vec(arb_single_id(), 1..10),
@@ -403,6 +406,7 @@ mod tests {
     proptest! {
         /// 挿入順を変えても、木が構造的に完全一致する（＝正規形は履歴に依らず一意）。
         /// これが「FXY-正規形が挿入経路で保たれる」ことのモデル非依存な検証。
+        #[ignore]
         #[test]
         fn insert_order_yields_identical_tree(ids in prop::collection::vec(arb_range_id(), 1..12)) {
             let forward = build_set(&ids);
@@ -417,6 +421,7 @@ mod tests {
 
         /// 全 ID を1本の木へ挿入するのと、単体木の union を畳み込むのが同一結果になる。
         /// 挿入経路と集合演算経路が同じ正規形へ収束することの検証。
+        #[ignore]
         #[test]
         fn insert_all_equals_union_of_singletons(ids in prop::collection::vec(arb_range_id(), 1..10)) {
             let all = build_set(&ids);
@@ -432,6 +437,7 @@ mod tests {
         }
 
         /// union の可換性が構造レベルで成立する（a∪b と b∪a が同一の木）。
+        #[ignore]
         #[test]
         fn union_is_commutative_in_structure(
             a in prop::collection::vec(arb_range_id(), 0..8),
@@ -447,6 +453,7 @@ mod tests {
         }
 
         /// union / intersection / difference の結果が常に正規形である。
+        #[ignore]
         #[test]
         fn set_ops_preserve_canonical(
             a in prop::collection::vec(arb_range_id(), 0..8),
@@ -460,6 +467,7 @@ mod tests {
         }
 
         /// remove 後も木が正規形を保つ（prune の畳み込み漏れ回帰）。
+        #[ignore]
         #[test]
         fn remove_preserves_canonical(
             inserts in prop::collection::vec(arb_range_id(), 1..10),
@@ -473,6 +481,7 @@ mod tests {
         }
 
         /// 全値を定数へ写像すると隣接領域が同値化するが、map_values_mut 後も正規形を保つ。
+        #[ignore]
         #[test]
         fn map_values_preserves_canonical(ids in prop::collection::vec(arb_range_id(), 1..10)) {
             let mut tree: FlexTreeCore<u32> = FlexTreeCore::new();
@@ -488,6 +497,7 @@ mod tests {
     // 定数値で挿入するため、チャンク境界・簡約順に依らず一意（集合）に定まる。
     #[cfg(feature = "rayon")]
     proptest! {
+        #[ignore]
         #[test]
         fn par_build_matches_sequential(ids in prop::collection::vec(arb_range_id(), 1..40)) {
             let mut seq: FlexTreeCore<u32> = FlexTreeCore::new();

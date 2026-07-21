@@ -1,0 +1,107 @@
+use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::{
+    Error, FlexId,
+    spatial_id::{
+        collection::query::{
+            merge_policy::MergePolicy,
+            traits::{UnaryOperator, WorkingTree},
+        },
+        zoom_level::ZoomLevel,
+    },
+};
+use alloc::vec::Vec;
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+
+/// 任意のボクセルの現在のX座標を無視し、絶対座標の指定範囲 [start_x, end_x] に引き延ばす演算子。
+pub struct ExtrudeX<P> {
+    pub target_z: ZoomLevel,
+    pub start_x: u32,
+    pub end_x: u32,
+    _marker: core::marker::PhantomData<fn() -> P>,
+}
+
+impl<P> ExtrudeX<P> {
+    pub fn new(target_z: ZoomLevel, start_x: u32, end_x: u32) -> Self {
+        Self {
+            target_z,
+            start_x,
+            end_x,
+            _marker: core::marker::PhantomData,
+        }
+    }
+}
+
+impl<W, P> UnaryOperator<W> for ExtrudeX<P>
+where
+    W: WorkingTree + 'static,
+    P: MergePolicy<W::Value>,
+{
+    fn validate(&self) -> Result<(), Error> {
+        let z = self.target_z.get();
+        let zl = ZoomLevel::new(z)?;
+        zl.check_x(self.start_x)?;
+        zl.check_x(self.end_x)?;
+        Ok(())
+    }
+
+    fn run(&self, core: &mut W) -> Result<(), Error> {
+        let mut extruded: Vec<(FlexId, W::Value)> = Vec::with_capacity(core.count());
+
+        // 元のツリーから全セルを取り出し、それぞれを引き延ばす
+        for (id, v) in core.iter_ref() {
+            if let Ok(iter) = id.extrude_x(self.target_z.get(), self.start_x, self.end_x) {
+                for new_id in iter {
+                    extruded.push((new_id, v.clone()));
+                }
+            }
+        }
+
+        // 重複や競合を解決するため、IDでソートする
+        #[cfg(feature = "rayon")]
+        extruded.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+        #[cfg(not(feature = "rayon"))]
+        extruded.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+        // 連続する同じIDのグループごとに resolve_many を適用
+        let mut new_items = Vec::with_capacity(extruded.len());
+        for chunk in extruded.chunk_by(|a, b| a.0 == b.0) {
+            let id = chunk[0].0.clone();
+            if let Some(merged) = P::resolve_many(chunk.iter().map(|(_, v)| v.clone())) {
+                new_items.push((id, merged));
+            }
+        }
+
+        // 重複のない (FlexId, V) のリストからツリーを再構築
+        *core = W::from_flexids(new_items);
+
+        Ok(())
+    }
+
+    fn commutativity_info(&self) -> CommutativityInfo {
+        CommutativityInfo::absolute_target::<P>(
+            crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::X,
+            P::IS_COMMUTATIVE,
+        )
+    }
+
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
+    fn expansion_ratio(&self) -> f32 {
+        self.start_x.abs_diff(self.end_x) as f32 + 1.0
+    }
+
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "extrude_x(z={}, x=[{}, {}], {})",
+            self.target_z.get(),
+            self.start_x,
+            self.end_x,
+            P::NAME
+        )
+    }
+}

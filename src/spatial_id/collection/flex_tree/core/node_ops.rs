@@ -1,5 +1,5 @@
 use super::node::Node;
-use super::ptr::{SafeValue, SharedNode};
+use super::ptr::{MaybeSync, SafeValue, SharedNode};
 
 /// 部分木の合計葉数がこれ以上のときだけ `rayon::join` で分割する閾値。集合演算の再帰を全レベルで `join` するとタスク生成コストが並列化の利得を上回るため、大きな部分木（≒ 根に近い／密な領域）でだけ並列化し、小さくなったら逐次へ落とす。
 #[cfg(feature = "rayon")]
@@ -24,11 +24,12 @@ macro_rules! join_nodes {
     }};
 }
 
-/// 2 つの木を突き合わせる二項演算の種類。
+/// 2 つの木を突き合わせる集合演算の種類。値は左優先で解決される。
 ///
-/// union / intersection / difference は「木を降りて子同士を突き合わせる」骨格が完全に
-/// 共通で、**葉が絡む終端ケースだけ**が異なる。その差分を [`MergeOp::terminal`] に閉じ込め、
-/// 降下ロジックは [`Node::merge`] の 1 本に統一する。
+/// union / intersection / difference は「木を降りて子同士を突き合わせる」降下ロジックが完全に
+/// 共通で、**葉が絡む終端ケースだけ**が異なる。その差分を [`MergeOp::terminal`] に閉じ込め、降下は
+/// [`Node::merge`] の 1 本に統一する。[`Node::merge`] は終端規則をクロージャで受けるため、値解決
+/// マージ（[`FlexTreeCore::merge_with`](super::FlexTreeCore::merge_with)）も同じ降下骨格を共有する。
 #[derive(Clone, Copy)]
 pub(crate) enum MergeOp {
     Union,
@@ -41,7 +42,7 @@ impl MergeOp {
     /// 両者を Branch とみなして降りる（difference で `a` が充填葉のときも `None` を返し、
     /// `a` を各子から引くために降下する）。
     #[inline]
-    fn terminal<V: SafeValue>(
+    pub(crate) fn terminal<V: SafeValue>(
         self,
         a: &SharedNode<Node<V>>,
         b: &SharedNode<Node<V>>,
@@ -89,19 +90,26 @@ impl<V> Node<V>
 where
     V: SafeValue,
 {
-    /// 2 つの部分木 `a`・`b` を `op` で突き合わせて新しい部分木を返す（永続・構造共有）。
+    /// 2 つの部分木 `a`・`b` を、葉が絡む終端規則 `terminal` に従って突き合わせて新しい部分木を
+    /// 返す（永続・構造共有）。
     ///
     /// レベルを揃えてから、両者が分岐する軸で子へ降りて再帰する。部分木が十分大きい間は
     /// `rayon::join` で左右を並列化する。結果は [`compact_branch`](Self::compact_branch) を
-    /// 通して常に正規形になる。
-    pub(crate) fn merge(
+    /// 通して常に正規形になる。`terminal` は集合演算なら [`MergeOp::terminal`]、値解決なら
+    /// [`FlexTreeCore::merge_with`](super::FlexTreeCore::merge_with) のクロージャが渡される。
+    /// `terminal(a, b, empty_leaf)` が `Some` を返せば再帰せずそれが答え。
+    pub(crate) fn merge<T>(
         a: &SharedNode<Self>,
         b: &SharedNode<Self>,
-        op: MergeOp,
+        terminal: &T,
         current_level: u8,
         empty_leaf: &SharedNode<Node<V>>,
-    ) -> SharedNode<Self> {
-        if let Some(result) = op.terminal(a, b, empty_leaf) {
+    ) -> SharedNode<Self>
+    where
+        T: Fn(&SharedNode<Self>, &SharedNode<Self>, &SharedNode<Self>) -> Option<SharedNode<Self>>
+            + MaybeSync,
+    {
+        if let Some(result) = terminal(a, b, empty_leaf) {
             return result;
         }
 
@@ -123,24 +131,24 @@ where
             let (bl, bu) = b.children().unwrap();
             join_nodes!(
                 size,
-                || Self::merge(al, bl, op, level + 1, empty_leaf),
-                || Self::merge(au, bu, op, level + 1, empty_leaf)
+                || Self::merge(al, bl, terminal, level + 1, empty_leaf),
+                || Self::merge(au, bu, terminal, level + 1, empty_leaf)
             )
         } else if level == a_level {
             // a だけが分岐: b（より粗い／充填葉）を a の両子へ配る。
             let (al, au) = a.children().unwrap();
             join_nodes!(
                 size,
-                || Self::merge(al, b, op, level + 1, empty_leaf),
-                || Self::merge(au, b, op, level + 1, empty_leaf)
+                || Self::merge(al, b, terminal, level + 1, empty_leaf),
+                || Self::merge(au, b, terminal, level + 1, empty_leaf)
             )
         } else {
             // b だけが分岐: a を b の両子へ配る。
             let (bl, bu) = b.children().unwrap();
             join_nodes!(
                 size,
-                || Self::merge(a, bl, op, level + 1, empty_leaf),
-                || Self::merge(a, bu, op, level + 1, empty_leaf)
+                || Self::merge(a, bl, terminal, level + 1, empty_leaf),
+                || Self::merge(a, bu, terminal, level + 1, empty_leaf)
             )
         };
 
