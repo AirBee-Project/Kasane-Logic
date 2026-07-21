@@ -5,7 +5,7 @@ use crate::{Error, FlexId, FlexTreeCore, RangeId};
 use alloc::vec::Vec;
 
 /// クエリ実行器・演算子が触れるの境界。将来的にメモリ実装とDisk実装を抽象化するために使用される。
-pub trait WorkingTree: Sized + MaybeSendSync {
+pub trait WorkingTree: Sized + MaybeSendSync + IntoIterator<Item = (FlexId, Self::Value)> {
     type Value: SafeValue;
 
     fn count(&self) -> usize;

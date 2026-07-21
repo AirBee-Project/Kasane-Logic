@@ -1,4 +1,4 @@
-use crate::{FlexId, FlexTreeCore, SingleId, SpatialId};
+use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
 
 pub mod convert;
 #[cfg(feature = "json")]
@@ -49,6 +49,11 @@ where
         Self {
             inner: FlexTreeCore::new_in_shard(region),
         }
+    }
+
+    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        self.inner.bounding_box()
     }
 
     /// シャード領域を返す。`None` が帰ってきた場合はシャードされていない。

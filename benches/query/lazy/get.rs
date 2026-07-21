@@ -30,7 +30,7 @@ fn bench_lazy_get(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("lazy", voxels), &table, |b, t| {
             let query = t.clone().query().shift_x(OP_ZOOM, 10).shift_y(OP_ZOOM, 10);
             let lazy = query.lazy();
-            b.iter(|| lazy.get(target_id.clone()).unwrap());
+            b.iter(|| lazy.get(target_id.clone()).unwrap().count());
         });
 
         // Eager bench (as baseline)

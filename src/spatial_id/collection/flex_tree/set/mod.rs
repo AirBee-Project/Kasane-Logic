@@ -1,4 +1,4 @@
-use crate::{FlexId, FlexTreeCore, SingleId, SpatialId};
+use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
 pub mod convert;
 pub mod impls;
 #[cfg(feature = "json")]
@@ -52,6 +52,11 @@ impl SpatialIdSet {
     /// 内部 [`FlexTreeCore`] から集合を組む（クエリ実行の出口変換用）。
     pub(crate) fn from_core(inner: FlexTreeCore<()>) -> Self {
         Self { inner }
+    }
+
+    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        self.inner.bounding_box()
     }
 
     /// 所有権ごと内部 [`FlexTreeCore`] を取り出す（クエリ実行の入口変換用）。

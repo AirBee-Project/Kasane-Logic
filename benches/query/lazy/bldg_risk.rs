@@ -55,7 +55,7 @@ fn bench_lazy_workflow(c: &mut Criterion) {
                 .falloff_linear_y(24, 5, Max);
 
             let lazy = query.lazy();
-            b.iter(|| lazy.get(target_id.clone()).unwrap());
+            b.iter(|| lazy.get(target_id.clone()).unwrap().count());
         });
 
         // Eager bench (as baseline)
@@ -112,7 +112,7 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
                 .zoom_out(ZoomLevel::new(18).unwrap(), Average);
 
             let lazy = query.lazy();
-            b.iter(|| lazy.get(target_id.clone()).unwrap());
+            b.iter(|| lazy.get(target_id.clone()).unwrap().count());
         });
 
         // Eager bench (as baseline)

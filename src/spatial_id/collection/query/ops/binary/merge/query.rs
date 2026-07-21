@@ -10,12 +10,12 @@ where
     /// 2つのクエリ連鎖の結果を `MergePolicy` で重ね合わせる。
     /// 片側にしか値が無いセルは `default` を相手側の値とみなして解決する
     /// 両側とも値の無いセルはそのまま空となる。
-    pub fn merge<P: MergePolicy<S::Value>>(
-        self,
-        other: Self,
-        default: S::Value,
-        _policy: P,
-    ) -> Self {
+    pub fn merge<Q, P>(self, other: Q, default: S::Value, _policy: P) -> Self
+    where
+        Q: Into<Query<S>>,
+        P: MergePolicy<S::Value>,
+    {
+        let other = other.into();
         if matches!(self, Query::Error(_)) {
             return self;
         }

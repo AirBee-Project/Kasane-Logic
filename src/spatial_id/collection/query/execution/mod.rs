@@ -145,58 +145,6 @@ where
         self.validate()?;
         self.optimize().raw_run()
     }
-
-    /// `bounds` で要求される最終結果を得るために必要な入力を `Query` ツリーの下位へと逆算していく。
-    #[allow(dead_code)]
-    pub(crate) fn inverse_bounds(&self, bounds: crate::RangeId) -> Vec<crate::RangeId> {
-        match self {
-            Query::Source(_) => alloc::vec![bounds],
-            Query::Unary(ops, input) => {
-                let mut req = alloc::vec![bounds];
-                for op in ops.iter().rev() {
-                    let mut next = Vec::new();
-                    for r in req {
-                        next.extend(op.inverse_bounds(r));
-                    }
-                    req = next;
-                }
-                let mut res = Vec::new();
-                for r in req {
-                    res.extend(input.inverse_bounds(r));
-                }
-                res
-            }
-            Query::CommutativeGroup(_, ops, input) => {
-                let mut req = alloc::vec![bounds];
-                for op in ops.iter().rev() {
-                    let mut next = Vec::new();
-                    for r in req {
-                        next.extend(op.inverse_bounds(r));
-                    }
-                    req = next;
-                }
-                let mut res = Vec::new();
-                for r in req {
-                    res.extend(input.inverse_bounds(r));
-                }
-                res
-            }
-            Query::Binary(op, lhs, rhs) => {
-                let (inter_l, inter_r) = op.inverse_bounds(bounds);
-                let mut req_l = Vec::new();
-                for r in inter_l {
-                    req_l.extend(lhs.inverse_bounds(r));
-                }
-                let mut req_r = Vec::new();
-                for r in inter_r {
-                    req_r.extend(rhs.inverse_bounds(r));
-                }
-                req_l.extend(req_r);
-                req_l
-            }
-            Query::Error(_) => alloc::vec![bounds],
-        }
-    }
 }
 
 pub(crate) fn intersects_flex_range(flex: &crate::FlexId, range: &crate::RangeId) -> bool {
@@ -311,5 +259,17 @@ impl<S: SpatialIdCollection> Query<S> {
     /// 遅延Viewを作成する。
     pub fn lazy(&self) -> LazyView<'_, S> {
         LazyView { query: self }
+    }
+}
+
+impl<S: SpatialIdCollection> From<S> for Query<S> {
+    fn from(collection: S) -> Self {
+        collection.query()
+    }
+}
+
+impl<'a, S: SpatialIdCollection + Clone> From<&'a S> for Query<S> {
+    fn from(collection: &'a S) -> Self {
+        collection.clone().query()
     }
 }

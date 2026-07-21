@@ -19,19 +19,44 @@ where
     pub fn get<T: crate::SpatialId>(
         &self,
         target: T,
-    ) -> Result<alloc::vec::Vec<(crate::FlexId, S::Value)>, Error> {
+    ) -> Result<impl Iterator<Item = (crate::FlexId, S::Value)>, Error> {
         let req_bounds = alloc::vec![target.clone().into()];
         let working = self.query.run_on_subset(req_bounds)?;
-        let mut results = alloc::vec::Vec::new();
         let target_range: crate::RangeId = target.into();
-        for (id, val) in working.iter_ref() {
-            if crate::spatial_id::collection::query::execution::intersects_flex_range(
-                &id,
+
+        Ok(working.into_iter().filter(move |(id, _)| {
+            crate::spatial_id::collection::query::execution::intersects_flex_range(
+                id,
                 &target_range,
-            ) {
-                results.push((id, val.clone()));
-            }
-        }
-        Ok(results)
+            )
+        }))
+    }
+
+    /// 対象領域(`target`)のうち、データが存在しない空間を `default_value` で埋めてから値を返します。
+    pub fn get_with_default<T: crate::SpatialId>(
+        &self,
+        target: T,
+        default_value: S::Value,
+    ) -> Result<impl Iterator<Item = (crate::FlexId, S::Value)>, Error> {
+        let req_bounds = alloc::vec![target.clone().into()];
+        let working = self.query.run_on_subset(req_bounds)?;
+
+        // target を default_value で埋めた WorkingTree を作成
+        let target_items = target
+            .clone()
+            .into_iter()
+            .map(|id| (id, default_value.clone()))
+            .collect::<alloc::vec::Vec<_>>();
+        let base_tree = S::Working::from_flexids(target_items);
+
+        let overlay_tree = base_tree.overlay(&working);
+
+        let target_range: crate::RangeId = target.into();
+        Ok(overlay_tree.into_iter().filter(move |(id, _)| {
+            crate::spatial_id::collection::query::execution::intersects_flex_range(
+                id,
+                &target_range,
+            )
+        }))
     }
 }

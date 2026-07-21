@@ -1083,3 +1083,10 @@ fn collect_node_bounds<V: SafeValue>(
         }
     }
 }
+
+impl<V: SafeValue> FromIterator<(FlexId, V)> for FlexTreeCore<V> {
+    fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
+        let items: Vec<_> = iter.into_iter().collect();
+        Self::from_flexids(items)
+    }
+}

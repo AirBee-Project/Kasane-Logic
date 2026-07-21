@@ -79,6 +79,11 @@ where
         }
     }
 
+    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        self.inner.bounding_box()
+    }
+
     /// 空間に値を挿入します。
     pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
