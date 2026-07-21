@@ -78,7 +78,7 @@ where
 
         // 重複のない (ParentId, V) のリストからツリーを再構築
         // （すでに一意になっているため、マージ競合は発生しない）
-        *core = W::from_items(new_items);
+        *core = W::from_flexids(new_items);
 
         Ok(())
     }
@@ -89,5 +89,9 @@ where
 
     fn commutativity_info(&self) -> CommutativityInfo {
         CommutativityInfo::none()
+    }
+
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "zoom_out(z={})", self.target_z.get())
     }
 }

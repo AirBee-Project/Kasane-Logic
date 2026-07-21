@@ -19,7 +19,7 @@ use super::spatial_sort_key;
 use crate::FlexId;
 
 /// 1 チャンクの最小サイズ。これ未満に刻むと union 簡約の回数がかさんで逆効果になる。
-/// [`from_items_with_policy`](FlexTreeCore::from_items_with_policy) のチャンク分割でも使う。
+/// [`from_flexids_with_policy`](FlexTreeCore::from_flexids_with_policy) のチャンク分割でも使う。
 pub(crate) const MIN_PAR_CHUNK: usize = 512;
 
 impl<V> FlexTreeCore<V>

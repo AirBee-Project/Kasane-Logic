@@ -31,7 +31,7 @@ where
             .map(|id| (id, self.default_value.clone()))
             .collect();
 
-        let default_tree = W::from_items(default_items);
+        let default_tree = W::from_flexids(default_items);
         *core = default_tree.overlay(core);
 
         Ok(())
@@ -47,5 +47,9 @@ where
 
     fn commutativity_info(&self) -> CommutativityInfo {
         CommutativityInfo::none()
+    }
+
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "fill_empty")
     }
 }

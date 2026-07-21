@@ -17,11 +17,12 @@ hashbrown = "0.15.2"
 libm = "0.2.16"
 
 # featuresで切り替え可能なもの
-rand = { version = "0.10.1", optional = true }
+rand = { version = "0.10.2", optional = true }
 rayon = { version = "1.10", optional = true }
-rkyv = { version = "0.8", features = ["unaligned"], optional = true }
+rkyv = { version = "0.8.17", features = ["unaligned"], optional = true }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
+mimalloc = { version = "0.1", optional = true }
 
 [features]
 default = ["std", "rayon", "json"]
@@ -32,6 +33,7 @@ temporal_id = []
 rand = ["dep:rand"]
 persist = ["dep:rkyv", "std"]
 json = ["dep:serde", "dep:serde_json"]
+fast-alloc = ["dep:mimalloc", "std"]
 
 [dev-dependencies]
 rand = "0.10.1"
@@ -56,16 +58,6 @@ codegen-units = 256
 
 [profile.dev.package."*"]
 opt-level = 3
-
-[[bin]]
-name = "kasane-logic"
-bench = false
-required-features = ["json"]
-
-[[bin]]
-name = "bench_order"
-path = "src/bin/bench_order.rs"
-required-features = ["json", "rayon"]
 
 [lib]
 bench = false

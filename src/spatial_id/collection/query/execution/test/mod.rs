@@ -79,9 +79,10 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
 
 /// 回帰テスト: extrude_f/x/yは、列（他2軸のfootprint）でまとめて展開してから木を再構築する。
 /// 列同士は「他軸で区別されていた粗いセルとその内側のネストした細かいセル」により
-/// 互いに素とは限らないため、`from_items` へ渡す前の順序を決定的にしておかないと、
+/// 互いに素とは限らないため、`from_flexids` へ渡す前の順序を決定的にしておかないと、
 /// 同一入力でも実行のたびに結果が変わりうる（実データで実際に再現したバグ）。
 #[test]
+#[cfg(feature = "json")]
 fn extrude_result_is_deterministic_across_runs() {
     let bldg_risk: SpatialIdTable<u32> =
         serde_json::from_str(&std::fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();

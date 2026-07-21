@@ -27,12 +27,6 @@ pub struct SpatialIdSet {
 }
 
 impl PartialEq for SpatialIdSet {
-    /// 内部の [`FlexTreeCore`] 同士の構造比較に委譲する。正規形（canonical form）の下では
-    /// 同じ論理内容の集合は常に同じ木構造になるため、共通ズームへ展開してからの比較
-    /// （挿入順や表現に依存しうる `SingleId` の組み合わせ数だけ展開が必要で、コースな範囲と
-    /// 深いズームの要素が混在すると組み合わせ爆発しうる）は不要。`leaf_count`/`max_zoom`/
-    /// `split_mask` などのO(1)フィールドで早期に不一致を検出できるぶん、木全体が実際に等しい
-    /// 場合を除き展開よりも高速。
     fn eq(&self, other: &Self) -> bool {
         self.inner == other.inner
     }

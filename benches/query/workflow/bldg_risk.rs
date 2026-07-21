@@ -5,6 +5,9 @@
 //! ・値伝播（Falloff）
 //! ・移動と値伝播（Shift + Falloff）
 //! を現実的な実行時間で計測する。
+#[cfg(feature = "fast-alloc")]
+#[global_allocator]
+static GLOBAL: kasane_logic::FastAllocator = kasane_logic::FastAllocator;
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{

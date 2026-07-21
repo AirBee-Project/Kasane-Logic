@@ -1,12 +1,8 @@
-use super::shift_fxy::ShiftFXY;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error, ZoomLevel,
-    spatial_id::collection::query::traits::{
-        UnaryOperator, WorkingTree, try_merge_via_accumulator,
-    },
+    spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
 };
-use alloc::boxed::Box;
 
 /// 作業木全体を東西（X）方向へ、ズームレベル `z` のセル `x` 個分だけ平行移動する単項演算。
 ///
@@ -22,14 +18,6 @@ impl ShiftX {
     pub fn new<T: Into<u8>>(z: T, x: i32) -> Result<Self, Error> {
         let z = ZoomLevel::new(z.into())?;
         Ok(Self { z, x })
-    }
-
-    pub(crate) fn z(&self) -> ZoomLevel {
-        self.z
-    }
-
-    pub(crate) fn x(&self) -> i32 {
-        self.x
     }
 }
 
@@ -62,10 +50,7 @@ impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftX {
         CommutativityInfo::separable_injective()
     }
 
-    /// 同じズームレベルの `ShiftX`/`ShiftY`/`ShiftF`/`ShiftFXY` は、オフセットを加算した1つの
-    /// `ShiftFXY` に統合できる（平行移動の合成は軸ごとの加算そのもの）。統合先の型が
-    /// `ShiftFXY` に変わる点に注意（`ShiftFXY` は他軸オフセット0なら `ShiftX` と等価に動作する）。
-    fn try_merge(&self, other: &dyn UnaryOperator<W>) -> Option<Box<dyn UnaryOperator<W>>> {
-        try_merge_via_accumulator::<W, ShiftFXY>(self, other)
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "shift_x(z={}, x={})", self.z.get(), self.x)
     }
 }

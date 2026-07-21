@@ -8,7 +8,7 @@ use crate::{
     Error, ZoomLevel,
     spatial_id::collection::query::{
         merge_policy::MergePolicy,
-        traits::{UnaryOperator, WorkingTree},
+        traits::{UnaryOperator, WorkingTree, try_merge_via_accumulator},
     },
 };
 use alloc::vec::Vec;
@@ -80,11 +80,9 @@ where
 
     fn try_merge(
         &self,
-        _other: &dyn UnaryOperator<W>,
+        other: &dyn UnaryOperator<W>,
     ) -> Option<alloc::boxed::Box<dyn UnaryOperator<W>>> {
-        // マージ（Fxy化）による次元の呪い（Cullingの遅延および3D直方体計算量の爆増）を防ぐため、
-        // 意図的にマージを無効化し、各軸ごとに1D分離適用・合成させる。
-        None
+        try_merge_via_accumulator::<W, Self>(self, other)
     }
 
     fn run(&self, target: &mut W) -> Result<(), Error> {
@@ -104,6 +102,18 @@ where
 
     fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
+    }
+
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "falloff_linear_fxy(z={}, rf={}, rx={}, ry={}, {})",
+            self.z.get(),
+            self.f_radius,
+            self.x_radius,
+            self.y_radius,
+            P::NAME
+        )
     }
 }
 

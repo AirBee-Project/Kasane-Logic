@@ -1,29 +1,20 @@
-extern crate alloc;
-use std::fs;
-
-#[allow(unused_imports)]
-use alloc::boxed::Box;
-#[allow(unused_imports)]
-use alloc::rc::Rc;
-#[allow(unused_imports)]
-use alloc::string::{String, ToString};
-#[allow(unused_imports)]
-use alloc::vec::Vec;
-use kasane_logic::spatial_id::collection::query::merge_policy::Max;
-use kasane_logic::{SpatialIdCollection, SpatialIdTable};
+#[cfg(feature = "fast-alloc")]
+#[global_allocator]
+static GLOBAL: kasane_logic::FastAllocator = kasane_logic::FastAllocator;
 
 fn main() {
-    let bldg_risk: SpatialIdTable<u32> =
-        serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
+    // let bldg_risk: SpatialIdTable<u32> =
+    //     serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
 
-    let risk = bldg_risk
-        .query()
-        .falloff_linear_x(24, 5, Max)
-        .falloff_linear_y(24, 5, Max)
-        .raw_run()
-        .unwrap();
+    // let risk = bldg_risk
+    //     .clone()
+    //     .query()
+    //     .falloff_linear_x(25, 3, Max)
+    //     .falloff_linear_f(25, 2, Max)
+    //     .falloff_linear_y(25, 3, Max)
+    //     .fill_empty(0)
+    //     .merge(bldg_risk.clone().query(), 0, Max)
+    //     .optimize();
 
-    let json_string = serde_json::to_string(&risk).unwrap();
-
-    fs::write("output.json", json_string).unwrap();
+    // println!("{}", risk);
 }

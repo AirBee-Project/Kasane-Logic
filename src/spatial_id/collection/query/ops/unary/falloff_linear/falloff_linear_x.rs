@@ -1,5 +1,4 @@
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use alloc::boxed::Box;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -50,17 +49,6 @@ where
         (self.radius * 2 + 1) as f32
     }
 
-    fn effective_expansion_ratio(&self, bbox: Option<&crate::RangeId>) -> f32 {
-        if let Some(bb) = bbox {
-            let x = bb.x();
-            let s = x[1].saturating_sub(x[0]) as f32 + 1.0;
-            let r = self.radius as f32;
-            (s + 2.0 * r) / s
-        } else {
-            <Self as UnaryOperator<W>>::expansion_ratio(self)
-        }
-    }
-
     fn run(&self, target: &mut W) -> Result<(), Error> {
         if self.radius == 0 {
             return Ok(());
@@ -80,9 +68,13 @@ where
         Ok(())
     }
 
-    fn try_merge(&self, _other: &dyn UnaryOperator<W>) -> Option<Box<dyn UnaryOperator<W>>> {
-        // マージ（Fxy化）による次元の呪い（Cullingの遅延および3D直方体計算量の爆増）を防ぐため、
-        // 意図的にマージを無効化し、各軸ごとに1D分離適用・合成させる。
-        None
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "falloff_linear_x(z={}, r={}, {})",
+            self.z.get(),
+            self.radius,
+            P::NAME
+        )
     }
 }

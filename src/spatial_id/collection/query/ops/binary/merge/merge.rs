@@ -38,4 +38,8 @@ where
         });
         Ok(())
     }
+
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "merge({})", P::NAME)
+    }
 }

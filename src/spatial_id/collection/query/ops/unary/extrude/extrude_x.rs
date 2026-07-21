@@ -9,7 +9,6 @@ use crate::{
         zoom_level::ZoomLevel,
     },
 };
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -75,36 +74,34 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = W::from_items(new_items);
+        *core = W::from_flexids(new_items);
 
         Ok(())
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::absolute_target::<P>(P::IS_COMMUTATIVE)
+        CommutativityInfo::absolute_target::<P>(
+            crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::X,
+            P::IS_COMMUTATIVE,
+        )
     }
 
     fn as_any(&self) -> &dyn core::any::Any {
         self
     }
 
-    fn try_merge(&self, _other: &dyn UnaryOperator<W>) -> Option<Box<dyn UnaryOperator<W>>> {
-        // マージ（FXY化）による次元の呪い（Cullingの遅延）や組合せ爆発を防ぐため、
-        // 意図的にマージを無効化し、各軸ごとに逐次適用・合成させる。
-        None
-    }
-
     fn expansion_ratio(&self) -> f32 {
         self.start_x.abs_diff(self.end_x) as f32 + 1.0
     }
 
-    fn effective_expansion_ratio(&self, bbox: Option<&crate::RangeId>) -> f32 {
-        if let Some(bb) = bbox {
-            let x = bb.x();
-            let s_x = x[1].saturating_sub(x[0]) as f32 + 1.0;
-            <Self as UnaryOperator<W>>::expansion_ratio(self) / s_x
-        } else {
-            <Self as UnaryOperator<W>>::expansion_ratio(self)
-        }
+    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "extrude_x(z={}, x=[{}, {}], {})",
+            self.target_z.get(),
+            self.start_x,
+            self.end_x,
+            P::NAME
+        )
     }
 }
