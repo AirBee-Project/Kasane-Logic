@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784332047674,
+  "lastUpdate": 1784633542605,
   "repoUrl": "https://github.com/AirBee-Project/Kasane-Logic",
   "entries": {
     "Kasane-Logic Benchmarks": [
@@ -69539,6 +69539,1738 @@ window.BENCHMARK_DATA = {
             "name": "SpatialIdSet/Union/Checkerboard/8000",
             "value": 450298,
             "range": "± 4452",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "s.tomoro0726@gmail.com~",
+            "name": "Tomoro0726"
+          },
+          "committer": {
+            "email": "s.tomoro0726@gmail.com~",
+            "name": "Tomoro0726"
+          },
+          "distinct": true,
+          "id": "4a894aa0bc05857f9d9e3d3c2a7bc8431bf7b0d6",
+          "message": "ベンチマークの環境を変更",
+          "timestamp": "2026-07-21T20:20:52+09:00",
+          "tree_id": "7c1c4e93e09f3893cfb3ebf343e580cbb6b58a4d",
+          "url": "https://github.com/AirBee-Project/Kasane-Logic/commit/4a894aa0bc05857f9d9e3d3c2a7bc8431bf7b0d6"
+        },
+        "date": 1784633541846,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/15",
+            "value": 394840,
+            "range": "± 2116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/16",
+            "value": 395781,
+            "range": "± 6904",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/17",
+            "value": 395910,
+            "range": "± 2174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/18",
+            "value": 422806,
+            "range": "± 1498",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/19",
+            "value": 558730,
+            "range": "± 12796",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/20",
+            "value": 659272,
+            "range": "± 19753",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/21",
+            "value": 728552,
+            "range": "± 1585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/22",
+            "value": 1284074,
+            "range": "± 15951",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/23",
+            "value": 3782998,
+            "range": "± 11672",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/24",
+            "value": 12713672,
+            "range": "± 153062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_ZoomLevel_Scaling/25",
+            "value": 74944649,
+            "range": "± 3374418",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_Size_Scaling/10",
+            "value": 518284,
+            "range": "± 4450",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_Size_Scaling/30",
+            "value": 648771,
+            "range": "± 1201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_Size_Scaling/50",
+            "value": 696135,
+            "range": "± 13989",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Cylinder_Size_Scaling/100",
+            "value": 830799,
+            "range": "± 14257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/15",
+            "value": 3675,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/16",
+            "value": 3671,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/17",
+            "value": 3689,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/18",
+            "value": 3685,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/19",
+            "value": 3705,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/20",
+            "value": 3716,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/21",
+            "value": 3764,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/22",
+            "value": 3797,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/23",
+            "value": 3866,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/24",
+            "value": 3461,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_ZoomLevel_Scaling/25",
+            "value": 4269,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_Size_Scaling/0.0001",
+            "value": 3697,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_Size_Scaling/0.0005",
+            "value": 3709,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_Size_Scaling/0.001",
+            "value": 3746,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_Size_Scaling/0.005",
+            "value": 3893,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Line_Size_Scaling/0.01",
+            "value": 4781,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Point_Conversion/Coordinate_to_Ecef",
+            "value": 29839,
+            "range": "± 642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Point_Conversion/Ecef_to_Coordinate",
+            "value": 350362,
+            "range": "± 8464",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Point_Conversion/Coordinate_to_SingleId_Z20",
+            "value": 119332,
+            "range": "± 8354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Point_Conversion/Ecef_to_SingleId_Z20",
+            "value": 473629,
+            "range": "± 839",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/15",
+            "value": 1757,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/16",
+            "value": 1758,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/17",
+            "value": 3593,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/18",
+            "value": 3586,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/19",
+            "value": 4416,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/20",
+            "value": 6255,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/21",
+            "value": 10948,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_ZoomLevel_Scaling/22",
+            "value": 31925,
+            "range": "± 160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_Size_Scaling/0.0001",
+            "value": 4048,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_Size_Scaling/0.0005",
+            "value": 4902,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_Size_Scaling/0.001",
+            "value": 6259,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_Size_Scaling/0.005",
+            "value": 50318,
+            "range": "± 207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Polygon_Size_Scaling/0.01",
+            "value": 170188,
+            "range": "± 655",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_ZoomLevel_Scaling/15",
+            "value": 15689,
+            "range": "± 218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_ZoomLevel_Scaling/16",
+            "value": 15688,
+            "range": "± 78",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_ZoomLevel_Scaling/17",
+            "value": 26727,
+            "range": "± 181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_ZoomLevel_Scaling/18",
+            "value": 26707,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_ZoomLevel_Scaling/19",
+            "value": 34907,
+            "range": "± 419",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_ZoomLevel_Scaling/20",
+            "value": 48049,
+            "range": "± 581",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_Size_Scaling/0.0001",
+            "value": 15721,
+            "range": "± 90",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_Size_Scaling/0.0005",
+            "value": 15706,
+            "range": "± 59",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_Size_Scaling/0.001",
+            "value": 26784,
+            "range": "± 128",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_Size_Scaling/0.005",
+            "value": 42590,
+            "range": "± 106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Solid_Size_Scaling/0.01",
+            "value": 94312,
+            "range": "± 305",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/15",
+            "value": 4935,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/16",
+            "value": 4951,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/17",
+            "value": 4953,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/18",
+            "value": 6887,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/19",
+            "value": 10130,
+            "range": "± 81",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/20",
+            "value": 24830,
+            "range": "± 79",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/21",
+            "value": 126844,
+            "range": "± 459",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/22",
+            "value": 753494,
+            "range": "± 4003",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/23",
+            "value": 4950851,
+            "range": "± 18245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/24",
+            "value": 38689792,
+            "range": "± 140728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_ZoomLevel_Scaling/25",
+            "value": 299670735,
+            "range": "± 1015153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_Size_Scaling/10",
+            "value": 6887,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_Size_Scaling/30",
+            "value": 24818,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_Size_Scaling/50",
+            "value": 73346,
+            "range": "± 247",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_Size_Scaling/100",
+            "value": 463172,
+            "range": "± 1997",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sphere_Size_Scaling/200",
+            "value": 2931151,
+            "range": "± 10810",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/15",
+            "value": 880,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/16",
+            "value": 879,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/17",
+            "value": 2059,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/18",
+            "value": 2059,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/19",
+            "value": 2370,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/20",
+            "value": 3337,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/21",
+            "value": 4801,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/22",
+            "value": 14883,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/23",
+            "value": 48301,
+            "range": "± 93",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/24",
+            "value": 177058,
+            "range": "± 506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_ZoomLevel_Scaling/25",
+            "value": 665800,
+            "range": "± 4106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_Size_Scaling/0.0001",
+            "value": 2353,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_Size_Scaling/0.0005",
+            "value": 2739,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_Size_Scaling/0.001",
+            "value": 3347,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_Size_Scaling/0.005",
+            "value": 24414,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Triangle_Size_Scaling/0.01",
+            "value": 78397,
+            "range": "± 460",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/15",
+            "value": 464424,
+            "range": "± 11429",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/16",
+            "value": 464271,
+            "range": "± 1529",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/17",
+            "value": 592050,
+            "range": "± 1414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/18",
+            "value": 657601,
+            "range": "± 8147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/19",
+            "value": 667661,
+            "range": "± 2127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/20",
+            "value": 719312,
+            "range": "± 2847",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/21",
+            "value": 968236,
+            "range": "± 2713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/22",
+            "value": 2726249,
+            "range": "± 17065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/23",
+            "value": 13155302,
+            "range": "± 25194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/24",
+            "value": 86661687,
+            "range": "± 232019",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_ZoomLevel_Scaling/25",
+            "value": 648048142,
+            "range": "± 2393054",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_Size_Scaling/0.0001",
+            "value": 593148,
+            "range": "± 1171",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_Size_Scaling/0.0005",
+            "value": 702960,
+            "range": "± 4203",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_Size_Scaling/0.001",
+            "value": 728775,
+            "range": "± 2192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_Size_Scaling/0.005",
+            "value": 2046029,
+            "range": "± 4841",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Tube_Size_Scaling/0.01",
+            "value": 4647693,
+            "range": "± 13471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Dense/500",
+            "value": 3268,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Dense/2000",
+            "value": 2524,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Dense/8000",
+            "value": 4896,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Sparse/500",
+            "value": 295541,
+            "range": "± 5398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Sparse/2000",
+            "value": 3235040,
+            "range": "± 246032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Sparse/8000",
+            "value": 16393632,
+            "range": "± 227824",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Linear/500",
+            "value": 18808,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Linear/2000",
+            "value": 273987,
+            "range": "± 3379",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Linear/8000",
+            "value": 1335796,
+            "range": "± 20273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/MultiCluster/500",
+            "value": 3344,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/MultiCluster/2000",
+            "value": 2718,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/MultiCluster/8000",
+            "value": 7693,
+            "range": "± 74",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Layered/500",
+            "value": 3737,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Layered/2000",
+            "value": 3793,
+            "range": "± 144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Layered/8000",
+            "value": 3886,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Checkerboard/500",
+            "value": 15382,
+            "range": "± 570",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Checkerboard/2000",
+            "value": 183043,
+            "range": "± 2540",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Difference/Checkerboard/8000",
+            "value": 641871,
+            "range": "± 4780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere/dome_r30m_z20",
+            "value": 58777,
+            "range": "± 278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere/dome_r100m_z18",
+            "value": 38294,
+            "range": "± 200",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere/dome_r100m_z20",
+            "value": 718218,
+            "range": "± 2826",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere/sphere_r300m_z18",
+            "value": 353267,
+            "range": "± 1099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere/sphere_r300m_z20",
+            "value": 14638458,
+            "range": "± 60029",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Union/r50m_z20",
+            "value": 6481,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Intersection/r50m_z20",
+            "value": 6540,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Difference/r50m_z20",
+            "value": 6720,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Union/r150m_z18",
+            "value": 6206,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Intersection/r150m_z18",
+            "value": 6622,
+            "range": "± 95",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Difference/r150m_z18",
+            "value": 6248,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Union/r150m_z20",
+            "value": 8853,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Intersection/r150m_z20",
+            "value": 9229,
+            "range": "± 147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Sphere_Difference/r150m_z20",
+            "value": 12559,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Building/small_30x30x30_z20",
+            "value": 41375,
+            "range": "± 180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Building/medium_55x55x80_z20",
+            "value": 61398,
+            "range": "± 178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Building/medium_55x55x80_z18",
+            "value": 11603,
+            "range": "± 56",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Building/tower_90x90x200_z18",
+            "value": 21329,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Building/tower_90x90x200_z20",
+            "value": 149825,
+            "range": "± 329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/UrbanBlock/z=18",
+            "value": 142263,
+            "range": "± 680",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/UrbanBlock/z=20",
+            "value": 270652,
+            "range": "± 3502",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/UrbanBlock_Ops_z20/Union",
+            "value": 6612,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/UrbanBlock_Ops_z20/Intersection",
+            "value": 6728,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/UrbanBlock_Ops_z20/Difference",
+            "value": 6100,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Cylinder/tower_h200r5_z18",
+            "value": 533403,
+            "range": "± 1965",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Cylinder/tower_h200r5_z20",
+            "value": 564745,
+            "range": "± 1433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Cylinder/pillar_h50r20_z18",
+            "value": 395276,
+            "range": "± 3105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Cylinder/pillar_h50r20_z20",
+            "value": 639985,
+            "range": "± 2743",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Cylinder/stadium_h20r50_z18",
+            "value": 394602,
+            "range": "± 8119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Geometry/Cylinder/stadium_h20r50_z20",
+            "value": 578414,
+            "range": "± 1593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Dense/500",
+            "value": 358053,
+            "range": "± 30136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Dense/2000",
+            "value": 1459990,
+            "range": "± 103947",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Dense/8000",
+            "value": 5385714,
+            "range": "± 392943",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Sparse/500",
+            "value": 452499,
+            "range": "± 31827",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Sparse/2000",
+            "value": 1713380,
+            "range": "± 110780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Sparse/8000",
+            "value": 7573677,
+            "range": "± 430889",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Linear/500",
+            "value": 410967,
+            "range": "± 29723",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Linear/2000",
+            "value": 1774781,
+            "range": "± 120489",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Linear/8000",
+            "value": 6539084,
+            "range": "± 477488",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/MultiCluster/500",
+            "value": 370662,
+            "range": "± 28703",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/MultiCluster/2000",
+            "value": 1522328,
+            "range": "± 110591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/MultiCluster/8000",
+            "value": 5641477,
+            "range": "± 419495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Layered/500",
+            "value": 370153,
+            "range": "± 26988",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Layered/2000",
+            "value": 1511226,
+            "range": "± 111035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Layered/8000",
+            "value": 6096453,
+            "range": "± 422730",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Checkerboard/500",
+            "value": 420670,
+            "range": "± 30422",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Checkerboard/2000",
+            "value": 1636542,
+            "range": "± 119147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Get/Checkerboard/8000",
+            "value": 6467706,
+            "range": "± 474389",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Dense/500",
+            "value": 393267,
+            "range": "± 9433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Dense/2000",
+            "value": 1605013,
+            "range": "± 109525",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Dense/8000",
+            "value": 6528846,
+            "range": "± 247468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Sparse/500",
+            "value": 2010119,
+            "range": "± 9044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Sparse/2000",
+            "value": 8402150,
+            "range": "± 36139",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Sparse/8000",
+            "value": 44899607,
+            "range": "± 11802756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Linear/500",
+            "value": 439160,
+            "range": "± 1705",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Linear/2000",
+            "value": 1821704,
+            "range": "± 24574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Linear/8000",
+            "value": 7639780,
+            "range": "± 39035",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/MultiCluster/500",
+            "value": 388738,
+            "range": "± 9913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/MultiCluster/2000",
+            "value": 1586778,
+            "range": "± 40231",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/MultiCluster/8000",
+            "value": 6431242,
+            "range": "± 55469",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Layered/500",
+            "value": 398436,
+            "range": "± 2558",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Layered/2000",
+            "value": 1623838,
+            "range": "± 50237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Layered/8000",
+            "value": 6587569,
+            "range": "± 71497",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Checkerboard/500",
+            "value": 402834,
+            "range": "± 1639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Checkerboard/2000",
+            "value": 1636833,
+            "range": "± 12840",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Insert/Checkerboard/8000",
+            "value": 7086621,
+            "range": "± 54877",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/ZoomScaling/Dense/15",
+            "value": 630950,
+            "range": "± 4670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/ZoomScaling/Dense/18",
+            "value": 734070,
+            "range": "± 9950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/ZoomScaling/Dense/20",
+            "value": 794026,
+            "range": "± 6903",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/ZoomScaling/Dense/22",
+            "value": 852507,
+            "range": "± 8260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Dense/500",
+            "value": 3029,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Dense/2000",
+            "value": 2226,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Dense/8000",
+            "value": 5092,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Sparse/500",
+            "value": 715209,
+            "range": "± 3551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Sparse/2000",
+            "value": 3585721,
+            "range": "± 87928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Sparse/8000",
+            "value": 13593038,
+            "range": "± 422964",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Linear/500",
+            "value": 44522,
+            "range": "± 199",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Linear/2000",
+            "value": 296564,
+            "range": "± 4311",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Linear/8000",
+            "value": 927171,
+            "range": "± 7355",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/MultiCluster/500",
+            "value": 5547,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/MultiCluster/2000",
+            "value": 2663,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/MultiCluster/8000",
+            "value": 11556,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Layered/500",
+            "value": 5096,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Layered/2000",
+            "value": 5587,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Layered/8000",
+            "value": 5577,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Checkerboard/500",
+            "value": 30676,
+            "range": "± 134",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Checkerboard/2000",
+            "value": 182911,
+            "range": "± 1077",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Intersection/Checkerboard/8000",
+            "value": 500986,
+            "range": "± 4258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Dense/sequential/10000",
+            "value": 8498640,
+            "range": "± 51420",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Dense/parallel/10000",
+            "value": 4440005,
+            "range": "± 22980",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Dense/sequential/100000",
+            "value": 87431936,
+            "range": "± 553585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Dense/parallel/100000",
+            "value": 41782322,
+            "range": "± 259487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Dense/sequential/500000",
+            "value": 481700037,
+            "range": "± 3113842",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Dense/parallel/500000",
+            "value": 210777457,
+            "range": "± 2169396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Sparse/sequential/10000",
+            "value": 149107624,
+            "range": "± 2819829",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Sparse/parallel/10000",
+            "value": 33496269,
+            "range": "± 469548",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Sparse/sequential/100000",
+            "value": 1562771692,
+            "range": "± 101746032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Sparse/parallel/100000",
+            "value": 348555841,
+            "range": "± 4548230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Sparse/sequential/500000",
+            "value": 8137829705,
+            "range": "± 1219448501",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Sparse/parallel/500000",
+            "value": 2032611551,
+            "range": "± 32666567",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Linear/sequential/10000",
+            "value": 12373865,
+            "range": "± 688897",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Linear/parallel/10000",
+            "value": 5518403,
+            "range": "± 79862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Linear/sequential/100000",
+            "value": 133836380,
+            "range": "± 2573544",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Linear/parallel/100000",
+            "value": 52574729,
+            "range": "± 1425957",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Linear/sequential/500000",
+            "value": 668439874,
+            "range": "± 14072268",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Linear/parallel/500000",
+            "value": 255917061,
+            "range": "± 1632541",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/MultiCluster/sequential/10000",
+            "value": 8390715,
+            "range": "± 66174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/MultiCluster/parallel/10000",
+            "value": 4807919,
+            "range": "± 116655",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/MultiCluster/sequential/100000",
+            "value": 86409709,
+            "range": "± 420474",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/MultiCluster/parallel/100000",
+            "value": 42706037,
+            "range": "± 283413",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/MultiCluster/sequential/500000",
+            "value": 437159028,
+            "range": "± 1323930",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/MultiCluster/parallel/500000",
+            "value": 212059897,
+            "range": "± 890439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Layered/sequential/10000",
+            "value": 8642335,
+            "range": "± 28194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Layered/parallel/10000",
+            "value": 4224808,
+            "range": "± 66370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Layered/sequential/100000",
+            "value": 87256365,
+            "range": "± 386858",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Layered/parallel/100000",
+            "value": 39837958,
+            "range": "± 285862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Layered/sequential/500000",
+            "value": 441650464,
+            "range": "± 2394946",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Layered/parallel/500000",
+            "value": 197324798,
+            "range": "± 1107370",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Checkerboard/sequential/10000",
+            "value": 9702112,
+            "range": "± 160563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Checkerboard/parallel/10000",
+            "value": 5445799,
+            "range": "± 187914",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Checkerboard/sequential/100000",
+            "value": 154233027,
+            "range": "± 2401306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Checkerboard/parallel/100000",
+            "value": 58135145,
+            "range": "± 915439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Checkerboard/sequential/500000",
+            "value": 838910593,
+            "range": "± 11598381",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Build/Checkerboard/parallel/500000",
+            "value": 272134029,
+            "range": "± 4239159",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Dense/500",
+            "value": 1771508,
+            "range": "± 5103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Dense/2000",
+            "value": 7139628,
+            "range": "± 27470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Dense/8000",
+            "value": 30538039,
+            "range": "± 310812",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Sparse/500",
+            "value": 1821332,
+            "range": "± 27697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Sparse/2000",
+            "value": 8248523,
+            "range": "± 337677",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Sparse/8000",
+            "value": 51425198,
+            "range": "± 5375297",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Linear/500",
+            "value": 896794,
+            "range": "± 3659",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Linear/2000",
+            "value": 3601079,
+            "range": "± 8704",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Linear/8000",
+            "value": 14803066,
+            "range": "± 99709",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/MultiCluster/500",
+            "value": 1709128,
+            "range": "± 4628",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/MultiCluster/2000",
+            "value": 6282529,
+            "range": "± 112576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/MultiCluster/8000",
+            "value": 29298967,
+            "range": "± 265448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Layered/500",
+            "value": 1765467,
+            "range": "± 10056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Layered/2000",
+            "value": 6530247,
+            "range": "± 22237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Layered/8000",
+            "value": 28607609,
+            "range": "± 131132",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Checkerboard/500",
+            "value": 835297,
+            "range": "± 19352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Checkerboard/2000",
+            "value": 3306500,
+            "range": "± 6792",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Remove/Checkerboard/8000",
+            "value": 13305510,
+            "range": "± 37478",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Dense/500",
+            "value": 2240,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Dense/2000",
+            "value": 1699,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Dense/8000",
+            "value": 3335,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Sparse/500",
+            "value": 552584,
+            "range": "± 3369",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Sparse/2000",
+            "value": 2955683,
+            "range": "± 47589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Sparse/8000",
+            "value": 10921440,
+            "range": "± 478253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Linear/500",
+            "value": 34062,
+            "range": "± 2597",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Linear/2000",
+            "value": 234601,
+            "range": "± 3676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Linear/8000",
+            "value": 748877,
+            "range": "± 15561",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/MultiCluster/500",
+            "value": 4452,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/MultiCluster/2000",
+            "value": 2129,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/MultiCluster/8000",
+            "value": 8792,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Layered/500",
+            "value": 3896,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Layered/2000",
+            "value": 4104,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Layered/8000",
+            "value": 4181,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Checkerboard/500",
+            "value": 24079,
+            "range": "± 64",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Checkerboard/2000",
+            "value": 136110,
+            "range": "± 1029",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "SpatialIdSet/Union/Checkerboard/8000",
+            "value": 386097,
+            "range": "± 4726",
             "unit": "ns/iter"
           }
         ]
