@@ -4,14 +4,14 @@ use core::{
     str::FromStr,
 };
 
-use crate::{Coordinate, FlexId, TemporalId, error::Error};
+use crate::{Coordinate, FlexId, TemporalId, error::Error, RangeId};
 
 #[cfg(doc)]
-use crate::{RangeId, SingleId};
+use crate::SingleId;
 
 /// [SingleId],[RangeId],[FlexId]が共通して持つTrait
 pub trait SpatialId:
-    IntoIterator<Item = FlexId> + Debug + Display + Clone + Eq + Hash + Ord + PartialOrd + FromStr
+    IntoIterator<Item = FlexId> + Debug + Display + Clone + Eq + Hash + Ord + PartialOrd + FromStr + Into<RangeId>
 {
     /// ズームレベルにおける最小のFインデックスを返す。
     ///

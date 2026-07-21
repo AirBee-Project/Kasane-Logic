@@ -1,5 +1,6 @@
-use super::traits::{BinaryOperator, UnaryOperator};
+use super::traits::{BinaryOperator, UnaryOperator, WorkingTree};
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::lazy::LazyView;
 use crate::{Error, SpatialIdCollection};
 use alloc::boxed::Box;
 use alloc::vec;
@@ -144,97 +145,141 @@ where
         self.validate()?;
         self.optimize().raw_run()
     }
-}
 
-/// [`Query`] の木構造を人間が読める形式で出力する。
-///
-/// # 出力例（最適化前）
-/// ```text
-/// Source
-/// → extrude_f(z=25, f=[0, 5], Max)
-/// → falloff_linear_x(z=25, r=3, Max)
-/// → falloff_linear_y(z=25, r=3, Max)
-/// → falloff_linear_f(z=25, r=2, Max)
-/// → fill_empty
-/// ```
-///
-/// # 出力例（[`Query::optimize`] 後）
-/// ```text
-/// Source
-/// → extrude_f(z=25, f=[0, 5], Max)
-/// → [Group]
-///     falloff_linear_f(z=25, r=2, Max)
-///     falloff_linear_x(z=25, r=3, Max)
-///     falloff_linear_y(z=25, r=3, Max)
-/// → fill_empty
-/// ```
-///
-/// # 出力例（Binary あり）
-/// ```text
-/// merge(Max)
-///   lhs:
-///     Source
-///     → shift_x(z=25, x=3)
-///   rhs:
-///     Source
-///     → falloff_linear_f(z=25, r=2, Max)
-/// ```
-impl<S: SpatialIdCollection> core::fmt::Display for Query<S>
-where
-    S::Value: 'static,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        fmt_query(self, f, "")
+    /// `bounds` で要求される最終結果を得るために必要な入力を `Query` ツリーの下位へと逆算していく。
+    pub(crate) fn inverse_bounds(&self, bounds: crate::RangeId) -> Vec<crate::RangeId> {
+        match self {
+            Query::Source(_) => alloc::vec![bounds],
+            Query::Unary(ops, input) => {
+                let mut req = alloc::vec![bounds];
+                for op in ops.iter().rev() {
+                    let mut next = Vec::new();
+                    for r in req {
+                        next.extend(op.inverse_bounds(r));
+                    }
+                    req = next;
+                }
+                let mut res = Vec::new();
+                for r in req {
+                    res.extend(input.inverse_bounds(r));
+                }
+                res
+            }
+            Query::CommutativeGroup(_, ops, input) => {
+                let mut req = alloc::vec![bounds];
+                for op in ops.iter().rev() {
+                    let mut next = Vec::new();
+                    for r in req {
+                        next.extend(op.inverse_bounds(r));
+                    }
+                    req = next;
+                }
+                let mut res = Vec::new();
+                for r in req {
+                    res.extend(input.inverse_bounds(r));
+                }
+                res
+            }
+            Query::Binary(op, lhs, rhs) => {
+                let (inter_l, inter_r) = op.inverse_bounds(bounds);
+                let mut req_l = Vec::new();
+                for r in inter_l {
+                    req_l.extend(lhs.inverse_bounds(r));
+                }
+                let mut req_r = Vec::new();
+                for r in inter_r {
+                    req_r.extend(rhs.inverse_bounds(r));
+                }
+                req_l.extend(req_r);
+                req_l
+            }
+            Query::Error(_) => alloc::vec![bounds],
+        }
     }
 }
 
-/// [`Query`] を再帰的に整形して `fmt` へ書き出す。
-///
-/// `indent` は現在の深さに対するインデント文字列（Binary の入れ子に使用）。
-fn fmt_query<S: SpatialIdCollection>(
-    query: &Query<S>,
-    f: &mut core::fmt::Formatter<'_>,
-    indent: &str,
-) -> core::fmt::Result
-where
-    S::Value: 'static,
-{
-    match query {
-        Query::Source(_) => write!(f, "{indent}Source"),
+pub(crate) fn intersects_flex_range(flex: &crate::FlexId, range: &crate::RangeId) -> bool {
+    fn intersect_axis(f_z: u8, f_i: i64, r_z: u8, r_min: i64, r_max: i64) -> bool {
+        let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if f_z > r_z {
+            (f_z, f_i, f_i, r_z, r_min, r_max)
+        } else {
+            (r_z, r_min, r_max, f_z, f_i, f_i)
+        };
+        let shift = deep_z - shallow_z;
+        let deep_shallow_min = deep_min >> shift;
+        let deep_shallow_max = deep_max >> shift;
+        !(deep_shallow_max < shallow_min || deep_shallow_min > shallow_max)
+    }
 
-        Query::Unary(ops, input) => {
-            fmt_query(input, f, indent)?;
-            for op in ops {
-                write!(f, "\n{indent}→ ")?;
-                op.fmt_op(f)?;
+    intersect_axis(flex.f_zoomlevel(), flex.f_index() as i64, range.z(), range.f()[0] as i64, range.f()[1] as i64)
+        && intersect_axis(flex.x_zoomlevel(), flex.x_index() as i64, range.z(), range.x()[0] as i64, range.x()[1] as i64)
+        && intersect_axis(flex.y_zoomlevel(), flex.y_index() as i64, range.z(), range.y()[0] as i64, range.y()[1] as i64)
+}
+
+impl<S: SpatialIdCollection> Query<S> {
+    pub(crate) fn run_on_subset(&self, bounds: &[crate::RangeId]) -> Result<S::Working, Error>
+    where
+        S::Working: 'static,
+    {
+        match self {
+            Query::Source(s) => {
+                let mut subset = Vec::new();
+                for (id, val) in s.iter() {
+                    if bounds.iter().any(|b| intersects_flex_range(&id, b)) {
+                        subset.push((id, val.clone()));
+                    }
+                }
+                Ok(S::Working::from_flexids(subset))
             }
-            Ok(())
-        }
-
-        Query::CommutativeGroup(_, ops, input) => {
-            fmt_query(input, f, indent)?;
-            write!(f, "\n{indent}→ [Group]")?;
-            for op in ops {
-                write!(f, "\n{indent}    ")?;
-                op.fmt_op(f)?;
+            Query::Unary(ops, input) => {
+                let mut req = bounds.to_vec();
+                for op in ops.iter().rev() {
+                    let mut next = Vec::new();
+                    for r in req {
+                        next.extend(op.inverse_bounds(r));
+                    }
+                    req = next;
+                }
+                let mut working = input.run_on_subset(&req)?;
+                for op in ops {
+                    op.run(&mut working)?;
+                }
+                Ok(working)
             }
-            Ok(())
+            Query::CommutativeGroup(_, ops, input) => {
+                let mut req = bounds.to_vec();
+                for op in ops.iter().rev() {
+                    let mut next = Vec::new();
+                    for r in req {
+                        next.extend(op.inverse_bounds(r));
+                    }
+                    req = next;
+                }
+                let mut working = input.run_on_subset(&req)?;
+                for op in ops {
+                    op.run(&mut working)?;
+                }
+                Ok(working)
+            }
+            Query::Binary(op, lhs, rhs) => {
+                let mut lhs_bounds = Vec::new();
+                let mut rhs_bounds = Vec::new();
+                for b in bounds {
+                    let (l, r) = op.inverse_bounds(b.clone());
+                    lhs_bounds.extend(l);
+                    rhs_bounds.extend(r);
+                }
+                let mut lhs_working = lhs.run_on_subset(&lhs_bounds)?;
+                let rhs_working = rhs.run_on_subset(&rhs_bounds)?;
+                op.run(&mut lhs_working, &rhs_working)?;
+                Ok(lhs_working)
+            }
+            Query::Error(e) => Err(e.clone()),
         }
+    }
 
-        Query::Binary(op, lhs, rhs) => {
-            // 二項演算子名を先頭に
-            op.fmt_op(f)?;
-            // lhs
-            write!(f, "\n{indent}  lhs:\n")?;
-            let lhs_indent = alloc::format!("{indent}    ");
-            fmt_query(lhs, f, &lhs_indent)?;
-            // rhs
-            write!(f, "\n{indent}  rhs:\n")?;
-            let rhs_indent = alloc::format!("{indent}    ");
-            fmt_query(rhs, f, &rhs_indent)?;
-            Ok(())
-        }
-
-        Query::Error(e) => write!(f, "{indent}Error({e:?})"),
+    /// クエリを評価せずに遅延ビュー（Lazy View）を作成する。
+    pub fn lazy(&self) -> LazyView<'_, S> {
+        LazyView { query: self }
     }
 }

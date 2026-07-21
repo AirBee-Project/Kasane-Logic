@@ -2,9 +2,8 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SingleId, SpatialIdCollection, SpatialIdTable,
-    spatial_id::collection::query::merge_policy::{Average, Max},
-    spatial_id::zoom_level::ZoomLevel,
+    SingleId, SpatialIdCollection, SpatialIdTable, ZoomLevel,
+    merge_policy::{Average, Max},
 };
 
 fn setup_cluster(n: u32) -> SpatialIdTable<u32> {

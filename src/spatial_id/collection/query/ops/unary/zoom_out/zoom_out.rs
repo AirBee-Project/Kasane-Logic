@@ -81,6 +81,14 @@ where
         Ok(())
     }
 
+    fn inverse_bounds(&self, bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+        if bounds.z() > self.target_z.get() {
+            alloc::vec![bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap()]
+        } else {
+            alloc::vec![bounds]
+        }
+    }
+
     fn commutativity_info(&self) -> CommutativityInfo {
         CommutativityInfo::none()
     }

@@ -41,7 +41,6 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .fill_empty(0)
             .raw_run()
             .unwrap();
 
@@ -53,7 +52,6 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .fill_empty(0)
             .run()
             .unwrap();
 

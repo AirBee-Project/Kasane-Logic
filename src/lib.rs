@@ -98,3 +98,14 @@ pub use spatial_id::traits::SpatialId;
 // spatial_id: zoom level
 #[doc(inline)]
 pub use spatial_id::zoom_level::ZoomLevel;
+
+// spatial_id: query, lazy view & merge policies
+#[doc(inline)]
+pub use spatial_id::collection::query::execution::Query;
+#[doc(inline)]
+pub use spatial_id::collection::query::lazy::LazyView;
+#[doc(inline)]
+pub use spatial_id::collection::query::merge_policy;
+#[doc(inline)]
+pub use spatial_id::collection::query::merge_policy::MergePolicy;
+

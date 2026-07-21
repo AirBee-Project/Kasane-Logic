@@ -8,7 +8,8 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::merge_policy::Max,
+    SpatialIdCollection, SpatialIdTable, ZoomLevel,
+    merge_policy::{Average, Max},
 };
 use std::fs;
 use std::sync::OnceLock;
@@ -84,9 +85,6 @@ fn bench_shift_and_falloff(c: &mut Criterion) {
     });
 }
 
-use kasane_logic::{
-    spatial_id::collection::query::merge_policy::Average, spatial_id::zoom_level::ZoomLevel,
-};
 
 fn bench_zoom_out(c: &mut Criterion) {
     bench_workflow(

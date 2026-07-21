@@ -2,7 +2,7 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SingleId, SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::merge_policy::Max,
+    SingleId, SpatialIdCollection, SpatialIdTable, merge_policy::Max,
 };
 
 const OP_ZOOM: u8 = 25;

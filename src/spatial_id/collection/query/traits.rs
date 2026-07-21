@@ -102,6 +102,10 @@ pub trait BinaryOperator<W: WorkingTree>: MaybeSendSync {
     /// 作業木 `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
     fn run(&self, target_a: &mut W, target_b: &W) -> Result<(), Error>;
 
+    /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
+    /// 返り値は (target_a の必要領域, target_b の必要領域)。
+    fn inverse_bounds(&self, output_bounds: RangeId) -> (Vec<RangeId>, Vec<RangeId>);
+
     /// `Display` 出力用の演算子表現
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "?")
@@ -123,12 +127,13 @@ pub trait UnaryOperator<W: WorkingTree>: MaybeSendSync + core::any::Any {
     fn as_any(&self) -> &dyn core::any::Any;
 
     /// 演算子を適用した際のデータサイズの推定拡大倍率。
-    /// 可換グループ内では、この倍率が小さい順に実行されるよう
-    /// [`sort_commutative_ops`](crate::spatial_id::collection::query::execution::Query::sort_commutative_ops)
-    /// で自動的に並べ替えられ、複数の中間データ拡大操作が連続した場合の処理コスト総和を最小化する。
     fn expansion_ratio(&self) -> f32 {
         1.0
     }
+
+    /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
+    /// 遅延ビュー（Lazy View）が部分木を構築するために使用する。
+    fn inverse_bounds(&self, output_bounds: RangeId) -> Vec<RangeId>;
 
     /// `Display` 出力用の演算子表現
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

@@ -9,3 +9,14 @@ pub mod execution;
 
 /// 複数の値が同じ空間で衝突した際の解決ポリシー
 pub mod merge_policy;
+
+/// 遅延評価のためのモジュール
+pub mod lazy;
+
+/// クエリの表示の実装
+pub mod fmt;
+
+pub use execution::Query;
+pub use lazy::LazyView;
+pub use merge_policy::MergePolicy;
+

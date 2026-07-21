@@ -108,10 +108,6 @@ define_query_ops! {
     ExtrudeF(u8, i32, i32, Policy)
         => |z, _zl, fmin: i32, fmax: i32, _xymax| (fmin..=fmax, 0..=5i32, arb_policy()).prop_map(move |(s, l, p)| QueryOp::ExtrudeF(z, s, i32::min(s + l, fmax), p))
         => |q, z, start, end, p| dispatch_policy!(q, extrude_f(*z, *start, *end), p),
-
-    FillEmpty(u32)
-        => |_z, _zl, _fmin, _fmax, _xymax| (0..=100u32).prop_map(QueryOp::FillEmpty)
-        => |q, val| q.fill_empty(*val),
 }
 
 proptest! {

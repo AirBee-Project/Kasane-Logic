@@ -1,5 +1,5 @@
-mod ast_optimization;
-mod proptest_query;
+pub mod ast_optimization;
+pub mod proptest_query;
 
 use crate::{SingleId, SpatialIdCollection, SpatialIdTable};
 
