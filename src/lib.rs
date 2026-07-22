@@ -121,4 +121,4 @@ pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
-pub use spatial_id::collection::query::source::{Source, dedup_cells};
+pub use spatial_id::collection::query::source::Source;

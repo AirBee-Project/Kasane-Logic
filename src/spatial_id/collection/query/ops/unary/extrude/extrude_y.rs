@@ -74,7 +74,7 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = W::from_flexids(new_items);
+        *core = new_items.into_iter().collect();
 
         Ok(())
     }

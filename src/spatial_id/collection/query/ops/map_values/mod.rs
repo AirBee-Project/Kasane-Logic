@@ -45,7 +45,7 @@ where
             .into_iter()
             .map(|(id, value)| (id, (self.f)(value)))
             .collect();
-        FlexTreeCore::from_flexids(cells)
+        cells.into_iter().collect()
     }
 }
 
@@ -72,7 +72,7 @@ where
             .into_iter()
             .map(|(id, value)| (id, (this.f)(value)))
             .collect();
-        Ok(FlexTreeCore::from_flexids(cells))
+        Ok(cells.into_iter().collect())
     }
 }
 

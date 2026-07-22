@@ -72,7 +72,7 @@ where
             }
         }
 
-        *core = W::from_flexids(new_items);
+        *core = new_items.into_iter().collect();
 
         Ok(())
     }

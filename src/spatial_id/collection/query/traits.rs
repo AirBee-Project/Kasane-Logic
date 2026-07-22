@@ -5,7 +5,14 @@ use crate::{Error, FlexId, FlexTreeCore, RangeId};
 use alloc::vec::Vec;
 
 /// クエリ実行器・演算子が触れるの境界。将来的にメモリ実装とDisk実装を抽象化するために使用される。
-pub trait WorkingTree: Sized + MaybeSendSync + IntoIterator<Item = (FlexId, Self::Value)> {
+/// 走査（[`IntoIterator`]）と構築（[`FromIterator`]）は標準トレイトで表す。
+/// 演算子は `items.into_iter().collect()` でツリーを組み直す。
+pub trait WorkingTree:
+    Sized
+    + MaybeSendSync
+    + IntoIterator<Item = (FlexId, Self::Value)>
+    + FromIterator<(FlexId, Self::Value)>
+{
     type Value: SafeValue;
 
     fn count(&self) -> usize;
@@ -16,9 +23,6 @@ pub trait WorkingTree: Sized + MaybeSendSync + IntoIterator<Item = (FlexId, Self
     ///
     /// 基本的にO(1)で返すこと。
     fn bounding_box(&self) -> Option<RangeId>;
-
-    /// `(FlexId, Value)` 列からツリーを構築する（重なりは union・左優先）。
-    fn from_flexids(items: Vec<(FlexId, Self::Value)>) -> Self;
 
     /// 自分自身をベースとし、`other` のセルで上書き重ね合わせを行った新しいツリーを返す。
     fn overlay(&self, other: &Self) -> Self;
@@ -57,10 +61,6 @@ impl<V: SafeValue> WorkingTree for FlexTreeCore<V> {
 
     fn bounding_box(&self) -> Option<RangeId> {
         FlexTreeCore::bounding_box(self)
-    }
-
-    fn from_flexids(items: Vec<(FlexId, V)>) -> Self {
-        FlexTreeCore::from_flexids(items)
     }
 
     fn overlay(&self, other: &Self) -> Self {

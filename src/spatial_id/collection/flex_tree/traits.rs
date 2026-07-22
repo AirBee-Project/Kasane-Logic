@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::query::source::{Source, dedup_cells};
+use crate::spatial_id::collection::query::source::Source;
 use crate::{Error, FlexId, FlexTreeCore, RangeId, SpatialIdSet, SpatialIdTable};
 
 /// Table の出入口変換で、これ未満なら rayon を使わず逐次で組む閾値。
@@ -19,16 +19,6 @@ pub trait CellValue: Ord + Clone + Send + Sync {}
 #[cfg(feature = "rayon")]
 impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 
-#[cfg(not(feature = "rayon"))]
-pub trait SpatialIdCollectionBounds: Sized {}
-#[cfg(not(feature = "rayon"))]
-impl<T: Sized> SpatialIdCollectionBounds for T {}
-
-#[cfg(feature = "rayon")]
-pub trait SpatialIdCollectionBounds: Sized + Sync + Send {}
-#[cfg(feature = "rayon")]
-impl<T: Sized + Sync + Send> SpatialIdCollectionBounds for T {}
-
 impl Source for SpatialIdSet {
     type Working = FlexTreeCore<()>;
 
@@ -39,8 +29,7 @@ impl Source for SpatialIdSet {
                 cells.push((id, ()));
             }
         }
-        dedup_cells(&mut cells, bounds.len());
-        Ok(FlexTreeCore::from_flexids(cells))
+        Ok(cells.into_iter().collect())
     }
 
     fn read_all(self: Box<Self>) -> Result<Self::Working, Error> {
@@ -68,8 +57,7 @@ where
                 cells.push((id, value.clone()));
             }
         }
-        dedup_cells(&mut cells, bounds.len());
-        Ok(FlexTreeCore::from_flexids(cells))
+        Ok(cells.into_iter().collect())
     }
 
     fn read_all(self: Box<Self>) -> Result<Self::Working, Error> {

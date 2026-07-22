@@ -44,12 +44,11 @@ where
         let working = self.query.run_on_subset(req_bounds)?;
 
         // target を default_value で埋めた WorkingTree を作成
-        let target_items = target
+        let base_tree: W = target
             .clone()
             .into_iter()
             .map(|id| (id, default_value.clone()))
-            .collect::<alloc::vec::Vec<_>>();
-        let base_tree = W::from_flexids(target_items);
+            .collect();
 
         let overlay_tree = base_tree.overlay(&working);
 
