@@ -42,22 +42,30 @@ where
     ) -> Result<impl Iterator<Item = (crate::FlexId, W::Value)>, Error> {
         let req_bounds = alloc::vec![target.clone().into()];
         let working = self.query.run_on_subset(req_bounds)?;
+        let target_range: crate::RangeId = target.clone().into();
 
-        // target を default_value で埋めた WorkingTree を作成
-        let base_tree: W = target
-            .clone()
-            .into_iter()
-            .map(|id| (id, default_value.clone()))
-            .collect();
+        let mut uncovered: alloc::vec::Vec<crate::FlexId> = target.into_iter().collect();
+        let mut covered_results = alloc::vec::Vec::new();
 
-        let overlay_tree = base_tree.overlay(&working);
-
-        let target_range: crate::RangeId = target.into();
-        Ok(overlay_tree.into_iter().filter(move |(id, _)| {
-            crate::spatial_id::collection::query::execution::intersects_flex_range(
-                id,
+        for (id, value) in working.into_iter() {
+            if crate::spatial_id::collection::query::execution::intersects_flex_range(
+                &id,
                 &target_range,
-            )
-        }))
+            ) {
+                let mut next_uncovered = alloc::vec::Vec::with_capacity(uncovered.len());
+                for u in uncovered {
+                    next_uncovered.extend(u.difference(&id));
+                }
+                uncovered = next_uncovered;
+
+                covered_results.push((id, value));
+            }
+        }
+
+        let default_results = uncovered
+            .into_iter()
+            .map(move |id| (id, default_value.clone()));
+
+        Ok(covered_results.into_iter().chain(default_results))
     }
 }
