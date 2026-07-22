@@ -5,6 +5,15 @@
 #[macro_use]
 extern crate alloc;
 
+// Rust 標準のテストハーネスは std を必要とするため、`--no-default-features`（no_std）
+// ビルドでもテストをコンパイル・実行できるようにテスト時だけ std を繋ぐ。
+//
+// マクロは持ち込まない（`alloc` 側の `vec!` / `format!` と衝突して未使用警告になるため）。
+// テストコードからは `std::println!` のように修飾して使い、型（`Vec` / `String` 等）は
+// no_std プレリュードに入らないので各テストモジュールで `alloc` から import する。
+#[cfg(test)]
+extern crate std;
+
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
@@ -73,13 +82,14 @@ pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
 
 // spatial_id: collection types
+// `Source::Working` の具象型として公開APIに現れるため pub。
 #[doc(inline)]
-pub(crate) use spatial_id::collection::flex_tree::core::FlexTreeCore;
+pub use spatial_id::collection::flex_tree::core::FlexTreeCore;
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::traits::{CellValue, SpatialIdCollection};
+pub use spatial_id::collection::flex_tree::traits::CellValue;
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
@@ -103,8 +113,12 @@ pub use spatial_id::zoom_level::ZoomLevel;
 #[doc(inline)]
 pub use spatial_id::collection::query::execution::Query;
 #[doc(inline)]
+pub use spatial_id::collection::query::execution::intersects_flex_range;
+#[doc(inline)]
 pub use spatial_id::collection::query::lazy::LazyView;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
+#[doc(inline)]
+pub use spatial_id::collection::query::source::{Source, dedup_cells};

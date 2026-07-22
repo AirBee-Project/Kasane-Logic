@@ -1,7 +1,7 @@
 //! 遅延ビュー(LazyView)のベンチマーク。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{SingleId, SpatialIdCollection, SpatialIdTable};
+use kasane_logic::{SingleId, Source, SpatialIdTable};
 
 const OP_ZOOM: u8 = 25;
 
@@ -38,14 +38,14 @@ fn bench_lazy_get(c: &mut Criterion) {
             b.iter_batched(
                 || t.clone(),
                 |table| {
-                    let res = table
+                    let res: SpatialIdTable<u32> = table
                         .query()
                         .shift_x(OP_ZOOM, 10)
                         .shift_y(OP_ZOOM, 10)
-                        .raw_run()
+                        .raw_run_into()
                         .unwrap();
                     let target_flex: kasane_logic::FlexId = target_id.clone().into();
-                    let _ = res.try_get(&target_flex).unwrap().count();
+                    let _ = res.get(&target_flex).count();
                 },
                 BatchSize::SmallInput,
             );

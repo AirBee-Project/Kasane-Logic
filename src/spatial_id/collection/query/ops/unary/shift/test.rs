@@ -1,6 +1,6 @@
 use alloc::collections::BTreeMap;
 
-use crate::{SingleId, SpatialIdCollection, SpatialIdTable};
+use crate::{SingleId, Source, SpatialIdTable};
 
 /// z=20, f=0, y=0 に固定した行から `x -> value` の対応を取り出す。
 fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
@@ -21,7 +21,7 @@ fn shift_x_moves_cell() {
     table.insert(cell(100, 9).0, 9);
     table.insert(cell(200, 3).0, 3);
 
-    let out = table.query().shift_x(20, 5).raw_run().unwrap();
+    let out = table.query().shift_x(20, 5).raw_run_into().unwrap();
     let r = row(&out);
 
     assert_eq!(r.len(), 2);

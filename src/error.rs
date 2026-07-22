@@ -10,6 +10,20 @@ pub enum Error {
 
     /// Geometry まわりのエラー。
     Geometry(GeometryError),
+
+    /// その入力源・実装が対応していない操作。
+    ///
+    /// 例: 全走査が現実的でないディスク上の入力源に対する
+    /// [`Source::read_all`](crate::Source::read_all)。
+    Unsupported(&'static str),
+
+    /// クエリ演算子のパラメータが不正であることを示す。
+    InvalidQueryParameter(&'static str),
+
+    /// [`Source`](crate::Source) 実装側で発生した読み取りエラー。
+    ///
+    /// ディスク/ネットワーク越しの入力源が、自身の I/O 失敗をクエリ実行器へ伝えるために使う。
+    SourceRead(String),
 }
 
 /// Geometry 関連で発生するエラー。
@@ -93,6 +107,9 @@ impl fmt::Display for Error {
         match self {
             Error::SpatialId(inner) => inner.fmt(f),
             Error::Geometry(inner) => inner.fmt(f),
+            Error::Unsupported(what) => write!(f, "unsupported operation: {what}"),
+            Error::InvalidQueryParameter(what) => write!(f, "invalid query parameter: {what}"),
+            Error::SourceRead(msg) => write!(f, "source read failed: {msg}"),
         }
     }
 }

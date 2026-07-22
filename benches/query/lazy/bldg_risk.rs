@@ -6,7 +6,7 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SpatialIdCollection, SpatialIdTable, ZoomLevel,
+    Source, SpatialIdTable, ZoomLevel,
     merge_policy::{Average, Max},
 };
 use std::fs;
@@ -63,15 +63,15 @@ fn bench_lazy_workflow(c: &mut Criterion) {
             b.iter_batched(
                 || t.clone(),
                 |table_clone| {
-                    let res = table_clone
+                    let res: SpatialIdTable<u32> = table_clone
                         .query()
                         .shift_x(24, 5)
                         .shift_y(24, -5)
                         .falloff_linear_x(24, 5, Max)
                         .falloff_linear_y(24, 5, Max)
-                        .raw_run()
+                        .raw_run_into()
                         .unwrap();
-                    let _ = res.try_get(&target_id).unwrap().count();
+                    let _ = res.get(&target_id).count();
                 },
                 BatchSize::SmallInput,
             );
@@ -90,17 +90,13 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
         let table = get_subset(n);
 
         // 事前にZoomOutした結果から妥当なターゲットIDを取得
-        let target_id = table
+        let zoomed: SpatialIdTable<u32> = table
             .clone()
             .query()
             .zoom_out(ZoomLevel::new(18).unwrap(), Average)
-            .raw_run()
-            .unwrap()
-            .iter()
-            .next()
-            .unwrap()
-            .0
-            .clone();
+            .raw_run_into()
+            .unwrap();
+        let target_id = zoomed.iter().next().unwrap().0.clone();
 
         group.throughput(Throughput::Elements(1));
 
@@ -120,12 +116,12 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
             b.iter_batched(
                 || t.clone(),
                 |table_clone| {
-                    let res = table_clone
+                    let res: SpatialIdTable<u32> = table_clone
                         .query()
                         .zoom_out(ZoomLevel::new(18).unwrap(), Average)
-                        .raw_run()
+                        .raw_run_into()
                         .unwrap();
-                    let _ = res.try_get(&target_id).unwrap().count();
+                    let _ = res.get(&target_id).count();
                 },
                 BatchSize::SmallInput,
             );

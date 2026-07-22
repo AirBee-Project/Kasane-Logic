@@ -1,7 +1,7 @@
 //! 単項クエリ演算子（shift）のベンチマーク。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{SingleId, SpatialIdCollection, SpatialIdTable};
+use kasane_logic::{SingleId, Source, SpatialIdTable};
 
 const OP_ZOOM: u8 = 25;
 
@@ -34,7 +34,7 @@ where
 
 fn bench_shift_x(c: &mut Criterion) {
     bench_scaling(c, "UnaryOps/shift_x", &[1, 10, 50, 100], |t| {
-        t.query().shift_x(OP_ZOOM, 10).raw_run().unwrap()
+        t.query().shift_x(OP_ZOOM, 10).raw_run_into().unwrap()
     });
 }
 
@@ -43,7 +43,7 @@ fn bench_shift_x_y_chained(c: &mut Criterion) {
         t.query()
             .shift_x(OP_ZOOM, 10)
             .shift_y(OP_ZOOM, 10)
-            .raw_run()
+            .raw_run_into()
             .unwrap()
     });
 }

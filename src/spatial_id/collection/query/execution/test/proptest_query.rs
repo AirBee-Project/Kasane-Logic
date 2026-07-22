@@ -1,7 +1,8 @@
 use crate::{
-    SingleId, SpatialIdCollection, SpatialIdTable,
+    SingleId, Source, SpatialIdTable,
     spatial_id::collection::query::execution::Query,
     spatial_id::collection::query::merge_policy::{Average, Max, Min, Sum},
+    spatial_id::collection::query::traits::WorkingTree,
 };
 use alloc::vec::Vec;
 use proptest::prelude::*;
@@ -55,10 +56,7 @@ macro_rules! define_query_ops {
         }
 
         impl QueryOp {
-            fn apply<S: SpatialIdCollection<Value = u32>>(&self, q: Query<S>) -> Query<S>
-            where
-                S::Working: 'static,
-            {
+            fn apply<W: WorkingTree<Value = u32> + 'static>(&self, q: Query<W>) -> Query<W> {
                 match self {
                     $(
                         QueryOp::$variant($($parg),*) => {
@@ -144,8 +142,8 @@ proptest! {
             q_run = op.apply(q_run);
         }
 
-        let res_raw = q_raw.raw_run();
-        let res_run = q_run.run();
+        let res_raw: Result<SpatialIdTable<u32>, _> = q_raw.raw_run_into();
+        let res_run: Result<SpatialIdTable<u32>, _> = q_run.run_into();
 
         match (res_raw, res_run) {
             (Ok(raw), Ok(run)) => {

@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::query::merge_policy::{Average, Max};
-use crate::{SingleId, SpatialIdCollection, SpatialIdTable, ZoomLevel};
+use crate::{SingleId, Source, SpatialIdTable, ZoomLevel};
 
 #[test]
 fn zoom_out_average_8_children() {
@@ -26,10 +26,10 @@ fn zoom_out_average_8_children() {
     table.insert(id_111, 80);
 
     // ZoomOut to Z=19 (8 children -> 1 parent)
-    let out = table
+    let out: SpatialIdTable<i32> = table
         .query()
         .zoom_out(ZoomLevel::new(19).unwrap(), Average)
-        .raw_run()
+        .raw_run_into()
         .unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
@@ -53,7 +53,7 @@ fn zoom_out_max_partial_children() {
     table.insert(id_111, 5);
 
     // ZoomOut to Z=19 using Max policy
-    let out = table.query().zoom_out(19, Max).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = table.query().zoom_out(19, Max).raw_run_into().unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
     let result = out.get(&parent).next().unwrap().1;

@@ -1,5 +1,10 @@
 #![cfg_attr(test, allow(dead_code))]
 
+#[cfg(test)]
+use alloc::string::String;
+#[cfg(test)]
+use alloc::vec::Vec;
+
 pub mod corner_cases;
 pub mod count;
 pub mod difference;

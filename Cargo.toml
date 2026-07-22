@@ -5,6 +5,12 @@ edition = "2024"
 license = "MIT"
 description = "This is Kasane-logic"
 
+# デモ用バイナリ。JSON 読み書きとファイル I/O を使うため std と json が要る。
+[[bin]]
+name = "kasane-logic"
+path = "src/main.rs"
+required-features = ["std", "json"]
+
 [workspace]
 members = [
     ".",
@@ -155,6 +161,8 @@ harness = false
 name = "spatial_id_set_parallel_build"
 path = "benches/spatial_id_set/parallel_build.rs"
 harness = false
+# 並列実装（Arc ベースの共有ノード）と sample JSON の読み込みを前提とするベンチ。
+required-features = ["rayon"]
 
 [[bench]]
 name = "query_ops_unary_shift"
@@ -180,6 +188,8 @@ harness = false
 name = "query_workflow_bldg_risk"
 path = "benches/query/workflow/bldg_risk.rs"
 harness = false
+# 並列実装（Arc ベースの共有ノード）と sample JSON の読み込みを前提とするベンチ。
+required-features = ["rayon", "json"]
 
 [[bench]]
 name = "query_lazy_get"
@@ -190,6 +200,8 @@ harness = false
 name = "query_lazy_workflow_bldg_risk"
 path = "benches/query/lazy/bldg_risk.rs"
 harness = false
+# 並列実装（Arc ベースの共有ノード）と sample JSON の読み込みを前提とするベンチ。
+required-features = ["rayon", "json"]
 
 [[example]]
 name = "table_json"

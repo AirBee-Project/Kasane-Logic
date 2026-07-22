@@ -268,6 +268,84 @@ impl<'a> ArchivedMap<'a> {
         out
     }
 
+    /// `target`（範囲）と重なる (FlexId, 値) を ZeroCopy で列挙する。
+    ///
+    /// インメモリ側の `FlexTreeCore::range_overlap_ref` と同じ意味論で、葉は
+    /// **切り取らずに**そのまま返す（クエリの入力源はセル全体の値を必要とするため）。
+    pub fn get_range(&self, target: &crate::RangeId) -> Vec<(FlexId, &'a [u8])> {
+        let mut out = Vec::new();
+
+        // F はズーム0で 0（上半球）/ -1（下半球）の2セルしか無いので、
+        // 範囲を半球ごとに割ってから、該当するルートだけを降りる。
+        let mut roots = Vec::new();
+        if target.f()[0] < 0 {
+            let mut lower_target = target.clone();
+            if lower_target
+                .set_f([target.f()[0], target.f()[1].min(-1)])
+                .is_ok()
+            {
+                roots.push((
+                    self.inner.lower_root.to_native(),
+                    FlexId::LOWER_MAX,
+                    lower_target,
+                ));
+            }
+        }
+        if target.f()[1] >= 0 {
+            let mut upper_target = target.clone();
+            if upper_target
+                .set_f([target.f()[0].max(0), target.f()[1]])
+                .is_ok()
+            {
+                roots.push((
+                    self.inner.upper_root.to_native(),
+                    FlexId::UPPER_MAX,
+                    upper_target,
+                ));
+            }
+        }
+
+        for (root_idx, root_id, root_target) in roots {
+            let mut stack = alloc::vec![(root_idx, root_id)];
+            while let Some((idx, current_id)) = stack.pop() {
+                match &self.inner.nodes[idx as usize] {
+                    ArchivedPersistedNode::Branch {
+                        level,
+                        lower,
+                        upper,
+                    } => {
+                        let axis = Node::<Vec<u8>>::axis(*level);
+                        let push = |side: Side, child: u32, stack: &mut Vec<(u32, FlexId)>| {
+                            stack.push((child, split_child_id(&current_id, axis, side)));
+                        };
+                        match Node::<Vec<u8>>::overlapping_children_range(&root_target, *level) {
+                            OverlappingChildren::Both => {
+                                push(Side::Upper, upper.to_native(), &mut stack);
+                                push(Side::Lower, lower.to_native(), &mut stack);
+                            }
+                            OverlappingChildren::Only(Side::Lower) => {
+                                push(Side::Lower, lower.to_native(), &mut stack)
+                            }
+                            OverlappingChildren::Only(Side::Upper) => {
+                                push(Side::Upper, upper.to_native(), &mut stack)
+                            }
+                        }
+                    }
+                    ArchivedPersistedNode::Leaf { value } => {
+                        let v = value.to_native();
+                        if v != EMPTY_LEAF {
+                            out.push((
+                                current_id,
+                                self.inner.dictionary[(v - 1) as usize].as_slice(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
     /// 保持している全ての (FlexId, 値) を ZeroCopy で列挙する。
     pub fn iter(&self) -> Vec<(FlexId, &'a [u8])> {
         let mut out = Vec::new();

@@ -1,4 +1,4 @@
-use kasane_logic::{FlexId, RangeId, SpatialIdCollection, SpatialIdTable, merge_policy::Max};
+use kasane_logic::{FlexId, RangeId, Source, SpatialIdTable, merge_policy::Max};
 use std::{fs, str::FromStr};
 
 fn main() {

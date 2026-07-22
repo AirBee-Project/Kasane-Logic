@@ -2,7 +2,7 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SingleId, SpatialIdCollection, SpatialIdTable, ZoomLevel,
+    SingleId, Source, SpatialIdTable, ZoomLevel,
     merge_policy::{Average, Max},
 };
 
@@ -37,7 +37,7 @@ fn bench_zoom_out_average(c: &mut Criterion) {
     bench_scaling(c, "UnaryOps/zoom_out_average_z19", &[1, 10, 50, 100], |t| {
         t.query()
             .zoom_out(ZoomLevel::new(19).unwrap(), Average)
-            .raw_run()
+            .raw_run_into()
             .unwrap()
     });
 }
@@ -46,7 +46,7 @@ fn bench_zoom_out_max(c: &mut Criterion) {
     bench_scaling(c, "UnaryOps/zoom_out_max_z15", &[1, 10, 50, 100], |t| {
         t.query()
             .zoom_out(ZoomLevel::new(15).unwrap(), Max)
-            .raw_run()
+            .raw_run_into()
             .unwrap()
     });
 }

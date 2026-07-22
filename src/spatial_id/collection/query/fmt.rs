@@ -1,8 +1,8 @@
-use crate::{SpatialIdCollection, spatial_id::collection::query::execution::Query};
+use crate::spatial_id::collection::query::{execution::Query, traits::WorkingTree};
 
-impl<S: SpatialIdCollection> core::fmt::Display for Query<S>
+impl<W: WorkingTree + 'static> core::fmt::Display for Query<W>
 where
-    S::Value: 'static,
+    W::Value: 'static,
 {
     /// [`Query`] の木構造を人間が読める形式で出力する。
     ///
@@ -44,13 +44,13 @@ where
 /// [`Query`] を再帰的に整形して `fmt` へ書き出す。
 ///
 /// `indent` は現在の深さに対するインデント文字列（Binary の入れ子に使用）。
-fn fmt_query<S: SpatialIdCollection>(
-    query: &Query<S>,
+fn fmt_query<W: WorkingTree + 'static>(
+    query: &Query<W>,
     f: &mut core::fmt::Formatter<'_>,
     indent: &str,
 ) -> core::fmt::Result
 where
-    S::Value: 'static,
+    W::Value: 'static,
 {
     match query {
         Query::Source(_) => write!(f, "{indent}Source"),

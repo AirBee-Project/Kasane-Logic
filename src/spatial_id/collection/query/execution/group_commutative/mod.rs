@@ -1,34 +1,31 @@
 use super::Query;
-use crate::SpatialIdCollection;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
+use crate::spatial_id::collection::query::traits::WorkingTree;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 pub mod types;
 
-impl<S: SpatialIdCollection> Query<S>
+impl<W: WorkingTree + 'static> Query<W>
 where
-    S::Value: 'static,
+    W::Value: 'static,
 {
     /// 可換な部分を検知して囲む
     ///
     /// ASTの `Query::Unary` 内に直列に並んだ演算子（`ops`）を走査し、
     /// 互いに可換な連続区間を見つけたら `CommutativeGroup` にラップします。
-    pub fn group_commutative_ops(self) -> Self
-    where
-        S::Working: 'static,
-    {
+    pub fn group_commutative_ops(self) -> Self {
         match self {
             Query::Unary(ops, input) => {
                 let mut current_ast = input.group_commutative_ops();
 
-                let mut current_group: Vec<Box<dyn UnaryOperator<S::Working>>> = Vec::new();
+                let mut current_group: Vec<Box<dyn UnaryOperator<W>>> = Vec::new();
                 let mut current_info: Option<CommutativityInfo> = None;
 
-                let flush = |group: &mut Vec<Box<dyn UnaryOperator<S::Working>>>,
+                let flush = |group: &mut Vec<Box<dyn UnaryOperator<W>>>,
                              info: Option<CommutativityInfo>,
-                             ast: &mut Query<S>| {
+                             ast: &mut Query<W>| {
                     if group.is_empty() {
                         return;
                     }

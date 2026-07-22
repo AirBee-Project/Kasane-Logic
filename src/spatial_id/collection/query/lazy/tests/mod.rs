@@ -1,4 +1,7 @@
-use crate::{FlexId, SpatialIdCollection, SpatialIdTable};
+#[cfg(test)]
+use alloc::vec::Vec;
+
+use crate::{FlexId, Source, SpatialIdTable};
 
 #[test]
 fn lazy_view_get_matches_run() {
@@ -7,12 +10,12 @@ fn lazy_view_get_matches_run() {
     table.insert(flex_id.clone(), 42);
 
     // Normal run
-    let expected_result = table
+    let expected_result: SpatialIdTable<u32> = table
         .clone()
         .query()
         .shift_x(10, 1)
         .shift_y(10, 2)
-        .raw_run()
+        .raw_run_into()
         .unwrap();
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();

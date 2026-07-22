@@ -1,7 +1,7 @@
 //! 単項クエリ演算子（falloff_linear）のベンチマーク。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{SingleId, SpatialIdCollection, SpatialIdTable, merge_policy::Max};
+use kasane_logic::{SingleId, Source, SpatialIdTable, merge_policy::Max};
 
 const OP_ZOOM: u8 = 25;
 const FALLOFF_RADIUS: u32 = 8;
@@ -37,7 +37,7 @@ fn bench_falloff_x(c: &mut Criterion) {
     bench_scaling(c, "UnaryOps/falloff_linear_x", &[1, 10, 50, 100], |t| {
         t.query()
             .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
-            .raw_run()
+            .raw_run_into()
             .unwrap()
     });
 }
@@ -48,7 +48,7 @@ fn bench_falloff_x_y_chained(c: &mut Criterion) {
         t.query()
             .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
             .falloff_linear_y(OP_ZOOM, FALLOFF_RADIUS, Max)
-            .raw_run()
+            .raw_run_into()
             .unwrap()
     });
 }

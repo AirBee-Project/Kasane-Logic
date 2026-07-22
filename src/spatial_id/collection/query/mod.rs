@@ -13,6 +13,9 @@ pub mod merge_policy;
 /// 遅延評価のためのモジュール
 pub mod lazy;
 
+/// クエリの入力源（`Source`）と出口変換（`FromWorking`）
+pub mod source;
+
 /// クエリの表示の実装
 pub mod fmt;
 
