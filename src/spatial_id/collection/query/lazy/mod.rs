@@ -26,12 +26,9 @@ where
         let working = self.query.run_on_subset(req_bounds)?;
         let target_range: crate::RangeId = target.into();
 
-        Ok(working.into_iter().filter(move |(id, _)| {
-            crate::spatial_id::collection::query::execution::intersects_flex_range(
-                id,
-                &target_range,
-            )
-        }))
+        Ok(working
+            .into_iter()
+            .filter(move |(id, _)| id.intersects_range(&target_range)))
     }
 
     /// 対象領域(`target`)のうち、データが存在しない空間を `default_value` で埋めてから値を返します。
@@ -44,27 +41,20 @@ where
         let working = self.query.run_on_subset(req_bounds)?;
         let target_range: crate::RangeId = target.clone().into();
 
-        let mut uncovered: alloc::vec::Vec<crate::FlexId> = target.into_iter().collect();
+        let mut uncovered = crate::SpatialIdSet::new();
+        uncovered.insert(target.into());
         let mut covered_results = alloc::vec::Vec::new();
 
         for (id, value) in working.into_iter() {
-            if crate::spatial_id::collection::query::execution::intersects_flex_range(
-                &id,
-                &target_range,
-            ) {
-                let mut next_uncovered = alloc::vec::Vec::with_capacity(uncovered.len());
-                for u in uncovered {
-                    next_uncovered.extend(u.difference(&id));
-                }
-                uncovered = next_uncovered;
-
+            if id.intersects_range(&target_range) {
+                for _ in uncovered.remove(&id) {}
                 covered_results.push((id, value));
             }
         }
 
         let default_results = uncovered
             .into_iter()
-            .map(move |id| (id, default_value.clone()));
+            .map(move |(id, _)| (id, default_value.clone()));
 
         Ok(covered_results.into_iter().chain(default_results))
     }

@@ -15,7 +15,7 @@ fn lazy_view_get_matches_run() {
         .query()
         .shift_x(10, 1)
         .shift_y(10, 2)
-        .raw_run_into()
+        .raw_run()
         .unwrap();
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();

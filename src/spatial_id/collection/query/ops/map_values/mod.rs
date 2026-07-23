@@ -66,7 +66,7 @@ where
 
     fn read_all(self: Box<Self>) -> Result<Self::Working, Error> {
         let this = *self;
-        let working = this.inner.raw_run()?;
+        let working = this.inner.raw_run_working_tree()?;
         // `map_cells` は &self を取るので、写像関数だけを取り出して使う。
         let cells: Vec<(FlexId, U)> = working
             .into_iter()

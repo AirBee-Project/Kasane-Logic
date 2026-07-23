@@ -41,7 +41,7 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .raw_run_into()
+            .raw_run()
             .unwrap();
 
         let optimized_result = bldg_risk
@@ -52,7 +52,7 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .run_into()
+            .run()
             .unwrap();
 
         assert_eq!(unoptimized_result, optimized_result, "AST optimization broke semantics!");

@@ -88,8 +88,6 @@ mod persist_tests {
     /// 期待値は「全セルを走査して交差判定で絞ったもの」を真値として突き合わせる。
     #[test]
     fn archived_get_range_returns_all_intersecting_cells() {
-        use crate::spatial_id::collection::query::execution::intersects_flex_range;
-
         let mut map: SpatialIdMap<Vec<u8>> = SpatialIdMap::new();
         for x in 0..8u32 {
             map.insert(
@@ -102,7 +100,7 @@ mod persist_tests {
 
         let mut expected: Vec<(crate::FlexId, Vec<u8>)> = map
             .iter()
-            .filter(|(id, _)| intersects_flex_range(id, &target))
+            .filter(|(id, _)| id.intersects_range(&target))
             .map(|(id, v)| (id, v.clone()))
             .collect();
         expected.sort_by(|a, b| a.0.cmp(&b.0));

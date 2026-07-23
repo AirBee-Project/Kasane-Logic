@@ -19,7 +19,7 @@ fn map_values_changes_the_value_type() {
     let out: SpatialIdTable<bool> = int_table()
         .query()
         .map_values(|v: i32| v > 10)
-        .raw_run_into()
+        .raw_run()
         .unwrap();
 
     let mut rows: alloc::vec::Vec<(u32, bool)> = out
@@ -37,7 +37,7 @@ fn map_values_to_text() {
     let out: SpatialIdTable<String> = int_table()
         .query()
         .map_values(|v: i32| if v > 10 { "high" } else { "low" }.to_string())
-        .raw_run_into()
+        .raw_run()
         .unwrap();
 
     let mut rows: alloc::vec::Vec<(u32, String)> = out
@@ -60,10 +60,10 @@ fn map_values_to_text() {
 fn map_values_composes_with_other_operators() {
     let out: SpatialIdTable<bool> = int_table()
         .query()
-        .retain_value_in_range(Some(10), None) // 変換前: 10以上だけ残す
+        .filter_in(10..) // 変換前: 10以上だけ残す
         .map_values(|v: i32| v > 10) // 型変換
-        .retain_value_eq(true) // 変換後: true だけ残す
-        .raw_run_into()
+        .filter_eq(true) // 変換後: true だけ残す
+        .raw_run()
         .unwrap();
 
     let rows: alloc::vec::Vec<u32> = out

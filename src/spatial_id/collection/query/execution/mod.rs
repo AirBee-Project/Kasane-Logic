@@ -71,7 +71,7 @@ where
     /// 全入力源に対して [`Source::read_all`] を要求するため、全走査に対応しない入力源
     /// （ディスク上の大規模ツリー等）では [`Error::Unsupported`] になる。その場合は
     /// [`lazy`](Self::lazy) による領域限定の評価を使う。
-    pub fn raw_run(self) -> Result<W, Error> {
+    pub fn raw_run_working_tree(self) -> Result<W, Error> {
         fn run_internal<W: WorkingTree + 'static>(query: Query<W>) -> Result<W, Error> {
             match query {
                 Query::Source(source) => source.read_all(),
@@ -121,9 +121,9 @@ where
     /// 最適化や実データ変換より先に構築時の問題を検出できる。
     /// 最適化のみ行いたい場合は [`optimize`](Self::optimize)、
     /// 最適化なしで実行したい場合は [`raw_run`](Self::raw_run) を使う。
-    pub fn run(self) -> Result<W, Error> {
+    pub fn run_working_tree(self) -> Result<W, Error> {
         self.validate()?;
-        self.optimize().raw_run()
+        self.optimize().raw_run_working_tree()
     }
 
     /// [`run`](Self::run) の結果を具象コレクションへ変換して返す。
@@ -131,56 +131,20 @@ where
     /// ```ignore
     /// let table: SpatialIdTable<u32> = source.query().shift_x(25, 3).run_into()?;
     /// ```
-    pub fn run_into<C>(self) -> Result<C, Error>
+    pub fn run<C>(self) -> Result<C, Error>
     where
         C: From<W>,
     {
-        Ok(self.run()?.into())
+        Ok(self.run_working_tree()?.into())
     }
 
     /// [`raw_run`](Self::raw_run) の結果を具象コレクションへ変換して返す。
-    pub fn raw_run_into<C>(self) -> Result<C, Error>
+    pub fn raw_run<C>(self) -> Result<C, Error>
     where
         C: From<W>,
     {
-        Ok(self.raw_run()?.into())
+        Ok(self.raw_run_working_tree()?.into())
     }
-}
-
-/// [`FlexId`] と [`RangeId`] が交差するかを判定する。
-/// 外部の [`Source`](crate::Source) 実装がシャード木の枝刈りに使えるよう公開している。
-pub fn intersects_flex_range(flex: &crate::FlexId, range: &crate::RangeId) -> bool {
-    fn intersect_axis(f_z: u8, f_i: i64, r_z: u8, r_min: i64, r_max: i64) -> bool {
-        let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if f_z > r_z {
-            (f_z, f_i, f_i, r_z, r_min, r_max)
-        } else {
-            (r_z, r_min, r_max, f_z, f_i, f_i)
-        };
-        let shift = deep_z - shallow_z;
-        let deep_shallow_min = deep_min >> shift;
-        let deep_shallow_max = deep_max >> shift;
-        !(deep_shallow_max < shallow_min || deep_shallow_min > shallow_max)
-    }
-
-    intersect_axis(
-        flex.f_zoomlevel(),
-        flex.f_index() as i64,
-        range.z(),
-        range.f()[0] as i64,
-        range.f()[1] as i64,
-    ) && intersect_axis(
-        flex.x_zoomlevel(),
-        flex.x_index() as i64,
-        range.z(),
-        range.x()[0] as i64,
-        range.x()[1] as i64,
-    ) && intersect_axis(
-        flex.y_zoomlevel(),
-        flex.y_index() as i64,
-        range.z(),
-        range.y()[0] as i64,
-        range.y()[1] as i64,
-    )
 }
 
 impl<W: WorkingTree + 'static> Query<W> {

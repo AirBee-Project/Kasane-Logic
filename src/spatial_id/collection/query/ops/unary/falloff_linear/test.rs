@@ -25,7 +25,7 @@ fn falloff_x_single_cell() {
     let out = table
         .query()
         .falloff_linear_x(20, 2, Sum)
-        .raw_run_into()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 
@@ -47,7 +47,7 @@ fn falloff_x_overlap_sum() {
     let out = table
         .query()
         .falloff_linear_x(20, 2, Sum)
-        .raw_run_into()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 
@@ -73,7 +73,7 @@ fn falloff_x_overlap_max() {
     let out = table
         .query()
         .falloff_linear_x(20, 2, Max)
-        .raw_run_into()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 
@@ -92,7 +92,7 @@ fn falloff_x_radius_zero_is_noop() {
     let out = table
         .query()
         .falloff_linear_x(20, 0, Sum)
-        .raw_run_into()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 

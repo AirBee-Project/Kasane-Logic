@@ -113,7 +113,6 @@ pub use spatial_id::zoom_level::ZoomLevel;
 #[doc(inline)]
 pub use spatial_id::collection::query::execution::Query;
 #[doc(inline)]
-pub use spatial_id::collection::query::execution::intersects_flex_range;
 #[doc(inline)]
 pub use spatial_id::collection::query::lazy::LazyView;
 #[doc(inline)]

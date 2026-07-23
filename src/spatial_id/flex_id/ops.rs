@@ -144,4 +144,38 @@ impl FlexId {
             None
         }
     }
+    /// [`RangeId`](crate::RangeId) と交差するか判定する。
+    pub fn intersects_range(&self, range: &crate::RangeId) -> bool {
+        fn intersect_axis(f_z: u8, f_i: i64, r_z: u8, r_min: i64, r_max: i64) -> bool {
+            let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if f_z > r_z {
+                (f_z, f_i, f_i, r_z, r_min, r_max)
+            } else {
+                (r_z, r_min, r_max, f_z, f_i, f_i)
+            };
+            let shift = deep_z - shallow_z;
+            let deep_shallow_min = deep_min >> shift;
+            let deep_shallow_max = deep_max >> shift;
+            !(deep_shallow_max < shallow_min || deep_shallow_min > shallow_max)
+        }
+
+        intersect_axis(
+            self.f_zoomlevel(),
+            self.f_index() as i64,
+            range.z(),
+            range.f()[0] as i64,
+            range.f()[1] as i64,
+        ) && intersect_axis(
+            self.x_zoomlevel(),
+            self.x_index() as i64,
+            range.z(),
+            range.x()[0] as i64,
+            range.x()[1] as i64,
+        ) && intersect_axis(
+            self.y_zoomlevel(),
+            self.y_index() as i64,
+            range.z(),
+            range.y()[0] as i64,
+            range.y()[1] as i64,
+        )
+    }
 }
