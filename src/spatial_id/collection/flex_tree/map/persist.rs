@@ -217,10 +217,12 @@ impl<'a> ArchivedMap<'a> {
         }
     }
 
-    /// `target` と重なる (FlexId, 値) を、`target` で切り取って返す（インメモリ `get` と同義）。
-    pub fn get(&self, target: &FlexId) -> Vec<(FlexId, &'a [u8])> {
-        let mut out = Vec::new();
-
+    /// `target` と重なるセルを走査し、各セルごとに `visit(clipped_id, packed_value)` を呼ぶ。
+    ///
+    /// `packed_value` は**この葉ローカルの辞書インデックス（1始まり）**で、[`value_bytes`](Self::value_bytes)
+    /// で実バイト列へ復元できる。中間 `Vec` を作らないため、大量セルの集約（値ごとのグルーピング）を
+    /// バイト列ではなく整数キーで行えるようにするための低レベル API。
+    pub fn get_indexed(&self, target: &FlexId, mut visit: impl FnMut(FlexId, u32)) {
         // 走査はインメモリ側（`OverlapIter`）と同じ枝刈りに揃えてある。
         // F はズーム0で2セルしかないので、符号が属する側のルートだけを降りればよい。
         let root = if target.f_index().is_negative() {
@@ -260,11 +262,24 @@ impl<'a> ArchivedMap<'a> {
                     if v != EMPTY_LEAF
                         && let Some(clipped) = current_id.intersection(target)
                     {
-                        out.push((clipped, self.inner.dictionary[(v - 1) as usize].as_slice()));
+                        visit(clipped, v);
                     }
                 }
             }
         }
+    }
+
+    /// [`get_indexed`](Self::get_indexed) が渡す辞書インデックス（1始まり）から実バイト列を引く。
+    pub fn value_bytes(&self, packed: u32) -> &'a [u8] {
+        self.inner.dictionary[(packed - 1) as usize].as_slice()
+    }
+
+    /// `target` と重なる (FlexId, 値) を、`target` で切り取って返す（インメモリ `get` と同義）。
+    pub fn get(&self, target: &FlexId) -> Vec<(FlexId, &'a [u8])> {
+        let mut out = Vec::new();
+        self.get_indexed(target, |id, packed| {
+            out.push((id, self.value_bytes(packed)))
+        });
         out
     }
 

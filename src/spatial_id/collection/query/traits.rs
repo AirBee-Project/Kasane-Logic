@@ -19,11 +19,6 @@ pub trait WorkingTree:
 
     fn iter_ref(&self) -> impl Iterator<Item = (FlexId, &Self::Value)> + '_;
 
-    /// このツリーに含まれる全セルを包む最小の [`RangeId`] を返す。空の場合は [`None`]。
-    ///
-    /// 基本的にO(1)で返すこと。
-    fn bounding_box(&self) -> Option<RangeId>;
-
     /// 自分自身をベースとし、`other` のセルで上書き重ね合わせを行った新しいツリーを返す。
     fn overlay(&self, other: &Self) -> Self;
 
@@ -57,10 +52,6 @@ impl<V: SafeValue> WorkingTree for FlexTreeCore<V> {
 
     fn iter_ref(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         FlexTreeCore::iter_ref(self)
-    }
-
-    fn bounding_box(&self) -> Option<RangeId> {
-        FlexTreeCore::bounding_box(self)
     }
 
     fn overlay(&self, other: &Self) -> Self {
