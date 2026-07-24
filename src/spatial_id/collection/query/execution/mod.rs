@@ -129,7 +129,7 @@ where
     /// [`run`](Self::run) の結果を具象コレクションへ変換して返す。
     ///
     /// ```ignore
-    /// let table: SpatialIdTable<u32> = source.query().shift_x(25, 3).run_into()?;
+    /// let table: SpatialIdTable<u32> = source.query().shift_x(25, 3).run()?;
     /// ```
     pub fn run<C>(self) -> Result<C, Error>
     where

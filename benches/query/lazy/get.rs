@@ -42,7 +42,7 @@ fn bench_lazy_get(c: &mut Criterion) {
                         .query()
                         .shift_x(OP_ZOOM, 10)
                         .shift_y(OP_ZOOM, 10)
-                        .raw_run_into()
+                        .raw_run()
                         .unwrap();
                     let target_flex: kasane_logic::FlexId = target_id.clone().into();
                     let _ = res.get(&target_flex).count();

@@ -51,7 +51,7 @@ impl<V: Ord> ValuePredicate<V> {
 
 /// 値の条件に一致するセルだけを残す単項演算子。
 ///
-/// 空間的な形は変えず、条件から外れたセルを取り除くだけ。
+/// 空間的な形は変えず、条件から外れた空間IDを取り除くだけ。
 pub struct FilterValues<V> {
     predicate: ValuePredicate<V>,
 }
@@ -95,7 +95,6 @@ where
     }
 
     fn run(&self, target: &mut W) -> Result<(), Error> {
-        // 条件から外れたセルは空を返す＝組み直し後の木に含まれない。
         *target = target.map_rebuild(|id, value| {
             Ok(if self.predicate.matches(value) {
                 Some((id, value.clone()))
@@ -107,15 +106,10 @@ where
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
-        // 値だけを見る演算なので、出力領域＝必要な入力領域。
         alloc::vec![bounds]
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        // 値を書き換える演算子（falloff / extrude）や値を集約する zoom_out と入れ替えると
-        // 結果が変わるため、並べ替えの対象にはしない。
-        // 「フィルタを前倒しして読み取り量を減らす」最適化は可換グループではなく
-        // ソースへの述語 pushdown として扱うのが正しい。
         CommutativityInfo::none()
     }
 

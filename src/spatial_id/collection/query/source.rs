@@ -43,7 +43,7 @@ mod tests {
     use crate::{RangeId, SingleId, Source, SpatialIdTable};
     use alloc::vec::Vec;
 
-    /// 重なり合う複数 bounds で読んでも、セルが重複せず正しい値で返ること。
+    /// 重なり合う複数 bounds で読んでも、空間IDが重複せず正しい値で返ること。
     ///
     /// 粗いセル（複数の細かい bounds と交差する）を含めることで、
     /// 同一セルが複数回読み出される状況を作っている。

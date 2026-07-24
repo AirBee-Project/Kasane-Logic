@@ -121,8 +121,6 @@ mod persist_tests {
     /// 範囲の端が境界に揃っていないケースでも取りこぼさないこと。
     #[test]
     fn archived_get_range_various_windows() {
-        use crate::spatial_id::collection::query::execution::intersects_flex_range;
-
         for (base, count) in [(790000u32, 4u32), (710000, 8), (931000, 5), (1, 3)] {
             let mut map: SpatialIdMap<Vec<u8>> = SpatialIdMap::new();
             for i in 0..count {
@@ -136,7 +134,7 @@ mod persist_tests {
 
             let mut expected: Vec<crate::FlexId> = map
                 .iter()
-                .filter(|(id, _)| intersects_flex_range(id, &target))
+                .filter(|(id, _)| id.intersects_range(&target))
                 .map(|(id, _)| id)
                 .collect();
             expected.sort();
