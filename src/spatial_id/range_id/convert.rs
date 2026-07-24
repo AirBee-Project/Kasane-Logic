@@ -109,9 +109,9 @@ impl IntoIterator for RangeId {
             let y_list_inner = y_list.clone();
             x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
                 let y_list_inner = y_list_inner.clone();
-                y_list_inner
-                    .into_iter()
-                    .map(move |(y_z, y_i)| FlexId::new(f_z, f_i, x_z, x_i, y_z, y_i).unwrap())
+                y_list_inner.into_iter().map(move |(y_z, y_i)| unsafe {
+                    FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i)
+                })
             })
         });
         Box::new(iter)
