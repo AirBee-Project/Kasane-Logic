@@ -2,6 +2,7 @@
 mod tests {
     use super::super::{TableEntry, build_table};
     use crate::{RangeId, SingleId};
+    use alloc::vec::Vec;
 
     /// get() が指定した空間に一致する ID と値だけを返すことを検証する。
     #[test]

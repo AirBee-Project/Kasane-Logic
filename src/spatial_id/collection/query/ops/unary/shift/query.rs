@@ -1,9 +1,9 @@
 use super::{shift_f::ShiftF, shift_x::ShiftX, shift_y::ShiftY};
-use crate::{SpatialIdCollection, spatial_id::collection::query::execution::Query};
+use crate::spatial_id::collection::query::{execution::Query, traits::WorkingTree};
 
-impl<S: SpatialIdCollection> Query<S>
+impl<W: WorkingTree + 'static> Query<W>
 where
-    S::Value: 'static,
+    W::Value: 'static,
 {
     /// F方向のShift演算を適用する
     pub fn shift_f<Z: Into<u8>>(self, z: Z, index: i32) -> Self {

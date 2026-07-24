@@ -79,6 +79,11 @@ where
         }
     }
 
+    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    pub fn bounding_box(&self) -> Option<RangeId> {
+        self.inner.bounding_box()
+    }
+
     /// 空間に値を挿入します。
     pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {
@@ -96,7 +101,6 @@ where
         self.value_index_built = false;
     }
 
-    /// 特定の空間（target）と交差するすべての領域と、その値への参照を返します。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
         S: SpatialId,
@@ -104,6 +108,21 @@ where
         self.inner.get(target.clone()).map(|(flex_id, rank)| {
             let value = self.reverse_dictionary.get(&rank).unwrap();
             (flex_id, value)
+        })
+    }
+
+    /// 特定の範囲（RangeId）と交差するすべての領域と、その値への参照を返します。
+    pub fn get_range<'a>(
+        &'a self,
+        target: &'a crate::RangeId,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        self.inner.range_overlap_ref(target).map(move |(id, rank)| {
+            (
+                id,
+                self.reverse_dictionary
+                    .get(rank)
+                    .expect("Dictionary mismatch"),
+            )
         })
     }
 

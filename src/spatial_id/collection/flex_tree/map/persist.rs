@@ -217,10 +217,12 @@ impl<'a> ArchivedMap<'a> {
         }
     }
 
-    /// `target` と重なる (FlexId, 値) を、`target` で切り取って返す（インメモリ `get` と同義）。
-    pub fn get(&self, target: &FlexId) -> Vec<(FlexId, &'a [u8])> {
-        let mut out = Vec::new();
-
+    /// `target` と重なるセルを走査し、各セルごとに `visit(clipped_id, packed_value)` を呼ぶ。
+    ///
+    /// `packed_value` は**この葉ローカルの辞書インデックス（1始まり）**で、[`value_bytes`](Self::value_bytes)
+    /// で実バイト列へ復元できる。中間 `Vec` を作らないため、大量セルの集約（値ごとのグルーピング）を
+    /// バイト列ではなく整数キーで行えるようにするための低レベル API。
+    pub fn get_indexed(&self, target: &FlexId, mut visit: impl FnMut(FlexId, u32)) {
         // 走査はインメモリ側（`OverlapIter`）と同じ枝刈りに揃えてある。
         // F はズーム0で2セルしかないので、符号が属する側のルートだけを降りればよい。
         let root = if target.f_index().is_negative() {
@@ -260,7 +262,98 @@ impl<'a> ArchivedMap<'a> {
                     if v != EMPTY_LEAF
                         && let Some(clipped) = current_id.intersection(target)
                     {
-                        out.push((clipped, self.inner.dictionary[(v - 1) as usize].as_slice()));
+                        visit(clipped, v);
+                    }
+                }
+            }
+        }
+    }
+
+    /// [`get_indexed`](Self::get_indexed) が渡す辞書インデックス（1始まり）から実バイト列を引く。
+    pub fn value_bytes(&self, packed: u32) -> &'a [u8] {
+        self.inner.dictionary[(packed - 1) as usize].as_slice()
+    }
+
+    /// `target` と重なる (FlexId, 値) を、`target` で切り取って返す（インメモリ `get` と同義）。
+    pub fn get(&self, target: &FlexId) -> Vec<(FlexId, &'a [u8])> {
+        let mut out = Vec::new();
+        self.get_indexed(target, |id, packed| {
+            out.push((id, self.value_bytes(packed)))
+        });
+        out
+    }
+
+    /// `target`（範囲）と重なる (FlexId, 値) を ZeroCopy で列挙する。
+    ///
+    /// インメモリ側の `FlexTreeCore::range_overlap_ref` と同じ意味論で、葉は
+    /// **切り取らずに**そのまま返す（クエリの入力源はセル全体の値を必要とするため）。
+    pub fn get_range(&self, target: &crate::RangeId) -> Vec<(FlexId, &'a [u8])> {
+        let mut out = Vec::new();
+
+        // F はズーム0で 0（上半球）/ -1（下半球）の2セルしか無いので、
+        // 範囲を半球ごとに割ってから、該当するルートだけを降りる。
+        let mut roots = Vec::new();
+        if target.f()[0] < 0 {
+            let mut lower_target = target.clone();
+            if lower_target
+                .set_f([target.f()[0], target.f()[1].min(-1)])
+                .is_ok()
+            {
+                roots.push((
+                    self.inner.lower_root.to_native(),
+                    FlexId::LOWER_MAX,
+                    lower_target,
+                ));
+            }
+        }
+        if target.f()[1] >= 0 {
+            let mut upper_target = target.clone();
+            if upper_target
+                .set_f([target.f()[0].max(0), target.f()[1]])
+                .is_ok()
+            {
+                roots.push((
+                    self.inner.upper_root.to_native(),
+                    FlexId::UPPER_MAX,
+                    upper_target,
+                ));
+            }
+        }
+
+        for (root_idx, root_id, root_target) in roots {
+            let mut stack = alloc::vec![(root_idx, root_id)];
+            while let Some((idx, current_id)) = stack.pop() {
+                match &self.inner.nodes[idx as usize] {
+                    ArchivedPersistedNode::Branch {
+                        level,
+                        lower,
+                        upper,
+                    } => {
+                        let axis = Node::<Vec<u8>>::axis(*level);
+                        let push = |side: Side, child: u32, stack: &mut Vec<(u32, FlexId)>| {
+                            stack.push((child, split_child_id(&current_id, axis, side)));
+                        };
+                        match Node::<Vec<u8>>::overlapping_children_range(&root_target, *level) {
+                            OverlappingChildren::Both => {
+                                push(Side::Upper, upper.to_native(), &mut stack);
+                                push(Side::Lower, lower.to_native(), &mut stack);
+                            }
+                            OverlappingChildren::Only(Side::Lower) => {
+                                push(Side::Lower, lower.to_native(), &mut stack)
+                            }
+                            OverlappingChildren::Only(Side::Upper) => {
+                                push(Side::Upper, upper.to_native(), &mut stack)
+                            }
+                        }
+                    }
+                    ArchivedPersistedNode::Leaf { value } => {
+                        let v = value.to_native();
+                        if v != EMPTY_LEAF {
+                            out.push((
+                                current_id,
+                                self.inner.dictionary[(v - 1) as usize].as_slice(),
+                            ));
+                        }
                     }
                 }
             }

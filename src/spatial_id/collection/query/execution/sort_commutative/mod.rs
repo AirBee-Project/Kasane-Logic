@@ -1,16 +1,13 @@
 use super::Query;
-use crate::SpatialIdCollection;
+use crate::spatial_id::collection::query::traits::WorkingTree;
 use alloc::boxed::Box;
 
-impl<S: SpatialIdCollection> Query<S>
+impl<W: WorkingTree + 'static> Query<W>
 where
-    S::Value: 'static,
+    W::Value: 'static,
 {
     /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
-    pub fn sort_commutative_ops(self) -> Self
-    where
-        S::Working: 'static,
-    {
+    pub fn sort_commutative_ops(self) -> Self {
         match self {
             Query::CommutativeGroup(info, mut ops, input) => {
                 ops.sort_by(|a, b| {

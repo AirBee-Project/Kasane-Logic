@@ -214,6 +214,39 @@ where
         }
     }
 
+    pub(crate) fn overlapping_children_range(
+        target: &crate::RangeId,
+        level: u8,
+    ) -> OverlappingChildren {
+        let axis = Self::axis(level);
+        let depth = Self::depth(level);
+        let target_z = target.z();
+
+        if depth >= target_z {
+            return OverlappingChildren::Both;
+        }
+
+        let shift = target_z - 1 - depth;
+        let (min_idx, max_idx) = match axis {
+            Dimension::F => (target.f()[0] as u32, target.f()[1] as u32),
+            Dimension::X => (target.x()[0], target.x()[1]),
+            Dimension::Y => (target.y()[0], target.y()[1]),
+        };
+
+        let min_path = min_idx >> shift;
+        let max_path = max_idx >> shift;
+
+        if min_path == max_path {
+            if (min_path & 1) == 0 {
+                OverlappingChildren::Only(Side::Lower)
+            } else {
+                OverlappingChildren::Only(Side::Upper)
+            }
+        } else {
+            OverlappingChildren::Both
+        }
+    }
+
     /// target が、この `level` が担当する**1軸**について現在の空間境界を完全に覆うか判定する。
     /// 全軸をまとめて見るのは [`covers_all_axes`](Self::covers_all_axes)。
     fn covers(target: &FlexId, level: u8) -> bool {

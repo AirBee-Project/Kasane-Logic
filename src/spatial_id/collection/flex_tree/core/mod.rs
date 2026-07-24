@@ -337,22 +337,6 @@ where
         }
     }
 
-    /// `(FlexId, V)` 列からツリーを構築する。件数に応じて逐次/並列を自動選択する
-    /// （`map_rebuild` の再構築段と同じ閾値 `parallel::MIN_PAR_CHUNK`）。union（左優先）で組む。
-    pub fn from_flexids(items: Vec<(FlexId, V)>) -> Self {
-        #[cfg(feature = "rayon")]
-        {
-            if items.len() >= parallel::MIN_PAR_CHUNK {
-                return Self::par_build_vec(items);
-            }
-        }
-        let mut core = Self::new();
-        for (id, value) in items {
-            core.insert(id, value);
-        }
-        core
-    }
-
     /// 各セルを `f` で写し、**union**（左優先）で組み直した木を返す。
     ///
     /// 「写像先が空間的に単射」な per-cell 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
@@ -363,8 +347,8 @@ where
         I: IntoIterator<Item = (FlexId, V)> + MaybeSend,
     {
         // 小入力では rayon（par_sort / par_chunks / reduce）起動コストが利得を上回るので逐次挿入で組む。
-        // insert は挿入順に依らず O(深さ) なのでソート不要。単発 shift 等の固定床を削る（[`from_flexids`](Self::from_flexids)へ委譲）。
-        Ok(Self::from_flexids(self.map_expand(f)?))
+        // insert は挿入順に依らず O(深さ) なのでソート不要。単発 shift 等の固定床を削る（`FromIterator` へ委譲）。
+        Ok(self.map_expand(f)?.into_iter().collect())
     }
 
     /// 各セルを `f` で写し、**写像先の重なりを `resolve` で合成**して組み直した木を返す。
@@ -519,46 +503,33 @@ where
         let mut f_acc = [i32::MAX, i32::MIN];
         let mut x_acc = [u32::MAX, u32::MIN];
         let mut y_acc = [u32::MAX, u32::MIN];
+        let mut any = false;
 
-        let max_xy = if max_z == 0 {
-            0
-        } else {
-            ((1u64 << max_z) - 1) as u32
-        };
+        // 各セルの範囲を `max_z` へ揃えてから min/max を取る。
+        //
+        // 木の走査経路から領域を復元する方法は、軸ごとにズームが異なるセル
+        // （パス圧縮された `FlexId`）で経路と実際の広がりがずれるため使わない。
+        for (flex_id, _) in self.iter_ref() {
+            let range = RangeId::from(&flex_id);
+            let shift = max_z - range.z();
 
-        if self.lower_root.leaf_count() > 0 {
-            let f_min = -((1i64 << max_z) as i32);
-            let f_max = -1;
-            collect_node_bounds(
-                &self.lower_root,
-                0,
-                max_z,
-                [f_min, f_max],
-                [0, max_xy],
-                [0, max_xy],
-                &mut f_acc,
-                &mut x_acc,
-                &mut y_acc,
-            );
+            let scale_min = |v: i64| v << shift;
+            let scale_max = |v: i64| ((v + 1) << shift) - 1;
+
+            let f = range.f();
+            let x = range.x();
+            let y = range.y();
+
+            f_acc[0] = f_acc[0].min(scale_min(f[0] as i64) as i32);
+            f_acc[1] = f_acc[1].max(scale_max(f[1] as i64) as i32);
+            x_acc[0] = x_acc[0].min(scale_min(x[0] as i64) as u32);
+            x_acc[1] = x_acc[1].max(scale_max(x[1] as i64) as u32);
+            y_acc[0] = y_acc[0].min(scale_min(y[0] as i64) as u32);
+            y_acc[1] = y_acc[1].max(scale_max(y[1] as i64) as u32);
+            any = true;
         }
 
-        if self.upper_root.leaf_count() > 0 {
-            let f_min = 0;
-            let f_max = ((1i64 << max_z) - 1) as i32;
-            collect_node_bounds(
-                &self.upper_root,
-                0,
-                max_z,
-                [f_min, f_max],
-                [0, max_xy],
-                [0, max_xy],
-                &mut f_acc,
-                &mut x_acc,
-                &mut y_acc,
-            );
-        }
-
-        if f_acc[0] > f_acc[1] {
+        if !any {
             return None;
         }
 
@@ -954,132 +925,25 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-fn collect_node_bounds<V: SafeValue>(
-    node: &Node<V>,
-    level: u8,
-    max_z: u8,
-    f: [i32; 2],
-    x: [u32; 2],
-    y: [u32; 2],
-    f_acc: &mut [i32; 2],
-    x_acc: &mut [u32; 2],
-    y_acc: &mut [u32; 2],
-) {
-    if node.leaf_count() == 0 {
-        return;
-    }
+impl<V: SafeValue> FromIterator<(FlexId, V)> for FlexTreeCore<V> {
+    /// `(FlexId, 値)` 列からツリーを構築する（重なりは union・左優先）。
+    ///
+    /// 要素数が十分にあれば並列構築へ切り替える。`insert` は挿入順に依らず
+    /// O(深さ) なので、事前のソートや重複除去は不要。
+    fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
+        let items: Vec<_> = iter.into_iter().collect();
 
-    if f[0] >= f_acc[0]
-        && f[1] <= f_acc[1]
-        && x[0] >= x_acc[0]
-        && x[1] <= x_acc[1]
-        && y[0] >= y_acc[0]
-        && y[1] <= y_acc[1]
-    {
-        return;
-    }
-
-    match node {
-        Node::Leaf { value: Some(_) } => {
-            f_acc[0] = f_acc[0].min(f[0]);
-            f_acc[1] = f_acc[1].max(f[1]);
-            x_acc[0] = x_acc[0].min(x[0]);
-            x_acc[1] = x_acc[1].max(x[1]);
-            y_acc[0] = y_acc[0].min(y[0]);
-            y_acc[1] = y_acc[1].max(y[1]);
-        }
-        Node::Leaf { value: None } => {}
-        Node::Branch {
-            lower_child,
-            upper_child,
-            ..
-        } => {
-            let axis = Node::<V>::axis(level);
-            let depth = Node::<V>::depth(level);
-
-            if depth >= max_z {
-                collect_node_bounds(lower_child, level + 1, max_z, f, x, y, f_acc, x_acc, y_acc);
-                collect_node_bounds(upper_child, level + 1, max_z, f, x, y, f_acc, x_acc, y_acc);
-            } else {
-                let shift = max_z - 1 - depth;
-                match axis {
-                    Dimension::F => {
-                        let mid = f[0] + ((1i64 << shift) as i32) - 1;
-                        collect_node_bounds(
-                            lower_child,
-                            level + 1,
-                            max_z,
-                            [f[0], mid],
-                            x,
-                            y,
-                            f_acc,
-                            x_acc,
-                            y_acc,
-                        );
-                        collect_node_bounds(
-                            upper_child,
-                            level + 1,
-                            max_z,
-                            [mid + 1, f[1]],
-                            x,
-                            y,
-                            f_acc,
-                            x_acc,
-                            y_acc,
-                        );
-                    }
-                    Dimension::X => {
-                        let mid = x[0] + ((1u64 << shift) as u32) - 1;
-                        collect_node_bounds(
-                            lower_child,
-                            level + 1,
-                            max_z,
-                            f,
-                            [x[0], mid],
-                            y,
-                            f_acc,
-                            x_acc,
-                            y_acc,
-                        );
-                        collect_node_bounds(
-                            upper_child,
-                            level + 1,
-                            max_z,
-                            f,
-                            [mid + 1, x[1]],
-                            y,
-                            f_acc,
-                            x_acc,
-                            y_acc,
-                        );
-                    }
-                    Dimension::Y => {
-                        let mid = y[0] + ((1u64 << shift) as u32) - 1;
-                        collect_node_bounds(
-                            lower_child,
-                            level + 1,
-                            max_z,
-                            f,
-                            x,
-                            [y[0], mid],
-                            f_acc,
-                            x_acc,
-                            y_acc,
-                        );
-                        collect_node_bounds(
-                            upper_child,
-                            level + 1,
-                            max_z,
-                            f,
-                            x,
-                            [mid + 1, y[1]],
-                            f_acc,
-                            x_acc,
-                            y_acc,
-                        );
-                    }
-                }
+        #[cfg(feature = "rayon")]
+        {
+            if items.len() >= parallel::MIN_PAR_CHUNK {
+                return Self::par_build_vec(items);
             }
         }
+
+        let mut core = Self::new();
+        for (id, value) in items {
+            core.insert(id, value);
+        }
+        core
     }
 }

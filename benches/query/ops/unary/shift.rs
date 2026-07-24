@@ -1,7 +1,7 @@
 //! 単項クエリ演算子（shift）のベンチマーク。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{SingleId, SpatialIdCollection, SpatialIdTable};
+use kasane_logic::{SingleId, Source, SpatialIdTable};
 
 const OP_ZOOM: u8 = 25;
 

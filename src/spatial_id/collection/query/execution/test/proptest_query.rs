@@ -1,7 +1,8 @@
 use crate::{
-    SingleId, SpatialIdCollection, SpatialIdTable,
+    SingleId, Source, SpatialIdTable,
     spatial_id::collection::query::execution::Query,
     spatial_id::collection::query::merge_policy::{Average, Max, Min, Sum},
+    spatial_id::collection::query::traits::WorkingTree,
 };
 use alloc::vec::Vec;
 use proptest::prelude::*;
@@ -55,10 +56,7 @@ macro_rules! define_query_ops {
         }
 
         impl QueryOp {
-            fn apply<S: SpatialIdCollection<Value = u32>>(&self, q: Query<S>) -> Query<S>
-            where
-                S::Working: 'static,
-            {
+            fn apply<W: WorkingTree<Value = u32> + 'static>(&self, q: Query<W>) -> Query<W> {
                 match self {
                     $(
                         QueryOp::$variant($($parg),*) => {
@@ -108,10 +106,6 @@ define_query_ops! {
     ExtrudeF(u8, i32, i32, Policy)
         => |z, _zl, fmin: i32, fmax: i32, _xymax| (fmin..=fmax, 0..=5i32, arb_policy()).prop_map(move |(s, l, p)| QueryOp::ExtrudeF(z, s, i32::min(s + l, fmax), p))
         => |q, z, start, end, p| dispatch_policy!(q, extrude_f(*z, *start, *end), p),
-
-    FillEmpty(u32)
-        => |_z, _zl, _fmin, _fmax, _xymax| (0..=100u32).prop_map(QueryOp::FillEmpty)
-        => |q, val| q.fill_empty(*val),
 }
 
 proptest! {
@@ -148,8 +142,8 @@ proptest! {
             q_run = op.apply(q_run);
         }
 
-        let res_raw = q_raw.raw_run();
-        let res_run = q_run.run();
+        let res_raw: Result<SpatialIdTable<u32>, _> = q_raw.raw_run();
+        let res_run: Result<SpatialIdTable<u32>, _> = q_run.run();
 
         match (res_raw, res_run) {
             (Ok(raw), Ok(run)) => {

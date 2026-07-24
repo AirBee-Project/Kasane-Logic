@@ -2,6 +2,7 @@
 mod tests {
     use super::super::{RandomSetInsert, arb_random_set_case};
     use crate::{RangeId, SingleId, SpatialIdSet};
+    use alloc::vec::Vec;
     use proptest::prelude::*;
 
     fn assert_count_consistent(set: &SpatialIdSet) {

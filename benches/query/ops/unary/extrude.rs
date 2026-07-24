@@ -5,9 +5,7 @@
 //! 「列がほぼ互いに素なケース」（従来と同程度になるはず）の両方を計測する。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{
-    SingleId, SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::merge_policy::Max,
-};
+use kasane_logic::{SingleId, Source, SpatialIdTable, merge_policy::Max};
 
 const OP_ZOOM: u8 = 25;
 
@@ -38,7 +36,11 @@ where
         group.bench_with_input(BenchmarkId::from_parameter(voxels), &table, |b, table| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().extrude_f(OP_ZOOM, 0, 5, Max).raw_run().unwrap(),
+                |t| {
+                    let r: SpatialIdTable<u32> =
+                        t.query().extrude_f(OP_ZOOM, 0, 5, Max).raw_run().unwrap();
+                    r
+                },
                 BatchSize::SmallInput,
             );
         });

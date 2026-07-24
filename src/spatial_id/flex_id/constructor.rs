@@ -30,6 +30,7 @@ impl FlexId {
 
     /// # Safety
     /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であることを保証しなければなりません。
+    #[inline]
     pub unsafe fn new_unchecked(
         f_zoomlevel: u8,
         f_index: i32,
@@ -38,6 +39,19 @@ impl FlexId {
         y_zoomlevel: u8,
         y_index: u32,
     ) -> FlexId {
+        debug_assert!(
+            FlexId::new(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index
+            )
+            .is_ok(),
+            "new_unchecked: 構成的に有効なはずの FlexId が検証に失敗した \
+             (zf={f_zoomlevel} f={f_index} zx={x_zoomlevel} x={x_index} zy={y_zoomlevel} y={y_index})"
+        );
         FlexId {
             f_zoomlevel: unsafe { ZoomLevel::new_unchecked(f_zoomlevel) },
             f_index,
@@ -94,6 +108,7 @@ impl FlexId {
     /// # Safety
     /// 呼び出し側は、各次元のズームレベルとインデックスが対応する有効範囲内であること、および `temporal_id` が有効な値であることを保証しなければなりません。
     #[cfg(feature = "temporal_id")]
+    #[inline]
     pub unsafe fn new_with_temporal_unchecked(
         f_zoomlevel: u8,
         f_index: i32,
@@ -103,6 +118,20 @@ impl FlexId {
         y_index: u32,
         temporal_id: TemporalId,
     ) -> FlexId {
+        debug_assert!(
+            FlexId::new_with_temporal(
+                f_zoomlevel,
+                f_index,
+                x_zoomlevel,
+                x_index,
+                y_zoomlevel,
+                y_index,
+                temporal_id.clone(),
+            )
+            .is_ok(),
+            "new_with_temporal_unchecked: 構成的に有効なはずの FlexId が検証に失敗した \
+             (zf={f_zoomlevel} f={f_index} zx={x_zoomlevel} x={x_index} zy={y_zoomlevel} y={y_index})"
+        );
         FlexId {
             f_zoomlevel: unsafe { ZoomLevel::new_unchecked(f_zoomlevel) },
             f_index,

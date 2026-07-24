@@ -93,22 +93,31 @@ impl FlexId {
             .map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    unsafe {
+                        FlexId::new_with_temporal_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            seg_z,
+                            seg_index,
+                            y_zoomlevel,
+                            y_index,
+                            temporal_id.clone(),
+                        )
+                    }
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            seg_z,
+                            seg_index,
+                            y_zoomlevel,
+                            y_index,
+                        )
+                    }
                 }
             }))
     }

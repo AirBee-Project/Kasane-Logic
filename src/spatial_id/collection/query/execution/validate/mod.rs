@@ -1,15 +1,13 @@
 use super::Query;
-use crate::{Error, SpatialIdCollection};
+use crate::Error;
+use crate::spatial_id::collection::query::traits::WorkingTree;
 
-impl<S: SpatialIdCollection> Query<S>
+impl<W: WorkingTree + 'static> Query<W>
 where
-    S::Value: 'static,
+    W::Value: 'static,
 {
     /// クエリ実行前に、AST内のすべての遅延エラー（`Query::Error`）および全演算子のパラメータ事前検証を行う。   
-    pub fn validate(&self) -> Result<(), Error>
-    where
-        S::Working: 'static,
-    {
+    pub fn validate(&self) -> Result<(), Error> {
         match self {
             Query::Source(_) => Ok(()),
             Query::Unary(ops, input) => {

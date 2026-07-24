@@ -1,9 +1,7 @@
 //! 単項クエリ演算子（falloff_linear）のベンチマーク。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{
-    SingleId, SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::merge_policy::Max,
-};
+use kasane_logic::{SingleId, Source, SpatialIdTable, merge_policy::Max};
 
 const OP_ZOOM: u8 = 25;
 const FALLOFF_RADIUS: u32 = 8;

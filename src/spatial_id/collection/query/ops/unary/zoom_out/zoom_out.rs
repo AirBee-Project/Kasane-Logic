@@ -72,13 +72,21 @@ where
             }
         }
 
-        *core = W::from_flexids(new_items);
+        *core = new_items.into_iter().collect();
 
         Ok(())
     }
 
     fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
+    }
+
+    fn inverse_bounds(&self, bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+        if bounds.z() > self.target_z.get() {
+            alloc::vec![bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap()]
+        } else {
+            alloc::vec![bounds]
+        }
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {

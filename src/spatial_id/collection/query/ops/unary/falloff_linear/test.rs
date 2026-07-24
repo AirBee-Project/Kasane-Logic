@@ -1,7 +1,7 @@
 use alloc::collections::BTreeMap;
 
 use crate::spatial_id::collection::query::merge_policy::{Max, Sum};
-use crate::{SingleId, SpatialIdCollection, SpatialIdTable};
+use crate::{SingleId, Source, SpatialIdTable};
 
 /// z=20, f=0, y=0 に固定した行から `x -> value` の対応を取り出す。
 fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {

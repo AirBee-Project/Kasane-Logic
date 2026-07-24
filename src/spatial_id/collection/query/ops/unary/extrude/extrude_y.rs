@@ -74,7 +74,7 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = W::from_flexids(new_items);
+        *core = new_items.into_iter().collect();
 
         Ok(())
     }
@@ -88,6 +88,29 @@ where
 
     fn as_any(&self) -> &dyn core::any::Any {
         self
+    }
+
+    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+        let target_z = self.target_z.get();
+        let bounds_z = bounds.z();
+        let max_z = target_z.max(bounds_z);
+
+        let scale_t = max_z - target_z;
+        let scale_b = max_z - bounds_z;
+
+        let target_min_max_z = (self.start_y as i64) * (1i64 << scale_t);
+        let target_max_max_z = ((self.end_y as i64) + 1) * (1i64 << scale_t) - 1;
+
+        let bounds_min_max_z = (bounds.y()[0] as i64) * (1i64 << scale_b);
+        let bounds_max_max_z = ((bounds.y()[1] as i64) + 1) * (1i64 << scale_b) - 1;
+
+        if target_max_max_z < bounds_min_max_z || bounds_max_max_z < target_min_max_z {
+            return alloc::vec![];
+        }
+
+        let xy_max = crate::ZoomLevel::new(bounds_z).unwrap().xy_max();
+        bounds.set_y([0, xy_max]).unwrap();
+        alloc::vec![bounds]
     }
 
     fn expansion_ratio(&self) -> f32 {
