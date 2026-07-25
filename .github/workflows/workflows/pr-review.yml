@@ -1,0 +1,27 @@
+name: 'AI Code Review'
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Multi-AI Code Quality Analyzer
+        uses: newlc/ai-code-reviewer@main
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          model: gemini-2.5-flash
+          language: ja
+          config-path: .github/ai-review-config.yml
