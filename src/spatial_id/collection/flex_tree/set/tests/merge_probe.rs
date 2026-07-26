@@ -6,6 +6,9 @@
 //! difference にわたり検査する。
 #![cfg(test)]
 
+#[cfg(test)]
+use alloc::vec::Vec;
+
 use crate::spatial_id::collection::flex_tree::core::node::Node;
 use crate::spatial_id::collection::flex_tree::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
@@ -486,7 +489,7 @@ fn seven_octants_partial() {
     }
     assert_eq!(n, 7);
     // 7 個入れて全く merge しなければ 7。merge が効けば 7 未満。
-    println!("seven_octants count = {}", set.count());
+    std::println!("seven_octants count = {}", set.count());
     assert!(set.count() <= 7);
 }
 
@@ -503,7 +506,7 @@ fn fill_zoom2_cube_collapses() {
         }
     }
     // 完全に満たされた zoom2 立方体 → zoom0 の 1 葉へ collapse すべき。
-    println!("zoom2 full cube count = {}", set.count());
+    std::println!("zoom2 full cube count = {}", set.count());
     assert_eq!(set.count(), 1, "full zoom2 cube should collapse to 1");
 }
 

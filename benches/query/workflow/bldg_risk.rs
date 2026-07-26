@@ -8,7 +8,8 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::merge_policy::Max,
+    Source, SpatialIdTable, ZoomLevel,
+    merge_policy::{Average, Max},
 };
 use std::fs;
 use std::sync::OnceLock;
@@ -55,7 +56,11 @@ where
 
 fn bench_shift(c: &mut Criterion) {
     bench_workflow(c, "Workflow/BldgRisk_Shift", &[100, 1000, 5000], |t| {
-        t.query().shift_x(24, 5).shift_y(24, -5).raw_run().unwrap()
+        t.query()
+            .shift_x(24, 5)
+            .shift_y(24, -5)
+            .raw_run_table()
+            .unwrap()
     });
 }
 
@@ -66,7 +71,7 @@ fn bench_falloff(c: &mut Criterion) {
             .falloff_linear_x(24, 5, Max)
             .falloff_linear_y(24, 5, Max)
             .falloff_linear_f(24, 15, Max)
-            .raw_run()
+            .raw_run_table()
             .unwrap()
     });
 }
@@ -79,14 +84,10 @@ fn bench_shift_and_falloff(c: &mut Criterion) {
             .falloff_linear_x(24, 5, Max)
             .falloff_linear_y(24, 5, Max)
             .falloff_linear_f(24, 15, Max)
-            .raw_run()
+            .raw_run_table()
             .unwrap()
     });
 }
-
-use kasane_logic::{
-    spatial_id::collection::query::merge_policy::Average, spatial_id::zoom_level::ZoomLevel,
-};
 
 fn bench_zoom_out(c: &mut Criterion) {
     bench_workflow(
@@ -96,7 +97,7 @@ fn bench_zoom_out(c: &mut Criterion) {
         |t| {
             t.query()
                 .zoom_out(ZoomLevel::new(18).unwrap(), Average)
-                .raw_run()
+                .raw_run_table()
                 .unwrap()
         },
     );

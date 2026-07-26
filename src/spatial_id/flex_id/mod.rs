@@ -179,8 +179,16 @@ impl FlexId {
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            seg_z,
+                            seg_index,
+                            x_zoomlevel,
+                            x_index,
+                            y_zoomlevel,
+                            y_index,
+                        )
+                    }
                 }
             }),
         )
@@ -243,22 +251,31 @@ impl FlexId {
             .map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    unsafe {
+                        FlexId::new_with_temporal_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            seg_z,
+                            seg_index,
+                            y_zoomlevel,
+                            y_index,
+                            temporal_id.clone(),
+                        )
+                    }
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            seg_z,
+                            seg_index,
+                            y_zoomlevel,
+                            y_index,
+                        )
+                    }
                 }
             }))
     }
@@ -312,22 +329,31 @@ impl FlexId {
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    unsafe {
+                        FlexId::new_with_temporal_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            x_zoomlevel,
+                            x_index,
+                            seg_z,
+                            seg_index,
+                            temporal_id.clone(),
+                        )
+                    }
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            x_zoomlevel,
+                            x_index,
+                            seg_z,
+                            seg_index,
+                        )
+                    }
                 }
             }),
         )
@@ -523,27 +549,29 @@ impl FlexId {
                         let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
                         let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
 
-                        let parent = FlexId::new_with_temporal(
-                            tz_f,
-                            f_idx,
-                            tz_x,
-                            x_idx,
-                            tz_y,
-                            y_idx,
-                            temp_id2.clone(),
-                        )
-                        .unwrap();
+                        let parent = unsafe {
+                            FlexId::new_with_temporal_unchecked(
+                                tz_f,
+                                f_idx,
+                                tz_x,
+                                x_idx,
+                                tz_y,
+                                y_idx,
+                                temp_id2.clone(),
+                            )
+                        };
 
-                        let seg = FlexId::new_with_temporal(
-                            seg_fz,
-                            seg_fi,
-                            seg_xz,
-                            seg_xi,
-                            seg_yz,
-                            seg_yi,
-                            temp_id2.clone(),
-                        )
-                        .unwrap();
+                        let seg = unsafe {
+                            FlexId::new_with_temporal_unchecked(
+                                seg_fz,
+                                seg_fi,
+                                seg_xz,
+                                seg_xi,
+                                seg_yz,
+                                seg_yi,
+                                temp_id2.clone(),
+                            )
+                        };
 
                         (parent, seg)
                     })
@@ -560,9 +588,11 @@ impl FlexId {
                         let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
                         let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
 
-                        let parent = FlexId::new(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx).unwrap();
-                        let seg =
-                            FlexId::new(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi).unwrap();
+                        let parent =
+                            unsafe { FlexId::new_unchecked(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx) };
+                        let seg = unsafe {
+                            FlexId::new_unchecked(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi)
+                        };
 
                         (parent, seg)
                     })

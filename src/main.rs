@@ -1,16 +1,22 @@
+use kasane_logic::{
+    Source, SpatialIdTable,
+    merge_policy::{Average, Max},
+};
+use std::fs;
+
 fn main() {
-    // let bldg_risk: SpatialIdTable<u32> =
-    //     serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
+    let bldg_risk: SpatialIdTable<u32> =
+        serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
 
-    // let risk = bldg_risk
-    //     .clone()
-    //     .query()
-    //     .falloff_linear_x(25, 3, Max)
-    //     .falloff_linear_f(25, 2, Max)
-    //     .falloff_linear_y(25, 3, Max)
-    //     .fill_empty(0)
-    //     .merge(bldg_risk.clone().query(), 0, Max)
-    //     .optimize();
+    let risk = bldg_risk
+        .query()
+        .zoom_out(22, Average)
+        .falloff_linear_x(25, 3, Max)
+        .falloff_linear_y(25, 3, Max)
+        .raw_run_table()
+        .unwrap();
 
-    // println!("{}", risk);
+    let json_string = serde_json::to_string(&risk).unwrap();
+
+    fs::write("output.json", json_string).unwrap();
 }

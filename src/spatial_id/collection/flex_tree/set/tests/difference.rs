@@ -4,6 +4,7 @@ mod tests {
     use crate::{
         SingleId, SpatialIdSet, spatial_id::collection::flex_tree::set::tests::sorted_single_ids,
     };
+    use alloc::vec::Vec;
     use proptest::prelude::*;
 
     fn expected_difference_single_ids(lhs: &SpatialIdSet, rhs: &SpatialIdSet) -> Vec<SingleId> {

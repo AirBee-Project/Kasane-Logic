@@ -1,8 +1,7 @@
+use crate::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::{
-    Error, ZoomLevel,
-    spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
-};
+use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
 
 /// 作業木全体を南北（Y）方向へ、ズームレベル `z` のインデックス値 `y` 個分だけ平行移動する単項演算。
 pub struct ShiftY {
@@ -18,7 +17,7 @@ impl ShiftY {
     }
 }
 
-impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftY {
+impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
     fn validate(&self) -> Result<(), Error> {
         let zl = ZoomLevel::new(self.z.get())?;
         zl.check_y(self.y.unsigned_abs())?;
@@ -29,7 +28,7 @@ impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftY {
         self
     }
 
-    fn run(&self, target: &mut W) -> Result<(), Error> {
+    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.y;
         if index == 0 {
@@ -41,6 +40,32 @@ impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftY {
             Ok(id.shift_y(z, index)?.map(move |m| (m, value.clone())))
         })?;
         Ok(())
+    }
+
+    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+        let target_z = bounds.z();
+        let z = self.z.get();
+        let max_z = z.max(target_z);
+        let shift_z = max_z - z;
+        let scale_t = max_z - target_z;
+
+        let delta = (self.y as i64) * (1i64 << shift_z);
+
+        let y_min_max_z = (bounds.y()[0] as i64) * (1i64 << scale_t);
+        let y_max_max_z = ((bounds.y()[1] as i64) + 1) * (1i64 << scale_t) - 1;
+
+        let max_len = 1i64 << max_z;
+        let new_min_max_z = (y_min_max_z - delta).clamp(0, max_len - 1);
+        let new_max_max_z = (y_max_max_z - delta).clamp(0, max_len - 1);
+
+        if new_min_max_z <= new_max_max_z {
+            let new_min_target = (new_min_max_z >> scale_t) as u32;
+            let new_max_target = (new_max_max_z >> scale_t) as u32;
+            bounds.set_y([new_min_target, new_max_target]).unwrap();
+            alloc::vec![bounds]
+        } else {
+            alloc::vec![]
+        }
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {

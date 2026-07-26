@@ -1,6 +1,4 @@
-use crate::{
-    SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::merge_policy::KeepExisting,
-};
+use crate::{Source, SpatialIdTable, spatial_id::collection::query::merge_policy::KeepExisting};
 
 #[test]
 fn test_query_validate_success() {

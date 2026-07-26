@@ -1,13 +1,11 @@
 use crate::{
-    SpatialIdCollection, SpatialIdTable, spatial_id::collection::query::execution::Query,
+    Source, SpatialIdTable, spatial_id::collection::flex_tree::core::SafeValue,
+    spatial_id::collection::query::execution::Query,
     spatial_id::collection::query::merge_policy::Max,
 };
 
 /// AST中に `Query::CommutativeGroup` ノードが1つでも存在するか（再帰探索）。
-fn contains_commutative_group<S: SpatialIdCollection>(query: &Query<S>) -> bool
-where
-    S::Value: 'static,
-{
+fn contains_commutative_group<V: SafeValue + 'static>(query: &Query<V>) -> bool {
     match query {
         Query::CommutativeGroup(..) => true,
         Query::Unary(_, input) => contains_commutative_group(input),

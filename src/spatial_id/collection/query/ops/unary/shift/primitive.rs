@@ -74,8 +74,16 @@ impl FlexId {
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            seg_z,
+                            seg_index,
+                            x_zoomlevel,
+                            x_index,
+                            y_zoomlevel,
+                            y_index,
+                        )
+                    }
                 }
             }),
         )
@@ -133,22 +141,31 @@ impl FlexId {
             .map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        seg_z,
-                        seg_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    unsafe {
+                        FlexId::new_with_temporal_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            seg_z,
+                            seg_index,
+                            y_zoomlevel,
+                            y_index,
+                            temporal_id.clone(),
+                        )
+                    }
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(f_zoomlevel, f_index, seg_z, seg_index, y_zoomlevel, y_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            seg_z,
+                            seg_index,
+                            y_zoomlevel,
+                            y_index,
+                        )
+                    }
                 }
             }))
     }
@@ -201,22 +218,31 @@ impl FlexId {
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        f_zoomlevel,
-                        f_index,
-                        x_zoomlevel,
-                        x_index,
-                        seg_z,
-                        seg_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    unsafe {
+                        FlexId::new_with_temporal_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            x_zoomlevel,
+                            x_index,
+                            seg_z,
+                            seg_index,
+                            temporal_id.clone(),
+                        )
+                    }
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
                 {
-                    FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
-                        .unwrap()
+                    unsafe {
+                        FlexId::new_unchecked(
+                            f_zoomlevel,
+                            f_index,
+                            x_zoomlevel,
+                            x_index,
+                            seg_z,
+                            seg_index,
+                        )
+                    }
                 }
             }),
         )

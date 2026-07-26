@@ -6,6 +6,9 @@
 
 #![cfg(test)]
 
+#[cfg(test)]
+use alloc::vec::Vec;
+
 use crate::{FlexId, SingleId, SpatialIdSet};
 
 /// ズーム `z` の単一セルを表す [`FlexId`] 領域を作る。

@@ -9,7 +9,7 @@ impl<V> MergePolicy<V> for Average
 where
     V: Add + Div<V, Output = V> + From<u16> + Send + Sync + 'static,
 {
-    const IS_COMMUTATIVE: bool = true;
+    const IS_COMMUTATIVE: bool = false;
     const NAME: &'static str = "Average";
 
     fn resolve(a: V, b: V) -> V {

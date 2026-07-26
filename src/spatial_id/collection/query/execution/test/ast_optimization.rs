@@ -1,7 +1,7 @@
 #![cfg(all(feature = "json", feature = "rayon"))]
 
 use crate::{
-    SpatialIdCollection, SpatialIdTable,
+    Source, SpatialIdTable,
     spatial_id::collection::query::merge_policy::{Average, Max},
 };
 use proptest::prelude::*;
@@ -41,8 +41,7 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .fill_empty(0)
-            .raw_run()
+            .raw_run_table()
             .unwrap();
 
         let optimized_result = bldg_risk
@@ -53,8 +52,7 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .fill_empty(0)
-            .run()
+            .run_table()
             .unwrap();
 
         assert_eq!(unoptimized_result, optimized_result, "AST optimization broke semantics!");

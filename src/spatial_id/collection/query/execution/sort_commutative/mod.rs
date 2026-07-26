@@ -1,16 +1,10 @@
 use super::Query;
-use crate::SpatialIdCollection;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use alloc::boxed::Box;
 
-impl<S: SpatialIdCollection> Query<S>
-where
-    S::Value: 'static,
-{
+impl<V: SafeValue + 'static> Query<V> {
     /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
-    pub fn sort_commutative_ops(self) -> Self
-    where
-        S::Working: 'static,
-    {
+    pub fn sort_commutative_ops(self) -> Self {
         match self {
             Query::CommutativeGroup(info, mut ops, input) => {
                 ops.sort_by(|a, b| {

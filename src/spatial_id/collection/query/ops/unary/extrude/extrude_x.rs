@@ -1,11 +1,10 @@
+use crate::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error, FlexId,
     spatial_id::{
-        collection::query::{
-            merge_policy::MergePolicy,
-            traits::{UnaryOperator, WorkingTree},
-        },
+        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
         zoom_level::ZoomLevel,
     },
 };
@@ -32,10 +31,9 @@ impl<P> ExtrudeX<P> {
     }
 }
 
-impl<W, P> UnaryOperator<W> for ExtrudeX<P>
+impl<V: SafeValue, P> UnaryOperator<V> for ExtrudeX<P>
 where
-    W: WorkingTree + 'static,
-    P: MergePolicy<W::Value>,
+    P: MergePolicy<V>,
 {
     fn validate(&self) -> Result<(), Error> {
         let z = self.target_z.get();
@@ -45,8 +43,8 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut W) -> Result<(), Error> {
-        let mut extruded: Vec<(FlexId, W::Value)> = Vec::with_capacity(core.count());
+    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Error> {
+        let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(core.count());
 
         // 元のツリーから全セルを取り出し、それぞれを引き延ばす
         for (id, v) in core.iter_ref() {
@@ -74,7 +72,7 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = W::from_flexids(new_items);
+        *core = new_items.into_iter().collect();
 
         Ok(())
     }
@@ -88,6 +86,29 @@ where
 
     fn as_any(&self) -> &dyn core::any::Any {
         self
+    }
+
+    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+        let target_z = self.target_z.get();
+        let bounds_z = bounds.z();
+        let max_z = target_z.max(bounds_z);
+
+        let scale_t = max_z - target_z;
+        let scale_b = max_z - bounds_z;
+
+        let target_min_max_z = (self.start_x as i64) * (1i64 << scale_t);
+        let target_max_max_z = ((self.end_x as i64) + 1) * (1i64 << scale_t) - 1;
+
+        let bounds_min_max_z = (bounds.x()[0] as i64) * (1i64 << scale_b);
+        let bounds_max_max_z = ((bounds.x()[1] as i64) + 1) * (1i64 << scale_b) - 1;
+
+        if target_max_max_z < bounds_min_max_z || bounds_max_max_z < target_min_max_z {
+            return alloc::vec![];
+        }
+
+        let xy_max = crate::ZoomLevel::new(bounds_z).unwrap().xy_max();
+        bounds.set_x([0, xy_max]).unwrap();
+        alloc::vec![bounds]
     }
 
     fn expansion_ratio(&self) -> f32 {

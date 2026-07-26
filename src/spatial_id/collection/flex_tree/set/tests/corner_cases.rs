@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::{RangeId, SingleId, SpatialIdSet, spatial_id::zoom_level::ZoomLevel};
+    use alloc::vec::Vec;
 
     /// 1. 完全被覆によるツリーの O(1) 全置換テスト
     #[test]
