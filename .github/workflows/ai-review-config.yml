@@ -3,7 +3,6 @@ max_files: 20
 max_diff_size: 5000
 
 ignore_patterns:
-  - "*.md"
   - "*.txt"
   - "*.json"
   - "*.yaml"
