@@ -1,4 +1,5 @@
 use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
+use alloc::vec::Vec;
 pub mod convert;
 pub mod impls;
 #[cfg(feature = "json")]
