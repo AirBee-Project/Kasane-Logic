@@ -15,7 +15,7 @@ fn lazy_view_get_matches_run() {
         .query()
         .shift_x(10, 1)
         .shift_y(10, 2)
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();
@@ -24,9 +24,8 @@ fn lazy_view_get_matches_run() {
 
     // LazyView get
     let query = table.query().shift_x(10, 1).shift_y(10, 2);
-    let lazy_view = query.lazy();
 
-    let mut lazy_iter = lazy_view.get(target.clone()).unwrap();
+    let mut lazy_iter = query.lazy_get(target.clone()).unwrap();
     let lazy_val = lazy_iter.next().map(|(_, v)| v);
     assert_eq!(lazy_iter.next(), None);
     assert_eq!(expected_val, lazy_val);
@@ -40,19 +39,18 @@ fn lazy_view_get_with_default() {
     table.insert(id1.clone(), 100);
 
     let query = table.query();
-    let lazy_view = query.lazy();
 
     // id1 と、隣接する別のID (値がない) を含む RangeId
     let target = crate::RangeId::new(10, [10, 10], [10, 11], [10, 10]).unwrap();
 
     // get の場合 (値がある場所しか返らない)
-    let results: Vec<_> = lazy_view.get(target.clone()).unwrap().collect();
+    let results: Vec<_> = query.lazy_get(target.clone()).unwrap().collect();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].1, 100);
 
     // get_with_default の場合 (値がない場所は default 値で返る)
-    let results_with_default: Vec<_> = lazy_view
-        .get_with_default(target.clone(), 0)
+    let results_with_default: Vec<_> = query
+        .lazy_get_with_default(target.clone(), 0)
         .unwrap()
         .collect();
     assert_eq!(results_with_default.len(), 2);

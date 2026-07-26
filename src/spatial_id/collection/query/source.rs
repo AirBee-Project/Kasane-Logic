@@ -1,9 +1,9 @@
 use alloc::boxed::Box;
 
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::execution::Query;
-use crate::spatial_id::collection::query::traits::WorkingTree;
-use crate::{Error, RangeId};
+use crate::{Error, FlexTreeCore, RangeId};
 
 /// クエリの**入力源**。クエリ実行器がデータを読む唯一の口。
 ///
@@ -13,24 +13,24 @@ use crate::{Error, RangeId};
 ///
 /// 変更系（挿入・削除）は一切要求しない。クエリは分析用であり、入力源を書き換えないため。
 pub trait Source: MaybeSendSync {
-    /// 演算子が回る作業表現。現状の具象は [`FlexTreeCore`](crate::FlexTreeCore) のみ。
-    type Working: WorkingTree;
+    /// この入力源が持つセルの値型。作業木は常に [`FlexTreeCore<Self::Value>`] になる。
+    type Value: SafeValue;
 
     /// `bounds` のいずれかに重なるセルだけを読み、作業木を組む（**遅延パス**）。
     ///
-    /// [`Query::lazy`] 経由の評価はここしか呼ばない。つまり**範囲読みさえ実装できれば**、
+    /// [`Query::run_on_subset`] 経由の評価はここしか呼ばない。つまり**範囲読みさえ実装できれば**、
     /// 全件を materialize できないディスク実装でもクエリの入力源になれる。
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<Self::Working, Error>;
+    fn read_subset(&self, bounds: &[RangeId]) -> Result<FlexTreeCore<Self::Value>, Error>;
 
     /// 全セルを読んで作業木を組む（**eager パス**、[`Query::run`] 用）。
     ///
     /// `Box<Self>` を受けるのは、インメモリ実装が所有権ごと作業木へ移し替えられるようにするため
     /// （クローンを強制しない）。全走査が現実的でない入力源は [`Error::Unsupported`] を返してよく、
-    /// その場合は [`Query::lazy`] による領域限定の評価のみを提供する。
-    fn read_all(self: Box<Self>) -> Result<Self::Working, Error>;
+    /// その場合は [`Query::run_on_subset`] による領域限定の評価のみを提供する。
+    fn read_all(self: Box<Self>) -> Result<FlexTreeCore<Self::Value>, Error>;
 
     /// この入力源を起点にクエリを開始する。
-    fn query(self) -> Query<Self::Working>
+    fn query(self) -> Query<Self::Value>
     where
         Self: Sized + 'static,
     {

@@ -33,7 +33,7 @@ proptest! {
     ) {
         let bldg_risk = get_bldg_risk();
 
-        let unoptimized_result: SpatialIdTable<u32> = bldg_risk
+        let unoptimized_result = bldg_risk
             .clone()
             .query()
             .zoom_out(zoom, Average)
@@ -41,7 +41,7 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .raw_run()
+            .raw_run_table()
             .unwrap();
 
         let optimized_result = bldg_risk
@@ -52,7 +52,7 @@ proptest! {
             .falloff_linear_x(25, falloff_x_rad, Max)
             .falloff_linear_y(25, falloff_y_rad, Max)
             .falloff_linear_f(25, falloff_f_rad, Max)
-            .run()
+            .run_table()
             .unwrap();
 
         assert_eq!(unoptimized_result, optimized_result, "AST optimization broke semantics!");

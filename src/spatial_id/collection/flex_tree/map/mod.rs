@@ -75,7 +75,7 @@ where
     }
 
     /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
-    pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = (FlexId, V)> {
+    pub fn remove<S: SpatialId>(&mut self, target: &S) -> Vec<(FlexId, V)> {
         self.inner.remove(target.clone())
     }
 
@@ -93,10 +93,7 @@ where
 
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった
     /// [`FlexId`]と値をそのまま取り除いて返します。
-    pub fn remove_overlapping<S: SpatialId>(
-        &mut self,
-        target: &S,
-    ) -> impl Iterator<Item = (FlexId, V)> {
+    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> Vec<(FlexId, V)> {
         self.inner.remove_overlapping(target.clone())
     }
 

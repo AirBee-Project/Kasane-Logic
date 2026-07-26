@@ -1,8 +1,8 @@
-use super::traits::{BinaryOperator, UnaryOperator, WorkingTree};
-use crate::Error;
+use super::traits::{BinaryOperator, UnaryOperator};
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::lazy::LazyView;
 use crate::spatial_id::collection::query::source::Source;
+use crate::{Error, FlexTreeCore};
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -16,43 +16,32 @@ mod test;
 
 /// 式全体を表現する型。
 ///
-/// 作業表現 `W` で直接パラメータ化されており、入力源の具象型には依存しない。
+/// 値型 `V` で直接パラメータ化されており、入力源の具象型には依存しない。
 /// これにより、1つの AST 内でインメモリ入力源とディスク入力源を混在させられる
 /// （例: [`Query::merge`] の左辺がディスク、右辺がインメモリ）。
-pub enum Query<W: WorkingTree + 'static> {
+pub enum Query<V: SafeValue + 'static> {
     /// 演算の起点となる入力源
-    Source(Box<dyn Source<Working = W>>),
+    Source(Box<dyn Source<Value = V>>),
     /// 単項演算の直線区間（分岐の無い連続した単項演算子の列）。
     /// AST最適化（可換な演算の並び替え・同型演算子のmerge等）はこの `Vec` の中で完結する。
-    Unary(Vec<Box<dyn UnaryOperator<W>>>, Box<Query<W>>),
+    Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
     /// 互いに可換な単項演算子のグループ
     CommutativeGroup(
         CommutativityInfo,
-        Vec<Box<dyn UnaryOperator<W>>>,
-        Box<Query<W>>,
+        Vec<Box<dyn UnaryOperator<V>>>,
+        Box<Query<V>>,
     ),
     // 二項演算
-    Binary(Box<dyn BinaryOperator<W>>, Box<Query<W>>, Box<Query<W>>),
+    Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
     /// エラー状態を保持（AST構築時の遅延評価用）
     Error(Error),
 }
 
-impl<W: WorkingTree + 'static> Query<W>
-where
-    W::Value: 'static,
-{
-    /// `self` を単項演算子 `op` で包む。
-    ///
-    /// 直前のノードが `Unary` チェーンならその `Vec` へ追記し（実質的にチェーンを延長し）、
-    /// そうでなければ `self` を新しい `Unary` ノードで包む。連続する単項演算子を1つの直線区間へ
-    /// 自動的に集約するための構築ヘルパーで、各演算子のビルダーメソッド（`shift_x` 等）は
-    /// `Query::Unary` を直接組み立てず、必ずこれを経由する（挙動を変えずに内部表現だけを配列化する
-    /// ため）。
-    ///
-    /// `self` が `Query::Error` の場合の扱いは呼び出し側（各ビルダーメソッド）が事前に行う想定。
+impl<V: SafeValue + 'static> Query<V> {
+    /// `self` を単項演算子で包む。
     pub(crate) fn wrap_unary<O>(self, op: O) -> Self
     where
-        O: UnaryOperator<W> + 'static,
+        O: UnaryOperator<V> + 'static,
     {
         match self {
             Query::Unary(mut ops, input) => {
@@ -60,19 +49,15 @@ where
                 Query::Unary(ops, input)
             }
             other => Query::Unary(
-                vec![Box::new(op) as Box<dyn UnaryOperator<W>>],
+                vec![Box::new(op) as Box<dyn UnaryOperator<V>>],
                 Box::new(other),
             ),
         }
     }
 
-    /// なんの最適化もなく実行する。
-    ///
-    /// 全入力源に対して [`Source::read_all`] を要求するため、全走査に対応しない入力源
-    /// （ディスク上の大規模ツリー等）では [`Error::Unsupported`] になる。その場合は
-    /// [`lazy`](Self::lazy) による領域限定の評価を使う。
-    pub fn raw_run_working_tree(self) -> Result<W, Error> {
-        fn run_internal<W: WorkingTree + 'static>(query: Query<W>) -> Result<W, Error> {
+    /// 最適化もなく[Query]を実行する。
+    pub fn raw_run(self) -> Result<FlexTreeCore<V>, Error> {
+        fn run_internal<V: SafeValue + 'static>(query: Query<V>) -> Result<FlexTreeCore<V>, Error> {
             match query {
                 Query::Source(source) => source.read_all(),
                 Query::Unary(ops, input) => {
@@ -83,8 +68,6 @@ where
                     Ok(core)
                 }
                 Query::CommutativeGroup(_, ops, input) => {
-                    // 並び替えは AST 最適化 [`sort_commutative_ops`](Self::sort_commutative_ops)
-                    // で事前に済んでいるので、ここでは与えられた順に実行するだけ。
                     let mut core = run_internal(*input)?;
                     for op in &ops {
                         op.run(&mut core)?;
@@ -110,52 +93,31 @@ where
         run_internal(self)
     }
 
-    /// AST最適化を適用し、**実行しない**。
+    /// AST最適化を適用する（実行は行わない）。
     pub fn optimize(self) -> Self {
         self.group_commutative_ops().sort_commutative_ops()
     }
 
-    /// AST最適化（可換な区間の検知・グループ化・並び替え）を適用してから実行する。
-    ///
-    /// 実行前に [`validate`](Self::validate) でパラメータ・遅延エラーを検証するため、
-    /// 最適化や実データ変換より先に構築時の問題を検出できる。
-    /// 最適化のみ行いたい場合は [`optimize`](Self::optimize)、
-    /// 最適化なしで実行したい場合は [`raw_run`](Self::raw_run) を使う。
-    pub fn run_working_tree(self) -> Result<W, Error> {
+    /// AST最適化を適用してから実行する。
+    pub fn run(self) -> Result<FlexTreeCore<V>, Error> {
         self.validate()?;
-        self.optimize().raw_run_working_tree()
+        self.optimize().raw_run()
     }
 
-    /// [`run`](Self::run) の結果を具象コレクションへ変換して返す。
-    ///
-    /// ```ignore
-    /// let table: SpatialIdTable<u32> = source.query().shift_x(25, 3).run()?;
-    /// ```
-    pub fn run<C>(self) -> Result<C, Error>
-    where
-        C: From<W>,
-    {
-        Ok(self.run_working_tree()?.into())
-    }
-
-    /// [`raw_run`](Self::raw_run) の結果を具象コレクションへ変換して返す。
-    pub fn raw_run<C>(self) -> Result<C, Error>
-    where
-        C: From<W>,
-    {
-        Ok(self.raw_run_working_tree()?.into())
-    }
-}
-
-impl<W: WorkingTree + 'static> Query<W> {
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
-    ///
-    /// 入力源には [`Source::read_subset`] しか要求しないため、全件を materialize できない
-    /// ディスク実装でもこの経路なら動く。
-    pub fn run_on_subset(&self, bounds: Vec<crate::RangeId>) -> Result<W, Error> {
+    pub fn run_on_subset(&self, bounds: Vec<crate::RangeId>) -> Result<FlexTreeCore<V>, Error> {
+        self.validate()?;
+        self.run_on_subset_unchecked(bounds)
+    }
+
+    /// [`run_on_subset`](Self::run_on_subset) の本体（再帰部分）。
+    fn run_on_subset_unchecked(
+        &self,
+        bounds: Vec<crate::RangeId>,
+    ) -> Result<FlexTreeCore<V>, Error> {
         match self {
             Query::Source(s) => s.read_subset(&bounds),
-            Query::Unary(ops, input) => {
+            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                 let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
@@ -166,24 +128,7 @@ impl<W: WorkingTree + 'static> Query<W> {
                     next.dedup();
                     req = next;
                 }
-                let mut working = input.run_on_subset(req)?;
-                for op in ops {
-                    op.run(&mut working)?;
-                }
-                Ok(working)
-            }
-            Query::CommutativeGroup(_, ops, input) => {
-                let mut req = bounds;
-                for op in ops.iter().rev() {
-                    let mut next = Vec::new();
-                    for r in req {
-                        next.extend(op.inverse_bounds(r));
-                    }
-                    next.sort_unstable();
-                    next.dedup();
-                    req = next;
-                }
-                let mut working = input.run_on_subset(req)?;
+                let mut working = input.run_on_subset_unchecked(req)?;
                 for op in ops {
                     op.run(&mut working)?;
                 }
@@ -201,8 +146,8 @@ impl<W: WorkingTree + 'static> Query<W> {
                 lhs_bounds.dedup();
                 rhs_bounds.sort_unstable();
                 rhs_bounds.dedup();
-                let mut lhs_working = lhs.run_on_subset(lhs_bounds)?;
-                let rhs_working = rhs.run_on_subset(rhs_bounds)?;
+                let mut lhs_working = lhs.run_on_subset_unchecked(lhs_bounds)?;
+                let rhs_working = rhs.run_on_subset_unchecked(rhs_bounds)?;
                 op.run(&mut lhs_working, &rhs_working)?;
                 Ok(lhs_working)
             }
@@ -210,8 +155,49 @@ impl<W: WorkingTree + 'static> Query<W> {
         }
     }
 
-    /// 遅延Viewを作成する。
-    pub fn lazy(&self) -> LazyView<'_, W> {
-        LazyView { query: self }
+    /// 対象領域(`target`)と交差するセルだけを遅延評価して返す。
+    pub fn lazy_get<T: crate::SpatialId>(
+        &self,
+        target: T,
+    ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
+        let working = self.run_on_subset(vec![target.clone().into()])?;
+        let target_range: crate::RangeId = target.into();
+
+        Ok(working
+            .into_iter()
+            .filter(move |(id, _)| id.intersects_range(&target_range)))
+    }
+
+    /// 対象領域(`target`)のうち、データが存在しない空間を `default_value` で埋めてから値を返す。
+    pub fn lazy_get_with_default<T: crate::SpatialId>(
+        &self,
+        target: T,
+        default_value: V,
+    ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
+        let working = self.run_on_subset(vec![target.clone().into()])?;
+        let target_range: crate::RangeId = target.clone().into();
+
+        let mut uncovered = crate::SpatialIdSet::new();
+        uncovered.insert(target.into());
+
+        let mut working_iter = working.into_iter();
+        let mut default_iter = None;
+
+        Ok(core::iter::from_fn(move || {
+            if default_iter.is_none() {
+                for (id, value) in working_iter.by_ref() {
+                    if id.intersects_range(&target_range) {
+                        uncovered.remove(&id);
+                        return Some((id, value));
+                    }
+                }
+                default_iter = Some(core::mem::take(&mut uncovered).into_iter());
+            }
+
+            default_iter
+                .as_mut()?
+                .next()
+                .map(|(id, _)| (id, default_value.clone()))
+        }))
     }
 }

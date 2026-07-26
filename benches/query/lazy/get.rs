@@ -29,8 +29,7 @@ fn bench_lazy_get(c: &mut Criterion) {
         // LazyView bench
         group.bench_with_input(BenchmarkId::new("lazy", voxels), &table, |b, t| {
             let query = t.clone().query().shift_x(OP_ZOOM, 10).shift_y(OP_ZOOM, 10);
-            let lazy = query.lazy();
-            b.iter(|| lazy.get(target_id.clone()).unwrap().count());
+            b.iter(|| query.lazy_get(target_id.clone()).unwrap().count());
         });
 
         // Eager bench (as baseline)
@@ -42,7 +41,7 @@ fn bench_lazy_get(c: &mut Criterion) {
                         .query()
                         .shift_x(OP_ZOOM, 10)
                         .shift_y(OP_ZOOM, 10)
-                        .raw_run()
+                        .raw_run_table()
                         .unwrap();
                     let target_flex: kasane_logic::FlexId = target_id.clone().into();
                     let _ = res.get(&target_flex).count();

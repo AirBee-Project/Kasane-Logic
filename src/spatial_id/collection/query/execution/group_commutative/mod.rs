@@ -1,16 +1,13 @@
 use super::Query;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::spatial_id::collection::query::traits::WorkingTree;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 pub mod types;
 
-impl<W: WorkingTree + 'static> Query<W>
-where
-    W::Value: 'static,
-{
+impl<V: SafeValue + 'static> Query<V> {
     /// 可換な部分を検知して囲む
     ///
     /// ASTの `Query::Unary` 内に直列に並んだ演算子（`ops`）を走査し、
@@ -20,12 +17,12 @@ where
             Query::Unary(ops, input) => {
                 let mut current_ast = input.group_commutative_ops();
 
-                let mut current_group: Vec<Box<dyn UnaryOperator<W>>> = Vec::new();
+                let mut current_group: Vec<Box<dyn UnaryOperator<V>>> = Vec::new();
                 let mut current_info: Option<CommutativityInfo> = None;
 
-                let flush = |group: &mut Vec<Box<dyn UnaryOperator<W>>>,
+                let flush = |group: &mut Vec<Box<dyn UnaryOperator<V>>>,
                              info: Option<CommutativityInfo>,
-                             ast: &mut Query<W>| {
+                             ast: &mut Query<V>| {
                     if group.is_empty() {
                         return;
                     }

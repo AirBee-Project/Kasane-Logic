@@ -1,10 +1,8 @@
 use super::{shift_f::ShiftF, shift_x::ShiftX, shift_y::ShiftY};
-use crate::spatial_id::collection::query::{execution::Query, traits::WorkingTree};
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::execution::Query;
 
-impl<W: WorkingTree + 'static> Query<W>
-where
-    W::Value: 'static,
-{
+impl<V: SafeValue + 'static> Query<V> {
     /// F方向のShift演算を適用する
     pub fn shift_f<Z: Into<u8>>(self, z: Z, index: i32) -> Self {
         if matches!(self, Query::Error(_)) {

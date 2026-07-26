@@ -19,7 +19,7 @@ fn map_values_changes_the_value_type() {
     let out: SpatialIdTable<bool> = int_table()
         .query()
         .map_values(|v: i32| v > 10)
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     let mut rows: alloc::vec::Vec<(u32, bool)> = out
@@ -37,7 +37,7 @@ fn map_values_to_text() {
     let out: SpatialIdTable<String> = int_table()
         .query()
         .map_values(|v: i32| if v > 10 { "high" } else { "low" }.to_string())
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     let mut rows: alloc::vec::Vec<(u32, String)> = out
@@ -63,7 +63,7 @@ fn map_values_composes_with_other_operators() {
         .filter_in(10..) // 変換前: 10以上だけ残す
         .map_values(|v: i32| v > 10) // 型変換
         .filter_eq(true) // 変換後: true だけ残す
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     let rows: alloc::vec::Vec<u32> = out
@@ -78,11 +78,10 @@ fn map_values_composes_with_other_operators() {
 #[test]
 fn map_values_via_lazy_view() {
     let query = int_table().query().map_values(|v: i32| v > 10);
-    let lazy = query.lazy();
 
-    let got: alloc::vec::Vec<bool> = lazy.get(cell(11)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<bool> = query.lazy_get(cell(11)).unwrap().map(|(_, v)| v).collect();
     assert_eq!(got, alloc::vec![true]);
 
-    let got: alloc::vec::Vec<bool> = lazy.get(cell(10)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<bool> = query.lazy_get(cell(10)).unwrap().map(|(_, v)| v).collect();
     assert_eq!(got, alloc::vec![false]);
 }

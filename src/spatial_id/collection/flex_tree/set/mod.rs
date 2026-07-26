@@ -120,10 +120,12 @@ impl SpatialIdSet {
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
     /// 削除した部分の空間IDを返す。
-    pub fn remove<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
+    pub fn remove<S: SpatialId>(&mut self, target: &S) -> Vec<FlexId> {
         self.inner
             .remove(target.clone())
-            .map(move |(flex_id, _value)| flex_id)
+            .into_iter()
+            .map(|(flex_id, _value)| flex_id)
+            .collect()
     }
 
     /// 指定した空間IDと接触していたすべての空間IDを返す。
@@ -139,10 +141,12 @@ impl SpatialIdSet {
 
     /// 指定した空間IDと接触していたすべての空間IDを削除する。削除した空間IDを返す。
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった [`FlexId`] をそのまま返す。
-    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> impl Iterator<Item = FlexId> {
+    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> Vec<FlexId> {
         self.inner
             .remove_overlapping(target.clone())
-            .map(move |(flex_id, _value)| flex_id)
+            .into_iter()
+            .map(|(flex_id, _value)| flex_id)
+            .collect()
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返す。入力された空間ID自身と重なる空間IDは除外する。

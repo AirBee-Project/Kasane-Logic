@@ -127,11 +127,8 @@ where
     }
 
     /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
-    pub fn remove<'a, S: SpatialId + Clone>(
-        &'a mut self,
-        target: &'a S,
-    ) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        let removed_items: Vec<(FlexId, usize)> = self.inner.remove(target.clone()).collect();
+    pub fn remove<S: SpatialId + Clone>(&mut self, target: &S) -> Vec<(FlexId, V)> {
+        let removed_items = self.inner.remove(target.clone());
         let mut results = Vec::new();
 
         for (flex_id, rank) in removed_items {
@@ -142,7 +139,7 @@ where
         if !results.is_empty() {
             self.value_index_built = false;
         }
-        results.into_iter()
+        results
     }
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
     /// [`FlexId`]と値をそのままの返します。
@@ -166,12 +163,8 @@ where
 
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
     /// [`FlexId`]と値をそのままの返します。
-    pub fn remove_overlapping<'a, S: SpatialId>(
-        &'a mut self,
-        target: &'a S,
-    ) -> impl Iterator<Item = (FlexId, V)> + 'a {
-        let removed_items: Vec<(FlexId, usize)> =
-            self.inner.remove_overlapping(target.clone()).collect();
+    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> Vec<(FlexId, V)> {
+        let removed_items = self.inner.remove_overlapping(target.clone());
         let mut results = Vec::new();
 
         for (flex_id, rank) in removed_items {
@@ -193,7 +186,7 @@ where
             results.push((flex_id, value));
         }
 
-        results.into_iter()
+        results
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。

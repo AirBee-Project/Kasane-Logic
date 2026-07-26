@@ -37,8 +37,11 @@ where
             b.iter_batched(
                 || table.clone(),
                 |t| {
-                    let r: SpatialIdTable<u32> =
-                        t.query().extrude_f(OP_ZOOM, 0, 5, Max).raw_run().unwrap();
+                    let r: SpatialIdTable<u32> = t
+                        .query()
+                        .extrude_f(OP_ZOOM, 0, 5, Max)
+                        .raw_run_table()
+                        .unwrap();
                     r
                 },
                 BatchSize::SmallInput,

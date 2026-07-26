@@ -14,7 +14,7 @@ mod tests {
             TableEntry::Single(second.clone(), 20),
         ]);
 
-        let removed: Vec<_> = table.remove(&first).collect();
+        let removed = table.remove(&first);
         assert_eq!(removed.len(), 1);
         let (flex_id, value) = &removed[0];
         assert_eq!(*value, 10);
@@ -42,7 +42,7 @@ mod tests {
             TableEntry::Single(second.clone(), 20),
         ]);
 
-        let _ = table.remove(&first).collect::<Vec<_>>();
+        table.remove(&first);
         assert_eq!(table.values().copied().collect::<Vec<_>>(), vec![20]);
     }
 }

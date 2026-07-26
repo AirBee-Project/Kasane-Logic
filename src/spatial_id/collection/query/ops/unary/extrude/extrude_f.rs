@@ -1,11 +1,10 @@
+use crate::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error, FlexId,
     spatial_id::{
-        collection::query::{
-            merge_policy::MergePolicy,
-            traits::{UnaryOperator, WorkingTree},
-        },
+        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
         zoom_level::ZoomLevel,
     },
 };
@@ -32,10 +31,9 @@ impl<P> ExtrudeF<P> {
     }
 }
 
-impl<W, P> UnaryOperator<W> for ExtrudeF<P>
+impl<V: SafeValue, P> UnaryOperator<V> for ExtrudeF<P>
 where
-    W: WorkingTree + 'static,
-    P: MergePolicy<W::Value>,
+    P: MergePolicy<V>,
 {
     fn validate(&self) -> Result<(), Error> {
         let z = self.target_z.get();
@@ -45,8 +43,8 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut W) -> Result<(), Error> {
-        let mut extruded: Vec<(FlexId, W::Value)> = Vec::with_capacity(core.count());
+    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Error> {
+        let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(core.count());
 
         // 元のツリーから全セルを取り出し、それぞれを引き延ばす
         for (id, v) in core.iter_ref() {

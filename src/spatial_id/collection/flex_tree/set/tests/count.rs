@@ -2,7 +2,6 @@
 mod tests {
     use super::super::{RandomSetInsert, arb_random_set_case};
     use crate::{RangeId, SingleId, SpatialIdSet};
-    use alloc::vec::Vec;
     use proptest::prelude::*;
 
     fn assert_count_consistent(set: &SpatialIdSet) {
@@ -31,19 +30,17 @@ mod tests {
         set.insert(SingleId::new(2, 1, 0, 3).unwrap());
         assert_max_zoomlevel_consistent(&set);
 
-        let _ = set
-            .remove(&RangeId::new(6, [1, 29], [8, 9], [5, 10]).unwrap())
-            .collect::<Vec<_>>();
+        set.remove(&RangeId::new(6, [1, 29], [8, 9], [5, 10]).unwrap());
         assert_max_zoomlevel_consistent(&set);
     }
 
     fn remove_insert_pattern(set: &mut SpatialIdSet, insert: &RandomSetInsert) {
         match insert {
             RandomSetInsert::Single(single_id) => {
-                let _ = set.remove(single_id).collect::<Vec<_>>();
+                set.remove(single_id);
             }
             RandomSetInsert::Range(range_id) => {
-                let _ = set.remove(range_id).collect::<Vec<_>>();
+                set.remove(range_id);
             }
         }
     }
@@ -70,7 +67,7 @@ mod tests {
         set.insert(RangeId::new(3, [0, 1], [1, 2], [3, 3]).unwrap());
         assert_count_consistent(&set);
 
-        let _ = set.remove(&remove_target).collect::<Vec<_>>();
+        set.remove(&remove_target);
         assert_count_consistent(&set);
     }
 

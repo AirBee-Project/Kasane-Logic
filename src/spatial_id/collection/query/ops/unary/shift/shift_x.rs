@@ -1,8 +1,7 @@
+use crate::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::{
-    Error, ZoomLevel,
-    spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
-};
+use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
 
 /// 作業木全体を東西（X）方向へ、ズームレベル `z` のインデックス値 `x` 個分だけ平行移動する単項演算。
 pub struct ShiftX {
@@ -18,7 +17,7 @@ impl ShiftX {
     }
 }
 
-impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftX {
+impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
     fn validate(&self) -> Result<(), Error> {
         let zl = ZoomLevel::new(self.z.get())?;
         zl.check_x(self.x.unsigned_abs())?;
@@ -29,7 +28,7 @@ impl<W: WorkingTree + 'static> UnaryOperator<W> for ShiftX {
         self
     }
 
-    fn run(&self, target: &mut W) -> Result<(), Error> {
+    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.x;
         if index == 0 {

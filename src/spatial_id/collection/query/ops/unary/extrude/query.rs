@@ -1,18 +1,15 @@
 use super::{extrude_f::ExtrudeF, extrude_x::ExtrudeX, extrude_y::ExtrudeY};
-use crate::spatial_id::collection::query::traits::WorkingTree;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::{
     ZoomLevel,
     spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
 };
 
-impl<W: WorkingTree + 'static> Query<W>
-where
-    W::Value: 'static,
-{
+impl<V: SafeValue + 'static> Query<V> {
     /// X方向の Extrude (絶対座標による引き延ばし) 演算を適用する
     pub fn extrude_x<T: Into<u8>, P>(self, z: T, start_x: u32, end_x: u32, _policy: P) -> Self
     where
-        P: MergePolicy<W::Value> + Send + Sync,
+        P: MergePolicy<V> + Send + Sync,
     {
         if matches!(self, Query::Error(_)) {
             return self;
@@ -26,7 +23,7 @@ where
     /// Y方向の Extrude (絶対座標による引き延ばし) 演算を適用する
     pub fn extrude_y<T: Into<u8>, P>(self, z: T, start_y: u32, end_y: u32, _policy: P) -> Self
     where
-        P: MergePolicy<W::Value> + Send + Sync,
+        P: MergePolicy<V> + Send + Sync,
     {
         if matches!(self, Query::Error(_)) {
             return self;
@@ -40,7 +37,7 @@ where
     /// F方向の Extrude (絶対座標による引き延ばし) 演算を適用する
     pub fn extrude_f<T: Into<u8>, P>(self, z: T, start_f: i32, end_f: i32, _policy: P) -> Self
     where
-        P: MergePolicy<W::Value> + Send + Sync,
+        P: MergePolicy<V> + Send + Sync,
     {
         if matches!(self, Query::Error(_)) {
             return self;

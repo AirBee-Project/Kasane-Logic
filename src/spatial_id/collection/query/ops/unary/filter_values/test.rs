@@ -29,28 +29,36 @@ fn int_table() -> SpatialIdTable<i32> {
 
 #[test]
 fn filter_eq_keeps_only_that_value() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_eq(10).raw_run().unwrap();
+    let out = int_table().query().filter_eq(10).raw_run_table().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(12, 10)]);
 }
 
 #[test]
 fn filter_in_is_inclusive() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_in(5..=10).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = int_table()
+        .query()
+        .filter_in(5..=10)
+        .raw_run_table()
+        .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(11, 5), (12, 10)]);
 }
 
 #[test]
 fn filter_in_open_bound() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_in(10..).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = int_table().query().filter_in(10..).raw_run_table().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(12, 10), (13, 20)]);
 }
 
 #[test]
 fn filter_not_in_keeps_the_outside() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_not_in(5..=10).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = int_table()
+        .query()
+        .filter_not_in(5..=10)
+        .raw_run_table()
+        .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(10, 1), (13, 20)]);
 }
@@ -66,7 +74,7 @@ fn filter_values_works_for_text() {
     let out: SpatialIdTable<String> = t
         .query()
         .filter_in("b".to_string()..="bz".to_string())
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(11, "banana".to_string())]);
@@ -81,7 +89,8 @@ fn invalid_range_is_rejected_by_validate() {
             core::ops::Bound::Included(100),
             core::ops::Bound::Included(1),
         ))
-        .run();
+        .run()
+        .map(Into::into);
 
     assert!(matches!(
         result,
@@ -93,13 +102,12 @@ fn invalid_range_is_rejected_by_validate() {
 #[test]
 fn filter_values_via_lazy_view() {
     let query = int_table().query().filter_in(5..=10);
-    let lazy = query.lazy();
 
-    let got: alloc::vec::Vec<i32> = lazy.get(cell(11)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<i32> = query.lazy_get(cell(11)).unwrap().map(|(_, v)| v).collect();
     assert_eq!(got, alloc::vec![5]);
 
     // 範囲外の値だったセルは何も返らない。
-    assert!(lazy.get(cell(13)).unwrap().next().is_none());
+    assert!(query.lazy_get(cell(13)).unwrap().next().is_none());
 }
 
 /// 切り分け: 範囲 (RangeId) を対象にした遅延取得で、複数セルが全て返ること。
@@ -115,8 +123,7 @@ fn lazy_get_over_range_returns_all_cells() {
     let bbox = RangeId::new(20, [0, 0], [790000, 790003], [500000, 500000]).unwrap();
 
     let query = t.query();
-    let lazy = query.lazy();
-    let mut got: alloc::vec::Vec<i32> = lazy.get(bbox).unwrap().map(|(_, v)| v).collect();
+    let mut got: alloc::vec::Vec<i32> = query.lazy_get(bbox).unwrap().map(|(_, v)| v).collect();
     got.sort();
 
     assert_eq!(got, alloc::vec![0, 1, 2, 3]);

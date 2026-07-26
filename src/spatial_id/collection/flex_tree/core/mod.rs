@@ -661,16 +661,18 @@ where
     }
 
     /// [FlexTreeCore]からTargetが示す領域を削除して、返す。
-    pub fn remove<I>(&mut self, target: I) -> impl Iterator<Item = (FlexId, V)>
+    ///
+    /// 削除は呼び出した時点で完了する。返り値は「何が消えたか」の記録なので、
+    /// 不要なら捨ててよい（`impl Iterator` を返すと `#[must_use]` が付き、
+    /// 「消費しないと削除されない」と読めてしまうため `Vec` を返す）。
+    pub fn remove<I>(&mut self, target: I) -> Vec<(FlexId, V)>
     where
         I: IntoIterator<Item = FlexId>,
     {
         let mut actual_removed = Vec::new();
 
         for t_id in target.into_iter() {
-            let affected_leaves: Vec<(FlexId, V)> = self.overlap_remove(&t_id).collect();
-
-            for (leaf_id, value) in affected_leaves {
+            for (leaf_id, value) in self.overlap_remove(&t_id) {
                 for remnant_id in leaf_id.difference(&t_id) {
                     self.insert_flex_id(remnant_id, value.clone());
                 }
@@ -680,7 +682,7 @@ where
             }
         }
 
-        actual_removed.into_iter()
+        actual_removed
     }
 
     /// [`get`](Self::get) と同様に target と重なる要素を取り出しますが、
@@ -724,7 +726,7 @@ where
     }
 
     /// [`remove`](Self::remove) と異なり、**交差による切り取りや残余の再挿入を行わず**、 target と少しでも重なった葉を丸ごとツリーから取り除き、その格納済み [`FlexId`] を そのままの広さで返す。
-    pub fn remove_overlapping<I>(&mut self, target: I) -> impl Iterator<Item = (FlexId, V)>
+    pub fn remove_overlapping<I>(&mut self, target: I) -> Vec<(FlexId, V)>
     where
         I: IntoIterator<Item = FlexId>,
     {
@@ -732,7 +734,7 @@ where
         for t_id in target.into_iter() {
             removed.extend(self.overlap_remove(&t_id));
         }
-        removed.into_iter()
+        removed
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`]と値への参照を重複なく返す。入力された空間ID自身と重なる要素は除外する。

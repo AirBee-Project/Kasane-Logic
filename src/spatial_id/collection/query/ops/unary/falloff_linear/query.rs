@@ -2,29 +2,20 @@ use super::{
     falloff_linear_f::FalloffLinearF, falloff_linear_x::FalloffLinearX,
     falloff_linear_y::FalloffLinearY,
 };
-use crate::spatial_id::collection::query::traits::WorkingTree;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy};
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::ops::{Div, Mul, Sub};
 
-impl<W: WorkingTree + 'static> Query<W>
-where
-    W::Value: 'static,
-{
+impl<V: SafeValue + 'static> Query<V> {
     /// F方向のへ値をリニアに減少させる。
     /// 指定した距離で0になる。
     pub fn falloff_linear_f<Z: Into<u8>, P>(self, z: Z, radius: u32, _policy: P) -> Self
     where
-        P: MergePolicy<W::Value> + Send + Sync,
-        W::Value: Mul<Output = W::Value>
-            + Div<Output = W::Value>
-            + Sub<Output = W::Value>
-            + TryFrom<u32>
-            + Clone
-            + Send
-            + Sync,
-        <W::Value as TryFrom<u32>>::Error: Debug,
+        P: MergePolicy<V> + Send + Sync,
+        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
+        <V as TryFrom<u32>>::Error: Debug,
     {
         if matches!(self, Query::Error(_)) {
             return self;
@@ -39,15 +30,9 @@ where
     /// 指定した距離で0になる。
     pub fn falloff_linear_x<Z: Into<u8>, P>(self, z: Z, radius: u32, _policy: P) -> Self
     where
-        P: MergePolicy<W::Value> + Send + Sync,
-        W::Value: Mul<Output = W::Value>
-            + Div<Output = W::Value>
-            + Sub<Output = W::Value>
-            + TryFrom<u32>
-            + Clone
-            + Send
-            + Sync,
-        <W::Value as TryFrom<u32>>::Error: Debug,
+        P: MergePolicy<V> + Send + Sync,
+        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
+        <V as TryFrom<u32>>::Error: Debug,
     {
         if matches!(self, Query::Error(_)) {
             return self;
@@ -62,15 +47,9 @@ where
     /// 指定した距離で0になる。
     pub fn falloff_linear_y<Z: Into<u8>, P>(self, z: Z, radius: u32, _policy: P) -> Self
     where
-        P: MergePolicy<W::Value> + Send + Sync,
-        W::Value: Mul<Output = W::Value>
-            + Div<Output = W::Value>
-            + Sub<Output = W::Value>
-            + TryFrom<u32>
-            + Clone
-            + Send
-            + Sync,
-        <W::Value as TryFrom<u32>>::Error: Debug,
+        P: MergePolicy<V> + Send + Sync,
+        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
+        <V as TryFrom<u32>>::Error: Debug,
     {
         if matches!(self, Query::Error(_)) {
             return self;

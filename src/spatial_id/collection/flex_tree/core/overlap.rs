@@ -223,7 +223,7 @@ where
         stack
     }
 
-    pub fn overlap_remove(&mut self, target: &FlexId) -> impl Iterator<Item = (FlexId, V)> {
+    pub fn overlap_remove(&mut self, target: &FlexId) -> Vec<(FlexId, V)> {
         let mut removed_items = Vec::new();
 
         // 走査と同じく、target が属する側のルートだけを掘る。
@@ -234,7 +234,7 @@ where
         };
         Self::prune_node_mut(root, target, root_id, &mut removed_items, &self.empty_leaf);
 
-        removed_items.into_iter()
+        removed_items
     }
 
     /// `current_id` が指す部分木から target と重なる葉を取り除く。
@@ -485,7 +485,7 @@ mod tests {
                 .flat_map(|t| flex_id_cells(&t, z))
                 .collect();
 
-            let removed: Vec<(FlexId, u32)> = tree.remove(target.clone()).collect();
+            let removed: Vec<(FlexId, u32)> = tree.remove(target.clone());
             let removed_cells: BTreeSet<SingleId> = removed
                 .iter()
                 .flat_map(|(id, _)| flex_id_cells(id, z))
@@ -587,7 +587,7 @@ mod tests {
         ) {
             let mut tree = build_set(&inserts);
             for t in &targets {
-                let _ = tree.remove(t.clone()).count();
+                tree.remove(t.clone());
                 tree.assert_canonical();
             }
         }

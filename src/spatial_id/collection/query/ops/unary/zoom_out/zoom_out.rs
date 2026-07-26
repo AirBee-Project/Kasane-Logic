@@ -1,11 +1,10 @@
+use crate::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error, FlexId,
     spatial_id::{
-        collection::query::{
-            merge_policy::MergePolicy,
-            traits::{UnaryOperator, WorkingTree},
-        },
+        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
         zoom_level::ZoomLevel,
     },
 };
@@ -29,19 +28,16 @@ impl<V, P> ZoomOut<V, P> {
     }
 }
 
-impl<W, P> UnaryOperator<W> for ZoomOut<W::Value, P>
+impl<V: SafeValue + 'static, P> UnaryOperator<V> for ZoomOut<V, P>
 where
-    W: WorkingTree,
-    P: MergePolicy<W::Value>,
-    W::Value: 'static,
+    P: MergePolicy<V>,
 {
     fn as_any(&self) -> &dyn core::any::Any {
         self
     }
 
-    fn run(&self, core: &mut W) -> Result<(), Error> {
-        let mut leaves: Vec<(FlexId, W::Value)> =
-            core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
+    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Error> {
+        let mut leaves: Vec<(FlexId, V)> = core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
 
         #[cfg(feature = "rayon")]
         leaves.par_sort_unstable_by(|a, b| {

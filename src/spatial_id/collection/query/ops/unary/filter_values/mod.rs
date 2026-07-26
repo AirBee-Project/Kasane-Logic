@@ -4,8 +4,8 @@ mod test;
 
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
-    Error,
-    spatial_id::collection::query::traits::{UnaryOperator, WorkingTree},
+    Error, FlexTreeCore,
+    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::UnaryOperator},
 };
 
 use core::ops::Bound;
@@ -62,10 +62,9 @@ impl<V> FilterValues<V> {
     }
 }
 
-impl<W> UnaryOperator<W> for FilterValues<W::Value>
+impl<V> UnaryOperator<V> for FilterValues<V>
 where
-    W: WorkingTree,
-    W::Value: Ord + 'static,
+    V: SafeValue + Ord + 'static,
 {
     fn validate(&self) -> Result<(), Error> {
         let (start, end) = match &self.predicate {
@@ -94,14 +93,14 @@ where
         self
     }
 
-    fn run(&self, target: &mut W) -> Result<(), Error> {
-        *target = target.map_rebuild(|id, value| {
-            Ok(if self.predicate.matches(value) {
-                Some((id, value.clone()))
-            } else {
-                None
-            })
-        })?;
+    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
+        // 木を所有権ごと取り出して条件で絞り、組み直す。
+        // `FlexTreeCore: Default` があるので、空の木を作るために
+        // `FromIterator` を空イテレータで呼ぶ必要はない。
+        *target = core::mem::take(target)
+            .into_iter()
+            .filter(|(_id, value)| self.predicate.matches(value))
+            .collect();
         Ok(())
     }
 

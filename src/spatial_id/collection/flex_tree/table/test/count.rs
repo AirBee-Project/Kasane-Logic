@@ -2,7 +2,6 @@
 mod tests {
     use super::super::{TableEntry, build_table};
     use crate::{RangeId, SingleId};
-    use alloc::vec::Vec;
 
     fn assert_count_consistent(table: &crate::SpatialIdTable<i32>) {
         assert_eq!(table.count(), table.iter().count());
@@ -30,7 +29,7 @@ mod tests {
         ]);
 
         let remove_target = SingleId::new(4, 3, 2, 2).unwrap();
-        let _ = table.remove(&remove_target).collect::<Vec<_>>();
+        table.remove(&remove_target);
 
         assert_count_consistent(&table);
     }

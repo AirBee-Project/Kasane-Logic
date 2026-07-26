@@ -1,8 +1,8 @@
 use crate::{
-    Error,
-    spatial_id::collection::query::{
-        merge_policy::MergePolicy,
-        traits::{BinaryOperator, WorkingTree},
+    Error, FlexTreeCore,
+    spatial_id::collection::{
+        flex_tree::core::SafeValue,
+        query::{merge_policy::MergePolicy, traits::BinaryOperator},
     },
 };
 
@@ -21,12 +21,11 @@ impl<V, P> Merge<V, P> {
     }
 }
 
-impl<W, P> BinaryOperator<W> for Merge<W::Value, P>
+impl<V: SafeValue, P> BinaryOperator<V> for Merge<V, P>
 where
-    W: WorkingTree,
-    P: MergePolicy<W::Value>,
+    P: MergePolicy<V>,
 {
-    fn run(&self, target_a: &mut W, target_b: &W) -> Result<(), Error> {
+    fn run(&self, target_a: &mut FlexTreeCore<V>, target_b: &FlexTreeCore<V>) -> Result<(), Error> {
         if target_a.count() == 0 && target_b.count() == 0 {
             return Ok(());
         }

@@ -1,4 +1,5 @@
 pub mod ast_optimization;
+pub mod lazy_get;
 pub mod proptest_query;
 
 use crate::{SingleId, Source, SpatialIdTable};
@@ -20,7 +21,7 @@ fn run_matches_raw_run() {
             2,
             crate::spatial_id::collection::query::merge_policy::Sum,
         )
-        .run()
+        .run_table()
         .unwrap();
 
     let mut raw_table = SpatialIdTable::new();
@@ -35,7 +36,7 @@ fn run_matches_raw_run() {
             2,
             crate::spatial_id::collection::query::merge_policy::Sum,
         )
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     assert_eq!(
@@ -50,7 +51,7 @@ fn run_matches_raw_run() {
 fn run_surfaces_validation_error() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
     // zoom 100 は範囲外なので shift_x の構築時点で Query::Error になる。
-    let result: Result<SpatialIdTable<i32>, _> = table.query().shift_x(100, 3).run();
+    let result = table.query().shift_x(100, 3).run_table();
     assert!(result.is_err());
 }
 
@@ -69,7 +70,7 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
             1,
             crate::spatial_id::collection::query::merge_policy::Max,
         )
-        .raw_run()
+        .raw_run_table()
         .unwrap();
 
     for (_, v) in out.flat_single_ids() {
@@ -100,7 +101,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 3,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run()
+            .raw_run_table()
             .unwrap()
     };
     let run_x = |t: SpatialIdTable<u32>| {
@@ -111,7 +112,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 7450100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run()
+            .raw_run_table()
             .unwrap()
     };
     let run_y = |t: SpatialIdTable<u32>| {
@@ -122,7 +123,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 3301100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run()
+            .raw_run_table()
             .unwrap()
     };
 

@@ -1,3 +1,5 @@
+use crate::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use core::convert::TryFrom;
 use core::fmt::Debug;
@@ -6,10 +8,7 @@ use core::ops::{Div, Mul, Sub};
 
 use crate::{
     Error, ZoomLevel,
-    spatial_id::collection::query::{
-        merge_policy::MergePolicy,
-        traits::{UnaryOperator, WorkingTree},
-    },
+    spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
 };
 
 pub struct FalloffLinearY<P> {
@@ -29,14 +28,11 @@ impl<P> FalloffLinearY<P> {
     }
 }
 
-impl<W, P> UnaryOperator<W> for FalloffLinearY<P>
+impl<V: SafeValue, P> UnaryOperator<V> for FalloffLinearY<P>
 where
-    W: WorkingTree + 'static,
-    W::Value:
-        Mul<Output = W::Value> + Div<Output = W::Value> + Sub<Output = W::Value> + TryFrom<u32>,
-    <W::Value as TryFrom<u32>>::Error: Debug,
-    P: MergePolicy<W::Value> + Send + Sync + 'static,
-    W::Value: 'static,
+    V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
+    <V as TryFrom<u32>>::Error: Debug,
+    P: MergePolicy<V> + Send + Sync + 'static,
 {
     fn commutativity_info(&self) -> CommutativityInfo {
         CommutativityInfo::separable_with_policy::<P>(P::IS_COMMUTATIVE)
@@ -49,7 +45,7 @@ where
         (self.radius * 2 + 1) as f32
     }
 
-    fn run(&self, target: &mut W) -> Result<(), Error> {
+    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
         if self.radius == 0 {
             return Ok(());
         }
@@ -59,7 +55,7 @@ where
         // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
         *target = target.map_rebuild_with(
             |id, value| id.falloff_linear_y(z, radius, value),
-            |a: &W::Value, b: &W::Value| P::resolve(a.clone(), b.clone()),
+            |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
         Ok(())
     }

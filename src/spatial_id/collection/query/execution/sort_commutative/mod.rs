@@ -1,11 +1,8 @@
 use super::Query;
-use crate::spatial_id::collection::query::traits::WorkingTree;
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use alloc::boxed::Box;
 
-impl<W: WorkingTree + 'static> Query<W>
-where
-    W::Value: 'static,
-{
+impl<V: SafeValue + 'static> Query<V> {
     /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
     pub fn sort_commutative_ops(self) -> Self {
         match self {

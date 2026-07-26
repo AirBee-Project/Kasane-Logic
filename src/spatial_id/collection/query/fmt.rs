@@ -1,9 +1,7 @@
-use crate::spatial_id::collection::query::{execution::Query, traits::WorkingTree};
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::execution::Query;
 
-impl<W: WorkingTree + 'static> core::fmt::Display for Query<W>
-where
-    W::Value: 'static,
-{
+impl<V: SafeValue + 'static> core::fmt::Display for Query<V> {
     /// [`Query`] の木構造を人間が読める形式で出力する。
     ///
     /// # 出力例（最適化前）
@@ -44,14 +42,11 @@ where
 /// [`Query`] を再帰的に整形して `fmt` へ書き出す。
 ///
 /// `indent` は現在の深さに対するインデント文字列（Binary の入れ子に使用）。
-fn fmt_query<W: WorkingTree + 'static>(
-    query: &Query<W>,
+fn fmt_query<V: SafeValue + 'static>(
+    query: &Query<V>,
     f: &mut core::fmt::Formatter<'_>,
     indent: &str,
-) -> core::fmt::Result
-where
-    W::Value: 'static,
-{
+) -> core::fmt::Result {
     match query {
         Query::Source(_) => write!(f, "{indent}Source"),
 
