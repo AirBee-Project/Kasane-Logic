@@ -3,15 +3,16 @@ use alloc::boxed::Box;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::execution::Query;
-use crate::{Error, FlexTreeCore, RangeId};
+use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::{Error, RangeId};
 
 /// クエリを実行するためのTrait。読み取りさえできればよい。
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<FlexTreeCore<Self::Value>, Error>;
+    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<Self::Value>, Error>;
 
-    fn read_all(self: Box<Self>) -> Result<FlexTreeCore<Self::Value>, Error>;
+    fn read_all(self: Box<Self>) -> Result<WorkingTree<Self::Value>, Error>;
 
     fn query(self) -> Query<Self::Value>
     where

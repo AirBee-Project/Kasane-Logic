@@ -1,3 +1,4 @@
+use crate::spatial_id::collection::query::working::WorkingTree;
 #[cfg(test)]
 mod test;
 
@@ -6,7 +7,7 @@ use alloc::boxed::Box;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
-use crate::{Error, FlexTreeCore, RangeId};
+use crate::{Error, RangeId};
 
 /// 部分クエリ `inner` の結果の値を `f` で写し、別の値型の作業木として読み出す入力源。
 pub struct MapValues<V: SafeValue + 'static, U, F> {
@@ -38,7 +39,7 @@ where
 {
     type Value = U;
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<FlexTreeCore<U>, Error> {
+    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<U>, Error> {
         Ok(self
             .inner
             .run_on_subset(bounds.to_vec())?
@@ -47,7 +48,7 @@ where
             .collect())
     }
 
-    fn read_all(self: Box<Self>) -> Result<FlexTreeCore<U>, Error> {
+    fn read_all(self: Box<Self>) -> Result<WorkingTree<U>, Error> {
         let this = *self;
         Ok(this
             .inner

@@ -1,8 +1,9 @@
 use super::traits::{BinaryOperator, UnaryOperator};
+use crate::Error;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::source::Source;
-use crate::{Error, FlexTreeCore};
+use crate::spatial_id::collection::query::working::WorkingTree;
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -56,8 +57,8 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 
     /// 最適化もなく[Query]を実行する。
-    pub fn raw_run(self) -> Result<FlexTreeCore<V>, Error> {
-        fn run_internal<V: SafeValue + 'static>(query: Query<V>) -> Result<FlexTreeCore<V>, Error> {
+    pub fn raw_run(self) -> Result<WorkingTree<V>, Error> {
+        fn run_internal<V: SafeValue + 'static>(query: Query<V>) -> Result<WorkingTree<V>, Error> {
             match query {
                 Query::Source(source) => source.read_all(),
                 Query::Unary(ops, input) => {
@@ -99,13 +100,13 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 
     /// AST最適化を適用してから実行する。
-    pub fn run(self) -> Result<FlexTreeCore<V>, Error> {
+    pub fn run(self) -> Result<WorkingTree<V>, Error> {
         self.validate()?;
         self.optimize().raw_run()
     }
 
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
-    pub fn run_on_subset(&self, bounds: Vec<crate::RangeId>) -> Result<FlexTreeCore<V>, Error> {
+    pub fn run_on_subset(&self, bounds: Vec<crate::RangeId>) -> Result<WorkingTree<V>, Error> {
         self.validate()?;
         self.run_on_subset_unchecked(bounds)
     }
@@ -114,7 +115,7 @@ impl<V: SafeValue + 'static> Query<V> {
     fn run_on_subset_unchecked(
         &self,
         bounds: Vec<crate::RangeId>,
-    ) -> Result<FlexTreeCore<V>, Error> {
+    ) -> Result<WorkingTree<V>, Error> {
         match self {
             Query::Source(s) => s.read_subset(&bounds),
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {

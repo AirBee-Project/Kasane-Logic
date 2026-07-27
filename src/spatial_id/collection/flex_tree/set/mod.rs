@@ -1,4 +1,5 @@
-use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::{FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 pub mod convert;
 pub mod impls;
@@ -19,10 +20,6 @@ pub mod tests;
 /// - 現在は時空間IDに非対応で、時間ID部分がWHOLEではないIDが挿入された場合に無条件にPanicする。(将来的に時間IDにも対応する予定。)
 /// - 空間ごとに値を持たせたい、値から空間を引きたい、または値の管理が必要な場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 pub struct SpatialIdSet {
     inner: FlexTreeCore<()>,
 }
@@ -195,22 +192,6 @@ impl SpatialIdSet {
 
     pub fn iter(&self) -> impl Iterator<Item = FlexId> {
         self.inner.iter().map(|(flex_id, _)| flex_id)
-    }
-
-    /// この [`SpatialIdSet`] を rkyv バイト列へ直列化する（`feature = "persist"`）。
-    #[cfg(feature = "persist")]
-    pub fn to_bytes(&self) -> Result<alloc::vec::Vec<u8>, rkyv::rancor::Error> {
-        Ok(rkyv::to_bytes::<rkyv::rancor::Error>(self)?.to_vec())
-    }
-
-    /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から復元する（`feature = "persist"`）。
-    ///
-    /// # Safety
-    /// `bytes` は [`SpatialIdSet::to_bytes`] が生成した正当なバイト列でなければならない。
-    #[cfg(feature = "persist")]
-    pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, rkyv::rancor::Error> {
-        let archived = unsafe { rkyv::access_unchecked::<ArchivedSpatialIdSet>(bytes) };
-        rkyv::deserialize::<Self, rkyv::rancor::Error>(archived)
     }
 }
 

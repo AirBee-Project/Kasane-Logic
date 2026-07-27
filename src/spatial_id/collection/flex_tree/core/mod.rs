@@ -15,37 +15,12 @@ mod overlap;
 mod parallel;
 pub(crate) mod ptr;
 pub mod shard;
+pub(crate) mod walk;
 use ptr::{MaybeSend, MaybeSendSync, MaybeSync, SharedNode};
 pub mod tests;
 
 /// 拡張空間IDとそれに紐づいたValueを保存するための型
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(serialize_bounds(
-        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
-        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(deserialize_bounds(
-        __D: rkyv::de::Pooling,
-        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(bytecheck(bounds(
-        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
-        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    )))
-)]
 pub struct FlexTreeCore<V>
 where
     V: SafeValue,
@@ -439,12 +414,103 @@ where
     }
 
     /// コレクション内のすべての値をインプレースで更新します。
+    ///
+    /// `core` が `pub(crate)` になり、本番経路の利用者が居なくなったためテスト専用。
+    /// 公開の等価物は [`SpatialIdTable::map_values_in_place`](crate::SpatialIdTable::map_values_in_place)。
+    #[cfg(test)]
     pub fn map_values_mut<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut V),
     {
         Node::map_values_mut(&mut self.lower_root, &mut f, &self.empty_leaf);
         Node::map_values_mut(&mut self.upper_root, &mut f, &self.empty_leaf);
+    }
+
+    /// `keep` が偽になる値の葉だけを取り除く。空間的な形は変えない。
+    ///
+    /// 木を平坦化して組み直す（`into_iter().collect()`）のではなく、**変化した経路だけを
+    /// 作り直す** copy-on-write で刈る。したがって
+    ///
+    /// - 述語を全て満たす部分木は**元の `Arc` をそのまま保つ**（構造共有が維持される）
+    /// - 中間の `Vec<(FlexId, V)>` を確保しない
+    /// - 木の再構築（葉ごとの `insert`）が起きない
+    ///
+    /// 刈った結果として左右の子が等価になった枝は
+    /// 内部で `collapse_equal_children` を呼んで畳み、正規形を保つ。
+    pub fn retain_values<F>(&mut self, keep: F)
+    where
+        F: Fn(&V) -> bool,
+    {
+        let empty = self.empty_leaf.clone();
+        if let Some(new_root) = Self::retain_node(&self.lower_root, &keep, &empty) {
+            self.lower_root = new_root;
+        }
+        if let Some(new_root) = Self::retain_node(&self.upper_root, &keep, &empty) {
+            self.upper_root = new_root;
+        }
+    }
+
+    /// [`retain_values`](Self::retain_values) の本体。
+    ///
+    /// 変化があれば新しい部分木を返し、無ければ `None` を返す。`None` のときは呼び出し側が
+    /// 元の `Arc` を保持し続けるので、触っていない部分木のクローンが発生しない。
+    fn retain_node<F>(
+        node: &SharedNode<Node<V>>,
+        keep: &F,
+        empty_leaf: &SharedNode<Node<V>>,
+    ) -> Option<SharedNode<Node<V>>>
+    where
+        F: Fn(&V) -> bool,
+    {
+        match &**node {
+            Node::Leaf { value: None } => None,
+            Node::Leaf { value: Some(v) } => {
+                if keep(v) {
+                    None
+                } else {
+                    Some(empty_leaf.clone())
+                }
+            }
+            Node::Branch {
+                level,
+                lower_child,
+                upper_child,
+                ..
+            } => {
+                let new_lower = Self::retain_node(lower_child, keep, empty_leaf);
+                let new_upper = Self::retain_node(upper_child, keep, empty_leaf);
+
+                // どちらの子も変化していなければ、この枝ごと共有を維持する。
+                if new_lower.is_none() && new_upper.is_none() {
+                    return None;
+                }
+
+                let lower = new_lower.unwrap_or_else(|| lower_child.clone());
+                let upper = new_upper.unwrap_or_else(|| upper_child.clone());
+
+                // 刈った結果、左右が等価化したならここで畳んで正規形を保つ
+                // （両子が空なら empty_leaf が返る）。
+                if let Some(rep) =
+                    Node::<V>::collapse_equal_children(&lower, &upper, *level, empty_leaf)
+                {
+                    return Some(rep);
+                }
+
+                let leaf_count = (lower.leaf_count() + upper.leaf_count()) as u32;
+                if leaf_count == 0 {
+                    return Some(empty_leaf.clone());
+                }
+
+                Some(SharedNode::new(Node::Branch {
+                    level: *level,
+                    leaf_count,
+                    max_zoom: Node::<V>::fold_max_zoom(*level, &lower, &upper),
+                    split_mask: Node::<V>::fold_split_mask(*level, &lower, &upper),
+                    lower_child: lower,
+                    upper_child: upper,
+                }))
+            }
+        }
     }
 
     ///クリアする
@@ -464,13 +530,7 @@ where
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
     /// 空の木では [`None`] を返します。
     ///
-    /// # 例
-    /// ```
-    /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, RangeId, SingleId};
-    /// let mut core = FlexTreeCore::new();
-    /// core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
-    /// assert_eq!(core.max_zoomlevel(), Some(4));
-    /// ```
+    /// 検証は `core_api_tests::max_zoomlevel_reports_the_finest_axis` を参照。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         if self.is_empty() {
             return None;
@@ -481,22 +541,8 @@ where
     }
 
     /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
-    /// # 例
-    /// ```
-    /// # use kasane_logic::{spatial_id::collection::flex_tree::core::FlexTreeCore, SingleId};
-    /// let mut core = FlexTreeCore::new();
-    /// core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
-    /// core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
     ///
-    /// let bbox = core.bounding_box().unwrap();
-    /// assert_eq!(bbox.z(), 20);
-    /// assert_eq!(bbox.f(), [0, 0]);
-    /// assert_eq!(bbox.x(), [0, 2]);
-    /// assert_eq!(bbox.y(), [0, 3]);
-    ///
-    /// let empty: FlexTreeCore<i32> = FlexTreeCore::new();
-    /// assert!(empty.bounding_box().is_none());
-    /// ```
+    /// 検証は `core_api_tests::bounding_box_covers_every_cell` を参照。
     pub fn bounding_box(&self) -> Option<RangeId> {
         let max_z = self.max_zoomlevel()?;
 
@@ -537,6 +583,7 @@ where
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。
+    #[cfg(test)]
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Vec::new().into_iter();
@@ -947,5 +994,39 @@ impl<V: SafeValue> FromIterator<(FlexId, V)> for FlexTreeCore<V> {
             core.insert(id, value);
         }
         core
+    }
+}
+
+/// `core` は `pub(crate)` なので doctest（クレート外から実行される）が書けない。
+/// もとの doctest 相当をここへ移した。
+#[cfg(test)]
+mod core_api_tests {
+    use super::FlexTreeCore;
+    use crate::{RangeId, SingleId};
+
+    #[test]
+    fn max_zoomlevel_reports_the_finest_axis() {
+        let mut core = FlexTreeCore::new();
+        core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
+        assert_eq!(core.max_zoomlevel(), Some(4));
+
+        let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+        assert_eq!(empty.max_zoomlevel(), None);
+    }
+
+    #[test]
+    fn bounding_box_covers_every_cell() {
+        let mut core = FlexTreeCore::new();
+        core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
+        core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
+
+        let bbox = core.bounding_box().unwrap();
+        assert_eq!(bbox.z(), 20);
+        assert_eq!(bbox.f(), [0, 0]);
+        assert_eq!(bbox.x(), [0, 2]);
+        assert_eq!(bbox.y(), [0, 3]);
+
+        let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+        assert!(empty.bounding_box().is_none());
     }
 }

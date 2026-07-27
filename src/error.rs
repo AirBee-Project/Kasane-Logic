@@ -24,6 +24,22 @@ pub enum Error {
     ///
     /// ディスク/ネットワーク越しの入力源が、自身の I/O 失敗をクエリ実行器へ伝えるために使う。
     SourceRead(String),
+
+    /// 永続化（直列化・復元）の失敗。
+    ///
+    /// 直列化ライブラリの都合を呼び出し側へ漏らさないため、文字列へ畳んで返す。
+    Persist(String),
+
+    /// 永続化バイト列の形式バージョンがこのビルドで扱えない。
+    ///
+    /// 形式を変更したら [`FORMAT_VERSION`](crate::FORMAT_VERSION) を上げる。
+    /// 古いバイト列を「誤って読む」代わりに、この明示的なエラーで停止する。
+    UnsupportedFormatVersion {
+        /// このビルドが期待するバージョン。
+        expected: u16,
+        /// バイト列に書かれていたバージョン。
+        found: u16,
+    },
 }
 
 /// Geometry 関連で発生するエラー。
@@ -110,6 +126,11 @@ impl fmt::Display for Error {
             Error::Unsupported(what) => write!(f, "unsupported operation: {what}"),
             Error::InvalidQueryParameter(what) => write!(f, "invalid query parameter: {what}"),
             Error::SourceRead(msg) => write!(f, "source read failed: {msg}"),
+            Error::Persist(msg) => write!(f, "persistence failed: {msg}"),
+            Error::UnsupportedFormatVersion { expected, found } => write!(
+                f,
+                "unsupported persisted format version: expected {expected}, found {found}"
+            ),
         }
     }
 }

@@ -2,149 +2,31 @@ use alloc::vec::Vec;
 
 use super::node::{Node, OverlappingChildren};
 use super::ptr::{SafeValue, SharedNode};
+use super::walk::{OverlapWalk, RangeOverlapWalk};
 use super::{FlexTreeCore, split_child_id};
 use crate::{FlexId, Side};
 
-/// target と重なる領域のみを参照付きで遅延探索するイテレータ。所有権を返す
-/// [`FlexTreeCore::overlap`] はこれを `map(clone)` して構築するため、枝刈り走査は
-/// ここ 1 か所に集約されている。
-pub struct OverlapIterRef<'a, V>
-where
-    V: SafeValue,
-{
-    target: FlexId,
-    stack: Vec<(&'a Node<V>, FlexId)>,
-}
-
-/// Branch を降りる際、target と交差しうる子だけを積む。
+/// `target`（単一セル）と交差する葉を参照付きで辿るイテレータ。
 ///
-/// 交差しない子は積む前に捨てるため、点クエリでは葉まで一直線に降りる。
-/// これにより、積んだ後に [`FlexId::intersection`] で捨て直す必要がなくなる。
-fn push_overlapping_children<'a, V>(
-    stack: &mut Vec<(&'a Node<V>, FlexId)>,
-    target: &FlexId,
-    level: u8,
-    lower_child: &'a SharedNode<Node<V>>,
-    upper_child: &'a SharedNode<Node<V>>,
-    current_id: &FlexId,
-) where
-    V: SafeValue,
-{
-    let axis = Node::<V>::axis(level);
-    let mut push = |side: Side, child: &'a SharedNode<Node<V>>| {
-        stack.push((child.as_ref(), split_child_id(current_id, axis, side)));
-    };
+/// 走査の本体は [`OverlapWalk`] にあり、ここは葉から値を取り出すだけ。
+pub type OverlapIterRef<'a, V> = core::iter::FilterMap<
+    OverlapWalk<&'a Node<V>>,
+    fn((FlexId, &'a Node<V>)) -> Option<(FlexId, &'a V)>,
+>;
 
-    match Node::<V>::overlapping_children(target, level) {
-        OverlappingChildren::Both => {
-            push(Side::Upper, upper_child);
-            push(Side::Lower, lower_child);
-        }
-        OverlappingChildren::Only(Side::Lower) => push(Side::Lower, lower_child),
-        OverlappingChildren::Only(Side::Upper) => push(Side::Upper, upper_child),
-    }
-}
+/// `target`（範囲）と交差する葉を参照付きで辿るイテレータ。
+pub type RangeOverlapIterRef<'a, V> = core::iter::FilterMap<
+    RangeOverlapWalk<&'a Node<V>>,
+    fn((FlexId, &'a Node<V>)) -> Option<(FlexId, &'a V)>,
+>;
 
-impl<'a, V> Iterator for OverlapIterRef<'a, V>
-where
-    V: SafeValue,
-{
-    type Item = (FlexId, &'a V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while let Some((node, current_id)) = self.stack.pop() {
-            match node {
-                Node::Branch {
-                    level,
-                    lower_child,
-                    upper_child,
-                    ..
-                } => push_overlapping_children(
-                    &mut self.stack,
-                    &self.target,
-                    *level,
-                    lower_child,
-                    upper_child,
-                    &current_id,
-                ),
-                // 交差する子しか積んでいないので、辿り着いた葉は必ず target と交差する。
-                Node::Leaf { value: Some(value) } => return Some((current_id, value)),
-                Node::Leaf { value: None } => {}
-            }
-        }
-        None
-    }
-}
-
-fn push_overlapping_children_range<'a, V>(
-    stack: &mut Vec<(&'a Node<V>, FlexId)>,
-    target: &crate::RangeId,
-    level: u8,
-    lower_child: &'a SharedNode<Node<V>>,
-    upper_child: &'a SharedNode<Node<V>>,
-    current_id: &FlexId,
-) where
-    V: SafeValue,
-{
-    let axis = Node::<V>::axis(level);
-    let mut push = |side: Side, child: &'a SharedNode<Node<V>>| {
-        stack.push((child.as_ref(), split_child_id(current_id, axis, side)));
-    };
-
-    match Node::<V>::overlapping_children_range(target, level) {
-        OverlappingChildren::Both => {
-            push(Side::Upper, upper_child);
-            push(Side::Lower, lower_child);
-        }
-        OverlappingChildren::Only(Side::Lower) => push(Side::Lower, lower_child),
-        OverlappingChildren::Only(Side::Upper) => push(Side::Upper, upper_child),
-    }
-}
-
-pub struct RangeOverlapIterRef<'a, V>
-where
-    V: SafeValue,
-{
-    roots: Vec<(&'a Node<V>, FlexId, crate::RangeId)>,
-    current_target: Option<crate::RangeId>,
-    stack: Vec<(&'a Node<V>, FlexId)>,
-}
-
-impl<'a, V> Iterator for RangeOverlapIterRef<'a, V>
-where
-    V: SafeValue,
-{
-    type Item = (FlexId, &'a V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            while let Some((node, current_id)) = self.stack.pop() {
-                let target = self.current_target.as_ref().unwrap();
-                match node {
-                    Node::Branch {
-                        level,
-                        lower_child,
-                        upper_child,
-                        ..
-                    } => push_overlapping_children_range(
-                        &mut self.stack,
-                        target,
-                        *level,
-                        lower_child,
-                        upper_child,
-                        &current_id,
-                    ),
-                    Node::Leaf { value: Some(value) } => return Some((current_id, value)),
-                    Node::Leaf { value: None } => {}
-                }
-            }
-            if let Some((root_node, root_id, root_target)) = self.roots.pop() {
-                self.current_target = Some(root_target);
-                self.stack.push((root_node, root_id));
-            } else {
-                return None;
-            }
-        }
+/// 葉のカーソルから値を取り出す。空葉は落とす。
+///
+/// 交差する子しか積まれないので、ここへ来た葉は必ず target と交差する。
+fn leaf_value<V: SafeValue>((id, node): (FlexId, &Node<V>)) -> Option<(FlexId, &V)> {
+    match node {
+        Node::Leaf { value: Some(v) } => Some((id, v)),
+        _ => None,
     }
 }
 
@@ -157,22 +39,14 @@ where
             .map(|(flex_id, value)| (flex_id, value.clone()))
     }
 
-    pub fn overlap_ref(&self, target: FlexId) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        OverlapIterRef {
-            stack: self.overlap_root_stack(&target),
-            target,
-        }
+    pub fn overlap_ref(&self, target: FlexId) -> OverlapIterRef<'_, V> {
+        let roots = self.overlap_root_stack(&target);
+        OverlapWalk::new(roots, target).filter_map(leaf_value as fn(_) -> _)
     }
 
-    pub fn range_overlap_ref(
-        &self,
-        target: &crate::RangeId,
-    ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        RangeOverlapIterRef {
-            roots: self.range_overlap_root_stack(target),
-            current_target: None,
-            stack: Vec::new(),
-        }
+    pub fn range_overlap_ref(&self, target: &crate::RangeId) -> RangeOverlapIterRef<'_, V> {
+        RangeOverlapWalk::new(self.range_overlap_root_stack(target))
+            .filter_map(leaf_value as fn(_) -> _)
     }
 
     /// 走査開始点として、target と交差しうるルートだけを ID 付きで収集する。

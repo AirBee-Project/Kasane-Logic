@@ -22,7 +22,7 @@ impl Extend<FlexId> for SpatialIdSet {
 ///
 /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`] のいずれの
 /// [`SpatialId`](crate::SpatialId) 型でも受け取れる。各要素を [`FlexId`] へ展開してから
-/// [`FlexTreeCore::par_build_vec`](crate::FlexTreeCore::par_build_vec) で並列構築する。
+/// `FlexTreeCore::par_build_vec`(crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec) で並列構築する。
 /// 集合なので結果は挿入順・チャンク境界に依らず一意（正規形）に定まる。
 ///
 /// ```
@@ -51,7 +51,9 @@ where
             .flat_map_iter(|s| s.into_iter().map(|f| (f, ())))
             .collect();
         Self {
-            inner: crate::FlexTreeCore::par_build_vec(items),
+            inner: crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec(
+                items,
+            ),
         }
     }
 }

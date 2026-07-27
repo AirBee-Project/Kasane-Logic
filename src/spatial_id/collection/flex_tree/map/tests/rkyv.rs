@@ -53,7 +53,7 @@ mod persist_tests {
         );
 
         let bytes = map.to_bytes().unwrap();
-        let archived = unsafe { ArchivedMap::access(&bytes) };
+        let archived = unsafe { ArchivedMap::access(&bytes) }.unwrap();
 
         let targets = [
             SingleId::new(5, 3, 4, 6).unwrap(),  // 上半分・ヒット
@@ -71,11 +71,11 @@ mod persist_tests {
                     map.get(&target).map(|(id, v)| (id, v.clone())).collect();
                 expected.sort();
 
-                let mut actual: Vec<(crate::FlexId, Vec<u8>)> = archived
-                    .get(&flex_target)
-                    .into_iter()
-                    .map(|(id, v)| (id, v.to_vec()))
-                    .collect();
+                // `get_indexed` は辞書インデックスで返すので `value_bytes` で復元する。
+                let mut actual: Vec<(crate::FlexId, Vec<u8>)> = Vec::new();
+                archived.get_indexed(&flex_target, |id, packed| {
+                    actual.push((id, archived.value_bytes(packed).to_vec()));
+                });
                 actual.sort();
 
                 assert_eq!(actual, expected, "target={target:?}");
@@ -106,7 +106,7 @@ mod persist_tests {
         expected.sort_by(|a, b| a.0.cmp(&b.0));
 
         let bytes = map.to_bytes().unwrap();
-        let arch = unsafe { ArchivedMap::access(&bytes) };
+        let arch = unsafe { ArchivedMap::access(&bytes) }.unwrap();
         let mut got: Vec<(crate::FlexId, Vec<u8>)> = arch
             .get_range(&target)
             .into_iter()
@@ -140,7 +140,7 @@ mod persist_tests {
             expected.sort();
 
             let bytes = map.to_bytes().unwrap();
-            let arch = unsafe { ArchivedMap::access(&bytes) };
+            let arch = unsafe { ArchivedMap::access(&bytes) }.unwrap();
             let mut got: Vec<crate::FlexId> = arch
                 .get_range(&target)
                 .into_iter()

@@ -9,32 +9,6 @@ pub(crate) const LEAF_LEVEL: u8 = 93;
 type ChildRefs<'a, V> = (&'a SharedNode<Node<V>>, &'a SharedNode<Node<V>>);
 
 #[derive(Debug, PartialEq, Clone, Eq)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(serialize_bounds(
-        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
-        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(deserialize_bounds(
-        __D: rkyv::de::Pooling,
-        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(bytecheck(bounds(
-        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
-        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    )))
-)]
 pub enum Node<V>
 where
     V: SafeValue,
@@ -48,9 +22,7 @@ where
         /// `collapse_equal_children` の畳み込みガード
         /// （「この軸をそれ以深で分割していないか」）を O(1) で判定するために持つ。
         split_mask: u8,
-        #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         lower_child: SharedNode<Node<V>>,
-        #[cfg_attr(feature = "persist", rkyv(omit_bounds))]
         upper_child: SharedNode<Node<V>>,
     },
     Leaf {
@@ -617,6 +589,7 @@ where
     /// 値の書き換えで隣接領域が同値になった場合は巻き戻しで畳み込む（[`mk`](Self::mk) と
     /// 同じ規則）ため、変換後も正規形を保つ。子が畳み込みで縮むと `leaf_count` /
     /// `max_zoom` も変わりうるため、全キャッシュを再計算する。
+    #[cfg(test)]
     pub(crate) fn map_values_mut<F>(
         node: &mut SharedNode<Node<V>>,
         f: &mut F,

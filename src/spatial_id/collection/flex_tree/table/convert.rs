@@ -21,7 +21,7 @@ where
 ///
 /// テーブルは値をランク（`usize`）へ内部符号化してから空間ツリーへ格納する。並列構築では
 /// (1) 出現値を並列に集めて重複排除・ソートしランクを決定的に割り当て、(2) 各セルを
-/// ランクへ写し、(3) ランクの木を [`FlexTreeCore::par_build_vec`](crate::FlexTreeCore::par_build_vec)
+/// ランクへ写し、(3) ランクの木を `FlexTreeCore::par_build_vec`(crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec)
 /// で並列構築する。
 ///
 /// 同じ空間へ異なる値が重なった場合の勝者は `union` の左優先で決まり、逐次 `insert` の
@@ -67,7 +67,8 @@ where
 
         // 4. ランクの木を並列構築。値インデックスは未構築（`insert` 後と同じ状態）。
         let mut table = Self::new();
-        table.inner = crate::FlexTreeCore::par_build_vec(rank_items);
+        table.inner =
+            crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec(rank_items);
         table.dictionary = dictionary;
         table.reverse_dictionary = reverse_dictionary;
         table.current_rank = current_rank;

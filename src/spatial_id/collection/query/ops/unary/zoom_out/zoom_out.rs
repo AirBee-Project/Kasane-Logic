@@ -1,6 +1,6 @@
-use crate::FlexTreeCore;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -36,8 +36,12 @@ where
         self
     }
 
-    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Error> {
-        let mut leaves: Vec<(FlexId, V)> = core.iter_ref().map(|(id, v)| (id, v.clone())).collect();
+    fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
+        let mut leaves: Vec<(FlexId, V)> = core
+            .core()
+            .iter_ref()
+            .map(|(id, v)| (id, v.clone()))
+            .collect();
 
         #[cfg(feature = "rayon")]
         leaves.par_sort_unstable_by(|a, b| {

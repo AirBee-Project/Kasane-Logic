@@ -1,9 +1,10 @@
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use alloc::vec::Vec;
 
 use super::node::Node;
 use super::ptr::{SafeValue, SharedNode};
 use super::split_child_id;
-use crate::{FlexId, FlexTreeCore, Side, SingleId};
+use crate::{FlexId, Side, SingleId};
 
 /// 葉ノードを参照のまま辿るイテレータ。所有権を持つ [`FlexTreeCore::iter`] は
 /// これを `map(clone)` して構築するため、走査ロジックはここ 1 か所に集約されている。

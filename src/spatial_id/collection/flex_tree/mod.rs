@@ -1,4 +1,4 @@
-pub mod core;
+pub(crate) mod core;
 #[cfg(feature = "json")]
 pub mod json;
 pub mod map;

@@ -1,6 +1,6 @@
-use crate::FlexTreeCore;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::working::WorkingTree;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -45,7 +45,7 @@ where
         (self.radius * 2 + 1) as f32
     }
 
-    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
+    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
         if self.radius == 0 {
             return Ok(());
         }
@@ -53,10 +53,11 @@ where
         let radius = self.radius;
 
         // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
-        *target = target.map_rebuild_with(
+        let rebuilt = target.core().map_rebuild_with(
             |id, value| id.falloff_linear_x(z, radius, value),
             |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
+        *target = WorkingTree::from_core(rebuilt);
         Ok(())
     }
 

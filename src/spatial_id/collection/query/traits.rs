@@ -1,7 +1,8 @@
 use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
-use crate::{Error, FlexTreeCore, RangeId};
+use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::{Error, RangeId};
 use alloc::vec::Vec;
 
 /// 二項演算子の定義。
@@ -12,7 +13,7 @@ pub trait BinaryOperator<V: SafeValue>: MaybeSendSync {
     }
 
     /// 作業木 `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
-    fn run(&self, target_a: &mut FlexTreeCore<V>, target_b: &FlexTreeCore<V>) -> Result<(), Error>;
+    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error>;
 
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
     /// 返り値は (target_a の必要領域, target_b の必要領域)。
@@ -30,7 +31,7 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
     fn validate(&self) -> Result<(), Error>;
 
     /// 実行する
-    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error>;
+    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error>;
 
     /// この演算子の可換性情報
     fn commutativity_info(&self) -> CommutativityInfo;

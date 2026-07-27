@@ -12,7 +12,6 @@ pub mod equal;
 pub mod insert;
 pub mod intersection;
 pub mod merge_probe;
-pub mod presist;
 pub mod sharded;
 pub mod union;
 

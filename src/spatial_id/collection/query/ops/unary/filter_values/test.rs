@@ -1,3 +1,4 @@
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use alloc::string::{String, ToString};
 
 use crate::{SingleId, Source, SpatialIdTable};
@@ -127,4 +128,71 @@ fn lazy_get_over_range_returns_all_cells() {
     got.sort();
 
     assert_eq!(got, alloc::vec![0, 1, 2, 3]);
+}
+
+/// 刈った結果が正規形を保つこと。
+///
+/// `retain_values` は自前で `collapse_equal_children` を呼んで畳み直すため、
+/// 「述語で消したあと左右の子が等価化した」ケースで正規形が崩れないことを固定する。
+#[test]
+fn filter_preserves_canonical_form() {
+    use crate::SingleId;
+
+    // 隣接4セルのうち2つを別値にして、フィルタで消すと残りが一様化する配置
+    let mut core: FlexTreeCore<i32> = FlexTreeCore::new();
+    for (x, y, v) in [(0, 0, 1), (1, 0, 1), (0, 1, 9), (1, 1, 9)] {
+        core.insert(SingleId::new(4, 0, x, y).unwrap(), v);
+    }
+    core.assert_canonical();
+
+    // 9 を消す → 残るのは (0,0) と (1,0) の値 1。
+    // この2つは隣接する同値の兄弟なので、正規形では1つの異方セルへ畳まれる
+    // （`count()` は葉=FlexId の数なので 2 ではなく 1 になる）。
+    core.retain_values(|v| *v != 9);
+    core.assert_canonical();
+    assert_eq!(core.count(), 1, "隣接同値が畳まれていない");
+
+    // 畳まれても覆っている空間は (0,0) と (1,0) の2セル分であること
+    let cells: alloc::vec::Vec<crate::SingleId> = core
+        .iter()
+        .flat_map(|(flex_id, _)| crate::RangeId::from(&flex_id).single_ids())
+        .collect();
+    let mut cells = cells;
+    cells.sort();
+    assert_eq!(
+        cells,
+        alloc::vec![
+            SingleId::new(4, 0, 0, 0).unwrap(),
+            SingleId::new(4, 0, 1, 0).unwrap()
+        ]
+    );
+
+    // 全消し → 空になっても正規形
+    core.retain_values(|_| false);
+    core.assert_canonical();
+    assert_eq!(core.count(), 0);
+    assert!(core.is_empty());
+}
+
+/// 一様な部分木を丸ごと残す場合、`Arc` が共有されたまま（クローンされない）こと。
+///
+/// これが崩れると「変化していない部分木を作り直さない」という COW の効き目が失われる。
+#[test]
+fn filter_keeps_untouched_subtree_shared() {
+    use crate::SingleId;
+
+    let mut core: FlexTreeCore<i32> = FlexTreeCore::new();
+    for x in 0..16u32 {
+        core.insert(SingleId::new(4, 0, x, 0).unwrap(), 1);
+    }
+    let before = core.clone();
+
+    // 全て述語を満たす → 木は一切変化しないはず
+    core.retain_values(|v| *v == 1);
+
+    assert!(
+        core.root_ptr_eq(&before),
+        "変化がないのに部分木が作り直されている（COW が効いていない）"
+    );
+    assert_eq!(core.count(), before.count());
 }

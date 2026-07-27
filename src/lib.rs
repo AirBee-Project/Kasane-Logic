@@ -82,9 +82,6 @@ pub use spatial_id::single_id::SingleId;
 pub use spatial_id::temporal_id::TemporalId;
 
 // spatial_id: collection types
-// `Source::Working` の具象型として公開APIに現れるため pub。
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::core::FlexTreeCore;
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
@@ -95,7 +92,7 @@ pub use spatial_id::collection::flex_tree::traits::CellValue;
 pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
 #[cfg(feature = "persist")]
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::persist::ArchivedMap;
+pub use spatial_id::collection::flex_tree::map::persist::{ArchivedMap, FORMAT_VERSION};
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
@@ -111,6 +108,8 @@ pub use spatial_id::zoom_level::ZoomLevel;
 
 // spatial_id: query & merge policies
 #[doc(inline)]
+pub use spatial_id::collection::flex_tree::core::SafeValue;
+#[doc(inline)]
 pub use spatial_id::collection::query::execution::Query;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy;
@@ -118,3 +117,5 @@ pub use spatial_id::collection::query::merge_policy;
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
 pub use spatial_id::collection::query::source::Source;
+#[doc(inline)]
+pub use spatial_id::collection::query::working::WorkingTree;

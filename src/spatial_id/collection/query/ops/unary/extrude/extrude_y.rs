@@ -1,6 +1,6 @@
-use crate::FlexTreeCore;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -43,11 +43,11 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut FlexTreeCore<V>) -> Result<(), Error> {
-        let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(core.count());
+    fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
+        let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(core.core().count());
 
         // 元のツリーから全セルを取り出し、それぞれを引き延ばす
-        for (id, v) in core.iter_ref() {
+        for (id, v) in core.core().iter_ref() {
             if let Ok(iter) = id.extrude_y(self.target_z.get(), self.start_y, self.end_y) {
                 for new_id in iter {
                     extruded.push((new_id, v.clone()));

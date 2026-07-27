@@ -1,10 +1,11 @@
+use crate::spatial_id::collection::query::working::WorkingTree;
 pub mod query;
 #[cfg(test)]
 mod test;
 
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
-    Error, FlexTreeCore,
+    Error,
     spatial_id::collection::{flex_tree::core::SafeValue, query::traits::UnaryOperator},
 };
 
@@ -93,14 +94,13 @@ where
         self
     }
 
-    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
-        // 木を所有権ごと取り出して条件で絞り、組み直す。
-        // `FlexTreeCore: Default` があるので、空の木を作るために
-        // `FromIterator` を空イテレータで呼ぶ必要はない。
-        *target = core::mem::take(target)
-            .into_iter()
-            .filter(|(_id, value)| self.predicate.matches(value))
-            .collect();
+    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
+        // この演算子はセルを取り除くだけで空間的な形を変えないので、木を平坦化して
+        // 組み直す必要はない。`retain_values` は変化した経路だけを copy-on-write で
+        // 作り直すため、条件を満たす部分木は `Arc` ごと保たれる。
+        target
+            .core_mut()
+            .retain_values(|value| self.predicate.matches(value));
         Ok(())
     }
 

@@ -1,6 +1,6 @@
-use crate::FlexTreeCore;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
 
 /// 作業木全体を高さ（F）方向へ、ズームレベル `z` のインデックス値 `f` 個分だけ平行移動する単項演算。
@@ -32,19 +32,20 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
         self
     }
 
-    fn run(&self, target: &mut FlexTreeCore<V>) -> Result<(), Error> {
+    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.f;
         if index == 0 {
             return Ok(());
         }
 
-        *target = target.map_rebuild(|id, value| {
+        let rebuilt = target.core().map_rebuild(|id, value| {
             let value = value.clone();
             Ok(id
                 .shift_f(z, index)?
                 .map(move |moved| (moved, value.clone())))
         })?;
+        *target = WorkingTree::from_core(rebuilt);
         Ok(())
     }
 

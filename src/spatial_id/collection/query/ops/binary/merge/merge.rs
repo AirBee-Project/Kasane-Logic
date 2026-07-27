@@ -1,5 +1,6 @@
+use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{
-    Error, FlexTreeCore,
+    Error,
     spatial_id::collection::{
         flex_tree::core::SafeValue,
         query::{merge_policy::MergePolicy, traits::BinaryOperator},
@@ -25,13 +26,16 @@ impl<V: SafeValue, P> BinaryOperator<V> for Merge<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn run(&self, target_a: &mut FlexTreeCore<V>, target_b: &FlexTreeCore<V>) -> Result<(), Error> {
-        if target_a.count() == 0 && target_b.count() == 0 {
+    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error> {
+        if target_a.core().count() == 0 && target_b.core().count() == 0 {
             return Ok(());
         }
-        *target_a = target_a.merge_with_default(target_b, &self.default, |a, b| {
-            P::resolve(a.clone(), b.clone())
-        });
+        let merged = target_a
+            .core()
+            .merge_with_default(target_b.core(), &self.default, |a, b| {
+                P::resolve(a.clone(), b.clone())
+            });
+        *target_a = WorkingTree::from_core(merged);
         Ok(())
     }
 

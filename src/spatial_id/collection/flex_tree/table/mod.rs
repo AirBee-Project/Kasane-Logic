@@ -1,3 +1,4 @@
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use alloc::vec::Vec;
 
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -5,39 +6,12 @@ use core::ops::RangeBounds;
 pub mod convert;
 #[cfg(feature = "json")]
 pub mod json;
-pub mod persist;
 pub mod test;
 
-use crate::{CellValue, FlexId, FlexTreeCore, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{CellValue, FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Clone, Debug)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-#[cfg_attr(feature = "persist", rkyv(archive_bounds(V: 'static)))]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(serialize_bounds(
-        __S: rkyv::ser::Writer + rkyv::ser::Allocator + rkyv::ser::Sharing,
-        <__S as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(deserialize_bounds(
-        __D: rkyv::de::Pooling,
-        <__D as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    ))
-)]
-#[cfg_attr(
-    feature = "persist",
-    rkyv(bytecheck(bounds(
-        __C: rkyv::validation::ArchiveContext + rkyv::validation::SharedContext,
-        <__C as rkyv::rancor::Fallible>::Error: rkyv::rancor::Source,
-    )))
-)]
 pub struct SpatialIdTable<V>
 where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,

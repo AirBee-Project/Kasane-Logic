@@ -1,10 +1,12 @@
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::source::Source;
-use crate::{Error, FlexId, FlexTreeCore, RangeId, SpatialIdSet, SpatialIdTable};
+use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::{Error, FlexId, RangeId, SpatialIdSet, SpatialIdTable};
 
 /// Table の出入口変換で、これ未満なら rayon を使わず逐次で組む閾値。
 /// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
@@ -24,7 +26,7 @@ impl<T: Ord + Clone + Send + Sync> CellValue for T {}
 impl Source for SpatialIdSet {
     type Value = ();
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<FlexTreeCore<()>, Error> {
+    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<()>, Error> {
         let mut cells: Vec<(FlexId, ())> = Vec::new();
         for b in bounds {
             for id in self.get_range(b) {
@@ -34,15 +36,16 @@ impl Source for SpatialIdSet {
         Ok(cells.into_iter().collect())
     }
 
-    fn read_all(self: Box<Self>) -> Result<FlexTreeCore<()>, Error> {
+    fn read_all(self: Box<Self>) -> Result<WorkingTree<()>, Error> {
         // 所有権ごと移し替えるだけ（クローンしない）。
-        Ok(SpatialIdSet::into_core(*self))
+        Ok(WorkingTree::from_core(SpatialIdSet::into_core(*self)))
     }
 }
 
-impl From<FlexTreeCore<()>> for SpatialIdSet {
-    fn from(working: FlexTreeCore<()>) -> Self {
-        SpatialIdSet::from_core(working)
+impl From<WorkingTree<()>> for SpatialIdSet {
+    /// 包み直すだけでコストはかからない。
+    fn from(working: WorkingTree<()>) -> Self {
+        SpatialIdSet::from_core(working.into_core())
     }
 }
 
@@ -52,7 +55,7 @@ where
 {
     type Value = V;
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<FlexTreeCore<V>, Error> {
+    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
         let mut cells: Vec<(FlexId, V)> = Vec::new();
         for b in bounds {
             for (id, value) in self.get_range(b) {
@@ -62,7 +65,7 @@ where
         Ok(cells.into_iter().collect())
     }
 
-    fn read_all(self: Box<Self>) -> Result<FlexTreeCore<V>, Error> {
+    fn read_all(self: Box<Self>) -> Result<WorkingTree<V>, Error> {
         // rank ツリーを辞書で実体値へ展開。Table のセルは互いに素なので union（par_build_vec）で正しい。
         #[cfg(feature = "rayon")]
         {
@@ -73,9 +76,9 @@ where
                 for (id, value) in items {
                     core.insert(id, value);
                 }
-                Ok(core)
+                Ok(WorkingTree::from_core(core))
             } else {
-                Ok(FlexTreeCore::par_build_vec(items))
+                Ok(WorkingTree::from_core(FlexTreeCore::par_build_vec(items)))
             }
         }
         #[cfg(not(feature = "rayon"))]
@@ -84,17 +87,18 @@ where
             for (id, value) in *self {
                 core.insert(id, value);
             }
-            Ok(core)
+            Ok(WorkingTree::from_core(core))
         }
     }
 }
 
-impl<V> From<FlexTreeCore<V>> for SpatialIdTable<V>
+impl<V> From<WorkingTree<V>> for SpatialIdTable<V>
 where
     V: CellValue + 'static,
 {
     /// 実体値の互いに素なセルを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
-    fn from(core: FlexTreeCore<V>) -> Self {
+    fn from(working: WorkingTree<V>) -> Self {
+        let core = working.into_core();
         #[cfg(feature = "rayon")]
         {
             let cells: Vec<(FlexId, V)> = core.into_iter().collect();

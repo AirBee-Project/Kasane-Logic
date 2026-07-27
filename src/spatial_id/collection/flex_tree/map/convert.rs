@@ -40,7 +40,7 @@ where
 
 /// `(FlexId, V)` 列から [`SpatialIdMap`] を並列に構築する（`feature = "rayon"`）。
 ///
-/// [`FlexTreeCore::par_build_vec`](crate::FlexTreeCore::par_build_vec) で並列構築する。
+/// `FlexTreeCore::par_build_vec`(crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec) で並列構築する。
 /// 同じ空間へ異なる値が重なった場合の解決は `union` と同じ左優先で、逐次 `insert` の
 /// 後勝ちとは一致しない（値が衝突しない使い方なら結果は一意）。
 #[cfg(feature = "rayon")]
@@ -55,7 +55,9 @@ where
         use rayon::iter::ParallelIterator;
         let items: alloc::vec::Vec<(FlexId, V)> = par_iter.into_par_iter().collect();
         Self {
-            inner: crate::FlexTreeCore::par_build_vec(items),
+            inner: crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec(
+                items,
+            ),
         }
     }
 }

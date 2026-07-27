@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod merge_with_tests {
-    use crate::FlexTreeCore;
+    use super::super::FlexTreeCore;
     use crate::{RangeId, SingleId};
     use alloc::collections::BTreeMap;
 

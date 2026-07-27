@@ -1,4 +1,5 @@
-use crate::{FlexId, FlexTreeCore, RangeId, SingleId, SpatialId};
+use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::{FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 
 pub mod convert;
