@@ -2,9 +2,9 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{Dimension, Error, FlexId, RangeId, Side, SingleId, SpatialId};
+use crate::{Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
-use node::Node;
+use node::{Axis, Node};
 use node_ops::MergeOp;
 pub use ptr::SafeValue;
 mod convert;
@@ -655,9 +655,6 @@ where
         I: IntoIterator<Item = FlexId>,
     {
         for flex_id in target.into_iter() {
-            if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
-                panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
-            }
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {
                 Some(region) => match flex_id.intersection(region) {
@@ -677,9 +674,6 @@ where
         R: Fn(&V, &V) -> V + MaybeSync,
     {
         for flex_id in target.into_iter() {
-            if cfg!(not(feature = "temporal_id")) && !flex_id.temporal().is_whole() {
-                panic!("TemporalIdはFlexTreeCoreに挿入できません。将来的に対応します。");
-            }
             // シャード初期化されている場合、領域外は無視し、はみ出しは切り詰める。
             let flex_id = match &self.shard {
                 Some(region) => match flex_id.intersection(region) {
@@ -902,7 +896,7 @@ where
     }
 }
 
-/// 空間ソートキーの1軸あたりビット数（F/X/Y の3軸で 3×20 = 60bit、u64 に収まる）。
+/// 空間ソートキーの1軸あたりビット数（F/X/Y/T の4軸で 4×20 = 80bit、u128 に収まる）。
 #[cfg(feature = "rayon")]
 const SORT_KEY_BITS: u32 = 20;
 
@@ -920,29 +914,33 @@ fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
     a & ((1u64 << bits) - 1)
 }
 
-/// [`FlexId`] の空間位置を単調なキーへ写す。F→X→Y の順にビットを詰め、木の降下順
-/// （レベル 0=F, 1=X, 2=Y, …）と整合する粗いクラスタリングを与える。厳密な木順ではなく
-/// 「空間的に近い ID を連続させる」ことが目的で、これによりチャンクが空間的に局所化し、
+/// [`FlexId`] の空間・時間位置を単調なキーへ写す。F→X→Y→T の順にビットを詰め、木の降下順
+/// （レベル 0=F, 1=X, 2=Y, 3=T, …）と整合する粗いクラスタリングを与える。厳密な木順ではなく
+/// 「近い ID を連続させる」ことが目的で、これによりチャンクが局所化し、
 /// チャンク木同士の [`union`](FlexTreeCore::union) / [`merge_with`](FlexTreeCore::merge_with) が
 /// 互いにほぼ素になって簡約が軽くなる。並列バルク構築と値解決構築の双方で使う。
+/// Tのインデックスは`u64`まで取りうるため、キー全体を`u128`に拡張している
+/// （4軸×20bit=80bitで、60bit版だった3軸時代の`u64`には収まらないため）。
 #[cfg(feature = "rayon")]
 #[inline]
-pub(crate) fn spatial_sort_key(id: &FlexId) -> u64 {
+pub(crate) fn spatial_sort_key(id: &FlexId) -> u128 {
     const B: u32 = SORT_KEY_BITS;
     // F は符号付き。木は最初に符号でルートを分けるため、符号ビットを最上位に置く。
     let f_biased = (id.f_index() as i64 + (1i64 << 30)) as u64;
-    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B);
-    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B);
-    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B);
-    (fa << (2 * B)) | (xa << B) | ya
+    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B) as u128;
+    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B) as u128;
+    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B) as u128;
+    let ta = axis_aligned(id.t_index(), id.t_zoomlevel(), B) as u128;
+    (fa << (3 * B)) | (xa << (2 * B)) | (ya << B) | ta
 }
 
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
-pub(crate) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
+pub(crate) fn split_child_id(current_id: &FlexId, axis: Axis, side: Side) -> FlexId {
     match axis {
-        Dimension::F => current_id.split_f(side).unwrap(),
-        Dimension::X => current_id.split_x(side).unwrap(),
-        Dimension::Y => current_id.split_y(side).unwrap(),
+        Axis::F => current_id.split_f(side).unwrap(),
+        Axis::X => current_id.split_x(side).unwrap(),
+        Axis::Y => current_id.split_y(side).unwrap(),
+        Axis::T => current_id.split_t(side).unwrap(),
     }
 }
 
@@ -1029,5 +1027,62 @@ mod core_api_tests {
 
         let empty: FlexTreeCore<i32> = FlexTreeCore::new();
         assert!(empty.bounding_box().is_none());
+    }
+
+    /// Tが本当にFlexTreeの第4軸として機能しているかを確認する（同一のF/X/Yで時間だけが
+    /// 異なる2つのFlexIdが、木の中で別々に区別・保持されること）。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn distinct_temporal_cells_stay_distinguishable() {
+        use crate::{FlexId, TemporalCell};
+
+        let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
+
+        let t0 = TemporalCell::new(2, 0).unwrap();
+        let t1 = TemporalCell::new(2, 1).unwrap();
+
+        let a = FlexId::new_with_temporal(3, 1, 3, 1, 3, 1, t0.clone()).unwrap();
+        let b = FlexId::new_with_temporal(3, 1, 3, 1, 3, 1, t1.clone()).unwrap();
+
+        core.insert([a.clone()], 10);
+        core.insert([b.clone()], 20);
+
+        assert_eq!(core.count(), 2);
+        core.assert_canonical();
+
+        let got: alloc::vec::Vec<_> = core.iter().collect();
+        assert!(got.contains(&(a, 10)));
+        assert!(got.contains(&(b, 20)));
+    }
+
+    /// `TemporalRange::into_cells()`で分解した生セルをそれぞれ挿入すると、元の時間区間
+    /// （の絶対秒区間）をちょうど覆う集合が木に格納されることを確認する。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn temporal_range_decomposition_round_trips_into_tree() {
+        use crate::spatial_id::traits::TemporalId as _;
+        use crate::{FlexId, Interval, TemporalRange};
+
+        let range = TemporalRange::new(Interval::Hour, [2, 2]).unwrap();
+        let cells: alloc::vec::Vec<_> = range.into_cells().collect();
+        assert!(!cells.is_empty());
+
+        let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
+        for cell in &cells {
+            let id = FlexId::new_with_temporal(0, 0, 0, 0, 0, 0, cell.clone()).unwrap();
+            core.insert([id], 1);
+        }
+
+        assert_eq!(core.count(), cells.len());
+        core.assert_canonical();
+
+        // 分解したセルの絶対秒区間を合算すると、元のTemporalRangeの秒区間と一致する。
+        let mut total_seconds = 0u64;
+        for cell in &cells {
+            let (start, end) = cell.seconds_range();
+            total_seconds += end - start;
+        }
+        let (range_start, range_end) = range.seconds_range();
+        assert_eq!(total_seconds, range_end - range_start);
     }
 }

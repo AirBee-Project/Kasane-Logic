@@ -79,7 +79,9 @@ pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
 #[doc(inline)]
-pub use spatial_id::temporal_id::TemporalId;
+pub use spatial_id::temporal_id::TemporalCell;
+#[doc(inline)]
+pub use spatial_id::temporal_id::TemporalRange;
 
 // spatial_id: collection types
 
@@ -104,6 +106,8 @@ pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 pub use spatial_id::helpers::{Dimension, Side};
 #[doc(inline)]
 pub use spatial_id::traits::SpatialId;
+#[doc(inline)]
+pub use spatial_id::traits::TemporalId;
 
 // spatial_id: zoom level
 #[doc(inline)]
@@ -122,7 +126,6 @@ pub use spatial_id::collection::query::merge_policy::MergePolicy;
 pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
 pub use spatial_id::collection::query::working::WorkingTree;
-
 
 // 時間IDに関連
 #[doc(inline)]

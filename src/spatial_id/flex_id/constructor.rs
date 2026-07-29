@@ -1,4 +1,4 @@
-use crate::{Error, FlexId, TemporalId, spatial_id::zoom_level::ZoomLevel};
+use crate::{Error, FlexId, TemporalCell, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
     pub fn new(
@@ -24,7 +24,7 @@ impl FlexId {
             x_index,
             y_zoomlevel: yz,
             y_index,
-            temporal_id: TemporalId::WHOLE,
+            temporal_id: TemporalCell::WHOLE,
         })
     }
 
@@ -59,7 +59,7 @@ impl FlexId {
             x_index,
             y_zoomlevel: unsafe { ZoomLevel::new_unchecked(y_zoomlevel) },
             y_index,
-            temporal_id: TemporalId::WHOLE,
+            temporal_id: TemporalCell::WHOLE,
         }
     }
 
@@ -83,7 +83,7 @@ impl FlexId {
         x_index: u32,
         y_zoomlevel: impl Into<u8>,
         y_index: u32,
-        temporal_id: TemporalId,
+        temporal_id: TemporalCell,
     ) -> Result<FlexId, Error> {
         let fz = ZoomLevel::new(f_zoomlevel.into())?;
         let xz = ZoomLevel::new(x_zoomlevel.into())?;
@@ -116,7 +116,7 @@ impl FlexId {
         x_index: u32,
         y_zoomlevel: u8,
         y_index: u32,
-        temporal_id: TemporalId,
+        temporal_id: TemporalCell,
     ) -> FlexId {
         debug_assert!(
             FlexId::new_with_temporal(

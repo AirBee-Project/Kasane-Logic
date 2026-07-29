@@ -52,19 +52,21 @@ fn deserialize_pair<T: Copy>(values: Vec<T>) -> Result<[T; 2], &'static str> {
 
 /// `z`/`f`/`x`/`y` と、あれば `i`/`t` から [`RangeId`] を組み立てる。
 ///
-/// `temporal_id` feature が無効なときは常に全時間（`WHOLE`）として扱う
-/// （[`TemporalId`](crate::TemporalId) 無効時スタブと同じ振る舞い）。
+/// `i` は時間単位の秒数（[`Interval`](crate::Interval)）、`t` はその単位でのインデックス範囲
+/// （`RangeId.f/x/y`と同じ「単位＋範囲」の形）。`temporal_id` feature が無効なときは常に
+/// 全時間（`WHOLE`）として扱う。
 fn build_range_id(
     z: u8,
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
-    temporal_pair: Option<(u64, u64)>,
+    temporal_pair: Option<(u64, [u64; 2])>,
 ) -> Result<RangeId, crate::Error> {
     match temporal_pair {
         #[cfg(feature = "temporal_id")]
         Some((i, t)) => {
-            let temporal = crate::TemporalId::new(i, t)?;
+            let interval = crate::Interval::new(i)?;
+            let temporal = crate::TemporalRange::new(interval, t)?;
             RangeId::new_with_temporal(z, f, x, y, temporal)
         }
         #[cfg(not(feature = "temporal_id"))]
@@ -91,8 +93,8 @@ impl Serialize for IdEntry {
         serialize_pair(&mut map, "x", self.range_id.x())?;
         serialize_pair(&mut map, "y", self.range_id.y())?;
         if !temporal.is_whole() {
-            map.serialize_entry("i", &temporal.i())?;
-            map.serialize_entry("t", &[temporal.t()])?;
+            map.serialize_entry("i", &temporal.interval().seconds())?;
+            serialize_pair(&mut map, "t", temporal.t())?;
         }
         if let Some(r) = self.r#ref {
             map.serialize_entry("ref", &r)?;
@@ -121,7 +123,7 @@ impl<'de> Deserialize<'de> for IdEntry {
                 let mut x: Option<[u32; 2]> = None;
                 let mut y: Option<[u32; 2]> = None;
                 let mut i: Option<u64> = None;
-                let mut t: Option<u64> = None;
+                let mut t: Option<[u64; 2]> = None;
                 let mut r#ref: Option<usize> = None;
 
                 while let Some(key) = map.next_key::<String>()? {
@@ -144,14 +146,9 @@ impl<'de> Deserialize<'de> for IdEntry {
                         }
                         "i" => i = Some(map.next_value()?),
                         "t" => {
-                            let pair =
-                                deserialize_pair(map.next_value()?).map_err(de::Error::custom)?;
-                            if pair[0] != pair[1] {
-                                panic!(
-                                    "range of temporal id is not currently supported in the reader"
-                                );
-                            }
-                            t = Some(pair[0]);
+                            t = Some(
+                                deserialize_pair(map.next_value()?).map_err(de::Error::custom)?,
+                            )
                         }
                         "ref" => r#ref = Some(map.next_value()?),
                         _ => {
@@ -166,7 +163,7 @@ impl<'de> Deserialize<'de> for IdEntry {
                 let f = f.unwrap_or([z_level.f_min(), z_level.f_max()]);
                 let x = x.unwrap_or([0, z_level.xy_max()]);
                 let y = y.unwrap_or([0, z_level.xy_max()]);
-                let temporal_pair = match (i, t) {
+                let temporal_pair: Option<(u64, [u64; 2])> = match (i, t) {
                     (Some(i), Some(t)) => Some((i, t)),
                     (None, None) => None,
                     _ => {
@@ -377,9 +374,9 @@ mod tests {
     #[test]
     fn round_trips_temporal_i_scalar_and_t_array() {
         use super::IdEntry;
-        use crate::{RangeId, TemporalId};
+        use crate::{Interval, RangeId, TemporalRange};
 
-        let temporal = TemporalId::new(3600, 5).unwrap();
+        let temporal = TemporalRange::new(Interval::Hour, [5, 5]).unwrap();
         let range_id = RangeId::new_with_temporal(20, [0, 0], [0, 0], [0, 0], temporal).unwrap();
         let entry = IdEntry {
             range_id: range_id.clone(),

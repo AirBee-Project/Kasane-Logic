@@ -1,4 +1,4 @@
-use crate::{RangeId, TemporalId, error::Error, spatial_id::zoom_level::ZoomLevel};
+use crate::{RangeId, TemporalRange, error::Error, spatial_id::zoom_level::ZoomLevel};
 
 impl RangeId {
     /// 指定された値から [`RangeId`] を構築します。
@@ -71,7 +71,7 @@ impl RangeId {
             f,
             x,
             y,
-            temporal_id: TemporalId::WHOLE,
+            temporal: TemporalRange::WHOLE,
         })
     }
 
@@ -109,7 +109,7 @@ impl RangeId {
             f,
             x,
             y,
-            temporal_id: TemporalId::WHOLE,
+            temporal: TemporalRange::WHOLE,
         }
     }
 
@@ -119,7 +119,7 @@ impl RangeId {
         f: [i32; 2],
         x: [u32; 2],
         y: [u32; 2],
-        temporal_id: TemporalId,
+        temporal: TemporalRange,
     ) -> Result<RangeId, Error> {
         let zoom = ZoomLevel::new(z.into())?;
         let mut f = f;
@@ -143,26 +143,26 @@ impl RangeId {
             f,
             x,
             y,
-            temporal_id,
+            temporal,
         })
     }
 
     /// # Safety
-    /// 呼び出し側は、`z` と各次元の配列が対応する有効範囲内であることに加え、`temporal_id` が有効な値であることを保証しなければなりません。
+    /// 呼び出し側は、`z` と各次元の配列が対応する有効範囲内であることに加え、`temporal` が有効な値であることを保証しなければなりません。
     #[cfg(feature = "temporal_id")]
     pub unsafe fn new_with_temporal_unchecked(
         z: u8,
         f: [i32; 2],
         x: [u32; 2],
         y: [u32; 2],
-        temporal_id: TemporalId,
+        temporal: TemporalRange,
     ) -> RangeId {
         RangeId {
             z: unsafe { ZoomLevel::new_unchecked(z) },
             f,
             x,
             y,
-            temporal_id,
+            temporal,
         }
     }
 }

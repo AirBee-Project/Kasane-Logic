@@ -43,7 +43,10 @@ impl From<&SingleId> for RangeId {
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
 
-            temporal_id: id.temporal().clone(),
+            #[cfg(feature = "temporal_id")]
+            temporal: crate::TemporalRange::from(id.temporal()),
+            #[cfg(not(feature = "temporal_id"))]
+            temporal: id.temporal().clone(),
         }
     }
 }
@@ -53,10 +56,17 @@ impl RangeId {
         let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
         let y_range = self.y[0]..=self.y[1];
-        let t_id = self.temporal_id.clone();
+
+        #[cfg(feature = "temporal_id")]
+        let t_list: Vec<crate::TemporalCell> = self.temporal.into_cells().collect();
+        #[cfg(not(feature = "temporal_id"))]
+        let t_id = self.temporal.clone();
 
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();
+            #[cfg(feature = "temporal_id")]
+            let t_list = t_list.clone();
+            #[cfg(not(feature = "temporal_id"))]
             let t_id = t_id.clone();
 
             let x_iter = if self.x[0] <= self.x[1] {
@@ -68,17 +78,23 @@ impl RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
+                #[cfg(feature = "temporal_id")]
+                let t_list = t_list.clone();
+                #[cfg(not(feature = "temporal_id"))]
                 let t_id = t_id.clone();
-                y_range.clone().map(move |y: u32| {
+
+                y_range.clone().flat_map(move |y: u32| {
                     #[cfg(feature = "temporal_id")]
                     {
-                        SingleId::new_with_temporal(z, f, x, y, t_id.clone()).unwrap()
+                        t_list.clone().into_iter().map(move |t_cell| {
+                            SingleId::new_with_temporal(z, f, x, y, t_cell).unwrap()
+                        })
                     }
 
                     #[cfg(not(feature = "temporal_id"))]
                     {
                         let _ = &t_id;
-                        SingleId::new(z, f, x, y).unwrap()
+                        core::iter::once(SingleId::new(z, f, x, y).unwrap())
                     }
                 })
             })
@@ -105,16 +121,57 @@ impl IntoIterator for RangeId {
         };
         let y_list: Vec<_> = split_xy(z, self.y).collect();
 
-        let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
-            let y_list_inner = y_list.clone();
-            x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
-                let y_list_inner = y_list_inner.clone();
-                y_list_inner.into_iter().map(move |(y_z, y_i)| unsafe {
-                    FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i)
+        #[cfg(feature = "temporal_id")]
+        {
+            let t_list: Vec<(u8, u64)> = self
+                .temporal
+                .into_cells()
+                .map(|c| (c.zoom(), c.index()))
+                .collect();
+
+            let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
+                let y_list_inner = y_list.clone();
+                let t_list_inner = t_list.clone();
+                x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
+                    let y_list_inner = y_list_inner.clone();
+                    let t_list_inner = t_list_inner.clone();
+                    y_list_inner
+                        .clone()
+                        .into_iter()
+                        .flat_map(move |(y_z, y_i)| {
+                            t_list_inner
+                                .clone()
+                                .into_iter()
+                                .map(move |(t_z, t_i)| unsafe {
+                                    FlexId::new_with_temporal_unchecked(
+                                        f_z,
+                                        f_i,
+                                        x_z,
+                                        x_i,
+                                        y_z,
+                                        y_i,
+                                        crate::TemporalCell::new_unchecked(t_z, t_i),
+                                    )
+                                })
+                        })
                 })
-            })
-        });
-        Box::new(iter)
+            });
+            Box::new(iter)
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
+                let y_list_inner = y_list.clone();
+                x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
+                    let y_list_inner = y_list_inner.clone();
+                    y_list_inner.into_iter().map(move |(y_z, y_i)| unsafe {
+                        FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i)
+                    })
+                })
+            });
+            Box::new(iter)
+        }
     }
 }
 

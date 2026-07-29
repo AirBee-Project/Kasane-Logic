@@ -4,7 +4,7 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalId,
+    SpatialId, SpatialIdError, TemporalRange,
     error::Error,
     spatial_id::{helpers, zoom_level::ZoomLevel},
 };
@@ -30,7 +30,7 @@ pub struct RangeId {
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
-    temporal_id: TemporalId,
+    temporal: TemporalRange,
 }
 
 impl RangeId {
@@ -189,7 +189,7 @@ impl RangeId {
             x,
             y,
 
-            temporal_id: self.temporal().clone(),
+            temporal: self.temporal().clone(),
         })
     }
 
@@ -274,7 +274,7 @@ impl RangeId {
             x,
             y,
 
-            temporal_id: self.temporal().clone(),
+            temporal: self.temporal().clone(),
         })
     }
 }

@@ -14,7 +14,7 @@ mod impls;
 ///
 /// | バリアント | 秒数 |
 /// |---|---|
-/// | [`Whole`](Self::Whole) | `2^64 ` |
+/// | [`Whole`](Self::Whole) | `2^62`（約1,460億年） |
 /// | [`Day`](Self::Day) | 86400 |
 /// | [`Hour`](Self::Hour) | 3600 |
 /// | [`Minute`](Self::Minute) | 60 |
@@ -26,7 +26,7 @@ mod impls;
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
 pub enum Interval {
-    /// 全時間（2^64 秒）
+    /// 全時間（`2^62`秒）
     Whole,
     /// 1日（86400 秒）
     Day,
@@ -40,22 +40,26 @@ pub enum Interval {
 
 #[cfg(feature = "temporal_id")]
 impl Interval {
-    /// このライブラリが扱える全時間の秒数。86400 × 2^47`（約3,850億年）。
-    pub const WHOLE_SECONDS: u64 = 86400 << 47;
+    /// このライブラリが扱える全時間の秒数。
+    ///
+    /// [`TZoomLevel::MAX`](crate::spatial_id::temporal_zoom_level::TZoomLevel::MAX)（生の2進セル表現が
+    /// 表現できる最深ズーム）に対応する `2^WHOLE_POW` と厳密に一致していなければならない。ここがずれると、
+    /// `TemporalCell::WHOLE`（生セル）と`Interval::Whole`（人間向けラベル）とで「全時間」が指す絶対秒区間が
+    /// 食い違い、`TemporalRange`⇄`TemporalCell`間の変換で`Whole`が正しく認識されなくなる。
+    pub const WHOLE_SECONDS: u64 = 1u64 << Self::WHOLE_POW;
 
-    /// 最も粗い時間区間を表す二進層の指数。
-    pub const WHOLE_POW: u8 = 47;
+    /// 最も粗い時間区間を表す二進層の指数。`TZoomLevel::MAX`と一致させること。
+    pub const WHOLE_POW: u8 = 62;
 
     /// 秒数から[Interval]型を作成する。
     ///
-    /// [Interval]に当てはまらない場合は [`SpatialIdError::TIntervalError`] を返す。
+    /// [Interval]に当てはまらない場合は [`SpatialIdError::TIntervalError`](crate::SpatialIdError::TIntervalError) を返す。
     ///
     /// # 例
     ///
     /// ```
     /// # use kasane_logic::Interval;
     /// assert_eq!(Interval::new(3600).unwrap(), Interval::Hour);
-    /// assert_eq!(Interval::new(86400 * 4).unwrap(), Interval::day_pow(2).unwrap());
     /// assert!(Interval::new(7200).is_err()); // 候補に無い
     /// ```
     pub fn new(seconds: u64) -> Result<Interval, Error> {

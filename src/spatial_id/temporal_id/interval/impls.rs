@@ -6,11 +6,11 @@ use crate::error::Error;
 impl Display for Interval {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Interval::Whole => write!(f,"{}",u64::MAX),
-            Interval::Day => write!(f,"{}",60*60*24),
-            Interval::Hour => write!(f,"{}",60*60),
-            Interval::Minute =>write!(f,"{}",60),
-            Interval::Second =>write!(f,"{}",1),
+            Interval::Whole => write!(f, "{}", u64::MAX),
+            Interval::Day => write!(f, "{}", 60 * 60 * 24),
+            Interval::Hour => write!(f, "{}", 60 * 60),
+            Interval::Minute => write!(f, "{}", 60),
+            Interval::Second => write!(f, "{}", 1),
         }
     }
 }
@@ -30,7 +30,6 @@ impl PartialOrd for Interval {
 impl TryFrom<u64> for Interval {
     type Error = Error;
 
-    #[allow(clippy::manual_is_multiple_of)]
     fn try_from(seconds: u64) -> Result<Self, Self::Error> {
         match seconds {
             Self::WHOLE_SECONDS => Ok(Interval::Whole),
@@ -38,7 +37,7 @@ impl TryFrom<u64> for Interval {
             3600 => Ok(Interval::Hour),
             60 => Ok(Interval::Minute),
             1 => Ok(Interval::Second),
-            _ => unreachable!(),
+            _ => Err(crate::SpatialIdError::TIntervalError { i: seconds }.into()),
         }
     }
 }

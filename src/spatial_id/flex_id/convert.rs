@@ -34,7 +34,7 @@ impl From<&FlexId> for RangeId {
                 [f_range[0] as i32, f_range[1] as i32],
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
-                flex_id.temporal().clone(),
+                crate::TemporalRange::from(flex_id.temporal()),
             )
             .unwrap()
         }

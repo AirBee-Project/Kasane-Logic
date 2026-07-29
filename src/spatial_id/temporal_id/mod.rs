@@ -1,14 +1,18 @@
 #[cfg(not(feature = "temporal_id"))]
 mod disabled;
 #[cfg(not(feature = "temporal_id"))]
-pub use disabled::TemporalId;
+pub use disabled::{TemporalCell, TemporalRange};
 
 #[cfg(feature = "temporal_id")]
-use crate::{Interval, error::Error};
+use crate::{Side, error::Error, spatial_id::temporal_zoom_level::TZoomLevel};
+
 #[cfg(feature = "temporal_id")]
 pub mod impls;
 
 pub mod interval;
+pub mod range;
+#[cfg(feature = "temporal_id")]
+pub use range::TemporalRange;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -16,100 +20,131 @@ pub mod interval;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-/// 時間IDの区間表現を表す型である。
-pub struct TemporalId {
-    /// 時間間隔。
-    i: Interval,
-    /// 時間インデックス。
-    t: u64,
+/// FlexTree内部が実際に木へ格納する、時間軸の生の2進セル表現。
+///
+/// 1セルは`2^(TZoomLevel::MAX - zoom)`秒（＝2の冪秒）の区間を表す。[`FlexId`](crate::FlexId)/
+/// [`SingleId`](crate::SingleId)（点）が保持する。人間に読みやすい表現は[`TemporalRange`]
+/// を参照。
+pub struct TemporalCell {
+    /// 時間軸のズームレベル。
+    zoom: TZoomLevel,
+    /// このズームレベルにおけるインデックス。
+    index: u64,
 }
 
 #[cfg(feature = "temporal_id")]
-impl TemporalId {
-    /// 指定された時間間隔と時間インデックスから新しい [`TemporalId`] を構築する。
-    ///
-    /// 与えられた `i` と `t` が有効な値であるかを検証し、
-    /// 検証に失敗した場合は [`Error`] を返す。
-    ///
-    /// # パラメーター
-    ///
-    /// * `i` — 時間間隔（秒単位）。[`Self::TEMPORAL_I`] に含まれる値である必要がある。
-    /// * `t` — 時間インデックス。
-    pub fn new<I:Into<u64>>(i: I, t: u64) -> Result<Self, Error> {
-        todo!()
-    }
+impl TemporalCell {
+    /// 全時間を表す定数（ズーム0・インデックス0、全期間`2^62`秒を1セルで覆う）。
+    pub const WHOLE: Self = TemporalCell {
+        zoom: TZoomLevel::MIN,
+        index: 0,
+    };
 
-    /// このインスタンスが全時間を表す特別な値（`WHOLE`）であるかを判定する。
-    ///
-    /// `WHOLE` は `i = u64::MAX, t = 0` で、時間の制限がない状態を表す。
-    ///
-    /// # 戻り値
-    ///
-    /// 全時間を表す場合は `true`、そうでない場合は `false` を返す。
-    ///
-    /// # 例
-    ///
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::TemporalId;
-    /// let whole = TemporalId::WHOLE;
-    /// assert!(whole.is_whole());
-    ///
-    /// let specific = TemporalId::new(3600, 5).unwrap();
-    /// assert!(!specific.is_whole());
-    /// # }
-    /// ```
+    /// このインスタンスが全時間を表す特別な値（[`WHOLE`](Self::WHOLE)）であるかを判定する。
     pub fn is_whole(&self) -> bool {
-        self.i ==Interval::Whole && self.t == 0
+        self.zoom.get() == 0 && self.index == 0
     }
 
-    /// この時間区間の終了時刻をUNIXタイムスタンプ（秒単位、排他的）で取得する。
-    ///
-    /// 戻り値は `i * (t + 1)` である（`u128` 型）。
-    /// この値は時間区間の次の秒を表す（排他的）。
-    /// `u64::MAX` を超える可能性があるため、戻り値は `u128` 型である。
-    ///
-    /// # 戻り値
-    ///
-    /// 時間区間の終了時刻の次の秒（UNIXタイムスタンプ、秒単位、排他的、`u128`型）。
-    ///
-    /// # 例
-    ///
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 10).unwrap();
-    /// assert_eq!(id.end_unixtime_exclusive(), 39600);
-    /// # }
-    /// ```
-    pub fn end_unixtime_exclusive(&self) -> u128 {
-        (self.i as u128) * ((self.t as u128) + 1)
+    /// 指定されたズームレベルとインデックスから新しい [`TemporalCell`] を構築する。
+    pub fn new(zoom: u8, index: u64) -> Result<Self, Error> {
+        let zoom = TZoomLevel::new(zoom)?;
+        zoom.check_index(index)?;
+        Ok(Self { zoom, index })
     }
 
-    /// 時間間隔 `i` を取得する。
-    pub fn i(&self) -> Interval {
-        self.i
+    /// 検証を行わずに [`TemporalCell`] を構築する。
+    ///
+    /// # Safety
+    /// 呼び出し側は `zoom <= TZoomLevel::MAX` かつ `index <= 2^zoom - 1` を保証しなければならない。
+    pub unsafe fn new_unchecked(zoom: u8, index: u64) -> Self {
+        Self {
+            zoom: unsafe { TZoomLevel::new_unchecked(zoom) },
+            index,
+        }
     }
 
-    /// 時間インデックス `t` を取得する。
-    ///
-    /// # 戻り値
-    ///
-    /// この [`TemporalId`] の時間インデックス。
-    ///
-    /// # 例
-    ///
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::TemporalId;
-    /// let id = TemporalId::new(3600, 5).unwrap();
-    /// assert_eq!(id.t(), 5);
-    /// # }
-    /// ```
-    pub fn t(&self) -> u64 {
-        self.t
+    /// 時間軸のズームレベルを取得する。
+    pub fn zoom(&self) -> u8 {
+        self.zoom.get()
+    }
+
+    /// このズームレベルにおけるインデックスを取得する。
+    pub fn index(&self) -> u64 {
+        self.index
+    }
+
+    /// この [`TemporalCell`] を2つに切り分ける。[`TZoomLevel::MAX`] なら [`None`]。
+    pub fn split(&self, side: Side) -> Option<Self> {
+        let zoom = self.zoom.deeper()?;
+        let index = self.index * 2 + side as u64;
+        Some(Self { zoom, index })
+    }
+
+    /// 2つの [`TemporalCell`] の重なっている区間（Intersection）を計算して返す。
+    /// 重なりがない場合は `None` を返す。
+    pub fn intersection(&self, other: &Self) -> Option<Self> {
+        let (deep, shallow) = if self.zoom.get() > other.zoom.get() {
+            (self, other)
+        } else {
+            (other, self)
+        };
+
+        let shift = deep.zoom.get() - shallow.zoom.get();
+
+        if (deep.index >> shift) == shallow.index {
+            Some(deep.clone())
+        } else {
+            None
+        }
+    }
+
+    /// 相手の [`TemporalCell`] との差集合（`self - other`）を計算し、イテレータとして返す。
+    pub fn difference(&self, other: &Self) -> impl Iterator<Item = Self> {
+        use alloc::vec::Vec;
+
+        let mut results = Vec::new();
+
+        let intersect = match self.intersection(other) {
+            Some(i) => i,
+            None => {
+                results.push(self.clone());
+                return results.into_iter();
+            }
+        };
+
+        if self == &intersect {
+            return results.into_iter();
+        }
+
+        let mut current = self.clone();
+
+        while current.zoom.get() < intersect.zoom.get() {
+            let lower = current.split(Side::Lower).unwrap();
+            let upper = current.split(Side::Upper).unwrap();
+            if lower.intersection(&intersect).is_some() {
+                results.push(upper);
+                current = lower;
+            } else {
+                results.push(lower);
+                current = upper;
+            }
+        }
+
+        results.into_iter()
+    }
+}
+
+#[cfg(feature = "temporal_id")]
+impl crate::spatial_id::traits::TemporalId for TemporalCell {
+    const WHOLE: Self = Self::WHOLE;
+
+    fn is_whole(&self) -> bool {
+        Self::is_whole(self)
+    }
+
+    fn seconds_range(&self) -> (u64, u64) {
+        let width = self.zoom.cell_seconds();
+        let start = self.index * width;
+        (start, start + width)
     }
 }

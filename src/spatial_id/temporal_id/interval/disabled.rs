@@ -11,11 +11,14 @@ pub enum Interval {
 }
 
 impl Interval {
-    /// このライブラリが扱える全時間の秒数。`86400 × 2^47`（約3,850億年）。
-    pub const WHOLE_SECONDS: u64 = 86400 << 47;
+    /// このライブラリが扱える全時間の秒数（`2^62`秒、約1,460億年）。
+    ///
+    /// 有効版の[`TZoomLevel::MAX`](crate::spatial_id::temporal_zoom_level::TZoomLevel::MAX)と
+    /// 一致させること（`TemporalCell::WHOLE`が表す絶対秒区間と一致させるため）。
+    pub const WHOLE_SECONDS: u64 = 1u64 << Self::WHOLE_POW;
 
     /// 最も粗い時間区間を表す二進層の指数。
-    pub const WHOLE_POW: u8 = 47;
+    pub const WHOLE_POW: u8 = 62;
 
     /// 秒数から [`Interval`] を作成する。
     ///
@@ -25,17 +28,6 @@ impl Interval {
             Ok(Interval::Whole)
         } else {
             Err(crate::SpatialIdError::TIntervalError { i: seconds }.into())
-        }
-    }
-
-    /// `Day·2^k` を作成する。
-    ///
-    /// `temporal_id` feature 無効時は `k == WHOLE_POW` のみ受け付ける。
-    pub fn day_pow(k: u8) -> Result<Interval, Error> {
-        if k == Self::WHOLE_POW {
-            Ok(Interval::Whole)
-        } else {
-            Err(crate::SpatialIdError::TIntervalError { i: k as u64 }.into())
         }
     }
 

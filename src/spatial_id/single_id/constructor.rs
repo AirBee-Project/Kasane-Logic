@@ -1,7 +1,7 @@
 use crate::SingleId;
 use crate::spatial_id::zoom_level::ZoomLevel;
 
-use crate::{TemporalId, error::Error};
+use crate::{TemporalCell, error::Error};
 
 impl SingleId {
     /// 指定された値から [`SingleId`] を作成する。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
@@ -53,7 +53,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalId::default(),
+            temporal_id: TemporalCell::WHOLE,
         })
     }
 
@@ -89,7 +89,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalId::default(),
+            temporal_id: TemporalCell::WHOLE,
         }
     }
 
@@ -100,7 +100,7 @@ impl SingleId {
     /// * `f` — Fインデックス（鉛直方向）
     /// * `x` — Xインデックス（東西方向）
     /// * `y` — Yインデックス（南北方向）
-    /// * `temporal_id` — [`TemporalId`]
+    /// * `temporal_id` — [`TemporalCell`]
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合、[`SpatialIdError::ZOutOfRange`](crate::SpatialIdError::ZOutOfRange) を返す。
@@ -112,12 +112,15 @@ impl SingleId {
     ///
     /// IDの作成:
     /// ```no_run
-    /// # use kasane_logic::{SingleId,TemporalId};
-    /// //時間IDの作成
-    /// let temporal_id = TemporalId::new(60, 1).unwrap();
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{SingleId,TemporalCell};
+    /// //時間IDの作成（ズーム5・インデックス3の生の2進セル）
+    /// let temporal_id = TemporalCell::new(5, 3).unwrap();
     ///
     /// let id = SingleId::new_with_temporal(5, 3, 2, 10,temporal_id).unwrap();
-    /// assert_eq!(id.to_string(), "5/3/2/10_60/1".to_string());
+    /// assert_eq!(id.to_string(), "5/3/2/10_5/3".to_string());
+    /// # }
     /// ```
     #[cfg(feature = "temporal_id")]
     pub fn new_with_temporal(
@@ -125,7 +128,7 @@ impl SingleId {
         f: i32,
         x: u32,
         y: u32,
-        temporal_id: TemporalId,
+        temporal_id: TemporalCell,
     ) -> Result<SingleId, Error> {
         let zoom = ZoomLevel::new(z)?;
         zoom.check_f(f)?;
@@ -155,9 +158,11 @@ impl SingleId {
     /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。
     ///
     /// ```
-    /// # use kasane_logic::{SingleId,TemporalId};
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{SingleId,TemporalCell};
     /// //時間IDの作成
-    /// let temporal_id = TemporalId::new(60, 1).unwrap();
+    /// let temporal_id = TemporalCell::new(5, 3).unwrap();
     ///
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { SingleId::new_with_temporal_unchecked(5, 3, 2, 10,temporal_id) };
@@ -166,6 +171,7 @@ impl SingleId {
     /// assert_eq!(id.f(), 3i32);
     /// assert_eq!(id.x(), 2u32);
     /// assert_eq!(id.y(), 10u32);
+    /// # }
     /// ```
     ///
     /// # Safety
@@ -176,7 +182,7 @@ impl SingleId {
         f: i32,
         x: u32,
         y: u32,
-        temporal_id: TemporalId,
+        temporal_id: TemporalCell,
     ) -> SingleId {
         SingleId {
             z: unsafe { ZoomLevel::new_unchecked(z) },

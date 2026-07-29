@@ -4,7 +4,7 @@ use alloc::string::ToString;
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
+    Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, TemporalCell, spatial_id::helpers,
 };
 use core::str::FromStr;
 
@@ -31,6 +31,8 @@ impl fmt::Display for FlexId {
 }
 
 impl SpatialId for FlexId {
+    type Temporal = TemporalCell;
+
     fn f_min(&self) -> i32 {
         ZoomLevel::new(self.f_zoomlevel.get()).unwrap().f_min()
     }
@@ -171,11 +173,11 @@ impl SpatialId for FlexId {
         out
     }
 
-    fn temporal(&self) -> &TemporalId {
+    fn temporal(&self) -> &TemporalCell {
         &self.temporal_id
     }
 
-    fn temporal_mut(&mut self) -> &mut TemporalId {
+    fn temporal_mut(&mut self) -> &mut TemporalCell {
         &mut self.temporal_id
     }
 }
@@ -227,8 +229,8 @@ impl FromStr for FlexId {
         #[cfg(feature = "temporal_id")]
         {
             let temporal_id = match temporal_text {
-                Some(text) => TemporalId::from_str(text)?,
-                None => TemporalId::WHOLE,
+                Some(text) => TemporalCell::from_str(text)?,
+                None => TemporalCell::WHOLE,
             };
             FlexId::new_with_temporal(
                 f_zoomlevel,

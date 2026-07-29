@@ -8,6 +8,7 @@ pub mod flex_id;
 pub mod helpers;
 pub mod range_id;
 pub mod temporal_id;
+pub mod temporal_zoom_level;
 
 #[cfg(test)]
 mod tests;

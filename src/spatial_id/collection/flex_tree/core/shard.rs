@@ -15,7 +15,7 @@ where
     /// シャード領域が未設定なら `None`を返す。
     pub(crate) fn split_shard(&self) -> Option<((FlexId, Self), (FlexId, Self))> {
         let region = self.shard()?.clone();
-        let level = region.f_zoomlevel() + region.x_zoomlevel() + region.y_zoomlevel();
+        let level = Self::region_level(&region);
         let axis = Node::<V>::axis(level);
         let lower = split_child_id(&region, axis, Side::Lower);
         let upper = split_child_id(&region, axis, Side::Upper);
@@ -23,6 +23,23 @@ where
             (lower.clone(), self.extract_region(lower)),
             (upper.clone(), self.extract_region(upper)),
         ))
+    }
+
+    /// シャード領域を表す `FlexId` が、木のルート（レベル0）から見て絶対的にどのレベルに
+    /// 位置するかを再構成する。
+    ///
+    /// F/X/Y/Tの各ズームレベルを単純に合計するだけでは求まらない点に注意が必要。
+    /// Tを含む4軸の巡回では、対象の時間ズームが浅い（典型的には常に全時間＝ズーム0）区間では
+    /// Tの番が来るたびに軸スキップ（[`Node::covers`]）で実際の分岐を作らずに素通りするため、
+    /// レベル番号自体はTの番の分だけ余計に消費される。そのため`insert_mut`と同じ「この軸を
+    /// 覆っている間はレベルを進める」というスキップ歩行を行い、覆っていない最初のレベルを
+    /// 実際の絶対レベルとして返す。
+    fn region_level(region: &FlexId) -> u8 {
+        let mut level: u8 = 0;
+        while Node::<V>::covers(region, level) {
+            level += 1;
+        }
+        level
     }
 
     pub(crate) fn extract_region(&self, region: FlexId) -> Self {

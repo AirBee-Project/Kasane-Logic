@@ -7,7 +7,7 @@ pub mod impls;
 pub mod ops;
 
 use crate::{
-    Error, Side, SpatialIdError, TemporalId,
+    Error, Side, SpatialIdError, TemporalCell,
     spatial_id::{
         range_id::convert::{split_f, split_xy},
         zoom_level::ZoomLevel,
@@ -27,7 +27,7 @@ pub struct FlexId {
     x_index: u32,
     y_zoomlevel: ZoomLevel,
     y_index: u32,
-    temporal_id: TemporalId,
+    temporal_id: TemporalCell,
 }
 
 impl FlexId {
@@ -38,7 +38,7 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: ZoomLevel::MIN,
         y_index: 0,
-        temporal_id: TemporalId::WHOLE,
+        temporal_id: TemporalCell::WHOLE,
     };
 
     pub const LOWER_MAX: FlexId = FlexId {
@@ -48,7 +48,7 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: ZoomLevel::MIN,
         y_index: 0,
-        temporal_id: TemporalId::WHOLE,
+        temporal_id: TemporalCell::WHOLE,
     };
 
     pub fn f_zoomlevel(&self) -> u8 {
@@ -60,6 +60,9 @@ impl FlexId {
     pub fn y_zoomlevel(&self) -> u8 {
         self.y_zoomlevel.get()
     }
+    pub fn t_zoomlevel(&self) -> u8 {
+        self.temporal_id.zoom()
+    }
     pub fn f_index(&self) -> i32 {
         self.f_index
     }
@@ -68,6 +71,9 @@ impl FlexId {
     }
     pub fn y_index(&self) -> u32 {
         self.y_index
+    }
+    pub fn t_index(&self) -> u64 {
+        self.temporal_id.index()
     }
 
     /// 指定したズームレベルでの空間的な親ID（包含する最小のFlexId）を返す。
@@ -415,6 +421,24 @@ impl FlexId {
             y_zoomlevel,
             y_index,
             temporal_id: self.temporal_id.clone(),
+        })
+    }
+
+    /// 時間軸で二つに切り分ける。[`crate::spatial_id::temporal_zoom_level::TZoomLevel::MAX`] なら
+    /// [`None`]。`temporal_id` feature 無効時は常に `None`（分割不能）。
+    ///
+    /// 再検証を省ける理由は [`split_f`](Self::split_f) と同じ。
+    pub fn split_t(&self, side: Side) -> Option<FlexId> {
+        let temporal_id = self.temporal_id.split(side)?;
+
+        Some(FlexId {
+            f_zoomlevel: self.f_zoomlevel,
+            f_index: self.f_index,
+            x_zoomlevel: self.x_zoomlevel,
+            x_index: self.x_index,
+            y_zoomlevel: self.y_zoomlevel,
+            y_index: self.y_index,
+            temporal_id,
         })
     }
 

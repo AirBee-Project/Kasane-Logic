@@ -1,102 +1,63 @@
 use alloc::string::ToString;
-use alloc::vec::Vec;
 
 use core::{fmt::Display, str::FromStr};
 
-use crate::{Interval, SpatialIdError, TemporalId, error::Error};
+use crate::{SpatialIdError, TemporalCell, error::Error};
 
-impl Display for TemporalId {
+impl Display for TemporalCell {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-       if self.i==Interval::Whole {
-           Ok(())
-       }else {
-            write!(f, "{}/", self.i)?;
-        write!(f, "{}", self.t)?;
-        Ok(())
-       }
+        write!(f, "{}/{}", self.zoom(), self.index())
     }
 }
 
-impl Default for TemporalId {
+impl Default for TemporalCell {
     fn default() -> Self {
-        Self{
-            i: Interval::Whole,
-            t: 0,
+        Self {
+            zoom: unsafe { crate::spatial_id::temporal_zoom_level::TZoomLevel::new_unchecked(0) },
+            index: 0,
         }
     }
 }
 
-/// 文字列表現から [`TemporalId`] を復元する。
+/// 文字列表現から [`TemporalCell`] を復元する。
 ///
-/// `"i/t"` 形式の文字列をパースして [`TemporalId`] を構築する。
-/// `i` は [`TemporalId::TEMPORAL_I`] に含まれる値である必要があり、
-/// `t` は任意の `u64` 値である。
+/// `"zoom/index"` 形式の文字列をパースして [`TemporalCell`] を構築する。
 ///
-/// # パラメーター
-///
-/// 入力文字列は `"i/t"` の形式である必要がある。
-/// - `i` — 時間間隔（10進数表記）
-/// - `t` — 時間インデックス（10進数表記）
-///
-/// # エラー
-///
-/// 以下の場合に [`Error`] を返す：
-/// - 区切り文字 `/` が見つからない
-/// - `i` または `t` が有効な `u64` に変換できない
-/// - [`TemporalId::new`] による検証に失敗した場合
-///
-/// # 例
-///
-/// 有効な文字列のパース:
 /// ```
 /// # #[cfg(feature = "temporal_id")]
 /// # {
-/// # use kasane_logic::TemporalId;
+/// # use kasane_logic::TemporalCell;
 /// # use core::str::FromStr;
-/// let id = TemporalId::new(3600, 5).unwrap();
-/// let parsed: TemporalId = "3600/5".parse().unwrap();
+/// let id = TemporalCell::new(5, 3).unwrap();
+/// let parsed: TemporalCell = "5/3".parse().unwrap();
 /// assert_eq!(id, parsed);
 /// # }
 /// ```
-///
-/// Display と FromStr の往復:
-/// ```
-/// # #[cfg(feature = "temporal_id")]
-/// # {
-/// # use kasane_logic::TemporalId;
-/// # use core::str::FromStr;
-/// let original = TemporalId::new(60, 120).unwrap();
-/// let string_repr = original.to_string();
-/// let parsed = TemporalId::from_str(&string_repr).unwrap();
-/// assert_eq!(original, parsed);
-/// # }
-/// ```
-impl FromStr for TemporalId {
+impl FromStr for TemporalCell {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parts: Vec<&str> = s.split('/').collect();
-        if parts.len() != 2 {
-            return Err(SpatialIdError::ParseSpatialIdFormat {
-                kind: "TemporalId",
-                input: s.to_string(),
-            }
-            .into());
-        }
+        let (zoom_text, index_text) =
+            s.split_once('/')
+                .ok_or_else(|| SpatialIdError::ParseSpatialIdFormat {
+                    kind: "TemporalCell",
+                    input: s.to_string(),
+                })?;
 
-        let i = parts[0]
-            .parse::<u64>()
+        let zoom = zoom_text
+            .parse::<u8>()
             .map_err(|_| SpatialIdError::ParseSpatialIdFormat {
-                kind: "TemporalId",
+                kind: "TemporalCell",
                 input: s.to_string(),
             })?;
 
-        let t = parts[1]
-            .parse::<u64>()
-            .map_err(|_| SpatialIdError::ParseSpatialIdFormat {
-                kind: "TemporalId",
-                input: s.to_string(),
-            })?;
+        let index =
+            index_text
+                .parse::<u64>()
+                .map_err(|_| SpatialIdError::ParseSpatialIdFormat {
+                    kind: "TemporalCell",
+                    input: s.to_string(),
+                })?;
 
-        TemporalId::new(i, t)
+        TemporalCell::new(zoom, index)
     }
 }

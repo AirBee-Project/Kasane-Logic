@@ -1,9 +1,29 @@
 use super::ptr::{SafeValue, SharedNode};
-use crate::{Dimension, FlexId, Side};
+use crate::{FlexId, Side};
 
-/// 葉ノードの仮想ツリーレベル（ズーム30相当）。木を降りる操作で「葉に達した」ことを表す
+/// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2進セル
+/// （最大ズーム`TZoomLevel::MAX`=62）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
+/// だけの規約で、他に意味は無い。`Dimension`（`crate::Dimension`）は物理座標計算など
+/// 空間限定のコードからも参照される公開APIなので、時間軸をここに混ぜ込まないよう、
+/// FlexTree内部専用のこの型を別途定義している。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Axis {
+    F,
+    X,
+    Y,
+    T,
+}
+
+/// 木が同時に分割する軸の数（F/X/Y/Tの4軸）。
+pub(crate) const NUM_AXES: u8 = 4;
+
+/// 葉ノードの仮想ツリーレベル。木を降りる操作で「葉に達した」ことを表す
 /// 番兵として使う。実在の Branch はこれ未満のレベルしか持たない。
-pub(crate) const LEAF_LEVEL: u8 = 93;
+///
+/// 経験則 `NUM_AXES * (最深軸の最大ズーム + 1)` に従う（3軸版で `3*(30+1)=93` と厳密に一致
+/// することを確認済み）。Tが最深（最大ズーム62）かつサイクル内で最後（位置3）なので
+/// `4*(62+1) = 252` を用いる。
+pub(crate) const LEAF_LEVEL: u8 = 252;
 
 /// Branch の両子（下・上）への参照ペア。
 type ChildRefs<'a, V> = (&'a SharedNode<Node<V>>, &'a SharedNode<Node<V>>);
@@ -56,14 +76,16 @@ where
     }
 
     /// このノードを `node_level`（自身の絶対ツリーレベル）に置いたときの、配下の値付き Leaf の
-    /// FlexId ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
+    /// 空間（F/X/Y）ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
     ///
-    /// ツリーレベル `L` の Leaf が持つ FlexId のズームは `max(f, x, y) = ceil(L / 3)` に等しい
-    /// （[`covers_all_axes`](Self::covers_all_axes) の式と整合）。値の無い Leaf は 0 を返す。
+    /// ツリーレベル `L` の Leaf が持つ空間ズームの上限は `ceil(L / NUM_AXES)` に等しい（Fが
+    /// サイクルの先頭＝位置0のため、[`covers_all_axes`](Self::covers_all_axes) の式のうち
+    /// 常に最大となる項と一致する）。値の無い Leaf は 0 を返す。Tのズームはここには含まない
+    /// （`max_zoomlevel()` は空間解像度のみを報告する既存の契約のため）。
     pub(crate) fn max_zoom_at(&self, node_level: u8) -> u8 {
         match self {
             Node::Branch { max_zoom, .. } => *max_zoom,
-            Node::Leaf { value: Some(_) } => node_level.div_ceil(3),
+            Node::Leaf { value: Some(_) } => node_level.div_ceil(NUM_AXES),
             Node::Leaf { value: None } => 0,
         }
     }
@@ -77,12 +99,13 @@ where
             .max(upper.max_zoom_at(child_level))
     }
 
-    /// 軸に対応する `split_mask` の1ビット（F=0b001 / X=0b010 / Y=0b100）。
-    pub(crate) fn axis_bit(axis: Dimension) -> u8 {
+    /// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
+    pub(crate) fn axis_bit(axis: Axis) -> u8 {
         match axis {
-            Dimension::F => 0b001,
-            Dimension::X => 0b010,
-            Dimension::Y => 0b100,
+            Axis::F => 0b0001,
+            Axis::X => 0b0010,
+            Axis::Y => 0b0100,
+            Axis::T => 0b1000,
         }
     }
 
@@ -148,27 +171,29 @@ where
         })
     }
 
-    /// level から対象とする軸(F, X, Y) を返す
-    pub fn axis(level: u8) -> Dimension {
-        match level % 3 {
-            0 => Dimension::F,
-            1 => Dimension::X,
-            2 => Dimension::Y,
+    /// level から対象とする軸(F, X, Y, T) を返す
+    pub(crate) fn axis(level: u8) -> Axis {
+        match level % NUM_AXES {
+            0 => Axis::F,
+            1 => Axis::X,
+            2 => Axis::Y,
+            3 => Axis::T,
             _ => unreachable!(),
         }
     }
 
     /// level から各軸の深度を返す
     pub fn depth(level: u8) -> u8 {
-        level / 3
+        level / NUM_AXES
     }
 
     /// FlexId の指定次元に対するズームレベルを返す
-    fn target_zoom(axis: Dimension, target: &FlexId) -> u8 {
+    fn target_zoom(axis: Axis, target: &FlexId) -> u8 {
         match axis {
-            Dimension::F => target.f_zoomlevel(),
-            Dimension::X => target.x_zoomlevel(),
-            Dimension::Y => target.y_zoomlevel(),
+            Axis::F => target.f_zoomlevel(),
+            Axis::X => target.x_zoomlevel(),
+            Axis::Y => target.y_zoomlevel(),
+            Axis::T => target.t_zoomlevel(),
         }
     }
 
@@ -191,6 +216,15 @@ where
         level: u8,
     ) -> OverlappingChildren {
         let axis = Self::axis(level);
+
+        // Tは RangeId 側が人間向け範囲（Interval + [min,max]）であり、F/X/Yのような
+        // 「共通ズームでの単純な整数範囲」として比較できない。安全側に倒して常に両方の
+        // 子を辿る（枝刈りはしないが正しさは保たれる。範囲クエリでの時間軸の枝刈りは
+        // 将来の最適化課題）。
+        if matches!(axis, Axis::T) {
+            return OverlappingChildren::Both;
+        }
+
         let depth = Self::depth(level);
         let target_z = target.z();
 
@@ -200,9 +234,10 @@ where
 
         let shift = target_z - 1 - depth;
         let (min_idx, max_idx) = match axis {
-            Dimension::F => (target.f()[0] as u32, target.f()[1] as u32),
-            Dimension::X => (target.x()[0], target.x()[1]),
-            Dimension::Y => (target.y()[0], target.y()[1]),
+            Axis::F => (target.f()[0] as u32, target.f()[1] as u32),
+            Axis::X => (target.x()[0], target.x()[1]),
+            Axis::Y => (target.y()[0], target.y()[1]),
+            Axis::T => unreachable!("Tは上でBothを返し済み"),
         };
 
         let min_path = min_idx >> shift;
@@ -221,22 +256,31 @@ where
 
     /// target が、この `level` が担当する**1軸**について現在の空間境界を完全に覆うか判定する。
     /// 全軸をまとめて見るのは [`covers_all_axes`](Self::covers_all_axes)。
-    fn covers(target: &FlexId, level: u8) -> bool {
+    ///
+    /// `shard.rs`がシャード領域から次に分割すべき軸・レベルを再構成する際にも使うため
+    /// `pub(crate)`にしている。
+    pub(crate) fn covers(target: &FlexId, level: u8) -> bool {
         let axis = Self::axis(level);
         let depth = Self::depth(level);
         Self::target_zoom(axis, target) <= depth
     }
 
-    /// target が現在の空間境界を**全軸（F/X/Y）**で完全に覆うか判定する。
+    /// target が現在の空間境界を**全軸（F/X/Y/T）**で完全に覆うか判定する。
     /// 1軸だけ見るのは [`covers`](Self::covers)。
+    ///
+    /// 各軸の位置 `p`（サイクル内0始まり、F=0/X=1/Y=2/T=3）について
+    /// `passed(level, p) = (level + (NUM_AXES - 1 - p)) / NUM_AXES` という一般式に従う
+    /// （3軸版の `div_ceil(level,3)`, `(level+1)/3`, `level/3` と厳密に整合することを検証済み）。
     pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
-        let passed_f = level.div_ceil(3);
-        let passed_x = (level + 1) / 3;
-        let passed_y = level / 3;
+        let passed_f = (level + 3) / NUM_AXES;
+        let passed_x = (level + 2) / NUM_AXES;
+        let passed_y = (level + 1) / NUM_AXES;
+        let passed_t = level / NUM_AXES;
 
         target.f_zoomlevel() <= passed_f
             && target.x_zoomlevel() <= passed_x
             && target.y_zoomlevel() <= passed_y
+            && target.t_zoomlevel() <= passed_t
     }
 
     /// 持続的データ構造に挿入します。
@@ -564,14 +608,18 @@ where
     }
 
     /// target の次元ごとのインデックスビットを取得し、Lower / Upper を判定する。
+    ///
+    /// Tのインデックスは`u64`（他軸は`u32`以下）のため、比較は`u64`へ揃えて行う
+    /// （F/Xは既存と同じビットパターンでゼロ拡張されるだけで意味は変わらない）。
     fn forking(target: &FlexId, level: u8) -> Side {
         let axis = Self::axis(level);
         let depth = Self::depth(level);
 
-        let (target_z, index) = match axis {
-            Dimension::F => (target.f_zoomlevel(), target.f_index() as u32),
-            Dimension::X => (target.x_zoomlevel(), target.x_index()),
-            Dimension::Y => (target.y_zoomlevel(), target.y_index()),
+        let (target_z, index): (u8, u64) = match axis {
+            Axis::F => (target.f_zoomlevel(), (target.f_index() as u32) as u64),
+            Axis::X => (target.x_zoomlevel(), target.x_index() as u64),
+            Axis::Y => (target.y_zoomlevel(), target.y_index() as u64),
+            Axis::T => (target.t_zoomlevel(), target.t_index()),
         };
 
         if depth >= target_z {

@@ -14,7 +14,7 @@ impl SingleId {
     /// # 動作コスト
     /// 空間的な分割回数は、`self` と `other` の重なりを解消するために必要なズーム差に比例する。
     /// 占有空間が一部でも重なっている場合はエラーになりません。
-    /// 時間的な差分は [`crate::TemporalId::difference`] の結果個数に比例する。
+    /// 時間的な差分は [`crate::TemporalCell::difference`] の結果個数に比例する。
     ///
     /// # 動作例
     ///
@@ -78,7 +78,7 @@ impl SingleId {
     ///
     /// 空間軸については、より深いズームレベル側の座標を浅い側に合わせて比較し、両者が同じ領域に属する場合に重なりあり
     /// `[self.x, self.y]` との交差判定が行われる。
-    /// 時間軸については [`crate::TemporalId::intersection`] を用いて重なりを求める。
+    /// 時間軸については [`crate::TemporalCell::intersection`] を用いて重なりを求める。
     /// 重なりがない場合は `None` を返す。
     ///
     /// # パラメーター
@@ -86,7 +86,7 @@ impl SingleId {
     ///
     /// # 動作コスト
     /// 各辺（F、X、Y）ごとに1次元での区間の重なりを計算し、全次元で重なりがあればその交差部分からなる空間ID（[SingleId]）を返す。
-    /// 時間軸の判定は [`crate::TemporalId::intersection`] の計算量に従う。
+    /// 時間軸の判定は [`crate::TemporalCell::intersection`] の計算量に従う。
     ///
     /// # 動作例
     ///
