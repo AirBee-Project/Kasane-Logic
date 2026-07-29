@@ -86,7 +86,7 @@ impl<'a> ArchivedSpatialIdMap<'a> {
     /// バイト列全体の構造検証は行わない。
     ///
     /// # Safety
-    /// `bytes` は [`SpatialIdMap::to_bytes`] が生成した正当なバイト列でなければならない。
+    /// `bytes` は [`crate::SpatialIdMap::to_bytes`] が生成した正当なバイト列でなければならない。
     pub unsafe fn access(bytes: &'a [u8]) -> Result<Self, Error> {
         let inner = unsafe { rkyv::access_unchecked::<ArchivedMapArena>(bytes) };
         check_version(inner.version.to_native())?;

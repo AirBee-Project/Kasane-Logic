@@ -109,6 +109,7 @@ where
     /// remove/difference/insert ループを、木マージ 1 本へ置き換えるための土台。
     ///
     /// シャードの扱いは [`union`](Self::union) と同じ。
+    #[allow(dead_code)]
     pub fn merge_with<R>(&self, other: &Self, resolve: R) -> Self
     where
         R: Fn(&V, &V) -> V + MaybeSync,

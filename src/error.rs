@@ -32,7 +32,7 @@ pub enum Error {
 
     /// 永続化バイト列の形式バージョンがこのビルドで扱えない。
     ///
-    /// 形式を変更したら [`FORMAT_VERSION`](crate::FORMAT_VERSION) を上げる。
+    /// 形式を変更したら `FORMAT_VERSION` を上げる。
     /// 古いバイト列を「誤って読む」代わりに、この明示的なエラーで停止する。
     UnsupportedFormatVersion {
         /// このビルドが期待するバージョン。

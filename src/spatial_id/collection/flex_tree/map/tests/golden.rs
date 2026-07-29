@@ -73,14 +73,28 @@ mod golden_tests {
     #[test]
     fn persisted_bytes_are_stable() {
         let bytes = sample().to_bytes().unwrap();
-        insta::assert_snapshot!(hex_dump(&bytes));
+        let suffix = if cfg!(feature = "temporal_id") {
+            "temporal"
+        } else {
+            "no_temporal"
+        };
+        insta::with_settings!({ snapshot_suffix => suffix }, {
+            insta::assert_snapshot!(hex_dump(&bytes));
+        });
     }
 
     /// バイト長も別途固定する（スナップショット差分より先に気付けるように）。
     #[test]
     fn persisted_byte_length_is_stable() {
         let bytes = sample().to_bytes().unwrap();
-        insta::assert_snapshot!(bytes.len());
+        let suffix = if cfg!(feature = "temporal_id") {
+            "temporal"
+        } else {
+            "no_temporal"
+        };
+        insta::with_settings!({ snapshot_suffix => suffix }, {
+            insta::assert_snapshot!(bytes.len());
+        });
     }
 
     /// 標本が往復できること（golden が「読めないバイト列」を固定してしまう事故を防ぐ）。

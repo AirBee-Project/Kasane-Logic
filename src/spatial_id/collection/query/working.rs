@@ -8,7 +8,7 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 /// クエリ実行中の中間状態。演算子はこの上で動く。
 ///
 /// クレート内部限定のラッパーですが、中身は [`SpatialIdMap`](crate::SpatialIdMap) と
-/// 同じ [`FlexTreeCore`] です。`shift`/`extrude`/`zoom_out`/`falloff`/`merge` などの演算子は、
+/// 同じ `FlexTreeCore` です。`shift`/`extrude`/`zoom_out`/`falloff`/`merge` などの演算子は、
 /// この作業木の上での集合演算（構造共有・COW・並列マージ）として実装されています。
 ///
 /// **内部構造は非公開**です。外から見えるのは

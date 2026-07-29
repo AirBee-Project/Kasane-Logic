@@ -1,6 +1,5 @@
 ---
 source: src/spatial_id/collection/flex_tree/map/tests/golden.rs
-assertion_line: 76
 expression: hex_dump(&bytes)
 ---
 0000  01 00 00 00 00 00 00 00 00 00 01 01 00 00 00 00 
