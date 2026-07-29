@@ -1,4 +1,4 @@
-//! ディスク形式（`PersistedMap` の rkyv バイト列）の golden テスト。
+//! ディスク形式（`MapArena` の rkyv バイト列）の golden テスト。
 //!
 //! # 何を守っているか
 //!
@@ -9,13 +9,13 @@
 //!    `..` を使うため、キャッシュ用フィールドを足しても**無警告で**無視される。
 //!    それが意図どおり（=バイト列不変）であることを機械的に確認できるのはこのテストだけ。
 //!
-//! 2. **`PersistedMap` / `PersistedNode` をうっかり変えたら落ちる**こと。
+//! 2. **`MapArena` / `ArenaNode` をうっかり変えたら落ちる**こと。
 //!    こちらはディスク形式そのものなので、変更するなら移行を計画しなければならない。
 //!
 //! # 落ちたときの判断
 //!
 //! - `FlexTreeCore` / `Node` にキャッシュを足しただけなら → **バグ**。意図せず永続化されている
-//! - `PersistedMap` / `PersistedNode` を変えたなら → **想定どおり**。形式バージョンを上げ、
+//! - `MapArena` / `ArenaNode` を変えたなら → **想定どおり**。形式バージョンを上げ、
 //!   移行方針を決めてからスナップショットを更新する
 //! - rkyv のバージョンを上げたなら → **想定どおり**。rkyv のレイアウトが変わった可能性がある。
 //!   既存データを読めるか確認してからスナップショットを更新する
@@ -29,7 +29,7 @@ mod golden_tests {
     use alloc::string::String;
     use alloc::vec::Vec;
 
-    /// `PersistedMap` の全フィールドを踏む標本。
+    /// `MapArena` の全フィールドを踏む標本。
     ///
     /// - `lower_root` / `upper_root`: f<0 と f>=0 の両半空間にセルを置く
     /// - `shard`: シャード領域を持たせる
@@ -73,14 +73,28 @@ mod golden_tests {
     #[test]
     fn persisted_bytes_are_stable() {
         let bytes = sample().to_bytes().unwrap();
-        insta::assert_snapshot!(hex_dump(&bytes));
+        let suffix = if cfg!(feature = "temporal_id") {
+            "temporal"
+        } else {
+            "no_temporal"
+        };
+        insta::with_settings!({ snapshot_suffix => suffix }, {
+            insta::assert_snapshot!(hex_dump(&bytes));
+        });
     }
 
     /// バイト長も別途固定する（スナップショット差分より先に気付けるように）。
     #[test]
     fn persisted_byte_length_is_stable() {
         let bytes = sample().to_bytes().unwrap();
-        insta::assert_snapshot!(bytes.len());
+        let suffix = if cfg!(feature = "temporal_id") {
+            "temporal"
+        } else {
+            "no_temporal"
+        };
+        insta::with_settings!({ snapshot_suffix => suffix }, {
+            insta::assert_snapshot!(bytes.len());
+        });
     }
 
     /// 標本が往復できること（golden が「読めないバイト列」を固定してしまう事故を防ぐ）。

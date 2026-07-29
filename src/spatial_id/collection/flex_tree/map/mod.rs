@@ -2,15 +2,24 @@ use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use crate::{FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 
+#[cfg(feature = "persist")]
+pub mod archived;
+#[cfg(feature = "persist")]
+pub mod arena;
 pub mod convert;
 #[cfg(feature = "json")]
 pub mod json;
-#[cfg(feature = "persist")]
-pub mod persist;
 pub mod shard;
 pub mod tests;
 
-/// 空間(FlexId)に値(V)を対応づけるマップ構造。
+/// 空間(FlexId)に値(V)を対応づける、可変な作業構造。
+///
+/// `Arc`/`Rc` ベースの永続木（`FlexTreeCore`）を包み、構造共有・COW・並列集合演算の恩恵を
+/// そのまま持つ。バイト列との変換や、それを再構築せず直接読む方法は次を参照（`persist` feature）：
+///
+/// - `to_bytes` / `from_bytes`：このバイト列表現との相互変換。
+/// - `ArchivedSpatialIdMap`：`to_bytes` が書いたバイト列を、
+///   この型へ再構築せず直接読む読み取り専用のゼロコピービュー。
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdMap<V>
 where

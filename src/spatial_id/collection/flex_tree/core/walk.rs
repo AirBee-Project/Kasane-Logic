@@ -3,7 +3,7 @@
 //! FlexTree の走査は2つの表現に対して行われる:
 //!
 //! - `Arc` ベースの作業木（[`Node`]）
-//! - 永続化バイト列の archived 表現（`ArchivedPersistedNode` + アリーナ）
+//! - 永続化バイト列の archived 表現（`ArchivedArenaNode` + アリーナ）
 //!
 //! 枝刈りの判定そのもの（[`Node::overlapping_children`] / [`Node::axis`] /
 //! [`split_child_id`]）は元から共有されていたが、**スタックを回す定型**が両側に

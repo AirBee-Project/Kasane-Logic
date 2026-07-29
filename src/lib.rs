@@ -92,7 +92,10 @@ pub use spatial_id::collection::flex_tree::traits::CellValue;
 pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
 #[cfg(feature = "persist")]
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::persist::{ArchivedMap, FORMAT_VERSION};
+pub use spatial_id::collection::flex_tree::map::archived::ArchivedSpatialIdMap;
+#[cfg(feature = "persist")]
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::map::arena::FORMAT_VERSION;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
