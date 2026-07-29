@@ -122,3 +122,8 @@ pub use spatial_id::collection::query::merge_policy::MergePolicy;
 pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
 pub use spatial_id::collection::query::working::WorkingTree;
+
+
+// 時間IDに関連
+#[doc(inline)]
+pub use spatial_id::temporal_id::interval::Interval;

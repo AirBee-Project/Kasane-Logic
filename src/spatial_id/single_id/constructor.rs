@@ -53,7 +53,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalId::WHOLE,
+            temporal_id: TemporalId::default(),
         })
     }
 
@@ -89,7 +89,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalId::WHOLE,
+            temporal_id: TemporalId::default(),
         }
     }
 

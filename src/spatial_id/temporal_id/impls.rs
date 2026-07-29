@@ -3,19 +3,26 @@ use alloc::vec::Vec;
 
 use core::{fmt::Display, str::FromStr};
 
-use crate::{SpatialIdError, TemporalId, error::Error};
+use crate::{Interval, SpatialIdError, TemporalId, error::Error};
 
 impl Display for TemporalId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}/", self.i)?;
+       if self.i==Interval::Whole {
+           Ok(())
+       }else {
+            write!(f, "{}/", self.i)?;
         write!(f, "{}", self.t)?;
         Ok(())
+       }
     }
 }
 
 impl Default for TemporalId {
     fn default() -> Self {
-        Self::WHOLE
+        Self{
+            i: Interval::Whole,
+            t: 0,
+        }
     }
 }
 

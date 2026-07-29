@@ -30,7 +30,7 @@ serde = { version = "1", default-features = false, features = ["alloc", "derive"
 serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
 
 [features]
-default = ["std", "rayon", "json"]
+default = ["std", "rayon", "json","temporal_id"]
 std = []
 rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
