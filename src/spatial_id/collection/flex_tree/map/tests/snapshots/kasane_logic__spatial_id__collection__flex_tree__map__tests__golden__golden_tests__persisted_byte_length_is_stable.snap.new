@@ -1,0 +1,6 @@
+---
+source: src/spatial_id/collection/flex_tree/map/tests/golden.rs
+assertion_line: 83
+expression: bytes.len()
+---
+400

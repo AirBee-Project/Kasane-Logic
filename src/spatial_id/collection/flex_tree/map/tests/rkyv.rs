@@ -1,7 +1,7 @@
 #[cfg(all(test, feature = "persist"))]
 mod persist_tests {
     use crate::SpatialIdMap;
-    use crate::spatial_id::collection::flex_tree::map::persist::ArchivedMap;
+    use crate::spatial_id::collection::flex_tree::map::archived::ArchivedSpatialIdMap;
     use crate::{RangeId, SingleId};
     use alloc::vec::Vec;
 
@@ -37,7 +37,7 @@ mod persist_tests {
         assert!(restored.is_empty());
     }
 
-    /// ZeroCopy 読み出し [`ArchivedMap::get`] が、インメモリの
+    /// ZeroCopy 読み出し [`ArchivedSpatialIdMap::get`] が、インメモリの
     /// [`SpatialIdMap::get`] と同じ結果を返すことを検証する。
     ///
     /// 上下ルートの選択と枝刈りを両方踏むよう、f の正負・ヒット・ミス・
@@ -53,7 +53,7 @@ mod persist_tests {
         );
 
         let bytes = map.to_bytes().unwrap();
-        let archived = unsafe { ArchivedMap::access(&bytes) }.unwrap();
+        let archived = unsafe { ArchivedSpatialIdMap::access(&bytes) }.unwrap();
 
         let targets = [
             SingleId::new(5, 3, 4, 6).unwrap(),  // 上半分・ヒット
@@ -83,7 +83,7 @@ mod persist_tests {
         }
     }
 
-    /// `ArchivedMap::get_range` が、範囲と交差する全セルを返すこと。
+    /// `ArchivedSpatialIdMap::get_range` が、範囲と交差する全セルを返すこと。
     ///
     /// 期待値は「全セルを走査して交差判定で絞ったもの」を真値として突き合わせる。
     #[test]
@@ -106,7 +106,7 @@ mod persist_tests {
         expected.sort_by(|a, b| a.0.cmp(&b.0));
 
         let bytes = map.to_bytes().unwrap();
-        let arch = unsafe { ArchivedMap::access(&bytes) }.unwrap();
+        let arch = unsafe { ArchivedSpatialIdMap::access(&bytes) }.unwrap();
         let mut got: Vec<(crate::FlexId, Vec<u8>)> = arch
             .get_range(&target)
             .into_iter()
@@ -140,7 +140,7 @@ mod persist_tests {
             expected.sort();
 
             let bytes = map.to_bytes().unwrap();
-            let arch = unsafe { ArchivedMap::access(&bytes) }.unwrap();
+            let arch = unsafe { ArchivedSpatialIdMap::access(&bytes) }.unwrap();
             let mut got: Vec<crate::FlexId> = arch
                 .get_range(&target)
                 .into_iter()
