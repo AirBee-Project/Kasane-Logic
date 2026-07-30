@@ -119,7 +119,7 @@ impl<'a> ArchivedSpatialIdMap<'a> {
             )
         };
 
-        for (current_id, leaf) in OverlapWalk::new(alloc::vec![root], target.clone()) {
+        for (current_id, leaf) in OverlapWalk::new(alloc::vec![root], *target) {
             if let Some(packed) = leaf.leaf_value()
                 && let Some(clipped) = current_id.intersection(target)
             {

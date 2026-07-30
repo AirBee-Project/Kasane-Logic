@@ -1,38 +1,22 @@
-use kasane_logic::SingleId;
+use kasane_logic::{
+    Source, SpatialIdTable,
+    merge_policy::{Average, Max},
+};
+use std::fs;
 
 fn main() {
-    #[cfg(feature = "temporal_id")]
-    temporal_demo();
+    let bldg_risk: SpatialIdTable<u32> =
+        serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
 
-    #[cfg(not(feature = "temporal_id"))]
-    println!(
-        "`temporal_id` feature が無効なため空間IDのみ: {}",
-        SingleId::new(12, 0, 3638, 1614).unwrap()
-    );
-}
+    let risk = bldg_risk
+        .query()
+        .zoom_out(22, Average)
+        .falloff_linear_x(25, 3, Max)
+        .falloff_linear_y(25, 3, Max)
+        .raw_run_table()
+        .unwrap();
 
-#[cfg(feature = "temporal_id")]
-fn temporal_demo() {
-    use kasane_logic::{RangeId, SpatialId, TemporalId};
+    let json_string = serde_json::to_string(&risk).unwrap();
 
-    // 仕様書 1.5.3 の Spatio-temporal ID `{z}/{f}/{x}/{y}_{i}/{t}`。
-    // 時間間隔は任意の秒数を指定できる（ここでは 1800 秒 = 30分）。
-    let single_id = SingleId::new(12, 0, 3638, 1614)
-        .unwrap()
-        .with_temporal(TemporalId::new(1800, 809712).unwrap());
-    println!("SingleId  = {single_id}");
-
-    // FlexTree のノードアドレス（FlexId）へは、2の冪秒のセルへ分解されて展開される。
-    let cells: Vec<_> = single_id.into_iter().collect();
-    println!("FlexId    = {} 個へ分解", cells.len());
-    for cell in &cells {
-        println!("            {cell}");
-    }
-
-    // RangeId も同じ TemporalId を無条件に持てる。
-    let range_id = RangeId::new(21, [10, 20], 10, 10)
-        .unwrap()
-        .with_temporal(TemporalId::new(60, [10, 20]).unwrap());
-    println!("RangeId   = {range_id}");
-    println!("temporal  = {}", range_id.temporal());
+    fs::write("output.json", json_string).unwrap();
 }

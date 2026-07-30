@@ -4,9 +4,9 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalId,
+    Interval, SpatialIdError,
     error::Error,
-    spatial_id::{helpers, zoom_level::ZoomLevel},
+    spatial_id::{helpers, time_cells, zoom_level::ZoomLevel},
 };
 
 /// RangeIdは空間IDの範囲表現を表す型です。
@@ -30,7 +30,8 @@ pub struct RangeId {
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
-    temporal: TemporalId,
+    i: Interval,
+    t: [u64; 2],
 }
 
 impl RangeId {
@@ -82,25 +83,126 @@ impl RangeId {
         self.y
     }
 
-    /// 時間 ID を設定した自身を返す（ビルダー形式）。
+    /// この `RangeId` の時間間隔 `{i}`（単位、秒数）を返します。
     ///
-    /// [`SingleId::with_temporal`](crate::SingleId::with_temporal)と同じく、どの[`TemporalId`]も
-    /// 無条件に受け取る。FlexTreeが必要とする2の冪秒のセルへの分解は、木へ挿入する段階
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, RangeId};
+    /// let id = RangeId::new(4, [-3, 6], [8, 9], [5, 10]).unwrap()
+    ///     .with_time(Interval::HOUR, [5, 8]).unwrap();
+    /// assert_eq!(id.interval(), Interval::HOUR);
+    /// assert_eq!(id.t(), [5, 8]);
+    /// # }
+    /// ```
+    pub fn interval(&self) -> Interval {
+        self.i
+    }
+
+    /// この `RangeId` の時間インデックス範囲 `[min, max]`（両端含む）を返します。
+    pub fn t(&self) -> [u64; 2] {
+        self.t
+    }
+
+    /// この `RangeId` が占める絶対秒区間 `[start, end)` を返します（1970-01-01 00:00 UTC 起点）。
+    pub fn seconds_range(&self) -> (u64, u64) {
+        let unit = self.i.seconds();
+        (self.t[0] * unit, (self.t[1] + 1) * unit)
+    }
+
+    /// 時間を設定した自身を返します（ビルダー形式）。
+    ///
+    /// [`SingleId::with_time`](crate::SingleId::with_time)が単一セルしか受け取らないのに対し、
+    /// こちらは空間と同じく**範囲**を受け取る。`t` は `[min, max]` の `[u64; 2]`、または
+    /// 両端が等しい単一の `u64` のどちらでも渡せる（f/x/y 引数と同じ考え方）。
+    ///
+    /// FlexTreeが必要とする2の冪秒のセルへの分解は、木へ挿入する段階
     /// （[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で自動的に行われる。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{Interval, RangeId, TemporalId};
-    /// let id = RangeId::new(4, [-3, 6], [8, 9], [5, 10])
-    ///     .unwrap()
-    ///     .with_temporal(TemporalId::new(Interval::HOUR, [5, 8]).unwrap());
+    /// # use kasane_logic::{Interval, RangeId};
+    /// let id = RangeId::new(4, [-3, 6], [8, 9], [5, 10]).unwrap()
+    ///     .with_time(Interval::HOUR, [5, 8]).unwrap();
     /// assert_eq!(id.to_string(), "4/-3:6/8:9/5:10_3600/5:8");
+    ///
+    /// // 単一の時刻も渡せる。
+    /// let single = RangeId::new(4, [-3, 6], [8, 9], [5, 10]).unwrap()
+    ///     .with_time(Interval::HOUR, 5).unwrap();
+    /// assert_eq!(single.to_string(), "4/-3:6/8:9/5:10_3600/5");
     /// # }
     /// ```
-    pub fn with_temporal(mut self, temporal: TemporalId) -> Self {
-        self.temporal = temporal;
-        self
+    pub fn with_time(
+        mut self,
+        interval: impl Into<i64>,
+        t: impl helpers::IntoRange<u64>,
+    ) -> Result<Self, Error> {
+        let mut t = t.into_range();
+        if t[0] > t[1] {
+            t.swap(0, 1);
+        }
+
+        let interval = Interval::from_signed_seconds(interval.into())?;
+        let unit = interval.seconds();
+        let end_exclusive = t[1]
+            .checked_add(1)
+            .and_then(|v| v.checked_mul(unit))
+            .ok_or(SpatialIdError::TOutOfRange { i: unit, t: t[1] })?;
+
+        if end_exclusive > Interval::WHOLE_SECONDS {
+            return Err(SpatialIdError::TOutOfRange { i: unit, t: t[1] }.into());
+        }
+
+        self.i = interval;
+        self.t = t;
+        Ok(self)
+    }
+
+    /// Unix 時刻（秒）の区間 `[start, end)` を覆う時間を設定した自身を返します。
+    ///
+    /// 単位は「その区間をちょうど表せる最も粗い秒数」が自動で選ばれる
+    /// （`start` と区間幅の最大公約数）。仕様が認める任意秒数の単位もそのまま出てくる。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::RangeId;
+    /// // [1457481600, 1457483400) はちょうど 1800 秒ぶん。
+    /// let id = RangeId::new(4, 0, 0, 0).unwrap()
+    ///     .with_time_seconds(1_457_481_600, 1_457_483_400).unwrap();
+    /// assert_eq!(id.interval().seconds(), 1800);
+    /// assert_eq!(id.t(), [809712, 809712]);
+    /// # }
+    /// ```
+    pub fn with_time_seconds(mut self, start: u64, end: u64) -> Result<Self, Error> {
+        if start >= end || end > Interval::WHOLE_SECONDS {
+            return Err(SpatialIdError::TOutOfRange { i: 1, t: end }.into());
+        }
+
+        // その区間をちょうど表せる最も粗い単位を選ぶ（`gcd(start, 幅)`）。
+        let unit = time_cells::coarsest_unit(start, end - start);
+        self.i = Interval::from_seconds_unchecked(unit);
+        self.t = [start / unit, end / unit - 1];
+        Ok(self)
+    }
+
+    /// 同じ絶対秒区間を、別の単位で表し直した自身を返します。割り切れなければ [`None`]。
+    pub fn relabel_time(mut self, interval: Interval) -> Option<Self> {
+        let (start, end) = self.seconds_range();
+        let unit = interval.seconds();
+        if !start.is_multiple_of(unit) || !end.is_multiple_of(unit) {
+            return None;
+        }
+        self.i = interval;
+        self.t = [start / unit, end / unit - 1];
+        Some(self)
+    }
+
+    /// この `RangeId` の時間を、FlexTree が使う2進セルの列へ分解する。クレート内部専用。
+    pub(crate) fn time_cells(&self) -> time_cells::TimeCells {
+        let (start, end) = self.seconds_range();
+        time_cells::split_seconds(start, end)
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
@@ -210,7 +312,8 @@ impl RangeId {
             x,
             y,
 
-            temporal: self.temporal().clone(),
+            i: self.i,
+            t: self.t,
         })
     }
 
@@ -295,7 +398,8 @@ impl RangeId {
             x,
             y,
 
-            temporal: self.temporal().clone(),
+            i: self.i,
+            t: self.t,
         })
     }
 }

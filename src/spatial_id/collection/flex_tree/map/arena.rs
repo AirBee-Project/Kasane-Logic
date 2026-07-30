@@ -43,7 +43,27 @@ pub(crate) const EMPTY_LEAF: u32 = 0;
 /// なお **`FlexTreeCore` や `Node` にフィールドを足しただけならバージョンは変わらない**。
 /// ディスク形式は `MapArena` が単独で決めており、書き込み側は `Node` の
 /// キャッシュ用フィールドを読まないため。この不変性は golden テストが担保している。
-pub const FORMAT_VERSION: u16 = 1;
+///
+/// # 履歴
+///
+/// - `1`: 時間軸の導入前。木は F/X/Y の3軸で、`FlexId` は空間3軸ぶんのフィールドだけを持つ。
+/// - `2`: 時間軸（T）を加えた4軸（`temporal_id` feature 有効時）。
+/// - `3`: 3軸のまま `FlexId` が時間フィールドを持つ形（`temporal_id` feature 無効時）。
+///
+/// **バージョンは feature によって変わる。** 理由は2つ。
+///
+/// 1. ノードが保持する `level` から軸を求める式が、3軸なら `level % 3`、4軸なら `level % 4`。
+///    `level` はバイト列にそのまま入っているので、取り違えると軸の対応がずれ、
+///    エラーにならないまま別の空間 ID として読めてしまう。
+/// 2. `shard` として保存される `FlexId` のフィールド構成が `1` とは異なる
+///    （時間軸を4番目の軸としてインラインに持つようになったため、feature の有無に関わらず
+///    `t_zoomlevel` / `t_index` が並ぶ）。
+///
+/// バージョンを分けることで、レイアウトの違う書き出しは読み込み時に必ず弾かれる。
+#[cfg(feature = "temporal_id")]
+pub const FORMAT_VERSION: u16 = 2;
+#[cfg(not(feature = "temporal_id"))]
+pub const FORMAT_VERSION: u16 = 3;
 
 /// 平坦化された [`SpatialIdMap`] 1枚（1シャード）の書き込み用スキーマ。
 ///
@@ -113,7 +133,7 @@ impl SpatialIdMap<Vec<u8>> {
             version: FORMAT_VERSION,
             lower_root,
             upper_root,
-            shard: self.inner.shard.clone(),
+            shard: self.inner.shard,
             nodes,
             dictionary,
         };

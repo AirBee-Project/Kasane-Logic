@@ -9,5 +9,6 @@ SingleId {
     f: 0,
     x: 16,
     y: 12,
-    temporal_id: TemporalId,
+    i: Interval,
+    t: 0,
 }

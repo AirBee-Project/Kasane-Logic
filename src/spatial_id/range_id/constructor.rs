@@ -1,5 +1,5 @@
 use crate::{
-    RangeId, TemporalId,
+    Interval, RangeId,
     error::Error,
     spatial_id::{helpers::IntoRange, zoom_level::ZoomLevel},
 };
@@ -85,7 +85,8 @@ impl RangeId {
             f,
             x,
             y,
-            temporal: TemporalId::WHOLE,
+            i: Interval::WHOLE,
+            t: [0, 0],
         })
     }
 
@@ -123,7 +124,8 @@ impl RangeId {
             f,
             x,
             y,
-            temporal: TemporalId::WHOLE,
+            i: Interval::WHOLE,
+            t: [0, 0],
         }
     }
 }

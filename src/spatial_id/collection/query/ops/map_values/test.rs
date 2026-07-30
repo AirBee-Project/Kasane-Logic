@@ -24,7 +24,7 @@ fn map_values_changes_the_value_type() {
 
     let mut rows: alloc::vec::Vec<(u32, bool)> = out
         .iter()
-        .flat_map(|(id, v)| id.clone().single_ids().map(move |s| (s.x(), *v)))
+        .flat_map(|(id, v)| id.single_ids().map(move |s| (s.x(), *v)))
         .collect();
     rows.sort_by_key(|(x, _)| *x);
 
@@ -44,7 +44,7 @@ fn map_values_to_text() {
         .iter()
         .flat_map(|(id, v)| {
             let v = v.clone();
-            id.clone().single_ids().map(move |s| (s.x(), v.clone()))
+            id.single_ids().map(move |s| (s.x(), v.clone()))
         })
         .collect();
     rows.sort_by_key(|(x, _)| *x);
@@ -68,7 +68,7 @@ fn map_values_composes_with_other_operators() {
 
     let rows: alloc::vec::Vec<u32> = out
         .iter()
-        .flat_map(|(id, _)| id.clone().single_ids().map(|s| s.x()))
+        .flat_map(|(id, _)| id.single_ids().map(|s| s.x()))
         .collect();
 
     assert_eq!(rows, alloc::vec![11]);

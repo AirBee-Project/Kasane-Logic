@@ -4,7 +4,7 @@ use core::{
     str::FromStr,
 };
 
-use crate::{Coordinate, FlexId, RangeId, TemporalId, error::Error};
+use crate::{Coordinate, FlexId, Interval, RangeId, error::Error};
 
 #[cfg(doc)]
 use crate::SingleId;
@@ -176,15 +176,54 @@ pub trait SpatialId:
     /// 空間 ID の8頂点を返す。
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
-    /// 時間 ID を返す。
+    /// 時間間隔 `{i}`（単位、秒数）を返す。
     ///
-    /// [`SingleId`]/[`RangeId`]は保持している値をそのまま、[`FlexId`]（FlexTreeのノードアドレス）は
-    /// 内部の生の2進セル表現から変換して返す。返す型は3つの実装型で共通の[`TemporalId`]。
+    /// [`SingleId`]/[`RangeId`]は設定された単位、[`FlexId`]はそのセルの秒幅
+    /// （`2^(62 - t_zoomlevel)`）を返す。時間を設定していなければ
+    /// [`Interval::WHOLE`]。
     ///
-    /// 時間 ID の**付与**はこのTraitには含めない。[`SingleId`](SingleId::with_temporal)と
-    /// [`RangeId`](RangeId::with_temporal)は任意の[`TemporalId`]を無条件に受け取れるが、
-    /// [`FlexId`]は2の冪秒のセル1個しか保持できないため、同じシグネチャを共有できないからである。
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, SingleId, SpatialId};
+    /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
+    /// assert_eq!(id.interval().seconds(), 1800);
+    ///
+    /// let plain = SingleId::new(12, 0, 3638, 1614).unwrap();
+    /// assert_eq!(plain.interval(), Interval::WHOLE);
+    /// # }
+    /// ```
+    fn interval(&self) -> Interval;
+
+    /// 占有する絶対秒区間 `[start, end)` を返す（1970-01-01 00:00 UTC 起点）。
+    ///
+    /// 実装型ごとに時間の形（単一 / 範囲 / 木のセル）は違うが、秒区間へ落とせば共通に
+    /// 扱える。空間側で `f()` の戻り値が `i32` と `[i32; 2]` に分かれるため、Traitには
+    /// `f_min()` / `f_max()` だけを載せているのと同じ方針である。
+    ///
+    /// 時間の**付与**はこのTraitには含めない。[`SingleId::with_time`](SingleId::with_time)は
+    /// 単一の `t` を、[`RangeId::with_time`](RangeId::with_time)は範囲を受け取り、
+    /// [`FlexId`]は2の冪秒のセル1個しか保持できないため、同じシグネチャを共有できない。
     /// [`FlexId`]へ時間を載せたい場合は[`SingleId`]/[`RangeId`]に付けてから
     /// [`IntoIterator`]で展開する（`Interval`が2の冪でない区間は複数の[`FlexId`]へ分解される）。
-    fn temporal(&self) -> TemporalId;
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, RangeId, SpatialId};
+    /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time(Interval::HOUR, [1, 2]).unwrap();
+    /// assert_eq!(id.seconds_range(), (3600, 10800));
+    /// # }
+    /// ```
+    fn seconds_range(&self) -> (u64, u64);
+
+    /// 時間を指定していない（全時間を覆う）かを判定する。
+    ///
+    /// ```
+    /// # use kasane_logic::{SingleId, SpatialId};
+    /// assert!(SingleId::new(12, 0, 3638, 1614).unwrap().is_whole_time());
+    /// ```
+    fn is_whole_time(&self) -> bool {
+        self.seconds_range() == (0, Interval::WHOLE_SECONDS)
+    }
 }

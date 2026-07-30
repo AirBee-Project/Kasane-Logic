@@ -3,16 +3,27 @@ use alloc::string::ToString;
 
 use core::fmt;
 
-#[cfg(feature = "temporal_id")]
-use crate::TemporalSegment;
-use crate::{
-    Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
-};
+use crate::{Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, spatial_id::helpers};
 use core::str::FromStr;
 
+/// `FlexId` を文字列形式で表示する。
+///
+/// 形式は `"{fz}/{fi}|{xz}/{xi}|{yz}/{yi}"`。時間を持つ場合は同じ `|` 区切りで
+/// 4軸目 `"|{tz}/{ti}"` が続く。
+///
+/// **`_` は使わない。** [`SingleId`](crate::SingleId)/[`RangeId`](crate::RangeId)の
+/// `_` は仕様の `{z}/{f}/{x}/{y}_{i}/{t}` の区切りで、右側は「秒数/インデックス」だが、
+/// [`FlexId`]の時間は「ズーム/インデックス」であり意味が違う。同じ記号を使うと、
+/// `FlexId` の時間部分を `{i}/{t}` として読み違えても（`Interval` は任意秒数を許すため）
+/// エラーにならず気付けない。軸ごとに `|` で並べる本来の形へ揃えることで取り違えを防ぐ。
+///
+/// ```
+/// # use kasane_logic::FlexId;
+/// let id: FlexId = "5/3|2/3|10/1".parse().unwrap();
+/// assert_eq!(id.to_string(), "5/3|2/3|10/1");
+/// ```
 impl fmt::Display for FlexId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        //空間の情報の書き込み
         write!(
             f,
             "{}/{}|{}/{}|{}/{}",
@@ -24,10 +35,10 @@ impl fmt::Display for FlexId {
             self.y_index
         )?;
 
-        //時間の情報があれば書き込み
-        if !self.temporal_id.is_whole() {
-            write!(f, "_{}", self.temporal_id)?;
-        };
+        // 時間軸も他の軸と同じ「ズーム/インデックス」の形で、同じ区切りで続ける。
+        if !self.is_whole_time() {
+            write!(f, "|{}/{}", self.t_zoomlevel(), self.t_index())?;
+        }
         Ok(())
     }
 }
@@ -173,16 +184,20 @@ impl SpatialId for FlexId {
         out
     }
 
-    fn temporal(&self) -> TemporalId {
-        TemporalId::from(&self.temporal_id)
+    fn interval(&self) -> crate::Interval {
+        FlexId::interval(self)
+    }
+
+    fn seconds_range(&self) -> (u64, u64) {
+        FlexId::seconds_range(self)
     }
 }
 
 /// 文字列表現から [`FlexId`] を復元する。
 ///
 /// 形式は [`Display`](core::fmt::Display) が出力する
-/// `"{f_zoom}/{f}|{x_zoom}/{x}|{y_zoom}/{y}"`。
-/// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受け付け。
+/// `"{f_zoom}/{f}|{x_zoom}/{x}|{y_zoom}/{y}"`。時間軸があれば4つ目の
+/// `"|{t_zoom}/{t}"` も受け付ける。
 ///
 /// ```
 /// # use kasane_logic::FlexId;
@@ -198,15 +213,11 @@ impl FromStr for FlexId {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (body, temporal_text) = match s.split_once('_') {
-            Some((body, temporal_text)) => (body, Some(temporal_text)),
-            None => (s, None),
-        };
-
-        let mut parts = body.split('|');
+        let mut parts = s.split('|');
         let f_part = parts.next().ok_or_else(|| parse_error(s))?;
         let x_part = parts.next().ok_or_else(|| parse_error(s))?;
         let y_part = parts.next().ok_or_else(|| parse_error(s))?;
+        let temporal_text = parts.next();
         if parts.next().is_some() {
             return Err(parse_error(s));
         }
@@ -222,36 +233,31 @@ impl FromStr for FlexId {
         let y_zoomlevel = y_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
         let y_index = y_index_text.parse::<u32>().map_err(|_| parse_error(s))?;
 
-        #[cfg(feature = "temporal_id")]
-        {
-            let temporal_id = match temporal_text {
-                Some(text) => TemporalSegment::from_str(text)?,
-                None => TemporalSegment::WHOLE,
-            };
-            FlexId::new(
+        match temporal_text {
+            None => FlexId::new(
                 f_zoomlevel,
                 f_index,
                 x_zoomlevel,
                 x_index,
                 y_zoomlevel,
                 y_index,
-            )
-            .map(|id| id.with_raw_temporal(temporal_id))
-        }
-
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            if temporal_text.is_some() {
-                return Err(parse_error(s));
+            ),
+            Some(part) => {
+                let (t_zoom_text, t_index_text) =
+                    part.split_once('/').ok_or_else(|| parse_error(s))?;
+                let t_zoomlevel = t_zoom_text.parse::<u8>().map_err(|_| parse_error(s))?;
+                let t_index = t_index_text.parse::<u64>().map_err(|_| parse_error(s))?;
+                FlexId::new_with_time(
+                    f_zoomlevel,
+                    f_index,
+                    x_zoomlevel,
+                    x_index,
+                    y_zoomlevel,
+                    y_index,
+                    t_zoomlevel,
+                    t_index,
+                )
             }
-            FlexId::new(
-                f_zoomlevel,
-                f_index,
-                x_zoomlevel,
-                x_index,
-                y_zoomlevel,
-                y_index,
-            )
         }
     }
 }

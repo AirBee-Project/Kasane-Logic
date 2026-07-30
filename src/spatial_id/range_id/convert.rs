@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::{FlexId, RangeId, SingleId, SpatialId, spatial_id::zoom_level::ZoomLevel};
+use crate::{FlexId, RangeId, SingleId, spatial_id::zoom_level::ZoomLevel};
 
 /// XYにおけるセグメントの最適配置関数
 pub fn split_xy(z: u8, range: [u32; 2]) -> impl Iterator<Item = (u8, u32)> {
@@ -43,25 +43,32 @@ impl From<&SingleId> for RangeId {
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
 
-            temporal: id.temporal(),
+            // 単一セルは範囲の退化した形なので常に変換できる。
+            i: id.interval(),
+            t: [id.t(), id.t()],
         }
     }
 }
 
 impl RangeId {
-    /// この [`RangeId`] が覆う空間セルを1つずつ [`SingleId`] として列挙する。
+    /// この [`RangeId`] が覆う時空間セルを1つずつ [`SingleId`] として列挙する。
     ///
-    /// 時間軸は分解しない。[`SingleId`]も[`RangeId`]と同じ[`TemporalId`](crate::TemporalId)を
-    /// 保持できるため、各 [`SingleId`] は元の時間区間をそのまま引き継ぐ。
+    /// [`SingleId`]は空間・時間ともに「1セル」しか持てないため、**時間軸も分解する**。
+    /// したがって要素数は `(Fのセル数) × (Xのセル数) × (Yのセル数) × (時間のセル数)` になる。
+    /// 空間の範囲が広いと要素数が爆発するのと同じく、時間の範囲が広い場合も
+    /// （例: 1秒単位で1日ぶんなら86400倍）
+    /// 要素数がそれに比例して増える点に注意すること。
+    ///
+    /// なお、FlexTree から読み出した [`RangeId`]（[`FlexId`] 由来）の時間成分は
+    /// 常に単一の2進セルなので、この経路で時間方向に増えることはない。
     pub fn single_ids(self) -> Box<dyn Iterator<Item = SingleId>> {
         let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
         let y_range = self.y[0]..=self.y[1];
-        let temporal = self.temporal.clone();
+        let (interval, [t_min, t_max]) = (self.i, self.t);
 
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();
-            let temporal = temporal.clone();
 
             let x_iter = if self.x[0] <= self.x[1] {
                 (self.x[0]..=self.x[1]).collect::<Vec<_>>()
@@ -72,11 +79,10 @@ impl RangeId {
             };
 
             x_iter.into_iter().flat_map(move |x| {
-                let temporal = temporal.clone();
-                y_range.clone().map(move |y: u32| {
-                    SingleId::new(z, f, x, y)
-                        .unwrap()
-                        .with_temporal(temporal.clone())
+                let y_range = y_range.clone();
+                y_range.flat_map(move |y: u32| {
+                    let base = SingleId::new(z, f, x, y).unwrap();
+                    (t_min..=t_max).map(move |t| base.clone().with_time_unchecked(interval, t))
                 })
             })
         });
@@ -102,49 +108,25 @@ impl IntoIterator for RangeId {
         };
         let y_list: Vec<_> = split_xy(z, self.y).collect();
 
-        #[cfg(feature = "temporal_id")]
-        {
-            let t_list: Vec<(u8, u64)> = self
-                .temporal
-                .segments()
-                .map(|c| (c.zoom(), c.index()))
-                .collect();
+        // 時間は `Interval` が2の冪とは限らないので、2進セルへ分解してから掛け合わせる
+        // （時間を使っていなければ全時間の1セルだけになる）。
+        let t_list: Vec<(u8, u64)> = self.time_cells().collect();
 
-            let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
-                let y_list_inner = y_list.clone();
-                let t_list_inner = t_list.clone();
-                x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
-                    let y_list_inner = y_list_inner.clone();
-                    let t_list_inner = t_list_inner.clone();
-                    y_list_inner
-                        .clone()
-                        .into_iter()
-                        .flat_map(move |(y_z, y_i)| {
-                            t_list_inner.clone().into_iter().map(move |(t_z, t_i)| {
-                                unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) }
-                                    .with_raw_temporal(unsafe {
-                                        crate::TemporalSegment::new_unchecked(t_z, t_i)
-                                    })
-                            })
-                        })
-                })
-            });
-            Box::new(iter)
-        }
-
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
-                let y_list_inner = y_list.clone();
-                x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
-                    let y_list_inner = y_list_inner.clone();
-                    y_list_inner.into_iter().map(move |(y_z, y_i)| unsafe {
-                        FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i)
+        let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
+            let y_list_inner = y_list.clone();
+            let t_list_inner = t_list.clone();
+            x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
+                let y_list_inner = y_list_inner.clone();
+                let t_list_inner = t_list_inner.clone();
+                y_list_inner.into_iter().flat_map(move |(y_z, y_i)| {
+                    t_list_inner.clone().into_iter().map(move |(t_z, t_i)| {
+                        unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) }
+                            .with_time_cell(t_z, t_i)
                     })
                 })
-            });
-            Box::new(iter)
-        }
+            })
+        });
+        Box::new(iter)
     }
 }
 

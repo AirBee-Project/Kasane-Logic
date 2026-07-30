@@ -3,7 +3,7 @@ use alloc::string::ToString;
 use core::fmt;
 
 use crate::{
-    Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalId,
+    Coordinate, Error, Interval, RangeId, SpatialId, SpatialIdError,
     spatial_id::helpers::{self, format_dimension},
 };
 use core::str::FromStr;
@@ -44,8 +44,8 @@ impl fmt::Display for RangeId {
 
         //時間の情報があれば書き込み
 
-        if !self.temporal.is_whole() {
-            write!(f, "_{}", self.temporal)?;
+        if !self.is_whole_time() {
+            write!(f, "_{}/{}", self.i, format_dimension(self.t))?;
         };
         Ok(())
     }
@@ -231,8 +231,12 @@ impl SpatialId for RangeId {
         one * count
     }
 
-    fn temporal(&self) -> TemporalId {
-        self.temporal.clone()
+    fn interval(&self) -> Interval {
+        self.i
+    }
+
+    fn seconds_range(&self) -> (u64, u64) {
+        RangeId::seconds_range(self)
     }
 }
 
@@ -241,7 +245,7 @@ impl SpatialId for RangeId {
 /// 形式は [`Display`](core::fmt::Display) が出力する
 /// `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
 /// 単体範囲は `:` を省略した `"{z}/{f}/{x}/{y}"` 形式でもパース可能。
-/// `temporal_id` feature が有効な場合は末尾の `_TemporalId` も受けつける。
+/// 時間を持つ場合は末尾に `_{i}/{t}`（範囲なら `_{i}/{t_min}:{t_max}`）が付く。
 ///
 /// ```
 /// # use kasane_logic::RangeId;
@@ -274,21 +278,23 @@ impl FromStr for RangeId {
         let x = parse_u32_dimension(x_text, s)?;
         let y = parse_u32_dimension(y_text, s)?;
 
-        #[cfg(feature = "temporal_id")]
-        {
-            let temporal = match temporal_text {
-                Some(text) => TemporalId::from_str(text)?,
-                None => TemporalId::WHOLE,
-            };
-            Ok(RangeId::new(z, f, x, y)?.with_temporal(temporal))
-        }
+        let id = RangeId::new(z, f, x, y)?;
 
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            if temporal_text.is_some() {
-                return Err(parse_error(s));
+        // 時間部分は `{i}/{t}` または `{i}/{t_min}:{t_max}`。
+        match temporal_text {
+            None => Ok(id),
+            Some(text) => {
+                let (i_text, t_text) = text.split_once('/').ok_or_else(|| parse_error(s))?;
+                let i = i_text.parse::<i64>().map_err(|_| parse_error(s))?;
+                let t = match t_text.split_once(':') {
+                    Some((lo, hi)) => [
+                        lo.parse::<u64>().map_err(|_| parse_error(s))?,
+                        hi.parse::<u64>().map_err(|_| parse_error(s))?,
+                    ],
+                    None => [t_text.parse::<u64>().map_err(|_| parse_error(s))?; 2],
+                };
+                id.with_time(i, t)
             }
-            RangeId::new(z, f, x, y)
         }
     }
 }

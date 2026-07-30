@@ -39,6 +39,10 @@ rand = ["dep:rand"]
 persist = ["dep:rkyv", "std"]
 json = ["dep:serde", "dep:serde_json"]
 
+[[example]]
+name = "spatiotemporal_id"
+required-features = ["temporal_id"]
+
 [dev-dependencies]
 rand = "0.10.1"
 proptest = "1.11.0"

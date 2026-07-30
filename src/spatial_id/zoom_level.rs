@@ -2,7 +2,7 @@ use crate::{SpatialIdError, error::Error};
 use core::fmt;
 
 /// ズームレベルを表す型の土台。`LIMIT`は許容する最大ズームレベルで、空間軸（[`ZoomLevel`]、
-/// `LIMIT=30`）と時間軸の生セル（[`TZoomLevel`](crate::spatial_id::temporal_id::zoom_level::TZoomLevel)、
+/// `LIMIT=30`）と時間軸の生セル（[`TZoomLevel`]、
 /// `LIMIT=62`）が生成・深化・範囲チェックの式を共有しつつ、`LIMIT`の値でRustの型として区別される
 /// （`ZoomLevel`と`TZoomLevel`は異なる型なので取り違えられない）。
 ///
@@ -11,7 +11,7 @@ use core::fmt;
 /// 呼び出し側で`LIMIT`の型推論が必要にならないようにしている）。
 ///
 /// Fの符号付き範囲（[`ZoomLevel::f_min`]/[`ZoomLevel::f_max`]/[`ZoomLevel::check_f`]）は空間軸専用、
-/// 秒数変換（`cell_seconds`、[`TZoomLevel`](crate::spatial_id::temporal_id::zoom_level::TZoomLevel)側の拡張）は
+/// 秒数変換（`cell_seconds`、[`TZoomLevel`]側の拡張）は
 /// 時間軸専用の拡張として、それぞれの具象化にだけ生やす。
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -29,6 +29,28 @@ pub struct Zoom<const LIMIT: u8>(u8);
 /// assert_eq!(ZoomLevel::new(255), Err(SpatialIdError::ZOutOfRange { z: 255 }.into()));
 /// ```
 pub type ZoomLevel = Zoom<30>;
+
+/// 時間軸のズームレベルを表す型。
+///
+/// [`ZoomLevel`]（空間軸、`LIMIT = 30`）と同じ土台を共有する `Zoom<35>` の別名。
+/// 1セルが `2^(35 - z)` 秒（最大 `2^35` 秒＝全期間、最小1秒）を表す。
+///
+/// `LIMIT` は [`Interval::WHOLE_POW`](crate::Interval::WHOLE_POW) と一致していなければ
+/// ならない（最深ズームのセル幅が1秒＝全時間を `2^LIMIT` 秒とする前提）。下の
+/// `const` アサーションで食い違いをコンパイル時に落とす。
+///
+/// ```
+/// # use kasane_logic::spatial_id::zoom_level::TZoomLevel;
+/// let z = TZoomLevel::new(5).unwrap();
+/// assert_eq!(z.get(), 5);
+/// assert_eq!(TZoomLevel::MAX.cell_seconds(), 1);
+/// ```
+pub type TZoomLevel = Zoom<35>;
+
+const _: () = assert!(
+    TZoomLevel::MAX.get() == crate::Interval::WHOLE_POW,
+    "TZoomLevel の LIMIT と Interval::WHOLE_POW は一致していなければならない"
+);
 
 impl<const LIMIT: u8> fmt::Display for Zoom<LIMIT> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -161,8 +183,8 @@ impl Zoom<30> {
     }
 }
 
-// ---- 時間軸（生セル）専用（`TZoomLevel` = `Zoom<62>`） ----
-impl Zoom<62> {
+// ---- 時間軸（生セル）専用（`TZoomLevel` = `Zoom<35>`） ----
+impl Zoom<35> {
     /// このズームレベルにおけるインデックスの最大値（`2^z - 1`）。
     pub const fn max_index(self) -> u64 {
         self.max_index_u64()
@@ -170,7 +192,7 @@ impl Zoom<62> {
 
     /// このズームレベルにおける1セルの秒数（`2^(MAX - z)`）。
     pub const fn cell_seconds(self) -> u64 {
-        1u64 << (62 - self.0)
+        1u64 << (Self::MAX.get() - self.0)
     }
 
     /// `index` がこのズームレベルの範囲に収まるか検証する。

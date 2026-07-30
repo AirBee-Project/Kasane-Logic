@@ -60,12 +60,12 @@ where
         extruded.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
 
         #[cfg(not(feature = "rayon"))]
-        extruded.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        extruded.sort_unstable_by_key(|a| a.0);
 
         // 連続する同じIDのグループごとに resolve_many を適用
         let mut new_items = Vec::with_capacity(extruded.len());
         for chunk in extruded.chunk_by(|a, b| a.0 == b.0) {
-            let id = chunk[0].0.clone();
+            let id = chunk[0].0;
             if let Some(merged) = P::resolve_many(chunk.iter().map(|(_, v)| v.clone())) {
                 new_items.push((id, merged));
             }

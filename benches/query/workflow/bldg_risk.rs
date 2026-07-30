@@ -30,7 +30,7 @@ fn get_subset(n: usize) -> SpatialIdTable<u32> {
     let full = get_full_data();
     let mut subset = SpatialIdTable::new();
     for (id, &val) in full.iter().take(n) {
-        subset.insert(id.clone(), val);
+        subset.insert(id, val);
     }
     subset
 }

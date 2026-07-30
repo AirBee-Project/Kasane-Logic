@@ -78,7 +78,6 @@ pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
-pub(crate) use spatial_id::temporal_id::TemporalSegment;
 
 // spatial_id: collection types
 
@@ -102,8 +101,6 @@ pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 #[doc(inline)]
 pub use spatial_id::helpers::{Dimension, Side};
 #[doc(inline)]
-pub use spatial_id::temporal_id::TemporalId;
-#[doc(inline)]
 pub use spatial_id::traits::SpatialId;
 
 // spatial_id: zoom level
@@ -124,6 +121,6 @@ pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
 pub use spatial_id::collection::query::working::WorkingTree;
 
-// 時間IDに関連
+// 時間間隔（公開 API に出てくる唯一の時間の型）
 #[doc(inline)]
-pub use spatial_id::temporal_id::interval::Interval;
+pub use spatial_id::interval::Interval;

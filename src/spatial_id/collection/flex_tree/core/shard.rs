@@ -1,5 +1,5 @@
 use super::ptr::SafeValue;
-use super::{FlexTreeCore, node::Node, ptr::SharedNode, split_child_id};
+use super::{FlexTreeCore, node::LEAF_LEVEL, node::Node, ptr::SharedNode, split_child_id};
 use crate::{FlexId, Side};
 
 impl<V> FlexTreeCore<V>
@@ -14,14 +14,14 @@ where
     /// このシャード（[`shard`](Self::shard) 領域）を、現在のrootの軸で2分割し、切り取った部分木を `((下のシャード領域, 下の実体), (上のシャード領域, 上の実体))` で返す。
     /// シャード領域が未設定なら `None`を返す。
     pub(crate) fn split_shard(&self) -> Option<((FlexId, Self), (FlexId, Self))> {
-        let region = self.shard()?.clone();
-        let level = Self::region_level(&region);
+        let region = *self.shard()?;
+        let level = Self::region_level(&region)?;
         let axis = Node::<V>::axis(level);
         let lower = split_child_id(&region, axis, Side::Lower);
         let upper = split_child_id(&region, axis, Side::Upper);
         Some((
-            (lower.clone(), self.extract_region(lower)),
-            (upper.clone(), self.extract_region(upper)),
+            (lower, self.extract_region(lower)),
+            (upper, self.extract_region(upper)),
         ))
     }
 
@@ -34,12 +34,18 @@ where
     /// レベル番号自体はTの番の分だけ余計に消費される。そのため`insert_mut`と同じ「この軸を
     /// 覆っている間はレベルを進める」というスキップ歩行を行い、覆っていない最初のレベルを
     /// 実際の絶対レベルとして返す。
-    fn region_level(region: &FlexId) -> u8 {
+    fn region_level(region: &FlexId) -> Option<u8> {
         let mut level: u8 = 0;
-        while Node::<V>::covers(region, level) {
+        // 全軸ズーム0の領域（＝全空間）はどのレベルでも「覆っている」ため、
+        // 打ち切らないと `level` が u8 を溢れる（release ビルドでは無限ループになる）。
+        while level < LEAF_LEVEL {
+            if !Node::<V>::covers(region, level) {
+                return Some(level);
+            }
             level += 1;
         }
-        level
+        // 分割すべき軸が1つも残っていない＝これ以上シャードを割れない。
+        None
     }
 
     pub(crate) fn extract_region(&self, region: FlexId) -> Self {

@@ -167,8 +167,9 @@ mod tests {
         // child is inside id1
         let child = SingleId::new(3, 2, 2, 3).unwrap();
 
-        assert_eq!(id1.intersection(&child).unwrap(), child);
-        assert_eq!(child.intersection(&id1).unwrap(), child);
+        let expected = crate::RangeId::from(&child);
+        assert_eq!(id1.intersection(&child).unwrap(), expected);
+        assert_eq!(child.intersection(&id1).unwrap(), expected);
 
         // Disjoint child
         let disjoint = SingleId::new(3, 4, 2, 3).unwrap(); // Outside f range
@@ -186,9 +187,10 @@ mod tests {
         // At Z=1 -> Z=2, parent is split into 8 children. One of them is `child`.
         // So difference should yield 7 SingleIds at Z=2.
         assert_eq!(diff.len(), 7);
+        let child_range = crate::RangeId::from(&child);
         for d in &diff {
             assert_eq!(d.z(), 2);
-            assert_ne!(d, &child);
+            assert_ne!(d, &child_range);
         }
     }
 }

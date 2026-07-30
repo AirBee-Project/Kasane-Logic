@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::SingleId;
+    use crate::{RangeId, SingleId};
     use alloc::vec::Vec;
 
     #[test]
@@ -8,8 +8,9 @@ mod tests {
         let ancestor = SingleId::new(20, 0, 931078, 413136).unwrap();
         let descendant = SingleId::new(23, 0, 7448630, 3305088).unwrap();
 
-        assert_eq!(ancestor.intersection(&descendant).unwrap(), descendant);
-        assert_eq!(descendant.intersection(&ancestor).unwrap(), descendant);
+        let expected = RangeId::from(&descendant);
+        assert_eq!(ancestor.intersection(&descendant).unwrap(), expected);
+        assert_eq!(descendant.intersection(&ancestor).unwrap(), expected);
     }
 
     #[test]
@@ -27,7 +28,7 @@ mod tests {
 
         let diff: Vec<_> = left.difference(&right).collect();
 
-        assert_eq!(diff, vec![left]);
+        assert_eq!(diff, vec![RangeId::from(&left)]);
     }
 
     #[test]
@@ -48,7 +49,14 @@ mod tests {
         let diff: Vec<_> = parent.difference(&child).collect();
 
         assert_eq!(diff.len(), 21);
-        assert!(!diff.contains(&child));
-        assert!(diff.iter().all(|id| id.intersection(&child).is_none()));
+        let child_range = RangeId::from(&child);
+        assert!(!diff.contains(&child_range));
+        // 残りの断片はどれも `child` と交差しない。
+        assert!(diff.iter().all(|range| {
+            range
+                .clone()
+                .single_ids()
+                .all(|id| id.intersection(&child).is_none())
+        }));
     }
 }

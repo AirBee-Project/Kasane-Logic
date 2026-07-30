@@ -31,11 +31,10 @@ where
         // はみ出していないか
         let mut regions: Vec<FlexId> = Vec::with_capacity(children.len());
         for c in &children {
-            let r = c
+            let r = *c
                 .inner
                 .shard()
-                .ok_or(Error::SpatialId(SpatialIdError::InvalidShardMerge))?
-                .clone();
+                .ok_or(Error::SpatialId(SpatialIdError::InvalidShardMerge))?;
             if parent_region.intersection(&r).as_ref() != Some(&r) {
                 return Err(Error::SpatialId(SpatialIdError::InvalidShardMerge));
             }
@@ -51,7 +50,7 @@ where
             }
         }
 
-        let mut inner = FlexTreeCore::new_in_shard(parent_region.clone());
+        let mut inner = FlexTreeCore::new_in_shard(parent_region);
         for c in children {
             inner = inner.union(&c.inner);
         }

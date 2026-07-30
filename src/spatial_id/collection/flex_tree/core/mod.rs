@@ -392,7 +392,7 @@ where
             lower_root: self.merge_roots(&self.lower_root, &other.lower_root, MergeOp::Difference),
             upper_root: self.merge_roots(&self.upper_root, &other.upper_root, MergeOp::Difference),
             empty_leaf: self.empty_leaf.clone(),
-            shard: self.shard.clone(),
+            shard: self.shard,
         }
     }
 
@@ -536,8 +536,8 @@ where
         if self.is_empty() {
             return None;
         }
-        let lower = self.lower_root.max_zoom_at(0);
-        let upper = self.upper_root.max_zoom_at(0);
+        let lower = self.lower_root.max_zoom();
+        let upper = self.upper_root.max_zoom();
         Some(lower.max(upper))
     }
 
@@ -584,6 +584,8 @@ where
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。
+    ///
+    /// [`flat_single_ids_ref`](Self::flat_single_ids_ref) と同じく、時間方向の結合を通す。
     #[cfg(test)]
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, V)> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
@@ -593,8 +595,12 @@ where
         // 1葉が複数のSingleIdへ分解されうるため下限のヒント（葉数）を与える。
         let mut exported = Vec::with_capacity(self.count());
 
-        for (flex_id, value) in self.iter() {
-            let range = RangeId::from(&flex_id);
+        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            self.iter(),
+            None,
+        );
+
+        for (range, value) in merged {
             let normalized = if range.z() == max_zoomlevel {
                 range
             } else {
@@ -612,13 +618,22 @@ where
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
+    ///
+    /// 書き出す前に、時間方向に隣接する同値のセルを
+    /// [`coalesce_temporal`](crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal)
+    /// で結合する。木は時間を2の冪秒のセルとして持つため、これを行わないと
+    /// `1800` 秒のような単位で入れた ID が断片のまま出てきてしまう。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
         };
 
-        Box::new(self.iter_ref().flat_map(move |(flex_id, value)| {
-            let range = RangeId::from(&flex_id);
+        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            self.iter_ref(),
+            None,
+        );
+
+        Box::new(merged.into_iter().flat_map(move |(range, value)| {
             let normalized = if range.z() == max_zoomlevel {
                 range
             } else {
@@ -640,12 +655,11 @@ where
         V: 'a,
     {
         target.into_iter().flat_map(move |item| {
-            self.overlap_ref(item.clone())
-                .filter_map(move |(overlap_id, val)| {
-                    overlap_id
-                        .intersection(&item)
-                        .map(|intersected_id| (intersected_id, val))
-                })
+            self.overlap_ref(item).filter_map(move |(overlap_id, val)| {
+                overlap_id
+                    .intersection(&item)
+                    .map(|intersected_id| (intersected_id, val))
+            })
         })
     }
 
@@ -693,12 +707,11 @@ where
         V: Clone + 'a,
     {
         target.into_iter().flat_map(move |item| {
-            self.overlap(item.clone())
-                .filter_map(move |(overlap_id, val)| {
-                    overlap_id
-                        .intersection(&item)
-                        .map(|intersected_id| (intersected_id, val.clone()))
-                })
+            self.overlap(item).filter_map(move |(overlap_id, val)| {
+                overlap_id
+                    .intersection(&item)
+                    .map(|intersected_id| (intersected_id, val.clone()))
+            })
         })
     }
 
@@ -738,7 +751,7 @@ where
         let mut results = Vec::new();
         for item in target.into_iter() {
             for (overlap_id, value) in self.overlap(item) {
-                if seen.insert(overlap_id.clone()) {
+                if seen.insert(overlap_id) {
                     results.push((overlap_id, value));
                 }
             }
@@ -759,7 +772,7 @@ where
         let mut results = Vec::new();
         for item in target.into_iter() {
             for (overlap_id, value) in self.overlap_ref(item) {
-                if seen.insert(overlap_id.clone()) {
+                if seen.insert(overlap_id) {
                     results.push((overlap_id, value));
                 }
             }
@@ -816,7 +829,7 @@ where
                     if !self_ids.iter().any(|s| s.shares_face(&cand)) {
                         continue;
                     }
-                    if seen.insert(cand.clone()) {
+                    if seen.insert(cand) {
                         results.push((cand, value));
                     }
                 }
@@ -879,7 +892,7 @@ where
     /// シャードされている場合とされていない場合があるので、そのラッパー
     fn shard_after_union(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
         match (a, b) {
-            (Some(a), Some(b)) if a == b => Some(a.clone()),
+            (Some(a), Some(b)) if a == b => Some(*a),
             _ => None,
         }
     }
@@ -888,9 +901,9 @@ where
     /// シャードされている場合とされていない場合があるので、そのラッパー
     fn shard_after_intersection(a: &Option<FlexId>, b: &Option<FlexId>) -> Option<FlexId> {
         match (a, b) {
-            (Some(a), Some(b)) => a.intersection(b).or_else(|| Some(a.clone())),
-            (Some(a), None) => Some(a.clone()),
-            (None, Some(b)) => Some(b.clone()),
+            (Some(a), Some(b)) => a.intersection(b).or(Some(*a)),
+            (Some(a), None) => Some(*a),
+            (None, Some(b)) => Some(*b),
             (None, None) => None,
         }
     }
@@ -1034,18 +1047,16 @@ mod core_api_tests {
     #[cfg(feature = "temporal_id")]
     #[test]
     fn distinct_temporal_cells_stay_distinguishable() {
-        use crate::{FlexId, TemporalSegment};
+        use crate::FlexId;
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
 
-        let t0 = TemporalSegment::new(2, 0).unwrap();
-        let t1 = TemporalSegment::new(2, 1).unwrap();
+        // 同じ空間セルで、時間だけが隣り合う2つのセル（ズーム2＝全時間の1/4幅）。
+        let a = FlexId::new_with_time(3, 1, 3, 1, 3, 1, 2, 0).unwrap();
+        let b = FlexId::new_with_time(3, 1, 3, 1, 3, 1, 2, 1).unwrap();
 
-        let a = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_raw_temporal(t0);
-        let b = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_raw_temporal(t1);
-
-        core.insert([a.clone()], 10);
-        core.insert([b.clone()], 20);
+        core.insert([a], 10);
+        core.insert([b], 20);
 
         assert_eq!(core.count(), 2);
         core.assert_canonical();
@@ -1055,35 +1066,72 @@ mod core_api_tests {
         assert!(got.contains(&(b, 20)));
     }
 
-    /// `TemporalId::segments()`で分解した生セルをそれぞれ挿入すると、元の時間区間
-    /// （の絶対秒区間）をちょうど覆う集合が木に格納されることを確認する。
+    /// 時間だけが深いセルがあっても、`max_zoomlevel` は**空間**の解像度だけを報告する。
+    ///
+    /// レベル番号から `ceil(level / NUM_AXES)` として推定していた頃は、時間軸（最大ズーム62）の
+    /// 深さがそのまま空間ズームとして出てしまい、`bounding_box` が `None` になり
+    /// `flat_single_ids` が `ZOutOfRange` でパニックしていた。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn max_zoom_reports_spatial_resolution_only() {
+        use crate::{Interval, SingleId};
+
+        let id = SingleId::new(10, 0, 5, 5)
+            .unwrap()
+            .with_time(Interval::HOUR, 491_666)
+            .unwrap();
+
+        let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
+        core.insert(id.clone(), 1);
+        assert!(core.count() > 1, "1時間ぶんは複数セルへ分解されるはず");
+
+        assert_eq!(core.max_zoomlevel(), Some(10));
+
+        let bbox = core.bounding_box().expect("bounding_box が None");
+        assert_eq!(bbox.z(), 10);
+        assert_eq!(bbox.x(), [5, 5]);
+
+        // 時間方向に結合されて元の ID がそのまま戻る。
+        let flat: Vec<_> = core.flat_single_ids().collect();
+        assert_eq!(flat.len(), 1);
+        assert_eq!(flat[0].0, id);
+    }
+
+    /// 時間区間を2進セルへ分解して挿入すると、元の秒区間をちょうど覆う集合が木に入る。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn temporal_range_decomposition_round_trips_into_tree() {
-        use crate::{FlexId, Interval, TemporalId};
+        use crate::{FlexId, Interval, RangeId};
 
-        let range = TemporalId::new(Interval::HOUR, [2, 2]).unwrap();
-        let cells: alloc::vec::Vec<_> = range.segments().collect();
+        let range = RangeId::new(0, 0, 0, 0)
+            .unwrap()
+            .with_time(Interval::HOUR, [2, 2])
+            .unwrap();
+
+        let cells: alloc::vec::Vec<_> = range.clone().into_iter().collect();
         assert!(!cells.is_empty());
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
         for cell in &cells {
-            let id = FlexId::new(0, 0, 0, 0, 0, 0)
-                .unwrap()
-                .with_raw_temporal(cell.clone());
-            core.insert([id], 1);
+            core.insert([*cell], 1);
         }
 
         assert_eq!(core.count(), cells.len());
         core.assert_canonical();
 
-        // 分解したセルの絶対秒区間を合算すると、元のTemporalIdの秒区間と一致する。
-        let mut total_seconds = 0u64;
-        for cell in &cells {
-            let (start, end) = cell.seconds_range();
-            total_seconds += end - start;
-        }
+        // 分解したセルの絶対秒区間を合算すると、元の秒区間と一致する。
+        let total_seconds: u64 = cells
+            .iter()
+            .map(|cell| {
+                let (start, end) = cell.seconds_range();
+                end - start
+            })
+            .sum();
         let (range_start, range_end) = range.seconds_range();
         assert_eq!(total_seconds, range_end - range_start);
+
+        // 分解元と同じ空間セルであることも確認する。
+        assert!(cells.iter().all(|c| c.f_index() == 0 && c.x_index() == 0));
+        let _ = FlexId::new(0, 0, 0, 0, 0, 0).unwrap();
     }
 }

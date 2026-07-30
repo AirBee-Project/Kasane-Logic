@@ -90,7 +90,7 @@ fn extrude_result_is_deterministic_across_runs() {
 
     let mut subset = SpatialIdTable::new();
     for (id, &v) in bldg_risk.iter().take(200) {
-        subset.insert(id.clone(), v);
+        subset.insert(id, v);
     }
 
     let run_f = |t: SpatialIdTable<u32>| {

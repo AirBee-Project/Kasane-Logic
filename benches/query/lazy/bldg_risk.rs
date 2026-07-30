@@ -26,7 +26,7 @@ fn get_subset(n: usize) -> SpatialIdTable<u32> {
     let full = get_full_data();
     let mut subset = SpatialIdTable::new();
     for (id, &val) in full.iter().take(n) {
-        subset.insert(id.clone(), val);
+        subset.insert(id, val);
     }
     subset
 }
@@ -40,7 +40,7 @@ fn bench_lazy_workflow(c: &mut Criterion) {
     for &n in sizes.iter() {
         let table = get_subset(n);
         // 対象のIDを先頭から適当に選ぶ
-        let target_id = table.iter().next().unwrap().0.clone();
+        let target_id = table.iter().next().unwrap().0;
 
         group.throughput(Throughput::Elements(1));
 
@@ -53,7 +53,7 @@ fn bench_lazy_workflow(c: &mut Criterion) {
                 .shift_y(24, -5)
                 .falloff_linear_x(24, 5, Max)
                 .falloff_linear_y(24, 5, Max);
-            b.iter(|| query.lazy_get(target_id.clone()).unwrap().count());
+            b.iter(|| query.lazy_get(target_id).unwrap().count());
         });
 
         // Eager bench (as baseline)
@@ -94,7 +94,7 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
             .zoom_out(ZoomLevel::new(18).unwrap(), Average)
             .raw_run_table()
             .unwrap();
-        let target_id = zoomed.iter().next().unwrap().0.clone();
+        let target_id = zoomed.iter().next().unwrap().0;
 
         group.throughput(Throughput::Elements(1));
 
@@ -104,7 +104,7 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
                 .clone()
                 .query()
                 .zoom_out(ZoomLevel::new(18).unwrap(), Average);
-            b.iter(|| query.lazy_get(target_id.clone()).unwrap().count());
+            b.iter(|| query.lazy_get(target_id).unwrap().count());
         });
 
         // Eager bench (as baseline)

@@ -62,25 +62,19 @@ fn build_range_id(
     y: [u32; 2],
     temporal_pair: Option<(u64, [u64; 2])>,
 ) -> Result<RangeId, crate::Error> {
+    let id = RangeId::new(z, f, x, y)?;
     match temporal_pair {
-        #[cfg(feature = "temporal_id")]
-        Some((i, t)) => {
-            let interval = crate::Interval::new(i)?;
-            let temporal = crate::TemporalId::new(interval, t)?;
-            Ok(RangeId::new(z, f, x, y)?.with_temporal(temporal))
-        }
-        #[cfg(not(feature = "temporal_id"))]
-        Some(_) => RangeId::new(z, f, x, y),
-        None => RangeId::new(z, f, x, y),
+        Some((i, t)) => id.with_time(i as i64, t),
+        None => Ok(id),
     }
 }
 
 impl Serialize for IdEntry {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let temporal = self.range_id.temporal();
+        let whole_time = self.range_id.is_whole_time();
 
         let mut len = 4;
-        if !temporal.is_whole() {
+        if !whole_time {
             len += 2;
         }
         if self.r#ref.is_some() {
@@ -92,9 +86,9 @@ impl Serialize for IdEntry {
         serialize_pair(&mut map, "f", self.range_id.f())?;
         serialize_pair(&mut map, "x", self.range_id.x())?;
         serialize_pair(&mut map, "y", self.range_id.y())?;
-        if !temporal.is_whole() {
-            map.serialize_entry("i", &temporal.interval().seconds())?;
-            serialize_pair(&mut map, "t", temporal.t())?;
+        if !whole_time {
+            map.serialize_entry("i", &self.range_id.interval().seconds())?;
+            serialize_pair(&mut map, "t", self.range_id.t())?;
         }
         if let Some(r) = self.r#ref {
             map.serialize_entry("ref", &r)?;
@@ -267,7 +261,11 @@ where
     let mut unique: Vec<&'a V> = Vec::new();
     let mut ids: Vec<IdEntry> = Vec::new();
 
-    for (flex_id, val) in iter {
+    // 時間方向に隣接する同値セルを結合してから書き出す。木は時間を2の冪秒のセルで持つため、
+    // これを通さないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
+    for (range_id, val) in
+        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(iter, None)
+    {
         let idx = match unique.iter().position(|&u| u == val) {
             Some(idx) => idx,
             None => {
@@ -276,7 +274,7 @@ where
             }
         };
         ids.push(IdEntry {
-            range_id: RangeId::from(&flex_id),
+            range_id,
             r#ref: Some(idx),
         });
     }
@@ -303,12 +301,17 @@ pub(crate) fn serialize_without_values<S>(
 where
     S: Serializer,
 {
-    let ids: Vec<IdEntry> = iter
-        .map(|flex_id| IdEntry {
-            range_id: RangeId::from(&flex_id),
-            r#ref: None,
-        })
-        .collect();
+    // 値ありの場合と同じく、時間方向に隣接するセルを結合してから書き出す。
+    let ids: Vec<IdEntry> = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+        iter.map(|flex_id| (flex_id, ())),
+        None,
+    )
+    .into_iter()
+    .map(|(range_id, ())| IdEntry {
+        range_id,
+        r#ref: None,
+    })
+    .collect();
 
     let envelope = EnvelopeOut {
         schema: SCHEMA_URL,
@@ -367,19 +370,17 @@ where
 mod tests {
     use alloc::format;
 
-    // `SpatialIdSet`/`SpatialIdTable`/`SpatialIdMap` の木は f/x/y の空間分割のみを保持し、
-    // 挿入した ID の temporal 成分は伝播しない（本リファクタ以前からの既存挙動）。そのため
-    // `i`/`t` の直列化は木を経由せず [`super::IdEntry`] を直接使って検証する。
+    /// [`super::IdEntry`] 単体での `i`/`t` の直列化・復元。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn round_trips_temporal_i_scalar_and_t_array() {
         use super::IdEntry;
-        use crate::{Interval, RangeId, TemporalId};
+        use crate::{Interval, RangeId};
 
-        let temporal = TemporalId::new(Interval::HOUR, [5, 5]).unwrap();
         let range_id = RangeId::new(20, [0, 0], [0, 0], [0, 0])
             .unwrap()
-            .with_temporal(temporal);
+            .with_time(Interval::HOUR, [5, 5])
+            .unwrap();
         let entry = IdEntry {
             range_id: range_id.clone(),
             r#ref: None,
@@ -391,6 +392,63 @@ mod tests {
 
         let restored: IdEntry = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.range_id, range_id);
+    }
+
+    /// コレクションを経由しても、仕様書 1.5.3 の `{i}/{t}` がそのまま往復する。
+    ///
+    /// 木は時間を2の冪秒のセルで持つため、`1800` 秒のような単位は挿入時に複数セルへ分解される
+    /// （この例では5個）。書き出し側で時間方向の結合
+    /// （[`coalesce_temporal`](crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal)）
+    /// を通すことで、`i: 1800` / `t: [809712]` が復元されることを確認する。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn round_trips_temporal_through_a_collection() {
+        use crate::{SingleId, SpatialIdTable};
+        use alloc::vec::Vec;
+
+        let original = SingleId::new(12, 0, 3638, 1614)
+            .unwrap()
+            .with_time(1800, 809712)
+            .unwrap();
+
+        let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
+        table.insert(original.clone(), 7);
+        assert!(table.count() > 1, "1800秒は複数セルへ分解されるはず");
+
+        let json = serde_json::to_string(&table).unwrap();
+        assert!(json.contains("\"i\":1800"), "i が復元されていない: {json}");
+        assert!(
+            json.contains("\"t\":[809712]"),
+            "t が復元されていない: {json}"
+        );
+
+        let restored: SpatialIdTable<i32> = serde_json::from_str(&json).unwrap();
+        let ids: Vec<_> = restored.flat_single_ids().collect();
+        assert_eq!(ids.len(), 1);
+        assert_eq!(ids[0].0, original);
+        assert_eq!(*ids[0].1, 7);
+    }
+
+    /// 値なしコレクション（Set）でも同じく `{i}/{t}` が往復する。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn round_trips_temporal_through_a_set() {
+        use crate::{SingleId, SpatialIdSet};
+
+        let original = SingleId::new(12, 0, 3638, 1614)
+            .unwrap()
+            .with_time(1800, 809712)
+            .unwrap();
+
+        let mut set = SpatialIdSet::new();
+        set.insert(original);
+
+        let json = serde_json::to_string(&set).unwrap();
+        assert!(json.contains("\"i\":1800"), "i が復元されていない: {json}");
+        assert!(
+            json.contains("\"t\":[809712]"),
+            "t が復元されていない: {json}"
+        );
     }
 
     #[test]

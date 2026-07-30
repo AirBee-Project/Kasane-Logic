@@ -49,32 +49,14 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.raw_temporal();
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
 
         // 占有区間を整列したインデックス値群へ分解し、F以外の成分を保ったままFlexIdを構築する。
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                        .unwrap()
-                        .with_raw_temporal(temporal_id.clone())
-                }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            seg_z,
-                            seg_index,
-                            x_zoomlevel,
-                            x_index,
-                            y_zoomlevel,
-                            y_index,
-                        )
-                    }
-                }
+                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                    .unwrap()
+                    .with_time_cell(t_zoomlevel, t_index)
             }),
         )
     }
@@ -122,41 +104,23 @@ impl FlexId {
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.raw_temporal();
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
 
         Ok(ranges
             .into_iter()
             .flat_map(move |range| split_xy(max_z, range))
             .map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            seg_z,
-                            seg_index,
-                            y_zoomlevel,
-                            y_index,
-                        )
-                    }
-                    .with_raw_temporal(temporal_id.clone())
+                unsafe {
+                    FlexId::new_unchecked(
+                        f_zoomlevel,
+                        f_index,
+                        seg_z,
+                        seg_index,
+                        y_zoomlevel,
+                        y_index,
+                    )
                 }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            seg_z,
-                            seg_index,
-                            y_zoomlevel,
-                            y_index,
-                        )
-                    }
-                }
+                .with_time_cell(t_zoomlevel, t_index)
             }))
     }
 
@@ -201,39 +165,21 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        #[cfg(feature = "temporal_id")]
-        let temporal_id = self.raw_temporal();
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
-                #[cfg(feature = "temporal_id")]
-                {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            x_zoomlevel,
-                            x_index,
-                            seg_z,
-                            seg_index,
-                        )
-                    }
-                    .with_raw_temporal(temporal_id.clone())
+                unsafe {
+                    FlexId::new_unchecked(
+                        f_zoomlevel,
+                        f_index,
+                        x_zoomlevel,
+                        x_index,
+                        seg_z,
+                        seg_index,
+                    )
                 }
-
-                #[cfg(not(feature = "temporal_id"))]
-                {
-                    unsafe {
-                        FlexId::new_unchecked(
-                            f_zoomlevel,
-                            f_index,
-                            x_zoomlevel,
-                            x_index,
-                            seg_z,
-                            seg_index,
-                        )
-                    }
-                }
+                .with_time_cell(t_zoomlevel, t_index)
             }),
         )
     }

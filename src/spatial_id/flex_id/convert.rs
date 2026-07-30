@@ -1,7 +1,5 @@
 use alloc::boxed::Box;
 
-#[cfg(feature = "temporal_id")]
-use crate::SpatialId;
 use crate::{FlexId, RangeId, SingleId};
 
 impl From<FlexId> for RangeId {
@@ -29,28 +27,17 @@ impl From<&FlexId> for RangeId {
         let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel.get());
         let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel.get());
 
-        #[cfg(feature = "temporal_id")]
-        {
-            RangeId::new(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-            )
-            .unwrap()
-            .with_temporal(flex_id.temporal())
-        }
+        let (start, end) = flex_id.seconds_range();
 
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            RangeId::new(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-            )
-            .unwrap()
-        }
+        RangeId::new(
+            max_z,
+            [f_range[0] as i32, f_range[1] as i32],
+            [x_range[0] as u32, x_range[1] as u32],
+            [y_range[0] as u32, y_range[1] as u32],
+        )
+        .unwrap()
+        .with_time_seconds(start, end)
+        .expect("セルの秒区間は常に有効")
     }
 }
 

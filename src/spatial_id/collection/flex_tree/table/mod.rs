@@ -190,12 +190,24 @@ where
     }
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
+    ///
+    /// 展開の前に、時間方向に隣接する同値のセルを結合する。木は時間を2の冪秒のセルとして
+    /// 持つため、これを行わないと `1800` 秒のような単位で入れた ID が断片のまま出てくる。
+    /// 同値かどうかは Rank（値の同一性そのもの）で判定できるので、値の比較は不要。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        self.inner.iter_ref().flat_map(|(flex_id, rank)| {
-            let value = self.reverse_dictionary.get(rank).unwrap();
-            RangeId::from(&flex_id)
-                .single_ids()
-                .map(move |single_id| (single_id, value))
+        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            self.inner
+                .iter_ref()
+                .map(|(flex_id, rank)| (flex_id, *rank)),
+            None,
+        );
+
+        merged.into_iter().flat_map(move |(range, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch");
+            range.single_ids().map(move |single_id| (single_id, value))
         })
     }
 

@@ -58,7 +58,7 @@ where
             .map(|chunk| {
                 let mut core = Self::new();
                 for (_, (id, value)) in chunk {
-                    core.insert(id.clone(), value.clone());
+                    core.insert(*id, value.clone());
                 }
                 core
             })
@@ -94,7 +94,7 @@ where
                 .map(|chunk| {
                     let mut core = Self::new();
                     for (_, (id, value)) in chunk {
-                        core.insert_with(id.clone(), value.clone(), &resolve);
+                        core.insert_with(*id, value.clone(), &resolve);
                     }
                     core
                 })

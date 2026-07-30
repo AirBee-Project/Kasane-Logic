@@ -43,7 +43,7 @@ fn insert_outside_region_is_ignored() {
 #[test]
 fn coarse_insert_is_clipped_to_region() {
     let shard = region(2, 0, 0, 0);
-    let mut set = SpatialIdSet::new_in_shard(shard.clone());
+    let mut set = SpatialIdSet::new_in_shard(shard);
     // ズーム0（全空間）を挿入 → 領域に切り詰められるはず。
     set.insert(SingleId::new(0, 0, 0, 0).unwrap());
 
@@ -80,7 +80,7 @@ fn difference_of_disjoint_shards_is_lhs() {
 #[test]
 fn same_region_intersection_matches_overlap() {
     let shard = region(2, 0, 0, 0);
-    let mut a = SpatialIdSet::new_in_shard(shard.clone());
+    let mut a = SpatialIdSet::new_in_shard(shard);
     a.insert(SingleId::new(4, 0, 1, 1).unwrap());
     a.insert(SingleId::new(4, 0, 2, 2).unwrap());
 
@@ -102,7 +102,7 @@ fn same_region_intersection_matches_overlap() {
 fn split_shard_then_merge_shards_roundtrips() {
     // Map と対称な split_shard / merge_shards が、分割→統合で元の集合に戻ることを確認。
     let shard = region(2, 0, 0, 0);
-    let mut set = SpatialIdSet::new_in_shard(shard.clone());
+    let mut set = SpatialIdSet::new_in_shard(shard);
     set.insert(SingleId::new(4, 0, 1, 1).unwrap());
     set.insert(SingleId::new(4, 0, 2, 2).unwrap());
     set.insert(SingleId::new(4, 0, 3, 0).unwrap());
@@ -114,7 +114,7 @@ fn split_shard_then_merge_shards_roundtrips() {
     assert_eq!(shard.intersection(&ur).as_ref(), Some(&ur));
 
     // 統合すると領域・内容ともに元へ戻る。
-    let merged = SpatialIdSet::merge_shards(shard.clone(), vec![lower, upper]).unwrap();
+    let merged = SpatialIdSet::merge_shards(shard, vec![lower, upper]).unwrap();
     assert_eq!(merged.shard(), Some(&shard));
     assert_eq!(merged, set);
 }
@@ -142,4 +142,23 @@ fn merge_shards_rejects_shardless_child() {
     let parent = region(1, 0, 0, 0);
     let shardless = SpatialIdSet::new();
     assert!(SpatialIdSet::merge_shards(parent, vec![shardless]).is_err());
+}
+
+/// 全軸ズーム0のシャード領域（＝全空間）は、それ以上分割できないので `None` を返す。
+///
+/// 分割レベルを「覆っている間だけ進む」歩行で求めているため、全空間では打ち切らないと
+/// レベル番号が `u8` を溢れる（release ビルドでは無限ループになる）。
+#[test]
+fn splitting_a_whole_space_shard_terminates() {
+    let whole = FlexId::new(0, 0, 0, 0, 0, 0).unwrap();
+    let mut set = SpatialIdSet::new_in_shard(whole);
+    set.insert(SingleId::new(3, 1, 1, 1).unwrap());
+
+    assert!(set.split_shard().is_none(), "全空間シャードは分割できない");
+
+    // 1段でも余地があれば従来どおり分割できる。
+    let narrower = FlexId::new(1, 0, 1, 0, 1, 0).unwrap();
+    let mut set = SpatialIdSet::new_in_shard(narrower);
+    set.insert(SingleId::new(3, 1, 1, 1).unwrap());
+    assert!(set.split_shard().is_some());
 }

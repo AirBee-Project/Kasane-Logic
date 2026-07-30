@@ -2,7 +2,7 @@ use super::ptr::{SafeValue, SharedNode};
 use crate::{FlexId, Side};
 
 /// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2進セル
-/// （最大ズーム`TZoomLevel::MAX`=62）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
+/// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
 /// だけの規約で、他に意味は無い。`Dimension`（`crate::Dimension`）は物理座標計算など
 /// 空間限定のコードからも参照される公開APIなので、時間軸をここに混ぜ込まないよう、
 /// FlexTree内部専用のこの型を別途定義している。
@@ -14,16 +14,34 @@ pub(crate) enum Axis {
     T,
 }
 
-/// 木が同時に分割する軸の数（F/X/Y/Tの4軸）。
+/// 木が同時に分割する軸の数。
+///
+/// `temporal_id` feature が有効なら F/X/Y/T の4軸、無効なら F/X/Y の3軸。
+/// 時間を使わないビルドで4軸のまま回すと、[`Node::insert_mut`] の軸スキップ歩行が
+/// 空振りするTの番のぶんだけ余計にレベルを進み、挿入が素直に 4/3 倍遅くなる。
+#[cfg(feature = "temporal_id")]
 pub(crate) const NUM_AXES: u8 = 4;
+#[cfg(not(feature = "temporal_id"))]
+pub(crate) const NUM_AXES: u8 = 3;
 
 /// 葉ノードの仮想ツリーレベル。木を降りる操作で「葉に達した」ことを表す
 /// 番兵として使う。実在の Branch はこれ未満のレベルしか持たない。
 ///
-/// 経験則 `NUM_AXES * (最深軸の最大ズーム + 1)` に従う（3軸版で `3*(30+1)=93` と厳密に一致
-/// することを確認済み）。Tが最深（最大ズーム62）かつサイクル内で最後（位置3）なので
-/// `4*(62+1) = 252` を用いる。
-pub(crate) const LEAF_LEVEL: u8 = 252;
+/// 経験則 `NUM_AXES * (最深軸の最大ズーム + 1)` に従う。4軸版はTが最深（最大ズーム
+/// [`Interval::WHOLE_POW`](crate::Interval::WHOLE_POW) = 35）かつサイクル内で最後
+/// （位置3）なので `4*(35+1) = 144`、3軸版は `3*(30+1) = 93`。
+#[cfg(feature = "temporal_id")]
+pub(crate) const LEAF_LEVEL: u8 = 144;
+#[cfg(not(feature = "temporal_id"))]
+pub(crate) const LEAF_LEVEL: u8 = 93;
+
+/// [`covers_all_axes`](Node::covers_all_axes) は `level + (NUM_AXES - 1)` を計算するため、
+/// レベル番号が `u8` に収まりきることをコンパイル時に確かめておく。
+/// 軸を1本増やすと 4軸版で 255 に達し、静かにオーバーフローする。
+const _: () = assert!(
+    (LEAF_LEVEL as u16) + (NUM_AXES as u16) - 1 <= u8::MAX as u16,
+    "LEAF_LEVEL + NUM_AXES - 1 が u8 を超える。軸を増やすならレベル型を広げること"
+);
 
 /// Branch の両子（下・上）への参照ペア。
 type ChildRefs<'a, V> = (&'a SharedNode<Node<V>>, &'a SharedNode<Node<V>>);
@@ -75,28 +93,34 @@ where
         }
     }
 
-    /// このノードを `node_level`（自身の絶対ツリーレベル）に置いたときの、配下の値付き Leaf の
-    /// 空間（F/X/Y）ズームレベルの最大値を返す。Branch はキャッシュ済みの値を返すため O(1)。
+    /// 配下の値付き Leaf の空間（F/X/Y）ズームレベルの最大値を返す。Branch はキャッシュ済みの
+    /// 値を返すため O(1)。
     ///
-    /// ツリーレベル `L` の Leaf が持つ空間ズームの上限は `ceil(L / NUM_AXES)` に等しい（Fが
-    /// サイクルの先頭＝位置0のため、[`covers_all_axes`](Self::covers_all_axes) の式のうち
-    /// 常に最大となる項と一致する）。値の無い Leaf は 0 を返す。Tのズームはここには含まない
-    /// （`max_zoomlevel()` は空間解像度のみを報告する既存の契約のため）。
-    pub(crate) fn max_zoom_at(&self, node_level: u8) -> u8 {
+    /// Leaf 自身は 0 を返す。「その Leaf がどれだけ細かいか」はレベル番号からは求まらないため、
+    /// **実際に分割された空間軸の深さ**を Branch 側で畳み上げる（[`fold_max_zoom`](Self::fold_max_zoom)）。
+    ///
+    /// レベル番号から `ceil(L / NUM_AXES)` として推定してはならない。木は「対象がその軸を
+    /// 覆っている」レベルを実体化せず読み飛ばすため、レベル番号は分割の深さと一致しない。
+    /// 特に T 軸は最大ズームが 35 で空間の 30 より深いので、時間だけが深いセルで
+    /// 空間ズームを過大報告してしまう。
+    pub(crate) fn max_zoom(&self) -> u8 {
         match self {
             Node::Branch { max_zoom, .. } => *max_zoom,
-            Node::Leaf { value: Some(_) } => node_level.div_ceil(NUM_AXES),
-            Node::Leaf { value: None } => 0,
+            Node::Leaf { .. } => 0,
         }
     }
 
     /// レベル `level` の Branch を構築・更新する際の `max_zoom` を、両子の部分木から畳み上げる。
-    /// 子はいずれもレベル `level + 1` に位置する。
+    ///
+    /// この Branch が実在する＝`axis(level)` を `depth(level)` の位置で実際に分割したという
+    /// ことなので、配下の Leaf はその軸について少なくとも `depth(level) + 1` の解像度を持つ。
+    /// 時間軸（T）の分割は空間解像度に寄与しないため 0 として扱う。
     pub(crate) fn fold_max_zoom(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
-        let child_level = level + 1;
-        lower
-            .max_zoom_at(child_level)
-            .max(upper.max_zoom_at(child_level))
+        let own = match Self::axis(level) {
+            Axis::F | Axis::X | Axis::Y => Self::depth(level) + 1,
+            Axis::T => 0,
+        };
+        own.max(lower.max_zoom()).max(upper.max_zoom())
     }
 
     /// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
@@ -211,18 +235,20 @@ where
         }
     }
 
+    /// 範囲 `target` に対して、レベル `level` の Branch を降りるとき交差しうる子を返す。
+    ///
+    /// `current_id` はこの Branch 自身が占める領域。時間軸の判定にだけ使う
+    /// （F/X/Y はターゲットの整数範囲とレベルから直接決まるが、時間は `Interval` が
+    /// 2の冪とは限らないので「共通ズームでの整数範囲」に落とせず、絶対秒区間で比較する）。
     pub(crate) fn overlapping_children_range(
         target: &crate::RangeId,
         level: u8,
+        current_id: &FlexId,
     ) -> OverlappingChildren {
         let axis = Self::axis(level);
 
-        // Tは RangeId 側が人間向け範囲（Interval + [min,max]）であり、F/X/Yのような
-        // 「共通ズームでの単純な整数範囲」として比較できない。安全側に倒して常に両方の
-        // 子を辿る（枝刈りはしないが正しさは保たれる。範囲クエリでの時間軸の枝刈りは
-        // 将来の最適化課題）。
         if matches!(axis, Axis::T) {
-            return OverlappingChildren::Both;
+            return Self::overlapping_children_time(target, current_id);
         }
 
         let depth = Self::depth(level);
@@ -254,6 +280,30 @@ where
         }
     }
 
+    /// 時間軸について、`current_id` が占める時間セルを2分したときに `target` と交差しうる
+    /// 子を返す。
+    ///
+    /// セルの秒区間 `[start, end)` を中点で割り、それぞれがターゲットの秒区間と重なるかを見る。
+    /// `Interval` が2の冪でなくても絶対秒で比較するので正しく判定できる。
+    fn overlapping_children_time(
+        target: &crate::RangeId,
+        current_id: &FlexId,
+    ) -> OverlappingChildren {
+        let (target_start, target_end) = target.seconds_range();
+        let (start, end) = current_id.seconds_range();
+        let mid = start + (end - start) / 2;
+
+        let hits = |s: u64, e: u64| s < target_end && target_start < e;
+
+        match (hits(start, mid), hits(mid, end)) {
+            (true, true) => OverlappingChildren::Both,
+            (false, true) => OverlappingChildren::Only(Side::Upper),
+            // どちらとも交差しない場合（走査開始点がそもそも交差していないとき）も
+            // 片側を返すしかないが、葉に着いたあと `FlexId::intersects_range` で落ちる。
+            _ => OverlappingChildren::Only(Side::Lower),
+        }
+    }
+
     /// target が、この `level` が担当する**1軸**について現在の空間境界を完全に覆うか判定する。
     /// 全軸をまとめて見るのは [`covers_all_axes`](Self::covers_all_axes)。
     ///
@@ -265,22 +315,31 @@ where
         Self::target_zoom(axis, target) <= depth
     }
 
-    /// target が現在の空間境界を**全軸（F/X/Y/T）**で完全に覆うか判定する。
-    /// 1軸だけ見るのは [`covers`](Self::covers)。
+    /// レベル `level` に居るとき、サイクル内の位置 `p` の軸を何回分割し終えているか。
     ///
-    /// 各軸の位置 `p`（サイクル内0始まり、F=0/X=1/Y=2/T=3）について
-    /// `passed(level, p) = (level + (NUM_AXES - 1 - p)) / NUM_AXES` という一般式に従う
-    /// （3軸版の `div_ceil(level,3)`, `(level+1)/3`, `level/3` と厳密に整合することを検証済み）。
-    pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
-        let passed_f = (level + 3) / NUM_AXES;
-        let passed_x = (level + 2) / NUM_AXES;
-        let passed_y = (level + 1) / NUM_AXES;
-        let passed_t = level / NUM_AXES;
+    /// `passed(level, p) = (level + (NUM_AXES - 1 - p)) / NUM_AXES`。
+    /// 軸数から導出するので、`temporal_id` の有無（4軸／3軸）どちらでも成り立つ。
+    const fn passed(level: u8, position: u8) -> u8 {
+        (level + (NUM_AXES - 1 - position)) / NUM_AXES
+    }
 
-        target.f_zoomlevel() <= passed_f
-            && target.x_zoomlevel() <= passed_x
-            && target.y_zoomlevel() <= passed_y
-            && target.t_zoomlevel() <= passed_t
+    /// target が現在の空間境界を**全軸**で完全に覆うか判定する。
+    /// 1軸だけ見るのは [`covers`](Self::covers)。
+    pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
+        let spatial = target.f_zoomlevel() <= Self::passed(level, 0)
+            && target.x_zoomlevel() <= Self::passed(level, 1)
+            && target.y_zoomlevel() <= Self::passed(level, 2);
+
+        #[cfg(feature = "temporal_id")]
+        {
+            spatial && target.t_zoomlevel() <= Self::passed(level, 3)
+        }
+
+        // 3軸版にはTの番が無く、時間は常に全時間（ズーム0）なので判定不要。
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            spatial
+        }
     }
 
     /// 持続的データ構造に挿入します。

@@ -7,14 +7,19 @@ pub mod random;
 pub mod test;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalId, error::Error, spatial_id::zoom_level::ZoomLevel,
+    Interval, SpatialId, SpatialIdError,
+    error::Error,
+    spatial_id::{time_cells, zoom_level::ZoomLevel},
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
 ///
 /// [Ouranos 4D 時空間ID仕様](https://www.ipa.go.jp/)の Spatio-temporal ID
 /// `{z}/{f}/{x}/{y}_{i}/{t}` に一対一で対応する。空間部分が[`ZoomLevel`]でのf/x/y、
-/// 時間部分が[`TemporalId`]（時間間隔`i`とインデックス`t`）である。
+/// 時間部分が時間間隔 `i`（[`Interval`]）と**単一**インデックス `t` である。
+///
+/// 空間が「1セル」なのと揃えて、時間も「1セル」しか持たない。時間の範囲を扱いたい場合は
+/// [`RangeId`](crate::RangeId)を使う。
 ///
 /// 内部的には下記のような構造体で構成されている。
 ///
@@ -27,7 +32,8 @@ use crate::{
 ///     x: u32,
 ///     y: u32,
 ///
-///     temporal_id: TemporalId, // 仕様の {i}/{t}
+///     interval: Interval,    // 仕様の {i}
+///     t: u64,                // 仕様の {t}（単一）
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -36,7 +42,8 @@ pub struct SingleId {
     f: i32,
     x: u32,
     y: u32,
-    temporal_id: TemporalId,
+    i: Interval,
+    t: u64,
 }
 
 impl SingleId {
@@ -84,26 +91,135 @@ impl SingleId {
         self.y
     }
 
-    /// 時間 ID を設定した自身を返す（ビルダー形式）。
+    /// この `SingleId` の時間間隔 `{i}`（単位、秒数）を返す。
     ///
-    /// [Ouranos 4D 時空間ID仕様](https://www.ipa.go.jp/)が「時間間隔は任意の秒数を指定できる」と
-    /// 定めている通り、どの[`TemporalId`]も無条件に受け取れる。FlexTreeが内部で必要とする2の冪秒の
-    /// セルへの分解は、木へ挿入する段階（[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で
-    /// 自動的に行われるため、ここでは検証も分解もしない。
+    /// 時間を設定していない場合は[`Interval::WHOLE`](crate::Interval::WHOLE)。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{SingleId, TemporalId};
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
+    /// assert_eq!(id.interval().seconds(), 1800);
+    /// assert_eq!(id.t(), 809712);
+    /// # }
+    /// ```
+    pub fn interval(&self) -> Interval {
+        self.i
+    }
+
+    /// この `SingleId` の時間インデックス `{t}` を返す。
+    pub fn t(&self) -> u64 {
+        self.t
+    }
+
+    /// この `SingleId` が占める絶対秒区間 `[start, end)` を返す（1970-01-01 00:00 UTC 起点）。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::SingleId;
+    /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
+    /// assert_eq!(id.seconds_range(), (1_457_481_600, 1_457_483_400));
+    /// # }
+    /// ```
+    pub fn seconds_range(&self) -> (u64, u64) {
+        let unit = self.i.seconds();
+        (self.t * unit, (self.t + 1) * unit)
+    }
+
+    /// 時間を設定した自身を返す（ビルダー形式）。
+    ///
+    /// [Ouranos 4D 時空間ID仕様](https://www.ipa.go.jp/)の `{i}/{t}` に対応する。`interval` は
+    /// [`Interval`]、または秒数を表す整数（無注釈のリテラルを含む）のどちらでも
+    /// 渡せる。仕様どおり任意の秒数を単位にできる。
+    ///
+    /// `SingleId` は空間が1セルなのと揃えて**時間も1セル**しか持たない。時間の範囲を扱いたい
+    /// 場合は [`RangeId::with_time`](crate::RangeId::with_time) を使う。
+    ///
+    /// FlexTreeが内部で必要とする2の冪秒のセルへの分解は、木へ挿入する段階
+    /// （[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で自動的に行われる。
+    ///
+    /// # バリデーション
+    /// - `interval` が負、`0`、または全時間を超える場合は
+    ///   [`SpatialIdError::TIntervalError`] を返す。
+    /// - `(t + 1) * interval` が全時間を超える場合は [`SpatialIdError::TOutOfRange`] を返す。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, SingleId};
     /// // 仕様書の例: 12/0/3638/1614_1800/809712（30分単位）
-    /// let id = SingleId::new(12, 0, 3638, 1614)
-    ///     .unwrap()
-    ///     .with_temporal(TemporalId::new(1800, 809712).unwrap());
+    /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
+    /// assert_eq!(id.to_string(), "12/0/3638/1614_1800/809712");
+    ///
+    /// // 定数でも指定できる。
+    /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(Interval::MINUTE, 3).unwrap();
+    /// assert_eq!(id.to_string(), "5/3/2/10_60/3");
+    /// # }
+    /// ```
+    pub fn with_time(mut self, interval: impl Into<i64>, t: u64) -> Result<Self, Error> {
+        let (i, t) = validated_time(interval.into(), t)?;
+        self.i = i;
+        self.t = t;
+        Ok(self)
+    }
+
+    /// Unix 時刻（秒）が属する時間セルを設定した自身を返す。
+    ///
+    /// 仕様書 1.5.3 (3) の `t = floor(u / i)` をこちらで計算するので、呼び出し側で
+    /// インデックスを求める必要がない。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, SingleId};
+    /// // 1457482000 秒は 30 分単位で 809712 番目のセルに入る。
+    /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time_at(1800, 1_457_482_000).unwrap();
     /// assert_eq!(id.to_string(), "12/0/3638/1614_1800/809712");
     /// # }
     /// ```
-    pub fn with_temporal(mut self, temporal: TemporalId) -> Self {
-        self.temporal_id = temporal;
+    pub fn with_time_at(self, interval: impl Into<i64>, unix_seconds: u64) -> Result<Self, Error> {
+        let interval: i64 = interval.into();
+        let unit = Interval::from_signed_seconds(interval)?;
+        self.with_time(unit, unit.index_of(unix_seconds))
+    }
+
+    /// 同じ絶対秒区間を、別の単位で表し直した自身を返す。
+    ///
+    /// 単位が変わっても指す時刻は変わらない。割り切れず単一セルにならない場合は [`None`]。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, SingleId};
+    /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(3600, 5).unwrap();
+    /// // 1時間ぶんは 1800 秒単位では 2 セルになるので単一にできない。
+    /// assert!(id.clone().relabel_time(Interval::new(1800).unwrap()).is_none());
+    /// assert_eq!(id.relabel_time(Interval::HOUR).unwrap().t(), 5);
+    /// # }
+    /// ```
+    pub fn relabel_time(mut self, interval: Interval) -> Option<Self> {
+        let (start, end) = self.seconds_range();
+        let unit = interval.seconds();
+        if end - start != unit || !start.is_multiple_of(unit) {
+            return None;
+        }
+        self.i = interval;
+        self.t = start / unit;
+        Some(self)
+    }
+
+    /// 内部表現をそのまま取得する。クレート内部専用。
+    pub(crate) fn time_cells(&self) -> time_cells::TimeCells {
+        let (start, end) = self.seconds_range();
+        time_cells::split_seconds(start, end)
+    }
+
+    /// 内部表現をそのまま設定する。クレート内部専用（検証済みの値を渡すこと）。
+    pub(crate) fn with_time_unchecked(mut self, i: Interval, t: u64) -> Self {
+        self.i = i;
+        self.t = t;
         self
     }
 
@@ -275,7 +391,8 @@ impl SingleId {
                     x,
                     y,
 
-                    temporal_id: self.temporal_id.clone(),
+                    i: self.i,
+                    t: self.t,
                 })
             })
         }))
@@ -349,7 +466,8 @@ impl SingleId {
             x,
             y,
 
-            temporal_id: self.temporal_id.clone(),
+            i: self.i,
+            t: self.t,
         })
     }
 
@@ -395,56 +513,64 @@ impl SingleId {
                 f: f_start,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal_id.clone(),
+                i: self.i,
+                t: self.t,
             },
         ];
 
@@ -660,4 +786,23 @@ impl SingleId {
             })
         })
     }
+}
+
+/// `{i}` と `{t}` の組を検証する。
+///
+/// 仕様は `{i}` に任意の秒数を認めるが、`(t + 1) * i` が全時間を超えてはならない。
+fn validated_time(interval: i64, t: u64) -> Result<(Interval, u64), Error> {
+    let interval = Interval::from_signed_seconds(interval)?;
+    let unit = interval.seconds();
+
+    let end_exclusive = t
+        .checked_add(1)
+        .and_then(|v| v.checked_mul(unit))
+        .ok_or(SpatialIdError::TOutOfRange { i: unit, t })?;
+
+    if end_exclusive > Interval::WHOLE_SECONDS {
+        return Err(SpatialIdError::TOutOfRange { i: unit, t }.into());
+    }
+
+    Ok((interval, t))
 }
