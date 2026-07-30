@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::{TableEntry, build_table};
-    use crate::{FlexId, RangeId, SingleId, SpatialIdTable};
+    use crate::{RangeId, SingleId, SpatialIdTable};
     use alloc::vec::Vec;
 
     /// 同じターゲットへ再挿入したときに、古い値が新しい値へ置き換わることを検証する。
@@ -18,7 +18,7 @@ mod tests {
         assert!(table.value_get(&10).next().is_none());
         assert_eq!(
             table.value_get(&20).collect::<Vec<_>>(),
-            vec![FlexId::from(target)]
+            target.into_iter().collect::<Vec<_>>()
         );
     }
 
@@ -35,7 +35,7 @@ mod tests {
 
         assert_eq!(
             table.value_get(&10).collect::<Vec<_>>(),
-            vec![FlexId::from(first), FlexId::from(second)]
+            first.into_iter().chain(second).collect::<Vec<_>>()
         );
     }
 

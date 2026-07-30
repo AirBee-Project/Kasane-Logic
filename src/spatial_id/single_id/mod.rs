@@ -7,10 +7,14 @@ pub mod random;
 pub mod test;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalSegment, error::Error, spatial_id::zoom_level::ZoomLevel,
+    SpatialId, SpatialIdError, TemporalId, error::Error, spatial_id::zoom_level::ZoomLevel,
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
+///
+/// [Ouranos 4D 時空間ID仕様](https://www.ipa.go.jp/)の Spatio-temporal ID
+/// `{z}/{f}/{x}/{y}_{i}/{t}` に一対一で対応する。空間部分が[`ZoomLevel`]でのf/x/y、
+/// 時間部分が[`TemporalId`]（時間間隔`i`とインデックス`t`）である。
 ///
 /// 内部的には下記のような構造体で構成されている。
 ///
@@ -23,7 +27,7 @@ use crate::{
 ///     x: u32,
 ///     y: u32,
 ///
-///     temporal_id: TemporalSegment, // FlexTree内部専用の生の2進セル表現（非公開）
+///     temporal_id: TemporalId, // 仕様の {i}/{t}
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -32,7 +36,7 @@ pub struct SingleId {
     f: i32,
     x: u32,
     y: u32,
-    temporal_id: TemporalSegment,
+    temporal_id: TemporalId,
 }
 
 impl SingleId {
@@ -80,19 +84,26 @@ impl SingleId {
         self.y
     }
 
-    /// FlexTree内部の生の2進セル（[`TemporalSegment`]）をそのまま取得する。クレート内部専用。
-    pub(crate) fn raw_temporal(&self) -> TemporalSegment {
-        self.temporal_id.clone()
-    }
-
-    /// FlexTree内部の生の2進セル（[`TemporalSegment`]）をそのまま設定する。クレート内部専用。
+    /// 時間 ID を設定した自身を返す（ビルダー形式）。
     ///
-    /// [`SpatialId::try_with_temporal`](crate::SpatialId::try_with_temporal)と異なり、与えられた値が
-    /// 単一セルであることの検証は行わない（呼び出し側が既存の[`FlexId`]/[`SingleId`]から複製した
-    /// 値を渡すことを前提とする内部用の近道）。
-    #[cfg(feature = "temporal_id")]
-    pub(crate) fn with_raw_temporal(mut self, raw: TemporalSegment) -> Self {
-        self.temporal_id = raw;
+    /// [Ouranos 4D 時空間ID仕様](https://www.ipa.go.jp/)が「時間間隔は任意の秒数を指定できる」と
+    /// 定めている通り、どの[`TemporalId`]も無条件に受け取れる。FlexTreeが内部で必要とする2の冪秒の
+    /// セルへの分解は、木へ挿入する段階（[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で
+    /// 自動的に行われるため、ここでは検証も分解もしない。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{SingleId, TemporalId};
+    /// // 仕様書の例: 12/0/3638/1614_1800/809712（30分単位）
+    /// let id = SingleId::new(12, 0, 3638, 1614)
+    ///     .unwrap()
+    ///     .with_temporal(TemporalId::new(1800, 809712).unwrap());
+    /// assert_eq!(id.to_string(), "12/0/3638/1614_1800/809712");
+    /// # }
+    /// ```
+    pub fn with_temporal(mut self, temporal: TemporalId) -> Self {
+        self.temporal_id = temporal;
         self
     }
 

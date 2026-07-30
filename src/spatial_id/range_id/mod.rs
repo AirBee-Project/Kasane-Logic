@@ -82,6 +82,27 @@ impl RangeId {
         self.y
     }
 
+    /// 時間 ID を設定した自身を返す（ビルダー形式）。
+    ///
+    /// [`SingleId::with_temporal`](crate::SingleId::with_temporal)と同じく、どの[`TemporalId`]も
+    /// 無条件に受け取る。FlexTreeが必要とする2の冪秒のセルへの分解は、木へ挿入する段階
+    /// （[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で自動的に行われる。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, RangeId, TemporalId};
+    /// let id = RangeId::new(4, [-3, 6], [8, 9], [5, 10])
+    ///     .unwrap()
+    ///     .with_temporal(TemporalId::new(Interval::HOUR, [5, 8]).unwrap());
+    /// assert_eq!(id.to_string(), "4/-3:6/8:9/5:10_3600/5:8");
+    /// # }
+    /// ```
+    pub fn with_temporal(mut self, temporal: TemporalId) -> Self {
+        self.temporal = temporal;
+        self
+    }
+
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
         let z = self.z.get();
         let mut value = value;

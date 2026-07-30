@@ -234,11 +234,6 @@ impl SpatialId for RangeId {
     fn temporal(&self) -> TemporalId {
         self.temporal.clone()
     }
-
-    fn try_with_temporal(mut self, temporal: TemporalId) -> Result<Self, Error> {
-        self.temporal = temporal;
-        Ok(self)
-    }
 }
 
 /// 文字列表現から [`RangeId`] を復元します。
@@ -285,7 +280,7 @@ impl FromStr for RangeId {
                 Some(text) => TemporalId::from_str(text)?,
                 None => TemporalId::WHOLE,
             };
-            RangeId::new(z, f, x, y).and_then(|id| id.try_with_temporal(temporal))
+            Ok(RangeId::new(z, f, x, y)?.with_temporal(temporal))
         }
 
         #[cfg(not(feature = "temporal_id"))]

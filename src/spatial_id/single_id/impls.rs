@@ -1,7 +1,5 @@
 use alloc::string::ToString;
 
-#[cfg(feature = "temporal_id")]
-use crate::TemporalSegment;
 use crate::{
     Coordinate, Ecef, Error, SingleId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
 };
@@ -286,19 +284,7 @@ impl SpatialId for SingleId {
     }
 
     fn temporal(&self) -> TemporalId {
-        TemporalId::from(&self.temporal_id)
-    }
-
-    fn try_with_temporal(mut self, temporal: TemporalId) -> Result<Self, Error> {
-        let mut segments = temporal.segments();
-        let segment = segments
-            .next()
-            .expect("TemporalId::segments yields at least one segment");
-        if segments.next().is_some() {
-            return Err(SpatialIdError::TemporalIdNotAtomic.into());
-        }
-        self.temporal_id = segment;
-        Ok(self)
+        self.temporal_id.clone()
     }
 }
 
@@ -341,10 +327,10 @@ impl FromStr for SingleId {
         #[cfg(feature = "temporal_id")]
         {
             let temporal_id = match temporal_text {
-                Some(text) => TemporalSegment::from_str(text)?,
-                None => TemporalSegment::WHOLE,
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
             };
-            SingleId::new(z, f, x, y).map(|id| id.with_raw_temporal(temporal_id))
+            SingleId::new(z, f, x, y).map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

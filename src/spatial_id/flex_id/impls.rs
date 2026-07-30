@@ -176,18 +176,6 @@ impl SpatialId for FlexId {
     fn temporal(&self) -> TemporalId {
         TemporalId::from(&self.temporal_id)
     }
-
-    fn try_with_temporal(mut self, temporal: TemporalId) -> Result<Self, Error> {
-        let mut segments = temporal.segments();
-        let segment = segments
-            .next()
-            .expect("TemporalId::segments yields at least one segment");
-        if segments.next().is_some() {
-            return Err(SpatialIdError::TemporalIdNotAtomic.into());
-        }
-        self.temporal_id = segment;
-        Ok(self)
-    }
 }
 
 /// 文字列表現から [`FlexId`] を復元する。

@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 
 #[cfg(feature = "temporal_id")]
 use crate::SpatialId;
-use crate::{FlexId, RangeId, SingleId, spatial_id::zoom_level::ZoomLevel};
+use crate::{FlexId, RangeId, SingleId};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {
@@ -38,8 +38,7 @@ impl From<&FlexId> for RangeId {
                 [y_range[0] as u32, y_range[1] as u32],
             )
             .unwrap()
-            .try_with_temporal(flex_id.temporal())
-            .unwrap()
+            .with_temporal(flex_id.temporal())
         }
 
         #[cfg(not(feature = "temporal_id"))]
@@ -55,25 +54,10 @@ impl From<&FlexId> for RangeId {
     }
 }
 
-impl From<SingleId> for FlexId {
-    fn from(value: SingleId) -> Self {
-        FlexId::from(&value)
-    }
-}
-
-impl From<&SingleId> for FlexId {
-    fn from(value: &SingleId) -> Self {
-        FlexId {
-            f_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
-            f_index: value.f(),
-            x_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
-            x_index: value.x(),
-            y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
-            y_index: value.y(),
-            temporal_id: value.raw_temporal(),
-        }
-    }
-}
+// `From<SingleId> for FlexId` は実装しない。[`SingleId`]は仕様通り任意の秒数の時間間隔を
+// 持てる一方、[`FlexId`]はFlexTreeのノードアドレスとして2の冪秒のセル1個しか持てないため、
+// 両者は1対1に対応しないからである（例: 30分間隔は最大5個の[`FlexId`]へ分解される）。
+// 変換には[`IntoIterator`]を使う（`SingleId::into_iter`が必要な数のセルへ分解する）。
 
 impl IntoIterator for FlexId {
     type Item = FlexId;

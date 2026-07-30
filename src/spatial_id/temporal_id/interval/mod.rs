@@ -5,38 +5,33 @@ mod disabled;
 pub use disabled::Interval;
 
 #[cfg(feature = "temporal_id")]
-use crate::Error;
+use crate::{Error, SpatialIdError};
 
 #[cfg(feature = "temporal_id")]
 mod impls;
 
-/// 時間IDの時間間隔`i`を表現する型。`i`が任意の0より大きい自然数を受け入れると、処理に不整合が生じるためパターンを限定する。
+/// 時間IDの時間間隔`i`（秒数）を表現する型。
 ///
-/// | バリアント | 秒数 |
+/// [Ouranos 4D Spatio-temporal ID仕様](https://github.com/AirBee-Project)の`Temporal ID`は
+/// 「任意の秒数」を時間間隔として許容するため、`1..=`[`WHOLE_SECONDS`](Self::WHOLE_SECONDS)の
+/// 範囲であれば任意の値を保持できる（`Day`/`Hour`のような固定候補への限定はしない）。
+///
+/// よく使う値は関連定数として用意している。
+///
+/// | 定数 | 秒数 |
 /// |---|---|
-/// | [`Whole`](Self::Whole) | `2^62`（約1,460億年） |
-/// | [`Day`](Self::Day) | 86400 |
-/// | [`Hour`](Self::Hour) | 3600 |
-/// | [`Minute`](Self::Minute) | 60 |
-/// | [`Second`](Self::Second) | 1 |
+/// | [`WHOLE`](Self::WHOLE) | `2^62`（約1,460億年） |
+/// | [`DAY`](Self::DAY) | 86400 |
+/// | [`HOUR`](Self::HOUR) | 3600 |
+/// | [`MINUTE`](Self::MINUTE) | 60 |
+/// | [`SECOND`](Self::SECOND) | 1 |
 #[cfg(feature = "temporal_id")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-pub enum Interval {
-    /// 全時間（`2^62`秒）
-    Whole,
-    /// 1日（86400 秒）
-    Day,
-    /// 1時間（3600 秒）
-    Hour,
-    /// 1分（60 秒）
-    Minute,
-    /// 1秒（1 秒）
-    Second,
-}
+pub struct Interval(u64);
 
 #[cfg(feature = "temporal_id")]
 impl Interval {
@@ -46,39 +41,56 @@ impl Interval {
     /// 最も粗い時間区間を表す二進層の指数。`TZoomLevel::MAX`と一致させること。
     pub const WHOLE_POW: u8 = 62;
 
+    /// 全時間（`2^62`秒）。
+    pub const WHOLE: Interval = Interval(Self::WHOLE_SECONDS);
+    /// 1日（86400秒）。
+    pub const DAY: Interval = Interval(86400);
+    /// 1時間（3600秒）。
+    pub const HOUR: Interval = Interval(3600);
+    /// 1分（60秒）。
+    pub const MINUTE: Interval = Interval(60);
+    /// 1秒（1秒）。
+    pub const SECOND: Interval = Interval(1);
+
     /// 秒数から[Interval]型を作成する。
     ///
-    /// [Interval]に当てはまらない場合は [`SpatialIdError::TIntervalError`](crate::SpatialIdError::TIntervalError) を返す。
+    /// `seconds`が`0`、または[`WHOLE_SECONDS`](Self::WHOLE_SECONDS)を超える場合は
+    /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// # 例
     ///
     /// ```
     /// # use kasane_logic::Interval;
-    /// assert_eq!(Interval::new(3600).unwrap(), Interval::Hour);
-    /// assert!(Interval::new(7200).is_err()); // 候補に無い
+    /// assert_eq!(Interval::new(3600).unwrap(), Interval::HOUR);
+    /// assert_eq!(Interval::new(7200).unwrap().seconds(), 7200); // 候補以外の秒数も許容する
+    /// assert!(Interval::new(0).is_err());
     /// ```
     pub fn new(seconds: u64) -> Result<Interval, Error> {
-        Interval::try_from(seconds)
+        if seconds == 0 || seconds > Self::WHOLE_SECONDS {
+            return Err(SpatialIdError::TIntervalError { i: seconds }.into());
+        }
+        Ok(Interval(seconds))
     }
 
     /// この[Interval]の秒数。
     pub const fn seconds(self) -> u64 {
-        match self {
-            Interval::Whole => Self::WHOLE_SECONDS,
-            Interval::Day => 86400,
-            Interval::Hour => 3600,
-            Interval::Minute => 60,
-            Interval::Second => 1,
-        }
+        self.0
     }
 
-    /// [Interval]の候補を粗い→細かい順に列挙する。
+    /// 秒数がきれいな候補（[`WHOLE`](Self::WHOLE)/[`DAY`](Self::DAY)/[`HOUR`](Self::HOUR)/
+    /// [`MINUTE`](Self::MINUTE)/[`SECOND`](Self::SECOND)）を粗い→細かい順に列挙する。
+    ///
+    /// 生の2進セルを人間に読みやすい[`TemporalId`](crate::TemporalId)へ復元する際、
+    /// この順に一致を試すことで「読出し時になるべく大きい/きれいな単位で返す」ことができる
+    /// （[`SECOND`](Self::SECOND)は常に割り切れるため、この列挙は必ずどこかで一致する）。
     pub fn coarse_to_fine() -> impl Iterator<Item = Interval> {
-        core::iter::once(Interval::Whole).chain([
-            Interval::Day,
-            Interval::Hour,
-            Interval::Minute,
-            Interval::Second,
-        ])
+        [
+            Self::WHOLE,
+            Self::DAY,
+            Self::HOUR,
+            Self::MINUTE,
+            Self::SECOND,
+        ]
+        .into_iter()
     }
 }

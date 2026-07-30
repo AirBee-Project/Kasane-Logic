@@ -1,14 +1,11 @@
 use crate::error::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-pub enum Interval {
-    #[default]
-    Whole,
-}
+pub struct Interval;
 
 impl Interval {
     /// このライブラリが扱える全時間の秒数（`2^62`秒、約1,460億年）。
@@ -20,12 +17,15 @@ impl Interval {
     /// 最も粗い時間区間を表す二進層の指数。
     pub const WHOLE_POW: u8 = 62;
 
+    /// 全時間（`2^62`秒）。`temporal_id` feature 無効時に唯一有効な値。
+    pub const WHOLE: Interval = Interval;
+
     /// 秒数から [`Interval`] を作成する。
     ///
     /// `temporal_id` feature 無効時は [`WHOLE_SECONDS`](Self::WHOLE_SECONDS) のみ受け付ける。
     pub fn new(seconds: u64) -> Result<Interval, Error> {
         if seconds == Self::WHOLE_SECONDS {
-            Ok(Interval::Whole)
+            Ok(Interval)
         } else {
             Err(crate::SpatialIdError::TIntervalError { i: seconds }.into())
         }
@@ -34,18 +34,6 @@ impl Interval {
     /// この間隔の秒数。
     pub const fn seconds(self) -> u64 {
         Self::WHOLE_SECONDS
-    }
-}
-
-impl Ord for Interval {
-    fn cmp(&self, _other: &Self) -> core::cmp::Ordering {
-        core::cmp::Ordering::Equal
-    }
-}
-
-impl PartialOrd for Interval {
-    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
-        Some(self.cmp(other))
     }
 }
 

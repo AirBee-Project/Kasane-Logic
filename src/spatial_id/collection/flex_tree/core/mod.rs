@@ -1062,7 +1062,7 @@ mod core_api_tests {
     fn temporal_range_decomposition_round_trips_into_tree() {
         use crate::{FlexId, Interval, TemporalId};
 
-        let range = TemporalId::new(Interval::Hour, [2, 2]).unwrap();
+        let range = TemporalId::new(Interval::HOUR, [2, 2]).unwrap();
         let cells: alloc::vec::Vec<_> = range.segments().collect();
         assert!(!cells.is_empty());
 

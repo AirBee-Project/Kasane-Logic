@@ -13,7 +13,7 @@ use crate::{FlexId, SingleId, SpatialIdSet};
 
 /// ズーム `z` の単一セルを表す [`FlexId`] 領域を作る。
 fn region(z: u8, f: i32, x: u32, y: u32) -> FlexId {
-    FlexId::from(SingleId::new(z, f, x, y).unwrap())
+    FlexId::new(z, f, z, x, z, y).unwrap()
 }
 
 #[test]
@@ -27,7 +27,7 @@ fn insert_inside_region_is_kept() {
     assert_eq!(set.count(), 1);
     // 取り出した結果が入力と一致する（切り詰めなし）。
     let got: Vec<FlexId> = set.iter().collect();
-    assert_eq!(got, vec![FlexId::from(inside)]);
+    assert_eq!(got, inside.into_iter().collect::<Vec<_>>());
 }
 
 #[test]
@@ -89,7 +89,13 @@ fn same_region_intersection_matches_overlap() {
 
     let inter = &a & &b;
     let got: Vec<FlexId> = inter.iter().collect();
-    assert_eq!(got, vec![FlexId::from(SingleId::new(4, 0, 2, 2).unwrap())]);
+    assert_eq!(
+        got,
+        SingleId::new(4, 0, 2, 2)
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]

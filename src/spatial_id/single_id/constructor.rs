@@ -1,7 +1,7 @@
 use crate::SingleId;
 use crate::spatial_id::zoom_level::ZoomLevel;
 
-use crate::{TemporalSegment, error::Error};
+use crate::{TemporalId, error::Error};
 
 impl SingleId {
     /// 指定された値から [`SingleId`] を作成する。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
@@ -43,15 +43,14 @@ impl SingleId {
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     ///
-    /// 時間IDを付与したい場合は [`SpatialId::try_with_temporal`](crate::SpatialId::try_with_temporal) を
-    /// 組み合わせる:
+    /// 時間IDを付与したい場合は [`SingleId::with_temporal`] を組み合わせる:
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{Interval, SingleId, SpatialId, TemporalId};
-    /// let temporal_id = TemporalId::new(Interval::Second, [3, 3]).unwrap();
-    /// let id = SingleId::new(5, 3, 2, 10).unwrap().try_with_temporal(temporal_id).unwrap();
-    /// assert_eq!(id.to_string(), "5/3/2/10_62/3".to_string());
+    /// # use kasane_logic::{Interval, SingleId, TemporalId};
+    /// let temporal_id = TemporalId::new(Interval::MINUTE, [3, 3]).unwrap();
+    /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_temporal(temporal_id);
+    /// assert_eq!(id.to_string(), "5/3/2/10_60/3".to_string());
     /// # }
     /// ```
     pub fn new(z: impl Into<u8>, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
@@ -65,7 +64,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalSegment::WHOLE,
+            temporal_id: TemporalId::WHOLE,
         })
     }
 
@@ -101,7 +100,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalSegment::WHOLE,
+            temporal_id: TemporalId::WHOLE,
         }
     }
 }

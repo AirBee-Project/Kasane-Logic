@@ -52,14 +52,9 @@ impl TemporalId {
         core::iter::empty()
     }
 
-    /// この範囲を生セルの列へ分解する。`temporal_id` feature 無効時は常に自身1個。
-    pub(crate) fn segments(&self) -> impl Iterator<Item = Self> {
-        core::iter::once(Self)
-    }
-
-    /// この時間区間の単位。`temporal_id` feature 無効時は常に[`Interval::Whole`](crate::Interval::Whole)。
+    /// この時間区間の単位。`temporal_id` feature 無効時は常に[`Interval::WHOLE`](crate::Interval::WHOLE)。
     pub fn interval(&self) -> crate::Interval {
-        crate::Interval::Whole
+        crate::Interval::WHOLE
     }
 
     /// この時間区間のインデックス範囲。`temporal_id` feature 無効時は常に `[0, 0]`。

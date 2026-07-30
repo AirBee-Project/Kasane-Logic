@@ -12,6 +12,7 @@ use crate::SingleId;
 /// [SingleId],[RangeId],[FlexId]が共通して持つTrait
 pub trait SpatialId:
     IntoIterator<Item = FlexId>
+    + Into<RangeId>
     + Debug
     + Display
     + Clone
@@ -20,7 +21,6 @@ pub trait SpatialId:
     + Ord
     + PartialOrd
     + FromStr
-    + Into<RangeId>
 {
     /// ズームレベルにおける最小のFインデックスを返す。
     ///
@@ -178,19 +178,13 @@ pub trait SpatialId:
 
     /// 時間 ID を返す。
     ///
-    /// [`FlexId`]/[`SingleId`]（点）は内部の生の2進セル表現から、[`RangeId`]（範囲）は保持している
-    /// 値からそれぞれ変換・複製して返す。返す型は3つの実装型で共通の[`TemporalId`]。
-    fn temporal(&self) -> TemporalId;
-
-    /// 時間 ID を設定した自身を返す。
+    /// [`SingleId`]/[`RangeId`]は保持している値をそのまま、[`FlexId`]（FlexTreeのノードアドレス）は
+    /// 内部の生の2進セル表現から変換して返す。返す型は3つの実装型で共通の[`TemporalId`]。
     ///
-    /// # バリデーション
-    /// [`FlexId`]/[`SingleId`]（点）は与えられた`temporal`がFlexTree内部の2進セル1個ちょうどに
-    /// 分解できる場合だけ受理する（例: `Interval::Second` の単一インデックス、または
-    /// `Interval::Whole`）。Day/Hour/Minute単位の区間は2の冪秒ではないため単一セルに一致せず、
-    /// エラーになる。[`RangeId`]（範囲）は常に成功する。この失敗しうる性質を名前で示すため
-    /// `try_`接頭辞を付けている。
-    fn try_with_temporal(self, temporal: TemporalId) -> Result<Self, Error>
-    where
-        Self: Sized;
+    /// 時間 ID の**付与**はこのTraitには含めない。[`SingleId`](SingleId::with_temporal)と
+    /// [`RangeId`](RangeId::with_temporal)は任意の[`TemporalId`]を無条件に受け取れるが、
+    /// [`FlexId`]は2の冪秒のセル1個しか保持できないため、同じシグネチャを共有できないからである。
+    /// [`FlexId`]へ時間を載せたい場合は[`SingleId`]/[`RangeId`]に付けてから
+    /// [`IntoIterator`]で展開する（`Interval`が2の冪でない区間は複数の[`FlexId`]へ分解される）。
+    fn temporal(&self) -> TemporalId;
 }
