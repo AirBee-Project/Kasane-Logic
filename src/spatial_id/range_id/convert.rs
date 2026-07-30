@@ -58,7 +58,7 @@ impl RangeId {
         let y_range = self.y[0]..=self.y[1];
 
         #[cfg(feature = "temporal_id")]
-        let t_list: Vec<crate::TemporalCell> = self.temporal.into_cells().collect();
+        let t_list: Vec<crate::TemporalSegment> = self.temporal.into_segments().collect();
         #[cfg(not(feature = "temporal_id"))]
         let t_id = self.temporal.clone();
 
@@ -87,7 +87,7 @@ impl RangeId {
                     #[cfg(feature = "temporal_id")]
                     {
                         t_list.clone().into_iter().map(move |t_cell| {
-                            SingleId::new_with_temporal(z, f, x, y, t_cell).unwrap()
+                            SingleId::new(z, f, x, y).unwrap().with_temporal(t_cell)
                         })
                     }
 
@@ -125,7 +125,7 @@ impl IntoIterator for RangeId {
         {
             let t_list: Vec<(u8, u64)> = self
                 .temporal
-                .into_cells()
+                .into_segments()
                 .map(|c| (c.zoom(), c.index()))
                 .collect();
 
@@ -139,20 +139,12 @@ impl IntoIterator for RangeId {
                         .clone()
                         .into_iter()
                         .flat_map(move |(y_z, y_i)| {
-                            t_list_inner
-                                .clone()
-                                .into_iter()
-                                .map(move |(t_z, t_i)| unsafe {
-                                    FlexId::new_with_temporal_unchecked(
-                                        f_z,
-                                        f_i,
-                                        x_z,
-                                        x_i,
-                                        y_z,
-                                        y_i,
-                                        crate::TemporalCell::new_unchecked(t_z, t_i),
-                                    )
-                                })
+                            t_list_inner.clone().into_iter().map(move |(t_z, t_i)| {
+                                unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) }
+                                    .with_temporal(unsafe {
+                                        crate::TemporalSegment::new_unchecked(t_z, t_i)
+                                    })
+                            })
                         })
                 })
             });

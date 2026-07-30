@@ -67,7 +67,7 @@ fn build_range_id(
         Some((i, t)) => {
             let interval = crate::Interval::new(i)?;
             let temporal = crate::TemporalRange::new(interval, t)?;
-            RangeId::new_with_temporal(z, f, x, y, temporal)
+            RangeId::new(z, f, x, y).map(|id| id.with_temporal(temporal))
         }
         #[cfg(not(feature = "temporal_id"))]
         Some(_) => RangeId::new(z, f, x, y),
@@ -374,10 +374,12 @@ mod tests {
     #[test]
     fn round_trips_temporal_i_scalar_and_t_array() {
         use super::IdEntry;
-        use crate::{Interval, RangeId, TemporalRange};
+        use crate::{Interval, RangeId, SpatialId, TemporalRange};
 
         let temporal = TemporalRange::new(Interval::Hour, [5, 5]).unwrap();
-        let range_id = RangeId::new_with_temporal(20, [0, 0], [0, 0], [0, 0], temporal).unwrap();
+        let range_id = RangeId::new(20, [0, 0], [0, 0], [0, 0])
+            .unwrap()
+            .with_temporal(temporal);
         let entry = IdEntry {
             range_id: range_id.clone(),
             r#ref: None,

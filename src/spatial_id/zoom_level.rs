@@ -1,6 +1,26 @@
 use crate::{SpatialIdError, error::Error};
 use core::fmt;
 
+/// ズームレベルを表す型の土台。`LIMIT`は許容する最大ズームレベルで、空間軸（[`ZoomLevel`]、
+/// `LIMIT=30`）と時間軸の生セル（[`TZoomLevel`](crate::spatial_id::temporal_id::zoom_level::TZoomLevel)、
+/// `LIMIT=62`）が生成・深化・範囲チェックの式を共有しつつ、`LIMIT`の値でRustの型として区別される
+/// （`ZoomLevel`と`TZoomLevel`は異なる型なので取り違えられない）。
+///
+/// `Zoom`自体は非公開の実装詳細で、公開APIとしては`ZoomLevel`/`TZoomLevel`という具体化された
+/// 別名だけを使う（`type ZoomLevel = Zoom<30>;`のように完全に確定した別名にすることで、
+/// 呼び出し側で`LIMIT`の型推論が必要にならないようにしている）。
+///
+/// Fの符号付き範囲（[`ZoomLevel::f_min`]/[`ZoomLevel::f_max`]/[`ZoomLevel::check_f`]）は空間軸専用、
+/// 秒数変換（`cell_seconds`、[`TZoomLevel`](crate::spatial_id::temporal_id::zoom_level::TZoomLevel)側の拡張）は
+/// 時間軸専用の拡張として、それぞれの具象化にだけ生やす。
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+pub struct Zoom<const LIMIT: u8>(u8);
+
 /// ズームレベルを表す型。
 /// ```
 /// # use kasane_logic::{SpatialIdError, ZoomLevel};
@@ -8,105 +28,50 @@ use core::fmt;
 /// assert_eq!(z.get(), 5);
 /// assert_eq!(ZoomLevel::new(255), Err(SpatialIdError::ZOutOfRange { z: 255 }.into()));
 /// ```
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
-pub struct ZoomLevel(u8);
+pub type ZoomLevel = Zoom<30>;
 
-impl fmt::Display for ZoomLevel {
+impl<const LIMIT: u8> fmt::Display for Zoom<LIMIT> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
 }
 
-impl ZoomLevel {
-    /// 各ズームレベルにおけるXYインデックスの最大値
-    const XY_MAX: [u32; Self::MAX.0 as usize + 1] = [
-        0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767, 65535, 131071,
-        262143, 524287, 1048575, 2097151, 4194303, 8388607, 16777215, 33554431, 67108863,
-        134217727, 268435455, 536870911, 1073741823,
-    ];
-
-    /// 各ズームレベルにおけるFインデックスの最小値
-    const F_MIN: [i32; Self::MAX.0 as usize + 1] = [
-        -1,
-        -2,
-        -4,
-        -8,
-        -16,
-        -32,
-        -64,
-        -128,
-        -256,
-        -512,
-        -1024,
-        -2048,
-        -4096,
-        -8192,
-        -16384,
-        -32768,
-        -65536,
-        -131072,
-        -262144,
-        -524288,
-        -1048576,
-        -2097152,
-        -4194304,
-        -8388608,
-        -16777216,
-        -33554432,
-        -67108864,
-        -134217728,
-        -268435456,
-        -536870912,
-        -1073741824,
-    ];
-
-    /// 各ズームレベルにおけるFインデックスの最大値
-    const F_MAX: [i32; Self::MAX.0 as usize + 1] = [
-        0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767, 65535, 131071,
-        262143, 524287, 1048575, 2097151, 4194303, 8388607, 16777215, 33554431, 67108863,
-        134217727, 268435455, 536870911, 1073741823,
-    ];
-
+impl<const LIMIT: u8> Zoom<LIMIT> {
     /// 最小のズームレベル（`0`）。
-    pub const MIN: ZoomLevel = ZoomLevel(0);
+    pub const MIN: Self = Zoom(0);
 
     /// 最大のズームレベル。
-    pub const MAX: ZoomLevel = ZoomLevel(30);
+    pub const MAX: Self = Zoom(LIMIT);
 
-    /// `z` が `0..=`[`ZoomLevel::MAX`] の範囲内であることを検証して [`ZoomLevel`] を生成する。
+    /// `z` が `0..=`[`MAX`](Self::MAX) の範囲内であることを検証して生成する。
     ///
     /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `z` が [`MAX`](Self::MAX) を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     pub const fn new(z: u8) -> Result<Self, Error> {
-        if z > Self::MAX.0 {
+        if z > LIMIT {
             return Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z }));
         }
-        Ok(ZoomLevel(z))
+        Ok(Zoom(z))
     }
 
-    /// 検証を行わずに [`ZoomLevel`] を生成する。
+    /// 検証を行わずに生成する。
     ///
     /// # Safety
-    /// 呼び出し側は `z <= `[`ZoomLevel::MAX`] を保証しなければならない。これを破ると、
-    /// [`f_min`](Self::f_min) などの配列アクセスでパニックや未定義動作を引き起こす可能性がある。
+    /// 呼び出し側は `z <= `[`MAX`](Self::MAX) を保証しなければならない。これを破ると、
+    /// 各種インデックス計算でパニックや未定義動作を引き起こす可能性がある。
     pub const unsafe fn new_unchecked(z: u8) -> Self {
-        ZoomLevel(z)
+        Zoom(z)
     }
 
-    /// 1段深いズームレベルを返す。[`ZoomLevel::MAX`] なら [`None`]。
+    /// 1段深いズームレベルを返す。[`MAX`](Self::MAX) なら [`None`]。
     ///
     /// 自身が有効なので `+1` が [`MAX`](Self::MAX) 以下であることをここで確かめきれる。
     /// 呼び出し側は改めて範囲検証をする必要がない。
-    pub const fn deeper(self) -> Option<ZoomLevel> {
-        if self.0 >= Self::MAX.0 {
+    pub const fn deeper(self) -> Option<Self> {
+        if self.0 >= LIMIT {
             None
         } else {
-            Some(ZoomLevel(self.0 + 1))
+            Some(Zoom(self.0 + 1))
         }
     }
 
@@ -115,19 +80,42 @@ impl ZoomLevel {
         self.0
     }
 
+    /// このズームレベルにおけるインデックスの最大値（`2^z - 1`）。
+    /// 空間軸のX/Yと時間軸の生セルとで共有する式。
+    const fn max_index_u64(self) -> u64 {
+        (1u64 << self.0) - 1
+    }
+}
+
+impl<const LIMIT: u8> TryFrom<u8> for Zoom<LIMIT> {
+    type Error = Error;
+
+    fn try_from(z: u8) -> Result<Self, Error> {
+        Zoom::new(z)
+    }
+}
+
+impl<const LIMIT: u8> From<Zoom<LIMIT>> for u8 {
+    fn from(z: Zoom<LIMIT>) -> u8 {
+        z.0
+    }
+}
+
+// ---- 空間軸専用（`ZoomLevel` = `Zoom<30>`） ----
+impl Zoom<30> {
+    /// このズームレベルにおける X / Y インデックスの最大値（`unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）。
+    pub const fn xy_max(self) -> u32 {
+        self.max_index_u64() as u32
+    }
+
     /// このズームレベルにおける F インデックスの最小値（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_min()`）。
     pub const fn f_min(self) -> i32 {
-        Self::F_MIN[self.0 as usize]
+        -(1i64 << self.0) as i32
     }
 
     /// このズームレベルにおける F インデックスの最大値（`unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()`）。
     pub const fn f_max(self) -> i32 {
-        Self::F_MAX[self.0 as usize]
-    }
-
-    /// このズームレベルにおける X / Y インデックスの最大値（`unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）。
-    pub const fn xy_max(self) -> u32 {
-        Self::XY_MAX[self.0 as usize]
+        self.max_index_u64() as i32
     }
 
     /// `f` がこのズームレベルの F 範囲に収まるか検証する。
@@ -173,16 +161,26 @@ impl ZoomLevel {
     }
 }
 
-impl TryFrom<u8> for ZoomLevel {
-    type Error = Error;
-
-    fn try_from(z: u8) -> Result<Self, Error> {
-        ZoomLevel::new(z)
+// ---- 時間軸（生セル）専用（`TZoomLevel` = `Zoom<62>`） ----
+impl Zoom<62> {
+    /// このズームレベルにおけるインデックスの最大値（`2^z - 1`）。
+    pub const fn max_index(self) -> u64 {
+        self.max_index_u64()
     }
-}
 
-impl From<ZoomLevel> for u8 {
-    fn from(z: ZoomLevel) -> u8 {
-        z.0
+    /// このズームレベルにおける1セルの秒数（`2^(MAX - z)`）。
+    pub const fn cell_seconds(self) -> u64 {
+        1u64 << (62 - self.0)
+    }
+
+    /// `index` がこのズームレベルの範囲に収まるか検証する。
+    pub const fn check_index(self, index: u64) -> Result<(), Error> {
+        if index > self.max_index() {
+            return Err(Error::SpatialId(SpatialIdError::TOutOfRange {
+                i: self.cell_seconds(),
+                t: index,
+            }));
+        }
+        Ok(())
     }
 }

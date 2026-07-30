@@ -6,7 +6,7 @@ use crate::error::Error;
 impl Display for Interval {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Interval::Whole => write!(f, "{}", u64::MAX),
+            Interval::Whole => write!(f, "{}", Self::WHOLE_SECONDS),
             Interval::Day => write!(f, "{}", 60 * 60 * 24),
             Interval::Hour => write!(f, "{}", 60 * 60),
             Interval::Minute => write!(f, "{}", 60),

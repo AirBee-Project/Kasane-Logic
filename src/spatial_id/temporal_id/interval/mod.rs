@@ -42,10 +42,10 @@ pub enum Interval {
 impl Interval {
     /// このライブラリが扱える全時間の秒数。
     ///
-    /// [`TZoomLevel::MAX`](crate::spatial_id::temporal_zoom_level::TZoomLevel::MAX)（生の2進セル表現が
+    /// [`TZoomLevel::MAX`](crate::spatial_id::temporal_id::zoom_level::TZoomLevel::MAX)（生の2進セル表現が
     /// 表現できる最深ズーム）に対応する `2^WHOLE_POW` と厳密に一致していなければならない。ここがずれると、
-    /// `TemporalCell::WHOLE`（生セル）と`Interval::Whole`（人間向けラベル）とで「全時間」が指す絶対秒区間が
-    /// 食い違い、`TemporalRange`⇄`TemporalCell`間の変換で`Whole`が正しく認識されなくなる。
+    /// `TemporalSegment::WHOLE`（生セル）と`Interval::Whole`（人間向けラベル）とで「全時間」が指す絶対秒区間が
+    /// 食い違い、`TemporalRange`⇄`TemporalSegment`間の変換で`Whole`が正しく認識されなくなる。
     pub const WHOLE_SECONDS: u64 = 1u64 << Self::WHOLE_POW;
 
     /// 最も粗い時間区間を表す二進層の指数。`TZoomLevel::MAX`と一致させること。

@@ -4,30 +4,10 @@ use core::{
     str::FromStr,
 };
 
-use crate::{Coordinate, FlexId, RangeId, error::Error};
+use crate::{Coordinate, FlexId, RangeId, TemporalId, error::Error};
 
 #[cfg(doc)]
 use crate::SingleId;
-
-/// 時間区間を表す型が共通して持つTrait。
-///
-/// [`FlexId`]/[`SingleId`]（点）は生の2進セル表現（`TemporalCell`）を、[`RangeId`]（範囲）は
-/// 人間に読みやすい範囲表現（`TemporalRange`）を持つ。両者の形は異なるが、[`SpatialId::temporal`]
-/// を通じて共通の操作（全時間判定・絶対秒区間への変換）を行えるようにするためのTrait。
-pub trait TemporalId:
-    Debug + Display + Clone + Eq + Hash + Ord + PartialOrd + FromStr<Err = Error>
-{
-    /// 全時間を表す値。
-    const WHOLE: Self;
-
-    /// このインスタンスが全時間を表す特別な値（[`WHOLE`](Self::WHOLE)）であるかを判定する。
-    fn is_whole(&self) -> bool;
-
-    /// この値が表す絶対秒区間 `[start, end)` を返す。
-    ///
-    /// 形の異なる2つの具象型（生セル・人間向け範囲）を横断して比較・集約するための共通基盤。
-    fn seconds_range(&self) -> (u64, u64);
-}
 
 /// [SingleId],[RangeId],[FlexId]が共通して持つTrait
 pub trait SpatialId:
@@ -44,7 +24,7 @@ pub trait SpatialId:
 {
     /// この型が保持する時間区間の具象表現。
     ///
-    /// [`FlexId`]/[`SingleId`]は生の2進セル（`TemporalCell`）、[`RangeId`]は人間に読みやすい
+    /// [`FlexId`]/[`SingleId`]は生の2進セル（`TemporalSegment`）、[`RangeId`]は人間に読みやすい
     /// 範囲（`TemporalRange`）を持つため、型ごとに異なりうる。
     type Temporal: TemporalId;
     /// ズームレベルにおける最小のFインデックスを返す。
@@ -206,4 +186,18 @@ pub trait SpatialId:
 
     /// 時間 ID を可変参照で返す。
     fn temporal_mut(&mut self) -> &mut Self::Temporal;
+
+    /// 時間 ID を設定した自身を返す（ビルダー形式）。
+    ///
+    /// [`FlexId`]/[`SingleId`]/[`RangeId`]それぞれが個別に持っていた
+    /// `new_with_temporal`/`new_with_temporal_unchecked` を、この一つのTraitメソッドへ
+    /// 一括化したもの。空間部分の構築（`new`/`new_unchecked`）と時間IDの付与を分離できる
+    /// （例: `FlexId::new(...)?.with_temporal(temporal)`）。
+    fn with_temporal(mut self, temporal: Self::Temporal) -> Self
+    where
+        Self: Sized,
+    {
+        *self.temporal_mut() = temporal;
+        self
+    }
 }

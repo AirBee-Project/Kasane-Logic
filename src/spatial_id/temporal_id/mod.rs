@@ -1,18 +1,21 @@
 #[cfg(not(feature = "temporal_id"))]
 mod disabled;
 #[cfg(not(feature = "temporal_id"))]
-pub use disabled::{TemporalCell, TemporalRange};
+pub use disabled::{TemporalRange, TemporalSegment};
 
 #[cfg(feature = "temporal_id")]
-use crate::{Side, error::Error, spatial_id::temporal_zoom_level::TZoomLevel};
+use crate::{Side, error::Error, spatial_id::temporal_id::zoom_level::TZoomLevel};
 
 #[cfg(feature = "temporal_id")]
 pub mod impls;
 
 pub mod interval;
 pub mod range;
+pub mod traits;
+pub mod zoom_level;
 #[cfg(feature = "temporal_id")]
 pub use range::TemporalRange;
+pub use traits::TemporalId;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -25,7 +28,7 @@ pub use range::TemporalRange;
 /// 1セルは`2^(TZoomLevel::MAX - zoom)`秒（＝2の冪秒）の区間を表す。[`FlexId`](crate::FlexId)/
 /// [`SingleId`](crate::SingleId)（点）が保持する。人間に読みやすい表現は[`TemporalRange`]
 /// を参照。
-pub struct TemporalCell {
+pub struct TemporalSegment {
     /// 時間軸のズームレベル。
     zoom: TZoomLevel,
     /// このズームレベルにおけるインデックス。
@@ -33,9 +36,9 @@ pub struct TemporalCell {
 }
 
 #[cfg(feature = "temporal_id")]
-impl TemporalCell {
+impl TemporalSegment {
     /// 全時間を表す定数（ズーム0・インデックス0、全期間`2^62`秒を1セルで覆う）。
-    pub const WHOLE: Self = TemporalCell {
+    pub const WHOLE: Self = TemporalSegment {
         zoom: TZoomLevel::MIN,
         index: 0,
     };
@@ -45,14 +48,14 @@ impl TemporalCell {
         self.zoom.get() == 0 && self.index == 0
     }
 
-    /// 指定されたズームレベルとインデックスから新しい [`TemporalCell`] を構築する。
+    /// 指定されたズームレベルとインデックスから新しい [`TemporalSegment`] を構築する。
     pub fn new(zoom: u8, index: u64) -> Result<Self, Error> {
         let zoom = TZoomLevel::new(zoom)?;
         zoom.check_index(index)?;
         Ok(Self { zoom, index })
     }
 
-    /// 検証を行わずに [`TemporalCell`] を構築する。
+    /// 検証を行わずに [`TemporalSegment`] を構築する。
     ///
     /// # Safety
     /// 呼び出し側は `zoom <= TZoomLevel::MAX` かつ `index <= 2^zoom - 1` を保証しなければならない。
@@ -73,14 +76,14 @@ impl TemporalCell {
         self.index
     }
 
-    /// この [`TemporalCell`] を2つに切り分ける。[`TZoomLevel::MAX`] なら [`None`]。
+    /// この [`TemporalSegment`] を2つに切り分ける。[`TZoomLevel::MAX`] なら [`None`]。
     pub fn split(&self, side: Side) -> Option<Self> {
         let zoom = self.zoom.deeper()?;
         let index = self.index * 2 + side as u64;
         Some(Self { zoom, index })
     }
 
-    /// 2つの [`TemporalCell`] の重なっている区間（Intersection）を計算して返す。
+    /// 2つの [`TemporalSegment`] の重なっている区間（Intersection）を計算して返す。
     /// 重なりがない場合は `None` を返す。
     pub fn intersection(&self, other: &Self) -> Option<Self> {
         let (deep, shallow) = if self.zoom.get() > other.zoom.get() {
@@ -98,7 +101,7 @@ impl TemporalCell {
         }
     }
 
-    /// 相手の [`TemporalCell`] との差集合（`self - other`）を計算し、イテレータとして返す。
+    /// 相手の [`TemporalSegment`] との差集合（`self - other`）を計算し、イテレータとして返す。
     pub fn difference(&self, other: &Self) -> impl Iterator<Item = Self> {
         use alloc::vec::Vec;
 
@@ -135,7 +138,7 @@ impl TemporalCell {
 }
 
 #[cfg(feature = "temporal_id")]
-impl crate::spatial_id::traits::TemporalId for TemporalCell {
+impl crate::spatial_id::temporal_id::traits::TemporalId for TemporalSegment {
     const WHOLE: Self = Self::WHOLE;
 
     fn is_whole(&self) -> bool {

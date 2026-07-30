@@ -60,16 +60,9 @@ impl FlexId {
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                        .unwrap()
+                        .with_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -142,16 +135,16 @@ impl FlexId {
                 #[cfg(feature = "temporal_id")]
                 {
                     unsafe {
-                        FlexId::new_with_temporal_unchecked(
+                        FlexId::new_unchecked(
                             f_zoomlevel,
                             f_index,
                             seg_z,
                             seg_index,
                             y_zoomlevel,
                             y_index,
-                            temporal_id.clone(),
                         )
                     }
+                    .with_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -219,16 +212,16 @@ impl FlexId {
                 #[cfg(feature = "temporal_id")]
                 {
                     unsafe {
-                        FlexId::new_with_temporal_unchecked(
+                        FlexId::new_unchecked(
                             f_zoomlevel,
                             f_index,
                             x_zoomlevel,
                             x_index,
                             seg_z,
                             seg_index,
-                            temporal_id.clone(),
                         )
                     }
+                    .with_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]

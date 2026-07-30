@@ -13,8 +13,8 @@ pub enum Interval {
 impl Interval {
     /// このライブラリが扱える全時間の秒数（`2^62`秒、約1,460億年）。
     ///
-    /// 有効版の[`TZoomLevel::MAX`](crate::spatial_id::temporal_zoom_level::TZoomLevel::MAX)と
-    /// 一致させること（`TemporalCell::WHOLE`が表す絶対秒区間と一致させるため）。
+    /// 有効版の[`TZoomLevel::MAX`](crate::spatial_id::temporal_id::zoom_level::TZoomLevel::MAX)と
+    /// 一致させること（`TemporalSegment::WHOLE`が表す絶対秒区間と一致させるため）。
     pub const WHOLE_SECONDS: u64 = 1u64 << Self::WHOLE_POW;
 
     /// 最も粗い時間区間を表す二進層の指数。

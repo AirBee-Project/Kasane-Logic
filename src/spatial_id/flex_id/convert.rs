@@ -29,14 +29,14 @@ impl From<&FlexId> for RangeId {
 
         #[cfg(feature = "temporal_id")]
         {
-            RangeId::new_with_temporal(
+            RangeId::new(
                 max_z,
                 [f_range[0] as i32, f_range[1] as i32],
                 [x_range[0] as u32, x_range[1] as u32],
                 [y_range[0] as u32, y_range[1] as u32],
-                crate::TemporalRange::from(flex_id.temporal()),
             )
             .unwrap()
+            .with_temporal(crate::TemporalRange::from(flex_id.temporal()))
         }
 
         #[cfg(not(feature = "temporal_id"))]

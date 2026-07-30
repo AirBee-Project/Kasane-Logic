@@ -6,8 +6,10 @@ pub mod encode;
 pub mod impls;
 pub mod ops;
 
+#[cfg(feature = "temporal_id")]
+use crate::SpatialId;
 use crate::{
-    Error, Side, SpatialIdError, TemporalCell,
+    Error, Side, SpatialIdError, TemporalSegment,
     spatial_id::{
         range_id::convert::{split_f, split_xy},
         zoom_level::ZoomLevel,
@@ -27,7 +29,7 @@ pub struct FlexId {
     x_index: u32,
     y_zoomlevel: ZoomLevel,
     y_index: u32,
-    temporal_id: TemporalCell,
+    temporal_id: TemporalSegment,
 }
 
 impl FlexId {
@@ -38,7 +40,7 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: ZoomLevel::MIN,
         y_index: 0,
-        temporal_id: TemporalCell::WHOLE,
+        temporal_id: TemporalSegment::WHOLE,
     };
 
     pub const LOWER_MAX: FlexId = FlexId {
@@ -48,7 +50,7 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: ZoomLevel::MIN,
         y_index: 0,
-        temporal_id: TemporalCell::WHOLE,
+        temporal_id: TemporalSegment::WHOLE,
     };
 
     pub fn f_zoomlevel(&self) -> u8 {
@@ -93,15 +95,15 @@ impl FlexId {
 
         #[cfg(feature = "temporal_id")]
         {
-            FlexId::new_with_temporal(
+            FlexId::new(
                 f_zoomlevel,
                 f_index,
                 x_zoomlevel,
                 x_index,
                 y_zoomlevel,
                 y_index,
-                self.temporal_id.clone(),
             )
+            .map(|id| id.with_temporal(self.temporal_id.clone()))
         }
 
         #[cfg(not(feature = "temporal_id"))]
@@ -171,16 +173,9 @@ impl FlexId {
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
                 #[cfg(feature = "temporal_id")]
                 {
-                    FlexId::new_with_temporal(
-                        seg_z,
-                        seg_index,
-                        x_zoomlevel,
-                        x_index,
-                        y_zoomlevel,
-                        y_index,
-                        temporal_id.clone(),
-                    )
-                    .unwrap()
+                    FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                        .unwrap()
+                        .with_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -258,16 +253,16 @@ impl FlexId {
                 #[cfg(feature = "temporal_id")]
                 {
                     unsafe {
-                        FlexId::new_with_temporal_unchecked(
+                        FlexId::new_unchecked(
                             f_zoomlevel,
                             f_index,
                             seg_z,
                             seg_index,
                             y_zoomlevel,
                             y_index,
-                            temporal_id.clone(),
                         )
                     }
+                    .with_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -336,16 +331,16 @@ impl FlexId {
                 #[cfg(feature = "temporal_id")]
                 {
                     unsafe {
-                        FlexId::new_with_temporal_unchecked(
+                        FlexId::new_unchecked(
                             f_zoomlevel,
                             f_index,
                             x_zoomlevel,
                             x_index,
                             seg_z,
                             seg_index,
-                            temporal_id.clone(),
                         )
                     }
+                    .with_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -424,7 +419,7 @@ impl FlexId {
         })
     }
 
-    /// 時間軸で二つに切り分ける。[`crate::spatial_id::temporal_zoom_level::TZoomLevel::MAX`] なら
+    /// 時間軸で二つに切り分ける。[`crate::spatial_id::temporal_id::zoom_level::TZoomLevel::MAX`] なら
     /// [`None`]。`temporal_id` feature 無効時は常に `None`（分割不能）。
     ///
     /// 再検証を省ける理由は [`split_f`](Self::split_f) と同じ。
@@ -573,29 +568,14 @@ impl FlexId {
                         let seg_xi = if sz_x >= tz_x { self_xi } else { x_idx };
                         let seg_yi = if sz_y >= tz_y { self_yi } else { y_idx };
 
-                        let parent = unsafe {
-                            FlexId::new_with_temporal_unchecked(
-                                tz_f,
-                                f_idx,
-                                tz_x,
-                                x_idx,
-                                tz_y,
-                                y_idx,
-                                temp_id2.clone(),
-                            )
-                        };
+                        let parent =
+                            unsafe { FlexId::new_unchecked(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx) }
+                                .with_temporal(temp_id2.clone());
 
                         let seg = unsafe {
-                            FlexId::new_with_temporal_unchecked(
-                                seg_fz,
-                                seg_fi,
-                                seg_xz,
-                                seg_xi,
-                                seg_yz,
-                                seg_yi,
-                                temp_id2.clone(),
-                            )
-                        };
+                            FlexId::new_unchecked(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi)
+                        }
+                        .with_temporal(temp_id2.clone());
 
                         (parent, seg)
                     })

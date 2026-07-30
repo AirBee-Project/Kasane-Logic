@@ -7,7 +7,7 @@ pub mod random;
 pub mod test;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalCell, error::Error, spatial_id::zoom_level::ZoomLevel,
+    SpatialId, SpatialIdError, TemporalSegment, error::Error, spatial_id::zoom_level::ZoomLevel,
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
@@ -18,14 +18,14 @@ use crate::{
 ///
 /// ```
 /// # use kasane_logic::ZoomLevel;
-/// # use kasane_logic::TemporalCell;
+/// # use kasane_logic::TemporalSegment;
 /// pub struct SingleId {
 ///     z: ZoomLevel,
 ///     f: i32,
 ///     x: u32,
 ///     y: u32,
 //
-///     temporal_id: TemporalCell,
+///     temporal_id: TemporalSegment,
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -34,7 +34,7 @@ pub struct SingleId {
     f: i32,
     x: u32,
     y: u32,
-    temporal_id: TemporalCell,
+    temporal_id: TemporalSegment,
 }
 
 impl SingleId {

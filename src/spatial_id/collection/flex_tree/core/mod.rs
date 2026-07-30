@@ -1034,15 +1034,15 @@ mod core_api_tests {
     #[cfg(feature = "temporal_id")]
     #[test]
     fn distinct_temporal_cells_stay_distinguishable() {
-        use crate::{FlexId, TemporalCell};
+        use crate::{FlexId, SpatialId, TemporalSegment};
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
 
-        let t0 = TemporalCell::new(2, 0).unwrap();
-        let t1 = TemporalCell::new(2, 1).unwrap();
+        let t0 = TemporalSegment::new(2, 0).unwrap();
+        let t1 = TemporalSegment::new(2, 1).unwrap();
 
-        let a = FlexId::new_with_temporal(3, 1, 3, 1, 3, 1, t0.clone()).unwrap();
-        let b = FlexId::new_with_temporal(3, 1, 3, 1, 3, 1, t1.clone()).unwrap();
+        let a = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_temporal(t0);
+        let b = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_temporal(t1);
 
         core.insert([a.clone()], 10);
         core.insert([b.clone()], 20);
@@ -1055,21 +1055,23 @@ mod core_api_tests {
         assert!(got.contains(&(b, 20)));
     }
 
-    /// `TemporalRange::into_cells()`で分解した生セルをそれぞれ挿入すると、元の時間区間
+    /// `TemporalRange::into_segments()`で分解した生セルをそれぞれ挿入すると、元の時間区間
     /// （の絶対秒区間）をちょうど覆う集合が木に格納されることを確認する。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn temporal_range_decomposition_round_trips_into_tree() {
-        use crate::spatial_id::traits::TemporalId as _;
-        use crate::{FlexId, Interval, TemporalRange};
+        use crate::spatial_id::temporal_id::traits::TemporalId as _;
+        use crate::{FlexId, Interval, SpatialId, TemporalRange};
 
         let range = TemporalRange::new(Interval::Hour, [2, 2]).unwrap();
-        let cells: alloc::vec::Vec<_> = range.into_cells().collect();
+        let cells: alloc::vec::Vec<_> = range.into_segments().collect();
         assert!(!cells.is_empty());
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
         for cell in &cells {
-            let id = FlexId::new_with_temporal(0, 0, 0, 0, 0, 0, cell.clone()).unwrap();
+            let id = FlexId::new(0, 0, 0, 0, 0, 0)
+                .unwrap()
+                .with_temporal(cell.clone());
             core.insert([id], 1);
         }
 

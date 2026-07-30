@@ -1,7 +1,8 @@
 use alloc::string::ToString;
 
 use crate::{
-    Coordinate, Ecef, Error, SingleId, SpatialId, SpatialIdError, TemporalCell, spatial_id::helpers,
+    Coordinate, Ecef, Error, SingleId, SpatialId, SpatialIdError, TemporalSegment,
+    spatial_id::helpers,
 };
 use core::fmt;
 use core::str::FromStr;
@@ -29,7 +30,7 @@ impl fmt::Display for SingleId {
 }
 
 impl SpatialId for SingleId {
-    type Temporal = TemporalCell;
+    type Temporal = TemporalSegment;
 
     fn f_min(&self) -> i32 {
         self.z.f_min()
@@ -285,11 +286,11 @@ impl SpatialId for SingleId {
         r * 2.0 * core::f64::consts::PI / ((1_u64 << self.z()) as f64)
     }
 
-    fn temporal(&self) -> &TemporalCell {
+    fn temporal(&self) -> &TemporalSegment {
         &self.temporal_id
     }
 
-    fn temporal_mut(&mut self) -> &mut TemporalCell {
+    fn temporal_mut(&mut self) -> &mut TemporalSegment {
         &mut self.temporal_id
     }
 }
@@ -333,10 +334,10 @@ impl FromStr for SingleId {
         #[cfg(feature = "temporal_id")]
         {
             let temporal_id = match temporal_text {
-                Some(text) => TemporalCell::from_str(text)?,
-                None => TemporalCell::WHOLE,
+                Some(text) => TemporalSegment::from_str(text)?,
+                None => TemporalSegment::WHOLE,
             };
-            SingleId::new_with_temporal(z, f, x, y, temporal_id)
+            SingleId::new(z, f, x, y).map(|id| id.with_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

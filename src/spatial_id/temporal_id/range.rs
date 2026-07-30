@@ -5,16 +5,16 @@ use core::{fmt, str::FromStr};
 
 #[cfg(feature = "temporal_id")]
 use crate::{
-    Interval, SpatialIdError, TemporalCell,
+    Interval, SpatialIdError, TemporalSegment,
     error::Error,
-    spatial_id::{helpers::format_dimension, temporal_zoom_level::TZoomLevel},
+    spatial_id::{helpers::format_dimension, temporal_id::zoom_level::TZoomLevel},
 };
 
 /// [`RangeId`](crate::RangeId)が保持する、人間に読みやすい時間区間の範囲表現。
 ///
 /// `RangeId.f/x/y`が「単位（ズームレベル）＋範囲」であるのと同じ形で、時間の単位（[`Interval`]）と
 /// その単位でのインデックス範囲 `[min, max]`（両端含む）を保持する。FlexTreeへ格納する際は
-/// [`into_cells`](Self::into_cells)で生の2進セル（[`TemporalCell`]）の列へ分解される。
+/// [`into_segments`](Self::into_segments)で生の2進セル（[`TemporalSegment`]）の列へ分解される。
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 #[cfg_attr(
@@ -80,24 +80,24 @@ impl TemporalRange {
         self.t
     }
 
-    /// この [`TemporalRange`] を、絶対秒区間へ変換した上で、生の2進セル（[`TemporalCell`]）の列へ
+    /// この [`TemporalRange`] を、絶対秒区間へ変換した上で、生の2進セル（[`TemporalSegment`]）の列へ
     /// 分解する。
     ///
     /// [`interval()`](Self::interval)の秒数は2の冪であるとは限らない（Day/Hour/Minuteはいずれも
     /// 2の冪ではない）ため、区間木的な分解（`SegmentIter64`）により高々`O(log 秒数)`個の2進セルへ
     /// 分解される。
-    pub fn into_cells(&self) -> impl Iterator<Item = TemporalCell> {
+    pub fn into_segments(&self) -> impl Iterator<Item = TemporalSegment> {
         let unit = self.interval.seconds();
         let start = self.t[0] * unit;
         let end_inclusive = (self.t[1] + 1) * unit - 1;
 
         split_t([start, end_inclusive])
-            .map(|(zoom, index)| unsafe { TemporalCell::new_unchecked(zoom, index) })
+            .map(|(zoom, index)| unsafe { TemporalSegment::new_unchecked(zoom, index) })
     }
 }
 
 #[cfg(feature = "temporal_id")]
-impl crate::spatial_id::traits::TemporalId for TemporalRange {
+impl crate::spatial_id::temporal_id::traits::TemporalId for TemporalRange {
     const WHOLE: Self = Self::WHOLE;
 
     fn is_whole(&self) -> bool {
@@ -110,15 +110,15 @@ impl crate::spatial_id::traits::TemporalId for TemporalRange {
     }
 }
 
-/// 生の2進セル（[`TemporalCell`]）1個を、被覆する絶対秒区間として最も粗く一致する
+/// 生の2進セル（[`TemporalSegment`]）1個を、被覆する絶対秒区間として最も粗く一致する
 /// [`Interval`]ラベルで表した [`TemporalRange`] へ変換する。
 ///
 /// [`Interval::coarse_to_fine`]の順に試し、`Second`は常に割り切れるため必ずどこかで成功する
 /// （フォールバック分岐は不要）。
 #[cfg(feature = "temporal_id")]
-impl From<&TemporalCell> for TemporalRange {
-    fn from(cell: &TemporalCell) -> Self {
-        use crate::spatial_id::traits::TemporalId as _;
+impl From<&TemporalSegment> for TemporalRange {
+    fn from(cell: &TemporalSegment) -> Self {
+        use crate::spatial_id::temporal_id::traits::TemporalId as _;
 
         let (start, end) = cell.seconds_range();
         let span = end - start;

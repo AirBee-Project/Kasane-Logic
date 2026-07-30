@@ -79,9 +79,9 @@ pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
 #[doc(inline)]
-pub use spatial_id::temporal_id::TemporalCell;
-#[doc(inline)]
 pub use spatial_id::temporal_id::TemporalRange;
+#[doc(inline)]
+pub use spatial_id::temporal_id::TemporalSegment;
 
 // spatial_id: collection types
 
@@ -105,9 +105,9 @@ pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 #[doc(inline)]
 pub use spatial_id::helpers::{Dimension, Side};
 #[doc(inline)]
-pub use spatial_id::traits::SpatialId;
+pub use spatial_id::temporal_id::TemporalId;
 #[doc(inline)]
-pub use spatial_id::traits::TemporalId;
+pub use spatial_id::traits::SpatialId;
 
 // spatial_id: zoom level
 #[doc(inline)]

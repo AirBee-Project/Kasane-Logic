@@ -1,14 +1,12 @@
-use alloc::vec;
-use alloc::vec::Vec;
 use core::fmt::{Display, Formatter};
 use core::str::FromStr;
 
 use crate::error::Error;
-use crate::spatial_id::traits::TemporalId as TemporalIdTrait;
+use crate::spatial_id::temporal_id::traits::TemporalId as TemporalIdTrait;
 
 /// `temporal_id` feature 無効時の時間表現。常に全時間を表すスタブ。
 ///
-/// [`TemporalCell`]（生セル）と[`TemporalRange`]（人間向け範囲）の
+/// [`TemporalSegment`]（生セル）と[`TemporalRange`]（人間向け範囲）の
 /// 両方が、この単一の型へのエイリアスとして解決される。値が常に1種類（全時間）しか無いため、
 /// 2つの表現を分ける意味が無い。
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord, Default)]
@@ -16,14 +14,14 @@ use crate::spatial_id::traits::TemporalId as TemporalIdTrait;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-pub struct TemporalCell;
+pub struct TemporalSegment;
 
 /// `TemporalRange` はこのスタブへのエイリアス（feature 無効時は区別しない）。
-pub type TemporalRange = TemporalCell;
+pub type TemporalRange = TemporalSegment;
 
-impl TemporalCell {
+impl TemporalSegment {
     /// 全時間を表す定数。
-    pub const WHOLE: TemporalCell = TemporalCell;
+    pub const WHOLE: TemporalSegment = TemporalSegment;
 
     /// このインスタンスが全時間を表すかを判定する。常に `true`。
     pub fn is_whole(&self) -> bool {
@@ -56,7 +54,7 @@ impl TemporalCell {
     }
 
     /// この範囲を生セルの列へ分解する。`temporal_id` feature 無効時は常に自身1個。
-    pub fn into_cells(&self) -> impl Iterator<Item = Self> {
+    pub fn into_segments(&self) -> impl Iterator<Item = Self> {
         core::iter::once(Self)
     }
 
@@ -69,15 +67,10 @@ impl TemporalCell {
     pub fn t(&self) -> [u64; 2] {
         [0, 0]
     }
-
-    /// 開始と終了から複数の時間IDを生成する。`temporal_id` feature 無効時は常に全時間を表す1つの要素を含むベクトルを返す。
-    pub fn from_range(_start: u64, _end_exclusive: u64) -> Result<Vec<Self>, Error> {
-        Ok(vec![Self::WHOLE])
-    }
 }
 
-impl TemporalIdTrait for TemporalCell {
-    const WHOLE: Self = TemporalCell;
+impl TemporalIdTrait for TemporalSegment {
+    const WHOLE: Self = TemporalSegment;
 
     fn is_whole(&self) -> bool {
         true
@@ -88,13 +81,13 @@ impl TemporalIdTrait for TemporalCell {
     }
 }
 
-impl Display for TemporalCell {
+impl Display for TemporalSegment {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "0/0")
     }
 }
 
-impl FromStr for TemporalCell {
+impl FromStr for TemporalSegment {
     type Err = Error;
     fn from_str(_s: &str) -> Result<Self, Self::Err> {
         Ok(Self::WHOLE)

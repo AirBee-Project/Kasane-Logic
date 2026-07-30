@@ -1,7 +1,7 @@
 use crate::SingleId;
 use crate::spatial_id::zoom_level::ZoomLevel;
 
-use crate::{TemporalCell, error::Error};
+use crate::{TemporalSegment, error::Error};
 
 impl SingleId {
     /// 指定された値から [`SingleId`] を作成する。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
@@ -42,6 +42,18 @@ impl SingleId {
     /// let id = SingleId::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
+    ///
+    /// 時間IDを付与したい場合は [`SpatialId::with_temporal`](crate::SpatialId::with_temporal) を
+    /// 組み合わせる:
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{SingleId, SpatialId, TemporalSegment};
+    /// let temporal_id = TemporalSegment::new(5, 3).unwrap();
+    /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_temporal(temporal_id);
+    /// assert_eq!(id.to_string(), "5/3/2/10_5/3".to_string());
+    /// # }
+    /// ```
     pub fn new(z: impl Into<u8>, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
         let zoom = ZoomLevel::new(z.into())?;
         zoom.check_f(f)?;
@@ -53,7 +65,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalCell::WHOLE,
+            temporal_id: TemporalSegment::WHOLE,
         })
     }
 
@@ -89,107 +101,7 @@ impl SingleId {
             f,
             x,
             y,
-            temporal_id: TemporalCell::WHOLE,
-        }
-    }
-
-    /// 指定された値から時間情報を指定した [`SingleId`] を作成する。このコンストラクタは、与えられた `z`, `f`, `x`, `y` が  各ズームレベルにおける範囲内にあるかを検証し、範囲外の場合は [`Error`] を返す。
-    ///
-    /// # パラメータ
-    /// * `z` — ズームレベル（0–[`ZoomLevel::MAX`]の範囲が有効）
-    /// * `f` — Fインデックス（鉛直方向）
-    /// * `x` — Xインデックス（東西方向）
-    /// * `y` — Yインデックス（南北方向）
-    /// * `temporal_id` — [`TemporalCell`]
-    ///
-    /// # バリデーション
-    /// - `z` が [`ZoomLevel::MAX`] を超える場合、[`SpatialIdError::ZOutOfRange`](crate::SpatialIdError::ZOutOfRange) を返す。
-    /// - `f` がズームレベル `z` に対する `ZoomLevel::new(z as u8)?.f_min()..=ZoomLevel::new(z as u8)?.f_max()` の範囲外の場合、
-    ///   [`SpatialIdError::FOutOfRange`](crate::SpatialIdError::FOutOfRange) を返す。
-    /// - `x` または `y` が `0..=ZoomLevel::new(z as u8)?.xy_max()` の範囲外の場合、
-    ///   それぞれ [`SpatialIdError::XOutOfRange`](crate::SpatialIdError::XOutOfRange)、[`SpatialIdError::YOutOfRange`](crate::SpatialIdError::YOutOfRange) を返す。
-    ///
-    ///
-    /// IDの作成:
-    /// ```no_run
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::{SingleId,TemporalCell};
-    /// //時間IDの作成（ズーム5・インデックス3の生の2進セル）
-    /// let temporal_id = TemporalCell::new(5, 3).unwrap();
-    ///
-    /// let id = SingleId::new_with_temporal(5, 3, 2, 10,temporal_id).unwrap();
-    /// assert_eq!(id.to_string(), "5/3/2/10_5/3".to_string());
-    /// # }
-    /// ```
-    #[cfg(feature = "temporal_id")]
-    pub fn new_with_temporal(
-        z: u8,
-        f: i32,
-        x: u32,
-        y: u32,
-        temporal_id: TemporalCell,
-    ) -> Result<SingleId, Error> {
-        let zoom = ZoomLevel::new(z)?;
-        zoom.check_f(f)?;
-        zoom.check_x(x)?;
-        zoom.check_y(y)?;
-
-        Ok(SingleId {
-            z: zoom,
-            f,
-            x,
-            y,
-            temporal_id,
-        })
-    }
-
-    /// 検証を行わずに 時間情報を指定した[`SingleId`] を作成する。
-    ///
-    /// この関数は [`SingleId::new`] と異なり、与えられた `z`, `f`, `x`, `y` に対して一切の範囲チェックや整合性チェックを行わない。そのため、高速に ID を生成できるが、**不正なパラメータを与えた場合の動作は未定義である**。
-    ///
-    /// # 注意
-    /// 呼び出し側は、以下をすべて満たすことを保証しなければならない。
-    ///
-    /// * `z` が有効なズームレベル（0–[`ZoomLevel::MAX`]）であること
-    /// * `f` が与えられた `z` に応じて `ZoomLevel::new(z as u8)?.f_min()..=unsafe { ZoomLevel::new_unchecked(z as u8) }.f_max()` の範囲内であること
-    /// * `x` および `y` が `0..=unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()` の範囲内であること
-    ///
-    /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。
-    ///
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::{SingleId,TemporalCell};
-    /// //時間IDの作成
-    /// let temporal_id = TemporalCell::new(5, 3).unwrap();
-    ///
-    /// // パラメータが妥当であることを呼び出し側が保証する必要がある
-    /// let id = unsafe { SingleId::new_with_temporal_unchecked(5, 3, 2, 10,temporal_id) };
-    ///
-    /// assert_eq!(id.z(), 5u8);
-    /// assert_eq!(id.f(), 3i32);
-    /// assert_eq!(id.x(), 2u32);
-    /// assert_eq!(id.y(), 10u32);
-    /// # }
-    /// ```
-    ///
-    /// # Safety
-    /// 呼び出し側は、`z` / `f` / `x` / `y` が各ズームレベルの有効範囲内であることに加え、`temporal_id` が有効な値であることを保証しなければなりません。
-    #[cfg(feature = "temporal_id")]
-    pub unsafe fn new_with_temporal_unchecked(
-        z: u8,
-        f: i32,
-        x: u32,
-        y: u32,
-        temporal_id: TemporalCell,
-    ) -> SingleId {
-        SingleId {
-            z: unsafe { ZoomLevel::new_unchecked(z) },
-            f,
-            x,
-            y,
-            temporal_id,
+            temporal_id: TemporalSegment::WHOLE,
         }
     }
 }
