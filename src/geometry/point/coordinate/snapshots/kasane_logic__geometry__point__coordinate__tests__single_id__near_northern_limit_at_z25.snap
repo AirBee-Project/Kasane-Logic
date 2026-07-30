@@ -9,5 +9,5 @@ SingleId {
     f: 0,
     x: 33554431,
     y: 31,
-    temporal_id: TemporalSegment,
+    temporal_id: TemporalId,
 }

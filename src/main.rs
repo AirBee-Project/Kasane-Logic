@@ -1,22 +1,14 @@
-use kasane_logic::{
-    Source, SpatialIdTable,
-    merge_policy::{Average, Max},
-};
-use std::fs;
+// use kasane_logic::{
+//     RangeId, SingleId, Source, SpatialId, SpatialIdTable, TemporalId,
+//     merge_policy::{Average, Max},
+//     spatial_id::{single_id, temporal_id},
+// };
 
 fn main() {
-    let bldg_risk: SpatialIdTable<u32> =
-        serde_json::from_str(&fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();
+    // let temporal_id = TemporalId::new(60, [10, 20]).unwrap();
 
-    let risk = bldg_risk
-        .query()
-        .zoom_out(22, Average)
-        .falloff_linear_x(25, 3, Max)
-        .falloff_linear_y(25, 3, Max)
-        .raw_run_table()
-        .unwrap();
-
-    let json_string = serde_json::to_string(&risk).unwrap();
-
-    fs::write("output.json", json_string).unwrap();
+    // let single_id = RangeId::new(21, 10, 10, 10)
+    //     .unwrap()
+    //     .try_with_temporal(temporal_id)
+    //     .unwrap();
 }

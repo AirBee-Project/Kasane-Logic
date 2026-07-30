@@ -43,15 +43,15 @@ impl SingleId {
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
     ///
-    /// 時間IDを付与したい場合は [`SpatialId::with_temporal`](crate::SpatialId::with_temporal) を
+    /// 時間IDを付与したい場合は [`SpatialId::try_with_temporal`](crate::SpatialId::try_with_temporal) を
     /// 組み合わせる:
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{SingleId, SpatialId, TemporalSegment};
-    /// let temporal_id = TemporalSegment::new(5, 3).unwrap();
-    /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_temporal(temporal_id);
-    /// assert_eq!(id.to_string(), "5/3/2/10_5/3".to_string());
+    /// # use kasane_logic::{Interval, SingleId, SpatialId, TemporalId};
+    /// let temporal_id = TemporalId::new(Interval::Second, [3, 3]).unwrap();
+    /// let id = SingleId::new(5, 3, 2, 10).unwrap().try_with_temporal(temporal_id).unwrap();
+    /// assert_eq!(id.to_string(), "5/3/2/10_62/3".to_string());
     /// # }
     /// ```
     pub fn new(z: impl Into<u8>, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {

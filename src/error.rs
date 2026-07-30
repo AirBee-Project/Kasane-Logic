@@ -104,6 +104,11 @@ pub enum SpatialIdError {
 
     /// シャードのマージに渡された2つが、指定親領域の正当な兄弟（下半分/上半分）でないことを示す。
     InvalidShardMerge,
+
+    /// [`FlexId`](crate::FlexId)/[`SingleId`](crate::SingleId)（点）へ付与しようとした
+    /// [`TemporalId`](crate::TemporalId)が、FlexTree内部の2進セル1個ちょうどには
+    /// 分解できないことを示す（Day/Hour/Minute単位の区間は2の冪秒ではないため）。
+    TemporalIdNotAtomic,
 }
 
 impl From<GeometryError> for Error {
@@ -248,6 +253,12 @@ impl fmt::Display for SpatialIdError {
                 write!(
                     f,
                     "the two shards are not valid siblings of the parent region"
+                )
+            }
+            SpatialIdError::TemporalIdNotAtomic => {
+                write!(
+                    f,
+                    "the given TemporalId does not decompose into exactly one binary cell"
                 )
             }
         }

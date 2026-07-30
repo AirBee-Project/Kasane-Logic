@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{FlexId, Side, SpatialId, spatial_id::zoom_level::ZoomLevel};
+use crate::{FlexId, Side, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
     /// 相手の[FlexId]との差集合（self - other）を計算し、イテレータとして返します。
@@ -62,7 +62,7 @@ impl FlexId {
             }
         }
 
-        for t_diff in current.temporal().difference(other.temporal()) {
+        for t_diff in current.temporal_id.difference(&other.temporal_id) {
             results.push(FlexId {
                 f_zoomlevel: current.f_zoomlevel,
                 f_index: current.f_index,
@@ -101,7 +101,7 @@ impl FlexId {
             other.y_index,
         )?;
 
-        let temporal_id = self.temporal().intersection(other.temporal())?;
+        let temporal_id = self.temporal_id.intersection(&other.temporal_id)?;
 
         Some(FlexId {
             f_zoomlevel: ZoomLevel::new(f_z).unwrap(),

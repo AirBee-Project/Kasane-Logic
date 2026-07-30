@@ -24,17 +24,6 @@ impl Default for TemporalSegment {
 /// 文字列表現から [`TemporalSegment`] を復元する。
 ///
 /// `"zoom/index"` 形式の文字列をパースして [`TemporalSegment`] を構築する。
-///
-/// ```
-/// # #[cfg(feature = "temporal_id")]
-/// # {
-/// # use kasane_logic::TemporalSegment;
-/// # use core::str::FromStr;
-/// let id = TemporalSegment::new(5, 3).unwrap();
-/// let parsed: TemporalSegment = "5/3".parse().unwrap();
-/// assert_eq!(id, parsed);
-/// # }
-/// ```
 impl FromStr for TemporalSegment {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -61,5 +50,18 @@ impl FromStr for TemporalSegment {
                 })?;
 
         TemporalSegment::new(zoom, index)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn round_trips_display_and_from_str() {
+        let id = TemporalSegment::new(5, 3).unwrap();
+        let parsed: TemporalSegment = "5/3".parse().unwrap();
+        assert_eq!(id, parsed);
+        assert_eq!(id.to_string(), "5/3");
     }
 }

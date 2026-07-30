@@ -79,3 +79,24 @@ pub fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> Strin
         format!("{}:{}", dimension[0], dimension[1])
     }
 }
+
+/// `[min, max]`の範囲、またはその両端が等しい単一の値のどちらでも受け取れるようにするための変換Trait。
+///
+/// [`RangeId::new`](crate::RangeId::new)のf/x/y引数に使う。スカラー値`v`は`[v, v]`（単一値の退化した
+/// 範囲）へ変換され、既存の`[T; 2]`はそのまま通る。関数シグネチャが`IntoRange<i32>`のように
+/// 具体的な型を要求するため、無注釈の整数リテラルを渡しても曖昧にならない。
+pub trait IntoRange<T> {
+    fn into_range(self) -> [T; 2];
+}
+
+impl<T: Copy> IntoRange<T> for T {
+    fn into_range(self) -> [T; 2] {
+        [self, self]
+    }
+}
+
+impl<T> IntoRange<T> for [T; 2] {
+    fn into_range(self) -> [T; 2] {
+        self
+    }
+}

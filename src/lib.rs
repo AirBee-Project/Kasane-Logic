@@ -78,10 +78,7 @@ pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
-#[doc(inline)]
-pub use spatial_id::temporal_id::TemporalRange;
-#[doc(inline)]
-pub use spatial_id::temporal_id::TemporalSegment;
+pub(crate) use spatial_id::temporal_id::TemporalSegment;
 
 // spatial_id: collection types
 

@@ -22,11 +22,6 @@ pub trait SpatialId:
     + FromStr
     + Into<RangeId>
 {
-    /// この型が保持する時間区間の具象表現。
-    ///
-    /// [`FlexId`]/[`SingleId`]は生の2進セル（`TemporalSegment`）、[`RangeId`]は人間に読みやすい
-    /// 範囲（`TemporalRange`）を持つため、型ごとに異なりうる。
-    type Temporal: TemporalId;
     /// ズームレベルにおける最小のFインデックスを返す。
     ///
     /// ```
@@ -181,23 +176,21 @@ pub trait SpatialId:
     /// 空間 ID の8頂点を返す。
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
-    /// 時間 ID を参照で返す。
-    fn temporal(&self) -> &Self::Temporal;
-
-    /// 時間 ID を可変参照で返す。
-    fn temporal_mut(&mut self) -> &mut Self::Temporal;
-
-    /// 時間 ID を設定した自身を返す（ビルダー形式）。
+    /// 時間 ID を返す。
     ///
-    /// [`FlexId`]/[`SingleId`]/[`RangeId`]それぞれが個別に持っていた
-    /// `new_with_temporal`/`new_with_temporal_unchecked` を、この一つのTraitメソッドへ
-    /// 一括化したもの。空間部分の構築（`new`/`new_unchecked`）と時間IDの付与を分離できる
-    /// （例: `FlexId::new(...)?.with_temporal(temporal)`）。
-    fn with_temporal(mut self, temporal: Self::Temporal) -> Self
+    /// [`FlexId`]/[`SingleId`]（点）は内部の生の2進セル表現から、[`RangeId`]（範囲）は保持している
+    /// 値からそれぞれ変換・複製して返す。返す型は3つの実装型で共通の[`TemporalId`]。
+    fn temporal(&self) -> TemporalId;
+
+    /// 時間 ID を設定した自身を返す。
+    ///
+    /// # バリデーション
+    /// [`FlexId`]/[`SingleId`]（点）は与えられた`temporal`がFlexTree内部の2進セル1個ちょうどに
+    /// 分解できる場合だけ受理する（例: `Interval::Second` の単一インデックス、または
+    /// `Interval::Whole`）。Day/Hour/Minute単位の区間は2の冪秒ではないため単一セルに一致せず、
+    /// エラーになる。[`RangeId`]（範囲）は常に成功する。この失敗しうる性質を名前で示すため
+    /// `try_`接頭辞を付けている。
+    fn try_with_temporal(self, temporal: TemporalId) -> Result<Self, Error>
     where
-        Self: Sized,
-    {
-        *self.temporal_mut() = temporal;
-        self
-    }
+        Self: Sized;
 }

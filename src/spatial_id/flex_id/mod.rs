@@ -6,8 +6,6 @@ pub mod encode;
 pub mod impls;
 pub mod ops;
 
-#[cfg(feature = "temporal_id")]
-use crate::SpatialId;
 use crate::{
     Error, Side, SpatialIdError, TemporalSegment,
     spatial_id::{
@@ -78,6 +76,23 @@ impl FlexId {
         self.temporal_id.index()
     }
 
+    /// FlexTree内部の生の2進セル（[`TemporalSegment`]）をそのまま取得する。クレート内部専用。
+    #[cfg(feature = "temporal_id")]
+    pub(crate) fn raw_temporal(&self) -> TemporalSegment {
+        self.temporal_id.clone()
+    }
+
+    /// FlexTree内部の生の2進セル（[`TemporalSegment`]）をそのまま設定する。クレート内部専用。
+    ///
+    /// [`SpatialId::try_with_temporal`](crate::SpatialId::try_with_temporal)と異なり、与えられた値が
+    /// 単一セルであることの検証は行わない（呼び出し側が既存の[`FlexId`]/[`SingleId`]から複製した
+    /// 値を渡すことを前提とする内部用の近道）。
+    #[cfg(feature = "temporal_id")]
+    pub(crate) fn with_raw_temporal(mut self, raw: TemporalSegment) -> Self {
+        self.temporal_id = raw;
+        self
+    }
+
     /// 指定したズームレベルでの空間的な親ID（包含する最小のFlexId）を返す。
     /// 指定されたズームが現在のズーム以上の場合は、各軸についてそのままのズームとインデックスを返す。
     pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<FlexId, Error> {
@@ -103,7 +118,7 @@ impl FlexId {
                 y_zoomlevel,
                 y_index,
             )
-            .map(|id| id.with_temporal(self.temporal_id.clone()))
+            .map(|id| id.with_raw_temporal(self.temporal_id.clone()))
         }
 
         #[cfg(not(feature = "temporal_id"))]
@@ -175,7 +190,7 @@ impl FlexId {
                 {
                     FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
                         .unwrap()
-                        .with_temporal(temporal_id.clone())
+                        .with_raw_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -262,7 +277,7 @@ impl FlexId {
                             y_index,
                         )
                     }
-                    .with_temporal(temporal_id.clone())
+                    .with_raw_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -340,7 +355,7 @@ impl FlexId {
                             seg_index,
                         )
                     }
-                    .with_temporal(temporal_id.clone())
+                    .with_raw_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -570,12 +585,12 @@ impl FlexId {
 
                         let parent =
                             unsafe { FlexId::new_unchecked(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx) }
-                                .with_temporal(temp_id2.clone());
+                                .with_raw_temporal(temp_id2.clone());
 
                         let seg = unsafe {
                             FlexId::new_unchecked(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi)
                         }
-                        .with_temporal(temp_id2.clone());
+                        .with_raw_temporal(temp_id2.clone());
 
                         (parent, seg)
                     })

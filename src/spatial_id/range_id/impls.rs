@@ -3,7 +3,7 @@ use alloc::string::ToString;
 use core::fmt;
 
 use crate::{
-    Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalRange,
+    Coordinate, Error, RangeId, SpatialId, SpatialIdError, TemporalId,
     spatial_id::helpers::{self, format_dimension},
 };
 use core::str::FromStr;
@@ -52,8 +52,6 @@ impl fmt::Display for RangeId {
 }
 
 impl SpatialId for RangeId {
-    type Temporal = TemporalRange;
-
     fn f_min(&self) -> i32 {
         self.z.f_min()
     }
@@ -233,12 +231,13 @@ impl SpatialId for RangeId {
         one * count
     }
 
-    fn temporal(&self) -> &TemporalRange {
-        &self.temporal
+    fn temporal(&self) -> TemporalId {
+        self.temporal.clone()
     }
 
-    fn temporal_mut(&mut self) -> &mut TemporalRange {
-        &mut self.temporal
+    fn try_with_temporal(mut self, temporal: TemporalId) -> Result<Self, Error> {
+        self.temporal = temporal;
+        Ok(self)
     }
 }
 
@@ -283,10 +282,10 @@ impl FromStr for RangeId {
         #[cfg(feature = "temporal_id")]
         {
             let temporal = match temporal_text {
-                Some(text) => TemporalRange::from_str(text)?,
-                None => TemporalRange::WHOLE,
+                Some(text) => TemporalId::from_str(text)?,
+                None => TemporalId::WHOLE,
             };
-            RangeId::new(z, f, x, y).map(|id| id.with_temporal(temporal))
+            RangeId::new(z, f, x, y).and_then(|id| id.try_with_temporal(temporal))
         }
 
         #[cfg(not(feature = "temporal_id"))]

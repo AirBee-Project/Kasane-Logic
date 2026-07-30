@@ -1,5 +1,3 @@
-#[cfg(feature = "temporal_id")]
-use crate::SpatialId;
 use crate::{
     Error, FlexId, SpatialIdError, ZoomLevel,
     spatial_id::range_id::convert::{split_f, split_xy},
@@ -31,14 +29,14 @@ impl FlexId {
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
         #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal().clone();
+        let temporal_id = self.raw_temporal();
 
         Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
                 FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
                     .unwrap()
-                    .with_temporal(temporal_id.clone())
+                    .with_raw_temporal(temporal_id.clone())
             }
 
             #[cfg(not(feature = "temporal_id"))]
@@ -78,7 +76,7 @@ impl FlexId {
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
         #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal().clone();
+        let temporal_id = self.raw_temporal();
 
         Ok(ranges
             .into_iter()
@@ -96,7 +94,7 @@ impl FlexId {
                             y_index,
                         )
                     }
-                    .with_temporal(temporal_id.clone())
+                    .with_raw_temporal(temporal_id.clone())
                 }
 
                 #[cfg(not(feature = "temporal_id"))]
@@ -136,14 +134,14 @@ impl FlexId {
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
         #[cfg(feature = "temporal_id")]
-        let temporal_id = self.temporal().clone();
+        let temporal_id = self.raw_temporal();
 
         Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
             #[cfg(feature = "temporal_id")]
             {
                 FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
                     .unwrap()
-                    .with_temporal(temporal_id.clone())
+                    .with_raw_temporal(temporal_id.clone())
             }
 
             #[cfg(not(feature = "temporal_id"))]

@@ -1,7 +1,9 @@
 #[cfg(not(feature = "temporal_id"))]
 mod disabled;
 #[cfg(not(feature = "temporal_id"))]
-pub use disabled::{TemporalRange, TemporalSegment};
+pub use disabled::TemporalId;
+#[cfg(not(feature = "temporal_id"))]
+pub(crate) use disabled::TemporalSegment;
 
 #[cfg(feature = "temporal_id")]
 use crate::{Side, error::Error, spatial_id::temporal_id::zoom_level::TZoomLevel};
@@ -11,11 +13,9 @@ pub mod impls;
 
 pub mod interval;
 pub mod range;
-pub mod traits;
 pub mod zoom_level;
 #[cfg(feature = "temporal_id")]
-pub use range::TemporalRange;
-pub use traits::TemporalId;
+pub use range::TemporalId;
 
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -23,12 +23,13 @@ pub use traits::TemporalId;
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-/// FlexTree内部が実際に木へ格納する、時間軸の生の2進セル表現。
+/// FlexTree内部が実際に木へ格納する、時間軸の生の2進セル表現。クレート内部の実装詳細であり
+/// 公開APIには出てこない（[`FlexId`](crate::FlexId)/[`SingleId`](crate::SingleId)の
+/// プライベートフィールドとしてのみ使う）。
 ///
-/// 1セルは`2^(TZoomLevel::MAX - zoom)`秒（＝2の冪秒）の区間を表す。[`FlexId`](crate::FlexId)/
-/// [`SingleId`](crate::SingleId)（点）が保持する。人間に読みやすい表現は[`TemporalRange`]
-/// を参照。
-pub struct TemporalSegment {
+/// 1セルは`2^(TZoomLevel::MAX - zoom)`秒（＝2の冪秒）の区間を表す。人間に読みやすい表現は
+/// [`TemporalId`] を参照。
+pub(crate) struct TemporalSegment {
     /// 時間軸のズームレベル。
     zoom: TZoomLevel,
     /// このズームレベルにおけるインデックス。
@@ -135,17 +136,9 @@ impl TemporalSegment {
 
         results.into_iter()
     }
-}
 
-#[cfg(feature = "temporal_id")]
-impl crate::spatial_id::temporal_id::traits::TemporalId for TemporalSegment {
-    const WHOLE: Self = Self::WHOLE;
-
-    fn is_whole(&self) -> bool {
-        Self::is_whole(self)
-    }
-
-    fn seconds_range(&self) -> (u64, u64) {
+    /// この [`TemporalSegment`] が表す絶対秒区間 `[start, end)` を返す。
+    pub fn seconds_range(&self) -> (u64, u64) {
         let width = self.zoom.cell_seconds();
         let start = self.index * width;
         (start, start + width)

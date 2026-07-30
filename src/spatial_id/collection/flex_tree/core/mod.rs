@@ -1034,15 +1034,15 @@ mod core_api_tests {
     #[cfg(feature = "temporal_id")]
     #[test]
     fn distinct_temporal_cells_stay_distinguishable() {
-        use crate::{FlexId, SpatialId, TemporalSegment};
+        use crate::{FlexId, TemporalSegment};
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
 
         let t0 = TemporalSegment::new(2, 0).unwrap();
         let t1 = TemporalSegment::new(2, 1).unwrap();
 
-        let a = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_temporal(t0);
-        let b = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_temporal(t1);
+        let a = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_raw_temporal(t0);
+        let b = FlexId::new(3, 1, 3, 1, 3, 1).unwrap().with_raw_temporal(t1);
 
         core.insert([a.clone()], 10);
         core.insert([b.clone()], 20);
@@ -1055,30 +1055,29 @@ mod core_api_tests {
         assert!(got.contains(&(b, 20)));
     }
 
-    /// `TemporalRange::into_segments()`で分解した生セルをそれぞれ挿入すると、元の時間区間
+    /// `TemporalId::segments()`で分解した生セルをそれぞれ挿入すると、元の時間区間
     /// （の絶対秒区間）をちょうど覆う集合が木に格納されることを確認する。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn temporal_range_decomposition_round_trips_into_tree() {
-        use crate::spatial_id::temporal_id::traits::TemporalId as _;
-        use crate::{FlexId, Interval, SpatialId, TemporalRange};
+        use crate::{FlexId, Interval, TemporalId};
 
-        let range = TemporalRange::new(Interval::Hour, [2, 2]).unwrap();
-        let cells: alloc::vec::Vec<_> = range.into_segments().collect();
+        let range = TemporalId::new(Interval::Hour, [2, 2]).unwrap();
+        let cells: alloc::vec::Vec<_> = range.segments().collect();
         assert!(!cells.is_empty());
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
         for cell in &cells {
             let id = FlexId::new(0, 0, 0, 0, 0, 0)
                 .unwrap()
-                .with_temporal(cell.clone());
+                .with_raw_temporal(cell.clone());
             core.insert([id], 1);
         }
 
         assert_eq!(core.count(), cells.len());
         core.assert_canonical();
 
-        // 分解したセルの絶対秒区間を合算すると、元のTemporalRangeの秒区間と一致する。
+        // 分解したセルの絶対秒区間を合算すると、元のTemporalIdの秒区間と一致する。
         let mut total_seconds = 0u64;
         for cell in &cells {
             let (start, end) = cell.seconds_range();

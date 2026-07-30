@@ -10,26 +10,33 @@ use crate::{
     spatial_id::{helpers::format_dimension, temporal_id::zoom_level::TZoomLevel},
 };
 
-/// [`RangeId`](crate::RangeId)が保持する、人間に読みやすい時間区間の範囲表現。
+/// 時間区間を表す、人間に読みやすい公開表現。
 ///
-/// `RangeId.f/x/y`が「単位（ズームレベル）＋範囲」であるのと同じ形で、時間の単位（[`Interval`]）と
-/// その単位でのインデックス範囲 `[min, max]`（両端含む）を保持する。FlexTreeへ格納する際は
-/// [`into_segments`](Self::into_segments)で生の2進セル（[`TemporalSegment`]）の列へ分解される。
+/// [`FlexId`](crate::FlexId)/[`SingleId`](crate::SingleId)/[`RangeId`](crate::RangeId)の
+/// いずれも [`SpatialId::temporal`](crate::SpatialId::temporal)/
+/// [`SpatialId::try_with_temporal`](crate::SpatialId::try_with_temporal)を通じてこの1つの型だけを
+/// やり取りする。`RangeId.f/x/y`が「単位（ズームレベル）＋範囲」であるのと同じ形で、時間の単位
+/// （[`Interval`]）とその単位でのインデックス範囲 `[min, max]`（両端含む）を保持する。
+///
+/// FlexTree内部（`FlexId`/`SingleId`が実際に木へ格納する形）は2の冪秒のセルを前提とする2進トライだが、
+/// `Interval`（Day/Hour/Minute/Second）の秒数は2の冪とは限らない。そのため`FlexId`/`SingleId`へ
+/// 付与する際は、区間木的な分解（クレート内部専用）によりちょうど1個の2進セルに一致する場合だけ
+/// 受理される（`FlexId`/`SingleId`は「点」なので、複数セルにまたがる範囲は付与できない）。
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
-pub struct TemporalRange {
+pub struct TemporalId {
     interval: Interval,
     t: [u64; 2],
 }
 
 #[cfg(feature = "temporal_id")]
-impl TemporalRange {
+impl TemporalId {
     /// 全時間を表す定数。
-    pub const WHOLE: Self = TemporalRange {
+    pub const WHOLE: Self = TemporalId {
         interval: Interval::Whole,
         t: [0, 0],
     };
@@ -39,11 +46,23 @@ impl TemporalRange {
         self.interval == Interval::Whole && self.t == [0, 0]
     }
 
-    /// 指定した単位・範囲から [`TemporalRange`] を構築する。
+    /// 指定した単位・範囲から [`TemporalId`] を構築する。
+    ///
+    /// `interval`は[`Interval`]、または秒数を表す`impl Into<i64>`（無注釈の整数リテラルを含む）の
+    /// どちらでも渡せる（[`FlexId::new`](crate::FlexId::new)等の`impl Into<u8>`によるズームレベル
+    /// 指定と同じ考え方）。`u64`ではなく`i64`を受け取るのは、無注釈の整数リテラルの既定型が`i32`で
+    /// あり、`i32`は`Into<i64>`は満たすが`Into<u64>`は満たさないため（符号あり→符号なしの暗黙変換は
+    /// 存在しない）。`60`のような素のリテラルをそのまま渡せるようにする目的で`i64`を選んでいる。
+    /// 負の値や[`Interval`]の候補（Whole/Day/Hour/Minute/Second）に一致しない秒数を渡した場合は
+    /// [`SpatialIdError::TIntervalError`]を返す。
     ///
     /// `t` は自動的に昇順へ並び替えられる。範囲が表す絶対秒区間が
     /// [`Interval::WHOLE_SECONDS`] を超える場合は [`Error`] を返す。
-    pub fn new(interval: Interval, t: [u64; 2]) -> Result<Self, Error> {
+    pub fn new(interval: impl Into<i64>, t: [u64; 2]) -> Result<Self, Error> {
+        let seconds: i64 = interval.into();
+        let seconds =
+            u64::try_from(seconds).map_err(|_| SpatialIdError::TIntervalError { i: 0 })?;
+        let interval = Interval::new(seconds)?;
         let mut t = t;
         if t[0] > t[1] {
             t.swap(0, 1);
@@ -62,7 +81,7 @@ impl TemporalRange {
         Ok(Self { interval, t })
     }
 
-    /// 検証を行わずに [`TemporalRange`] を構築する。
+    /// 検証を行わずに [`TemporalId`] を構築する。
     ///
     /// # Safety
     /// 呼び出し側は `(t[1]+1) * interval.seconds() <= Interval::WHOLE_SECONDS` を保証しなければならない。
@@ -80,13 +99,19 @@ impl TemporalRange {
         self.t
     }
 
-    /// この [`TemporalRange`] を、絶対秒区間へ変換した上で、生の2進セル（[`TemporalSegment`]）の列へ
-    /// 分解する。
+    /// この値が表す絶対秒区間 `[start, end)` を返す。
+    pub fn seconds_range(&self) -> (u64, u64) {
+        let unit = self.interval.seconds();
+        (self.t[0] * unit, (self.t[1] + 1) * unit)
+    }
+
+    /// この [`TemporalId`] を、絶対秒区間へ変換した上で、FlexTree内部の生の2進セル
+    /// （[`TemporalSegment`]、クレート内部専用）の列へ分解する。クレート内部専用（`pub(crate)`）。
     ///
     /// [`interval()`](Self::interval)の秒数は2の冪であるとは限らない（Day/Hour/Minuteはいずれも
     /// 2の冪ではない）ため、区間木的な分解（`SegmentIter64`）により高々`O(log 秒数)`個の2進セルへ
     /// 分解される。
-    pub fn into_segments(&self) -> impl Iterator<Item = TemporalSegment> {
+    pub(crate) fn segments(&self) -> impl Iterator<Item = TemporalSegment> {
         let unit = self.interval.seconds();
         let start = self.t[0] * unit;
         let end_inclusive = (self.t[1] + 1) * unit - 1;
@@ -96,37 +121,21 @@ impl TemporalRange {
     }
 }
 
-#[cfg(feature = "temporal_id")]
-impl crate::spatial_id::temporal_id::traits::TemporalId for TemporalRange {
-    const WHOLE: Self = Self::WHOLE;
-
-    fn is_whole(&self) -> bool {
-        Self::is_whole(self)
-    }
-
-    fn seconds_range(&self) -> (u64, u64) {
-        let unit = self.interval.seconds();
-        (self.t[0] * unit, (self.t[1] + 1) * unit)
-    }
-}
-
 /// 生の2進セル（[`TemporalSegment`]）1個を、被覆する絶対秒区間として最も粗く一致する
-/// [`Interval`]ラベルで表した [`TemporalRange`] へ変換する。
+/// [`Interval`]ラベルで表した [`TemporalId`] へ変換する。クレート内部専用。
 ///
 /// [`Interval::coarse_to_fine`]の順に試し、`Second`は常に割り切れるため必ずどこかで成功する
 /// （フォールバック分岐は不要）。
 #[cfg(feature = "temporal_id")]
-impl From<&TemporalSegment> for TemporalRange {
+impl From<&TemporalSegment> for TemporalId {
     fn from(cell: &TemporalSegment) -> Self {
-        use crate::spatial_id::temporal_id::traits::TemporalId as _;
-
         let (start, end) = cell.seconds_range();
         let span = end - start;
 
         for interval in Interval::coarse_to_fine() {
             let unit = interval.seconds();
             if start % unit == 0 && span % unit == 0 {
-                return TemporalRange {
+                return TemporalId {
                     interval,
                     t: [start / unit, end / unit - 1],
                 };
@@ -196,17 +205,17 @@ impl Iterator for SegmentIter64 {
 }
 
 #[cfg(feature = "temporal_id")]
-impl fmt::Display for TemporalRange {
+impl fmt::Display for TemporalId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}/{}", self.interval, format_dimension(self.t))
     }
 }
 
-/// 文字列表現から [`TemporalRange`] を復元する。
+/// 文字列表現から [`TemporalId`] を復元する。
 ///
 /// `"seconds/min:max"`（単体なら`"seconds/index"`）形式の文字列をパースする。
 #[cfg(feature = "temporal_id")]
-impl FromStr for TemporalRange {
+impl FromStr for TemporalId {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -226,14 +235,14 @@ impl FromStr for TemporalRange {
             }
         };
 
-        TemporalRange::new(interval, t)
+        TemporalId::new(interval, t)
     }
 }
 
 #[cfg(feature = "temporal_id")]
 fn parse_error(input: &str) -> Error {
     SpatialIdError::ParseSpatialIdFormat {
-        kind: "TemporalRange",
+        kind: "TemporalId",
         input: input.to_string(),
     }
     .into()

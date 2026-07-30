@@ -4,7 +4,7 @@ pub mod impls;
 pub mod random;
 
 use crate::{
-    SpatialId, SpatialIdError, TemporalRange,
+    SpatialId, SpatialIdError, TemporalId,
     error::Error,
     spatial_id::{helpers, zoom_level::ZoomLevel},
 };
@@ -30,7 +30,7 @@ pub struct RangeId {
     f: [i32; 2],
     x: [u32; 2],
     y: [u32; 2],
-    temporal: TemporalRange,
+    temporal: TemporalId,
 }
 
 impl RangeId {

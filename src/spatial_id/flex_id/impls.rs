@@ -3,9 +3,10 @@ use alloc::string::ToString;
 
 use core::fmt;
 
+#[cfg(feature = "temporal_id")]
+use crate::TemporalSegment;
 use crate::{
-    Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, TemporalSegment,
-    spatial_id::helpers,
+    Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
 };
 use core::str::FromStr;
 
@@ -32,8 +33,6 @@ impl fmt::Display for FlexId {
 }
 
 impl SpatialId for FlexId {
-    type Temporal = TemporalSegment;
-
     fn f_min(&self) -> i32 {
         ZoomLevel::new(self.f_zoomlevel.get()).unwrap().f_min()
     }
@@ -174,12 +173,20 @@ impl SpatialId for FlexId {
         out
     }
 
-    fn temporal(&self) -> &TemporalSegment {
-        &self.temporal_id
+    fn temporal(&self) -> TemporalId {
+        TemporalId::from(&self.temporal_id)
     }
 
-    fn temporal_mut(&mut self) -> &mut TemporalSegment {
-        &mut self.temporal_id
+    fn try_with_temporal(mut self, temporal: TemporalId) -> Result<Self, Error> {
+        let mut segments = temporal.segments();
+        let segment = segments
+            .next()
+            .expect("TemporalId::segments yields at least one segment");
+        if segments.next().is_some() {
+            return Err(SpatialIdError::TemporalIdNotAtomic.into());
+        }
+        self.temporal_id = segment;
+        Ok(self)
     }
 }
 
@@ -241,7 +248,7 @@ impl FromStr for FlexId {
                 y_zoomlevel,
                 y_index,
             )
-            .map(|id| id.with_temporal(temporal_id))
+            .map(|id| id.with_raw_temporal(temporal_id))
         }
 
         #[cfg(not(feature = "temporal_id"))]

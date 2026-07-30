@@ -1,6 +1,8 @@
 use alloc::boxed::Box;
 
-use crate::{FlexId, RangeId, SingleId, SpatialId, spatial_id::zoom_level::ZoomLevel};
+#[cfg(feature = "temporal_id")]
+use crate::SpatialId;
+use crate::{FlexId, RangeId, SingleId, spatial_id::zoom_level::ZoomLevel};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {
@@ -36,7 +38,8 @@ impl From<&FlexId> for RangeId {
                 [y_range[0] as u32, y_range[1] as u32],
             )
             .unwrap()
-            .with_temporal(crate::TemporalRange::from(flex_id.temporal()))
+            .try_with_temporal(flex_id.temporal())
+            .unwrap()
         }
 
         #[cfg(not(feature = "temporal_id"))]
@@ -67,7 +70,7 @@ impl From<&SingleId> for FlexId {
             x_index: value.x(),
             y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
             y_index: value.y(),
-            temporal_id: value.temporal().clone(),
+            temporal_id: value.raw_temporal(),
         }
     }
 }

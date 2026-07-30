@@ -16,16 +16,14 @@ use crate::{
 ///
 /// この型は `PartialOrd` / `Ord` を実装していますが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
 ///
-/// ```
-/// # use kasane_logic::ZoomLevel;
-/// # use kasane_logic::TemporalSegment;
+/// ```text
 /// pub struct SingleId {
 ///     z: ZoomLevel,
 ///     f: i32,
 ///     x: u32,
 ///     y: u32,
-//
-///     temporal_id: TemporalSegment,
+///
+///     temporal_id: TemporalSegment, // FlexTree内部専用の生の2進セル表現（非公開）
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -80,6 +78,22 @@ impl SingleId {
     /// ```
     pub fn y(&self) -> u32 {
         self.y
+    }
+
+    /// FlexTree内部の生の2進セル（[`TemporalSegment`]）をそのまま取得する。クレート内部専用。
+    pub(crate) fn raw_temporal(&self) -> TemporalSegment {
+        self.temporal_id.clone()
+    }
+
+    /// FlexTree内部の生の2進セル（[`TemporalSegment`]）をそのまま設定する。クレート内部専用。
+    ///
+    /// [`SpatialId::try_with_temporal`](crate::SpatialId::try_with_temporal)と異なり、与えられた値が
+    /// 単一セルであることの検証は行わない（呼び出し側が既存の[`FlexId`]/[`SingleId`]から複製した
+    /// 値を渡すことを前提とする内部用の近道）。
+    #[cfg(feature = "temporal_id")]
+    pub(crate) fn with_raw_temporal(mut self, raw: TemporalSegment) -> Self {
+        self.temporal_id = raw;
+        self
     }
 
     /// F インデックスを更新します。
@@ -250,7 +264,7 @@ impl SingleId {
                     x,
                     y,
 
-                    temporal_id: self.temporal().clone(),
+                    temporal_id: self.temporal_id.clone(),
                 })
             })
         }))
@@ -324,7 +338,7 @@ impl SingleId {
             x,
             y,
 
-            temporal_id: self.temporal().clone(),
+            temporal_id: self.temporal_id.clone(),
         })
     }
 
@@ -370,56 +384,56 @@ impl SingleId {
                 f: f_start,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
             SingleId {
                 z: next_zoom,
                 f: f_start + 1,
                 x: x_start + 1,
                 y: y_start + 1,
-                temporal_id: self.temporal().clone(),
+                temporal_id: self.temporal_id.clone(),
             },
         ];
 
