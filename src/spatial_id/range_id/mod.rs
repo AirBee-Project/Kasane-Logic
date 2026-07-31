@@ -31,6 +31,7 @@ pub struct RangeId {
     x: [u32; 2],
     y: [u32; 2],
     i: Interval,
+    #[cfg(feature = "temporal_id")]
     t: [u64; 2],
 }
 
@@ -100,14 +101,25 @@ impl RangeId {
     }
 
     /// この `RangeId` の時間インデックス範囲 `[min, max]`（両端含む）を返します。
+    ///
+    /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のセル）。
+    #[cfg(feature = "temporal_id")]
     pub fn t(&self) -> [u64; 2] {
         self.t
+    }
+
+    /// この `RangeId` の時間インデックス範囲。
+    /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のセル）を返します。
+    #[cfg(not(feature = "temporal_id"))]
+    pub fn t(&self) -> [u64; 2] {
+        [0, 0]
     }
 
     /// この `RangeId` が占める絶対秒区間 `[start, end)` を返します（1970-01-01 00:00 UTC 起点）。
     pub fn seconds_range(&self) -> (u64, u64) {
         let unit = self.i.seconds();
-        (self.t[0] * unit, (self.t[1] + 1) * unit)
+        let t = self.t();
+        (t[0] * unit, (t[1] + 1) * unit)
     }
 
     /// 時間を設定した自身を返します（ビルダー形式）。
@@ -133,36 +145,50 @@ impl RangeId {
     /// assert_eq!(single.to_string(), "4/-3:6/8:9/5:10_3600/5");
     /// # }
     /// ```
-    pub fn with_time(
-        mut self,
-        interval: impl Into<i64>,
-        t: impl helpers::IntoRange<u64>,
-    ) -> Result<Self, Error> {
+    pub fn with_time<I, T>(self, interval: I, t: T) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+        T: helpers::IntoRange<u64>,
+    {
+        let interval: Interval = interval.try_into()?;
         let mut t = t.into_range();
         if t[0] > t[1] {
             t.swap(0, 1);
         }
 
-        let interval = Interval::from_signed_seconds(interval.into())?;
-        let unit = interval.seconds();
-        let end_exclusive = t[1]
-            .checked_add(1)
-            .and_then(|v| v.checked_mul(unit))
-            .ok_or(SpatialIdError::TOutOfRange { i: unit, t: t[1] })?;
-
-        if end_exclusive > Interval::WHOLE_SECONDS {
-            return Err(SpatialIdError::TOutOfRange { i: unit, t: t[1] }.into());
-        }
-
-        self.i = interval;
-        self.t = t;
-        Ok(self)
+        time_cells::validated_span(interval, t[0], t[1])?;
+        Ok(self.with_time_unchecked(interval, t))
     }
 
-    /// Unix 時刻（秒）の区間 `[start, end)` を覆う時間を設定した自身を返します。
+    /// Unix 時刻（秒）が属する時間セルを設定した自身を返します。
+    ///
+    /// 仕様書 1.5.3 (3) の `t = floor(u / i)` をこちらで計算するので、呼び出し側で
+    /// インデックスを求める必要がない。範囲ではなく単一セルになる。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::RangeId;
+    /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time_at(1800, 1_457_482_000).unwrap();
+    /// assert_eq!(id.t(), [809712, 809712]);
+    /// # }
+    /// ```
+    pub fn with_time_at<I>(self, interval: I, unix_seconds: u64) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+    {
+        let interval: Interval = interval.try_into()?;
+        self.with_time::<Interval, u64>(interval, interval.index_of(unix_seconds))
+    }
+
+    /// 絶対秒区間 `[start, end)` を設定した自身を返します（1970-01-01 00:00 UTC 起点）。
     ///
     /// 単位は「その区間をちょうど表せる最も粗い秒数」が自動で選ばれる
     /// （`start` と区間幅の最大公約数）。仕様が認める任意秒数の単位もそのまま出てくる。
+    /// `RangeId` は時間も範囲で持てるので、**任意の区間を受け付ける**
+    /// （単一セルに限る [`SingleId::with_time_span`](crate::SingleId::with_time_span) との違い）。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
@@ -170,33 +196,75 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// // [1457481600, 1457483400) はちょうど 1800 秒ぶん。
     /// let id = RangeId::new(4, 0, 0, 0).unwrap()
-    ///     .with_time_seconds(1_457_481_600, 1_457_483_400).unwrap();
+    ///     .with_time_span(1_457_481_600, 1_457_483_400).unwrap();
     /// assert_eq!(id.interval().seconds(), 1800);
     /// assert_eq!(id.t(), [809712, 809712]);
     /// # }
     /// ```
-    pub fn with_time_seconds(mut self, start: u64, end: u64) -> Result<Self, Error> {
-        if start >= end || end > Interval::WHOLE_SECONDS {
-            return Err(SpatialIdError::TOutOfRange { i: 1, t: end }.into());
-        }
-
-        // その区間をちょうど表せる最も粗い単位を選ぶ（`gcd(start, 幅)`）。
-        let unit = time_cells::coarsest_unit(start, end - start);
-        self.i = Interval::from_seconds_unchecked(unit);
-        self.t = [start / unit, end / unit - 1];
-        Ok(self)
+    pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
+        let (interval, t_min, t_max) = time_cells::span_to_interval(start, end)?;
+        Ok(self.with_time_unchecked(interval, [t_min, t_max]))
     }
 
-    /// 同じ絶対秒区間を、別の単位で表し直した自身を返します。割り切れなければ [`None`]。
-    pub fn relabel_time(mut self, interval: Interval) -> Option<Self> {
+    /// 同じ絶対秒区間を、別の単位で表し直した自身を返します。
+    ///
+    /// 単位が変わっても指す区間は変わらない。その単位で割り切れない場合は
+    /// [`SpatialIdError::TIntervalError`] を返す。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, RangeId};
+    /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time(Interval::HOUR, [0, 1]).unwrap();
+    /// assert_eq!(id.clone().relabel_time(1800).unwrap().t(), [0, 3]);
+    /// // 2時間ぶんは1日単位では表せない。
+    /// assert!(id.relabel_time(Interval::DAY).is_err());
+    /// # }
+    /// ```
+    pub fn relabel_time<I>(self, interval: I) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+    {
+        let interval: Interval = interval.try_into()?;
         let (start, end) = self.seconds_range();
         let unit = interval.seconds();
         if !start.is_multiple_of(unit) || !end.is_multiple_of(unit) {
-            return None;
+            return Err(SpatialIdError::TIntervalError { i: unit }.into());
         }
+        Ok(self.with_time_unchecked(interval, [start / unit, end / unit - 1]))
+    }
+
+    /// 時間の指定を外し、全時間へ戻した自身を返します。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, RangeId, SpatialId};
+    /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time(Interval::HOUR, [0, 1]).unwrap();
+    /// assert!(id.without_time().is_whole_time());
+    /// # }
+    /// ```
+    pub fn without_time(self) -> Self {
+        self.with_time_unchecked(Interval::WHOLE, [0, 0])
+    }
+
+    /// 検証済みの `{i}` / `{t}` を書き込む。
+    fn with_time_unchecked(
+        #[cfg_attr(not(feature = "temporal_id"), allow(unused_mut))] mut self,
+        interval: Interval,
+        t: [u64; 2],
+    ) -> Self {
         self.i = interval;
-        self.t = [start / unit, end / unit - 1];
-        Some(self)
+        // `temporal_id` 無効時に検証を通るのは全時間だけで、そのとき `t` は `[0, 0]` に
+        // しかならないので情報は落ちない。
+        #[cfg(feature = "temporal_id")]
+        {
+            self.t = t;
+        }
+        #[cfg(not(feature = "temporal_id"))]
+        debug_assert_eq!(t, [0, 0], "temporal_id 無効時に t != [0,0] が検証を通った");
+        self
     }
 
     /// この `RangeId` の時間を、FlexTree が使う2進セルの列へ分解する。クレート内部専用。
@@ -313,6 +381,7 @@ impl RangeId {
             y,
 
             i: self.i,
+            #[cfg(feature = "temporal_id")]
             t: self.t,
         })
     }
@@ -399,6 +468,7 @@ impl RangeId {
             y,
 
             i: self.i,
+            #[cfg(feature = "temporal_id")]
             t: self.t,
         })
     }

@@ -528,6 +528,19 @@ where
         self.lower_root.leaf_count() + self.upper_root.leaf_count()
     }
 
+    /// この木が時間軸（T）で分割されたノードを1つでも持つかを返す。O(1)。
+    ///
+    /// 各 Branch がキャッシュしている `split_mask` の畳み上げを見るだけなので、木を
+    /// 走査しない。偽なら**全ての葉が全時間**であることが保証されるので、書き出し時の
+    /// 時間方向の結合（[`coalesce_temporal`](super::coalesce::coalesce_temporal)）を
+    /// まるごと省略でき、`flat_single_ids_ref` の遅延評価を保てる。
+    ///
+    /// `temporal_id` feature 無効時は T の番自体が無い（`NUM_AXES == 3`）ため常に偽。
+    pub(crate) fn has_temporal_split(&self) -> bool {
+        let mask = self.lower_root.split_mask() | self.upper_root.split_mask();
+        mask & Node::<V>::axis_bit(Axis::T) != 0
+    }
+
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
     /// 空の木では [`None`] を返します。
     ///
@@ -595,10 +608,13 @@ where
         // 1葉が複数のSingleIdへ分解されうるため下限のヒント（葉数）を与える。
         let mut exported = Vec::with_capacity(self.count());
 
-        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-            self.iter(),
-            None,
-        );
+        let merged: Vec<(RangeId, V)> = if self.has_temporal_split() {
+            crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(self.iter(), None)
+        } else {
+            self.iter()
+                .map(|(flex_id, value)| (RangeId::from(&flex_id), value))
+                .collect()
+        };
 
         for (range, value) in merged {
             let normalized = if range.z() == max_zoomlevel {
@@ -619,21 +635,39 @@ where
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
     ///
-    /// 書き出す前に、時間方向に隣接する同値のセルを
+    /// 木が時間軸で分割されている場合のみ、書き出す前に時間方向に隣接する同値のセルを
     /// [`coalesce_temporal`](crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal)
     /// で結合する。木は時間を2の冪秒のセルとして持つため、これを行わないと
     /// `1800` 秒のような単位で入れた ID が断片のまま出てきてしまう。
+    ///
+    /// # 遅延評価について
+    ///
+    /// 結合は木全体を集めてソートする（同じ空間セルの時間セルは木の走査順では連続しない
+    /// ため、1件先読みでは結合しきれない）。そのため時間を持たない木で無条件に通すと、
+    /// 本来 `O(1)` で始まるはずの列挙が全件走査になってしまう。
+    /// [`has_temporal_split`](Self::has_temporal_split) が偽なら全葉が全時間で結合対象が
+    /// 存在しないので、結合ごと省いて素通しの遅延イテレータを返す。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
         };
 
-        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-            self.iter_ref(),
-            None,
-        );
+        let merged: Box<dyn Iterator<Item = (RangeId, &V)> + '_> = if self.has_temporal_split() {
+            Box::new(
+                crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+                    self.iter_ref(),
+                    None,
+                )
+                .into_iter(),
+            )
+        } else {
+            Box::new(
+                self.iter_ref()
+                    .map(|(flex_id, value)| (RangeId::from(&flex_id), value)),
+            )
+        };
 
-        Box::new(merged.into_iter().flat_map(move |(range, value)| {
+        Box::new(merged.flat_map(move |(range, value)| {
             let normalized = if range.z() == max_zoomlevel {
                 range
             } else {
@@ -909,9 +943,22 @@ where
     }
 }
 
-/// 空間ソートキーの1軸あたりビット数（F/X/Y/T の4軸で 4×20 = 80bit、u128 に収まる）。
+/// 空間ソートキーの1軸あたりビット数。
+///
+/// `temporal_id` 有効時は F/X/Y/T の4軸で 4×20 = 80bit（`u128`）、無効時は F/X/Y の
+/// 3軸で 3×20 = 60bit（`u64`）。
 #[cfg(feature = "rayon")]
 const SORT_KEY_BITS: u32 = 20;
+
+/// [`spatial_sort_key`] の戻り型。軸数に応じて必要な幅だけを使う。
+///
+/// 時間を使わないビルドで `u128` のまま回すと、並列バルク構築のソートが理由なく
+/// 倍幅の比較になる。
+#[cfg(all(feature = "rayon", feature = "temporal_id"))]
+pub(crate) type SortKey = u128;
+/// [`spatial_sort_key`] の戻り型（3軸版）。
+#[cfg(all(feature = "rayon", not(feature = "temporal_id")))]
+pub(crate) type SortKey = u64;
 
 /// 軸のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
 /// 粗い（浅い）セルは上位ビット側に、細かいセルは下位ビットまで伸びる。
@@ -932,19 +979,29 @@ fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
 /// 「近い ID を連続させる」ことが目的で、これによりチャンクが局所化し、
 /// チャンク木同士の [`union`](FlexTreeCore::union) / [`merge_with`](FlexTreeCore::merge_with) が
 /// 互いにほぼ素になって簡約が軽くなる。並列バルク構築と値解決構築の双方で使う。
-/// Tのインデックスは`u64`まで取りうるため、キー全体を`u128`に拡張している
-/// （4軸×20bit=80bitで、60bit版だった3軸時代の`u64`には収まらないため）。
+/// `temporal_id` 有効時はTのインデックスが`u64`まで取りうるため、キー全体を[`SortKey`]
+/// = `u128`に拡張している（4軸×20bit=80bitで`u64`に収まらない）。無効時はT軸が無いので
+/// 3軸×20bit=60bitの`u64`に戻る。
 #[cfg(feature = "rayon")]
 #[inline]
-pub(crate) fn spatial_sort_key(id: &FlexId) -> u128 {
+pub(crate) fn spatial_sort_key(id: &FlexId) -> SortKey {
     const B: u32 = SORT_KEY_BITS;
     // F は符号付き。木は最初に符号でルートを分けるため、符号ビットを最上位に置く。
     let f_biased = (id.f_index() as i64 + (1i64 << 30)) as u64;
-    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B) as u128;
-    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B) as u128;
-    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B) as u128;
-    let ta = axis_aligned(id.t_index(), id.t_zoomlevel(), B) as u128;
-    (fa << (3 * B)) | (xa << (2 * B)) | (ya << B) | ta
+    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B) as SortKey;
+    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B) as SortKey;
+    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B) as SortKey;
+
+    #[cfg(feature = "temporal_id")]
+    {
+        let ta = axis_aligned(id.t(), id.t_zoomlevel(), B) as SortKey;
+        (fa << (3 * B)) | (xa << (2 * B)) | (ya << B) | ta
+    }
+
+    #[cfg(not(feature = "temporal_id"))]
+    {
+        (fa << (2 * B)) | (xa << B) | ya
+    }
 }
 
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
@@ -1026,6 +1083,73 @@ mod core_api_tests {
         assert_eq!(empty.max_zoomlevel(), None);
     }
 
+    /// 時間を持たない木は T 軸で分割されないので、書き出しの結合を丸ごと省ける。
+    #[test]
+    fn has_temporal_split_is_false_without_time() {
+        let mut core = FlexTreeCore::new();
+        core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
+        core.insert(SingleId::new(20, 3, 5, 7).unwrap(), 2);
+        assert!(!core.has_temporal_split());
+
+        let empty: FlexTreeCore<i32> = FlexTreeCore::new();
+        assert!(!empty.has_temporal_split());
+    }
+
+    /// 時間を持つ木では T 軸の分割が立つ。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn has_temporal_split_is_true_with_time() {
+        use crate::Interval;
+
+        let mut core = FlexTreeCore::new();
+        core.insert(
+            SingleId::new(20, 0, 0, 0)
+                .unwrap()
+                .with_time(Interval::HOUR, 5)
+                .unwrap(),
+            1,
+        );
+        assert!(core.has_temporal_split());
+    }
+
+    /// 時間を持たない木の `flat_single_ids_ref` は遅延評価のままでなければならない。
+    ///
+    /// 時間方向の結合を無条件に通していた頃は、先頭1件を取るだけで木全体の走査＋ソートが
+    /// 走っていた（20万葉で 10µs → 373ms）。
+    #[test]
+    fn flat_single_ids_ref_stays_lazy_without_time() {
+        use core::cell::Cell;
+
+        // 値をばらけさせて、正規化で1葉にまとまらないようにする。
+        let mut core = FlexTreeCore::new();
+        for x in 0..32u32 {
+            for y in 0..32u32 {
+                core.insert(SingleId::new(20, 0, x * 2, y * 2).unwrap(), x * 32 + y);
+            }
+        }
+        let total = core.count();
+        assert!(total > 8, "十分な葉数が要る (got {total})");
+
+        // 実際に消費された葉の数を数える。
+        let consumed = Cell::new(0usize);
+        let counted = core
+            .iter_ref()
+            .inspect(|_| consumed.set(consumed.get() + 1));
+        // `flat_single_ids_ref` と同じ経路（結合なし）を通ることを確認する。
+        assert!(!core.has_temporal_split());
+        let mut it = counted.map(|(id, v)| (RangeId::from(&id), v));
+        let _first = it.next().expect("先頭が取れる");
+        assert_eq!(
+            consumed.get(),
+            1,
+            "先頭1件のために木全体を走査してはならない"
+        );
+
+        // 公開経路そのものでも、先頭を取るだけなら全件展開されない。
+        let mut public = core.flat_single_ids_ref();
+        assert!(public.next().is_some());
+    }
+
     #[test]
     fn bounding_box_covers_every_cell() {
         let mut core = FlexTreeCore::new();
@@ -1052,8 +1176,14 @@ mod core_api_tests {
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
 
         // 同じ空間セルで、時間だけが隣り合う2つのセル（ズーム2＝全時間の1/4幅）。
-        let a = FlexId::new_with_time(3, 1, 3, 1, 3, 1, 2, 0).unwrap();
-        let b = FlexId::new_with_time(3, 1, 3, 1, 3, 1, 2, 1).unwrap();
+        let a = FlexId::new(3, 1, 3, 1, 3, 1)
+            .unwrap()
+            .with_time_cell_checked(2, 0)
+            .unwrap();
+        let b = FlexId::new(3, 1, 3, 1, 3, 1)
+            .unwrap()
+            .with_time_cell_checked(2, 1)
+            .unwrap();
 
         core.insert([a], 10);
         core.insert([b], 20);

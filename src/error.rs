@@ -118,6 +118,16 @@ impl From<SpatialIdError> for Error {
     }
 }
 
+/// 時間 API は `interval` を `impl TryInto<Interval>` で受けるため、`Error: From<変換エラー>`
+/// を要求する。[`Interval`](crate::Interval) をそのまま渡した場合の変換は恒等（失敗しない）で
+/// エラー型が [`Infallible`](core::convert::Infallible) になるので、その分の橋渡しを用意する。
+/// 値は存在しえないので、この関数は呼ばれない。
+impl From<core::convert::Infallible> for Error {
+    fn from(value: core::convert::Infallible) -> Self {
+        match value {}
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

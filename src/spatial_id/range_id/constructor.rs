@@ -86,6 +86,7 @@ impl RangeId {
             x,
             y,
             i: Interval::WHOLE,
+            #[cfg(feature = "temporal_id")]
             t: [0, 0],
         })
     }
@@ -125,6 +126,7 @@ impl RangeId {
             x,
             y,
             i: Interval::WHOLE,
+            #[cfg(feature = "temporal_id")]
             t: [0, 0],
         }
     }

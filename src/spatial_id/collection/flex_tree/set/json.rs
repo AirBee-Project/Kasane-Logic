@@ -6,7 +6,7 @@ use super::super::json::{deserialize_without_values, serialize_without_values};
 
 impl Serialize for SpatialIdSet {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serialize_without_values(self.iter(), serializer)
+        serialize_without_values(self.iter(), self.inner.has_temporal_split(), serializer)
     }
 }
 

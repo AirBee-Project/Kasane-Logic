@@ -104,6 +104,10 @@ pub use spatial_id::helpers::{Dimension, Side};
 pub use spatial_id::traits::SpatialId;
 
 // spatial_id: zoom level
+/// 時間軸のズームレベル。空間軸の [`ZoomLevel`] と対称に公開する
+/// （[`FlexId::t_zoomlevel`] が返す値の型）。
+#[doc(inline)]
+pub use spatial_id::zoom_level::TZoomLevel;
 #[doc(inline)]
 pub use spatial_id::zoom_level::ZoomLevel;
 

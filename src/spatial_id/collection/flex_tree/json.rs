@@ -252,6 +252,7 @@ struct PlainDataEntry {
 /// 値は出現順で重複排除して `value` に列挙し、各空間 ID は `ref` でその添字を参照する。
 pub(crate) fn serialize_with_values<'a, V, S>(
     iter: impl Iterator<Item = (FlexId, &'a V)>,
+    has_temporal_split: bool,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -263,9 +264,8 @@ where
 
     // 時間方向に隣接する同値セルを結合してから書き出す。木は時間を2の冪秒のセルで持つため、
     // これを通さないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
-    for (range_id, val) in
-        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(iter, None)
-    {
+    // 木にT軸の分割が無ければ結合対象は存在しないので、ソートごと省く。
+    for (range_id, val) in coalesce_if_temporal(iter, has_temporal_split) {
         let idx = match unique.iter().position(|&u| u == val) {
             Some(idx) => idx,
             None => {
@@ -293,25 +293,42 @@ where
     envelope.serialize(serializer)
 }
 
+/// 木にT軸の分割があるときだけ時間方向の結合を通し、無ければ素通しする。
+///
+/// 結合は入力を集めてソートするため、時間を持たない木で無条件に通すと純粋な固定費になる。
+fn coalesce_if_temporal<V>(
+    iter: impl Iterator<Item = (FlexId, V)>,
+    has_temporal_split: bool,
+) -> Vec<(RangeId, V)>
+where
+    V: Clone + PartialEq,
+{
+    if has_temporal_split {
+        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(iter, None)
+    } else {
+        iter.map(|(flex_id, value)| (RangeId::from(&flex_id), value))
+            .collect()
+    }
+}
+
 /// 値なしコレクション（Set）向けの JSON 書き出し。
 pub(crate) fn serialize_without_values<S>(
     iter: impl Iterator<Item = FlexId>,
+    has_temporal_split: bool,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     // 値ありの場合と同じく、時間方向に隣接するセルを結合してから書き出す。
-    let ids: Vec<IdEntry> = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-        iter.map(|flex_id| (flex_id, ())),
-        None,
-    )
-    .into_iter()
-    .map(|(range_id, ())| IdEntry {
-        range_id,
-        r#ref: None,
-    })
-    .collect();
+    let ids: Vec<IdEntry> =
+        coalesce_if_temporal(iter.map(|flex_id| (flex_id, ())), has_temporal_split)
+            .into_iter()
+            .map(|(range_id, ())| IdEntry {
+                range_id,
+                r#ref: None,
+            })
+            .collect();
 
     let envelope = EnvelopeOut {
         schema: SCHEMA_URL,

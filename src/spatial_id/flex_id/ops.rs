@@ -1,9 +1,8 @@
 use alloc::vec::Vec;
 
-use crate::{
-    FlexId, Side,
-    spatial_id::zoom_level::{TZoomLevel, ZoomLevel},
-};
+#[cfg(feature = "temporal_id")]
+use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::{FlexId, Side, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
     /// 相手の [`FlexId`] との差集合（`self - other`）を計算し、イテレータとして返します。
@@ -28,12 +27,20 @@ impl FlexId {
         let mut current = *self;
 
         // 軸ごとに違うのは「その軸のズームを取る方法」と「その軸で2分する方法」だけ。
+        // `temporal_id` 無効時はTの軸自体が無いので、空回りする1周ごと削る。
         type Axis = (fn(&FlexId) -> u8, fn(&FlexId, Side) -> Option<FlexId>);
+        #[cfg(feature = "temporal_id")]
         const AXES: [Axis; 4] = [
             (FlexId::f_zoomlevel, FlexId::split_f),
             (FlexId::x_zoomlevel, FlexId::split_x),
             (FlexId::y_zoomlevel, FlexId::split_y),
             (FlexId::t_zoomlevel, FlexId::split_t),
+        ];
+        #[cfg(not(feature = "temporal_id"))]
+        const AXES: [Axis; 3] = [
+            (FlexId::f_zoomlevel, FlexId::split_f),
+            (FlexId::x_zoomlevel, FlexId::split_x),
+            (FlexId::y_zoomlevel, FlexId::split_y),
         ];
 
         for (zoom_of, split) in AXES {
@@ -78,11 +85,15 @@ impl FlexId {
             other.y_zoomlevel(),
             other.y_index() as i64,
         )?;
+
+        // 時間軸は `temporal_id` 無効時には存在しない（双方とも全時間で必ず入れ子）ので、
+        // 判定ごと消して空間3軸だけの費用に戻す。
+        #[cfg(feature = "temporal_id")]
         let (t_z, t_i) = nested_axis(
             self.t_zoomlevel(),
-            self.t_index() as i64,
+            self.t() as i64,
             other.t_zoomlevel(),
-            other.t_index() as i64,
+            other.t() as i64,
         )?;
 
         Some(FlexId {
@@ -92,7 +103,9 @@ impl FlexId {
             x_index: x_i as u32,
             y_zoomlevel: ZoomLevel::new(y_z).unwrap(),
             y_index: y_i as u32,
+            #[cfg(feature = "temporal_id")]
             t_zoomlevel: TZoomLevel::new(t_z).unwrap(),
+            #[cfg(feature = "temporal_id")]
             t_index: t_i as u64,
         })
     }
@@ -104,12 +117,15 @@ impl FlexId {
     /// 残りうる。ここが最終フィルタである。
     pub fn intersects_range(&self, range: &crate::RangeId) -> bool {
         // 時間軸だけは「共通ズームでの整数範囲」に落とせない（`RangeId` の `Interval` は
-        // 2の冪とは限らない）ので、絶対秒区間の重なりで判定する。時間を使っていなければ
-        // 双方が全時間になるので常に真。
-        let (self_start, self_end) = self.seconds_range();
-        let (range_start, range_end) = range.seconds_range();
-        if self_start >= range_end || range_start >= self_end {
-            return false;
+        // 2の冪とは限らない）ので、絶対秒区間の重なりで判定する。
+        // `temporal_id` 無効時は双方とも全時間で必ず重なるため、判定ごと消す。
+        #[cfg(feature = "temporal_id")]
+        {
+            let (self_start, self_end) = self.seconds_range();
+            let (range_start, range_end) = range.seconds_range();
+            if self_start >= range_end || range_start >= self_end {
+                return false;
+            }
         }
 
         overlaps_axis(

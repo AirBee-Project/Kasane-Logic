@@ -6,7 +6,7 @@
 //! 仕様書の `{i}/{t}` 表記が失われる。
 //!
 //! ここでは「空間セルと値が同じで、時間が隣接している」セルどうしを結合してから
-//! `RangeId::with_time_seconds` に渡す。結合後の秒区間は元の区間に戻るので、
+//! `RangeId::with_time_span` に渡す。結合後の秒区間は元の区間に戻るので、
 //! `gcd` ベースの復元によって `1800/809712` がそのまま取り出せる。
 //!
 //! 結合は [`FlexId`] では表現できない（[`FlexId`] は2進セル1個しか持てない）ため、
@@ -89,12 +89,12 @@ fn finish<V>(
     preferred: Option<Interval>,
 ) -> (RangeId, V) {
     let range = RangeId::from(key)
-        .with_time_seconds(start, end)
+        .with_time_span(start, end)
         .expect("結合した秒区間は元のセルの和なので常に有効");
 
     // 元の単位で表せるならそちらを優先し、無理なら最も粗い表現のままにする。
     let range = preferred
-        .and_then(|interval| range.clone().relabel_time(interval))
+        .and_then(|interval| range.clone().relabel_time(interval).ok())
         .unwrap_or(range);
 
     (range, value)

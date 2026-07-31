@@ -20,7 +20,7 @@ impl fmt::Display for SingleId {
         write!(f, "{}/{}/{}/{}", self.z.get(), self.f, self.x, self.y)?;
         //時間の情報があれば書き込み
         if !self.is_whole_time() {
-            write!(f, "_{}/{}", self.i, self.t)?;
+            write!(f, "_{}/{}", self.i, self.t())?;
         }
         Ok(())
     }

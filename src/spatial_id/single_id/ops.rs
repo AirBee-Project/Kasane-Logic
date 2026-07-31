@@ -99,7 +99,7 @@ impl SingleId {
         {
             results.push(
                 RangeId::from(&current)
-                    .with_time_seconds(start, end)
+                    .with_time_span(start, end)
                     .expect("差分は元の区間の部分なので常に有効"),
             );
         }
@@ -155,7 +155,7 @@ impl SingleId {
 
         Some(
             RangeId::from(deep)
-                .with_time_seconds(start, end)
+                .with_time_span(start, end)
                 .expect("交差は両者の部分なので常に有効"),
         )
     }

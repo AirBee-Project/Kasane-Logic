@@ -224,6 +224,6 @@ pub trait SpatialId:
     /// assert!(SingleId::new(12, 0, 3638, 1614).unwrap().is_whole_time());
     /// ```
     fn is_whole_time(&self) -> bool {
-        self.seconds_range() == (0, Interval::WHOLE_SECONDS)
+        self.seconds_range() == (0, Interval::MAX_SECONDS)
     }
 }

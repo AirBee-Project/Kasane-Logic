@@ -21,6 +21,12 @@ use crate::{
 /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) との違いで、軸ごとに
 /// 粒度を変えられる。時間軸のズームは空間軸（最大30）と範囲が違う
 /// （[`TZoomLevel`]、最大35＝1秒）ので型で区別する。
+///
+/// # `temporal_id` feature 無効時
+///
+/// 時間軸のフィールドは**存在しない**（`t_zoomlevel` / `t_index` ごと消える）。
+/// アクセサは残り、常に全時間（ズーム0・インデックス0）を返すので呼び出し側に `cfg` は
+/// 要らない。木も F/X/Y の3軸に戻るため、時間軸ぶんのメモリと計算が完全に消える。
 #[derive(Clone, Copy, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "persist",
@@ -33,7 +39,9 @@ pub struct FlexId {
     x_index: u32,
     y_zoomlevel: ZoomLevel,
     y_index: u32,
+    #[cfg(feature = "temporal_id")]
     t_zoomlevel: TZoomLevel,
+    #[cfg(feature = "temporal_id")]
     t_index: u64,
 }
 
@@ -45,7 +53,9 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: ZoomLevel::MIN,
         y_index: 0,
+        #[cfg(feature = "temporal_id")]
         t_zoomlevel: TZoomLevel::MIN,
+        #[cfg(feature = "temporal_id")]
         t_index: 0,
     };
 
@@ -56,7 +66,9 @@ impl FlexId {
         x_index: 0,
         y_zoomlevel: ZoomLevel::MIN,
         y_index: 0,
+        #[cfg(feature = "temporal_id")]
         t_zoomlevel: TZoomLevel::MIN,
+        #[cfg(feature = "temporal_id")]
         t_index: 0,
     };
 
@@ -70,8 +82,17 @@ impl FlexId {
         self.y_zoomlevel.get()
     }
     /// 時間軸のズームレベル。1セルは `2^(35 - t_zoomlevel)` 秒。
+    ///
+    /// `temporal_id` feature 無効時は常に `0`（全時間）。
+    #[cfg(feature = "temporal_id")]
     pub fn t_zoomlevel(&self) -> u8 {
         self.t_zoomlevel.get()
+    }
+
+    /// 時間軸のズームレベル。`temporal_id` feature 無効時は常に `0`（全時間）を返す。
+    #[cfg(not(feature = "temporal_id"))]
+    pub fn t_zoomlevel(&self) -> u8 {
+        0
     }
     pub fn f_index(&self) -> i32 {
         self.f_index
@@ -82,11 +103,6 @@ impl FlexId {
     pub fn y_index(&self) -> u32 {
         self.y_index
     }
-    /// 時間軸のインデックス。[`t`](Self::t) と同じ値だが、`t_zoomlevel()` と対で読む用。
-    pub fn t_index(&self) -> u64 {
-        self.t_index
-    }
-
     /// この [`FlexId`] が占める時間セルの単位（秒幅 `2^(35 - t_zoomlevel)`）を返す。
     ///
     /// [`FlexId`] のセルは必ず2の冪秒なので、この幅がそのまま「その区間を表せる最も粗い単位」
@@ -108,21 +124,197 @@ impl FlexId {
         Interval::from_seconds_unchecked(end - start)
     }
 
-    /// この [`FlexId`] の時間インデックス。[`interval`](Self::interval) を単位とする。
+    /// この [`FlexId`] の時間インデックス `{t}`。[`interval`](Self::interval) を単位とする。
+    ///
+    /// [`t_zoomlevel`](Self::t_zoomlevel) と対で読めば、木の2進セル `(zoom, index)` そのもの。
+    /// `temporal_id` feature 無効時は常に `0`（全時間）。
+    #[cfg(feature = "temporal_id")]
     pub fn t(&self) -> u64 {
         self.t_index
     }
 
+    /// この [`FlexId`] の時間インデックス `{t}`。
+    /// `temporal_id` feature 無効時は常に `0`（全時間）を返す。
+    #[cfg(not(feature = "temporal_id"))]
+    pub fn t(&self) -> u64 {
+        0
+    }
+
     /// この [`FlexId`] が占める絶対秒区間 `[start, end)` を返す。
+    ///
+    /// `temporal_id` feature 無効時は常に全時間 `(0, 2^35)`。
     pub fn seconds_range(&self) -> (u64, u64) {
-        time_cells::cell_seconds_range(self.t_zoomlevel.get(), self.t_index)
+        time_cells::cell_seconds_range(self.t_zoomlevel(), self.t())
+    }
+
+    /// 時間を設定した自身を返す（ビルダー形式）。
+    ///
+    /// [`SingleId::with_time`](crate::SingleId::with_time) と同じ `{i}/{t}` の指定だが、
+    /// [`FlexId`] は木のノードアドレスなので **`2^(35 - zoom)` 秒のセル1個しか持てない**。
+    /// そのため `interval` が2の冪でない場合は [`SpatialIdError::TIntervalError`] を返す。
+    ///
+    /// 任意秒数の間隔（`1800` など）を扱いたい場合は [`SingleId`](crate::SingleId) /
+    /// [`RangeId`](crate::RangeId) に付けてから [`IntoIterator`] で展開する
+    /// （必要な数のセルへ自動的に分解される）。
+    ///
+    /// # バリデーション
+    /// - `interval` が2の冪でない場合は [`SpatialIdError::TIntervalError`] を返す。
+    /// - `t` がその粒度のインデックス範囲を超える場合は [`SpatialIdError::TOutOfRange`] を返す。
+    /// - `temporal_id` feature 無効時は全時間以外を [`SpatialIdError::TIntervalError`] で拒否する。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{FlexId, Interval};
+    /// // 1024 秒（2^10）は ズーム 25 のセル。
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(1024, 7).unwrap();
+    /// assert_eq!((id.t_zoomlevel(), id.t()), (25, 7));
+    ///
+    /// // 1800 秒は2の冪でないので1セルにならない。
+    /// assert!(FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(1800, 0).is_err());
+    /// # }
+    /// ```
+    pub fn with_time<I>(self, interval: I, t: u64) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+    {
+        let interval: Interval = interval.try_into()?;
+        let (zoom, index) = time_cells::cell_of(interval, t)?;
+        self.with_time_cell_checked(zoom, index)
+    }
+
+    /// Unix 時刻（秒）が属する時間セルを設定した自身を返す。
+    ///
+    /// [`with_time`](Self::with_time) と同じく `interval` は2の冪でなければならない。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::FlexId;
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_at(1, 1_770_000_000).unwrap();
+    /// assert_eq!(id.seconds_range(), (1_770_000_000, 1_770_000_001));
+    /// # }
+    /// ```
+    pub fn with_time_at<I>(self, interval: I, unix_seconds: u64) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+    {
+        let interval: Interval = interval.try_into()?;
+        self.with_time::<Interval>(interval, interval.index_of(unix_seconds))
+    }
+
+    /// 絶対秒区間 `[start, end)` を設定した自身を返す。
+    ///
+    /// [`FlexId`] は2進セル1個しか持てないので、**区間が2の冪秒でその境界に整列している場合**
+    /// にのみ成功する。そうでなければ [`SpatialIdError::TIntervalError`] を返す。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::FlexId;
+    /// // [1024, 2048) はズーム25のセル1個ちょうど。
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_span(1024, 2048).unwrap();
+    /// assert_eq!((id.t_zoomlevel(), id.t()), (25, 1));
+    ///
+    /// // 整列していない区間は1セルにならない。
+    /// assert!(FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_span(1, 1025).is_err());
+    /// # }
+    /// ```
+    pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
+        let (interval, t_min, t_max) = time_cells::span_to_interval(start, end)?;
+        if t_min != t_max {
+            return Err(SpatialIdError::TIntervalError {
+                i: interval.seconds(),
+            }
+            .into());
+        }
+        self.with_time::<Interval>(interval, t_min)
+    }
+
+    /// 同じ絶対秒区間を、別の単位で表し直した自身を返す。
+    ///
+    /// [`FlexId`] のセルは常に「その区間を表せる唯一の2進セル」なので、実際に表し直せるのは
+    /// 元と同じ単位を渡したときだけである。それ以外は
+    /// [`SpatialIdError::TIntervalError`] を返す。[`SingleId`](crate::SingleId) /
+    /// [`RangeId`](crate::RangeId) との対称性のために用意している。
+    pub fn relabel_time<I>(self, interval: I) -> Result<Self, Error>
+    where
+        I: TryInto<Interval>,
+        Error: From<I::Error>,
+    {
+        let interval: Interval = interval.try_into()?;
+        let (start, end) = self.seconds_range();
+        let unit = interval.seconds();
+        if end - start != unit || !start.is_multiple_of(unit) {
+            return Err(SpatialIdError::TIntervalError { i: unit }.into());
+        }
+        self.with_time::<Interval>(interval, start / unit)
+    }
+
+    /// 時間の指定を外し、全時間へ戻した自身を返す。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{FlexId, SpatialId};
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(1024, 7).unwrap();
+    /// assert!(id.without_time().is_whole_time());
+    /// # }
+    /// ```
+    pub fn without_time(self) -> Self {
+        self.with_time_cell(0, 0)
+    }
+
+    /// 2進セル `(zoom, index)` を検証してから差し替える。クレート内部専用。
+    ///
+    /// 文字列パース（`|{tz}/{ti}`）のように、`{i}/{t}` ではなくセルの形で外から値が来る
+    /// 経路の入口。`temporal_id` feature 無効時のガードもここに集約している。
+    pub(crate) fn with_time_cell_checked(self, zoom: u8, index: u64) -> Result<Self, Error> {
+        let tz = TZoomLevel::new(zoom)?;
+        tz.check_index(index)?;
+
+        // 無効時の木はT軸を分割しないため、受け付けると挿入した時間区間がエラーも警告もなく
+        // 全時間へ広がる（例: 1/4区間を入れると4倍になって戻る）。
+        #[cfg(not(feature = "temporal_id"))]
+        if tz.get() != 0 || index != 0 {
+            return Err(SpatialIdError::TIntervalError {
+                i: tz.cell_seconds(),
+            }
+            .into());
+        }
+
+        Ok(self.with_time_cell(tz.get(), index))
     }
 
     /// 時間セルを差し替えた自身を返す。クレート内部専用（検証済みの値を渡すこと）。
-    pub(crate) fn with_time_cell(mut self, zoom: u8, index: u64) -> Self {
+    ///
+    /// `temporal_id` feature 無効時は時間フィールドが存在しないため何もしない。この経路へ
+    /// 全時間以外が来るのは呼び出し側のバグなので `debug_assert` で捕まえる（公開の入口は
+    /// [`with_time`](Self::with_time) が `Err` で弾いている）。
+    pub(crate) fn with_time_cell(
+        #[cfg_attr(not(feature = "temporal_id"), allow(unused_mut))] mut self,
+        zoom: u8,
+        index: u64,
+    ) -> Self {
         debug_assert!(TZoomLevel::new(zoom).is_ok_and(|z| z.check_index(index).is_ok()));
-        self.t_zoomlevel = unsafe { TZoomLevel::new_unchecked(zoom) };
-        self.t_index = index;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            self.t_zoomlevel = unsafe { TZoomLevel::new_unchecked(zoom) };
+            self.t_index = index;
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            debug_assert!(
+                zoom == 0 && index == 0,
+                "temporal_id 無効時に時間セル ({zoom}, {index}) を設定しようとした"
+            );
+            let _ = (zoom, index);
+        }
+
         self
     }
 
@@ -149,7 +341,7 @@ impl FlexId {
             y_zoomlevel,
             y_index,
         )
-        .map(|id| id.with_time_cell(self.t_zoomlevel.get(), self.t_index))
+        .map(|id| id.with_time_cell(self.t_zoomlevel(), self.t()))
     }
 
     /// このFlexIdを高さ（F）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
@@ -199,7 +391,7 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel.get(), self.t_index);
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
@@ -266,7 +458,7 @@ impl FlexId {
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel.get(), self.t_index);
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(ranges
             .into_iter()
@@ -328,7 +520,7 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel.get(), self.t_index);
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
@@ -364,7 +556,9 @@ impl FlexId {
             x_index: self.x_index,
             y_zoomlevel: self.y_zoomlevel,
             y_index: self.y_index,
+            #[cfg(feature = "temporal_id")]
             t_zoomlevel: self.t_zoomlevel,
+            #[cfg(feature = "temporal_id")]
             t_index: self.t_index,
         })
     }
@@ -384,7 +578,9 @@ impl FlexId {
             x_index,
             y_zoomlevel: self.y_zoomlevel,
             y_index: self.y_index,
+            #[cfg(feature = "temporal_id")]
             t_zoomlevel: self.t_zoomlevel,
+            #[cfg(feature = "temporal_id")]
             t_index: self.t_index,
         })
     }
@@ -404,7 +600,9 @@ impl FlexId {
             x_index: self.x_index,
             y_zoomlevel,
             y_index,
+            #[cfg(feature = "temporal_id")]
             t_zoomlevel: self.t_zoomlevel,
+            #[cfg(feature = "temporal_id")]
             t_index: self.t_index,
         })
     }
@@ -413,6 +611,7 @@ impl FlexId {
     ///
     /// 再検証を省ける理由は [`split_f`](Self::split_f) と同じ
     /// （インデックスを2倍して `side` を足すと過不足なく1段深い範囲になる）。
+    #[cfg(feature = "temporal_id")]
     pub fn split_t(&self, side: Side) -> Option<FlexId> {
         let t_zoomlevel = self.t_zoomlevel.deeper()?;
         let t_index = self.t_index * 2 + side as u64;
@@ -431,6 +630,15 @@ impl FlexId {
             t_zoomlevel,
             t_index,
         })
+    }
+
+    /// 時間軸で二つに切り分ける。
+    ///
+    /// `temporal_id` feature 無効時は時間軸が存在せず、全時間は分割できないので常に
+    /// [`None`]。木も3軸なのでこの経路には来ない。
+    #[cfg(not(feature = "temporal_id"))]
+    pub fn split_t(&self, _side: Side) -> Option<FlexId> {
+        None
     }
 
     /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。
@@ -552,7 +760,7 @@ impl FlexId {
         let self_xi = self.x_index();
         let self_yi = self.y_index();
 
-        let (tz, ti) = (self.t_zoomlevel.get(), self.t_index);
+        let (tz, ti) = (self.t_zoomlevel(), self.t());
 
         (f_start..=f_end).flat_map(move |f_idx| {
             (x_start..=x_end).flat_map(move |x_idx| {
@@ -575,3 +783,19 @@ impl FlexId {
         })
     }
 }
+
+/// `temporal_id` feature 無効時に時間軸ぶんのメモリが本当に消えていることを固定する。
+///
+/// `t_zoomlevel` / `t_index` を `cfg` で落とし忘れると、時間を使わない利用者が
+/// [`FlexId`] 1個あたり8バイト（＋木の走査スタックぶん）を払い続けることになる。
+/// 有効時の24バイトは `3軸(4+4+4) + ズーム3 + Tズーム1 + パディング + t_index(8)`。
+#[cfg(not(feature = "temporal_id"))]
+const _: () = assert!(
+    core::mem::size_of::<FlexId>() == 16,
+    "temporal_id 無効時の FlexId は空間3軸ぶん（16バイト）でなければならない"
+);
+#[cfg(feature = "temporal_id")]
+const _: () = assert!(
+    core::mem::size_of::<FlexId>() == 24,
+    "FlexId のサイズが変わった。木の走査スタックに直結するので意図した変更か確認すること"
+);

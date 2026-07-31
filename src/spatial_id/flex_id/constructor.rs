@@ -1,7 +1,6 @@
-use crate::{
-    Error, FlexId,
-    spatial_id::zoom_level::{TZoomLevel, ZoomLevel},
-};
+#[cfg(feature = "temporal_id")]
+use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::{Error, FlexId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
     /// 空間3軸から [`FlexId`] を構築する。時間軸は全時間になる。
@@ -28,56 +27,11 @@ impl FlexId {
             x_index,
             y_zoomlevel: yz,
             y_index,
+            #[cfg(feature = "temporal_id")]
             t_zoomlevel: TZoomLevel::MIN,
+            #[cfg(feature = "temporal_id")]
             t_index: 0,
         })
-    }
-
-    /// 4軸すべてを指定して [`FlexId`] を構築する。
-    ///
-    /// 時間軸も空間軸と同じ「ズームレベル＋インデックス」で指定する。1セルは
-    /// `2^(35 - t_zoomlevel)` 秒を表す。
-    ///
-    /// # バリデーション
-    /// - `t_zoomlevel` が `35` を超える場合は
-    ///   [`SpatialIdError::ZOutOfRange`](crate::SpatialIdError::ZOutOfRange) を返す。
-    /// - `t_index` が `2^t_zoomlevel - 1` を超える場合は
-    ///   [`SpatialIdError::TOutOfRange`](crate::SpatialIdError::TOutOfRange) を返す。
-    ///
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::FlexId;
-    /// // 最深ズーム（35）は1秒幅のセル。
-    /// let id = FlexId::new_with_time(5, 3, 2, 3, 10, 1, 35, 1_770_000_000).unwrap();
-    /// assert_eq!(id.seconds_range(), (1_770_000_000, 1_770_000_001));
-    /// assert_eq!(id.interval().seconds(), 1);
-    /// # }
-    /// ```
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_with_time(
-        f_zoomlevel: impl Into<u8>,
-        f_index: i32,
-        x_zoomlevel: impl Into<u8>,
-        x_index: u32,
-        y_zoomlevel: impl Into<u8>,
-        y_index: u32,
-        t_zoomlevel: impl Into<u8>,
-        t_index: u64,
-    ) -> Result<FlexId, Error> {
-        let base = FlexId::new(
-            f_zoomlevel,
-            f_index,
-            x_zoomlevel,
-            x_index,
-            y_zoomlevel,
-            y_index,
-        )?;
-
-        let tz = TZoomLevel::new(t_zoomlevel.into())?;
-        tz.check_index(t_index)?;
-
-        Ok(base.with_time_cell(tz.get(), t_index))
     }
 
     /// 検証を行わずに空間3軸から構築する。時間軸は全時間になる。
@@ -113,8 +67,62 @@ impl FlexId {
             x_index,
             y_zoomlevel: unsafe { ZoomLevel::new_unchecked(y_zoomlevel) },
             y_index,
+            #[cfg(feature = "temporal_id")]
             t_zoomlevel: TZoomLevel::MIN,
+            #[cfg(feature = "temporal_id")]
             t_index: 0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::FlexId;
+
+    /// 全時間のセルはどちらの feature 構成でも作れる。
+    #[test]
+    fn whole_time_cell_is_always_constructible() {
+        assert!(
+            FlexId::new(3, 1, 3, 1, 3, 1)
+                .unwrap()
+                .with_time_cell_checked(0, 0)
+                .is_ok()
+        );
+    }
+
+    /// `temporal_id` 無効時は、時間を持つセルを構築段階で弾く。
+    ///
+    /// 無効時の木はT軸を分割しないため、受け付けると挿入した時間区間が黙って
+    /// 全時間へ広がってしまう（読み出すと4倍などに化ける）。
+    #[cfg(not(feature = "temporal_id"))]
+    #[test]
+    fn temporal_cell_is_rejected_without_the_feature() {
+        assert!(
+            FlexId::new(3, 1, 3, 1, 3, 1)
+                .unwrap()
+                .with_time_cell_checked(2, 0)
+                .is_err()
+        );
+        assert!(
+            FlexId::new(3, 1, 3, 1, 3, 1)
+                .unwrap()
+                .with_time_cell_checked(2, 1)
+                .is_err()
+        );
+        // FromStr も同じ経路を通るので一緒に塞がる。
+        assert!("3/1|3/1|3/1|2/1".parse::<FlexId>().is_err());
+    }
+
+    /// `temporal_id` 有効時は従来どおり構築できる。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn temporal_cell_is_accepted_with_the_feature() {
+        let id = FlexId::new(3, 1, 3, 1, 3, 1)
+            .unwrap()
+            .with_time_cell_checked(2, 1)
+            .unwrap();
+        assert_eq!(id.t_zoomlevel(), 2);
+        assert_eq!(id.t(), 1);
+        assert!("3/1|3/1|3/1|2/1".parse::<FlexId>().is_ok());
     }
 }

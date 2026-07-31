@@ -45,7 +45,7 @@ impl fmt::Display for RangeId {
         //時間の情報があれば書き込み
 
         if !self.is_whole_time() {
-            write!(f, "_{}/{}", self.i, format_dimension(self.t))?;
+            write!(f, "_{}/{}", self.i, format_dimension(self.t()))?;
         };
         Ok(())
     }

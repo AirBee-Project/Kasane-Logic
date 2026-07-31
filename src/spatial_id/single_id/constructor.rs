@@ -64,6 +64,7 @@ impl SingleId {
             x,
             y,
             i: Interval::WHOLE,
+            #[cfg(feature = "temporal_id")]
             t: 0,
         })
     }
@@ -101,6 +102,7 @@ impl SingleId {
             x,
             y,
             i: Interval::WHOLE,
+            #[cfg(feature = "temporal_id")]
             t: 0,
         }
     }

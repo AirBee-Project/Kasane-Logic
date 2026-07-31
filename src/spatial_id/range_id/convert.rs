@@ -45,6 +45,7 @@ impl From<&SingleId> for RangeId {
 
             // 単一セルは範囲の退化した形なので常に変換できる。
             i: id.interval(),
+            #[cfg(feature = "temporal_id")]
             t: [id.t(), id.t()],
         }
     }
@@ -65,7 +66,7 @@ impl RangeId {
         let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
         let y_range = self.y[0]..=self.y[1];
-        let (interval, [t_min, t_max]) = (self.i, self.t);
+        let (interval, [t_min, t_max]) = (self.i, self.t());
 
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();

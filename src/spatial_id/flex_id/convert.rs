@@ -36,7 +36,7 @@ impl From<&FlexId> for RangeId {
             [y_range[0] as u32, y_range[1] as u32],
         )
         .unwrap()
-        .with_time_seconds(start, end)
+        .with_time_span(start, end)
         .expect("セルの秒区間は常に有効")
     }
 }

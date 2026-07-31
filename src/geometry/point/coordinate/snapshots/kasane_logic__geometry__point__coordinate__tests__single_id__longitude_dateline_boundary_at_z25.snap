@@ -10,5 +10,4 @@ SingleId {
     x: 33554431,
     y: 16777216,
     i: Interval,
-    t: 0,
 }

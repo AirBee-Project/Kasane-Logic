@@ -28,7 +28,7 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
             FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
@@ -66,7 +66,7 @@ impl FlexId {
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(ranges
             .into_iter()
@@ -106,7 +106,7 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
             FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)

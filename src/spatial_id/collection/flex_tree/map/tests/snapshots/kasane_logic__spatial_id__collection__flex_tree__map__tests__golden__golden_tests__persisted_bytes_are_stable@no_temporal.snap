@@ -1,5 +1,6 @@
 ---
 source: src/spatial_id/collection/flex_tree/map/tests/golden.rs
+assertion_line: 82
 expression: hex_dump(&bytes)
 ---
 0000  01 00 00 00 00 00 00 00 00 00 01 01 00 00 00 00 
@@ -26,5 +27,4 @@ expression: hex_dump(&bytes)
 0150  ff ff 01 00 00 00 f5 ff ff ff 02 00 00 00 ef ff 
 0160  ff ff 01 00 00 00 03 00 00 00 00 00 20 00 00 00 
 0170  01 00 00 00 00 00 02 00 00 00 00 02 00 00 00 00 
-0180  00 00 00 00 00 00 00 00 00 77 fe ff ff 21 00 00 
-0190  00 bd ff ff ff 03 00 00 00
+0180  80 fe ff ff 21 00 00 00 c6 ff ff ff 03 00 00 00

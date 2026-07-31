@@ -10,5 +10,4 @@ SingleId {
     x: 16,
     y: 12,
     i: Interval,
-    t: 0,
 }

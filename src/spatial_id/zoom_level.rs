@@ -35,7 +35,7 @@ pub type ZoomLevel = Zoom<30>;
 /// [`ZoomLevel`]（空間軸、`LIMIT = 30`）と同じ土台を共有する `Zoom<35>` の別名。
 /// 1セルが `2^(35 - z)` 秒（最大 `2^35` 秒＝全期間、最小1秒）を表す。
 ///
-/// `LIMIT` は [`Interval::WHOLE_POW`](crate::Interval::WHOLE_POW) と一致していなければ
+/// `LIMIT` は [`Interval::MAX_POW`](crate::Interval::MAX_POW) と一致していなければ
 /// ならない（最深ズームのセル幅が1秒＝全時間を `2^LIMIT` 秒とする前提）。下の
 /// `const` アサーションで食い違いをコンパイル時に落とす。
 ///
@@ -48,8 +48,8 @@ pub type ZoomLevel = Zoom<30>;
 pub type TZoomLevel = Zoom<35>;
 
 const _: () = assert!(
-    TZoomLevel::MAX.get() == crate::Interval::WHOLE_POW,
-    "TZoomLevel の LIMIT と Interval::WHOLE_POW は一致していなければならない"
+    TZoomLevel::MAX.get() == crate::Interval::MAX_POW,
+    "TZoomLevel の LIMIT と Interval::MAX_POW は一致していなければならない"
 );
 
 impl<const LIMIT: u8> fmt::Display for Zoom<LIMIT> {

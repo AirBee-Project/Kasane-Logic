@@ -49,7 +49,7 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         // 占有区間を整列したインデックス値群へ分解し、F以外の成分を保ったままFlexIdを構築する。
         Ok(
@@ -104,7 +104,7 @@ impl FlexId {
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(ranges
             .into_iter()
@@ -165,7 +165,7 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {

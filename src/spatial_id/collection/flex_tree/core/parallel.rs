@@ -42,7 +42,7 @@ where
         }
 
         // 空間ソートキーのキャッシュ
-        let mut keyed_items: Vec<(u128, (FlexId, V))> = items
+        let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
             .into_iter()
             .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
             .collect();
@@ -79,7 +79,7 @@ where
             use rayon::prelude::*;
 
             // 空間ソートキーのキャッシュ
-            let mut keyed_items: Vec<(u128, (FlexId, V))> = items
+            let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
                 .into_iter()
                 .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
                 .collect();
@@ -102,7 +102,7 @@ where
         }
         #[cfg(not(feature = "rayon"))]
         {
-            let mut keyed_items: Vec<(u128, (FlexId, V))> = items
+            let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
                 .into_iter()
                 .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
                 .collect();

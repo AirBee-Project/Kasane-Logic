@@ -28,7 +28,7 @@ pub(crate) const NUM_AXES: u8 = 3;
 /// 番兵として使う。実在の Branch はこれ未満のレベルしか持たない。
 ///
 /// 経験則 `NUM_AXES * (最深軸の最大ズーム + 1)` に従う。4軸版はTが最深（最大ズーム
-/// [`Interval::WHOLE_POW`](crate::Interval::WHOLE_POW) = 35）かつサイクル内で最後
+/// [`Interval::MAX_POW`](crate::Interval::MAX_POW) = 35）かつサイクル内で最後
 /// （位置3）なので `4*(35+1) = 144`、3軸版は `3*(30+1) = 93`。
 #[cfg(feature = "temporal_id")]
 pub(crate) const LEAF_LEVEL: u8 = 144;
@@ -678,7 +678,7 @@ where
             Axis::F => (target.f_zoomlevel(), (target.f_index() as u32) as u64),
             Axis::X => (target.x_zoomlevel(), target.x_index() as u64),
             Axis::Y => (target.y_zoomlevel(), target.y_index() as u64),
-            Axis::T => (target.t_zoomlevel(), target.t_index()),
+            Axis::T => (target.t_zoomlevel(), target.t()),
         };
 
         if depth >= target_z {

@@ -14,6 +14,66 @@
 //!   「その区間を表せる最も粗い `{i}`」を復元
 
 use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::{Interval, SpatialIdError, error::Error};
+
+/// `{i}` と `{t}` の範囲（両端含む）が占める絶対秒区間 `[start, end)` を、検証して返す。
+///
+/// 単一セルの型（[`SingleId`](crate::SingleId) / [`FlexId`](crate::FlexId)）は
+/// `t_min == t_max` で呼ぶ。仕様は `{i}` に任意の秒数を認めるが、区間の終端が
+/// [`Interval::MAX_SECONDS`] を超えてはならない。
+pub(crate) fn validated_span(
+    interval: Interval,
+    t_min: u64,
+    t_max: u64,
+) -> Result<(u64, u64), Error> {
+    let unit = interval.seconds();
+    let end = t_max
+        .checked_add(1)
+        .and_then(|v| v.checked_mul(unit))
+        .ok_or(SpatialIdError::TOutOfRange { i: unit, t: t_max })?;
+
+    if end > Interval::MAX_SECONDS {
+        return Err(SpatialIdError::TOutOfRange { i: unit, t: t_max }.into());
+    }
+
+    Ok((t_min * unit, end))
+}
+
+/// 絶対秒区間 `[start, end)` を、それをちょうど表せる**最も粗い**単位と
+/// `{t}` の範囲（両端含む）へ直す。
+///
+/// 単位は `gcd(start, 幅)`（[`coarsest_unit`]）。空区間と表現範囲外は
+/// [`SpatialIdError::TOutOfRange`] を返す。
+pub(crate) fn span_to_interval(start: u64, end: u64) -> Result<(Interval, u64, u64), Error> {
+    if start >= end || end > Interval::MAX_SECONDS {
+        return Err(SpatialIdError::TOutOfRange { i: 1, t: end }.into());
+    }
+
+    let unit = coarsest_unit(start, end - start);
+    // `Interval::new` を通すのは `temporal_id` 無効時に全時間以外を弾くため。
+    // 有効時は `1 <= gcd <= 幅 <= 2^35` が構成上保証されるのでこの検証は素通りする。
+    let interval = Interval::new(unit)?;
+    Ok((interval, start / unit, end / unit - 1))
+}
+
+/// `{i}` と `{t}` を、[`FlexId`](crate::FlexId) が保持できる2進セル `(zoom, index)` へ直す。
+///
+/// [`FlexId`](crate::FlexId) は木のノードアドレスなので `2^(35 - zoom)` 秒のセル1個しか
+/// 持てない。`{i}` が2の冪でなければ1個のセルにならないため
+/// [`SpatialIdError::TIntervalError`] を返す（複数セルへ分けたい場合は
+/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) に付けてから
+/// [`IntoIterator`] で展開する）。
+pub(crate) fn cell_of(interval: Interval, t: u64) -> Result<(u8, u64), Error> {
+    let seconds = interval.seconds();
+    if !seconds.is_power_of_two() {
+        return Err(SpatialIdError::TIntervalError { i: seconds }.into());
+    }
+
+    // 幅 `2^k` 秒のセルはズーム `MAX - k`。`seconds <= 2^MAX` なので `k <= MAX`。
+    let zoom = TZoomLevel::MAX.get() - seconds.trailing_zeros() as u8;
+    TZoomLevel::new(zoom)?.check_index(t)?;
+    Ok((zoom, t))
+}
 
 /// セル `(zoom, index)` が表す絶対秒区間 `[start, end)`。
 ///
@@ -184,7 +244,7 @@ mod tests {
     #[test]
     fn split_covers_every_range_exactly() {
         let cases: &[(u64, u64)] = &[
-            (0, Interval::WHOLE_SECONDS),
+            (0, Interval::MAX_SECONDS),
             (0, 1),
             (1, 2),
             (3600, 7200),
@@ -193,7 +253,7 @@ mod tests {
             (5, 12),
             (7, 8),
             (86_400 * 20_486, 86_400 * 20_487),
-            (1, Interval::WHOLE_SECONDS),
+            (1, Interval::MAX_SECONDS),
         ];
 
         for &(start, end) in cases {
@@ -214,7 +274,7 @@ mod tests {
     /// 全時間は1セルで表せるので、繰り上がりが1段も走らない。
     #[test]
     fn whole_range_is_a_single_cell() {
-        let cells: Vec<_> = split_seconds(0, Interval::WHOLE_SECONDS).collect();
+        let cells: Vec<_> = split_seconds(0, Interval::MAX_SECONDS).collect();
         assert_eq!(cells, [(0, 0)]);
     }
 
@@ -241,7 +301,7 @@ mod tests {
     #[test]
     fn coarsest_unit_restores_arbitrary_intervals() {
         for (start, end, expected) in [
-            (0u64, Interval::WHOLE_SECONDS, Interval::WHOLE_SECONDS),
+            (0u64, Interval::MAX_SECONDS, Interval::MAX_SECONDS),
             (86_400 * 20_486, 86_400 * 20_487, 86_400),
             (3_600 * 491_666, 3_600 * 491_667, 3_600),
             (60 * 3, 60 * 4, 60),
