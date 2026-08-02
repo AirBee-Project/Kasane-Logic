@@ -123,7 +123,6 @@ impl<const LIMIT: u8> From<Zoom<LIMIT>> for u8 {
     }
 }
 
-// ---- 空間軸専用（`ZoomLevel` = `Zoom<30>`） ----
 impl Zoom<30> {
     /// このズームレベルにおける X / Y インデックスの最大値（`unsafe { ZoomLevel::new_unchecked(z as u8) }.xy_max()`）。
     pub const fn xy_max(self) -> u32 {
@@ -183,7 +182,6 @@ impl Zoom<30> {
     }
 }
 
-// ---- 時間軸（生セル）専用（`TZoomLevel` = `Zoom<35>`） ----
 impl Zoom<35> {
     /// このズームレベルにおけるインデックスの最大値（`2^z - 1`）。
     pub const fn max_index(self) -> u64 {
