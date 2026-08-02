@@ -1,4 +1,4 @@
-use crate::{FlexId, RangeId, SingleId, spatial_id::time_cells::TimeCells};
+use crate::{FlexId, RangeId, SingleId, spatial_id::time::cells::TimeCells};
 
 /// [`SingleId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開するイテレータ。
 ///

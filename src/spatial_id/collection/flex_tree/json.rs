@@ -18,7 +18,7 @@ use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{FlexId, RangeId, SpatialId};
+use crate::{FlexId, IntervalSet, RangeId, SpatialId};
 
 const SCHEMA_URL: &str = "https://airbee-project.github.io/schemas/json/v1.0.json";
 
@@ -296,6 +296,17 @@ where
 /// 木にT軸の分割があるときだけ時間方向の結合を通し、無ければ素通しする。
 ///
 /// 結合は入力を集めてソートするため、時間を持たない木で無条件に通すと純粋な固定費になる。
+///
+/// # `{i}` は暦の単位へ正規化する
+///
+/// JSON は外部へ渡る表現なので、`gcd` が選ぶ「その区間を表せる最も粗い秒数」ではなく
+/// [`IntervalSet::calendar`] の `{WHOLE, DAY, HOUR, MINUTE, SECOND}` に揃える。
+/// `gcd` だと隣り合う1時間×2が `"i":7200`（2時間という単位）になってしまい、
+/// 受け取り側が解釈しづらいためである。
+///
+/// 代償として、暦に無い単位で入れた ID は `{i}` がそのままでは戻らない
+/// （例: 仕様書の `1800/809712` は `"i":60,"t":[24291360,24291389]` になる）。
+/// 表す秒区間は同じなので読み込み時の内容は一致するが、`{i}` というラベルは保存されない。
 fn coalesce_if_temporal<V>(
     iter: impl Iterator<Item = (FlexId, V)>,
     has_temporal_split: bool,
@@ -304,7 +315,10 @@ where
     V: Clone + PartialEq,
 {
     if has_temporal_split {
-        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(iter, None)
+        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            iter,
+            Some(&IntervalSet::calendar()),
+        )
     } else {
         iter.map(|(flex_id, value)| (RangeId::from(&flex_id), value))
             .collect()
@@ -411,12 +425,14 @@ mod tests {
         assert_eq!(restored.range_id, range_id);
     }
 
-    /// コレクションを経由しても、仕様書 1.5.3 の `{i}/{t}` がそのまま往復する。
+    /// コレクションを経由した JSON 往復で、**時空間領域が完全に保存される**。
     ///
     /// 木は時間を2の冪秒のセルで持つため、`1800` 秒のような単位は挿入時に複数セルへ分解される
-    /// （この例では5個）。書き出し側で時間方向の結合
-    /// （[`coalesce_temporal`](crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal)）
-    /// を通すことで、`i: 1800` / `t: [809712]` が復元されることを確認する。
+    /// （この例では5個）。書き出し側で時間方向の結合を通すことで1件へ戻る。
+    ///
+    /// ただし `{i}` は暦の単位（`IntervalSet::calendar`）へ正規化されるので、
+    /// `1800` は JSON 上では `60`（分）× 30 セルになる。**ラベルは変わるが秒区間は同じ**で、
+    /// 読み込んだ木の内容は元と一致する。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn round_trips_temporal_through_a_collection() {
@@ -433,12 +449,14 @@ mod tests {
         assert!(table.count() > 1, "1800秒は複数セルへ分解されるはず");
 
         let json = serde_json::to_string(&table).unwrap();
-        assert!(json.contains("\"i\":1800"), "i が復元されていない: {json}");
+        // 暦に無い 1800 秒は分へ落ちる。断片（`"i":8` など）にはならない。
+        assert!(json.contains("\"i\":60"), "i が暦単位でない: {json}");
         assert!(
-            json.contains("\"t\":[809712]"),
-            "t が復元されていない: {json}"
+            json.contains("\"t\":[24291360,24291389]"),
+            "t が暦単位でない: {json}"
         );
 
+        // 内容は完全に往復する（`{i}` のラベルが変わっても秒区間は同じ）。
         let restored: SpatialIdTable<i32> = serde_json::from_str(&json).unwrap();
         let ids: Vec<_> = restored.flat_single_ids().collect();
         assert_eq!(ids.len(), 1);
@@ -446,7 +464,38 @@ mod tests {
         assert_eq!(*ids[0].1, 7);
     }
 
-    /// 値なしコレクション（Set）でも同じく `{i}/{t}` が往復する。
+    /// 隣り合う1時間×2は、暦の単位なら `3600 × 2 セル` として書き出される。
+    ///
+    /// `gcd` だと `7200`（2時間という単位）になってしまい、受け取り側が解釈しづらい。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn adjacent_hours_are_written_as_hours() {
+        use crate::{Interval, SingleId, SpatialIdSet};
+
+        let base = SingleId::new(12, 0, 3638, 1614).unwrap();
+        let mut set = SpatialIdSet::new();
+        set.insert(base.clone().with_time(Interval::HOUR, 0).unwrap());
+        set.insert(base.with_time(Interval::HOUR, 1).unwrap());
+
+        let json = serde_json::to_string(&set).unwrap();
+        assert!(
+            json.contains("\"i\":3600"),
+            "暦単位で書き出されていない: {json}"
+        );
+        assert!(
+            json.contains("\"t\":[0,1]"),
+            "t が範囲になっていない: {json}"
+        );
+        assert!(
+            !json.contains("\"i\":7200"),
+            "gcd の単位が漏れている: {json}"
+        );
+
+        let restored: SpatialIdSet = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored, set);
+    }
+
+    /// 値なしコレクション（Set）でも暦の単位で書き出され、内容が往復する。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn round_trips_temporal_through_a_set() {
@@ -461,10 +510,28 @@ mod tests {
         set.insert(original);
 
         let json = serde_json::to_string(&set).unwrap();
-        assert!(json.contains("\"i\":1800"), "i が復元されていない: {json}");
+        assert!(json.contains("\"i\":60"), "i が暦単位でない: {json}");
+
+        let restored: SpatialIdSet = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored, set, "JSON 往復で木の内容が変わった");
+    }
+
+    /// 時間を持たない ID は `i`/`t` を出さない（暦へ正規化しても全時間のまま）。
+    #[test]
+    fn whole_time_ids_emit_no_temporal_fields() {
+        use crate::{SingleId, SpatialIdSet};
+
+        let mut set = SpatialIdSet::new();
+        set.insert(SingleId::new(12, 0, 3638, 1614).unwrap());
+
+        let json = serde_json::to_string(&set).unwrap();
         assert!(
-            json.contains("\"t\":[809712]"),
-            "t が復元されていない: {json}"
+            !json.contains("\"i\":"),
+            "全時間なのに i が出ている: {json}"
+        );
+        assert!(
+            !json.contains("\"t\":"),
+            "全時間なのに t が出ている: {json}"
         );
     }
 

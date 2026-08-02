@@ -10,7 +10,7 @@ use crate::{
     Error, Interval, Side, SpatialIdError,
     spatial_id::{
         range_id::convert::{split_f, split_xy},
-        time_cells,
+        time::cells,
         zoom_level::{TZoomLevel, ZoomLevel},
     },
 };
@@ -144,7 +144,7 @@ impl FlexId {
     ///
     /// `temporal_id` feature 無効時は常に全時間 `(0, 2^35)`。
     pub fn seconds_range(&self) -> (u64, u64) {
-        time_cells::cell_seconds_range(self.t_zoomlevel(), self.t())
+        cells::cell_seconds_range(self.t_zoomlevel(), self.t())
     }
 
     /// 時間セル（4軸目）を設定した自身を返す（ビルダー形式）。
@@ -262,14 +262,14 @@ impl FlexId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = time_cells::span_to_interval(start, end)?;
+        let (interval, t_min, t_max) = cells::span_to_interval(start, end)?;
         if t_min != t_max {
             return Err(SpatialIdError::TIntervalError {
                 i: interval.seconds(),
             }
             .into());
         }
-        let (zoom, index) = time_cells::cell_of(interval, t_min)?;
+        let (zoom, index) = cells::cell_of(interval, t_min)?;
         self.with_time(zoom, index)
     }
 

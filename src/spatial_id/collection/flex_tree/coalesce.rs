@@ -16,13 +16,15 @@
 
 use alloc::vec::Vec;
 
-use crate::{FlexId, Interval, RangeId};
+use crate::{FlexId, IntervalSet, RangeId};
 
 /// 時間方向に隣接するセルを結合し、[`RangeId`] の列として返す。
 ///
-/// `preferred` に[`Interval`]を渡すと、結合後の秒区間をその単位で表し直せる場合はそちらを
-/// 優先する（[`RangeId::relabel_time`]）。表せない場合、および `None` の場合は
-/// 「その区間を表せる最も粗い単位」（`gcd(開始秒, 幅)`）になる。
+/// `units` に[`IntervalSet`]を渡すと、結合後の秒区間を**その候補のうち最も粗い単位**で
+/// 表し直す（セル数が候補の中で最小になる）。`None` の場合は「その区間を表せる最も粗い単位」
+/// （`gcd(開始秒, 幅)`）になり、セル数は常に1になる。
+///
+/// [`IntervalSet`] は必ず全区間を表せる候補を含むので、**この関数は失敗しない**。
 ///
 /// # 計算量
 ///
@@ -31,7 +33,7 @@ use crate::{FlexId, Interval, RangeId};
 /// 結果は入力と1対1に対応する。
 pub(crate) fn coalesce_temporal<V>(
     items: impl IntoIterator<Item = (FlexId, V)>,
-    preferred: Option<Interval>,
+    units: Option<&IntervalSet>,
 ) -> Vec<(RangeId, V)>
 where
     V: Clone + PartialEq,
@@ -64,13 +66,13 @@ where
             end = next_end;
             continue;
         }
-        out.push(finish(&key, start, end, value, preferred));
+        out.push(finish(&key, start, end, value, units));
         key = next_key;
         start = next_start;
         end = next_end;
         value = next_value;
     }
-    out.push(finish(&key, start, end, value, preferred));
+    out.push(finish(&key, start, end, value, units));
 
     out
 }
@@ -86,16 +88,21 @@ fn finish<V>(
     start: u64,
     end: u64,
     value: V,
-    preferred: Option<Interval>,
+    units: Option<&IntervalSet>,
 ) -> (RangeId, V) {
     let range = RangeId::from(key)
         .with_time_span(start, end)
         .expect("結合した秒区間は元のセルの和なので常に有効");
 
-    // 元の単位で表せるならそちらを優先し、無理なら最も粗い表現のままにする。
-    let range = preferred
-        .and_then(|interval| range.clone().relabel_time(interval).ok())
-        .unwrap_or(range);
+    // 候補集合が指定されていれば、その中で最も粗い（＝セル数が最小の）単位へ表し直す。
+    // `IntervalSet` は必ず全区間を表せる候補を含むので、この `relabel_time` は失敗しない。
+    let range = match units {
+        None => range,
+        Some(units) => range
+            .clone()
+            .relabel_time(units.coarsest_dividing(start, end))
+            .expect("IntervalSet が選んだ単位は必ずこの区間を割り切る"),
+    };
 
     (range, value)
 }
@@ -103,7 +110,7 @@ fn finish<V>(
 #[cfg(all(test, feature = "temporal_id"))]
 mod tests {
     use super::*;
-    use crate::{SingleId, SpatialId};
+    use crate::{Interval, SingleId, SpatialId};
 
     /// 仕様書 1.5.3 の例（`1800/809712`）が、分解 → 結合を経て元の表記へ戻る。
     #[test]
@@ -160,9 +167,9 @@ mod tests {
         );
     }
 
-    /// `preferred` を渡すと、表せる範囲でその単位を優先する。
+    /// 候補集合を渡すと、その中で最も粗い（＝セル数が最小の）単位が選ばれる。
     #[test]
-    fn preferred_interval_is_used_when_it_fits() {
+    fn candidate_set_picks_the_coarsest_unit() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
@@ -171,14 +178,17 @@ mod tests {
         cells.extend(a.into_iter().map(|id| (id, 7u8)));
         cells.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal(cells, Some(Interval::HOUR));
+        let merged = coalesce_temporal(cells, Some(&IntervalSet::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
             (3600, [0, 1])
         );
 
-        // 表せない単位を指定した場合は、最も粗い表現のままになる。
+        // 候補が区間を割り切れないときは、必ず含まれる SECOND まで落ちる。
+        // 候補集合が貧しいとセル数が爆発することを示す例でもある
+        // （1時間 = 3600 セル）。実用では `IntervalSet::calendar()` のように
+        // 粒度の階段を用意しておくこと。
         let mut cells: Vec<(FlexId, u8)> = Vec::new();
         cells.extend(
             SingleId::new(12, 0, 3638, 1614)
@@ -188,11 +198,13 @@ mod tests {
                 .into_iter()
                 .map(|id| (id, 7u8)),
         );
-        let merged = coalesce_temporal(cells, Some(Interval::DAY));
+        let merged = coalesce_temporal(cells, Some(&IntervalSet::new([Interval::DAY])));
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
-            (3600, [0, 0])
+            (1, [0, 3599])
         );
+        // 秒区間そのものは変わらない。
+        assert_eq!(merged[0].0.seconds_range(), (0, 3600));
     }
 
     /// 空間セルが違えば、時間が連続していても結合しない。

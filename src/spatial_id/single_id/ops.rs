@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{RangeId, SingleId, spatial_id::time_cells};
+use crate::{RangeId, SingleId, spatial_id::time::cells};
 
 impl SingleId {
     /// 空間3軸（F/X/Y）だけで重なりを判定し、重なる場合は「深い側」の [`SingleId`] を返す。
@@ -95,7 +95,7 @@ impl SingleId {
 
         // 空間的に `other` と一致（または内包される）ところまで来たので、残るは時間の差分だけ。
         for (start, end) in
-            time_cells::difference_seconds(current.seconds_range(), other.seconds_range())
+            cells::difference_seconds(current.seconds_range(), other.seconds_range())
         {
             results.push(
                 RangeId::from(&current)
@@ -150,8 +150,7 @@ impl SingleId {
     /// ```
     pub fn intersection(&self, other: &Self) -> Option<RangeId> {
         let deep = self.spatial_intersection(other)?;
-        let (start, end) =
-            time_cells::intersect_seconds(self.seconds_range(), other.seconds_range())?;
+        let (start, end) = cells::intersect_seconds(self.seconds_range(), other.seconds_range())?;
 
         Some(
             RangeId::from(deep)

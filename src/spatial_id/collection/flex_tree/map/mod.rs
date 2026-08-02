@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
-use crate::{FlexId, RangeId, SingleId, SpatialId};
+use crate::{FlexId, IntervalSet, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 
 #[cfg(feature = "persist")]
@@ -125,6 +125,48 @@ where
     /// ツリーの最大ズームレベルを返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
+    }
+
+    /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+    ///
+    /// 単位は「その区間を表せる最も粗い秒数」（`gcd(開始秒, 幅)`）。
+    /// 単位を選びたい場合は [`range_ids_in`](Self::range_ids_in) を使う。
+    pub fn range_ids(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
+        self.inner.range_ids_ref(None)
+    }
+
+    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    ///
+    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    pub fn range_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+        self.inner.range_ids_ref(Some(units))
+    }
+
+    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化して読み出す。
+    pub fn range_ids_calendar(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
+        self.inner
+            .range_ids_ref(Some(&IntervalSet::calendar()))
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+
+    /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
+    pub fn flat_single_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+        self.inner.flat_single_ids_in_ref(Some(units))
+    }
+
+    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化した [`flat_single_ids`](Self::flat_single_ids)。
+    pub fn flat_single_ids_calendar(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
+        self.inner
+            .flat_single_ids_in_ref(Some(&IntervalSet::calendar()))
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。

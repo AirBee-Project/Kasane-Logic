@@ -170,7 +170,7 @@ impl Interval {
     /// 検証済みの秒数から直接構築する。クレート内部専用。
     ///
     /// 呼び出し側は `1 <= seconds <= `[`MAX_SECONDS`](Self::MAX_SECONDS) を保証すること。
-    /// 絶対秒区間からの復元（[`coarsest_unit`](super::time_cells::coarsest_unit) の結果）の
+    /// 絶対秒区間からの復元（[`coarsest_unit`](super::cells::coarsest_unit) の結果）の
     /// ように、構成上その範囲に収まることが証明できる経路でのみ使う。
     pub(crate) const fn from_seconds_unchecked(seconds: u64) -> Interval {
         #[cfg(feature = "temporal_id")]

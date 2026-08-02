@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
-use crate::{FlexId, RangeId, SingleId, SpatialId};
+use crate::{FlexId, IntervalSet, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 pub mod convert;
 pub mod impls;
@@ -162,6 +162,78 @@ impl SpatialIdSet {
     /// 内部に空間IDが存在しない場合は[None]を返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
+    }
+
+    /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+    ///
+    /// 単位は「その区間を表せる最も粗い秒数」（`gcd(開始秒, 幅)`）が選ばれ、
+    /// 各エントリのセル数は必ず1になる。単位を選びたい場合は
+    /// [`range_ids_in`](Self::range_ids_in) を使う。
+    ///
+    /// [`iter`](Self::iter) が返す生の [`FlexId`] は木の2進セルそのもの
+    /// （`_8/182185424` のような断片）なので、人間が読む用途にはこちらを使う。
+    pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
+        self.inner.range_ids_ref(None).map(|(range_id, _)| range_id)
+    }
+
+    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    ///
+    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    /// [`IntervalSet`] は必ず全区間を表せる候補を含むので失敗しない。
+    ///
+    /// ```
+    /// # #[cfg(feature = "temporal_id")]
+    /// # {
+    /// # use kasane_logic::{Interval, IntervalSet, SingleId, SpatialIdSet};
+    /// let mut set = SpatialIdSet::new();
+    /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 0).unwrap());
+    /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 1).unwrap());
+    ///
+    /// // 既定（gcd）では 2 時間ぶんが「7200 秒 × 1 セル」になる。
+    /// assert_eq!(set.range_ids().next().unwrap().to_string(), "12/0/3638/1614_7200/0");
+    ///
+    /// // 暦の単位に正規化すると「3600 秒 × 2 セル」になる。
+    /// let got = set.range_ids_in(&IntervalSet::calendar()).next().unwrap();
+    /// assert_eq!(got.to_string(), "12/0/3638/1614_3600/0:1");
+    /// # }
+    /// ```
+    pub fn range_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = RangeId> + 'a {
+        self.inner
+            .range_ids_ref(Some(units))
+            .map(|(range_id, _)| range_id)
+    }
+
+    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化して読み出す。
+    ///
+    /// [`range_ids_in`](Self::range_ids_in)`(&`[`IntervalSet::calendar()`]`)` の別名。
+    pub fn range_ids_calendar(&self) -> impl Iterator<Item = RangeId> + '_ {
+        self.inner
+            .range_ids_ref(Some(&IntervalSet::calendar()))
+            .map(|(range_id, _)| range_id)
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+
+    /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
+    pub fn flat_single_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = SingleId> + 'a {
+        self.inner
+            .flat_single_ids_in_ref(Some(units))
+            .map(|(single_id, _)| single_id)
+    }
+
+    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化した [`flat_single_ids`](Self::flat_single_ids)。
+    pub fn flat_single_ids_calendar(&self) -> impl Iterator<Item = SingleId> + '_ {
+        self.inner
+            .flat_single_ids_in_ref(Some(&IntervalSet::calendar()))
+            .map(|(single_id, _)| single_id)
+            .collect::<Vec<_>>()
+            .into_iter()
     }
 
     /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。

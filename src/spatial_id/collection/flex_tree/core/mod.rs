@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{Error, FlexId, RangeId, Side, SingleId, SpatialId};
+use crate::{Error, FlexId, IntervalSet, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
 use node_ops::MergeOp;
@@ -648,24 +648,47 @@ where
     /// [`has_temporal_split`](Self::has_temporal_split) が偽なら全葉が全時間で結合対象が
     /// 存在しないので、結合ごと省いて素通しの遅延イテレータを返す。
     pub fn flat_single_ids_ref(&self) -> Box<dyn Iterator<Item = (SingleId, &V)> + '_> {
+        self.flat_single_ids_in_ref(None)
+    }
+
+    /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+    ///
+    /// `units` に [`IntervalSet`] を渡すと、結合後の秒区間をその候補のうち最も粗い単位
+    /// （＝セル数が候補の中で最小になる単位）で表す。`None` なら `gcd` で最も粗い単位を選ぶ。
+    ///
+    /// 木が時間軸で分割されていなければ結合対象が無いので、素通しの遅延イテレータを返す。
+    pub fn range_ids_ref<'a>(
+        &'a self,
+        units: Option<&IntervalSet>,
+    ) -> Box<dyn Iterator<Item = (RangeId, &'a V)> + 'a> {
+        if !self.has_temporal_split() {
+            // 全葉が全時間。結合対象が無いので集めずに素通しできる。
+            // 候補集合が指定されていても、全時間は `WHOLE`（必ず候補にある）のままになる。
+            return Box::new(
+                self.iter_ref()
+                    .map(|(flex_id, value)| (RangeId::from(&flex_id), value)),
+            );
+        }
+
+        Box::new(
+            crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+                self.iter_ref(),
+                units,
+            )
+            .into_iter(),
+        )
+    }
+
+    /// [`flat_single_ids_ref`](Self::flat_single_ids_ref) の、時間単位を指定できる版。
+    pub fn flat_single_ids_in_ref<'a>(
+        &'a self,
+        units: Option<&IntervalSet>,
+    ) -> Box<dyn Iterator<Item = (SingleId, &'a V)> + 'a> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
         };
 
-        let merged: Box<dyn Iterator<Item = (RangeId, &V)> + '_> = if self.has_temporal_split() {
-            Box::new(
-                crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-                    self.iter_ref(),
-                    None,
-                )
-                .into_iter(),
-            )
-        } else {
-            Box::new(
-                self.iter_ref()
-                    .map(|(flex_id, value)| (RangeId::from(&flex_id), value)),
-            )
-        };
+        let merged = self.range_ids_ref(units);
 
         Box::new(merged.flat_map(move |(range, value)| {
             let normalized = if range.z() == max_zoomlevel {

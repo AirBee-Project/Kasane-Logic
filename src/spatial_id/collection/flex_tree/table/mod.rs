@@ -8,7 +8,7 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{CellValue, FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{CellValue, FlexId, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Clone, Debug)]
@@ -187,6 +187,80 @@ where
     /// ツリーの最大ズームレベルを返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
+    }
+
+    /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+    ///
+    /// 単位は「その区間を表せる最も粗い秒数」（`gcd(開始秒, 幅)`）。
+    /// 単位を選びたい場合は [`range_ids_in`](Self::range_ids_in) を使う。
+    pub fn range_ids(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
+        self.coalesced_range_ids(None)
+    }
+
+    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    ///
+    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    pub fn range_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+        self.coalesced_range_ids(Some(units))
+    }
+
+    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化して読み出す。
+    pub fn range_ids_calendar(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
+        // 候補集合は `coalesce_temporal` が即座に消費するので、ここで確定させてから返す。
+        self.coalesced_range_ids(Some(&IntervalSet::calendar()))
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+
+    /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
+    pub fn flat_single_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+        self.expand_range_ids(Some(units))
+    }
+
+    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化した [`flat_single_ids`](Self::flat_single_ids)。
+    pub fn flat_single_ids_calendar(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
+        self.expand_range_ids(Some(&IntervalSet::calendar()))
+            .collect::<Vec<_>>()
+            .into_iter()
+    }
+
+    /// 内部の rank を値へ引き直しつつ、時間方向に結合した [`RangeId`] を返す。
+    ///
+    /// 木が持つのは値そのものではなく rank（`usize`）なので、結合は rank のまま行い
+    /// （同じ値なら同じ rank なので結合条件は変わらない）、最後に辞書で引き直す。
+    fn coalesced_range_ids<'a>(
+        &'a self,
+        units: Option<&IntervalSet>,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            self.inner
+                .iter_ref()
+                .map(|(flex_id, rank)| (flex_id, *rank)),
+            units,
+        )
+        .into_iter()
+        .map(move |(range, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch");
+            (range, value)
+        })
+    }
+
+    /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一セルの [`SingleId`] へ展開する。
+    fn expand_range_ids<'a>(
+        &'a self,
+        units: Option<&IntervalSet>,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+        self.coalesced_range_ids(units)
+            .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
     }
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。

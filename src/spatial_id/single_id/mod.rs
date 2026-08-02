@@ -9,7 +9,7 @@ pub mod test;
 use crate::{
     Interval, SpatialId, SpatialIdError,
     error::Error,
-    spatial_id::{time_cells, zoom_level::ZoomLevel},
+    spatial_id::{time::cells, zoom_level::ZoomLevel},
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
@@ -179,7 +179,7 @@ impl SingleId {
         Error: From<I::Error>,
     {
         let interval: Interval = interval.try_into()?;
-        let (start, end) = time_cells::validated_span(interval, t, t)?;
+        let (start, end) = cells::validated_span(interval, t, t)?;
         Ok(self.with_time_span_unchecked(interval, t, start, end))
     }
 
@@ -232,7 +232,7 @@ impl SingleId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = time_cells::span_to_interval(start, end)?;
+        let (interval, t_min, t_max) = cells::span_to_interval(start, end)?;
         if t_min != t_max {
             return Err(SpatialIdError::TIntervalError {
                 i: interval.seconds(),
@@ -311,9 +311,9 @@ impl SingleId {
     }
 
     /// 内部表現をそのまま取得する。クレート内部専用。
-    pub(crate) fn time_cells(&self) -> time_cells::TimeCells {
+    pub(crate) fn time_cells(&self) -> cells::TimeCells {
         let (start, end) = self.seconds_range();
-        time_cells::split_seconds(start, end)
+        cells::split_seconds(start, end)
     }
 
     /// 内部表現をそのまま設定する。クレート内部専用（検証済みの値を渡すこと）。

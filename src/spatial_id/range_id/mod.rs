@@ -6,7 +6,7 @@ pub mod random;
 use crate::{
     Interval, SpatialIdError,
     error::Error,
-    spatial_id::{helpers, time_cells, zoom_level::ZoomLevel},
+    spatial_id::{helpers, time::cells, zoom_level::ZoomLevel},
 };
 
 /// RangeIdは空間IDの範囲表現を表す型です。
@@ -157,7 +157,7 @@ impl RangeId {
             t.swap(0, 1);
         }
 
-        time_cells::validated_span(interval, t[0], t[1])?;
+        cells::validated_span(interval, t[0], t[1])?;
         Ok(self.with_time_unchecked(interval, t))
     }
 
@@ -202,7 +202,7 @@ impl RangeId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = time_cells::span_to_interval(start, end)?;
+        let (interval, t_min, t_max) = cells::span_to_interval(start, end)?;
         Ok(self.with_time_unchecked(interval, [t_min, t_max]))
     }
 
@@ -268,9 +268,9 @@ impl RangeId {
     }
 
     /// この `RangeId` の時間を、FlexTree が使う2進セルの列へ分解する。クレート内部専用。
-    pub(crate) fn time_cells(&self) -> time_cells::TimeCells {
+    pub(crate) fn time_cells(&self) -> cells::TimeCells {
         let (start, end) = self.seconds_range();
-        time_cells::split_seconds(start, end)
+        cells::split_seconds(start, end)
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {

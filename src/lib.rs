@@ -125,6 +125,8 @@ pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
 pub use spatial_id::collection::query::working::WorkingTree;
 
-// 時間間隔（公開 API に出てくる唯一の時間の型）
+// 時間軸（`{i}` の型と、読み出し時の単位候補）
 #[doc(inline)]
-pub use spatial_id::interval::Interval;
+pub use spatial_id::time::Interval;
+#[doc(inline)]
+pub use spatial_id::time::IntervalSet;
