@@ -1,17 +1,8 @@
-//! 時間間隔 `{i}`。**公開 API に出てくる唯一の時間の型**である。
-//!
-//! 「いつか」を表す `{t}` は空間 ID 側（[`SingleId`](crate::SingleId) /
-//! [`RangeId`](crate::RangeId) / [`FlexId`](crate::FlexId)）がフィールドとして直接持ち、
-//! `interval()` / `t()` / `seconds_range()` で読み書きする。
+//! 時間間隔 `{i}`を表す型に関する実装
 
 use crate::{SpatialIdError, error::Error};
 
 /// 時間 ID の時間間隔 `{i}`（秒数）を表現する型。
-///
-/// [Ouranos 4D 時空間ID仕様](https://github.com/AirBee-Project)の Temporal ID は
-/// 「任意の秒数」を時間間隔として許容するため、`1..=`[`MAX_SECONDS`](Self::MAX_SECONDS)
-/// の範囲であれば任意の値を保持できる（`Day`/`Hour` のような固定候補への限定はしない）。
-///
 /// よく使う値は関連定数として用意している。
 ///
 /// | 定数 | 秒数 |
@@ -21,11 +12,6 @@ use crate::{SpatialIdError, error::Error};
 /// | [`HOUR`](Self::HOUR) | 3600 |
 /// | [`MINUTE`](Self::MINUTE) | 60 |
 /// | [`SECOND`](Self::SECOND) | 1 |
-///
-/// # `temporal_id` feature 無効時
-///
-/// 中身の無いスタブ（サイズ0）になり、[`WHOLE`](Self::WHOLE) 以外は構築できない。
-/// 各 ID が持つ `interval` フィールドは1バイトも消費しない。
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
@@ -47,35 +33,9 @@ pub struct Interval;
 impl Interval {
     /// このライブラリが扱える最大の時間間隔＝全時間の秒数
     /// （`2^35` 秒 = 34,359,738,368 秒、約1089年）。[`new`](Self::new) はこれを超える値を拒む。
-    ///
-    /// 起点は仕様どおり 1970-01-01 00:00 UTC なので、**3058年ごろまで**を表せる。
-    ///
-    /// [`WHOLE`](Self::WHOLE)`.seconds()` と同じ値である。名前に `WHOLE` を使っていないのは、
-    /// 日常的に使うのは [`WHOLE`](Self::WHOLE) のほうで、接頭辞を共有すると
-    /// エディタの補完候補で埋もれてしまうからである。
     pub const MAX_SECONDS: u64 = 1u64 << Self::MAX_POW;
 
-    /// 最も粗い時間区間を表す二進層の指数。時間軸の最大ズームレベルでもある
-    /// （[`TZoomLevel`](crate::spatial_id::zoom_level::TZoomLevel) の `LIMIT`。
-    /// 両者が食い違わないことは `zoom_level.rs` の `const` アサーションが保証する）。
-    ///
-    /// # なぜ 35 なのか
-    ///
-    /// 時間軸は Unix 元期を起点とする2進トライで、最深ズームの1セルが1秒である。
-    /// したがって `MAX_POW` はそのままトライの深さになり、現実の時刻がどれだけ深い
-    /// ところに沈むかを決める。
-    ///
-    /// | `MAX_POW` | 表せる範囲 | 深さ |
-    /// |---|---|---|
-    /// | 30（空間軸と同じ） | 2004年まで | 30 |
-    /// | 31 | 2038年まで | 31 |
-    /// | 32 | 2106年まで | 32 |
-    /// | **35** | **3058年まで** | **35** |
-    /// | 62 | 1461億年後まで | 62 |
-    ///
-    /// 空間軸の最大ズーム（30）に合わせると2004年で尽きるため揃えられない。実データの
-    /// 射程（気候予測などは2100年以降も扱う）を考えると32も狭い。35なら1000年以上の
-    /// 余裕があり、深さは62の場合の56%で済む。
+    /// 最も粗い時間区間を表す二進層の指数。時間軸の最大ズームレベル。
     pub const MAX_POW: u8 = 35;
 
     /// 全時間（`2^35` 秒）。時間を指定していない ID はこの値を持つ。
@@ -167,11 +127,7 @@ impl Interval {
         unix_seconds / self.seconds()
     }
 
-    /// 検証済みの秒数から直接構築する。クレート内部専用。
-    ///
-    /// 呼び出し側は `1 <= seconds <= `[`MAX_SECONDS`](Self::MAX_SECONDS) を保証すること。
-    /// 絶対秒区間からの復元（[`coarsest_unit`](super::cells::coarsest_unit) の結果）の
-    /// ように、構成上その範囲に収まることが証明できる経路でのみ使う。
+    /// 検証済みの秒数から直接構築する。
     pub(crate) const fn from_seconds_unchecked(seconds: u64) -> Interval {
         #[cfg(feature = "temporal_id")]
         {
