@@ -1,3 +1,4 @@
+use crate::SpatialId;
 use alloc::vec::Vec;
 
 use crate::{RangeId, SingleId, spatial_id::time::cells};

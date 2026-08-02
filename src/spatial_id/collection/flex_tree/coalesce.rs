@@ -14,6 +14,7 @@
 //! （`flat_single_ids` と JSON 直列化）専用で、`get` / `iter` のような [`FlexId`] を返す
 //! 経路は従来どおり生のセルを返す。
 
+use crate::SpatialId;
 use alloc::vec::Vec;
 
 use crate::{FlexId, IntervalSet, RangeId};

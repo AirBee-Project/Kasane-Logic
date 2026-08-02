@@ -185,11 +185,12 @@ impl SpatialId for FlexId {
     }
 
     fn interval(&self) -> crate::Interval {
-        FlexId::interval(self)
+        let (start, end) = self.seconds_range();
+        crate::Interval::from_seconds_unchecked(end - start)
     }
 
     fn seconds_range(&self) -> (u64, u64) {
-        FlexId::seconds_range(self)
+        crate::spatial_id::time::cells::cell_seconds_range(self.t_zoomlevel(), self.t())
     }
 }
 

@@ -7,7 +7,7 @@ pub mod impls;
 pub mod ops;
 
 use crate::{
-    Error, Interval, Side, SpatialIdError,
+    Error, Side, SpatialIdError,
     spatial_id::{
         range_id::convert::{split_f, split_xy},
         time::cells,
@@ -103,28 +103,7 @@ impl FlexId {
     pub fn y_index(&self) -> u32 {
         self.y_index
     }
-    /// この [`FlexId`] が占める時間セルの単位（秒幅 `2^(35 - t_zoomlevel)`）を返す。
-    ///
-    /// [`FlexId`] のセルは必ず2の冪秒なので、この幅がそのまま「その区間を表せる最も粗い単位」
-    /// でもある（開始秒は幅の倍数なので `gcd(start, width) == width`）。
-    ///
-    /// ```
-    /// # #[cfg(feature = "temporal_id")]
-    /// # {
-    /// # use kasane_logic::{Interval, SingleId};
-    /// // 1時間ぶんは複数の2進セルへ分解されるが、各セルの秒幅は必ず2の冪になる。
-    /// let id = SingleId::new(3, 0, 1, 1).unwrap().with_time(Interval::HOUR, 2).unwrap();
-    /// for cell in id.into_iter() {
-    ///     assert!(cell.interval().seconds().is_power_of_two());
-    /// }
-    /// # }
-    /// ```
-    pub fn interval(&self) -> Interval {
-        let (start, end) = self.seconds_range();
-        Interval::from_seconds_unchecked(end - start)
-    }
-
-    /// この [`FlexId`] の時間インデックス `{t}`。[`interval`](Self::interval) を単位とする。
+    /// この [`FlexId`] の時間インデックス `{t}`。[`interval`](crate::SpatialId::interval) を単位とする。
     ///
     /// [`t_zoomlevel`](Self::t_zoomlevel) と対で読めば、木の2進セル `(zoom, index)` そのもの。
     /// `temporal_id` feature 無効時は常に `0`（全時間）。
@@ -141,12 +120,6 @@ impl FlexId {
     }
 
     /// この [`FlexId`] が占める絶対秒区間 `[start, end)` を返す。
-    ///
-    /// `temporal_id` feature 無効時は常に全時間 `(0, 2^35)`。
-    pub fn seconds_range(&self) -> (u64, u64) {
-        cells::cell_seconds_range(self.t_zoomlevel(), self.t())
-    }
-
     /// 時間セル（4軸目）を設定した自身を返す（ビルダー形式）。
     ///
     /// 引数は空間3軸と同じ「**ズームレベル＋インデックス**」で、[`new`](Self::new) の
@@ -160,6 +133,7 @@ impl FlexId {
     /// ノードアドレスであり2進セル1個しか持てないため、**ズーム**で受ける。
     ///
     /// ```text
+    /// # use kasane_logic::SpatialId;
     /// single.with_time(1800, 809712)  // 1800 「秒」単位の 809712 番目
     /// flex  .with_time(25,   7)       // 「ズーム」25（=1024秒幅）の 7 番目
     /// ```
@@ -180,6 +154,7 @@ impl FlexId {
     /// - `temporal_id` feature 無効時は全時間以外を [`SpatialIdError::TIntervalError`] で拒否する。
     ///
     /// ```
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::{FlexId, TZoomLevel};
@@ -223,6 +198,7 @@ impl FlexId {
     /// 割り算はこちらで行うので、呼び出し側でインデックスを求める必要がない。
     ///
     /// ```
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::{FlexId, TZoomLevel};
@@ -250,6 +226,7 @@ impl FlexId {
     /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::FlexId;
@@ -276,6 +253,7 @@ impl FlexId {
     /// 時間の指定を外し、全時間へ戻した自身を返す。
     ///
     /// ```
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::{FlexId, SpatialId, TZoomLevel};
@@ -646,6 +624,7 @@ impl FlexId {
     /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。
     ///
     /// ```
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::FlexId;
     /// let a = FlexId::new(4, 5, 4, 5, 4, 5).unwrap();
     /// let east = FlexId::new(4, 5, 4, 6, 4, 5).unwrap(); // X+1（面で接する）

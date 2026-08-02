@@ -286,7 +286,9 @@ impl SpatialId for SingleId {
     }
 
     fn seconds_range(&self) -> (u64, u64) {
-        SingleId::seconds_range(self)
+        let unit = self.i.seconds();
+        let t = self.t();
+        (t * unit, (t + 1) * unit)
     }
 }
 

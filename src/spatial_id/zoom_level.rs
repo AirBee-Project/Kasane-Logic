@@ -1,18 +1,7 @@
 use crate::{SpatialIdError, error::Error};
 use core::fmt;
 
-/// ズームレベルを表す型の土台。`LIMIT`は許容する最大ズームレベルで、空間軸（[`ZoomLevel`]、
-/// `LIMIT=30`）と時間軸の生セル（[`TZoomLevel`]、
-/// `LIMIT=35`）が生成・深化・範囲チェックの式を共有しつつ、`LIMIT`の値でRustの型として区別される
-/// （`ZoomLevel`と`TZoomLevel`は異なる型なので取り違えられない）。
-///
-/// `Zoom`自体は非公開の実装詳細で、公開APIとしては`ZoomLevel`/`TZoomLevel`という具体化された
-/// 別名だけを使う（`type ZoomLevel = Zoom<30>;`のように完全に確定した別名にすることで、
-/// 呼び出し側で`LIMIT`の型推論が必要にならないようにしている）。
-///
-/// Fの符号付き範囲（[`ZoomLevel::f_min`]/[`ZoomLevel::f_max`]/[`ZoomLevel::check_f`]）は空間軸専用、
-/// 秒数変換（`cell_seconds`、[`TZoomLevel`]側の拡張）は
-/// 時間軸専用の拡張として、それぞれの具象化にだけ生やす。
+/// ズームレベルを表す型の土台。
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
@@ -21,7 +10,7 @@ use core::fmt;
 )]
 pub struct Zoom<const LIMIT: u8>(u8);
 
-/// ズームレベルを表す型。
+/// 空間のズームレベルを表す型。
 /// ```
 /// # use kasane_logic::{SpatialIdError, ZoomLevel};
 /// let z = ZoomLevel::new(5).unwrap();
@@ -30,15 +19,7 @@ pub struct Zoom<const LIMIT: u8>(u8);
 /// ```
 pub type ZoomLevel = Zoom<30>;
 
-/// 時間軸のズームレベルを表す型。
-///
-/// [`ZoomLevel`]（空間軸、`LIMIT = 30`）と同じ土台を共有する `Zoom<35>` の別名。
-/// 1セルが `2^(35 - z)` 秒（最大 `2^35` 秒＝全期間、最小1秒）を表す。
-///
-/// `LIMIT` は [`Interval::MAX_POW`](crate::Interval::MAX_POW) と一致していなければ
-/// ならない（最深ズームのセル幅が1秒＝全時間を `2^LIMIT` 秒とする前提）。下の
-/// `const` アサーションで食い違いをコンパイル時に落とす。
-///
+/// 時間軸のズームレベルを表す型。[crate::FlexId]でのみ使用される。
 /// ```
 /// # use kasane_logic::spatial_id::zoom_level::TZoomLevel;
 /// let z = TZoomLevel::new(5).unwrap();
@@ -47,6 +28,7 @@ pub type ZoomLevel = Zoom<30>;
 /// ```
 pub type TZoomLevel = Zoom<35>;
 
+/// 定数の変更による破壊を防ぐためのコンパイル時テスト
 const _: () = assert!(
     TZoomLevel::MAX.get() == crate::Interval::MAX_POW,
     "TZoomLevel の LIMIT と Interval::MAX_POW は一致していなければならない"

@@ -1,4 +1,5 @@
 use super::ptr::{SafeValue, SharedNode};
+use crate::SpatialId;
 use crate::{FlexId, Side};
 
 /// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2進セル

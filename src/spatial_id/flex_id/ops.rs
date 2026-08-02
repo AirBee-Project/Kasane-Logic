@@ -1,8 +1,9 @@
-use alloc::vec::Vec;
-
+#[cfg(feature = "temporal_id")]
+use crate::SpatialId;
 #[cfg(feature = "temporal_id")]
 use crate::spatial_id::zoom_level::TZoomLevel;
 use crate::{FlexId, Side, spatial_id::zoom_level::ZoomLevel};
+use alloc::vec::Vec;
 
 impl FlexId {
     /// 相手の [`FlexId`] との差集合（`self - other`）を計算し、イテレータとして返します。

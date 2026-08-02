@@ -266,7 +266,9 @@ mod tests {
 /// 「暦の正規化が既定（`gcd`）と実際に違う結果になること」を固定する。
 #[cfg(all(test, feature = "temporal_id"))]
 mod collection_api {
-    use crate::{Interval, IntervalSet, SingleId, SpatialIdMap, SpatialIdSet, SpatialIdTable};
+    use crate::{
+        Interval, IntervalSet, SingleId, SpatialId, SpatialIdMap, SpatialIdSet, SpatialIdTable,
+    };
     use alloc::vec::Vec;
 
     /// 同じ空間セルの隣り合う2時間ぶん。値は同じなので結合される。

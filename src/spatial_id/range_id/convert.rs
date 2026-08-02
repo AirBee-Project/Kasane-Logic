@@ -1,3 +1,4 @@
+use crate::SpatialId;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 

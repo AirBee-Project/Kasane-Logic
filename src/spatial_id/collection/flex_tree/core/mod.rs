@@ -1253,8 +1253,8 @@ mod core_api_tests {
     /// 時間区間を2進セルへ分解して挿入すると、元の秒区間をちょうど覆う集合が木に入る。
     #[cfg(feature = "temporal_id")]
     #[test]
-    fn temporal_range_decomposition_round_trips_into_tree() {
-        use crate::{FlexId, Interval, RangeId};
+    fn seconds_range_decomposition_round_trips_into_tree() {
+        use crate::{FlexId, Interval, RangeId, SpatialId};
 
         let range = RangeId::new(0, 0, 0, 0)
             .unwrap()
