@@ -179,8 +179,8 @@ impl SingleId {
         Error: From<I::Error>,
     {
         let interval: Interval = interval.try_into()?;
-        let (start, end) = cells::validated_span(interval, t, t)?;
-        Ok(self.with_time_span_unchecked(interval, t, start, end))
+        cells::validated_span(interval, t, t)?;
+        Ok(self.with_time_unchecked(interval, t))
     }
 
     /// Unix 時刻（秒）が属する時間セルを設定した自身を返す。
@@ -239,7 +239,7 @@ impl SingleId {
             }
             .into());
         }
-        Ok(self.with_time_span_unchecked(interval, t_min, start, end))
+        Ok(self.with_time_unchecked(interval, t_min))
     }
 
     /// 同じ絶対秒区間を、別の単位で表し直した自身を返す。
@@ -268,7 +268,7 @@ impl SingleId {
         if end - start != unit || !start.is_multiple_of(unit) {
             return Err(SpatialIdError::TIntervalError { i: unit }.into());
         }
-        Ok(self.with_time_span_unchecked(interval, start / unit, start, end))
+        Ok(self.with_time_unchecked(interval, start / unit))
     }
 
     /// 時間の指定を外し、全時間へ戻した自身を返す。
@@ -282,38 +282,12 @@ impl SingleId {
     /// # }
     /// ```
     pub fn without_time(self) -> Self {
-        self.with_time_span_unchecked(Interval::WHOLE, 0, 0, Interval::MAX_SECONDS)
-    }
-
-    /// 検証済みの `{i}` / `{t}` を書き込む。`start` / `end` は `debug_assert` 用。
-    fn with_time_span_unchecked(
-        #[cfg_attr(not(feature = "temporal_id"), allow(unused_mut))] mut self,
-        interval: Interval,
-        t: u64,
-        start: u64,
-        end: u64,
-    ) -> Self {
-        debug_assert_eq!(
-            (t * interval.seconds(), (t + 1) * interval.seconds()),
-            (start, end)
-        );
-        let _ = (start, end);
-        self.i = interval;
-        // `temporal_id` 無効時に検証を通るのは全時間（t == 0）だけなので、
-        // フィールドが無くても表現できる情報は落ちない。
-        #[cfg(feature = "temporal_id")]
-        {
-            self.t = t;
-        }
-        #[cfg(not(feature = "temporal_id"))]
-        debug_assert_eq!(t, 0, "temporal_id 無効時に t != 0 が検証を通った");
-        self
+        self.with_time_unchecked(Interval::WHOLE, 0)
     }
 
     /// 内部表現をそのまま取得する。クレート内部専用。
     pub(crate) fn time_cells(&self) -> cells::TimeCells {
-        let (start, end) = self.seconds_range();
-        cells::split_seconds(start, end)
+        cells::time_cells_of(self.seconds_range())
     }
 
     /// 内部表現をそのまま設定する。クレート内部専用（検証済みの値を渡すこと）。

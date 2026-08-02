@@ -64,7 +64,7 @@ fn build_range_id(
 ) -> Result<RangeId, crate::Error> {
     let id = RangeId::new(z, f, x, y)?;
     match temporal_pair {
-        Some((i, t)) => id.with_time(i as i64, t),
+        Some((i, t)) => id.with_time(i, t),
         None => Ok(id),
     }
 }

@@ -210,7 +210,7 @@ macro_rules! impl_try_from_integer {
 
                 fn try_from(seconds: $t) -> Result<Self, Self::Error> {
                     let seconds = u64::try_from(seconds)
-                        .map_err(|_| SpatialIdError::TIntervalError { i: 0 })?;
+                        .map_err(|_| SpatialIdError::TIntervalError { i: seconds as u64 })?;
                     Interval::new(seconds)
                 }
             }

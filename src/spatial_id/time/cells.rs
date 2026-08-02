@@ -142,6 +142,14 @@ pub(crate) fn difference_seconds(
     [head, tail].into_iter().flatten()
 }
 
+/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) が持つ絶対秒区間
+/// （[`seconds_range`](crate::SingleId::seconds_range) の戻り値）を2進セルへ分解する。
+/// [`split_seconds`] への薄い委譲だが、両型が持つ同名 `time_cells()` の実体をここへ
+/// 1本化することで、`self.seconds_range()` を経由する同一実装の重複を無くしている。
+pub(crate) fn time_cells_of(seconds_range: (u64, u64)) -> TimeCells {
+    split_seconds(seconds_range.0, seconds_range.1)
+}
+
 /// 秒区間 `[start, end)` を、区間木的に高々 `O(log 幅)` 個の2進セルへ分解する。
 ///
 /// 空区間（`start >= end`）では何も返さない。

@@ -269,8 +269,7 @@ impl RangeId {
 
     /// この `RangeId` の時間を、FlexTree が使う2進セルの列へ分解する。クレート内部専用。
     pub(crate) fn time_cells(&self) -> cells::TimeCells {
-        let (start, end) = self.seconds_range();
-        cells::split_seconds(start, end)
+        cells::time_cells_of(self.seconds_range())
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {

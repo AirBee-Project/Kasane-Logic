@@ -91,6 +91,11 @@ impl RangeId {
     }
 }
 
+/// この [`RangeId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開する。
+///
+/// `F × X × Y × 時間` の格子を割り当てなしで組み立てられないため、`Box<dyn Iterator>` を
+/// 返す（[`SingleId::into_iter`](crate::SingleId::into_iter) がヒープ確保をしないのとは対照的）。
+/// 割り当てを避けたい場合は、まず [`SingleId`] へ縮めてから展開すること。
 impl IntoIterator for RangeId {
     type Item = FlexId;
     type IntoIter = Box<dyn Iterator<Item = FlexId>>;
