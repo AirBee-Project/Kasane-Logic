@@ -256,7 +256,7 @@ impl FromStr for FlexId {
                     y_zoomlevel,
                     y_index,
                 )?
-                .with_time_cell_checked(t_zoomlevel, t_index)
+                .with_time(t_zoomlevel, t_index)
             }
         }
     }

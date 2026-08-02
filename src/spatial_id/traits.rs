@@ -179,7 +179,7 @@ pub trait SpatialId:
     /// 時間間隔 `{i}`（単位、秒数）を返す。
     ///
     /// [`SingleId`]/[`RangeId`]は設定された単位、[`FlexId`]はそのセルの秒幅
-    /// （`2^(62 - t_zoomlevel)`）を返す。時間を設定していなければ
+    /// （`2^(35 - t_zoomlevel)`）を返す。時間を設定していなければ
     /// [`Interval::WHOLE`]。
     ///
     /// ```
@@ -201,11 +201,22 @@ pub trait SpatialId:
     /// 扱える。空間側で `f()` の戻り値が `i32` と `[i32; 2]` に分かれるため、Traitには
     /// `f_min()` / `f_max()` だけを載せているのと同じ方針である。
     ///
-    /// 時間の**付与**はこのTraitには含めない。[`SingleId::with_time`](SingleId::with_time)は
-    /// 単一の `t` を、[`RangeId::with_time`](RangeId::with_time)は範囲を受け取り、
-    /// [`FlexId`]は2の冪秒のセル1個しか保持できないため、同じシグネチャを共有できない。
-    /// [`FlexId`]へ時間を載せたい場合は[`SingleId`]/[`RangeId`]に付けてから
-    /// [`IntoIterator`]で展開する（`Interval`が2の冪でない区間は複数の[`FlexId`]へ分解される）。
+    /// 時間の**付与**はこのTraitには含めない。3型とも `with_time` という同じ名前を持つが、
+    /// 受け取る型がその型の「母語」に従って違うためである。
+    ///
+    /// | 型 | `with_time` の引数 |
+    /// |---|---|
+    /// | [`SingleId`] | 秒数（[`Interval`]）＋単一の `{t}` |
+    /// | [`RangeId`] | 秒数（[`Interval`]）＋ `{t}` の範囲 |
+    /// | [`FlexId`] | **[`TZoomLevel`](crate::TZoomLevel)** ＋セルのインデックス |
+    ///
+    /// [`FlexId`]だけズームを取るのは、木のノードアドレスとして `2^(35 - zoom)` 秒の
+    /// 2進セル1個しか保持できないからである。型が違うので取り違えはコンパイルエラーになる。
+    /// 実時間で指定したいだけなら、3型に共通の `with_time_span` / `with_time_at` を使う。
+    ///
+    /// 任意秒数の間隔（`1800` など）を[`FlexId`]の集合として扱いたい場合は、
+    /// [`SingleId`]/[`RangeId`]に付けてから[`IntoIterator`]で展開する
+    /// （必要な数のセルへ自動的に分解される）。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]

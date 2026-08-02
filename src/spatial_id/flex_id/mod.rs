@@ -147,68 +147,107 @@ impl FlexId {
         time_cells::cell_seconds_range(self.t_zoomlevel(), self.t())
     }
 
-    /// 時間を設定した自身を返す（ビルダー形式）。
+    /// 時間セル（4軸目）を設定した自身を返す（ビルダー形式）。
     ///
-    /// [`SingleId::with_time`](crate::SingleId::with_time) と同じ `{i}/{t}` の指定だが、
-    /// [`FlexId`] は木のノードアドレスなので **`2^(35 - zoom)` 秒のセル1個しか持てない**。
-    /// そのため `interval` が2の冪でない場合は [`SpatialIdError::TIntervalError`] を返す。
+    /// 引数は空間3軸と同じ「**ズームレベル＋インデックス**」で、[`new`](Self::new) の
+    /// `f_zoomlevel` / `f_index` と同じく [`Into<u8>`](Into) を受ける
+    /// （[`TZoomLevel`] をそのまま渡すこともできる）。1セルは `2^(35 - t_zoomlevel)` 秒で、
+    /// [`t_zoomlevel`](Self::t_zoomlevel) / [`t`](Self::t) で読むのと同じ形である。
     ///
-    /// 任意秒数の間隔（`1800` など）を扱いたい場合は [`SingleId`](crate::SingleId) /
-    /// [`RangeId`](crate::RangeId) に付けてから [`IntoIterator`] で展開する
-    /// （必要な数のセルへ自動的に分解される）。
+    /// # `SingleId` / `RangeId` の `with_time` との違い
+    ///
+    /// あちらは仕様の `{i}/{t}`、つまり**秒数**＋インデックスを取る。[`FlexId`] は木の
+    /// ノードアドレスであり2進セル1個しか持てないため、**ズーム**で受ける。
+    ///
+    /// ```text
+    /// single.with_time(1800, 809712)  // 1800 「秒」単位の 809712 番目
+    /// flex  .with_time(25,   7)       // 「ズーム」25（=1024秒幅）の 7 番目
+    /// ```
+    ///
+    /// 秒数のつもりで渡した値は、`1800` や `3600` なら `u8` に収まらずコンパイルエラー、
+    /// `60` や `86400` ならズーム範囲外（最大35）で [`SpatialIdError::ZOutOfRange`] になる。
+    /// ただし `0..=35` の値は**どちらとも解釈できてしまう**ので、秒で考えたいときは
+    /// [`with_time_span`](Self::with_time_span) / [`with_time_at`](Self::with_time_at)
+    /// を使うこと。
+    ///
+    /// 任意秒数の間隔（`1800` など）を [`FlexId`] の集合として扱いたい場合は
+    /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) に付けてから
+    /// [`IntoIterator`] で展開する（必要な数のセルへ自動的に分解される）。
     ///
     /// # バリデーション
-    /// - `interval` が2の冪でない場合は [`SpatialIdError::TIntervalError`] を返す。
-    /// - `t` がその粒度のインデックス範囲を超える場合は [`SpatialIdError::TOutOfRange`] を返す。
+    /// - `t_zoomlevel` が `35` を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
+    /// - `t_index` が `2^t_zoomlevel - 1` を超える場合は [`SpatialIdError::TOutOfRange`] を返す。
     /// - `temporal_id` feature 無効時は全時間以外を [`SpatialIdError::TIntervalError`] で拒否する。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{FlexId, Interval};
-    /// // 1024 秒（2^10）は ズーム 25 のセル。
-    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(1024, 7).unwrap();
+    /// # use kasane_logic::{FlexId, TZoomLevel};
+    /// // ズーム25のセルは 2^(35-25) = 1024 秒幅。
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(25, 7).unwrap();
     /// assert_eq!((id.t_zoomlevel(), id.t()), (25, 7));
+    /// assert_eq!(id.interval().seconds(), 1024);
     ///
-    /// // 1800 秒は2の冪でないので1セルにならない。
-    /// assert!(FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(1800, 0).is_err());
+    /// // `TZoomLevel` をそのまま渡してもよい。
+    /// let same = FlexId::new(5, 3, 2, 3, 10, 1)
+    ///     .unwrap()
+    ///     .with_time(TZoomLevel::new(25).unwrap(), 7)
+    ///     .unwrap();
+    /// assert_eq!(same, id);
+    ///
+    /// // 秒数のつもりの値はズーム範囲外で弾かれる。
+    /// assert!(FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(60, 0).is_err());
     /// # }
     /// ```
-    pub fn with_time<I>(self, interval: I, t: u64) -> Result<Self, Error>
-    where
-        I: TryInto<Interval>,
-        Error: From<I::Error>,
-    {
-        let interval: Interval = interval.try_into()?;
-        let (zoom, index) = time_cells::cell_of(interval, t)?;
-        self.with_time_cell_checked(zoom, index)
+    pub fn with_time(self, t_zoomlevel: impl Into<u8>, t_index: u64) -> Result<Self, Error> {
+        let tz = TZoomLevel::new(t_zoomlevel.into())?;
+        tz.check_index(t_index)?;
+
+        // 無効時の木はT軸を分割しないため、受け付けると挿入した時間区間がエラーも警告もなく
+        // 全時間へ広がる（例: 1/4区間を入れると4倍になって戻る）。
+        #[cfg(not(feature = "temporal_id"))]
+        if tz.get() != 0 || t_index != 0 {
+            return Err(SpatialIdError::TIntervalError {
+                i: tz.cell_seconds(),
+            }
+            .into());
+        }
+
+        Ok(self.with_time_cell(tz.get(), t_index))
     }
 
     /// Unix 時刻（秒）が属する時間セルを設定した自身を返す。
     ///
-    /// [`with_time`](Self::with_time) と同じく `interval` は2の冪でなければならない。
+    /// 粒度は [`with_time`](Self::with_time) と同じく**ズームレベル**で指定する
+    /// （1セルは `2^(35 - t_zoomlevel)` 秒）。仕様 1.5.3 (3) の `t = floor(u / i)` に相当する
+    /// 割り算はこちらで行うので、呼び出し側でインデックスを求める必要がない。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::FlexId;
-    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_at(1, 1_770_000_000).unwrap();
+    /// # use kasane_logic::{FlexId, TZoomLevel};
+    /// // 最深ズーム（35）は1秒幅。
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1)
+    ///     .unwrap()
+    ///     .with_time_at(TZoomLevel::MAX, 1_770_000_000)
+    ///     .unwrap();
     /// assert_eq!(id.seconds_range(), (1_770_000_000, 1_770_000_001));
     /// # }
     /// ```
-    pub fn with_time_at<I>(self, interval: I, unix_seconds: u64) -> Result<Self, Error>
-    where
-        I: TryInto<Interval>,
-        Error: From<I::Error>,
-    {
-        let interval: Interval = interval.try_into()?;
-        self.with_time::<Interval>(interval, interval.index_of(unix_seconds))
+    pub fn with_time_at(
+        self,
+        t_zoomlevel: impl Into<u8>,
+        unix_seconds: u64,
+    ) -> Result<Self, Error> {
+        let tz = TZoomLevel::new(t_zoomlevel.into())?;
+        self.with_time(tz, unix_seconds / tz.cell_seconds())
     }
 
     /// 絶対秒区間 `[start, end)` を設定した自身を返す。
     ///
-    /// [`FlexId`] は2進セル1個しか持てないので、**区間が2の冪秒でその境界に整列している場合**
-    /// にのみ成功する。そうでなければ [`SpatialIdError::TIntervalError`] を返す。
+    /// 3型で共通の「実時間で指定する」入口。[`FlexId`] は2進セル1個しか持てないので、
+    /// **区間が2の冪秒でその境界に整列している場合**にのみ成功し、そうでなければ
+    /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
@@ -230,27 +269,8 @@ impl FlexId {
             }
             .into());
         }
-        self.with_time::<Interval>(interval, t_min)
-    }
-
-    /// 同じ絶対秒区間を、別の単位で表し直した自身を返す。
-    ///
-    /// [`FlexId`] のセルは常に「その区間を表せる唯一の2進セル」なので、実際に表し直せるのは
-    /// 元と同じ単位を渡したときだけである。それ以外は
-    /// [`SpatialIdError::TIntervalError`] を返す。[`SingleId`](crate::SingleId) /
-    /// [`RangeId`](crate::RangeId) との対称性のために用意している。
-    pub fn relabel_time<I>(self, interval: I) -> Result<Self, Error>
-    where
-        I: TryInto<Interval>,
-        Error: From<I::Error>,
-    {
-        let interval: Interval = interval.try_into()?;
-        let (start, end) = self.seconds_range();
-        let unit = interval.seconds();
-        if end - start != unit || !start.is_multiple_of(unit) {
-            return Err(SpatialIdError::TIntervalError { i: unit }.into());
-        }
-        self.with_time::<Interval>(interval, start / unit)
+        let (zoom, index) = time_cells::cell_of(interval, t_min)?;
+        self.with_time(zoom, index)
     }
 
     /// 時間の指定を外し、全時間へ戻した自身を返す。
@@ -258,34 +278,16 @@ impl FlexId {
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{FlexId, SpatialId};
-    /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(1024, 7).unwrap();
+    /// # use kasane_logic::{FlexId, SpatialId, TZoomLevel};
+    /// let id = FlexId::new(5, 3, 2, 3, 10, 1)
+    ///     .unwrap()
+    ///     .with_time(TZoomLevel::new(25).unwrap(), 7)
+    ///     .unwrap();
     /// assert!(id.without_time().is_whole_time());
     /// # }
     /// ```
     pub fn without_time(self) -> Self {
         self.with_time_cell(0, 0)
-    }
-
-    /// 2進セル `(zoom, index)` を検証してから差し替える。クレート内部専用。
-    ///
-    /// 文字列パース（`|{tz}/{ti}`）のように、`{i}/{t}` ではなくセルの形で外から値が来る
-    /// 経路の入口。`temporal_id` feature 無効時のガードもここに集約している。
-    pub(crate) fn with_time_cell_checked(self, zoom: u8, index: u64) -> Result<Self, Error> {
-        let tz = TZoomLevel::new(zoom)?;
-        tz.check_index(index)?;
-
-        // 無効時の木はT軸を分割しないため、受け付けると挿入した時間区間がエラーも警告もなく
-        // 全時間へ広がる（例: 1/4区間を入れると4倍になって戻る）。
-        #[cfg(not(feature = "temporal_id"))]
-        if tz.get() != 0 || index != 0 {
-            return Err(SpatialIdError::TIntervalError {
-                i: tz.cell_seconds(),
-            }
-            .into());
-        }
-
-        Ok(self.with_time_cell(tz.get(), index))
     }
 
     /// 時間セルを差し替えた自身を返す。クレート内部専用（検証済みの値を渡すこと）。

@@ -3,7 +3,7 @@ use core::fmt;
 
 /// ズームレベルを表す型の土台。`LIMIT`は許容する最大ズームレベルで、空間軸（[`ZoomLevel`]、
 /// `LIMIT=30`）と時間軸の生セル（[`TZoomLevel`]、
-/// `LIMIT=62`）が生成・深化・範囲チェックの式を共有しつつ、`LIMIT`の値でRustの型として区別される
+/// `LIMIT=35`）が生成・深化・範囲チェックの式を共有しつつ、`LIMIT`の値でRustの型として区別される
 /// （`ZoomLevel`と`TZoomLevel`は異なる型なので取り違えられない）。
 ///
 /// `Zoom`自体は非公開の実装詳細で、公開APIとしては`ZoomLevel`/`TZoomLevel`という具体化された

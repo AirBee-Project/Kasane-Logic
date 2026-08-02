@@ -290,9 +290,10 @@ mod api_symmetry {
             .unwrap()
             .with_time(1024, 7)
             .unwrap();
+        // FlexId だけは母語（ズーム）で指定する。ズーム25 = 2^(35-25) = 1024 秒幅。
         let flex = FlexId::new(4, 0, 4, 1, 4, 1)
             .unwrap()
-            .with_time(1024, 7)
+            .with_time(25, 7)
             .unwrap();
 
         // 同じ `{i}/{t}` を指定したので、占める秒区間も一致する。
@@ -336,7 +337,7 @@ mod api_symmetry {
             .unwrap();
         let flex = FlexId::new(4, 0, 4, 1, 4, 1)
             .unwrap()
-            .with_time_at(1024, UNIX)
+            .with_time_at(25, UNIX)
             .unwrap();
 
         assert_eq!(single.seconds_range(), range.seconds_range());
@@ -403,12 +404,9 @@ mod api_symmetry {
         assert_eq!(range.clone().relabel_time(1800).unwrap().t(), [0, 3]);
         assert!(range.relabel_time(Interval::DAY).is_err());
 
-        let flex = FlexId::new(4, 0, 4, 1, 4, 1)
-            .unwrap()
-            .with_time(1024, 7)
-            .unwrap();
-        assert_eq!(flex.relabel_time(1024).unwrap(), flex);
-        assert!(flex.relabel_time(1800).is_err());
+        // `FlexId` には `relabel_time` を持たせない。セルが秒区間を一意に決めるので、
+        // 「同じ区間を別の単位で」は定義上ありえず、成功しても必ず元と同じ値になる
+        // （常に no-op か Err にしかならないAPIは、対称性のためだけに置く価値がない）。
     }
 
     /// `without_time` は3型とも同じ名前で、全時間へ戻す。
@@ -433,7 +431,7 @@ mod api_symmetry {
         assert!(
             FlexId::new(4, 0, 4, 1, 4, 1)
                 .unwrap()
-                .with_time(1024, 7)
+                .with_time(25, 7)
                 .unwrap()
                 .without_time()
                 .is_whole_time()

@@ -15,10 +15,6 @@ pub mod tests;
 ///
 /// - ある場所に対する空間IDを「存在しない」もしくは「一意に定まる」状態を維持する
 /// - 集合同士の演算や、集合に対する単項演算を提供する
-///
-/// # 注意
-/// - 現在は時空間IDに非対応で、時間ID部分がWHOLEではないIDが挿入された場合に無条件にPanicする。(将来的に時間IDにも対応する予定。)
-/// - 空間ごとに値を持たせたい、値から空間を引きたい、または値の管理が必要な場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdSet {
     inner: FlexTreeCore<()>,

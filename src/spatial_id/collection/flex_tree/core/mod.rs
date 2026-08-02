@@ -1178,11 +1178,11 @@ mod core_api_tests {
         // 同じ空間セルで、時間だけが隣り合う2つのセル（ズーム2＝全時間の1/4幅）。
         let a = FlexId::new(3, 1, 3, 1, 3, 1)
             .unwrap()
-            .with_time_cell_checked(2, 0)
+            .with_time(2u8, 0)
             .unwrap();
         let b = FlexId::new(3, 1, 3, 1, 3, 1)
             .unwrap()
-            .with_time_cell_checked(2, 1)
+            .with_time(2u8, 1)
             .unwrap();
 
         core.insert([a], 10);
@@ -1198,7 +1198,7 @@ mod core_api_tests {
 
     /// 時間だけが深いセルがあっても、`max_zoomlevel` は**空間**の解像度だけを報告する。
     ///
-    /// レベル番号から `ceil(level / NUM_AXES)` として推定していた頃は、時間軸（最大ズーム62）の
+    /// レベル番号から `ceil(level / NUM_AXES)` として推定していた頃は、時間軸（最大ズーム35）の
     /// 深さがそのまま空間ズームとして出てしまい、`bounding_box` が `None` になり
     /// `flat_single_ids` が `ZOutOfRange` でパニックしていた。
     #[cfg(feature = "temporal_id")]
