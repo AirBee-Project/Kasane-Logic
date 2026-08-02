@@ -178,7 +178,7 @@ mod tests {
         cells.extend(a.into_iter().map(|id| (id, 7u8)));
         cells.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal(cells, Some(&IntervalSet::calendar()));
+        let merged = coalesce_temporal(cells, Some(IntervalSet::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),

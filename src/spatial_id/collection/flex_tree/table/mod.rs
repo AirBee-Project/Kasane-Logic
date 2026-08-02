@@ -200,34 +200,20 @@ where
     /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
     ///
     /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    /// 暦の単位へ正規化したいだけなら [`IntervalSet::calendar`] を直接渡せる。
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
-    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+        units: &IntervalSet,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         self.coalesced_range_ids(Some(units))
-    }
-
-    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化して読み出す。
-    pub fn range_ids_calendar(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
-        // 候補集合は `coalesce_temporal` が即座に消費するので、ここで確定させてから返す。
-        self.coalesced_range_ids(Some(&IntervalSet::calendar()))
-            .collect::<Vec<_>>()
-            .into_iter()
     }
 
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
-    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+        units: &IntervalSet,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.expand_range_ids(Some(units))
-    }
-
-    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化した [`flat_single_ids`](Self::flat_single_ids)。
-    pub fn flat_single_ids_calendar(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        self.expand_range_ids(Some(&IntervalSet::calendar()))
-            .collect::<Vec<_>>()
-            .into_iter()
     }
 
     /// 内部の rank を値へ引き直しつつ、時間方向に結合した [`RangeId`] を返す。
@@ -237,7 +223,7 @@ where
     fn coalesced_range_ids<'a>(
         &'a self,
         units: Option<&IntervalSet>,
-    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
             self.inner
                 .iter_ref()
@@ -258,7 +244,7 @@ where
     fn expand_range_ids<'a>(
         &'a self,
         units: Option<&IntervalSet>,
-    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.coalesced_range_ids(units)
             .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
     }

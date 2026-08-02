@@ -317,7 +317,7 @@ where
     if has_temporal_split {
         crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
             iter,
-            Some(&IntervalSet::calendar()),
+            Some(IntervalSet::calendar()),
         )
     } else {
         iter.map(|(flex_id, value)| (RangeId::from(&flex_id), value))

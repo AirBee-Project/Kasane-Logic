@@ -192,12 +192,6 @@ impl core::fmt::Display for Interval {
     }
 }
 
-impl From<Interval> for i64 {
-    fn from(interval: Interval) -> i64 {
-        interval.seconds() as i64
-    }
-}
-
 impl TryFrom<u64> for Interval {
     type Error = Error;
 

@@ -10,6 +10,7 @@
 //! 見慣れない単位が出てくる。候補集合を渡せば「その中で最もセル数が少なくなるもの」を
 //! 選べるので、`_3600/0:1` のように意味の通る単位へ正規化できる。
 
+use alloc::borrow::Cow;
 use alloc::vec::Vec;
 
 use crate::Interval;
@@ -19,7 +20,7 @@ use crate::Interval;
 /// # 必ず含まれる2つの候補
 ///
 /// どう構築しても [`Interval::WHOLE`] と（`temporal_id` feature 有効時は）
-/// [`Interval::SECOND`] が自動的に加わる。この2つが無いと表現できない区間が生じるためである。
+/// `Interval::SECOND` が自動的に加わる。この2つが無いと表現できない区間が生じるためである。
 ///
 /// - **`SECOND`（1秒）**: 任意の秒区間を必ず表せる保証。これが無いと、たとえば
 ///   候補が `{MINUTE}` だけのとき `[30, 90)` を表せない（`30` が `60` で割り切れない）。
@@ -41,11 +42,38 @@ use crate::Interval;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IntervalSet {
     /// 秒数の降順。重複なし。先頭から見て最初に割り切れたものが「最も粗い」。
-    units: Vec<Interval>,
+    ///
+    /// [`Vec`]ではなく[`Cow`]なのは、[`calendar`](Self::calendar)を`static`として
+    /// 用意して`&'static`で貸し出すためである。所有版（[`new`](Self::new)）は
+    /// [`Cow::Owned`]、組み込みの候補集合は[`Cow::Borrowed`]になる。
+    units: Cow<'static, [Interval]>,
 }
 
+/// [`IntervalSet::calendar`] の実体。
+///
+/// [`new`](IntervalSet::new) を通さないので、**降順・重複なしの不変条件は手で守ること**
+/// （`calendar_is_sorted_descending_without_duplicates` が固定している）。
+#[cfg(feature = "temporal_id")]
+static CALENDAR: IntervalSet = IntervalSet {
+    units: Cow::Borrowed(&[
+        Interval::WHOLE,
+        Interval::DAY,
+        Interval::HOUR,
+        Interval::MINUTE,
+        Interval::SECOND,
+    ]),
+};
+
+/// [`IntervalSet::calendar`] の実体（`temporal_id` feature 無効時）。
+///
+/// 暦の定数（`DAY` など）が存在しないので全時間だけになる。
+#[cfg(not(feature = "temporal_id"))]
+static CALENDAR: IntervalSet = IntervalSet {
+    units: Cow::Borrowed(&[Interval::WHOLE]),
+};
+
 impl IntervalSet {
-    /// 候補から作る。[`Interval::WHOLE`] と [`Interval::SECOND`] は自動的に加わる。
+    /// 候補から作る。[`Interval::WHOLE`] と `Interval::SECOND` は自動的に加わる。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
@@ -68,14 +96,28 @@ impl IntervalSet {
         units.sort_unstable_by_key(|u| core::cmp::Reverse(u.seconds()));
         units.dedup();
 
-        IntervalSet { units }
+        IntervalSet {
+            units: Cow::Owned(units),
+        }
     }
 
     /// 暦の単位だけに正規化する候補集合。
     ///
-    /// `{`[`WHOLE`](Interval::WHOLE)`,` [`DAY`](Interval::DAY)`,` [`HOUR`](Interval::HOUR)`,`
-    /// [`MINUTE`](Interval::MINUTE)`,` [`SECOND`](Interval::SECOND)`}`。
+    /// `{`[`WHOLE`](Interval::WHOLE)`,` `DAY`,` `HOUR`,`
+    /// `MINUTE`,` `SECOND`}`。
     /// `temporal_id` feature 無効時は `WHOLE` のみになる（他の定数が存在しないため）。
+    ///
+    /// # なぜ `&'static` を返すのか
+    ///
+    /// 読み出し API（[`range_ids_in`](crate::SpatialIdSet::range_ids_in) など）へ
+    /// **一時値のまま直接渡せる**ようにするためである。所有値を返していた頃は
+    ///
+    /// ```text
+    /// let ids = set.range_ids_in(&IntervalSet::calendar());  // 一時値が文末で死ぬ
+    /// ```
+    ///
+    /// が書けず、コレクションごとに `range_ids_calendar()` のような別名を生やして
+    /// 内側で `collect` する必要があった（＝遅延評価が失われていた）。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
@@ -88,16 +130,8 @@ impl IntervalSet {
     /// assert_eq!(units.coarsest_dividing(30, 90), Interval::SECOND);
     /// # }
     /// ```
-    pub fn calendar() -> Self {
-        #[cfg(feature = "temporal_id")]
-        {
-            Self::new([Interval::DAY, Interval::HOUR, Interval::MINUTE])
-        }
-
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            Self::new([])
-        }
+    pub fn calendar() -> &'static Self {
+        &CALENDAR
     }
 
     /// 候補に含まれるか。
@@ -116,7 +150,7 @@ impl IntervalSet {
     /// （`t = [start/u, end/u - 1]` になる）。粗いほどセル数
     /// （`t_max - t_min + 1`）が少なくなるので、これが候補の中でのセル数最小を与える。
     ///
-    /// [`Interval::SECOND`] が必ず候補にあるため、**この関数は必ず値を返す**
+    /// `Interval::SECOND` が必ず候補にあるため、**この関数は必ず値を返す**
     /// （`temporal_id` feature 無効時は全時間しか存在せず、`WHOLE` が返る）。
     pub fn coarsest_dividing(&self, start: u64, end: u64) -> Interval {
         for unit in self.units.iter().copied() {
@@ -134,7 +168,7 @@ impl IntervalSet {
 impl Default for IntervalSet {
     /// [`calendar`](Self::calendar) と同じ。
     fn default() -> Self {
-        Self::calendar()
+        CALENDAR.clone()
     }
 }
 
@@ -145,8 +179,8 @@ mod tests {
     #[test]
     fn whole_and_second_are_always_present() {
         for units in [
-            IntervalSet::new([]),
-            IntervalSet::new([Interval::HOUR]),
+            &IntervalSet::new([]),
+            &IntervalSet::new([Interval::HOUR]),
             IntervalSet::calendar(),
         ] {
             assert!(units.contains(Interval::WHOLE));
@@ -159,6 +193,24 @@ mod tests {
         let units = IntervalSet::new([Interval::HOUR, Interval::MINUTE, Interval::HOUR]);
         let seconds: Vec<u64> = units.iter().map(|u| u.seconds()).collect();
         assert_eq!(seconds, [Interval::MAX_SECONDS, 3600, 60, 1]);
+    }
+
+    /// [`CALENDAR`] は `new` を通さない `static` なので、降順・重複なしの不変条件を
+    /// ここで固定する。`coarsest_dividing` は「先頭から最初に割り切れたもの」を返すため、
+    /// 順序が崩れると最も粗い単位が選ばれなくなる。
+    #[test]
+    fn calendar_is_sorted_descending_without_duplicates() {
+        let seconds: Vec<u64> = IntervalSet::calendar()
+            .iter()
+            .map(|u| u.seconds())
+            .collect();
+        assert_eq!(seconds, [Interval::MAX_SECONDS, 86_400, 3_600, 60, 1]);
+
+        // `new` 経由で同じ候補を組んだものと一致する。
+        assert_eq!(
+            IntervalSet::calendar(),
+            &IntervalSet::new([Interval::DAY, Interval::HOUR, Interval::MINUTE])
+        );
     }
 
     /// 全時間は `WHOLE` で1セルに収まる。
@@ -238,21 +290,62 @@ mod collection_api {
         assert_eq!(natural, ["12/0/3638/1614_7200/0"]);
 
         // 暦に正規化すると「3600 秒 × 2 セル」。
-        let calendar: Vec<_> = set.range_ids_calendar().map(|r| r.to_string()).collect();
-        assert_eq!(calendar, ["12/0/3638/1614_3600/0:1"]);
-
-        // `range_ids_in` に明示しても同じ。
-        let explicit: Vec<_> = set
-            .range_ids_in(&IntervalSet::calendar())
+        let calendar: Vec<_> = set
+            .range_ids_in(IntervalSet::calendar())
             .map(|r| r.to_string())
             .collect();
-        assert_eq!(explicit, calendar);
+        assert_eq!(calendar, ["12/0/3638/1614_3600/0:1"]);
 
         // 秒区間はどの表現でも変わらない。
         assert_eq!(
             set.range_ids().next().unwrap().seconds_range(),
-            set.range_ids_calendar().next().unwrap().seconds_range()
+            set.range_ids_in(IntervalSet::calendar())
+                .next()
+                .unwrap()
+                .seconds_range()
         );
+    }
+
+    /// `IntervalSet::calendar()` は `&'static` なので、一時値のまま渡しても
+    /// 戻り値のイテレータを束縛できる（所有値を返していた頃は書けなかった形）。
+    #[test]
+    fn calendar_can_be_passed_inline_and_the_iterator_outlives_it() {
+        let mut set = SpatialIdSet::new();
+        for id in two_hours() {
+            set.insert(id);
+        }
+
+        let iter = set.range_ids_in(IntervalSet::calendar());
+        let got: Vec<_> = iter.map(|r| r.to_string()).collect();
+        assert_eq!(got, ["12/0/3638/1614_3600/0:1"]);
+
+        // 一時値の候補集合でも同じ（`units` は `&self` とライフタイムを共有しない）。
+        let iter = set.range_ids_in(&IntervalSet::new([Interval::MINUTE]));
+        assert_eq!(iter.count(), 1);
+    }
+
+    /// 時間を持たない木では、候補集合を渡しても遅延イテレータのまま返る。
+    ///
+    /// 候補集合を一時値として渡せなかった頃は、公開側で `collect::<Vec<_>>()` して
+    /// 借用を切っていたため、時間を持たない木でも全葉が先行して積まれていた。
+    /// `Vec::into_iter` は要素数を正確に申告するので、`size_hint` の下限が `0` のままで
+    /// あることを見れば `collect` の再導入を検出できる。
+    #[test]
+    fn reading_a_time_free_tree_does_not_materialise() {
+        let mut set = SpatialIdSet::new();
+        for x in 0..32u32 {
+            set.insert(SingleId::new(20, 0, x * 2, 0).unwrap());
+        }
+        assert_eq!(set.count(), 32);
+
+        for hint in [
+            set.range_ids().size_hint(),
+            set.range_ids_in(IntervalSet::calendar()).size_hint(),
+            set.flat_single_ids().size_hint(),
+            set.flat_single_ids_in(IntervalSet::calendar()).size_hint(),
+        ] {
+            assert_eq!(hint, (0, None), "先行して全件を積んでいる");
+        }
     }
 
     #[test]
@@ -265,11 +358,11 @@ mod collection_api {
         }
 
         for got in [
-            map.range_ids_calendar()
+            map.range_ids_in(IntervalSet::calendar())
                 .map(|(r, v)| (r.to_string(), *v))
                 .collect::<Vec<_>>(),
             table
-                .range_ids_calendar()
+                .range_ids_in(IntervalSet::calendar())
                 .map(|(r, v)| (r.to_string(), *v))
                 .collect::<Vec<_>>(),
         ] {
@@ -290,7 +383,7 @@ mod collection_api {
 
         // 暦（3600秒 × 2セル）は2件へ展開される。
         let calendar: Vec<_> = set
-            .flat_single_ids_calendar()
+            .flat_single_ids_in(IntervalSet::calendar())
             .map(|s| s.to_string())
             .collect();
         assert_eq!(calendar, ["12/0/3638/1614_3600/0", "12/0/3638/1614_3600/1"]);
@@ -307,7 +400,7 @@ mod collection_api {
 
         for got in [
             set.range_ids().next().unwrap(),
-            set.range_ids_calendar().next().unwrap(),
+            set.range_ids_in(IntervalSet::calendar()).next().unwrap(),
         ] {
             assert_eq!(got.interval(), Interval::WHOLE);
             assert_eq!(got.t(), [0, 0]);
@@ -330,7 +423,7 @@ mod collection_api {
             "12/0/3638/1614_1800/809712"
         );
         // 1800 は暦の候補に無いので、割り切れる最も粗い候補＝分になる。
-        let calendar = set.range_ids_calendar().next().unwrap();
+        let calendar = set.range_ids_in(IntervalSet::calendar()).next().unwrap();
         assert_eq!(calendar.interval(), Interval::MINUTE);
         assert_eq!(calendar.t(), [24_291_360, 24_291_389]);
         // 秒区間は変わらない。

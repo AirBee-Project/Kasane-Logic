@@ -1,4 +1,4 @@
-use crate::{FlexId, RangeId, SingleId, spatial_id::time::cells::TimeCells};
+use crate::{FlexId, SingleId, spatial_id::time::cells::TimeCells};
 
 /// [`SingleId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開するイテレータ。
 ///
@@ -46,13 +46,5 @@ impl IntoIterator for SingleId {
 impl SingleId {
     pub fn single_ids(self) -> impl Iterator<Item = SingleId> {
         core::iter::once(self)
-    }
-
-    /// この [`SingleId`] を [`RangeId`] として見る（各次元が1点の範囲）。
-    ///
-    /// [`From`] 実装への薄い別名。`Box<dyn Iterator>` を返す [`RangeId::into_iter`] ではなく、
-    /// 割り当てのない [`SingleId::into_iter`] を使いたい場面と取り違えないための目印でもある。
-    pub fn to_range(&self) -> RangeId {
-        RangeId::from(self)
     }
 }

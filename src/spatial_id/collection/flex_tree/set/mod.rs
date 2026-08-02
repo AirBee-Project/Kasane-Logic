@@ -193,47 +193,27 @@ impl SpatialIdSet {
     /// assert_eq!(set.range_ids().next().unwrap().to_string(), "12/0/3638/1614_7200/0");
     ///
     /// // 暦の単位に正規化すると「3600 秒 × 2 セル」になる。
-    /// let got = set.range_ids_in(&IntervalSet::calendar()).next().unwrap();
+    /// let got = set.range_ids_in(IntervalSet::calendar()).next().unwrap();
     /// assert_eq!(got.to_string(), "12/0/3638/1614_3600/0:1");
     /// # }
     /// ```
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
-    ) -> impl Iterator<Item = RangeId> + 'a {
+        units: &IntervalSet,
+    ) -> impl Iterator<Item = RangeId> + use<'a> {
         self.inner
             .range_ids_ref(Some(units))
             .map(|(range_id, _)| range_id)
     }
 
-    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化して読み出す。
-    ///
-    /// [`range_ids_in`](Self::range_ids_in)`(&`[`IntervalSet::calendar()`]`)` の別名。
-    pub fn range_ids_calendar(&self) -> impl Iterator<Item = RangeId> + '_ {
-        self.inner
-            .range_ids_ref(Some(&IntervalSet::calendar()))
-            .map(|(range_id, _)| range_id)
-            .collect::<Vec<_>>()
-            .into_iter()
-    }
-
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
-    ) -> impl Iterator<Item = SingleId> + 'a {
+        units: &IntervalSet,
+    ) -> impl Iterator<Item = SingleId> + use<'a> {
         self.inner
             .flat_single_ids_in_ref(Some(units))
             .map(|(single_id, _)| single_id)
-    }
-
-    /// `{WHOLE, DAY, HOUR, MINUTE, SECOND}` だけに正規化した [`flat_single_ids`](Self::flat_single_ids)。
-    pub fn flat_single_ids_calendar(&self) -> impl Iterator<Item = SingleId> + '_ {
-        self.inner
-            .flat_single_ids_in_ref(Some(&IntervalSet::calendar()))
-            .map(|(single_id, _)| single_id)
-            .collect::<Vec<_>>()
-            .into_iter()
     }
 
     /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
