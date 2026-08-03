@@ -104,7 +104,11 @@ fn invalid_range_is_rejected_by_validate() {
 fn filter_values_via_lazy_view() {
     let query = int_table().query().filter_in(5..=10);
 
-    let got: alloc::vec::Vec<i32> = query.lazy_get(segment(11)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<i32> = query
+        .lazy_get(segment(11))
+        .unwrap()
+        .map(|(_, v)| v)
+        .collect();
     assert_eq!(got, alloc::vec![5]);
 
     // 範囲外の値だったSegmentは何も返らない。

@@ -151,7 +151,8 @@ impl SingleId {
     /// ```
     pub fn intersection(&self, other: &Self) -> Option<RangeId> {
         let deep = self.spatial_intersection(other)?;
-        let (start, end) = segments::intersect_seconds(self.seconds_range(), other.seconds_range())?;
+        let (start, end) =
+            segments::intersect_seconds(self.seconds_range(), other.seconds_range())?;
 
         Some(
             RangeId::from(deep)

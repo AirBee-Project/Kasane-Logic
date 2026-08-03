@@ -79,9 +79,17 @@ fn map_values_composes_with_other_operators() {
 fn map_values_via_lazy_view() {
     let query = int_table().query().map_values(|v: i32| v > 10);
 
-    let got: alloc::vec::Vec<bool> = query.lazy_get(segment(11)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<bool> = query
+        .lazy_get(segment(11))
+        .unwrap()
+        .map(|(_, v)| v)
+        .collect();
     assert_eq!(got, alloc::vec![true]);
 
-    let got: alloc::vec::Vec<bool> = query.lazy_get(segment(10)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<bool> = query
+        .lazy_get(segment(10))
+        .unwrap()
+        .map(|(_, v)| v)
+        .collect();
     assert_eq!(got, alloc::vec![false]);
 }

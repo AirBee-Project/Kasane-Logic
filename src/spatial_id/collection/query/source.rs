@@ -45,7 +45,11 @@ mod tests {
         let working = table.read_subset(&bounds).unwrap();
 
         let segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
-        assert_eq!(segments.len(), 1, "同じSegmentが重複して入っている: {segments:?}");
+        assert_eq!(
+            segments.len(),
+            1,
+            "同じSegmentが重複して入っている: {segments:?}"
+        );
         assert_eq!(segments[0].1, 7);
     }
 

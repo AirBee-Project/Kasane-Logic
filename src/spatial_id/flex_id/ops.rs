@@ -171,11 +171,21 @@ fn nested_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
 }
 
 /// 1軸について、Segmentと（別ズームの）整数範囲が重なるか。
-fn overlaps_axis(segment_z: u8, segment_i: i64, range_z: u8, range_min: i64, range_max: i64) -> bool {
+fn overlaps_axis(
+    segment_z: u8,
+    segment_i: i64,
+    range_z: u8,
+    range_min: i64,
+    range_max: i64,
+) -> bool {
     let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if segment_z > range_z {
-        (segment_z, segment_i, segment_i, range_z, range_min, range_max)
+        (
+            segment_z, segment_i, segment_i, range_z, range_min, range_max,
+        )
     } else {
-        (range_z, range_min, range_max, segment_z, segment_i, segment_i)
+        (
+            range_z, range_min, range_max, segment_z, segment_i, segment_i,
+        )
     };
     let shift = deep_z - shallow_z;
     !((deep_max >> shift) < shallow_min || (deep_min >> shift) > shallow_max)

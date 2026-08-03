@@ -8,7 +8,7 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{FlexIdValue, FlexId, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{FlexId, FlexIdValue, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Clone, Debug)]

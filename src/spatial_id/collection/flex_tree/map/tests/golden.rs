@@ -115,7 +115,11 @@ mod golden_tests {
         after.sort();
 
         assert_eq!(before, after, "往復で内容が変わっている");
-        assert_eq!(original.count(), restored.count(), "Segment数が変わっている");
+        assert_eq!(
+            original.count(),
+            restored.count(),
+            "Segment数が変わっている"
+        );
     }
 
     /// 同じ入力なら常に同じバイト列になること（golden テストの前提）。

@@ -162,7 +162,10 @@ mod tests {
             .unwrap();
 
         let segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
-        assert!(segments.len() > 1, "1800秒は複数の2分岐Segmentへ分解されるはず");
+        assert!(
+            segments.len() > 1,
+            "1800秒は複数の2分岐Segmentへ分解されるはず"
+        );
 
         let merged = coalesce_temporal_vec(segments, None);
         assert_eq!(merged.len(), 1, "結合されて1件になるはず");

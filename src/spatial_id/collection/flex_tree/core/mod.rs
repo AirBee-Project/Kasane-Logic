@@ -1284,7 +1284,11 @@ mod core_api_tests {
         assert_eq!(total_seconds, range_end - range_start);
 
         // 分解元と同じFlexIdであることも確認する。
-        assert!(segments.iter().all(|c| c.f_index() == 0 && c.x_index() == 0));
+        assert!(
+            segments
+                .iter()
+                .all(|c| c.f_index() == 0 && c.x_index() == 0)
+        );
         let _ = FlexId::new(0, 0, 0, 0, 0, 0).unwrap();
     }
 }
