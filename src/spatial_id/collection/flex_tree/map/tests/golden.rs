@@ -78,7 +78,7 @@ mod golden_tests {
         } else {
             "no_temporal"
         };
-        insta::with_settings!({ snapshot_suffix => suffix }, {
+        insta::with_settings!({ snapshot_suffix => suffix, prepend_module_to_snapshot => false }, {
             insta::assert_snapshot!(hex_dump(&bytes));
         });
     }
@@ -92,7 +92,7 @@ mod golden_tests {
         } else {
             "no_temporal"
         };
-        insta::with_settings!({ snapshot_suffix => suffix }, {
+        insta::with_settings!({ snapshot_suffix => suffix, prepend_module_to_snapshot => false }, {
             insta::assert_snapshot!(bytes.len());
         });
     }
