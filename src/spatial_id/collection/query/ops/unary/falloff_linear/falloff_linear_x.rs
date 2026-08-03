@@ -1,5 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::grid::{GridAxis, GridOp};
 use crate::spatial_id::collection::query::working::WorkingTree;
 use core::convert::TryFrom;
 use core::fmt::Debug;
@@ -113,5 +114,9 @@ where
             self.radius,
             P::NAME
         )
+    }
+
+    fn grid_op(&self) -> Option<GridOp<V>> {
+        super::grid_op::<V, P>(GridAxis::X, self.z, self.radius)
     }
 }

@@ -58,6 +58,48 @@ where
         self.inner.bounding_box()
     }
 
+    /// ランクを格納した内部ツリー。
+    pub(crate) fn rank_core(&self) -> &FlexTreeCore<usize> {
+        &self.inner
+    }
+
+    /// ランクを添字にして実体値を引ける密な表。`[0]` は常に [`None`]（ランクは 1 始まり）。
+    ///
+    /// 葉ごとに逆引きするなら、`BTreeMap` を葉の数だけ降りるより一度均したほうが速い。
+    pub(crate) fn values_by_rank(&self) -> Vec<Option<&V>> {
+        let mut by_rank = alloc::vec![None; self.current_rank + 1];
+        for (&rank, value) in &self.reverse_dictionary {
+            if let Some(slot) = by_rank.get_mut(rank) {
+                *slot = Some(value);
+            }
+        }
+        by_rank
+    }
+
+    /// ランクのツリーと、ランク順（1 始まり）に並んだ実体値からテーブルを組む。
+    ///
+    /// `ranks` の各葉は `values` のインデックス + 1 でなければならない。値インデックスは
+    /// 未構築（`insert` 直後と同じ状態）で、必要になったときに
+    /// [`rebuild_index`](Self::rebuild_index) が組む。
+    pub(crate) fn from_ranked_core(ranks: FlexTreeCore<usize>, values: Vec<V>) -> Self {
+        let mut dictionary = BTreeMap::new();
+        let mut reverse_dictionary = BTreeMap::new();
+        for (i, v) in values.into_iter().enumerate() {
+            dictionary.insert(v.clone(), i + 1);
+            reverse_dictionary.insert(i + 1, v);
+        }
+        let current_rank = dictionary.len();
+
+        Self {
+            inner: ranks,
+            dictionary,
+            reverse_dictionary,
+            value_index: BTreeMap::default(),
+            value_index_built: false,
+            current_rank,
+        }
+    }
+
     /// 空間に値を挿入します。
     pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
         let rank = match self.dictionary.get(&value) {

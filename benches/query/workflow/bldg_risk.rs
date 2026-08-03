@@ -55,45 +55,59 @@ where
 }
 
 fn bench_shift(c: &mut Criterion) {
-    bench_workflow(c, "Workflow/BldgRisk_Shift", &[100, 1000, 5000], |t| {
-        t.query()
-            .shift_x(24, 5)
-            .shift_y(24, -5)
-            .raw_run_table()
-            .unwrap()
-    });
+    bench_workflow(
+        c,
+        "Workflow/BldgRisk_Shift",
+        &[100, 1000, 5000, 52608],
+        |t| {
+            t.query()
+                .shift_x(24, 5)
+                .shift_y(24, -5)
+                .raw_run_table()
+                .unwrap()
+        },
+    );
 }
 
 fn bench_falloff(c: &mut Criterion) {
-    // Falloffは乗数的に重くなるため、少し小さめのNで検証
-    bench_workflow(c, "Workflow/BldgRisk_Falloff", &[10, 100, 1000], |t| {
-        t.query()
-            .falloff_linear_x(24, 5, Max)
-            .falloff_linear_y(24, 5, Max)
-            .falloff_linear_f(24, 15, Max)
-            .raw_run_table()
-            .unwrap()
-    });
+    bench_workflow(
+        c,
+        "Workflow/BldgRisk_Falloff",
+        &[10, 100, 1000, 5000, 52608],
+        |t| {
+            t.query()
+                .falloff_linear_x(24, 5, Max)
+                .falloff_linear_y(24, 5, Max)
+                .falloff_linear_f(24, 15, Max)
+                .raw_run_table()
+                .unwrap()
+        },
+    );
 }
 
 fn bench_shift_and_falloff(c: &mut Criterion) {
-    bench_workflow(c, "Workflow/BldgRisk_ShiftFalloff", &[10, 100, 1000], |t| {
-        t.query()
-            .shift_x(24, 5)
-            .shift_y(24, -5)
-            .falloff_linear_x(24, 5, Max)
-            .falloff_linear_y(24, 5, Max)
-            .falloff_linear_f(24, 15, Max)
-            .raw_run_table()
-            .unwrap()
-    });
+    bench_workflow(
+        c,
+        "Workflow/BldgRisk_ShiftFalloff",
+        &[10, 100, 1000, 5000, 52608],
+        |t| {
+            t.query()
+                .shift_x(24, 5)
+                .shift_y(24, -5)
+                .falloff_linear_x(24, 5, Max)
+                .falloff_linear_y(24, 5, Max)
+                .falloff_linear_f(24, 15, Max)
+                .raw_run_table()
+                .unwrap()
+        },
+    );
 }
 
 fn bench_zoom_out(c: &mut Criterion) {
     bench_workflow(
         c,
         "Workflow/BldgRisk_ZoomOut_Average",
-        &[100, 1000, 5000],
+        &[100, 1000, 5000, 52608],
         |t| {
             t.query()
                 .zoom_out(ZoomLevel::new(18).unwrap(), Average)

@@ -1,4 +1,3 @@
-use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
@@ -66,29 +65,19 @@ where
     }
 
     fn read_all(self: Box<Self>) -> Result<WorkingTree<V>, Error> {
-        // rank ツリーを辞書で実体値へ展開。Table のSegmentは互いに素なので union（par_build_vec）で正しい。
-        #[cfg(feature = "rayon")]
-        {
-            let items: Vec<(FlexId, V)> = (*self).into_iter().collect();
-            // 小入力では rayon 起動コストが利得を上回るので逐次挿入で組む。
-            if items.len() < SEQ_CONVERT_THRESHOLD {
-                let mut core = FlexTreeCore::new();
-                for (id, value) in items {
-                    core.insert(id, value);
-                }
-                Ok(WorkingTree::from_core(core))
-            } else {
-                Ok(WorkingTree::from_core(FlexTreeCore::par_build_vec(items)))
-            }
-        }
-        #[cfg(not(feature = "rayon"))]
-        {
-            let mut core = FlexTreeCore::new();
-            for (id, value) in *self {
-                core.insert(id, value);
-            }
-            Ok(WorkingTree::from_core(core))
-        }
+        // rank ツリーを辞書で実体値へ展開する。ランク → 実体値は単射なので、木の形は
+        // まったく変わらない。平坦化して組み直す必要はなく、値だけを写せばよい。
+        //
+        // 引きは葉ごとに走る。`BTreeMap` を葉の数だけ降りるとポインタ追跡が効くので、
+        // 木へ入る前にランク添字の密な表へ均しておく。
+        let by_rank = self.values_by_rank();
+        Ok(WorkingTree::from_core(
+            self.rank_core().map_values_injective(&|rank: &usize| {
+                by_rank[*rank]
+                    .expect("ツリー内のランクは必ず逆引き辞書にある")
+                    .clone()
+            }),
+        ))
     }
 }
 
@@ -96,23 +85,35 @@ impl<V> From<WorkingTree<V>> for SpatialIdTable<V>
 where
     V: FlexIdValue + 'static,
 {
-    /// 実体値の互いに素なSegmentを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
+    /// 実体値のSegmentを辞書へ intern し直す。
+    ///
+    /// 実体値 → ランクは単射なので、[`read_all`](Source::read_all) と同じく木の形は
+    /// 変わらない。出現値を集めて辞書を作り、木は値だけを写す。
     fn from(working: WorkingTree<V>) -> Self {
         let core = working.into_core();
+        if core.is_empty() {
+            return SpatialIdTable::new();
+        }
+
+        // 1. 出現値を集めてソート＋重複排除し、決定的なランク順（1 始まり）を得る。
+        let mut values: Vec<V> = core.iter_ref().map(|(_, v)| v.clone()).collect();
         #[cfg(feature = "rayon")]
         {
-            let time_segments: Vec<(FlexId, V)> = core.into_iter().collect();
-            use rayon::iter::FromParallelIterator;
-            if time_segments.len() < SEQ_CONVERT_THRESHOLD {
-                time_segments.into_iter().collect()
+            use rayon::prelude::*;
+            if values.len() >= SEQ_CONVERT_THRESHOLD {
+                values.par_sort_unstable();
             } else {
-                SpatialIdTable::from_par_iter(time_segments)
+                values.sort_unstable();
             }
         }
         #[cfg(not(feature = "rayon"))]
-        {
-            core.into_iter().collect()
-        }
+        values.sort_unstable();
+        values.dedup();
+
+        // 2. 木は形を保ったままランクへ写す。
+        let ranks = core.map_values_injective(&|v: &V| values.binary_search(v).unwrap() + 1);
+
+        SpatialIdTable::from_ranked_core(ranks, values)
     }
 }
 

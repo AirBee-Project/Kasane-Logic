@@ -26,11 +26,7 @@ impl FlexId {
         }
 
         for df in -rad..=rad {
-            let distance = df.unsigned_abs();
-            let v_distance = V::try_from(distance).unwrap();
-            let v_radius = V::try_from(radius).unwrap();
-            let attenuated =
-                (value.clone() * (v_radius - v_distance)) / V::try_from(radius).unwrap();
+            let attenuated = super::attenuate(value, df.unsigned_abs(), radius);
 
             if let Ok(moved_ids) = self.shift_f(z, df) {
                 for moved in moved_ids {
@@ -63,11 +59,7 @@ impl FlexId {
         }
 
         for dx in -rad..=rad {
-            let distance = dx.unsigned_abs();
-            let v_distance = V::try_from(distance).unwrap();
-            let v_radius = V::try_from(radius).unwrap();
-            let attenuated =
-                (value.clone() * (v_radius - v_distance)) / V::try_from(radius).unwrap();
+            let attenuated = super::attenuate(value, dx.unsigned_abs(), radius);
 
             if let Ok(moved_ids) = self.shift_x(z, dx) {
                 for moved in moved_ids {
@@ -100,11 +92,7 @@ impl FlexId {
         }
 
         for dy in -rad..=rad {
-            let distance = dy.unsigned_abs();
-            let v_distance = V::try_from(distance).unwrap();
-            let v_radius = V::try_from(radius).unwrap();
-            let attenuated =
-                (value.clone() * (v_radius - v_distance)) / V::try_from(radius).unwrap();
+            let attenuated = super::attenuate(value, dy.unsigned_abs(), radius);
 
             if let Ok(moved_ids) = self.shift_y(z, dy) {
                 for moved in moved_ids {

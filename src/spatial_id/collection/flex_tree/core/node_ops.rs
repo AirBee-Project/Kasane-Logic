@@ -5,12 +5,15 @@ use super::ptr::{MaybeSync, SafeValue, SharedNode};
 #[cfg(feature = "rayon")]
 pub(super) const PARALLEL_LEAF_CUTOFF: usize = 1024;
 
-/// 部分木が十分大きいときだけ `rayon::join` で 2 分割し、小さいときは逐次に処理する。
-macro_rules! join_nodes {
-    ($size:expr, $a:expr, $b:expr) => {{
+/// 規模 `$size` が `$cutoff` 以上のときだけ `rayon::join` で 2 分割し、小さいときは逐次に処理する。
+///
+/// `$cutoff` は `#[cfg(feature = "rayon")]` の枝の中でしか展開されないので、rayon 無効時
+/// にしか存在しない定数を渡しても名前解決には掛からない。
+macro_rules! join_at {
+    ($cutoff:expr, $size:expr, $a:expr, $b:expr) => {{
         #[cfg(feature = "rayon")]
         {
-            if $size >= PARALLEL_LEAF_CUTOFF {
+            if $size >= $cutoff {
                 rayon::join($a, $b)
             } else {
                 ($a(), $b())
@@ -22,6 +25,14 @@ macro_rules! join_nodes {
             ($a(), $b())
         }
     }};
+}
+pub(crate) use join_at;
+
+/// [`join_at`] を集合演算の既定しきい値 [`PARALLEL_LEAF_CUTOFF`] で使う短縮形。
+macro_rules! join_nodes {
+    ($size:expr, $a:expr, $b:expr) => {
+        join_at!(PARALLEL_LEAF_CUTOFF, $size, $a, $b)
+    };
 }
 
 /// 2 つの木を突き合わせる集合演算の種類。値は左優先で解決される。
