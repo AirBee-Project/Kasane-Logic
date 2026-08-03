@@ -1,6 +1,7 @@
+use crate::SpatialId;
 use alloc::boxed::Box;
 
-use crate::{FlexId, RangeId, SingleId, SpatialId, spatial_id::zoom_level::ZoomLevel};
+use crate::{FlexId, RangeId, SingleId};
 
 impl From<FlexId> for RangeId {
     fn from(flex_id: FlexId) -> Self {
@@ -27,50 +28,24 @@ impl From<&FlexId> for RangeId {
         let x_range = scale_to_range(flex_id.x_index as i64, flex_id.x_zoomlevel.get());
         let y_range = scale_to_range(flex_id.y_index as i64, flex_id.y_zoomlevel.get());
 
-        #[cfg(feature = "temporal_id")]
-        {
-            RangeId::new_with_temporal(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-                flex_id.temporal().clone(),
-            )
-            .unwrap()
-        }
+        let (start, end) = flex_id.seconds_range();
 
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            RangeId::new(
-                max_z,
-                [f_range[0] as i32, f_range[1] as i32],
-                [x_range[0] as u32, x_range[1] as u32],
-                [y_range[0] as u32, y_range[1] as u32],
-            )
-            .unwrap()
-        }
+        RangeId::new(
+            max_z,
+            [f_range[0] as i32, f_range[1] as i32],
+            [x_range[0] as u32, x_range[1] as u32],
+            [y_range[0] as u32, y_range[1] as u32],
+        )
+        .unwrap()
+        .with_time_span(start, end)
+        .expect("セルの秒区間は常に有効")
     }
 }
 
-impl From<SingleId> for FlexId {
-    fn from(value: SingleId) -> Self {
-        FlexId::from(&value)
-    }
-}
-
-impl From<&SingleId> for FlexId {
-    fn from(value: &SingleId) -> Self {
-        FlexId {
-            f_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
-            f_index: value.f(),
-            x_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
-            x_index: value.x(),
-            y_zoomlevel: ZoomLevel::new(value.z()).unwrap(),
-            y_index: value.y(),
-            temporal_id: value.temporal().clone(),
-        }
-    }
-}
+// `From<SingleId> for FlexId` は実装しない。[`SingleId`]は仕様通り任意の秒数の時間間隔を
+// 持てる一方、[`FlexId`]はFlexTreeのノードアドレスとして2の冪秒のセル1個しか持てないため、
+// 両者は1対1に対応しないからである（例: 30分間隔は最大10個の[`FlexId`]へ分解される）。
+// 変換には[`IntoIterator`]を使う（`SingleId::into_iter`が必要な数のセルへ分解する）。
 
 impl IntoIterator for FlexId {
     type Item = FlexId;

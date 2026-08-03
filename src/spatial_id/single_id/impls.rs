@@ -1,8 +1,6 @@
 use alloc::string::ToString;
 
-use crate::{
-    Coordinate, Ecef, Error, SingleId, SpatialId, SpatialIdError, TemporalId, spatial_id::helpers,
-};
+use crate::{Coordinate, Ecef, Error, SingleId, SpatialId, SpatialIdError, spatial_id::helpers};
 use core::fmt;
 use core::str::FromStr;
 
@@ -21,8 +19,8 @@ impl fmt::Display for SingleId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}/{}/{}/{}", self.z.get(), self.f, self.x, self.y)?;
         //時間の情報があれば書き込み
-        if !self.temporal_id.is_whole() {
-            write!(f, "_{}", self.temporal_id)?;
+        if !self.is_whole_time() {
+            write!(f, "_{}/{}", self.i, self.t())?;
         }
         Ok(())
     }
@@ -283,19 +281,21 @@ impl SpatialId for SingleId {
         r * 2.0 * core::f64::consts::PI / ((1_u64 << self.z()) as f64)
     }
 
-    fn temporal(&self) -> &TemporalId {
-        &self.temporal_id
+    fn interval(&self) -> crate::Interval {
+        self.i
     }
 
-    fn temporal_mut(&mut self) -> &mut TemporalId {
-        &mut self.temporal_id
+    fn seconds_range(&self) -> (u64, u64) {
+        let unit = self.i.seconds();
+        let t = self.t();
+        (t * unit, (t + 1) * unit)
     }
 }
 
 /// 文字列表現から [`SingleId`] を復元する。
 ///
 /// 形式は [`Display`](core::fmt::Display) が出力する `"{z}/{f}/{x}/{y}"`
-/// で、`temporal_id` feature が有効な場合のみ末尾に `_TemporalId` を付ける。
+/// で、時間を持つ場合のみ末尾に `_{i}/{t}` を付ける（`{t}` は単数）。
 ///
 /// ```
 /// # use kasane_logic::SingleId;
@@ -328,21 +328,20 @@ impl FromStr for SingleId {
         let x = x_text.parse::<u32>().map_err(|_| parse_error(s))?;
         let y = y_text.parse::<u32>().map_err(|_| parse_error(s))?;
 
-        #[cfg(feature = "temporal_id")]
-        {
-            let temporal_id = match temporal_text {
-                Some(text) => TemporalId::from_str(text)?,
-                None => TemporalId::WHOLE,
-            };
-            SingleId::new_with_temporal(z, f, x, y, temporal_id)
-        }
+        let id = SingleId::new(z, f, x, y)?;
 
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            if temporal_text.is_some() {
-                return Err(parse_error(s));
+        // 時間部分は仕様の `{i}/{t}`。`{t}` は単数なので `:` を含む範囲表記は受け付けない。
+        match temporal_text {
+            None => Ok(id),
+            Some(text) => {
+                let (i_text, t_text) = text.split_once('/').ok_or_else(|| parse_error(s))?;
+                if t_text.contains(':') {
+                    return Err(parse_error(s));
+                }
+                let i = i_text.parse::<i64>().map_err(|_| parse_error(s))?;
+                let t = t_text.parse::<u64>().map_err(|_| parse_error(s))?;
+                id.with_time(i, t)
             }
-            SingleId::new(z, f, x, y)
         }
     }
 }

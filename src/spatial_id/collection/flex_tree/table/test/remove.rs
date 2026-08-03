@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::{TableEntry, build_table};
-    use crate::{FlexId, SingleId};
+    use crate::SingleId;
     use alloc::vec::Vec;
 
     /// remove() 後に index と count() が整合していることを検証する。
@@ -27,7 +27,7 @@ mod tests {
         assert!(table.value_get(&10).next().is_none());
         assert_eq!(
             table.value_get(&20).collect::<Vec<_>>(),
-            vec![FlexId::from(second)]
+            second.into_iter().collect::<Vec<_>>()
         );
         assert_eq!(table.count(), table.iter().count());
     }

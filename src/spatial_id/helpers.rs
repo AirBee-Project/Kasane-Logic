@@ -1,8 +1,6 @@
 use alloc::string::String;
 
 use core::{f64::consts::PI, fmt};
-/// Scale an inclusive range `[start, end]` by `scale` for children calculation.
-/// For integer types, result is `[start*scale, end*scale + scale - 1]`
 pub fn scale_range_i32(start: i32, end: i32, scale: i32) -> [i32; 2] {
     [
         start.saturating_mul(scale),
@@ -51,15 +49,6 @@ pub fn altitude(f: f64, z: u8) -> f64 {
     33_554_432.0 * (f / n)
 }
 
-///次元を選択するEnum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum Dimension {
-    F = 0,
-    X = 1,
-    Y = 2,
-}
-
 /// 座標軸で小さい側:[Side::Lower]
 /// 座標軸で大きい側:[Side::Upper]
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -77,5 +66,22 @@ pub fn format_dimension<T: PartialEq + fmt::Display>(dimension: [T; 2]) -> Strin
         format!("{}", dimension[0])
     } else {
         format!("{}:{}", dimension[0], dimension[1])
+    }
+}
+
+/// `[min, max]`の範囲、またはその両端が等しい単一の値のどちらでも受け取れるようにするための変換Trait。
+pub trait IntoRange<T> {
+    fn into_range(self) -> [T; 2];
+}
+
+impl<T: Copy> IntoRange<T> for T {
+    fn into_range(self) -> [T; 2] {
+        [self, self]
+    }
+}
+
+impl<T> IntoRange<T> for [T; 2] {
+    fn into_range(self) -> [T; 2] {
+        self
     }
 }

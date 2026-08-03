@@ -61,7 +61,7 @@ Rustのコード内では `///` を用いて、ドキュメントを記述しま
 /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));
 /// ```
 pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
-    Self::new_with_temporal(z, f, x, y, TemporalId::whole())
+    Self::new_with_time(z, f, x, y, Interval::WHOLE.seconds(), 0)
 }
 
 ````

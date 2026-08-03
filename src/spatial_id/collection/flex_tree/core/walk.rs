@@ -74,9 +74,15 @@ impl<C: TreeCursor> Iterator for OverlapWalk<C> {
         while let Some((cursor, current_id)) = self.stack.pop() {
             match cursor.branch() {
                 Some((level, lower, upper)) => {
-                    push_children(&mut self.stack, &current_id, level, lower, upper, |level| {
-                        Node::<()>::overlapping_children(&self.target, level)
-                    });
+                    let overlapping = Node::<()>::overlapping_children(&self.target, level);
+                    push_children(
+                        &mut self.stack,
+                        &current_id,
+                        level,
+                        lower,
+                        upper,
+                        overlapping,
+                    );
                 }
                 None => return Some((current_id, cursor)),
             }
@@ -117,13 +123,15 @@ impl<C: TreeCursor> Iterator for RangeOverlapWalk<C> {
                 while let Some((cursor, current_id)) = self.stack.pop() {
                     match cursor.branch() {
                         Some((level, lower, upper)) => {
+                            let overlapping =
+                                Node::<()>::overlapping_children_range(target, level, &current_id);
                             push_children(
                                 &mut self.stack,
                                 &current_id,
                                 level,
                                 lower,
                                 upper,
-                                |level| Node::<()>::overlapping_children_range(target, level),
+                                overlapping,
                             );
                         }
                         None => return Some((current_id, cursor)),
@@ -146,14 +154,14 @@ fn push_children<C: TreeCursor>(
     level: u8,
     lower: C,
     upper: C,
-    overlapping: impl FnOnce(u8) -> OverlappingChildren,
+    overlapping: OverlappingChildren,
 ) {
     let axis = Node::<()>::axis(level);
     let mut push = |side: Side, child: C| {
         stack.push((child, split_child_id(current_id, axis, side)));
     };
 
-    match overlapping(level) {
+    match overlapping {
         OverlappingChildren::Both => {
             push(Side::Upper, upper);
             push(Side::Lower, lower);

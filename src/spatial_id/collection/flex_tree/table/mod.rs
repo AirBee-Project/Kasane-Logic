@@ -8,7 +8,7 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{CellValue, FlexId, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{CellValue, FlexId, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Clone, Debug)]
@@ -189,13 +189,85 @@ where
         self.inner.max_zoomlevel()
     }
 
+    /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+    ///
+    /// 単位は「その区間を表せる最も粗い秒数」（`gcd(開始秒, 幅)`）。
+    /// 単位を選びたい場合は [`range_ids_in`](Self::range_ids_in) を使う。
+    pub fn range_ids(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
+        self.coalesced_range_ids(None)
+    }
+
+    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    ///
+    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    /// 暦の単位へ正規化したいだけなら `IntervalSet::calendar()`
+    /// （`temporal_id` feature 有効時のみ）を直接渡せる。
+    pub fn range_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
+        self.coalesced_range_ids(Some(units))
+    }
+
+    /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
+    pub fn flat_single_ids_in<'a>(
+        &'a self,
+        units: &'a IntervalSet,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
+        self.expand_range_ids(Some(units))
+    }
+
+    /// 内部の rank を値へ引き直しつつ、時間方向に結合した [`RangeId`] を返す。
+    ///
+    /// 木が持つのは値そのものではなく rank（`usize`）なので、結合は rank のまま行い
+    /// （同じ値なら同じ rank なので結合条件は変わらない）、最後に辞書で引き直す。
+    fn coalesced_range_ids<'a>(
+        &'a self,
+        units: Option<&'a IntervalSet>,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
+        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            self.inner
+                .iter_ref()
+                .map(|(flex_id, rank)| (flex_id, *rank)),
+            units,
+        )
+        .map(move |(range, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch");
+            (range, value)
+        })
+    }
+
+    /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一セルの [`SingleId`] へ展開する。
+    fn expand_range_ids<'a>(
+        &'a self,
+        units: Option<&'a IntervalSet>,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
+        self.coalesced_range_ids(units)
+            .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
+    }
+
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
+    ///
+    /// 展開の前に、時間方向に隣接する同値のセルを結合する。木は時間を2の冪秒のセルとして
+    /// 持つため、これを行わないと `1800` 秒のような単位で入れた ID が断片のまま出てくる。
+    /// 同値かどうかは Rank（値の同一性そのもの）で判定できるので、値の比較は不要。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        self.inner.iter_ref().flat_map(|(flex_id, rank)| {
-            let value = self.reverse_dictionary.get(rank).unwrap();
-            RangeId::from(&flex_id)
-                .single_ids()
-                .map(move |single_id| (single_id, value))
+        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
+            self.inner
+                .iter_ref()
+                .map(|(flex_id, rank)| (flex_id, *rank)),
+            None,
+        );
+
+        merged.flat_map(move |(range, rank)| {
+            let value = self
+                .reverse_dictionary
+                .get(&rank)
+                .expect("Dictionary mismatch");
+            range.single_ids().map(move |single_id| (single_id, value))
         })
     }
 

@@ -34,7 +34,7 @@
 
 3. spatial_id。
 
-- ID 型（`SingleId`, `RangeId`, `FlexId`, `TemporalId`, `Segment`）。
+- ID 型（`SingleId`, `RangeId`, `FlexId`）と時間間隔（`Interval`）。
 - コレクション型（`FlexTree*`）。
 - トレイト（`SpatialId`, `Into*Ids`, `Iter*Ids`, `SpatialIdSet`, `SpatialIdTable`）。
 - 定数（`F_*`, `XY_MAX`, `MAX_ZOOM_LEVEL`）。

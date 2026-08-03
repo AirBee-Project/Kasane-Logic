@@ -13,7 +13,7 @@ fn rows<V: Clone + Ord + Send + Sync + 'static>(
 ) -> alloc::vec::Vec<(u32, V)> {
     let mut out: alloc::vec::Vec<(u32, V)> = table
         .iter()
-        .flat_map(|(id, v)| id.clone().single_ids().map(move |s| (s.x(), v.clone())))
+        .flat_map(|(id, v)| id.single_ids().map(move |s| (s.x(), v.clone())))
         .collect();
     out.sort_by_key(|(x, _)| *x);
     out

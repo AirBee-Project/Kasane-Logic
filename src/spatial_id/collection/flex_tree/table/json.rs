@@ -9,7 +9,7 @@ where
     V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord + Serialize + PartialEq,
 {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serialize_with_values(self.iter(), serializer)
+        serialize_with_values(self.iter(), self.inner.has_temporal_split(), serializer)
     }
 }
 

@@ -1,8 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::{
-    Coordinate, Ecef, Shape, SingleId, SpatialId, Sphere, WGS84_A,
-    geometry::traits::CoverSingleIds, spatial_id::helpers::Dimension,
+    Coordinate, Ecef, Shape, SingleId, SpatialId, Sphere, WGS84_A, geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Sphere {
@@ -19,7 +18,7 @@ impl CoverSingleIds for Sphere {
         let center = self.center;
         let radius = self.radius_m;
 
-        let voxel_diag_half = voxel_length(z, Dimension::X) * libm::sqrt(3.0) / 2.0;
+        let voxel_diag_half = voxel_length_xy(z) * libm::sqrt(3.0) / 2.0;
         let center_ecef: Ecef = (center).into();
 
         // 球の8頂点 -> 探索範囲推定
@@ -59,13 +58,15 @@ impl CoverSingleIds for Sphere {
     }
 }
 
-pub fn voxel_length(z: u8, axis: Dimension) -> f64 {
+/// ズームレベル `z` における、水平方向（X/Y、値は同じ）のボクセル1辺の長さ`[m]`。
+///
+/// 赤道周長 `2πa` をズームレベルで等分した値。
+pub fn voxel_length_xy(z: u8) -> f64 {
     let n = libm::pow(2_f64, (z as i32) as f64);
+    2.0 * core::f64::consts::PI * WGS84_A / n
+}
 
-    match axis {
-        // 赤道周長 = 2πa
-        Dimension::X | Dimension::Y => 2.0 * core::f64::consts::PI * WGS84_A / n,
-        // F方向（高度）
-        Dimension::F => libm::pow(2_f64, (25 - z as i32) as f64),
-    }
+/// ズームレベル `z` における、F方向（高度）のボクセル1辺の長さ`[m]`。
+pub fn voxel_length_f(z: u8) -> f64 {
+    libm::pow(2_f64, (25 - z as i32) as f64)
 }

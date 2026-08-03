@@ -21,7 +21,7 @@ impl FlexId {
 
         let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
         if rad == 0 {
-            out.push((self.clone(), value.clone()));
+            out.push((*self, value.clone()));
             return Ok(out.into_iter());
         }
 
@@ -58,7 +58,7 @@ impl FlexId {
 
         let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
         if rad == 0 {
-            out.push((self.clone(), value.clone()));
+            out.push((*self, value.clone()));
             return Ok(out.into_iter());
         }
 
@@ -95,7 +95,7 @@ impl FlexId {
 
         let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
         if rad == 0 {
-            out.push((self.clone(), value.clone()));
+            out.push((*self, value.clone()));
             return Ok(out.into_iter());
         }
 

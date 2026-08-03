@@ -5,12 +5,6 @@
 #[macro_use]
 extern crate alloc;
 
-// Rust 標準のテストハーネスは std を必要とするため、`--no-default-features`（no_std）
-// ビルドでもテストをコンパイル・実行できるようにテスト時だけ std を繋ぐ。
-//
-// マクロは持ち込まない（`alloc` 側の `vec!` / `format!` と衝突して未使用警告になるため）。
-// テストコードからは `std::println!` のように修飾して使い、型（`Vec` / `String` 等）は
-// no_std プレリュードに入らないので各テストモジュールで `alloc` から import する。
 #[cfg(test)]
 extern crate std;
 
@@ -22,7 +16,6 @@ pub mod geometry;
 /// 空間IDに関する型を定義。
 pub mod spatial_id;
 
-// `temporal_id` feature を有効にすると、時空間IDの公開APIを時間対応で使えます。
 #[doc(inline)]
 pub use error::Error;
 #[doc(inline)]
@@ -78,8 +71,6 @@ pub use spatial_id::flex_id::FlexId;
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
 pub use spatial_id::single_id::SingleId;
-#[doc(inline)]
-pub use spatial_id::temporal_id::TemporalId;
 
 // spatial_id: collection types
 
@@ -101,11 +92,13 @@ pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
 // spatial_id: traits
 #[doc(inline)]
-pub use spatial_id::helpers::{Dimension, Side};
+pub use spatial_id::helpers::Side;
 #[doc(inline)]
 pub use spatial_id::traits::SpatialId;
 
 // spatial_id: zoom level
+#[doc(inline)]
+pub use spatial_id::zoom_level::TZoomLevel;
 #[doc(inline)]
 pub use spatial_id::zoom_level::ZoomLevel;
 
@@ -122,3 +115,8 @@ pub use spatial_id::collection::query::merge_policy::MergePolicy;
 pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
 pub use spatial_id::collection::query::working::WorkingTree;
+
+#[doc(inline)]
+pub use spatial_id::time::Interval;
+#[doc(inline)]
+pub use spatial_id::time::IntervalSet;

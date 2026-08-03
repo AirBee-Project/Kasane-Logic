@@ -213,7 +213,7 @@ mod tests {
         core: &FlexTreeCore<V>,
         target: &FlexId,
     ) -> Vec<FlexId> {
-        let mut found: Vec<FlexId> = core.overlap_ref(target.clone()).map(|(id, _)| id).collect();
+        let mut found: Vec<FlexId> = core.overlap_ref(*target).map(|(id, _)| id).collect();
         found.sort();
         found
     }

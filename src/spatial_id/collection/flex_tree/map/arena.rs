@@ -19,16 +19,25 @@ use crate::spatial_id::collection::flex_tree::core::node::Node;
 use crate::spatial_id::collection::flex_tree::core::ptr::SharedNode;
 use crate::{Error, FlexId};
 
-/// 形式バージョンを検証する。
-pub(crate) fn check_version(found: u16) -> Result<(), Error> {
-    if found == FORMAT_VERSION {
-        Ok(())
-    } else {
-        Err(Error::UnsupportedFormatVersion {
+/// 形式（バージョン・レイアウトフラグ）を検証する。
+///
+/// バージョンとレイアウトフラグは独立に検証する。前者はスキーマ（`MapArena` /
+/// `ArenaNode` の構造）そのものの変更、後者は同じスキーマの中で feature によって
+/// 変わる差異（[`LAYOUT_FLAGS`] 参照）を捉える。
+pub(crate) fn check_format(found_version: u16, found_flags: u8) -> Result<(), Error> {
+    if found_version != FORMAT_VERSION {
+        return Err(Error::UnsupportedFormatVersion {
             expected: FORMAT_VERSION,
-            found,
-        })
+            found: found_version,
+        });
     }
+    if found_flags != LAYOUT_FLAGS {
+        return Err(Error::UnsupportedFormatLayout {
+            expected: LAYOUT_FLAGS,
+            found: found_flags,
+        });
+    }
+    Ok(())
 }
 
 /// 空を表す葉インデックス値（`ArenaNode::Leaf { value }` の `value == 0`）。
@@ -36,14 +45,59 @@ pub(crate) const EMPTY_LEAF: u32 = 0;
 
 /// 永続化バイト列の形式バージョン。
 ///
-/// `MapArena` / `ArenaNode` のフィールド構成を変更したら**必ず上げる**。
-/// 上げ忘れると、古いバイト列が拒否されずに誤って読まれる（`access_unchecked` は
-/// レイアウトを検証しないため）。
+/// `MapArena` / `ArenaNode` の**構造**（フィールドの追加・削除・型変更）を変更したら
+/// **必ず上げる**。上げ忘れると、古いバイト列が拒否されずに誤って読まれる
+/// （`access_unchecked` はレイアウトを検証しないため）。
+///
+/// feature の有無による差異（例: `temporal_id`）はバージョンを分けない。
+/// `LAYOUT_FLAGS`（クレート内部）が別に検証する（`# 履歴` の `4` を参照）。
 ///
 /// なお **`FlexTreeCore` や `Node` にフィールドを足しただけならバージョンは変わらない**。
 /// ディスク形式は `MapArena` が単独で決めており、書き込み側は `Node` の
 /// キャッシュ用フィールドを読まないため。この不変性は golden テストが担保している。
-pub const FORMAT_VERSION: u16 = 1;
+///
+/// # 履歴
+///
+/// - `1`: 時間軸の導入前（本クレートのこのバージョンより前）。木は F/X/Y の3軸で、
+///   `FlexId` は空間3軸ぶんのフィールドだけを持つ。**移行パスは無い**ので、`1` で書いた
+///   ファイルは作り直しが必要である。
+/// - `2`: 時間軸（T）を加えた4軸（`temporal_id` feature 有効時）。`FlexId` に
+///   `t_zoomlevel` / `t_index` が並ぶ。feature ごとにバージョンを分けていた頃の値
+///   （`temporal_id` 有効時）。
+/// - `3`: F/X/Y の3軸（`temporal_id` feature 無効時）。`FlexId` のフィールド構成は `1` と
+///   同じだが、`1` との誤読を避けるため別番号にしてあった。
+/// - `4`: `2`/`3` のように feature でバージョンを分ける代わりに、`MapArena` へ
+///   `LAYOUT_FLAGS`（クレート内部）を独立したフィールドとして持たせる形へ変更。**移行パスは無い**
+///   （`2`/`3` にはこのフィールドが無いので `4` として読むとレイアウトがずれる）。
+///   以降、feature を追加してもバージョンは枝分かれせず、フラグにビットを1本足すだけでよい。
+pub const FORMAT_VERSION: u16 = 4;
+
+/// このビルドのレイアウトフラグ。バージョンとは独立に検証する。
+///
+/// バージョン（[`FORMAT_VERSION`]）が「スキーマの形」（構造）を表すのに対し、こちらは
+/// 「同じスキーマの中で feature によって変わる差異」を表す。理由は2つ。
+///
+/// 1. ノードが保持する `level` から軸を求める式が、3軸なら `level % 3`、4軸なら `level % 4`。
+///    `level` はバイト列にそのまま入っているので、取り違えると軸の対応がずれ、
+///    エラーにならないまま別の空間 ID として読めてしまう。
+/// 2. `shard` として保存される `FlexId` のフィールド構成が異なる（`temporal_id` 有効時のみ
+///    `t_zoomlevel` / `t_index` を持つ）。
+///
+/// feature を追加するたびにビットを1本足せば済み、[`FORMAT_VERSION`] を
+/// 枝分かれさせる必要が無い。
+///
+/// - bit 0: `temporal_id` feature が有効（T 軸を持つ4軸レイアウト）。
+const LAYOUT_FLAGS: u8 = {
+    #[cfg(feature = "temporal_id")]
+    {
+        0b0000_0001
+    }
+
+    #[cfg(not(feature = "temporal_id"))]
+    {
+        0
+    }
+};
 
 /// 平坦化された [`SpatialIdMap`] 1枚（1シャード）の書き込み用スキーマ。
 ///
@@ -57,6 +111,8 @@ pub(crate) struct MapArena {
     /// フィールドは `pub(crate)`：archived 表現（`ArchivedMapArena`）の対応フィールドを
     /// 読み取り専用ビュー（[`super::archived`]）から直接読むため。
     pub(crate) version: u16,
+    /// レイアウトフラグ（[`LAYOUT_FLAGS`]）。`version` とは独立に読み出し時に検証する。
+    pub(crate) flags: u8,
     /// 下半分（f < 0）ルートの `nodes` インデックス。
     pub(crate) lower_root: u32,
     /// 上半分（f >= 0）ルートの `nodes` インデックス。
@@ -86,7 +142,8 @@ pub(crate) enum ArenaNode {
 impl SpatialIdMap<Vec<u8>> {
     /// この [`SpatialIdMap`] をフラットアリーナ形式のバイト列へ直列化する。
     ///
-    /// 先頭に [`FORMAT_VERSION`] を埋め込むので、[`from_bytes`](Self::from_bytes) /
+    /// 先頭に [`FORMAT_VERSION`] とレイアウトフラグ（クレート内部）を埋め込むので、
+    /// [`from_bytes`](Self::from_bytes) /
     /// [`ArchivedSpatialIdMap::access`](super::archived::ArchivedSpatialIdMap::access) が形式違いを検出できる。
     pub fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut nodes: Vec<ArenaNode> = Vec::new();
@@ -111,9 +168,10 @@ impl SpatialIdMap<Vec<u8>> {
 
         let arena = MapArena {
             version: FORMAT_VERSION,
+            flags: LAYOUT_FLAGS,
             lower_root,
             upper_root,
-            shard: self.inner.shard.clone(),
+            shard: self.inner.shard,
             nodes,
             dictionary,
         };
@@ -125,13 +183,14 @@ impl SpatialIdMap<Vec<u8>> {
     /// [`to_bytes`](Self::to_bytes) で直列化したバイト列から作業木（`Arc` ベース）を復元する。
     ///
     /// 形式バージョンが [`FORMAT_VERSION`] と異なる場合は
-    /// [`Error::UnsupportedFormatVersion`] を返す（誤読させない）。
+    /// [`Error::UnsupportedFormatVersion`] を、レイアウトフラグ（クレート内部）が
+    /// 異なる場合は [`Error::UnsupportedFormatLayout`] を返す（誤読させない）。
     ///
     /// # Safety
     /// `bytes` は [`SpatialIdMap::to_bytes`] が生成した正当なバイト列でなければならない。
     pub unsafe fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         let archived = unsafe { rkyv::access_unchecked::<ArchivedMapArena>(bytes) };
-        check_version(archived.version.to_native())?;
+        check_format(archived.version.to_native(), archived.flags)?;
         // 所有型 `MapArena` へ復元してから木を組むと、ノード配列と値辞書を
         // まるごと複製することになる。archived 表現を直接読んで組めばその一段が省ける。
         let mut core = FlexTreeCore::<Vec<u8>>::new();
@@ -253,11 +312,11 @@ fn rebuild_node(
 
 #[cfg(test)]
 mod version_tests {
-    //! 形式バージョンの検証。
+    //! 形式バージョン・レイアウトフラグの検証。
     //!
     //! `MapArena` の私有フィールドへ触る必要があるので、モジュール内に置く。
 
-    use super::{ArchivedMapArena, ArenaNode, FORMAT_VERSION, MapArena};
+    use super::{ArchivedMapArena, ArenaNode, FORMAT_VERSION, LAYOUT_FLAGS, MapArena};
     use crate::spatial_id::collection::flex_tree::map::archived::ArchivedSpatialIdMap;
     use crate::{Error, SingleId, SpatialIdMap};
     use alloc::vec::Vec;
@@ -279,11 +338,13 @@ mod version_tests {
     /// 別バージョンのバイト列を作り、両方の読み出し口が拒否することを確認する。
     ///
     /// これが効いていないと、将来 `MapArena` を変更したとき古いバイト列が
-    /// 「拒否されず誤って読まれる」ことになる。
+    /// 「拒否されず誤って読まれる」ことになる。バージョン違いだけを見るテストなので、
+    /// `flags` は現行値のまま（＝ずれているのは `version` だけ）にする。
     #[test]
     fn foreign_version_is_rejected() {
         let foreign = MapArena {
             version: FORMAT_VERSION.wrapping_add(1),
+            flags: LAYOUT_FLAGS,
             lower_root: 0,
             upper_root: 0,
             shard: None,
@@ -315,6 +376,46 @@ mod version_tests {
         assert!(
             matches!(err, Error::UnsupportedFormatVersion { .. }),
             "from_bytes がバージョン違いを通した: {err:?}"
+        );
+    }
+
+    /// 別レイアウトフラグのバイト列を作り、両方の読み出し口が拒否することを確認する。
+    ///
+    /// バージョンが一致していても、feature 構成（例: `temporal_id`）が異なるバイト列を
+    /// 誤って読んではならない。`version` は現行値のまま（＝ずれているのは `flags` だけ）
+    /// にすることで、バージョン検査ではなくフラグ検査が効いていることを確かめる。
+    #[test]
+    fn foreign_layout_is_rejected() {
+        let foreign = MapArena {
+            version: FORMAT_VERSION,
+            flags: !LAYOUT_FLAGS,
+            lower_root: 0,
+            upper_root: 0,
+            shard: None,
+            nodes: alloc::vec![ArenaNode::Leaf { value: 0 }],
+            dictionary: Vec::new(),
+        };
+        let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&foreign)
+            .unwrap()
+            .to_vec();
+
+        // ゼロコピー読み出し口
+        let Err(err) = (unsafe { ArchivedSpatialIdMap::access(&bytes) }) else {
+            panic!("ArchivedSpatialIdMap::access がレイアウト違いを通した");
+        };
+        assert_eq!(
+            err,
+            Error::UnsupportedFormatLayout {
+                expected: LAYOUT_FLAGS,
+                found: !LAYOUT_FLAGS,
+            }
+        );
+
+        // 全復元の読み出し口
+        let err = unsafe { SpatialIdMap::<Vec<u8>>::from_bytes(&bytes) }.unwrap_err();
+        assert!(
+            matches!(err, Error::UnsupportedFormatLayout { .. }),
+            "from_bytes がレイアウト違いを通した: {err:?}"
         );
     }
 }

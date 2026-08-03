@@ -103,7 +103,7 @@ mod persist_tests {
             .filter(|(id, _)| id.intersects_range(&target))
             .map(|(id, v)| (id, v.clone()))
             .collect();
-        expected.sort_by(|a, b| a.0.cmp(&b.0));
+        expected.sort_by_key(|a| a.0);
 
         let bytes = map.to_bytes().unwrap();
         let arch = unsafe { ArchivedSpatialIdMap::access(&bytes) }.unwrap();
@@ -112,7 +112,7 @@ mod persist_tests {
             .into_iter()
             .map(|(id, v)| (id, v.to_vec()))
             .collect();
-        got.sort_by(|a, b| a.0.cmp(&b.0));
+        got.sort_by_key(|a| a.0);
 
         assert_eq!(expected.len(), 8, "前提: 8セルすべてが範囲と交差する");
         assert_eq!(got, expected, "ゼロコピー側の範囲走査が一致しない");
