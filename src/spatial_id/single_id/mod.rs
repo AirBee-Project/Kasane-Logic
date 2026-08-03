@@ -100,16 +100,16 @@ impl SingleId {
     /// この `SingleId` の時間インデックス `{t}` を返す。
     ///
     /// `temporal_id` feature 無効時は常に `0`（全時間の唯一のセル）。
-    #[cfg(feature = "temporal_id")]
     pub fn t(&self) -> u64 {
-        self.t
-    }
+        #[cfg(feature = "temporal_id")]
+        {
+            self.t
+        }
 
-    /// この `SingleId` の時間インデックス `{t}`。
-    /// `temporal_id` feature 無効時は常に `0`（全時間の唯一のセル）を返す。
-    #[cfg(not(feature = "temporal_id"))]
-    pub fn t(&self) -> u64 {
-        0
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            0
+        }
     }
 
     /// 時間を設定した自身を返す（ビルダー形式）。

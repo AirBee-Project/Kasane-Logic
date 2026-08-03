@@ -84,15 +84,16 @@ impl FlexId {
     /// 時間軸のズームレベル。1セルは `2^(35 - t_zoomlevel)` 秒。
     ///
     /// `temporal_id` feature 無効時は常に `0`（全時間）。
-    #[cfg(feature = "temporal_id")]
     pub fn t_zoomlevel(&self) -> u8 {
-        self.t_zoomlevel.get()
-    }
+        #[cfg(feature = "temporal_id")]
+        {
+            self.t_zoomlevel.get()
+        }
 
-    /// 時間軸のズームレベル。`temporal_id` feature 無効時は常に `0`（全時間）を返す。
-    #[cfg(not(feature = "temporal_id"))]
-    pub fn t_zoomlevel(&self) -> u8 {
-        0
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            0
+        }
     }
     pub fn f_index(&self) -> i32 {
         self.f_index
@@ -107,16 +108,16 @@ impl FlexId {
     ///
     /// [`t_zoomlevel`](Self::t_zoomlevel) と対で読めば、木の2進セル `(zoom, index)` そのもの。
     /// `temporal_id` feature 無効時は常に `0`（全時間）。
-    #[cfg(feature = "temporal_id")]
     pub fn t(&self) -> u64 {
-        self.t_index
-    }
+        #[cfg(feature = "temporal_id")]
+        {
+            self.t_index
+        }
 
-    /// この [`FlexId`] の時間インデックス `{t}`。
-    /// `temporal_id` feature 無効時は常に `0`（全時間）を返す。
-    #[cfg(not(feature = "temporal_id"))]
-    pub fn t(&self) -> u64 {
-        0
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            0
+        }
     }
 
     /// この [`FlexId`] が占める絶対秒区間 `[start, end)` を返す。

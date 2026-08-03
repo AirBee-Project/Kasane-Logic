@@ -93,16 +93,16 @@ impl RangeId {
     /// この `RangeId` の時間インデックス範囲 `[min, max]`（両端含む）を返します。
     ///
     /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のセル）。
-    #[cfg(feature = "temporal_id")]
     pub fn t(&self) -> [u64; 2] {
-        self.t
-    }
+        #[cfg(feature = "temporal_id")]
+        {
+            self.t
+        }
 
-    /// この `RangeId` の時間インデックス範囲。
-    /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のセル）を返します。
-    #[cfg(not(feature = "temporal_id"))]
-    pub fn t(&self) -> [u64; 2] {
-        [0, 0]
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            [0, 0]
+        }
     }
 
     /// 時間を設定した自身を返します（ビルダー形式）。

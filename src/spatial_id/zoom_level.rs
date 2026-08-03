@@ -21,7 +21,7 @@ pub type ZoomLevel = Zoom<30>;
 
 /// 時間軸のズームレベルを表す型。[crate::FlexId]でのみ使用される。
 /// ```
-/// # use kasane_logic::spatial_id::zoom_level::TZoomLevel;
+/// # use kasane_logic::TZoomLevel;
 /// let z = TZoomLevel::new(5).unwrap();
 /// assert_eq!(z.get(), 5);
 /// assert_eq!(TZoomLevel::MAX.cell_seconds(), 1);

@@ -15,6 +15,11 @@ pub mod tests;
 ///
 /// - ある場所に対する空間IDを「存在しない」もしくは「一意に定まる」状態を維持する
 /// - 集合同士の演算や、集合に対する単項演算を提供する
+///
+/// # 使い分け
+/// - 空間ごとに値を持たせたい場合は [`SpatialIdMap`](crate::SpatialIdMap) を使用する。
+/// - 値から空間を引きたい、または値の管理（重複排除など）が必要な場合は
+///   [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdSet {
     inner: FlexTreeCore<()>,
