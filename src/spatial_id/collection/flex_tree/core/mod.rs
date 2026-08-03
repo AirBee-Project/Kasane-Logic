@@ -7,12 +7,13 @@ pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
 use node_ops::MergeOp;
 pub use ptr::SafeValue;
+pub(crate) mod bulk;
 mod convert;
 pub mod node;
 pub mod node_ops;
 mod overlap;
 #[cfg(feature = "rayon")]
-mod parallel;
+pub(crate) mod parallel;
 pub(crate) mod ptr;
 pub mod shard;
 pub(crate) mod walk;

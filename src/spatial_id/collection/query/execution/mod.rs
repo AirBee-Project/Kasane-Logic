@@ -2,6 +2,7 @@ use super::traits::{BinaryOperator, UnaryOperator};
 use crate::Error;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::grid::{GridOp, try_run_grid};
 use crate::spatial_id::collection::query::source::Source;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use alloc::boxed::Box;
@@ -38,6 +39,46 @@ pub enum Query<V: SafeValue + 'static> {
     Error(Error),
 }
 
+/// 単項演算の並びを作業木へ適用する。
+///
+/// [`grid_op`](UnaryOperator::grid_op) を持つ演算が連続している区間は、木を経由せず
+/// 一様ズームの平坦表現（[`grid`](crate::spatial_id::collection::query::grid)）でまとめて
+/// 処理する。中間木の構築が丸ごと消えるうえ、falloff は 2r+1 倍の中間データを作らずに
+/// 出力を直接生成できる。平坦化の見積もりが予算を超えた場合は、その演算だけ従来どおり
+/// 木の上で実行して次へ進む。
+pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
+    mut ops: &[Box<dyn UnaryOperator<V>>],
+    mut working: WorkingTree<V>,
+) -> Result<WorkingTree<V>, Error> {
+    while let Some(head) = ops.first() {
+        // グリッドで実行できる演算の最長区間を取る。
+        let grid_ops: Vec<GridOp<V>> = ops.iter().map_while(|op| op.grid_op()).collect();
+
+        if let Some(result) = try_run_grid(&working, &grid_ops, grid_budget(&working)) {
+            working = result?;
+            ops = &ops[grid_ops.len()..];
+            continue;
+        }
+
+        // グリッドに載らない（または載せる価値がない）ので木の上で実行する。
+        head.run(&mut working)?;
+        ops = &ops[1..];
+    }
+    Ok(working)
+}
+
+/// 平坦化を許す件数の上限。
+///
+/// 平坦化は葉をグリッドのズームまで細分するので、粗い葉が多いと件数が爆発する。
+/// 一方の木経路は 1 葉あたり `2r+1` 個の中間 [`FlexId`](crate::FlexId) を作って挿入し
+/// 直すので、数十倍までの膨張ならグリッドの方が確実に速い。葉数に比例した予算に
+/// 小さな下駄を履かせ、それを超えるなら木経路へ譲る。
+fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
+    (working.count() as u64)
+        .saturating_mul(64)
+        .saturating_add(1 << 20)
+}
+
 impl<V: SafeValue + 'static> Query<V> {
     /// `self` を単項演算子で包む。
     pub(crate) fn wrap_unary<O>(self, op: O) -> Self
@@ -61,19 +102,8 @@ impl<V: SafeValue + 'static> Query<V> {
         fn run_internal<V: SafeValue + 'static>(query: Query<V>) -> Result<WorkingTree<V>, Error> {
             match query {
                 Query::Source(source) => source.read_all(),
-                Query::Unary(ops, input) => {
-                    let mut core = run_internal(*input)?;
-                    for op in &ops {
-                        op.run(&mut core)?;
-                    }
-                    Ok(core)
-                }
-                Query::CommutativeGroup(_, ops, input) => {
-                    let mut core = run_internal(*input)?;
-                    for op in &ops {
-                        op.run(&mut core)?;
-                    }
-                    Ok(core)
+                Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+                    run_unary_chain(&ops, run_internal(*input)?)
                 }
                 Query::Binary(op, lhs, rhs) => {
                     #[cfg(feature = "rayon")]
@@ -129,11 +159,7 @@ impl<V: SafeValue + 'static> Query<V> {
                     next.dedup();
                     req = next;
                 }
-                let mut working = input.run_on_subset_unchecked(req)?;
-                for op in ops {
-                    op.run(&mut working)?;
-                }
-                Ok(working)
+                run_unary_chain(ops, input.run_on_subset_unchecked(req)?)
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();

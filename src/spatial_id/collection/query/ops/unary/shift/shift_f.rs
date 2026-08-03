@@ -1,5 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::grid::{GridAxis, GridOp};
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
 
@@ -80,5 +81,9 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "shift_f(z={}, f={})", self.z.get(), self.f)
+    }
+
+    fn grid_op(&self) -> Option<GridOp<V>> {
+        Some(GridOp::shift(GridAxis::F, self.z, self.f))
     }
 }

@@ -22,6 +22,12 @@ use crate::FlexId;
 /// [`from_flexids_with_policy`](FlexTreeCore::from_flexids_with_policy) のチャンク分割でも使う。
 pub(crate) const MIN_PAR_CHUNK: usize = 512;
 
+/// 平坦な配列を `par_sort` / `par_chunk_by` などで並列に扱いはじめる要素数。
+///
+/// [`MIN_PAR_CHUNK`] は「union 簡約のチャンク幅」で意味が違うため別に持つ。
+/// こちらは配列走査なので、スレッドプール起動が割に合う規模まで待つ。
+pub(crate) const PAR_SLICE_CUTOFF: usize = 4096;
+
 impl<V> FlexTreeCore<V>
 where
     V: SafeValue,

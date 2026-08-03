@@ -1,6 +1,7 @@
 use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
+use crate::spatial_id::collection::query::grid::GridOp;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, RangeId};
 use alloc::vec::Vec;
@@ -51,5 +52,21 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
     /// `Display` 出力用の演算子表現
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "?")
+    }
+
+    // --- 一様ズーム平坦表現（グリッド）用API ---
+
+    /// この演算子を一様ズームの平坦表現の上で直接実行するための記述を返す。
+    ///
+    /// クエリエンジンの内部最適化の口であり、クレート外からは実装できない
+    /// （`GridOp` を組み立てる手段が非公開）。既定の `None` のままでよい。
+    ///
+    /// `None` なら木経路（[`run`](Self::run)）で実行される。分離可能な演算（軸方向の
+    /// 平行移動だけで表せるもの）だけが `Some` を返せる。衝突解決を伴う演算は、可換な
+    /// [`MergePolicy`](crate::merge_policy::MergePolicy) のときだけ `Some` を返すこと
+    /// （グリッド側は畳み込み順を保証しない）。
+    #[doc(hidden)]
+    fn grid_op(&self) -> Option<GridOp<V>> {
+        None
     }
 }
