@@ -27,13 +27,13 @@ impl Source for SpatialIdSet {
     type Value = ();
 
     fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<()>, Error> {
-        let mut segments: Vec<(FlexId, ())> = Vec::new();
+        let mut time_segments: Vec<(FlexId, ())> = Vec::new();
         for b in bounds {
             for id in self.get_range(b) {
-                segments.push((id, ()));
+                time_segments.push((id, ()));
             }
         }
-        Ok(segments.into_iter().collect())
+        Ok(time_segments.into_iter().collect())
     }
 
     fn read_all(self: Box<Self>) -> Result<WorkingTree<()>, Error> {
@@ -56,13 +56,13 @@ where
     type Value = V;
 
     fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
-        let mut segments: Vec<(FlexId, V)> = Vec::new();
+        let mut time_segments: Vec<(FlexId, V)> = Vec::new();
         for b in bounds {
             for (id, value) in self.get_range(b) {
-                segments.push((id, value.clone()));
+                time_segments.push((id, value.clone()));
             }
         }
-        Ok(segments.into_iter().collect())
+        Ok(time_segments.into_iter().collect())
     }
 
     fn read_all(self: Box<Self>) -> Result<WorkingTree<V>, Error> {
@@ -101,12 +101,12 @@ where
         let core = working.into_core();
         #[cfg(feature = "rayon")]
         {
-            let segments: Vec<(FlexId, V)> = core.into_iter().collect();
+            let time_segments: Vec<(FlexId, V)> = core.into_iter().collect();
             use rayon::iter::FromParallelIterator;
-            if segments.len() < SEQ_CONVERT_THRESHOLD {
-                segments.into_iter().collect()
+            if time_segments.len() < SEQ_CONVERT_THRESHOLD {
+                time_segments.into_iter().collect()
             } else {
-                SpatialIdTable::from_par_iter(segments)
+                SpatialIdTable::from_par_iter(time_segments)
             }
         }
         #[cfg(not(feature = "rayon"))]

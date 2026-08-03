@@ -80,7 +80,7 @@ fn lazy_get_filters_by_time() {
     use crate::{Interval, SingleId, SpatialIdTable};
     use alloc::collections::BTreeSet;
 
-    let segment = |t: u64| {
+    let time_segment = |t: u64| {
         SingleId::new(10, 0, 5, 5)
             .unwrap()
             .with_time(Interval::HOUR, t)
@@ -88,10 +88,10 @@ fn lazy_get_filters_by_time() {
     };
 
     let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
-    table.insert(segment(0), 1); // [0, 3600)
-    table.insert(segment(10), 2); // [36000, 39600)
+    table.insert(time_segment(0), 1); // [0, 3600)
+    table.insert(time_segment(10), 2); // [36000, 39600)
 
-    for (target, expected) in [(segment(0), 1), (segment(10), 2)] {
+    for (target, expected) in [(time_segment(0), 1), (time_segment(10), 2)] {
         let values: BTreeSet<i32> = table
             .clone()
             .query()

@@ -213,9 +213,9 @@ impl RangeId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let span =
-            span::Span::new(start, end).ok_or(SpatialIdError::TOutOfRange { i: 1, t: end })?;
-        let (interval, t_min, t_max) = span.to_interval_range()?;
+        let time_span =
+            span::TimeSpan::new(start, end).ok_or(SpatialIdError::TOutOfRange { i: 1, t: end })?;
+        let (interval, t_min, t_max) = time_span.to_interval_range()?;
         Ok(self.with_time_unchecked(interval, [t_min, t_max]))
     }
 

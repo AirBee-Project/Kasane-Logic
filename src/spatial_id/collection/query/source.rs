@@ -44,13 +44,13 @@ mod tests {
 
         let working = table.read_subset(&bounds).unwrap();
 
-        let segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
+        let time_segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
         assert_eq!(
-            segments.len(),
+            time_segments.len(),
             1,
-            "同じSegmentが重複して入っている: {segments:?}"
+            "同じSegmentが重複して入っている: {time_segments:?}"
         );
-        assert_eq!(segments[0].1, 7);
+        assert_eq!(time_segments[0].1, 7);
     }
 
     /// 単一 bounds でも、重なり合う bounds でも同じ結果になること。

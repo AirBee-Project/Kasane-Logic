@@ -9,12 +9,6 @@ use alloc::vec::Vec;
 /// どう構築しても [`Interval::WHOLE`] と（`temporal_id` feature 有効時は）
 /// `Interval::SECOND` が自動的に加わる。この2つが無いと表現できない区間が生じるためである。
 ///
-/// - **`SECOND`（1秒）**: 任意の秒区間を必ず表せる保証。これが無いと、たとえば
-///   候補が `{MINUTE}` だけのとき `[30, 90)` を表せない（`30` が `60` で割り切れない）。
-/// - **`WHOLE`（`2^35` 秒）**: 全時間の ID を1Segmentで表す保証。暦の単位は `2^35` を
-///   割り切らない（`2^35 % 60 = 8`、`% 3600 = 2768`、`% 86400 = 13568`）ので、
-///   `WHOLE` が無いと時間を指定していない ID が `_1/0:34359738367`（343億Segment）に化ける。
-///
 /// ```
 /// # #[cfg(feature = "temporal_id")]
 /// # {
@@ -236,7 +230,7 @@ mod tests {
         let units = AllowedIntervals::calendar();
         // ちょうど1日
         assert_eq!(units.coarsest_dividing(86_400, 172_800), Interval::DAY);
-        // 2時間ぶん（`gcd` なら 7200 秒だが、候補にないので 1 時間 × 2 Segment）
+        // 2時間ぶん（`gcd` なら 7200 秒だが、候補にないので 1 時間 × 2 TimeSegment）
         assert_eq!(units.coarsest_dividing(0, 7_200), Interval::HOUR);
         // 30分ぶん
         assert_eq!(units.coarsest_dividing(0, 1_800), Interval::MINUTE);
@@ -283,11 +277,11 @@ mod collection_api {
             set.insert(id);
         }
 
-        // 既定は gcd なので「7200 秒 × 1 Segment」。
+        // 既定は gcd なので「7200 秒 × 1 TimeSegment」。
         let natural: Vec<_> = set.range_ids().map(|r| r.to_string()).collect();
         assert_eq!(natural, ["12/0/3638/1614_7200/0"]);
 
-        // 暦に正規化すると「3600 秒 × 2 Segment」。
+        // 暦に正規化すると「3600 秒 × 2 TimeSegment」。
         let calendar: Vec<_> = set
             .range_ids_in(AllowedIntervals::calendar())
             .map(|r| r.to_string())

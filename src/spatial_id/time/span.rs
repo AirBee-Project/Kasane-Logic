@@ -1,15 +1,15 @@
-use super::segment::Segment;
+use super::segment::TimeSegment;
 use crate::spatial_id::zoom_level::TZoomLevel;
 use crate::{Interval, error::Error};
 
 /// 絶対秒区間 `[start, end)`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Span {
+pub struct TimeSpan {
     start: u64,
     end: u64,
 }
 
-impl Span {
+impl TimeSpan {
     /// 新しい区間を生成する。start >= end や上限超過の場合は None を返す。
     pub const fn new(start: u64, end: u64) -> Option<Self> {
         if start >= end || end > Interval::MAX_SECONDS {
@@ -83,7 +83,7 @@ impl Span {
         Ok((interval, self.start / unit, self.end / unit - 1))
     }
 
-    /// 区間木的に高々 `O(log 幅)` 個の2分岐 Segment へ分解する。
+    /// 区間木的に高々 `O(log 幅)` 個の2分岐 TimeSegment へ分解する。
     pub fn into_segments(&self) -> TimeSegments {
         let l = self.start;
         let r = self.end - 1;
@@ -107,7 +107,7 @@ impl Span {
     }
 }
 
-/// [`Span::into_segments`] が返す、`Segment` の列。
+/// [`TimeSpan::into_segments`] が返す、`TimeSegment` の列。
 pub struct TimeSegments {
     l: u64,
     r: u64,
@@ -115,7 +115,7 @@ pub struct TimeSegments {
 }
 
 impl Iterator for TimeSegments {
-    type Item = Segment;
+    type Item = TimeSegment;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -126,24 +126,24 @@ impl Iterator for TimeSegments {
             if self.cur_z == 0 {
                 let v = self.l;
                 self.l += 1;
-                return Some(Segment::new(unsafe { TZoomLevel::new_unchecked(0) }, v));
+                return Some(TimeSegment::new(unsafe { TZoomLevel::new_unchecked(0) }, v));
             }
 
             let z = self.cur_z as u8;
             if self.l == self.r {
                 let v = self.l;
                 self.l += 1;
-                return Some(Segment::new(unsafe { TZoomLevel::new_unchecked(z) }, v));
+                return Some(TimeSegment::new(unsafe { TZoomLevel::new_unchecked(z) }, v));
             }
             if self.l & 1 == 1 {
                 let v = self.l;
                 self.l += 1;
-                return Some(Segment::new(unsafe { TZoomLevel::new_unchecked(z) }, v));
+                return Some(TimeSegment::new(unsafe { TZoomLevel::new_unchecked(z) }, v));
             }
             if self.r & 1 == 0 {
                 let v = self.r;
                 self.r -= 1;
-                return Some(Segment::new(unsafe { TZoomLevel::new_unchecked(z) }, v));
+                return Some(TimeSegment::new(unsafe { TZoomLevel::new_unchecked(z) }, v));
             }
             self.l >>= 1;
             self.r >>= 1;
@@ -174,8 +174,11 @@ mod tests {
         ];
 
         for &(start, end) in cases {
-            let span = Span::new(start, end).unwrap();
-            let mut ranges: Vec<_> = span.into_segments().map(|seg| seg.span()).collect();
+            let time_span = TimeSpan::new(start, end).unwrap();
+            let mut ranges: Vec<_> = time_span
+                .into_segments()
+                .map(|seg| seg.time_span())
+                .collect();
             ranges.sort_unstable_by_key(|s| s.start());
 
             let mut cursor = start;
@@ -193,17 +196,17 @@ mod tests {
 
     #[test]
     fn whole_range_is_a_single_segment() {
-        let span = Span::new(0, Interval::MAX_SECONDS).unwrap();
-        let segments: Vec<_> = span.into_segments().collect();
-        assert_eq!(segments.len(), 1);
-        assert_eq!(segments[0].zoom().get(), 0);
-        assert_eq!(segments[0].index(), 0);
+        let time_span = TimeSpan::new(0, Interval::MAX_SECONDS).unwrap();
+        let time_segments: Vec<_> = time_span.into_segments().collect();
+        assert_eq!(time_segments.len(), 1);
+        assert_eq!(time_segments[0].zoom().get(), 0);
+        assert_eq!(time_segments[0].index(), 0);
     }
 
     #[test]
     fn empty_range_yields_nothing() {
-        assert!(Span::new(5, 5).is_none());
-        assert!(Span::new(9, 5).is_none());
+        assert!(TimeSpan::new(5, 5).is_none());
+        assert!(TimeSpan::new(9, 5).is_none());
     }
 
     #[test]
@@ -211,9 +214,9 @@ mod tests {
         for zoom in 0..=TZoomLevel::MAX.get() {
             let max_index = (1u64 << zoom) - 1;
             for index in [0u64, 1, max_index].into_iter().filter(|i| *i <= max_index) {
-                let seg = Segment::new(TZoomLevel::new(zoom).unwrap(), index);
-                let span = seg.span();
-                assert_eq!(span.coarsest_unit(), span.width(), "z={zoom}");
+                let seg = TimeSegment::new(TZoomLevel::new(zoom).unwrap(), index);
+                let time_span = seg.time_span();
+                assert_eq!(time_span.coarsest_unit(), time_span.width(), "z={zoom}");
             }
         }
     }
@@ -230,44 +233,44 @@ mod tests {
             (300 * 4_858_272, 300 * 4_858_273, 300),
             (1_770_000_000, 1_770_000_001, 1),
         ] {
-            let span = Span::new(start, end).unwrap();
-            assert_eq!(span.coarsest_unit(), expected, "[{start}, {end})");
+            let time_span = TimeSpan::new(start, end).unwrap();
+            assert_eq!(time_span.coarsest_unit(), expected, "[{start}, {end})");
         }
     }
 
     #[test]
     fn intersect_and_difference_agree_with_the_set_operations() {
-        let a = Span::new(3600, 7200).unwrap();
-        let b = Span::new(5400, 9000).unwrap();
-        assert_eq!(a.intersect(&b), Span::new(5400, 7200));
+        let a = TimeSpan::new(3600, 7200).unwrap();
+        let b = TimeSpan::new(5400, 9000).unwrap();
+        assert_eq!(a.intersect(&b), TimeSpan::new(5400, 7200));
 
-        let a2 = Span::new(0, 100).unwrap();
-        let b2 = Span::new(100, 200).unwrap();
+        let a2 = TimeSpan::new(0, 100).unwrap();
+        let b2 = TimeSpan::new(100, 200).unwrap();
         assert_eq!(a2.intersect(&b2), None);
 
-        let a3 = Span::new(0, 86_400).unwrap();
-        let b3 = Span::new(3_600, 7_200).unwrap();
+        let a3 = TimeSpan::new(0, 86_400).unwrap();
+        let b3 = TimeSpan::new(3_600, 7_200).unwrap();
         let pieces: Vec<_> = a3.difference(&b3).collect();
         assert_eq!(
             pieces,
             [
-                Span::new(0, 3_600).unwrap(),
-                Span::new(7_200, 86_400).unwrap()
+                TimeSpan::new(0, 3_600).unwrap(),
+                TimeSpan::new(7_200, 86_400).unwrap()
             ]
         );
 
-        let a4 = Span::new(0, 86_400).unwrap();
-        let b4 = Span::new(0, 3_600).unwrap();
+        let a4 = TimeSpan::new(0, 86_400).unwrap();
+        let b4 = TimeSpan::new(0, 3_600).unwrap();
         let pieces: Vec<_> = a4.difference(&b4).collect();
-        assert_eq!(pieces, [Span::new(3_600, 86_400).unwrap()]);
+        assert_eq!(pieces, [TimeSpan::new(3_600, 86_400).unwrap()]);
 
-        let a5 = Span::new(10, 20).unwrap();
-        let b5 = Span::new(0, 100).unwrap();
+        let a5 = TimeSpan::new(10, 20).unwrap();
+        let b5 = TimeSpan::new(0, 100).unwrap();
         assert_eq!(a5.difference(&b5).count(), 0);
 
-        let a6 = Span::new(0, 10).unwrap();
-        let b6 = Span::new(50, 60).unwrap();
+        let a6 = TimeSpan::new(0, 10).unwrap();
+        let b6 = TimeSpan::new(50, 60).unwrap();
         let pieces: Vec<_> = a6.difference(&b6).collect();
-        assert_eq!(pieces, [Span::new(0, 10).unwrap()]);
+        assert_eq!(pieces, [TimeSpan::new(0, 10).unwrap()]);
     }
 }

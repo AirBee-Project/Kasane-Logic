@@ -92,13 +92,13 @@ fn x_strip_has_no_redundant_branch() {
 fn road_strip_xy_symmetry() {
     let z = 4u8;
 
-    // Y 方向 2 Segment → 1。
+    // Y 方向 2 TimeSegment → 1。
     let mut y_strip = SpatialIdSet::new();
     y_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
     y_strip.insert(SingleId::new(z, 0, 0, 1).unwrap());
     assert_eq!(y_strip.count(), 1, "Y-strip merges");
 
-    // X 方向 2 Segment → 最深 X の冗長分割が畳まれ 1（異方Segment x_zoom=z-1, y_zoom=z）。
+    // X 方向 2 TimeSegment → 最深 X の冗長分割が畳まれ 1（異方Segment x_zoom=z-1, y_zoom=z）。
     let mut x_strip = SpatialIdSet::new();
     x_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
     x_strip.insert(SingleId::new(z, 0, 1, 0).unwrap());
@@ -121,7 +121,7 @@ fn road_strip_xy_symmetry() {
     assert_eq!(
         long_x_road.count(),
         1,
-        "aligned X-road merges to a single anisotropic segment"
+        "aligned X-road merges to a single anisotropic time_segment"
     );
 }
 
@@ -158,7 +158,11 @@ fn table_merges_same_value_only() {
     let mut diff = SpatialIdTable::<i32>::new();
     diff.insert(SingleId::new(2, 0, 0, 0).unwrap(), 7);
     diff.insert(SingleId::new(2, 0, 0, 1).unwrap(), 8);
-    assert_eq!(diff.count(), 2, "different-value segments must NOT merge");
+    assert_eq!(
+        diff.count(),
+        2,
+        "different-value time_segments must NOT merge"
+    );
 }
 
 /// Table: 8 オクタントを同値で満たすと 1 葉へ collapse。異値が混じると collapse しない。
@@ -224,7 +228,7 @@ fn union_of_f_halves_collapses() {
 }
 
 /// 深いズームの立方体を完全に満たすと、多段の collapse が再帰的に伝播して
-/// 1 葉になる。zoom Z の等方立方体 = (2^Z)^3 Segment、ツリー深さ 3*Z 段の cascade。
+/// 1 葉になる。zoom Z の等方立方体 = (2^Z)^3 TimeSegment、ツリー深さ 3*Z 段の cascade。
 #[test]
 fn deep_recursive_cascade_collapses() {
     for z in 1u8..=3 {
@@ -496,7 +500,7 @@ fn seven_octants_partial() {
 /// 大きな立方体（多数の子）を1値で満たし、その後さらに同値を入れても count が増えないこと。
 #[test]
 fn fill_zoom2_cube_collapses() {
-    // zoom2 の f/x/y を 0..4 まで全部 = 4^3 = 64 Segment。全部同一値。
+    // zoom2 の f/x/y を 0..4 まで全部 = 4^3 = 64 TimeSegment。全部同一値。
     let mut set = SpatialIdSet::new();
     for f in 0..4 {
         for x in 0..4 {

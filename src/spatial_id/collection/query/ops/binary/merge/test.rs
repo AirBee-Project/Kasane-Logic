@@ -1,7 +1,7 @@
 use crate::spatial_id::collection::query::merge_policy::Sum;
 use crate::{SingleId, Source, SpatialIdTable};
 
-fn segment(x: u32, v: i32) -> (SingleId, i32) {
+fn time_segment(x: u32, v: i32) -> (SingleId, i32) {
     (SingleId::new(20, 0, x, 0).unwrap(), v)
 }
 
@@ -12,10 +12,10 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     let mut a = SpatialIdTable::new();
     let mut b = SpatialIdTable::new();
 
-    let (only_a, av) = segment(100, 7); // Aのみ
-    let (both, av2) = segment(101, 3); // 両方
-    let (_, bv2) = segment(101, 4);
-    let (only_b, bv) = segment(102, 5); // Bのみ
+    let (only_a, av) = time_segment(100, 7); // Aのみ
+    let (both, av2) = time_segment(101, 3); // 両方
+    let (_, bv2) = time_segment(101, 4);
+    let (only_b, bv) = time_segment(102, 5); // Bのみ
 
     a.insert(only_a.clone(), av);
     a.insert(both.clone(), av2);
@@ -28,7 +28,7 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     assert_eq!(out.get(&both).next().unwrap().1, &7); // resolve(3, 4)
     assert_eq!(out.get(&only_b).next().unwrap().1, &5); // resolve(default=0, 5)
 
-    let neither = segment(103, 0).0;
+    let neither = time_segment(103, 0).0;
     assert!(out.get(&neither).next().is_none());
 }
 

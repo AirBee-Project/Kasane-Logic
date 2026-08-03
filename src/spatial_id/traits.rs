@@ -194,10 +194,10 @@ pub trait SpatialId:
     /// 占有する絶対秒区間 `[start, end)` を返す。
     fn seconds_range(&self) -> (u64, u64);
 
-    /// 占有する絶対秒区間を [`Span`](crate::spatial_id::time::span::Span) として返す。
-    fn time_span(&self) -> crate::spatial_id::time::span::Span {
+    /// 占有する絶対秒区間を [`TimeSpan`](crate::spatial_id::time::span::TimeSpan) として返す。
+    fn time_span(&self) -> crate::spatial_id::time::span::TimeSpan {
         let (s, e) = self.seconds_range();
-        crate::spatial_id::time::span::Span::new_unchecked(s, e)
+        crate::spatial_id::time::span::TimeSpan::new_unchecked(s, e)
     }
 
     /// 時間を指定していない（全時間を覆う）かを判定する。

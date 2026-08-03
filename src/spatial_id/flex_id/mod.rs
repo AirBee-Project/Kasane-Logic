@@ -94,7 +94,7 @@ impl FlexId {
     pub fn y_index(&self) -> u32 {
         self.y_index
     }
-    /// この [`FlexId`] の時間インデックス `{t}`。[`interval`](crate::SpatialId::interval) を単位とする。
+    /// この [`FlexId`] の時間インデックス `{t}`。[`time_interval`](crate::SpatialId::time_interval) を単位とする。
     ///
     /// [`t_zoomlevel`](Self::t_zoomlevel) と対で読めば、木の2分岐Segment `(zoom, index)` そのもの。
     /// `temporal_id` feature 無効時は常に `0`（全時間）。
@@ -230,17 +230,17 @@ impl FlexId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let span =
-            span::Span::new(start, end).ok_or(SpatialIdError::TOutOfRange { i: 1, t: end })?;
-        let (interval, t_min, t_max) = span.to_interval_range()?;
+        let time_span =
+            span::TimeSpan::new(start, end).ok_or(SpatialIdError::TOutOfRange { i: 1, t: end })?;
+        let (interval, t_min, t_max) = time_span.to_interval_range()?;
         if t_min != t_max {
             return Err(SpatialIdError::TIntervalError {
                 i: interval.seconds(),
             }
             .into());
         }
-        let segment = interval.as_segment(t_min)?;
-        let (zoom, index) = (segment.zoom().get(), segment.index());
+        let time_segment = interval.as_segment(t_min)?;
+        let (zoom, index) = (time_segment.zoom().get(), time_segment.index());
         self.with_time(zoom, index)
     }
 

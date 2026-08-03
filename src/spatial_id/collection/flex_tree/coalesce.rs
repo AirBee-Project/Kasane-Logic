@@ -161,13 +161,13 @@ mod tests {
             .with_time(1800, 809712)
             .unwrap();
 
-        let segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
+        let time_segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
         assert!(
-            segments.len() > 1,
+            time_segments.len() > 1,
             "1800秒は複数の2分岐Segmentへ分解されるはず"
         );
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 1, "結合されて1件になるはず");
         assert_eq!(merged[0].0.to_string(), "12/0/3638/1614_1800/809712");
     }
@@ -179,11 +179,11 @@ mod tests {
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 1u8)));
-        segments.extend(b.into_iter().map(|id| (id, 2u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 1u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 2u8)));
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].0.seconds_range(), (0, 3600));
         assert_eq!(merged[1].0.seconds_range(), (3600, 7200));
@@ -196,11 +196,11 @@ mod tests {
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 7u8)));
-        segments.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].0.seconds_range(), (0, 7200));
         // gcd(0, 7200) = 7200 なので「2時間」という単位で1Segmentになる。
@@ -217,11 +217,11 @@ mod tests {
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 7u8)));
-        segments.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(segments, Some(AllowedIntervals::calendar()));
+        let merged = coalesce_temporal_vec(time_segments, Some(AllowedIntervals::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
             (merged[0].0.time_interval().seconds(), merged[0].0.t()),
@@ -230,10 +230,10 @@ mod tests {
 
         // 候補が区間を割り切れないときは、必ず含まれる SECOND まで落ちる。
         // 候補集合が貧しいとSegment数が爆発することを示す例でもある
-        // （1時間 = 3600 Segment）。実用では `AllowedIntervals::calendar()` のように
+        // （1時間 = 3600 TimeSegment）。実用では `AllowedIntervals::calendar()` のように
         // 粒度の階段を用意しておくこと。
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(
             SingleId::new(12, 0, 3638, 1614)
                 .unwrap()
                 .with_time(Interval::HOUR, 0)
@@ -241,7 +241,8 @@ mod tests {
                 .into_iter()
                 .map(|id| (id, 7u8)),
         );
-        let merged = coalesce_temporal_vec(segments, Some(&AllowedIntervals::new([Interval::DAY])));
+        let merged =
+            coalesce_temporal_vec(time_segments, Some(&AllowedIntervals::new([Interval::DAY])));
         assert_eq!(
             (merged[0].0.time_interval().seconds(), merged[0].0.t()),
             (1, [0, 3599])
@@ -262,21 +263,21 @@ mod tests {
             .with_time(Interval::HOUR, 1)
             .unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 7u8)));
-        segments.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        assert_eq!(coalesce_temporal_vec(segments, None).len(), 2);
+        assert_eq!(coalesce_temporal_vec(time_segments, None).len(), 2);
     }
 
     /// 時間を使っていない場合は入力と1対1で対応する（全時間Segmentはそのまま）。
     #[test]
     fn passes_through_when_no_temporal_information() {
-        let segments: Vec<(FlexId, u8)> = (0..4u32)
+        let time_segments: Vec<(FlexId, u8)> = (0..4u32)
             .map(|x| (FlexId::new(3, 0, 3, x, 3, 0).unwrap(), 1u8))
             .collect();
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 4);
         assert!(merged.iter().all(|(id, _)| id.is_whole_time()));
     }

@@ -11,17 +11,17 @@ use crate::{FlexId, SingleId, spatial_id::time::span::TimeSegments};
 pub struct SingleIdSegments {
     /// 空間部分（3軸とも `SingleId` のズーム）。時間だけを差し替えて使い回す。
     base: FlexId,
-    segments: TimeSegments,
+    time_segments: TimeSegments,
 }
 
 impl Iterator for SingleIdSegments {
     type Item = FlexId;
 
     fn next(&mut self) -> Option<FlexId> {
-        let segment = self.segments.next()?;
+        let time_segment = self.time_segments.next()?;
         Some(
             self.base
-                .with_time_segment(segment.zoom().get(), segment.index()),
+                .with_time_segment(time_segment.zoom().get(), time_segment.index()),
         )
     }
 }
@@ -41,7 +41,7 @@ impl IntoIterator for SingleId {
             base: unsafe {
                 FlexId::new_unchecked(self.z(), self.f(), self.z(), self.x(), self.z(), self.y())
             },
-            segments: self.time_segments(),
+            time_segments: self.time_segments(),
         }
     }
 }

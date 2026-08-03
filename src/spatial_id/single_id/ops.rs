@@ -95,10 +95,10 @@ impl SingleId {
         }
 
         // 空間的に `other` と一致（または内包される）ところまで来たので、残るは時間の差分だけ。
-        for span in current.time_span().difference(&other.time_span()) {
+        for time_span in current.time_span().difference(&other.time_span()) {
             results.push(
                 RangeId::from(&current)
-                    .with_time_span(span.start(), span.end())
+                    .with_time_span(time_span.start(), time_span.end())
                     .expect("差分は元の区間の部分なので常に有効"),
             );
         }
@@ -149,11 +149,11 @@ impl SingleId {
     /// ```
     pub fn intersection(&self, other: &Self) -> Option<RangeId> {
         let deep = self.spatial_intersection(other)?;
-        let span = self.time_span().intersect(&other.time_span())?;
+        let time_span = self.time_span().intersect(&other.time_span())?;
 
         Some(
             RangeId::from(deep)
-                .with_time_span(span.start(), span.end())
+                .with_time_span(time_span.start(), time_span.end())
                 .expect("交差は両者の部分なので常に有効"),
         )
     }

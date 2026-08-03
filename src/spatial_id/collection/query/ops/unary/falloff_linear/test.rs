@@ -11,7 +11,7 @@ fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
         .collect()
 }
 
-fn segment(x: u32, v: i32) -> (SingleId, i32) {
+fn time_segment(x: u32, v: i32) -> (SingleId, i32) {
     (SingleId::new(20, 0, x, 0).unwrap(), v)
 }
 
@@ -19,7 +19,7 @@ fn segment(x: u32, v: i32) -> (SingleId, i32) {
 #[test]
 fn falloff_x_single_segment() {
     let mut table = SpatialIdTable::new();
-    let (id, v) = segment(100, 4);
+    let (id, v) = time_segment(100, 4);
     table.insert(id, v);
 
     let out = table
@@ -41,8 +41,8 @@ fn falloff_x_single_segment() {
 #[test]
 fn falloff_x_overlap_sum() {
     let mut table = SpatialIdTable::new();
-    table.insert(segment(100, 4).0, 4);
-    table.insert(segment(102, 4).0, 4);
+    table.insert(time_segment(100, 4).0, 4);
+    table.insert(time_segment(102, 4).0, 4);
 
     let out = table
         .query()
@@ -67,8 +67,8 @@ fn falloff_x_overlap_sum() {
 #[test]
 fn falloff_x_overlap_max() {
     let mut table = SpatialIdTable::new();
-    table.insert(segment(100, 4).0, 4);
-    table.insert(segment(102, 4).0, 4);
+    table.insert(time_segment(100, 4).0, 4);
+    table.insert(time_segment(102, 4).0, 4);
 
     let out = table
         .query()
@@ -87,7 +87,7 @@ fn falloff_x_overlap_max() {
 #[test]
 fn falloff_x_radius_zero_is_noop() {
     let mut table = SpatialIdTable::new();
-    table.insert(segment(100, 7).0, 7);
+    table.insert(time_segment(100, 7).0, 7);
 
     let out = table
         .query()

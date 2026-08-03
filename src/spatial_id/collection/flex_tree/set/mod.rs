@@ -194,10 +194,10 @@ impl SpatialIdSet {
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 0).unwrap());
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 1).unwrap());
     ///
-    /// // 既定（gcd）では 2 時間ぶんが「7200 秒 × 1 Segment」になる。
+    /// // 既定（gcd）では 2 時間ぶんが「7200 秒 × 1 TimeSegment」になる。
     /// assert_eq!(set.range_ids().next().unwrap().to_string(), "12/0/3638/1614_7200/0");
     ///
-    /// // 暦の単位に正規化すると「3600 秒 × 2 Segment」になる。
+    /// // 暦の単位に正規化すると「3600 秒 × 2 TimeSegment」になる。
     /// let got = set.range_ids_in(AllowedIntervals::calendar()).next().unwrap();
     /// assert_eq!(got.to_string(), "12/0/3638/1614_3600/0:1");
     /// # }
