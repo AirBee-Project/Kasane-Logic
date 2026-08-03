@@ -1,5 +1,7 @@
 //! 時間間隔 `{i}`を表す型に関する実装
 
+use super::{segment::Segment, span::Span};
+use crate::spatial_id::zoom_level::TZoomLevel;
 use crate::{SpatialIdError, error::Error};
 
 /// 時間 ID の時間間隔 `{i}`（秒数）を表現する型。
@@ -143,6 +145,46 @@ impl Interval {
     /// ```
     pub const fn index_of(self, unix_seconds: u64) -> u64 {
         unix_seconds / self.seconds()
+    }
+
+    /// `{i}` と `{t}` の範囲（両端含む）が占める絶対秒区間 `[start, end)` を、検証して返す。
+    ///
+    /// 単一Segmentの型（[`SingleId`](crate::SingleId) / [`FlexId`](crate::FlexId)）は
+    /// `t_min == t_max` で呼ぶ。仕様は `{i}` に任意の秒数を認めるが、区間の終端が
+    /// [`Interval::MAX_SECONDS`] を超えてはならない。
+    pub fn validated_span(&self, t_min: u64, t_max: u64) -> Result<Span, Error> {
+        let unit = self.seconds();
+        let end = t_max
+            .checked_add(1)
+            .and_then(|v| v.checked_mul(unit))
+            .ok_or(SpatialIdError::TOutOfRange { i: unit, t: t_max })?;
+
+        if end > Interval::MAX_SECONDS {
+            return Err(SpatialIdError::TOutOfRange { i: unit, t: t_max }.into());
+        }
+
+        Span::new(t_min * unit, end)
+            .ok_or_else(|| SpatialIdError::TOutOfRange { i: unit, t: t_max }.into())
+    }
+
+    /// `{i}` と `{t}` を、[`FlexId`](crate::FlexId) が保持できる2分岐Segmentへ直す。
+    ///
+    /// [`FlexId`](crate::FlexId) は木のノードアドレスなので `2^(35 - zoom)` 秒のSegment1個しか
+    /// 持てない。`{i}` が2の冪でなければ1個のSegmentにならないため
+    /// [`SpatialIdError::TIntervalError`] を返す（複数Segmentへ分けたい場合は
+    /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) に付けてから
+    /// [`IntoIterator`] で展開する）。
+    pub fn as_segment(&self, t: u64) -> Result<Segment, Error> {
+        let seconds = self.seconds();
+        if !seconds.is_power_of_two() {
+            return Err(SpatialIdError::TIntervalError { i: seconds }.into());
+        }
+
+        // 幅 `2^k` 秒のSegmentはズーム `MAX - k`。`seconds <= 2^MAX` なので `k <= MAX`。
+        let zoom = TZoomLevel::MAX.get() - seconds.trailing_zeros() as u8;
+        let t_zoom = TZoomLevel::new(zoom)?;
+        t_zoom.check_index(t)?;
+        Ok(Segment::new(t_zoom, t))
     }
 
     /// 検証済みの秒数から直接構築する。
@@ -363,7 +405,7 @@ mod api_symmetry {
             .with_time_span(1800, 7200)
             .unwrap();
         assert_eq!(range.seconds_range(), (1800, 7200));
-        assert_eq!((range.interval().seconds(), range.t()), (1800, [1, 3]));
+        assert_eq!((range.time_interval().seconds(), range.t()), (1800, [1, 3]));
     }
 
     /// `relabel_time` は3型とも `Result`（`Option` との混在を許さない）。

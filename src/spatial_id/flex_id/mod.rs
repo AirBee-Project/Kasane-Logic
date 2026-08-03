@@ -10,7 +10,7 @@ use crate::{
     Error, Side, SpatialIdError,
     spatial_id::{
         range_id::convert::{split_f, split_xy},
-        time::segments,
+        time::span,
         zoom_level::{TZoomLevel, ZoomLevel},
     },
 };
@@ -152,7 +152,7 @@ impl FlexId {
     /// // ズーム25のSegmentは 2^(35-25) = 1024 秒幅。
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(25, 7).unwrap();
     /// assert_eq!((id.t_zoomlevel(), id.t()), (25, 7));
-    /// assert_eq!(id.interval().seconds(), 1024);
+    /// assert_eq!(id.time_interval().seconds(), 1024);
     ///
     /// // `TZoomLevel` をそのまま渡してもよい。
     /// let same = FlexId::new(5, 3, 2, 3, 10, 1)
@@ -230,14 +230,17 @@ impl FlexId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = segments::span_to_interval(start, end)?;
+        let span =
+            span::Span::new(start, end).ok_or(SpatialIdError::TOutOfRange { i: 1, t: end })?;
+        let (interval, t_min, t_max) = span.to_interval_range()?;
         if t_min != t_max {
             return Err(SpatialIdError::TIntervalError {
                 i: interval.seconds(),
             }
             .into());
         }
-        let (zoom, index) = segments::segment_of(interval, t_min)?;
+        let segment = interval.as_segment(t_min)?;
+        let (zoom, index) = (segment.zoom().get(), segment.index());
         self.with_time(zoom, index)
     }
 

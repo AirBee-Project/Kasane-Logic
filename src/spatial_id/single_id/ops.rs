@@ -1,7 +1,7 @@
 use crate::SpatialId;
 use alloc::vec::Vec;
 
-use crate::{RangeId, SingleId, spatial_id::time::segments};
+use crate::{RangeId, SingleId};
 
 impl SingleId {
     /// 空間3軸（F/X/Y）だけで重なりを判定し、重なる場合は「深い側」の [`SingleId`] を返す。
@@ -95,12 +95,10 @@ impl SingleId {
         }
 
         // 空間的に `other` と一致（または内包される）ところまで来たので、残るは時間の差分だけ。
-        for (start, end) in
-            segments::difference_seconds(current.seconds_range(), other.seconds_range())
-        {
+        for span in current.time_span().difference(&other.time_span()) {
             results.push(
                 RangeId::from(&current)
-                    .with_time_span(start, end)
+                    .with_time_span(span.start(), span.end())
                     .expect("差分は元の区間の部分なので常に有効"),
             );
         }
@@ -151,12 +149,11 @@ impl SingleId {
     /// ```
     pub fn intersection(&self, other: &Self) -> Option<RangeId> {
         let deep = self.spatial_intersection(other)?;
-        let (start, end) =
-            segments::intersect_seconds(self.seconds_range(), other.seconds_range())?;
+        let span = self.time_span().intersect(&other.time_span())?;
 
         Some(
             RangeId::from(deep)
-                .with_time_span(start, end)
+                .with_time_span(span.start(), span.end())
                 .expect("交差は両者の部分なので常に有効"),
         )
     }

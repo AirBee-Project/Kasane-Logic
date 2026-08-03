@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
-use crate::{FlexId, IntervalSet, RangeId, SingleId, SpatialId};
+use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 pub mod convert;
 pub mod impls;
@@ -181,15 +181,15 @@ impl SpatialIdSet {
         self.inner.range_ids_ref(None).map(|(range_id, _)| range_id)
     }
 
-    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    /// 時間の単位を [`AllowedIntervals`] の候補から選んで読み出す。
     ///
     /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
-    /// [`IntervalSet`] は必ず全区間を表せる候補を含むので失敗しない。
+    /// [`AllowedIntervals`] は必ず全区間を表せる候補を含むので失敗しない。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{Interval, IntervalSet, SingleId, SpatialIdSet};
+    /// # use kasane_logic::{Interval, AllowedIntervals, SingleId, SpatialIdSet};
     /// let mut set = SpatialIdSet::new();
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 0).unwrap());
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 1).unwrap());
@@ -198,13 +198,13 @@ impl SpatialIdSet {
     /// assert_eq!(set.range_ids().next().unwrap().to_string(), "12/0/3638/1614_7200/0");
     ///
     /// // 暦の単位に正規化すると「3600 秒 × 2 Segment」になる。
-    /// let got = set.range_ids_in(IntervalSet::calendar()).next().unwrap();
+    /// let got = set.range_ids_in(AllowedIntervals::calendar()).next().unwrap();
     /// assert_eq!(got.to_string(), "12/0/3638/1614_3600/0:1");
     /// # }
     /// ```
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
+        units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = RangeId> + use<'a> {
         self.inner
             .range_ids_ref(Some(units))
@@ -214,7 +214,7 @@ impl SpatialIdSet {
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
+        units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = SingleId> + use<'a> {
         self.inner
             .flat_single_ids_in_ref(Some(units))

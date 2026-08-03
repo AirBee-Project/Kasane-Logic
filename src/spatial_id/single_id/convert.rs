@@ -1,4 +1,4 @@
-use crate::{FlexId, SingleId, spatial_id::time::segments::TimeSegments};
+use crate::{FlexId, SingleId, spatial_id::time::span::TimeSegments};
 
 /// [`SingleId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開するイテレータ。
 ///
@@ -18,8 +18,11 @@ impl Iterator for SingleIdSegments {
     type Item = FlexId;
 
     fn next(&mut self) -> Option<FlexId> {
-        let (zoom, index) = self.segments.next()?;
-        Some(self.base.with_time_segment(zoom, index))
+        let segment = self.segments.next()?;
+        Some(
+            self.base
+                .with_time_segment(segment.zoom().get(), segment.index()),
+        )
     }
 }
 

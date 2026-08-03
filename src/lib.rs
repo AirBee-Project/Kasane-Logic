@@ -117,6 +117,6 @@ pub use spatial_id::collection::query::source::Source;
 pub use spatial_id::collection::query::working::WorkingTree;
 
 #[doc(inline)]
-pub use spatial_id::time::Interval;
+pub use spatial_id::time::AllowedIntervals;
 #[doc(inline)]
-pub use spatial_id::time::IntervalSet;
+pub use spatial_id::time::Interval;

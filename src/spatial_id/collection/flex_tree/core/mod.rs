@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{Error, FlexId, IntervalSet, RangeId, Side, SingleId, SpatialId};
+use crate::{AllowedIntervals, Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
 use node_ops::MergeOp;
@@ -654,13 +654,13 @@ where
 
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
     ///
-    /// `units` に [`IntervalSet`] を渡すと、結合後の秒区間をその候補のうち最も粗い単位
+    /// `units` に [`AllowedIntervals`] を渡すと、結合後の秒区間をその候補のうち最も粗い単位
     /// （＝Segment数が候補の中で最小になる単位）で表す。`None` なら `gcd` で最も粗い単位を選ぶ。
     ///
     /// 木が時間軸で分割されていなければ結合対象が無いので、素通しの遅延イテレータを返す。
     pub fn range_ids_ref<'a>(
         &'a self,
-        units: Option<&'a IntervalSet>,
+        units: Option<&'a AllowedIntervals>,
     ) -> Box<dyn Iterator<Item = (RangeId, &'a V)> + 'a> {
         if !self.has_temporal_split() {
             // 全葉が全時間。結合対象が無いので集めずに素通しできる。
@@ -682,7 +682,7 @@ where
     /// [`flat_single_ids_ref`](Self::flat_single_ids_ref) の、時間単位を指定できる版。
     pub fn flat_single_ids_in_ref<'a>(
         &'a self,
-        units: Option<&'a IntervalSet>,
+        units: Option<&'a AllowedIntervals>,
     ) -> Box<dyn Iterator<Item = (SingleId, &'a V)> + 'a> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
