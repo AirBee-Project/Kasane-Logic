@@ -49,15 +49,6 @@ pub fn altitude(f: f64, z: u8) -> f64 {
     33_554_432.0 * (f / n)
 }
 
-///次元を選択するEnum
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u8)]
-pub enum Dimension {
-    F = 0,
-    X = 1,
-    Y = 2,
-}
-
 /// 座標軸で小さい側:[Side::Lower]
 /// 座標軸で大きい側:[Side::Upper]
 #[derive(Debug, PartialEq, Clone, Copy)]

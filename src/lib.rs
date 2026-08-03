@@ -92,7 +92,7 @@ pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
 // spatial_id: traits
 #[doc(inline)]
-pub use spatial_id::helpers::{Dimension, Side};
+pub use spatial_id::helpers::Side;
 #[doc(inline)]
 pub use spatial_id::traits::SpatialId;
 

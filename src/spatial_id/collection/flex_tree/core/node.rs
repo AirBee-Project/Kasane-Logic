@@ -4,9 +4,7 @@ use crate::{FlexId, Side};
 
 /// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2進セル
 /// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
-/// だけの規約で、他に意味は無い。`Dimension`（`crate::Dimension`）は物理座標計算など
-/// 空間限定のコードからも参照される公開APIなので、時間軸をここに混ぜ込まないよう、
-/// FlexTree内部専用のこの型を別途定義している。
+/// だけの規約で、他に意味は無い。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Axis {
     F,
