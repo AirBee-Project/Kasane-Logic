@@ -204,7 +204,7 @@ impl SpatialIdSet {
     /// ```
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &IntervalSet,
+        units: &'a IntervalSet,
     ) -> impl Iterator<Item = RangeId> + use<'a> {
         self.inner
             .range_ids_ref(Some(units))
@@ -214,7 +214,7 @@ impl SpatialIdSet {
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &IntervalSet,
+        units: &'a IntervalSet,
     ) -> impl Iterator<Item = SingleId> + use<'a> {
         self.inner
             .flat_single_ids_in_ref(Some(units))

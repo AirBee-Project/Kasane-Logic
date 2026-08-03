@@ -1,5 +1,6 @@
 use crate::SpatialId;
 use alloc::boxed::Box;
+use alloc::rc::Rc;
 use alloc::vec::Vec;
 
 use crate::{FlexId, RangeId, SingleId, spatial_id::zoom_level::ZoomLevel};
@@ -117,18 +118,25 @@ impl IntoIterator for RangeId {
 
         // 時間は `Interval` が2の冪とは限らないので、2進セルへ分解してから掛け合わせる
         // （時間を使っていなければ全時間の1セルだけになる）。
-        let t_list: Vec<(u8, u64)> = self.time_cells().collect();
+        //
+        // 最内ループで共有するため `Rc` に包む。`Vec` のまま `clone()` すると
+        // **出力セル1個につきヒープ確保が1回**走り、全時間の ID（`t_list.len() == 1`）でも
+        // 必ず通るため、空間だけの利用者にも余計な固定費がのしかかる。
+        // `Rc::clone` は参照カウントの加算だけで確保しない。
+        let t_list: Rc<[(u8, u64)]> = self.time_cells().collect::<Vec<_>>().into();
 
         let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
             let y_list_inner = y_list.clone();
-            let t_list_inner = t_list.clone();
+            let t_list_inner = Rc::clone(&t_list);
             x_list.clone().into_iter().flat_map(move |(x_z, x_i)| {
                 let y_list_inner = y_list_inner.clone();
-                let t_list_inner = t_list_inner.clone();
+                let t_list_inner = Rc::clone(&t_list_inner);
                 y_list_inner.into_iter().flat_map(move |(y_z, y_i)| {
-                    t_list_inner.clone().into_iter().map(move |(t_z, t_i)| {
-                        unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) }
-                            .with_time_cell(t_z, t_i)
+                    let t_list_inner = Rc::clone(&t_list_inner);
+                    let spatial = unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) };
+                    (0..t_list_inner.len()).map(move |k| {
+                        let (t_z, t_i) = t_list_inner[k];
+                        spatial.with_time_cell(t_z, t_i)
                     })
                 })
             })

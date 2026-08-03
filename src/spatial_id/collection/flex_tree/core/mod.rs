@@ -610,6 +610,7 @@ where
 
         let merged: Vec<(RangeId, V)> = if self.has_temporal_split() {
             crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(self.iter(), None)
+                .collect()
         } else {
             self.iter()
                 .map(|(flex_id, value)| (RangeId::from(&flex_id), value))
@@ -659,7 +660,7 @@ where
     /// 木が時間軸で分割されていなければ結合対象が無いので、素通しの遅延イテレータを返す。
     pub fn range_ids_ref<'a>(
         &'a self,
-        units: Option<&IntervalSet>,
+        units: Option<&'a IntervalSet>,
     ) -> Box<dyn Iterator<Item = (RangeId, &'a V)> + 'a> {
         if !self.has_temporal_split() {
             // 全葉が全時間。結合対象が無いので集めずに素通しできる。
@@ -674,15 +675,14 @@ where
             crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
                 self.iter_ref(),
                 units,
-            )
-            .into_iter(),
+            ),
         )
     }
 
     /// [`flat_single_ids_ref`](Self::flat_single_ids_ref) の、時間単位を指定できる版。
     pub fn flat_single_ids_in_ref<'a>(
         &'a self,
-        units: Option<&IntervalSet>,
+        units: Option<&'a IntervalSet>,
     ) -> Box<dyn Iterator<Item = (SingleId, &'a V)> + 'a> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());

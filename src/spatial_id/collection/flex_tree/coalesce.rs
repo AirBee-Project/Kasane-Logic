@@ -15,9 +15,66 @@
 //! 経路は従来どおり生のセルを返す。
 
 use crate::SpatialId;
+#[allow(unused_imports)]
 use alloc::vec::Vec;
 
 use crate::{FlexId, IntervalSet, RangeId};
+
+/// 空間成分のみを `u128` へパックし、高速な一致判定を行う。
+#[inline(always)]
+fn spatial_key_u128(id: &FlexId) -> u128 {
+    ((id.f_zoomlevel() as u128) << 120)
+        | ((id.f_index() as u128) << 96)
+        | ((id.x_zoomlevel() as u128) << 88)
+        | ((id.x_index() as u128) << 64)
+        | ((id.y_zoomlevel() as u128) << 56)
+        | (id.y_index() as u128)
+}
+
+/// 時間方向に隣接するセルを遅延評価で結合するイテレータ。
+pub struct CoalesceTemporal<'a, I, V>
+where
+    I: Iterator<Item = (FlexId, V)>,
+    V: PartialEq,
+{
+    iter: I,
+    pending: Option<(u128, FlexId, u64, u64, V)>,
+    units: Option<&'a IntervalSet>,
+}
+
+impl<'a, I, V> Iterator for CoalesceTemporal<'a, I, V>
+where
+    I: Iterator<Item = (FlexId, V)>,
+    V: PartialEq,
+{
+    type Item = (RangeId, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (key, first_flex, start, mut end, value) = match self.pending.take() {
+            Some(p) => p,
+            None => {
+                let (id, v) = self.iter.next()?;
+                let (s, e) = id.seconds_range();
+                (spatial_key_u128(&id), id, s, e, v)
+            }
+        };
+
+        for (next_id, next_value) in self.iter.by_ref() {
+            let next_key = spatial_key_u128(&next_id);
+            let (next_start, next_end) = next_id.seconds_range();
+
+            if next_key == key && next_value == value && next_start == end {
+                end = next_end;
+                continue;
+            }
+
+            self.pending = Some((next_key, next_id, next_start, next_end, next_value));
+            return Some(finish(&first_flex, start, end, value, self.units));
+        }
+
+        Some(finish(&first_flex, start, end, value, self.units))
+    }
+}
 
 /// 時間方向に隣接するセルを結合し、[`RangeId`] の列として返す。
 ///
@@ -29,58 +86,20 @@ use crate::{FlexId, IntervalSet, RangeId};
 ///
 /// # 計算量
 ///
-/// 入力を `(空間セル, 開始秒)` でソートしてから1回走査するので `O(n log n)`。
-/// 時間を使っていない木（全セルが `WHOLE`）でも結合対象が見つからないだけで、
-/// 結果は入力と1対1に対応する。
-pub(crate) fn coalesce_temporal<V>(
-    items: impl IntoIterator<Item = (FlexId, V)>,
-    units: Option<&IntervalSet>,
-) -> Vec<(RangeId, V)>
+/// `O(n)`。入力はあらかじめ `(空間セル, 開始秒)` 順に並んでいる前提。
+pub(crate) fn coalesce_temporal<'a, I, V>(
+    rows: I,
+    units: Option<&'a IntervalSet>,
+) -> impl Iterator<Item = (RangeId, V)> + 'a
 where
-    V: Clone + PartialEq,
+    I: IntoIterator<Item = (FlexId, V)> + 'a,
+    V: PartialEq + 'a,
 {
-    // (空間だけのFlexId, 開始秒, 終了秒, 値) へ落とす。
-    // 空間キーは時間成分を取り除いた FlexId そのもの（`Ord` を持つのでソートに使える）。
-    let mut rows: Vec<(FlexId, u64, u64, V)> = items
-        .into_iter()
-        .map(|(flex_id, value)| {
-            let (start, end) = flex_id.seconds_range();
-            (spatial_key(&flex_id), start, end, value)
-        })
-        .collect();
-
-    if rows.is_empty() {
-        return Vec::new();
+    CoalesceTemporal {
+        iter: rows.into_iter(),
+        pending: None,
+        units,
     }
-
-    // 同じ空間セルのものを固め、その中で時間順に並べる。
-    rows.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
-
-    let mut out: Vec<(RangeId, V)> = Vec::with_capacity(rows.len());
-
-    let mut iter = rows.into_iter();
-    let (mut key, mut start, mut end, mut value) = iter.next().expect("空でないことは確認済み");
-
-    for (next_key, next_start, next_end, next_value) in iter {
-        // 空間セルと値が同じで、時間が隙間なく続いているなら伸ばす。
-        if next_key == key && next_value == value && next_start == end {
-            end = next_end;
-            continue;
-        }
-        out.push(finish(&key, start, end, value, units));
-        key = next_key;
-        start = next_start;
-        end = next_end;
-        value = next_value;
-    }
-    out.push(finish(&key, start, end, value, units));
-
-    out
-}
-
-/// 時間成分を全時間へ落とした [`FlexId`]。空間だけを見たグルーピングのキーに使う。
-fn spatial_key(flex_id: &FlexId) -> FlexId {
-    flex_id.with_time_cell(0, 0)
 }
 
 /// 結合し終えた1件を [`RangeId`] に組み立てる。
@@ -113,6 +132,27 @@ mod tests {
     use super::*;
     use crate::{Interval, SingleId, SpatialId};
 
+    fn coalesce_temporal_vec<V: Clone + PartialEq + Send>(
+        items: impl IntoIterator<Item = (FlexId, V)>,
+        units: Option<&IntervalSet>,
+    ) -> Vec<(RangeId, V)> {
+        let mut items: Vec<_> = items.into_iter().collect();
+        items.sort_by(|a, b| {
+            let key_a = spatial_key_u128(&a.0);
+            let key_b = spatial_key_u128(&b.0);
+            key_a
+                .cmp(&key_b)
+                .then_with(|| a.0.seconds_range().0.cmp(&b.0.seconds_range().0))
+        });
+        coalesce_temporal(items, units).collect()
+    }
+
+    /// 時間成分を全時間へ落とした [`FlexId`]。元のテストの `sorted_reference` 用。
+    #[allow(dead_code)]
+    pub(crate) fn spatial_key(flex_id: &FlexId) -> FlexId {
+        flex_id.with_time_cell(0, 0)
+    }
+
     /// 仕様書 1.5.3 の例（`1800/809712`）が、分解 → 結合を経て元の表記へ戻る。
     #[test]
     fn round_trips_the_spec_example() {
@@ -121,11 +161,10 @@ mod tests {
             .with_time(1800, 809712)
             .unwrap();
 
-        // 木へ入れるときと同じ分解を通す。
         let cells: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
         assert!(cells.len() > 1, "1800秒は複数の2進セルへ分解されるはず");
 
-        let merged = coalesce_temporal(cells, None);
+        let merged = coalesce_temporal_vec(cells, None);
         assert_eq!(merged.len(), 1, "結合されて1件になるはず");
         assert_eq!(merged[0].0.to_string(), "12/0/3638/1614_1800/809712");
     }
@@ -141,7 +180,7 @@ mod tests {
         cells.extend(a.into_iter().map(|id| (id, 1u8)));
         cells.extend(b.into_iter().map(|id| (id, 2u8)));
 
-        let merged = coalesce_temporal(cells, None);
+        let merged = coalesce_temporal_vec(cells, None);
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].0.seconds_range(), (0, 3600));
         assert_eq!(merged[1].0.seconds_range(), (3600, 7200));
@@ -158,7 +197,7 @@ mod tests {
         cells.extend(a.into_iter().map(|id| (id, 7u8)));
         cells.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal(cells, None);
+        let merged = coalesce_temporal_vec(cells, None);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].0.seconds_range(), (0, 7200));
         // gcd(0, 7200) = 7200 なので「2時間」という単位で1セルになる。
@@ -179,7 +218,7 @@ mod tests {
         cells.extend(a.into_iter().map(|id| (id, 7u8)));
         cells.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal(cells, Some(IntervalSet::calendar()));
+        let merged = coalesce_temporal_vec(cells, Some(IntervalSet::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
@@ -199,7 +238,7 @@ mod tests {
                 .into_iter()
                 .map(|id| (id, 7u8)),
         );
-        let merged = coalesce_temporal(cells, Some(&IntervalSet::new([Interval::DAY])));
+        let merged = coalesce_temporal_vec(cells, Some(&IntervalSet::new([Interval::DAY])));
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
             (1, [0, 3599])
@@ -224,7 +263,7 @@ mod tests {
         cells.extend(a.into_iter().map(|id| (id, 7u8)));
         cells.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        assert_eq!(coalesce_temporal(cells, None).len(), 2);
+        assert_eq!(coalesce_temporal_vec(cells, None).len(), 2);
     }
 
     /// 時間を使っていない場合は入力と1対1で対応する（全時間セルはそのまま）。
@@ -234,7 +273,7 @@ mod tests {
             .map(|x| (FlexId::new(3, 0, 3, x, 3, 0).unwrap(), 1u8))
             .collect();
 
-        let merged = coalesce_temporal(cells, None);
+        let merged = coalesce_temporal_vec(cells, None);
         assert_eq!(merged.len(), 4);
         assert!(merged.iter().all(|(id, _)| id.is_whole_time()));
     }

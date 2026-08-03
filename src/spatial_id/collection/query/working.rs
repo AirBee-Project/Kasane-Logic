@@ -8,8 +8,7 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 /// クエリ実行中の中間状態。演算子はこの上で動く。
 ///
 /// クレート内部限定のラッパーですが、中身は [`SpatialIdMap`](crate::SpatialIdMap) と
-/// 同じ `FlexTreeCore` です。`shift`/`extrude`/`zoom_out`/`falloff`/`merge` などの演算子は、
-/// この作業木の上での集合演算（構造共有・COW・並列マージ）として実装されています。
+/// 同じ `FlexTreeCore` です。`shift`/`extrude`/`zoom_out`/`falloff`/`merge` などの演算子は、この作業木の上での集合演算（構造共有・COW・並列マージ）として実装されています。
 ///
 /// **内部構造は非公開**です。外から見えるのは
 ///
@@ -43,7 +42,7 @@ impl<V: SafeValue> WorkingTree<V> {
         }
     }
 
-    /// 保持しているセル（[`FlexId`]）の数。
+    /// 保持している[`FlexId`]の数。
     pub fn count(&self) -> usize {
         self.core.count()
     }
@@ -52,8 +51,6 @@ impl<V: SafeValue> WorkingTree<V> {
     pub fn is_empty(&self) -> bool {
         self.core.is_empty()
     }
-
-    // --- 以下はクレート内部専用。作業木の中身を触れるのは演算子だけ。 ---
 
     pub(crate) fn core(&self) -> &FlexTreeCore<V> {
         &self.core
@@ -103,7 +100,6 @@ impl<V: SafeValue> core::fmt::Debug for WorkingTree<V> {
 }
 
 impl<V: SafeValue> FromIterator<(FlexId, V)> for WorkingTree<V> {
-    /// `(FlexId, 値)` 列から作業木を組む（重なりは union・左優先）。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
         Self {
             core: iter.into_iter().collect(),

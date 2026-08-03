@@ -111,6 +111,24 @@ impl Interval {
         }
     }
 
+    /// この [`Interval`] の秒数が2の冪乗であるかを判定する。
+    ///
+    /// 時間付き ID を生成する際、時間間隔が2の冪秒であれば、木構造の中で必ず1つの時間セル
+    /// （[`FlexId`](crate::FlexId)）に収まるため、パフォーマンスが最適化される。
+    /// 非2冪の秒数（例: 30分 = 1800秒）を指定した場合、このメソッドは `false` を返し、
+    /// 内部で最大十数個のセルに分解されるため処理コストが比例して増大する。
+    pub const fn is_power_of_two(self) -> bool {
+        #[cfg(feature = "temporal_id")]
+        {
+            self.0.is_power_of_two()
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            true
+        }
+    }
+
     /// この単位で、Unix 時刻（秒）が属するセルのインデックス `{t}` を返す。
     ///
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)`。

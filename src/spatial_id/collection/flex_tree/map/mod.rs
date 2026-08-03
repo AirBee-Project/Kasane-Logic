@@ -142,7 +142,7 @@ where
     /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &IntervalSet,
+        units: &'a IntervalSet,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         self.inner.range_ids_ref(Some(units))
     }
@@ -150,7 +150,7 @@ where
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &IntervalSet,
+        units: &'a IntervalSet,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.inner.flat_single_ids_in_ref(Some(units))
     }

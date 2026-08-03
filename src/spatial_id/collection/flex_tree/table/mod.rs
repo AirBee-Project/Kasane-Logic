@@ -204,7 +204,7 @@ where
     /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &IntervalSet,
+        units: &'a IntervalSet,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         self.coalesced_range_ids(Some(units))
     }
@@ -212,7 +212,7 @@ where
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &IntervalSet,
+        units: &'a IntervalSet,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.expand_range_ids(Some(units))
     }
@@ -223,7 +223,7 @@ where
     /// （同じ値なら同じ rank なので結合条件は変わらない）、最後に辞書で引き直す。
     fn coalesced_range_ids<'a>(
         &'a self,
-        units: Option<&IntervalSet>,
+        units: Option<&'a IntervalSet>,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
             self.inner
@@ -231,7 +231,6 @@ where
                 .map(|(flex_id, rank)| (flex_id, *rank)),
             units,
         )
-        .into_iter()
         .map(move |(range, rank)| {
             let value = self
                 .reverse_dictionary
@@ -244,7 +243,7 @@ where
     /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一セルの [`SingleId`] へ展開する。
     fn expand_range_ids<'a>(
         &'a self,
-        units: Option<&IntervalSet>,
+        units: Option<&'a IntervalSet>,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.coalesced_range_ids(units)
             .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
@@ -263,7 +262,7 @@ where
             None,
         );
 
-        merged.into_iter().flat_map(move |(range, rank)| {
+        merged.flat_map(move |(range, rank)| {
             let value = self
                 .reverse_dictionary
                 .get(&rank)

@@ -318,7 +318,8 @@ mod collection_api {
         assert_eq!(got, ["12/0/3638/1614_3600/0:1"]);
 
         // 一時値の候補集合でも同じ（`units` は `&self` とライフタイムを共有しない）。
-        let iter = set.range_ids_in(&IntervalSet::new([Interval::MINUTE]));
+        let units = IntervalSet::new([Interval::MINUTE]);
+        let iter = set.range_ids_in(&units);
         assert_eq!(iter.count(), 1);
     }
 

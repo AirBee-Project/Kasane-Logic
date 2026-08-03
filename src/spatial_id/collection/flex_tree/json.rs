@@ -324,6 +324,7 @@ where
             iter,
             Some(&IntervalSet::default()),
         )
+        .collect()
     } else {
         iter.map(|(flex_id, value)| (RangeId::from(&flex_id), value))
             .collect()
