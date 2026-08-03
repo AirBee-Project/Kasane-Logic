@@ -8,7 +8,7 @@
 
 use alloc::vec::Vec;
 
-use super::arena::{ArchivedArenaNode, ArchivedMapArena, EMPTY_LEAF, check_version};
+use super::arena::{ArchivedArenaNode, ArchivedMapArena, EMPTY_LEAF, check_format};
 use crate::spatial_id::collection::flex_tree::core::walk::{
     OverlapWalk, RangeOverlapWalk, TreeCursor,
 };
@@ -81,15 +81,15 @@ impl<'a> ArchivedSpatialIdMap<'a> {
 
     /// archived バイト列上にリーダを開く。
     ///
-    /// 形式バージョンだけは検証する（`u16` の読み出しと比較1回なので、
-    /// リーフごとに呼ばれる読み取りホットパスでも無視できるコスト）。
+    /// 形式バージョンとレイアウトフラグだけは検証する（`u16` + `u8` の読み出しと比較
+    /// 2回なので、リーフごとに呼ばれる読み取りホットパスでも無視できるコスト）。
     /// バイト列全体の構造検証は行わない。
     ///
     /// # Safety
     /// `bytes` は [`crate::SpatialIdMap::to_bytes`] が生成した正当なバイト列でなければならない。
     pub unsafe fn access(bytes: &'a [u8]) -> Result<Self, Error> {
         let inner = unsafe { rkyv::access_unchecked::<ArchivedMapArena>(bytes) };
-        check_version(inner.version.to_native())?;
+        check_format(inner.version.to_native(), inner.flags)?;
         Ok(Self { inner })
     }
 

@@ -23,7 +23,7 @@ pub struct Interval(u64);
 
 /// `temporal_id` feature 無効時の [`Interval`]。常に全時間を表すサイズ0のスタブ。
 #[cfg(not(feature = "temporal_id"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "persist",
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
@@ -139,6 +139,17 @@ impl Interval {
             debug_assert!(seconds == Self::MAX_SECONDS);
             Interval
         }
+    }
+}
+
+impl Default for Interval {
+    /// [`WHOLE`](Self::WHOLE)（時間指定なし）。
+    ///
+    /// `temporal_id` feature の有無に関わらず定義する（無効時は derive していた頃、
+    /// 有効時には無かった。feature の有無で trait 実装が増減すると、ジェネリックコードが
+    /// 一方の構成でだけ壊れるため揃えている）。
+    fn default() -> Self {
+        Self::WHOLE
     }
 }
 

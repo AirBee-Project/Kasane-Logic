@@ -32,13 +32,27 @@ pub enum Error {
 
     /// 永続化バイト列の形式バージョンがこのビルドで扱えない。
     ///
-    /// 形式を変更したら `FORMAT_VERSION` を上げる。
+    /// スキーマ（`MapArena` / `ArenaNode` の構造）を変更したら `FORMAT_VERSION` を上げる。
+    /// feature の有無による差異は [`UnsupportedFormatLayout`](Self::UnsupportedFormatLayout)
+    /// が別に検証するので、こちらはスキーマそのものが変わったときだけ上がる。
     /// 古いバイト列を「誤って読む」代わりに、この明示的なエラーで停止する。
     UnsupportedFormatVersion {
         /// このビルドが期待するバージョン。
         expected: u16,
         /// バイト列に書かれていたバージョン。
         found: u16,
+    },
+
+    /// 永続化バイト列のレイアウトフラグ（feature 構成）がこのビルドと一致しない。
+    ///
+    /// バージョンが同じでもスキーマの中身が feature で変わる場合（例: `temporal_id` の
+    /// 有無で `FlexId` のフィールド構成が変わる）があるため、バージョンとは独立に検証する。
+    /// 古いバイト列を「誤って読む」代わりに、この明示的なエラーで停止する。
+    UnsupportedFormatLayout {
+        /// このビルドが期待するレイアウトフラグ。
+        expected: u8,
+        /// バイト列に書かれていたレイアウトフラグ。
+        found: u8,
     },
 }
 
@@ -140,6 +154,10 @@ impl fmt::Display for Error {
             Error::UnsupportedFormatVersion { expected, found } => write!(
                 f,
                 "unsupported persisted format version: expected {expected}, found {found}"
+            ),
+            Error::UnsupportedFormatLayout { expected, found } => write!(
+                f,
+                "unsupported persisted format layout: expected {expected:#010b}, found {found:#010b}"
             ),
         }
     }

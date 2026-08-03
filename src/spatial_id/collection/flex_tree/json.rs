@@ -297,12 +297,17 @@ where
 ///
 /// 結合は入力を集めてソートするため、時間を持たない木で無条件に通すと純粋な固定費になる。
 ///
-/// # `{i}` は暦の単位へ正規化する
+/// # `{i}` は既定の候補集合（暦の単位）へ正規化する
 ///
 /// JSON は外部へ渡る表現なので、`gcd` が選ぶ「その区間を表せる最も粗い秒数」ではなく
-/// [`IntervalSet::calendar`] の `{WHOLE, DAY, HOUR, MINUTE, SECOND}` に揃える。
-/// `gcd` だと隣り合う1時間×2が `"i":7200`（2時間という単位）になってしまい、
-/// 受け取り側が解釈しづらいためである。
+/// [`IntervalSet::default`] の `{WHOLE, DAY, HOUR, MINUTE, SECOND}`（`temporal_id` 有効時。
+/// [`IntervalSet::calendar`] と同じ）に揃える。`gcd` だと隣り合う1時間×2が
+/// `"i":7200`（2時間という単位）になってしまい、受け取り側が解釈しづらいためである。
+///
+/// `calendar()` ではなく `default()` を呼ぶのは、`temporal_id` 無効時にも
+/// `coalesce_if_temporal` 自体はコンパイルできる必要があるため（`calendar()` は
+/// 無効時に存在しない）。もっとも無効時は `has_temporal_split` が常に `false` なので、
+/// この分岐へ実際に入ることはない。
 ///
 /// 代償として、暦に無い単位で入れた ID は `{i}` がそのままでは戻らない
 /// （例: 仕様書の `1800/809712` は `"i":60,"t":[24291360,24291389]` になる）。
@@ -317,7 +322,7 @@ where
     if has_temporal_split {
         crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
             iter,
-            Some(IntervalSet::calendar()),
+            Some(&IntervalSet::default()),
         )
     } else {
         iter.map(|(flex_id, value)| (RangeId::from(&flex_id), value))

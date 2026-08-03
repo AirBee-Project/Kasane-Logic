@@ -200,7 +200,8 @@ where
     /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
     ///
     /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
-    /// 暦の単位へ正規化したいだけなら [`IntervalSet::calendar`] を直接渡せる。
+    /// 暦の単位へ正規化したいだけなら `IntervalSet::calendar()`
+    /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(
         &'a self,
         units: &IntervalSet,

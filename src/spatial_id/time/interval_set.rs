@@ -51,14 +51,6 @@ static CALENDAR: IntervalSet = IntervalSet {
     ]),
 };
 
-/// [`IntervalSet::calendar`] の実体（`temporal_id` feature 無効時）。
-///
-/// 暦の定数（`DAY` など）が存在しないので全時間だけになる。
-#[cfg(not(feature = "temporal_id"))]
-static CALENDAR: IntervalSet = IntervalSet {
-    units: Cow::Borrowed(&[Interval::WHOLE]),
-};
-
 impl IntervalSet {
     /// 候補から作る。[`Interval::WHOLE`] と `Interval::SECOND` は自動的に加わる。
     ///
@@ -92,7 +84,11 @@ impl IntervalSet {
     ///
     /// `{`[`WHOLE`](Interval::WHOLE)`,` `DAY`,` `HOUR`,`
     /// `MINUTE`,` `SECOND`}`。
-    /// `temporal_id` feature 無効時は `WHOLE` のみになる（他の定数が存在しないため）。
+    ///
+    /// `temporal_id` feature が無効なビルドでは、暦の定数（[`Interval::DAY`] など）
+    /// 自体が存在しないため、この関数も**存在しない**（[`Interval::HOUR`] などと同じ扱い）。
+    /// `{WHOLE}` だけの集合へ黙って縮退させることはしない。無効時でも候補集合が欲しい場合は
+    /// [`IntervalSet::default`] を使う（`{WHOLE}` を明示的に返す）。
     ///
     /// # なぜ `&'static` を返すのか
     ///
@@ -117,6 +113,7 @@ impl IntervalSet {
     /// assert_eq!(units.coarsest_dividing(30, 90), Interval::SECOND);
     /// # }
     /// ```
+    #[cfg(feature = "temporal_id")]
     pub fn calendar() -> &'static Self {
         &CALENDAR
     }
@@ -153,9 +150,21 @@ impl IntervalSet {
 }
 
 impl Default for IntervalSet {
-    /// [`calendar`](Self::calendar) と同じ。
+    /// `temporal_id` feature 有効時は `calendar()` と同じ。
+    ///
+    /// 無効時は `{`[`WHOLE`](Interval::WHOLE)`}` のみの集合を返す。`calendar()` と違い
+    /// これは縮退ではない：無効時は他に表現しうる候補（`DAY` 等）が定義上存在しないため、
+    /// `{WHOLE}` が取りうる唯一かつ正しい値である。
     fn default() -> Self {
-        CALENDAR.clone()
+        #[cfg(feature = "temporal_id")]
+        {
+            CALENDAR.clone()
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            IntervalSet::new([])
+        }
     }
 }
 
