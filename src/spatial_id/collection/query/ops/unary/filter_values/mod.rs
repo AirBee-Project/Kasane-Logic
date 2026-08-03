@@ -16,11 +16,11 @@ use core::ops::Bound;
 /// 比較に必要なのは `Ord` だけなので、数値だけでなく文字列・真偽値でも使える。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValuePredicate<V> {
-    /// この値を持つセルだけを残す。
+    /// この値を持つSegmentだけを残す。
     Equals(V),
-    /// 範囲に入る値のセルだけを残す。
+    /// 範囲に入る値のSegmentだけを残す。
     InRange(Bound<V>, Bound<V>),
-    /// 範囲に入る値のセルを取り除く（範囲外だけを残す）。
+    /// 範囲に入る値のSegmentを取り除く（範囲外だけを残す）。
     NotInRange(Bound<V>, Bound<V>),
 }
 
@@ -40,7 +40,7 @@ impl<V: Ord> ValuePredicate<V> {
         after_start && before_end
     }
 
-    /// この値のセルを残すか。
+    /// この値のSegmentを残すか。
     pub fn matches(&self, value: &V) -> bool {
         match self {
             ValuePredicate::Equals(target) => value == target,
@@ -50,7 +50,7 @@ impl<V: Ord> ValuePredicate<V> {
     }
 }
 
-/// 値の条件に一致するセルだけを残す単項演算子。
+/// 値の条件に一致するSegmentだけを残す単項演算子。
 ///
 /// 空間的な形は変えず、条件から外れた空間IDを取り除くだけ。
 pub struct FilterValues<V> {
@@ -95,7 +95,7 @@ where
     }
 
     fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
-        // この演算子はセルを取り除くだけで空間的な形を変えないので、木を平坦化して
+        // この演算子はSegmentを取り除くだけで空間的な形を変えないので、木を平坦化して
         // 組み直す必要はない。`retain_values` は変化した経路だけを copy-on-write で
         // 作り直すため、条件を満たす部分木は `Arc` ごと保たれる。
         target

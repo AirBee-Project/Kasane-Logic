@@ -10,7 +10,7 @@ use crate::{
     Error, Side, SpatialIdError,
     spatial_id::{
         range_id::convert::{split_f, split_xy},
-        time::cells,
+        time::segments,
         zoom_level::{TZoomLevel, ZoomLevel},
     },
 };
@@ -71,7 +71,7 @@ impl FlexId {
     pub fn y_zoomlevel(&self) -> u8 {
         self.y_zoomlevel.get()
     }
-    /// 時間軸のズームレベル。1セルは `2^(35 - t_zoomlevel)` 秒。
+    /// 時間軸のズームレベル。1Segmentは `2^(35 - t_zoomlevel)` 秒。
     ///
     /// `temporal_id` feature 無効時は常に `0`（全時間）。
     pub fn t_zoomlevel(&self) -> u8 {
@@ -96,7 +96,7 @@ impl FlexId {
     }
     /// この [`FlexId`] の時間インデックス `{t}`。[`interval`](crate::SpatialId::interval) を単位とする。
     ///
-    /// [`t_zoomlevel`](Self::t_zoomlevel) と対で読めば、木の2進セル `(zoom, index)` そのもの。
+    /// [`t_zoomlevel`](Self::t_zoomlevel) と対で読めば、木の2分岐Segment `(zoom, index)` そのもの。
     /// `temporal_id` feature 無効時は常に `0`（全時間）。
     pub fn t(&self) -> u64 {
         #[cfg(feature = "temporal_id")]
@@ -111,17 +111,17 @@ impl FlexId {
     }
 
     /// この [`FlexId`] が占める絶対秒区間 `[start, end)` を返す。
-    /// 時間セル（4軸目）を設定した自身を返す（ビルダー形式）。
+    /// 時間Segment（4軸目）を設定した自身を返す（ビルダー形式）。
     ///
     /// 引数は空間3軸と同じ「**ズームレベル＋インデックス**」で、[`new`](Self::new) の
     /// `f_zoomlevel` / `f_index` と同じく [`Into<u8>`](Into) を受ける
-    /// （[`TZoomLevel`] をそのまま渡すこともできる）。1セルは `2^(35 - t_zoomlevel)` 秒で、
+    /// （[`TZoomLevel`] をそのまま渡すこともできる）。1Segmentは `2^(35 - t_zoomlevel)` 秒で、
     /// [`t_zoomlevel`](Self::t_zoomlevel) / [`t`](Self::t) で読むのと同じ形である。
     ///
     /// # `SingleId` / `RangeId` の `with_time` との違い
     ///
     /// あちらは仕様の `{i}/{t}`、つまり**秒数**＋インデックスを取る。[`FlexId`] は木の
-    /// ノードアドレスであり2進セル1個しか持てないため、**ズーム**で受ける。
+    /// ノードアドレスであり2分岐Segment1個しか持てないため、**ズーム**で受ける。
     ///
     /// ```text
     /// # use kasane_logic::SpatialId;
@@ -137,7 +137,7 @@ impl FlexId {
     ///
     /// 任意秒数の間隔（`1800` など）を [`FlexId`] の集合として扱いたい場合は
     /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) に付けてから
-    /// [`IntoIterator`] で展開する（必要な数のセルへ自動的に分解される）。
+    /// [`IntoIterator`] で展開する（必要な数のSegmentへ自動的に分解される）。
     ///
     /// # バリデーション
     /// - `t_zoomlevel` が `35` を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
@@ -149,7 +149,7 @@ impl FlexId {
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::{FlexId, TZoomLevel};
-    /// // ズーム25のセルは 2^(35-25) = 1024 秒幅。
+    /// // ズーム25のSegmentは 2^(35-25) = 1024 秒幅。
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time(25, 7).unwrap();
     /// assert_eq!((id.t_zoomlevel(), id.t()), (25, 7));
     /// assert_eq!(id.interval().seconds(), 1024);
@@ -174,18 +174,18 @@ impl FlexId {
         #[cfg(not(feature = "temporal_id"))]
         if tz.get() != 0 || t_index != 0 {
             return Err(SpatialIdError::TIntervalError {
-                i: tz.cell_seconds(),
+                i: tz.segment_seconds(),
             }
             .into());
         }
 
-        Ok(self.with_time_cell(tz.get(), t_index))
+        Ok(self.with_time_segment(tz.get(), t_index))
     }
 
-    /// Unix 時刻（秒）が属する時間セルを設定した自身を返す。
+    /// Unix 時刻（秒）が属する時間Segmentを設定した自身を返す。
     ///
     /// 粒度は [`with_time`](Self::with_time) と同じく**ズームレベル**で指定する
-    /// （1セルは `2^(35 - t_zoomlevel)` 秒）。仕様 1.5.3 (3) の `t = floor(u / i)` に相当する
+    /// （1Segmentは `2^(35 - t_zoomlevel)` 秒）。仕様 1.5.3 (3) の `t = floor(u / i)` に相当する
     /// 割り算はこちらで行うので、呼び出し側でインデックスを求める必要がない。
     ///
     /// ```
@@ -207,12 +207,12 @@ impl FlexId {
         unix_seconds: u64,
     ) -> Result<Self, Error> {
         let tz = TZoomLevel::new(t_zoomlevel.into())?;
-        self.with_time(tz, unix_seconds / tz.cell_seconds())
+        self.with_time(tz, unix_seconds / tz.segment_seconds())
     }
 
     /// 絶対秒区間 `[start, end)` を設定した自身を返す。
     ///
-    /// 3型で共通の「実時間で指定する」入口。[`FlexId`] は2進セル1個しか持てないので、
+    /// 3型で共通の「実時間で指定する」入口。[`FlexId`] は2分岐Segment1個しか持てないので、
     /// **区間が2の冪秒でその境界に整列している場合**にのみ成功し、そうでなければ
     /// [`SpatialIdError::TIntervalError`] を返す。
     ///
@@ -221,23 +221,23 @@ impl FlexId {
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::FlexId;
-    /// // [1024, 2048) はズーム25のセル1個ちょうど。
+    /// // [1024, 2048) はズーム25のSegment1個ちょうど。
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_span(1024, 2048).unwrap();
     /// assert_eq!((id.t_zoomlevel(), id.t()), (25, 1));
     ///
-    /// // 整列していない区間は1セルにならない。
+    /// // 整列していない区間は1Segmentにならない。
     /// assert!(FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_span(1, 1025).is_err());
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = cells::span_to_interval(start, end)?;
+        let (interval, t_min, t_max) = segments::span_to_interval(start, end)?;
         if t_min != t_max {
             return Err(SpatialIdError::TIntervalError {
                 i: interval.seconds(),
             }
             .into());
         }
-        let (zoom, index) = cells::cell_of(interval, t_min)?;
+        let (zoom, index) = segments::segment_of(interval, t_min)?;
         self.with_time(zoom, index)
     }
 
@@ -256,15 +256,15 @@ impl FlexId {
     /// # }
     /// ```
     pub fn without_time(self) -> Self {
-        self.with_time_cell(0, 0)
+        self.with_time_segment(0, 0)
     }
 
-    /// 時間セルを差し替えた自身を返す。クレート内部専用（検証済みの値を渡すこと）。
+    /// 時間Segmentを差し替えた自身を返す。クレート内部専用（検証済みの値を渡すこと）。
     ///
     /// `temporal_id` feature 無効時は時間フィールドが存在しないため何もしない。この経路へ
     /// 全時間以外が来るのは呼び出し側のバグなので `debug_assert` で捕まえる（公開の入口は
     /// [`with_time`](Self::with_time) が `Err` で弾いている）。
-    pub(crate) fn with_time_cell(
+    pub(crate) fn with_time_segment(
         #[cfg_attr(not(feature = "temporal_id"), allow(unused_mut))] mut self,
         zoom: u8,
         index: u64,
@@ -281,7 +281,7 @@ impl FlexId {
         {
             debug_assert!(
                 zoom == 0 && index == 0,
-                "temporal_id 無効時に時間セル ({zoom}, {index}) を設定しようとした"
+                "temporal_id 無効時に時間Segment ({zoom}, {index}) を設定しようとした"
             );
             let _ = (zoom, index);
         }
@@ -312,14 +312,14 @@ impl FlexId {
             y_zoomlevel,
             y_index,
         )
-        .map(|id| id.with_time_cell(self.t_zoomlevel(), self.t()))
+        .map(|id| id.with_time_segment(self.t_zoomlevel(), self.t()))
     }
 
-    /// このFlexIdを高さ（F）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
+    /// このFlexIdを高さ（F）方向へ、ズーム `z` のSegment `index` 個分だけ引き延ばした結果を返す。
     ///
-    /// [`shift_f`](Self::shift_f) がセルを移動するのに対し、こちらは元のセルを残したまま
-    /// 指定方向（`index` の符号）へセルを継ぎ足して占有区間を拡張する。`index == 0` なら
-    /// 元のセルと等価。占有区間は整列したセル群へ分解されるため複数の [`FlexId`] を返す。
+    /// [`shift_f`](Self::shift_f) がSegmentを移動するのに対し、こちらは元のSegmentを残したまま
+    /// 指定方向（`index` の符号）へSegmentを継ぎ足して占有区間を拡張する。`index == 0` なら
+    /// 元のSegmentと等価。占有区間は整列したSegment群へ分解されるため複数の [`FlexId`] を返す。
     /// XY方向の値は変更しない。
     ///
     /// # バリデーション
@@ -339,12 +339,12 @@ impl FlexId {
         let f_zoomlevel = self.f_zoomlevel();
         let max_z = f_zoomlevel.max(z);
 
-        let cell_scale = 1_i32 << (max_z - f_zoomlevel);
+        let segment_scale = 1_i32 << (max_z - f_zoomlevel);
         let delta = index * (1_i32 << (max_z - z));
 
-        // 元セルの占有区間 [base_left, base_right] を、符号に応じて片側だけ拡張する。
-        let base_left = self.f_index() * cell_scale;
-        let base_right = base_left + cell_scale - 1;
+        // 元Segmentの占有区間 [base_left, base_right] を、符号に応じて片側だけ拡張する。
+        let base_left = self.f_index() * segment_scale;
+        let base_right = base_left + segment_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
         } else {
@@ -376,14 +376,14 @@ impl FlexId {
                         y_index,
                     )
                 }
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }),
         )
     }
 
-    /// このFlexIdを東西（X）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
+    /// このFlexIdを東西（X）方向へ、ズーム `z` のSegment `index` 個分だけ引き延ばした結果を返す。
     ///
-    /// 元のセルを残したまま指定方向（`index` の符号）へ拡張する。X方向は東西に巡回するため、
+    /// 元のSegmentを残したまま指定方向（`index` の符号）へ拡張する。X方向は東西に巡回するため、
     /// 拡張量が大きいと境界をまたいで分割され、`max(x_zoomlevel, z)` の周長以上では全周を覆う。
     /// F・Y方向の値は変更しない。
     ///
@@ -398,11 +398,11 @@ impl FlexId {
         let max_z = x_zoomlevel.max(z);
 
         let circumference = 1_i64 << max_z;
-        let cell_scale = 1_i64 << (max_z - x_zoomlevel);
+        let segment_scale = 1_i64 << (max_z - x_zoomlevel);
         let delta = index as i64 * (1_i64 << (max_z - z));
 
-        let base_left = self.x_index() as i64 * cell_scale;
-        let base_right = base_left + cell_scale - 1;
+        let base_left = self.x_index() as i64 * segment_scale;
+        let base_right = base_left + segment_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
         } else {
@@ -445,13 +445,13 @@ impl FlexId {
                         y_index,
                     )
                 }
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }))
     }
 
-    /// このFlexIdを南北（Y）方向へ、ズーム `z` のセル `index` 個分だけ引き延ばした結果を返す。
+    /// このFlexIdを南北（Y）方向へ、ズーム `z` のSegment `index` 個分だけ引き延ばした結果を返す。
     ///
-    /// 元のセルを残したまま指定方向（`index` の符号）へ拡張する。Y方向は巡回せず
+    /// 元のSegmentを残したまま指定方向（`index` の符号）へ拡張する。Y方向は巡回せず
     /// `[0[z]]` に制限される。F・X方向の値は変更しない。
     ///
     /// # バリデーション
@@ -466,11 +466,11 @@ impl FlexId {
         let y_zoomlevel = self.y_zoomlevel();
         let max_z = y_zoomlevel.max(z);
 
-        let cell_scale = 1_i64 << (max_z - y_zoomlevel);
+        let segment_scale = 1_i64 << (max_z - y_zoomlevel);
         let delta = index as i64 * (1_i64 << (max_z - z));
 
-        let base_left = self.y_index() as i64 * cell_scale;
-        let base_right = base_left + cell_scale - 1;
+        let base_left = self.y_index() as i64 * segment_scale;
+        let base_right = base_left + segment_scale - 1;
         let (left, right) = if delta >= 0 {
             (base_left, base_right + delta)
         } else {
@@ -505,7 +505,7 @@ impl FlexId {
                         seg_index,
                     )
                 }
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }),
         )
     }
@@ -743,11 +743,11 @@ impl FlexId {
 
                     let parent =
                         unsafe { FlexId::new_unchecked(tz_f, f_idx, tz_x, x_idx, tz_y, y_idx) }
-                            .with_time_cell(tz, ti);
+                            .with_time_segment(tz, ti);
                     let seg = unsafe {
                         FlexId::new_unchecked(seg_fz, seg_fi, seg_xz, seg_xi, seg_yz, seg_yi)
                     }
-                    .with_time_cell(tz, ti);
+                    .with_time_segment(tz, ti);
 
                     (parent, seg)
                 })

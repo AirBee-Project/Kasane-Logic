@@ -1,16 +1,16 @@
-//! 絶対秒区間と、FlexTree が使う「2の冪秒のセル」との相互変換。クレート内部専用。
+//! 絶対秒区間と、FlexTree が使う「2の冪秒のSegment」との相互変換。クレート内部専用。
 //!
 //! 時間の値そのものは各 ID がフィールドとして持つので、ここに型は無く、
-//! 秒（`u64`）とセル（`(zoom, index)`）の間を行き来する自由関数だけを置く。
+//! 秒（`u64`）とSegment（`(zoom, index)`）の間を行き来する自由関数だけを置く。
 //!
 //! # なぜ変換が要るのか
 //!
 //! 仕様は時間間隔 `{i}` に**任意の秒数**を認める（`1800` 秒など）。一方 FlexTree は
-//! 時間軸を2進トライとして持つため、格納できるのは `2^(35 - zoom)` 秒のセルだけである。
+//! 時間軸を2進トライとして持つため、格納できるのは `2^(35 - zoom)` 秒のSegmentだけである。
 //! そのため木への出し入れでこの2つの表現を変換する。
 //!
-//! - 書き込み: 秒区間 → [`split_seconds`] で高々 `O(log 秒数)` 個のセルへ分解
-//! - 読み出し: セル → [`cell_seconds_range`] で秒区間へ戻し、[`coarsest_unit`] で
+//! - 書き込み: 秒区間 → [`split_seconds`] で高々 `O(log 秒数)` 個のSegmentへ分解
+//! - 読み出し: Segment → [`segment_seconds_range`] で秒区間へ戻し、[`coarsest_unit`] で
 //!   「その区間を表せる最も粗い `{i}`」を復元
 
 use crate::spatial_id::zoom_level::TZoomLevel;
@@ -18,7 +18,7 @@ use crate::{Interval, SpatialIdError, error::Error};
 
 /// `{i}` と `{t}` の範囲（両端含む）が占める絶対秒区間 `[start, end)` を、検証して返す。
 ///
-/// 単一セルの型（[`SingleId`](crate::SingleId) / [`FlexId`](crate::FlexId)）は
+/// 単一Segmentの型（[`SingleId`](crate::SingleId) / [`FlexId`](crate::FlexId)）は
 /// `t_min == t_max` で呼ぶ。仕様は `{i}` に任意の秒数を認めるが、区間の終端が
 /// [`Interval::MAX_SECONDS`] を超えてはならない。
 pub(crate) fn validated_span(
@@ -56,29 +56,29 @@ pub(crate) fn span_to_interval(start: u64, end: u64) -> Result<(Interval, u64, u
     Ok((interval, start / unit, end / unit - 1))
 }
 
-/// `{i}` と `{t}` を、[`FlexId`](crate::FlexId) が保持できる2進セル `(zoom, index)` へ直す。
+/// `{i}` と `{t}` を、[`FlexId`](crate::FlexId) が保持できる2分岐Segment `(zoom, index)` へ直す。
 ///
-/// [`FlexId`](crate::FlexId) は木のノードアドレスなので `2^(35 - zoom)` 秒のセル1個しか
-/// 持てない。`{i}` が2の冪でなければ1個のセルにならないため
-/// [`SpatialIdError::TIntervalError`] を返す（複数セルへ分けたい場合は
+/// [`FlexId`](crate::FlexId) は木のノードアドレスなので `2^(35 - zoom)` 秒のSegment1個しか
+/// 持てない。`{i}` が2の冪でなければ1個のSegmentにならないため
+/// [`SpatialIdError::TIntervalError`] を返す（複数Segmentへ分けたい場合は
 /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) に付けてから
 /// [`IntoIterator`] で展開する）。
-pub(crate) fn cell_of(interval: Interval, t: u64) -> Result<(u8, u64), Error> {
+pub(crate) fn segment_of(interval: Interval, t: u64) -> Result<(u8, u64), Error> {
     let seconds = interval.seconds();
     if !seconds.is_power_of_two() {
         return Err(SpatialIdError::TIntervalError { i: seconds }.into());
     }
 
-    // 幅 `2^k` 秒のセルはズーム `MAX - k`。`seconds <= 2^MAX` なので `k <= MAX`。
+    // 幅 `2^k` 秒のSegmentはズーム `MAX - k`。`seconds <= 2^MAX` なので `k <= MAX`。
     let zoom = TZoomLevel::MAX.get() - seconds.trailing_zeros() as u8;
     TZoomLevel::new(zoom)?.check_index(t)?;
     Ok((zoom, t))
 }
 
-/// セル `(zoom, index)` が表す絶対秒区間 `[start, end)`。
+/// Segment `(zoom, index)` が表す絶対秒区間 `[start, end)`。
 ///
-/// 1セルの幅は `2^(TZoomLevel::MAX - zoom)` 秒。
-pub(crate) const fn cell_seconds_range(zoom: u8, index: u64) -> (u64, u64) {
+/// 1Segmentの幅は `2^(TZoomLevel::MAX - zoom)` 秒。
+pub(crate) const fn segment_seconds_range(zoom: u8, index: u64) -> (u64, u64) {
     let width = 1u64 << (TZoomLevel::MAX.get() - zoom);
     let start = index * width;
     (start, start + width)
@@ -143,19 +143,19 @@ pub(crate) fn difference_seconds(
 }
 
 /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) が持つ絶対秒区間
-/// （[`seconds_range`](crate::SingleId::seconds_range) の戻り値）を2進セルへ分解する。
-/// [`split_seconds`] への薄い委譲だが、両型が持つ同名 `time_cells()` の実体をここへ
+/// （[`seconds_range`](crate::SingleId::seconds_range) の戻り値）を2分岐Segmentへ分解する。
+/// [`split_seconds`] への薄い委譲だが、両型が持つ同名 `time_segments()` の実体をここへ
 /// 1本化することで、`self.seconds_range()` を経由する同一実装の重複を無くしている。
-pub(crate) fn time_cells_of(seconds_range: (u64, u64)) -> TimeCells {
+pub(crate) fn time_segments_of(seconds_range: (u64, u64)) -> TimeSegments {
     split_seconds(seconds_range.0, seconds_range.1)
 }
 
-/// 秒区間 `[start, end)` を、区間木的に高々 `O(log 幅)` 個の2進セルへ分解する。
+/// 秒区間 `[start, end)` を、区間木的に高々 `O(log 幅)` 個の2分岐Segmentへ分解する。
 ///
 /// 空区間（`start >= end`）では何も返さない。
-pub(crate) fn split_seconds(start: u64, end: u64) -> TimeCells {
+pub(crate) fn split_seconds(start: u64, end: u64) -> TimeSegments {
     if start >= end {
-        return TimeCells {
+        return TimeSegments {
             l: 1,
             r: 0,
             cur_z: 0,
@@ -164,8 +164,8 @@ pub(crate) fn split_seconds(start: u64, end: u64) -> TimeCells {
     split_inclusive(start, end - 1)
 }
 
-/// `[l, r]`（両端含む、1秒単位）を2進セルへ分解する。
-fn split_inclusive(l: u64, r: u64) -> TimeCells {
+/// `[l, r]`（両端含む、1秒単位）を2分岐Segmentへ分解する。
+fn split_inclusive(l: u64, r: u64) -> TimeSegments {
     // 最深ズーム（1秒）から1段ずつ繰り上がるのではなく、**この区間をそのまま表せる最も粗い
     // ズーム**から始める。
     //
@@ -173,7 +173,7 @@ fn split_inclusive(l: u64, r: u64) -> TimeCells {
     // 揃っているとき、つまり `l` と `r + 1` がどちらも `2^k` の倍数のときに限る。
     // したがって `k = min(l の下位0の個数, (r+1) の下位0の個数)`。
     //
-    // これがないと、全時間のように1セルで済む区間でも毎回35回ループする。時間を使わない
+    // これがないと、全時間のように1Segmentで済む区間でも毎回35回ループする。時間を使わない
     // ビルドでも `RangeId::into_iter()` は必ずここを通るため、固定費として効く。
     let trailing = |v: u64| {
         if v == 0 {
@@ -186,7 +186,7 @@ fn split_inclusive(l: u64, r: u64) -> TimeCells {
         .min(trailing(r.wrapping_add(1)))
         .min(TZoomLevel::MAX.get() as u32) as u8;
 
-    TimeCells {
+    TimeSegments {
         l: l >> k,
         r: r >> k,
         cur_z: (TZoomLevel::MAX.get() - k) as i8,
@@ -198,13 +198,13 @@ fn split_inclusive(l: u64, r: u64) -> TimeCells {
 /// `impl Iterator` ではなく名前付きの型にしてあるのは、`SingleId::into_iter` が
 /// これを構造体のフィールドとして直接持てるようにするため（`Box<dyn Iterator>` を挟むと
 /// 挿入1回ごとにヒープ確保が入る）。
-pub(crate) struct TimeCells {
+pub(crate) struct TimeSegments {
     l: u64,
     r: u64,
     cur_z: i8,
 }
 
-impl Iterator for TimeCells {
+impl Iterator for TimeSegments {
     type Item = (u8, u64);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -248,7 +248,7 @@ mod tests {
     use crate::Interval;
     use alloc::vec::Vec;
 
-    /// 分解したセルは元の秒区間を隙間なく・はみ出さずに覆う。
+    /// 分解したSegmentは元の秒区間を隙間なく・はみ出さずに覆う。
     #[test]
     fn split_covers_every_range_exactly() {
         let cases: &[(u64, u64)] = &[
@@ -266,24 +266,24 @@ mod tests {
 
         for &(start, end) in cases {
             let mut ranges: Vec<_> = split_seconds(start, end)
-                .map(|(z, i)| cell_seconds_range(z, i))
+                .map(|(z, i)| segment_seconds_range(z, i))
                 .collect();
             ranges.sort_unstable();
 
             let mut cursor = start;
             for (s, e) in &ranges {
-                assert_eq!(*s, cursor, "[{start}, {end}) でセルが連続していない");
+                assert_eq!(*s, cursor, "[{start}, {end}) でSegmentが連続していない");
                 cursor = *e;
             }
             assert_eq!(cursor, end, "[{start}, {end}) の合計が一致しない");
         }
     }
 
-    /// 全時間は1セルで表せるので、繰り上がりが1段も走らない。
+    /// 全時間は1Segmentで表せるので、繰り上がりが1段も走らない。
     #[test]
-    fn whole_range_is_a_single_cell() {
-        let cells: Vec<_> = split_seconds(0, Interval::MAX_SECONDS).collect();
-        assert_eq!(cells, [(0, 0)]);
+    fn whole_range_is_a_single_segment() {
+        let segments: Vec<_> = split_seconds(0, Interval::MAX_SECONDS).collect();
+        assert_eq!(segments, [(0, 0)]);
     }
 
     #[test]
@@ -292,14 +292,14 @@ mod tests {
         assert_eq!(split_seconds(9, 5).count(), 0);
     }
 
-    /// セル1個の秒区間は、その幅がそのまま最も粗い単位になる
+    /// Segment1個の秒区間は、その幅がそのまま最も粗い単位になる
     /// （開始秒が幅の倍数なので `gcd(start, width) == width`）。
     #[test]
-    fn a_single_cell_restores_its_own_width() {
+    fn a_single_segment_restores_its_own_width() {
         for zoom in 0..=TZoomLevel::MAX.get() {
             let max_index = (1u64 << zoom) - 1;
             for index in [0u64, 1, max_index].into_iter().filter(|i| *i <= max_index) {
-                let (start, end) = cell_seconds_range(zoom, index);
+                let (start, end) = segment_seconds_range(zoom, index);
                 assert_eq!(coarsest_unit(start, end - start), end - start, "z={zoom}");
             }
         }

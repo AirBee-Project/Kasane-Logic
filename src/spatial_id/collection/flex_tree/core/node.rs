@@ -2,7 +2,7 @@ use super::ptr::{SafeValue, SharedNode};
 use crate::SpatialId;
 use crate::{FlexId, Side};
 
-/// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2進セル
+/// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2分岐Segment
 /// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
 /// だけの規約で、他に意味は無い。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,7 +100,7 @@ where
     ///
     /// レベル番号から `ceil(L / NUM_AXES)` として推定してはならない。木は「対象がその軸を
     /// 覆っている」レベルを実体化せず読み飛ばすため、レベル番号は分割の深さと一致しない。
-    /// 特に T 軸は最大ズームが 35 で空間の 30 より深いので、時間だけが深いセルで
+    /// 特に T 軸は最大ズームが 35 で空間の 30 より深いので、時間だけが深いSegmentで
     /// 空間ズームを過大報告してしまう。
     pub(crate) fn max_zoom(&self) -> u8 {
         match self {
@@ -279,10 +279,10 @@ where
         }
     }
 
-    /// 時間軸について、`current_id` が占める時間セルを2分したときに `target` と交差しうる
+    /// 時間軸について、`current_id` が占める時間Segmentを2分したときに `target` と交差しうる
     /// 子を返す。
     ///
-    /// セルの秒区間 `[start, end)` を中点で割り、それぞれがターゲットの秒区間と重なるかを見る。
+    /// Segmentの秒区間 `[start, end)` を中点で割り、それぞれがターゲットの秒区間と重なるかを見る。
     /// `Interval` が2の冪でなくても絶対秒で比較するので正しく判定できる。
     fn overlapping_children_time(
         target: &crate::RangeId,
@@ -625,7 +625,7 @@ where
     /// 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳む置換ノードを返す。
     ///
     /// 葉同士（同値）の uniform-fill だけでなく、**等価な非葉サブツリー**（＝その軸が
-    /// 効かない＝1段粗くできる異方セル）も畳む。Node の derived `PartialEq` は
+    /// 効かない＝1段粗くできる異方Segment）も畳む。Node の derived `PartialEq` は
     /// `level`/`leaf_count`/`max_zoom`（O(1) キャッシュ）を先に比較して短絡するため、
     /// 等価でない大半の枝は深い比較に入らず弾かれる。
     pub(crate) fn collapse_equal_children(
@@ -636,7 +636,7 @@ where
     ) -> Option<SharedNode<Node<V>>> {
         // 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳める。
         // 葉同士（uniform-fill）だけでなく、等価な非葉サブツリー（＝その軸が効かない
-        // 1段粗い異方セル）も畳む＝FlexId の異方圧縮を効かせる。
+        // 1段粗い異方Segment）も畳む＝FlexId の異方圧縮を効かせる。
         //
         // ただし畳めるのは「畳む軸 axis(level) を子側がこれ以上分割しない」＝この分割が
         // その軸の最深分割のときに限る。さもないと軸の分割深さに途中ギャップができ、

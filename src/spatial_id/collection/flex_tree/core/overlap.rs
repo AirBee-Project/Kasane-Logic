@@ -6,7 +6,7 @@ use super::walk::{OverlapWalk, RangeOverlapWalk};
 use super::{FlexTreeCore, split_child_id};
 use crate::{FlexId, Side};
 
-/// `target`（単一セル）と交差する葉を参照付きで辿るイテレータ。
+/// `target`（単一Segment）と交差する葉を参照付きで辿るイテレータ。
 ///
 /// 走査の本体は [`OverlapWalk`] にあり、ここは葉から値を取り出すだけ。
 pub type OverlapIterRef<'a, V> = core::iter::FilterMap<
@@ -51,7 +51,7 @@ where
 
     /// 走査開始点として、target と交差しうるルートだけを ID 付きで収集する。
     ///
-    /// F はズーム0で `0`（上半分）と `-1`（下半分）の2セルしか持たないため、
+    /// F はズーム0で `0`（上半分）と `-1`（下半分）の2Segmentしか持たないため、
     /// [`FlexId`] は必ずどちらか一方に収まる。[`insert_flex_id`](Self::insert_flex_id)
     /// と同じく符号でルートを選べば、もう一方の半空間は走査せずに済む。
     fn overlap_root_stack(&self, target: &FlexId) -> Vec<(&Node<V>, FlexId)> {
@@ -258,7 +258,7 @@ mod tests {
     }
 
     prop_compose! {
-        /// 異方セル（軸ごとにズームが異なる FlexId）を含む RangeId を生成する。
+        /// 異方Segment（軸ごとにズームが異なる FlexId）を含む RangeId を生成する。
         fn arb_range_id()(
             z in 1u8..5,
             f0 in -6i32..6,
@@ -281,7 +281,7 @@ mod tests {
     }
 
     proptest! {
-        /// 範囲クエリ、および RangeId 挿入で生じる異方セルでも総当たりと一致することを検証する。
+        /// 範囲クエリ、および RangeId 挿入で生じる異方Segmentでも総当たりと一致することを検証する。
         #[ignore]
         #[test]
         fn overlap_matches_brute_force_for_range_query(
@@ -307,18 +307,18 @@ mod tests {
 
     /// ツリーの内容を、ズーム `z` の [`SingleId`] 集合へ展開する。
     ///
-    /// 葉の [`FlexId`] は異方セルでありうるため、木の形に依存しない粒度へ均して比較する。
+    /// 葉の [`FlexId`] は異方Segmentでありうるため、木の形に依存しない粒度へ均して比較する。
     fn single_ids_at<V: super::super::ptr::SafeValue>(
         core: &FlexTreeCore<V>,
         z: u8,
     ) -> BTreeSet<SingleId> {
         core.iter_ref()
-            .flat_map(|(flex_id, _)| flex_id_cells(&flex_id, z))
+            .flat_map(|(flex_id, _)| flex_id_segments(&flex_id, z))
             .collect()
     }
 
     /// 単一の [`FlexId`] を、ズーム `z` の [`SingleId`] 集合へ展開する。
-    fn flex_id_cells(flex_id: &FlexId, z: u8) -> BTreeSet<SingleId> {
+    fn flex_id_segments(flex_id: &FlexId, z: u8) -> BTreeSet<SingleId> {
         let range = RangeId::from(flex_id);
         let normalized = if range.z() == z {
             range
@@ -329,14 +329,14 @@ mod tests {
     }
 
     proptest! {
-        /// `remove` が「target のセルだけを」過不足なく取り除くことを、
+        /// `remove` が「target のSegmentだけを」過不足なく取り除くことを、
         /// SingleId 粒度のモデルと突き合わせて検証する。
         ///
         /// 既存の remove テストは件数（count）しか見ておらず、
-        /// 「どのセルが残ったか」は固定ケースでしか押さえられていない。
+        /// 「どのSegmentが残ったか」は固定ケースでしか押さえられていない。
         #[ignore]
         #[test]
-        fn remove_removes_exactly_the_target_cells(
+        fn remove_removes_exactly_the_target_segments(
             inserts in prop::collection::vec(arb_single_id(), 1..10),
             target in arb_range_id(),
         ) {
@@ -353,28 +353,28 @@ mod tests {
             }
 
             let before = single_ids_at(&tree, z);
-            let target_cells: BTreeSet<SingleId> = target
+            let target_segments: BTreeSet<SingleId> = target
                 .clone()
                 .into_iter()
-                .flat_map(|t| flex_id_cells(&t, z))
+                .flat_map(|t| flex_id_segments(&t, z))
                 .collect();
 
             let removed: Vec<(FlexId, u32)> = tree.remove(target.clone());
-            let removed_cells: BTreeSet<SingleId> = removed
+            let removed_segments: BTreeSet<SingleId> = removed
                 .iter()
-                .flat_map(|(id, _)| flex_id_cells(id, z))
+                .flat_map(|(id, _)| flex_id_segments(id, z))
                 .collect();
             let after = single_ids_at(&tree, z);
 
             // 残るのは「元 - target」。
             prop_assert_eq!(
                 after,
-                before.difference(&target_cells).cloned().collect::<BTreeSet<_>>()
+                before.difference(&target_segments).cloned().collect::<BTreeSet<_>>()
             );
             // 返るのは「元 ∩ target」。
             prop_assert_eq!(
-                removed_cells,
-                before.intersection(&target_cells).cloned().collect::<BTreeSet<_>>()
+                removed_segments,
+                before.intersection(&target_segments).cloned().collect::<BTreeSet<_>>()
             );
         }
     }

@@ -31,7 +31,7 @@ mod golden_tests {
 
     /// `MapArena` の全フィールドを踏む標本。
     ///
-    /// - `lower_root` / `upper_root`: f<0 と f>=0 の両半空間にセルを置く
+    /// - `lower_root` / `upper_root`: f<0 と f>=0 の両半空間にSegmentを置く
     /// - `shard`: シャード領域を持たせる
     /// - `nodes`: 分岐と葉の両方
     /// - `dictionary`: 重複する値（共有される）と単独の値
@@ -40,7 +40,7 @@ mod golden_tests {
         let region = FlexId::new(0, 0, 2, 0, 2, 0).unwrap();
         let mut m = SpatialIdMap::new_in_shard(region);
 
-        // 上半分（f >= 0）: 同じ値を2セル → 辞書エントリは共有される
+        // 上半分（f >= 0）: 同じ値を2Segment → 辞書エントリは共有される
         m.insert(SingleId::new(4, 0, 0, 0).unwrap(), alloc::vec![0xAA]);
         m.insert(SingleId::new(4, 1, 1, 0).unwrap(), alloc::vec![0xAA]);
         // 上半分: 別の値
@@ -115,7 +115,7 @@ mod golden_tests {
         after.sort();
 
         assert_eq!(before, after, "往復で内容が変わっている");
-        assert_eq!(original.count(), restored.count(), "セル数が変わっている");
+        assert_eq!(original.count(), restored.count(), "Segment数が変わっている");
     }
 
     /// 同じ入力なら常に同じバイト列になること（golden テストの前提）。

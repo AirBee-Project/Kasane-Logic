@@ -10,7 +10,7 @@ pub struct ShiftX {
 }
 
 impl ShiftX {
-    /// ズーム `z` のセル `x` 個分の東西移動を表す演算子を作る。
+    /// ズーム `z` のSegment `x` 個分の東西移動を表す演算子を作る。
     pub fn new<T: Into<u8>>(z: T, x: i32) -> Result<Self, Error> {
         let z = ZoomLevel::new(z.into())?;
         Ok(Self { z, x })

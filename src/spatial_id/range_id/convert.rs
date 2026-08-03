@@ -45,7 +45,7 @@ impl From<&SingleId> for RangeId {
             x: [id.x(), id.x()],
             y: [id.y(), id.y()],
 
-            // 単一セルは範囲の退化した形なので常に変換できる。
+            // 単一Segmentは範囲の退化した形なので常に変換できる。
             i: id.interval(),
             #[cfg(feature = "temporal_id")]
             t: [id.t(), id.t()],
@@ -54,16 +54,16 @@ impl From<&SingleId> for RangeId {
 }
 
 impl RangeId {
-    /// この [`RangeId`] が覆う時空間セルを1つずつ [`SingleId`] として列挙する。
+    /// この [`RangeId`] が覆う時FlexIdを1つずつ [`SingleId`] として列挙する。
     ///
-    /// [`SingleId`]は空間・時間ともに「1セル」しか持てないため、**時間軸も分解する**。
-    /// したがって要素数は `(Fのセル数) × (Xのセル数) × (Yのセル数) × (時間のセル数)` になる。
+    /// [`SingleId`]は空間・時間ともに「1Segment」しか持てないため、**時間軸も分解する**。
+    /// したがって要素数は `(FのSegment数) × (XのSegment数) × (YのSegment数) × (時間のSegment数)` になる。
     /// 空間の範囲が広いと要素数が爆発するのと同じく、時間の範囲が広い場合も
     /// （例: 1秒単位で1日ぶんなら86400倍）
     /// 要素数がそれに比例して増える点に注意すること。
     ///
     /// なお、FlexTree から読み出した [`RangeId`]（[`FlexId`] 由来）の時間成分は
-    /// 常に単一の2進セルなので、この経路で時間方向に増えることはない。
+    /// 常に単一の2分岐Segmentなので、この経路で時間方向に増えることはない。
     pub fn single_ids(self) -> Box<dyn Iterator<Item = SingleId>> {
         let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
@@ -116,14 +116,14 @@ impl IntoIterator for RangeId {
         };
         let y_list: Vec<_> = split_xy(z, self.y).collect();
 
-        // 時間は `Interval` が2の冪とは限らないので、2進セルへ分解してから掛け合わせる
-        // （時間を使っていなければ全時間の1セルだけになる）。
+        // 時間は `Interval` が2の冪とは限らないので、2分岐Segmentへ分解してから掛け合わせる
+        // （時間を使っていなければ全時間の1Segmentだけになる）。
         //
         // 最内ループで共有するため `Rc` に包む。`Vec` のまま `clone()` すると
-        // **出力セル1個につきヒープ確保が1回**走り、全時間の ID（`t_list.len() == 1`）でも
+        // **出力Segment1個につきヒープ確保が1回**走り、全時間の ID（`t_list.len() == 1`）でも
         // 必ず通るため、空間だけの利用者にも余計な固定費がのしかかる。
         // `Rc::clone` は参照カウントの加算だけで確保しない。
-        let t_list: Rc<[(u8, u64)]> = self.time_cells().collect::<Vec<_>>().into();
+        let t_list: Rc<[(u8, u64)]> = self.time_segments().collect::<Vec<_>>().into();
 
         let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
             let y_list_inner = y_list.clone();
@@ -136,7 +136,7 @@ impl IntoIterator for RangeId {
                     let spatial = unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) };
                     (0..t_list_inner.len()).map(move |k| {
                         let (t_z, t_i) = t_list_inner[k];
-                        spatial.with_time_cell(t_z, t_i)
+                        spatial.with_time_segment(t_z, t_i)
                     })
                 })
             })

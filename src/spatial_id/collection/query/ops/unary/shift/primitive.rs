@@ -30,11 +30,11 @@ impl FlexId {
         let f_zoomlevel = self.f_zoomlevel();
         let max_z = f_zoomlevel.max(z);
 
-        let cell_scale = 1_i32 << (max_z - f_zoomlevel);
+        let segment_scale = 1_i32 << (max_z - f_zoomlevel);
         let delta_index = index * (1_i32 << (max_z - z));
 
-        let left = self.f_index() * cell_scale + delta_index;
-        let right = left + cell_scale - 1;
+        let left = self.f_index() * segment_scale + delta_index;
+        let right = left + segment_scale - 1;
 
         // 移動後が max_z のF範囲を超える場合はエラー。
         if left < ZoomLevel::new(max_z)?.f_min() {
@@ -56,7 +56,7 @@ impl FlexId {
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
                 FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
                     .unwrap()
-                    .with_time_cell(t_zoomlevel, t_index)
+                    .with_time_segment(t_zoomlevel, t_index)
             }),
         )
     }
@@ -83,11 +83,11 @@ impl FlexId {
 
         // max_z における周長（Xインデックス値数）。
         let circumference = 1_i64 << max_z;
-        let cell_scale = 1_i64 << (max_z - x_zoomlevel);
+        let segment_scale = 1_i64 << (max_z - x_zoomlevel);
         let delta_index = index as i64 * (1_i64 << (max_z - z));
 
-        let left = self.x_index() as i64 * cell_scale + delta_index;
-        let right = left + cell_scale - 1;
+        let left = self.x_index() as i64 * segment_scale + delta_index;
+        let right = left + segment_scale - 1;
 
         let left_wrapped = left.rem_euclid(circumference);
         let right_wrapped = right.rem_euclid(circumference);
@@ -120,7 +120,7 @@ impl FlexId {
                         y_index,
                     )
                 }
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }))
     }
 
@@ -143,11 +143,11 @@ impl FlexId {
         let y_zoomlevel = self.y_zoomlevel();
         let max_z = y_zoomlevel.max(z);
 
-        let cell_scale = 1_i64 << (max_z - y_zoomlevel);
+        let segment_scale = 1_i64 << (max_z - y_zoomlevel);
         let delta_index = index as i64 * (1_i64 << (max_z - z));
 
-        let left = self.y_index() as i64 * cell_scale + delta_index;
-        let right = left + cell_scale - 1;
+        let left = self.y_index() as i64 * segment_scale + delta_index;
+        let right = left + segment_scale - 1;
 
         // 移動後が max_z のY範囲 [0[max_z]] を超える場合はエラー。
         let y_max = ZoomLevel::new(max_z)?.xy_max() as i64;
@@ -179,7 +179,7 @@ impl FlexId {
                         seg_index,
                     )
                 }
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }),
         )
     }

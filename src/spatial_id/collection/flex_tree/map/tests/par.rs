@@ -4,7 +4,7 @@ mod par_build {
     use alloc::vec::Vec;
     use rayon::prelude::*;
 
-    /// 互いに素なセルに相異なる値を割り当てた入力（値の衝突なし）。
+    /// 互いに素なSegmentに相異なる値を割り当てた入力（値の衝突なし）。
     fn items() -> Vec<(FlexId, u32)> {
         (0..800u32)
             .flat_map(|i| {

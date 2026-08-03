@@ -98,15 +98,15 @@ impl<'a> ArchivedSpatialIdMap<'a> {
         self.inner.version.to_native()
     }
 
-    /// `target` と重なるセルを走査し、各セルごとに `visit(clipped_id, packed_value)` を呼ぶ。
+    /// `target` と重なるSegmentを走査し、各Segmentごとに `visit(clipped_id, packed_value)` を呼ぶ。
     ///
     /// `packed_value` は**この葉ローカルの辞書インデックス（1始まり）**で、[`value_bytes`](Self::value_bytes)
-    /// で実バイト列へ復元できる。中間 `Vec` を作らないため、大量セルの集約（値ごとのグルーピング）を
+    /// で実バイト列へ復元できる。中間 `Vec` を作らないため、大量Segmentの集約（値ごとのグルーピング）を
     /// バイト列ではなく整数キーで行えるようにするための低レベル API。
     ///
-    /// 葉は `target` で**切り取って**返す（検索が要求するのは要求範囲内のセルのため）。
+    /// 葉は `target` で**切り取って**返す（検索が要求するのは要求範囲内のSegmentのため）。
     pub fn get_indexed(&self, target: &FlexId, mut visit: impl FnMut(FlexId, u32)) {
-        // F はズーム0で2セルしかないので、符号が属する側のルートだけを降りればよい。
+        // F はズーム0で2Segmentしかないので、符号が属する側のルートだけを降りればよい。
         let root = if target.f_index().is_negative() {
             (
                 self.cursor(self.inner.lower_root.to_native()),
@@ -136,9 +136,9 @@ impl<'a> ArchivedSpatialIdMap<'a> {
     /// `target`（範囲）と重なる (FlexId, 値) を ZeroCopy で列挙する。
     ///
     /// インメモリ側の `FlexTreeCore::range_overlap_ref` と同じ意味論で、葉は
-    /// **切り取らずに**そのまま返す（クエリの入力源はセル全体の値を必要とするため）。
+    /// **切り取らずに**そのまま返す（クエリの入力源はSegment全体の値を必要とするため）。
     pub fn get_range(&self, target: &crate::RangeId) -> Vec<(FlexId, &'a [u8])> {
-        // F はズーム0で 0（上半球）/ -1（下半球）の2セルしか無いので、
+        // F はズーム0で 0（上半球）/ -1（下半球）の2Segmentしか無いので、
         // 範囲を半球ごとに割ってから、該当するルートだけを降りる。
         let mut roots = Vec::new();
         if target.f()[0] < 0 {

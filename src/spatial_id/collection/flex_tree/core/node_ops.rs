@@ -77,7 +77,7 @@ impl MergeOp {
             Intersection if b_full => Some(a.clone()),
 
             // a が空 or b が空 → a のまま / b が充填 → 全消し。a が充填葉のときは
-            // 下の None に落ちて降下し、b の各セルを引く。
+            // 下の None に落ちて降下し、b の各Segmentを引く。
             Difference if a_empty || b_empty => Some(a.clone()),
             Difference if b_full => Some(empty_leaf.clone()),
 

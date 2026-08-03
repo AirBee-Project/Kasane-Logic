@@ -33,7 +33,7 @@ impl FlexId {
         Ok(split_f(z, [left, right]).map(move |(seg_z, seg_index)| {
             FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
                 .unwrap()
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
         }))
     }
 
@@ -82,7 +82,7 @@ impl FlexId {
                         y_index,
                     )
                 }
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }))
     }
 
@@ -111,7 +111,7 @@ impl FlexId {
         Ok(split_xy(z, [left, right]).map(move |(seg_z, seg_index)| {
             FlexId::new(f_zoomlevel, f_index, x_zoomlevel, x_index, seg_z, seg_index)
                 .unwrap()
-                .with_time_cell(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
         }))
     }
 }

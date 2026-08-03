@@ -11,7 +11,7 @@ use alloc::vec::Vec;
 
 use crate::{FlexId, SingleId, SpatialIdSet};
 
-/// ズーム `z` の単一セルを表す [`FlexId`] 領域を作る。
+/// ズーム `z` の単一Segmentを表す [`FlexId`] 領域を作る。
 fn region(z: u8, f: i32, x: u32, y: u32) -> FlexId {
     FlexId::new(z, f, z, x, z, y).unwrap()
 }
@@ -20,7 +20,7 @@ fn region(z: u8, f: i32, x: u32, y: u32) -> FlexId {
 fn insert_inside_region_is_kept() {
     // ズーム2のタイル (0,0,0) をシャード領域にする。
     let mut set = SpatialIdSet::new_in_shard(region(2, 0, 0, 0));
-    // 領域内のより細かいセル。
+    // 領域内のより細かいSegment。
     let inside = SingleId::new(4, 0, 1, 1).unwrap();
     set.insert(inside.clone());
 
@@ -205,7 +205,7 @@ fn split_shard_rotates_axes() {
 fn a_leaf_as_coarse_as_the_region_is_clipped_into_each_half() {
     let shard = region(2, 0, 0, 0);
     let mut set = SpatialIdSet::new_in_shard(shard);
-    // 領域ちょうど1セル。分割するとどちらの半分よりも粗い。
+    // 領域ちょうど1Segment。分割するとどちらの半分よりも粗い。
     set.insert(SingleId::new(2, 0, 0, 0).unwrap());
 
     let ((lower_region, lower), (upper_region, upper)) = set.split_shard().expect("分割できるはず");

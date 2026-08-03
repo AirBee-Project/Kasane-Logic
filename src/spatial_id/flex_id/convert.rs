@@ -38,14 +38,14 @@ impl From<&FlexId> for RangeId {
         )
         .unwrap()
         .with_time_span(start, end)
-        .expect("セルの秒区間は常に有効")
+        .expect("Segmentの秒区間は常に有効")
     }
 }
 
 // `From<SingleId> for FlexId` は実装しない。[`SingleId`]は仕様通り任意の秒数の時間間隔を
-// 持てる一方、[`FlexId`]はFlexTreeのノードアドレスとして2の冪秒のセル1個しか持てないため、
+// 持てる一方、[`FlexId`]はFlexTreeのノードアドレスとして2の冪秒のSegment1個しか持てないため、
 // 両者は1対1に対応しないからである（例: 30分間隔は最大10個の[`FlexId`]へ分解される）。
-// 変換には[`IntoIterator`]を使う（`SingleId::into_iter`が必要な数のセルへ分解する）。
+// 変換には[`IntoIterator`]を使う（`SingleId::into_iter`が必要な数のSegmentへ分解する）。
 
 impl IntoIterator for FlexId {
     type Item = FlexId;

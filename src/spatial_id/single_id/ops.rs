@@ -1,13 +1,13 @@
 use crate::SpatialId;
 use alloc::vec::Vec;
 
-use crate::{RangeId, SingleId, spatial_id::time::cells};
+use crate::{RangeId, SingleId, spatial_id::time::segments};
 
 impl SingleId {
     /// 空間3軸（F/X/Y）だけで重なりを判定し、重なる場合は「深い側」の [`SingleId`] を返す。
     ///
-    /// 空間セルは四分木（八分木）なので、異なるズームのセルは「入れ子」か「素」のどちらかしか
-    /// あり得ない。したがって重なる場合の交差は必ず深い側のセルそのものになる。
+    /// FlexIdは四分木（八分木）なので、異なるズームのSegmentは「入れ子」か「素」のどちらかしか
+    /// あり得ない。したがって重なる場合の交差は必ず深い側のSegmentそのものになる。
     fn spatial_intersection<'a>(&'a self, other: &'a Self) -> Option<&'a Self> {
         let (deep, shallow) = if self.z() > other.z() {
             (self, other)
@@ -36,8 +36,8 @@ impl SingleId {
     /// # 戻り値の型について
     ///
     /// 要素は [`SingleId`] ではなく [`RangeId`] である。時間を刳り抜いた残りは
-    /// 単一セル（`{i}/{t}`）で表せるとは限らないため（[`intersection`](Self::intersection)の
-    /// 説明を参照）、空間が1セルであっても時間が範囲になりうる。
+    /// 単一Segment（`{i}/{t}`）で表せるとは限らないため（[`intersection`](Self::intersection)の
+    /// 説明を参照）、空間が1Segmentであっても時間が範囲になりうる。
     ///
     /// # パラメーター
     /// * `other` - 差し引く相手の [`SingleId`] である。
@@ -96,7 +96,7 @@ impl SingleId {
 
         // 空間的に `other` と一致（または内包される）ところまで来たので、残るは時間の差分だけ。
         for (start, end) in
-            cells::difference_seconds(current.seconds_range(), other.seconds_range())
+            segments::difference_seconds(current.seconds_range(), other.seconds_range())
         {
             results.push(
                 RangeId::from(&current)
@@ -117,8 +117,8 @@ impl SingleId {
     /// # 戻り値の型について
     ///
     /// 戻り値は `Option<`[`SingleId`]`>` ではなく `Option<`[`RangeId`]`>` である。空間の交差は
-    /// 必ず単一セルになるが、**時間の交差は単一セルにならないことがある**ためである。
-    /// 例えば `5/1`（`[5, 10)`）と `7/1`（`[7, 14)`）の交差は `[7, 10)` で、これを単一セル
+    /// 必ず単一Segmentになるが、**時間の交差は単一Segmentにならないことがある**ためである。
+    /// 例えば `5/1`（`[5, 10)`）と `7/1`（`[7, 14)`）の交差は `[7, 10)` で、これを単一Segment
     /// `{i}/{t}` として表すには `i = 3` かつ `t = 7/3` が必要になるが、`7` は `3` の倍数では
     /// ないので表せない。
     ///
@@ -151,7 +151,7 @@ impl SingleId {
     /// ```
     pub fn intersection(&self, other: &Self) -> Option<RangeId> {
         let deep = self.spatial_intersection(other)?;
-        let (start, end) = cells::intersect_seconds(self.seconds_range(), other.seconds_range())?;
+        let (start, end) = segments::intersect_seconds(self.seconds_range(), other.seconds_range())?;
 
         Some(
             RangeId::from(deep)

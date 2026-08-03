@@ -2,14 +2,14 @@ use alloc::string::{String, ToString};
 
 use crate::{SingleId, Source, SpatialIdTable};
 
-fn cell(x: u32) -> SingleId {
+fn segment(x: u32) -> SingleId {
     SingleId::new(20, 0, x, 200).unwrap()
 }
 
 fn int_table() -> SpatialIdTable<i32> {
     let mut t = SpatialIdTable::new();
-    t.insert(cell(10), 1);
-    t.insert(cell(11), 15);
+    t.insert(segment(10), 1);
+    t.insert(segment(11), 15);
     t
 }
 
@@ -79,9 +79,9 @@ fn map_values_composes_with_other_operators() {
 fn map_values_via_lazy_view() {
     let query = int_table().query().map_values(|v: i32| v > 10);
 
-    let got: alloc::vec::Vec<bool> = query.lazy_get(cell(11)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<bool> = query.lazy_get(segment(11)).unwrap().map(|(_, v)| v).collect();
     assert_eq!(got, alloc::vec![true]);
 
-    let got: alloc::vec::Vec<bool> = query.lazy_get(cell(10)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<bool> = query.lazy_get(segment(10)).unwrap().map(|(_, v)| v).collect();
     assert_eq!(got, alloc::vec![false]);
 }

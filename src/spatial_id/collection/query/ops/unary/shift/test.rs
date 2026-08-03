@@ -10,16 +10,16 @@ fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
         .collect()
 }
 
-fn cell(x: u32, v: i32) -> (SingleId, i32) {
+fn segment(x: u32, v: i32) -> (SingleId, i32) {
     (SingleId::new(20, 0, x, 0).unwrap(), v)
 }
 
-/// X shift はセルを平行移動する（値は保つ）。
+/// X shift はSegmentを平行移動する（値は保つ）。
 #[test]
-fn shift_x_moves_cell() {
+fn shift_x_moves_segment() {
     let mut table = SpatialIdTable::new();
-    table.insert(cell(100, 9).0, 9);
-    table.insert(cell(200, 3).0, 3);
+    table.insert(segment(100, 9).0, 9);
+    table.insert(segment(200, 3).0, 3);
 
     let out = table.query().shift_x(20, 5).raw_run_table().unwrap();
     let r = row(&out);

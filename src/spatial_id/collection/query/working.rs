@@ -12,7 +12,7 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 ///
 /// **内部構造は非公開**です。外から見えるのは
 ///
-/// - セル列との相互変換（[`FromIterator`] / [`IntoIterator`]）
+/// - Segment列との相互変換（[`FromIterator`] / [`IntoIterator`]）
 /// - 件数（[`count`](Self::count) / [`is_empty`](Self::is_empty)）
 /// - 具象コレクションへの変換（`Into<`[`SpatialIdTable`](crate::SpatialIdTable)`>` /
 ///   `Into<`[`SpatialIdSet`](crate::SpatialIdSet)`>`）
@@ -21,13 +21,13 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 ///
 /// # 入力源を書くとき
 /// [`Source`](crate::Source) を実装する側が必要なのは `FromIterator` だけです。
-/// 読み出したセルを集めて `collect()` すれば作業木になります。
+/// 読み出したSegmentを集めて `collect()` すれば作業木になります。
 ///
 /// ```ignore
 /// fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
-///     let mut cells: Vec<(FlexId, V)> = Vec::new();
-///     // ... bounds に重なるセルを読む ...
-///     Ok(cells.into_iter().collect())
+///     let mut segments: Vec<(FlexId, V)> = Vec::new();
+///     // ... bounds に重なるSegmentを読む ...
+///     Ok(segments.into_iter().collect())
 /// }
 /// ```
 pub struct WorkingTree<V: SafeValue> {
@@ -47,7 +47,7 @@ impl<V: SafeValue> WorkingTree<V> {
         self.core.count()
     }
 
-    /// セルを1つも持たないか。
+    /// Segmentを1つも持たないか。
     pub fn is_empty(&self) -> bool {
         self.core.is_empty()
     }

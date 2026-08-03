@@ -55,7 +55,7 @@ fn run_surfaces_validation_error() {
     assert!(result.is_err());
 }
 
-/// 同じ(X,Y)・異なるFの2セルにextrude_fを適用すると、Max方針で全出力セルが最大値になる。
+/// 同じ(X,Y)・異なるFの2Segmentにextrude_fを適用すると、Max方針で全出力Segmentが最大値になる。
 #[test]
 fn extrude_f_same_xy_diff_f_resolves_via_policy() {
     let mut table = SpatialIdTable::new();
@@ -74,12 +74,12 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
         .unwrap();
 
     for (_, v) in out.flat_single_ids() {
-        assert_eq!(*v, 20, "Max(10,20)は全出力セルで20になるはず");
+        assert_eq!(*v, 20, "Max(10,20)は全出力Segmentで20になるはず");
     }
 }
 
 /// 回帰テスト: extrude_f/x/yは、列（他2軸のfootprint）でまとめて展開してから木を再構築する。
-/// 列同士は「他軸で区別されていた粗いセルとその内側のネストした細かいセル」により
+/// 列同士は「他軸で区別されていた粗いSegmentとその内側のネストした細かいSegment」により
 /// 互いに素とは限らないため、`from_flexids` へ渡す前の順序を決定的にしておかないと、
 /// 同一入力でも実行のたびに結果が変わりうる（実データで実際に再現したバグ）。
 #[test]

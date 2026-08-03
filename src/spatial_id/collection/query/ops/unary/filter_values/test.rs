@@ -3,7 +3,7 @@ use alloc::string::{String, ToString};
 
 use crate::{SingleId, Source, SpatialIdTable};
 
-fn cell(x: u32) -> SingleId {
+fn segment(x: u32) -> SingleId {
     SingleId::new(20, 0, x, 100).unwrap()
 }
 
@@ -21,10 +21,10 @@ fn rows<V: Clone + Ord + Send + Sync + 'static>(
 
 fn int_table() -> SpatialIdTable<i32> {
     let mut t = SpatialIdTable::new();
-    t.insert(cell(10), 1);
-    t.insert(cell(11), 5);
-    t.insert(cell(12), 10);
-    t.insert(cell(13), 20);
+    t.insert(segment(10), 1);
+    t.insert(segment(11), 5);
+    t.insert(segment(12), 10);
+    t.insert(segment(13), 20);
     t
 }
 
@@ -68,9 +68,9 @@ fn filter_not_in_keeps_the_outside() {
 #[test]
 fn filter_values_works_for_text() {
     let mut t: SpatialIdTable<String> = SpatialIdTable::new();
-    t.insert(cell(10), "apple".to_string());
-    t.insert(cell(11), "banana".to_string());
-    t.insert(cell(12), "cherry".to_string());
+    t.insert(segment(10), "apple".to_string());
+    t.insert(segment(11), "banana".to_string());
+    t.insert(segment(12), "cherry".to_string());
 
     let out: SpatialIdTable<String> = t
         .query()
@@ -104,16 +104,16 @@ fn invalid_range_is_rejected_by_validate() {
 fn filter_values_via_lazy_view() {
     let query = int_table().query().filter_in(5..=10);
 
-    let got: alloc::vec::Vec<i32> = query.lazy_get(cell(11)).unwrap().map(|(_, v)| v).collect();
+    let got: alloc::vec::Vec<i32> = query.lazy_get(segment(11)).unwrap().map(|(_, v)| v).collect();
     assert_eq!(got, alloc::vec![5]);
 
-    // 範囲外の値だったセルは何も返らない。
-    assert!(query.lazy_get(cell(13)).unwrap().next().is_none());
+    // 範囲外の値だったSegmentは何も返らない。
+    assert!(query.lazy_get(segment(13)).unwrap().next().is_none());
 }
 
-/// 切り分け: 範囲 (RangeId) を対象にした遅延取得で、複数セルが全て返ること。
+/// 切り分け: 範囲 (RangeId) を対象にした遅延取得で、複数Segmentが全て返ること。
 #[test]
-fn lazy_get_over_range_returns_all_cells() {
+fn lazy_get_over_range_returns_all_segments() {
     use crate::RangeId;
 
     let mut t: SpatialIdTable<i32> = SpatialIdTable::new();
@@ -138,7 +138,7 @@ fn lazy_get_over_range_returns_all_cells() {
 fn filter_preserves_canonical_form() {
     use crate::SingleId;
 
-    // 隣接4セルのうち2つを別値にして、フィルタで消すと残りが一様化する配置
+    // 隣接4Segmentのうち2つを別値にして、フィルタで消すと残りが一様化する配置
     let mut core: FlexTreeCore<i32> = FlexTreeCore::new();
     for (x, y, v) in [(0, 0, 1), (1, 0, 1), (0, 1, 9), (1, 1, 9)] {
         core.insert(SingleId::new(4, 0, x, y).unwrap(), v);
@@ -146,21 +146,21 @@ fn filter_preserves_canonical_form() {
     core.assert_canonical();
 
     // 9 を消す → 残るのは (0,0) と (1,0) の値 1。
-    // この2つは隣接する同値の兄弟なので、正規形では1つの異方セルへ畳まれる
+    // この2つは隣接する同値の兄弟なので、正規形では1つの異方Segmentへ畳まれる
     // （`count()` は葉=FlexId の数なので 2 ではなく 1 になる）。
     core.retain_values(|v| *v != 9);
     core.assert_canonical();
     assert_eq!(core.count(), 1, "隣接同値が畳まれていない");
 
-    // 畳まれても覆っている空間は (0,0) と (1,0) の2セル分であること
-    let cells: alloc::vec::Vec<crate::SingleId> = core
+    // 畳まれても覆っている空間は (0,0) と (1,0) の2Segment分であること
+    let segments: alloc::vec::Vec<crate::SingleId> = core
         .iter()
         .flat_map(|(flex_id, _)| crate::RangeId::from(&flex_id).single_ids())
         .collect();
-    let mut cells = cells;
-    cells.sort();
+    let mut segments = segments;
+    segments.sort();
     assert_eq!(
-        cells,
+        segments,
         alloc::vec![
             SingleId::new(4, 0, 0, 0).unwrap(),
             SingleId::new(4, 0, 1, 0).unwrap()

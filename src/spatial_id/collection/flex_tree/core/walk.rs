@@ -46,7 +46,7 @@ where
     }
 }
 
-/// `target`（単一セル）と交差する葉だけを辿るスタック走査。
+/// `target`（単一Segment）と交差する葉だけを辿るスタック走査。
 ///
 /// 交差しない子は**積む前に**捨てるため、点クエリでは葉まで一直線に降りる。
 pub(crate) struct OverlapWalk<C> {
@@ -93,7 +93,7 @@ impl<C: TreeCursor> Iterator for OverlapWalk<C> {
 
 /// `target`（範囲）と交差する葉だけを辿るスタック走査。
 ///
-/// F はズーム0で `0`（上半球）/ `-1`（下半球）の2セルしか無いので、範囲を半球ごとに
+/// F はズーム0で `0`（上半球）/ `-1`（下半球）の2Segmentしか無いので、範囲を半球ごとに
 /// 割ってから該当するルートだけを降りる。`roots` はその割り済みの開始点。
 pub(crate) struct RangeOverlapWalk<C> {
     roots: Vec<(C, FlexId, RangeId)>,

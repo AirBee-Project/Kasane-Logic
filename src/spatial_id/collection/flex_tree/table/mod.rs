@@ -8,7 +8,7 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{CellValue, FlexId, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{FlexIdValue, FlexId, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Clone, Debug)]
@@ -53,7 +53,7 @@ where
         }
     }
 
-    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
     pub fn bounding_box(&self) -> Option<RangeId> {
         self.inner.bounding_box()
     }
@@ -199,7 +199,7 @@ where
 
     /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
     ///
-    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
     /// 暦の単位へ正規化したいだけなら `IntervalSet::calendar()`
     /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(
@@ -240,7 +240,7 @@ where
         })
     }
 
-    /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一セルの [`SingleId`] へ展開する。
+    /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一Segmentの [`SingleId`] へ展開する。
     fn expand_range_ids<'a>(
         &'a self,
         units: Option<&'a IntervalSet>,
@@ -251,7 +251,7 @@ where
 
     /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
     ///
-    /// 展開の前に、時間方向に隣接する同値のセルを結合する。木は時間を2の冪秒のセルとして
+    /// 展開の前に、時間方向に隣接する同値のSegmentを結合する。木は時間を2の冪秒のSegmentとして
     /// 持つため、これを行わないと `1800` 秒のような単位で入れた ID が断片のまま出てくる。
     /// 同値かどうかは Rank（値の同一性そのもの）で判定できるので、値の比較は不要。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
@@ -378,12 +378,12 @@ where
     }
 }
 
-pub struct SpatialIdTableIntoIter<V: CellValue> {
+pub struct SpatialIdTableIntoIter<V: FlexIdValue> {
     inner: crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<usize>,
     reverse_dictionary: alloc::collections::BTreeMap<usize, V>,
 }
 
-impl<V: CellValue> Iterator for SpatialIdTableIntoIter<V> {
+impl<V: FlexIdValue> Iterator for SpatialIdTableIntoIter<V> {
     type Item = (FlexId, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -398,7 +398,7 @@ impl<V: CellValue> Iterator for SpatialIdTableIntoIter<V> {
     }
 }
 
-impl<V: CellValue> IntoIterator for SpatialIdTable<V> {
+impl<V: FlexIdValue> IntoIterator for SpatialIdTable<V> {
     type Item = (FlexId, V);
     type IntoIter = SpatialIdTableIntoIter<V>;
 
@@ -410,7 +410,7 @@ impl<V: CellValue> IntoIterator for SpatialIdTable<V> {
     }
 }
 
-impl<V: CellValue> FromIterator<(FlexId, V)> for SpatialIdTable<V> {
+impl<V: FlexIdValue> FromIterator<(FlexId, V)> for SpatialIdTable<V> {
     fn from_iter<T: IntoIterator<Item = (FlexId, V)>>(iter: T) -> Self {
         let mut table = SpatialIdTable::new();
         for (id, val) in iter {
@@ -420,7 +420,7 @@ impl<V: CellValue> FromIterator<(FlexId, V)> for SpatialIdTable<V> {
     }
 }
 
-impl<V: CellValue> Extend<(FlexId, V)> for SpatialIdTable<V> {
+impl<V: FlexIdValue> Extend<(FlexId, V)> for SpatialIdTable<V> {
     fn extend<T: IntoIterator<Item = (FlexId, V)>>(&mut self, iter: T) {
         for (id, val) in iter {
             self.insert(id, val);
@@ -428,7 +428,7 @@ impl<V: CellValue> Extend<(FlexId, V)> for SpatialIdTable<V> {
     }
 }
 
-impl<V: CellValue> Default for SpatialIdTable<V> {
+impl<V: FlexIdValue> Default for SpatialIdTable<V> {
     fn default() -> Self {
         Self::new()
     }

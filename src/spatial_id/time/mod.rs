@@ -1,4 +1,4 @@
-pub(crate) mod cells;
+pub(crate) mod segments;
 pub mod interval;
 pub mod interval_set;
 

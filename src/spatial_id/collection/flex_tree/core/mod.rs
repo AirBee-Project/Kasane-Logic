@@ -103,9 +103,9 @@ where
 
     /// 2つの [FlexTreeCore] を値解決付きで重ね合わせる。
     ///
-    /// [`union`](Self::union) と同じ構造マージ（構造共有・並列・枝刈り）だが、両側にセルが
+    /// [`union`](Self::union) と同じ構造マージ（構造共有・並列・枝刈り）だが、両側にSegmentが
     /// 存在する領域では `resolve(a側の値, b側の値)` で値を合成する。片側だけが持つ領域は相手の
-    /// 部分木をそのまま共有する。`insert_with_policy` のようなセル単位の逐次
+    /// 部分木をそのまま共有する。`insert_with_policy` のようなSegment単位の逐次
     /// remove/difference/insert ループを、木マージ 1 本へ置き換えるための土台。
     ///
     /// シャードの扱いは [`union`](Self::union) と同じ。
@@ -313,9 +313,9 @@ where
         }
     }
 
-    /// 各セルを `f` で写し、**union**（左優先）で組み直した木を返す。
+    /// 各Segmentを `f` で写し、**union**（左優先）で組み直した木を返す。
     ///
-    /// 「写像先が空間的に単射」な per-cell 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
+    /// 「写像先が空間的に単射」な per-segment 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
     /// 重なる場合の値は union に従う。
     pub fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
     where
@@ -327,9 +327,9 @@ where
         Ok(self.map_expand(f)?.into_iter().collect())
     }
 
-    /// 各セルを `f` で写し、**写像先の重なりを `resolve` で合成**して組み直した木を返す。
+    /// 各Segmentを `f` で写し、**写像先の重なりを `resolve` で合成**して組み直した木を返す。
     ///
-    /// 「写像先が空間的に非単射」な per-cell 演算子（falloff / dilate / 拡大 / downsample …）の
+    /// 「写像先が空間的に非単射」な per-segment 演算子（falloff / dilate / 拡大 / downsample …）の
     /// 汎用 recombiner。`resolve` には `MergePolicy::resolve` 相当のクロージャを渡す（FlexTreeCore は
     /// query 層の `MergePolicy` に依存しない）。合成は `par_build_vec_with` や `insert_with`
     /// に委ねられる。
@@ -554,9 +554,9 @@ where
         Some(lower.max(upper))
     }
 
-    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
     ///
-    /// 検証は `core_api_tests::bounding_box_covers_every_cell` を参照。
+    /// 検証は `core_api_tests::bounding_box_covers_every_segment` を参照。
     pub fn bounding_box(&self) -> Option<RangeId> {
         let max_z = self.max_zoomlevel()?;
 
@@ -565,9 +565,9 @@ where
         let mut y_acc = [u32::MAX, u32::MIN];
         let mut any = false;
 
-        // 各セルの範囲を `max_z` へ揃えてから min/max を取る。
+        // 各Segmentの範囲を `max_z` へ揃えてから min/max を取る。
         //
-        // 木の走査経路から領域を復元する方法は、軸ごとにズームが異なるセル
+        // 木の走査経路から領域を復元する方法は、軸ごとにズームが異なるSegment
         // （パス圧縮された `FlexId`）で経路と実際の広がりがずれるため使わない。
         for (flex_id, _) in self.iter_ref() {
             let range = RangeId::from(&flex_id);
@@ -636,14 +636,14 @@ where
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として値の参照付きで書き出す。
     ///
-    /// 木が時間軸で分割されている場合のみ、書き出す前に時間方向に隣接する同値のセルを
+    /// 木が時間軸で分割されている場合のみ、書き出す前に時間方向に隣接する同値のSegmentを
     /// [`coalesce_temporal`](crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal)
-    /// で結合する。木は時間を2の冪秒のセルとして持つため、これを行わないと
+    /// で結合する。木は時間を2の冪秒のSegmentとして持つため、これを行わないと
     /// `1800` 秒のような単位で入れた ID が断片のまま出てきてしまう。
     ///
     /// # 遅延評価について
     ///
-    /// 結合は木全体を集めてソートする（同じ空間セルの時間セルは木の走査順では連続しない
+    /// 結合は木全体を集めてソートする（同じFlexIdの時間Segmentは木の走査順では連続しない
     /// ため、1件先読みでは結合しきれない）。そのため時間を持たない木で無条件に通すと、
     /// 本来 `O(1)` で始まるはずの列挙が全件走査になってしまう。
     /// [`has_temporal_split`](Self::has_temporal_split) が偽なら全葉が全時間で結合対象が
@@ -655,7 +655,7 @@ where
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
     ///
     /// `units` に [`IntervalSet`] を渡すと、結合後の秒区間をその候補のうち最も粗い単位
-    /// （＝セル数が候補の中で最小になる単位）で表す。`None` なら `gcd` で最も粗い単位を選ぶ。
+    /// （＝Segment数が候補の中で最小になる単位）で表す。`None` なら `gcd` で最も粗い単位を選ぶ。
     ///
     /// 木が時間軸で分割されていなければ結合対象が無いので、素通しの遅延イテレータを返す。
     pub fn range_ids_ref<'a>(
@@ -984,7 +984,7 @@ pub(crate) type SortKey = u128;
 pub(crate) type SortKey = u64;
 
 /// 軸のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
-/// 粗い（浅い）セルは上位ビット側に、細かいセルは下位ビットまで伸びる。
+/// 粗い（浅い）Segmentは上位ビット側に、細かいSegmentは下位ビットまで伸びる。
 #[cfg(feature = "rayon")]
 #[inline]
 fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
@@ -1174,7 +1174,7 @@ mod core_api_tests {
     }
 
     #[test]
-    fn bounding_box_covers_every_cell() {
+    fn bounding_box_covers_every_segment() {
         let mut core = FlexTreeCore::new();
         core.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1);
         core.insert(SingleId::new(20, 0, 2, 3).unwrap(), 1);
@@ -1193,12 +1193,12 @@ mod core_api_tests {
     /// 異なる2つのFlexIdが、木の中で別々に区別・保持されること）。
     #[cfg(feature = "temporal_id")]
     #[test]
-    fn distinct_temporal_cells_stay_distinguishable() {
+    fn distinct_temporal_segments_stay_distinguishable() {
         use crate::FlexId;
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
 
-        // 同じ空間セルで、時間だけが隣り合う2つのセル（ズーム2＝全時間の1/4幅）。
+        // 同じFlexIdで、時間だけが隣り合う2つのSegment（ズーム2＝全時間の1/4幅）。
         let a = FlexId::new(3, 1, 3, 1, 3, 1)
             .unwrap()
             .with_time(2u8, 0)
@@ -1219,7 +1219,7 @@ mod core_api_tests {
         assert!(got.contains(&(b, 20)));
     }
 
-    /// 時間だけが深いセルがあっても、`max_zoomlevel` は**空間**の解像度だけを報告する。
+    /// 時間だけが深いSegmentがあっても、`max_zoomlevel` は**空間**の解像度だけを報告する。
     ///
     /// レベル番号から `ceil(level / NUM_AXES)` として推定していた頃は、時間軸（最大ズーム35）の
     /// 深さがそのまま空間ズームとして出てしまい、`bounding_box` が `None` になり
@@ -1236,7 +1236,7 @@ mod core_api_tests {
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
         core.insert(id.clone(), 1);
-        assert!(core.count() > 1, "1時間ぶんは複数セルへ分解されるはず");
+        assert!(core.count() > 1, "1時間ぶんは複数Segmentへ分解されるはず");
 
         assert_eq!(core.max_zoomlevel(), Some(10));
 
@@ -1250,7 +1250,7 @@ mod core_api_tests {
         assert_eq!(flat[0].0, id);
     }
 
-    /// 時間区間を2進セルへ分解して挿入すると、元の秒区間をちょうど覆う集合が木に入る。
+    /// 時間区間を2分岐Segmentへ分解して挿入すると、元の秒区間をちょうど覆う集合が木に入る。
     #[cfg(feature = "temporal_id")]
     #[test]
     fn seconds_range_decomposition_round_trips_into_tree() {
@@ -1261,30 +1261,30 @@ mod core_api_tests {
             .with_time(Interval::HOUR, [2, 2])
             .unwrap();
 
-        let cells: alloc::vec::Vec<_> = range.clone().into_iter().collect();
-        assert!(!cells.is_empty());
+        let segments: alloc::vec::Vec<_> = range.clone().into_iter().collect();
+        assert!(!segments.is_empty());
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
-        for cell in &cells {
-            core.insert([*cell], 1);
+        for segment in &segments {
+            core.insert([*segment], 1);
         }
 
-        assert_eq!(core.count(), cells.len());
+        assert_eq!(core.count(), segments.len());
         core.assert_canonical();
 
-        // 分解したセルの絶対秒区間を合算すると、元の秒区間と一致する。
-        let total_seconds: u64 = cells
+        // 分解したSegmentの絶対秒区間を合算すると、元の秒区間と一致する。
+        let total_seconds: u64 = segments
             .iter()
-            .map(|cell| {
-                let (start, end) = cell.seconds_range();
+            .map(|segment| {
+                let (start, end) = segment.seconds_range();
                 end - start
             })
             .sum();
         let (range_start, range_end) = range.seconds_range();
         assert_eq!(total_seconds, range_end - range_start);
 
-        // 分解元と同じ空間セルであることも確認する。
-        assert!(cells.iter().all(|c| c.f_index() == 0 && c.x_index() == 0));
+        // 分解元と同じFlexIdであることも確認する。
+        assert!(segments.iter().all(|c| c.f_index() == 0 && c.x_index() == 0));
         let _ = FlexId::new(0, 0, 0, 0, 0, 0).unwrap();
     }
 }

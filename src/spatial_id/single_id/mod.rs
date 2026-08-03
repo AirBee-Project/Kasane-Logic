@@ -9,7 +9,7 @@ pub mod test;
 use crate::{
     Interval, SpatialId, SpatialIdError,
     error::Error,
-    spatial_id::{time::cells, zoom_level::ZoomLevel},
+    spatial_id::{time::segments, zoom_level::ZoomLevel},
 };
 
 /// SingleIdは標準的な時空間 ID を表す型。
@@ -98,7 +98,7 @@ impl SingleId {
 
     /// この `SingleId` の時間インデックス `{t}` を返す。
     ///
-    /// `temporal_id` feature 無効時は常に `0`（全時間の唯一のセル）。
+    /// `temporal_id` feature 無効時は常に `0`（全時間の唯一のSegment）。
     pub fn t(&self) -> u64 {
         #[cfg(feature = "temporal_id")]
         {
@@ -118,18 +118,18 @@ impl SingleId {
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間セル
+    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まります。しかし非2冪の秒数（例: 1800秒）を指定した場合、
-    /// 内部で最大十数個のセルに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
+    /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
     /// 仕様どおり任意の秒数を単位にできる。
     ///
-    /// `SingleId` は空間が1セルなのと揃えて**時間も1セル**しか持たない。時間の範囲を扱いたい
+    /// `SingleId` は空間が1Segmentなのと揃えて**時間も1Segment**しか持たない。時間の範囲を扱いたい
     /// 場合は [`RangeId::with_time`](crate::RangeId::with_time) を使う。
     ///
-    /// FlexTreeが内部で必要とする2の冪秒のセルへの分解は、木へ挿入する段階
+    /// FlexTreeが内部で必要とする2の冪秒のSegmentへの分解は、木へ挿入する段階
     /// （[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で自動的に行われる。
     ///
     /// # バリデーション
@@ -160,20 +160,20 @@ impl SingleId {
         Error: From<I::Error>,
     {
         let interval: Interval = interval.try_into()?;
-        cells::validated_span(interval, t, t)?;
+        segments::validated_span(interval, t, t)?;
         Ok(self.with_time_unchecked(interval, t))
     }
 
-    /// Unix 時刻（秒）が属する時間セルを設定した自身を返す。
+    /// Unix 時刻（秒）が属する時間Segmentを設定した自身を返す。
     ///
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)` をこちらで計算するので、呼び出し側で
     /// インデックスを求める必要がない。
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間セル
+    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まります。しかし非2冪の秒数（例: 1800秒）を指定した場合、
-    /// 内部で最大十数個のセルに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
+    /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
@@ -182,7 +182,7 @@ impl SingleId {
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::SingleId;
-    /// // 1457482000 秒は 30 分単位で 809712 番目のセルに入る。
+    /// // 1457482000 秒は 30 分単位で 809712 番目のSegmentに入る。
     /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time_at(1800, 1_457_482_000).unwrap();
     /// assert_eq!(id.to_string(), "12/0/3638/1614_1800/809712");
     /// # }
@@ -199,22 +199,22 @@ impl SingleId {
     /// 絶対秒区間 `[start, end)` を設定した自身を返す（1970-01-01 00:00 UTC 起点）。
     ///
     /// 単位は「その区間をちょうど表せる最も粗い秒数」が自動で選ばれる
-    /// （`start` と区間幅の最大公約数）。`SingleId` は時間も1セルなので、
-    /// **その単位でちょうど1セルにならない区間は受け付けない**。
-    /// 複数セルにまたがる区間は [`RangeId::with_time_span`](crate::RangeId::with_time_span) を使う。
+    /// （`start` と区間幅の最大公約数）。`SingleId` は時間も1Segmentなので、
+    /// **その単位でちょうど1Segmentにならない区間は受け付けない**。
+    /// 複数Segmentにまたがる区間は [`RangeId::with_time_span`](crate::RangeId::with_time_span) を使う。
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間セル
+    /// 木構造（`SpatialIdSet` など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まります。しかし非2冪の幅（例: 1800秒）が選ばれた場合、
-    /// 内部で最大十数個のセルに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
+    /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
     /// パフォーマンスが重視される用途では、区間幅が1800秒や3600秒になる代わりに、**1024秒**や**4096秒**
     /// などの2の冪秒になるように指定することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
     /// # バリデーション
     /// - `start >= end`、または `end` が [`Interval::MAX_SECONDS`] を超える場合は
     ///   [`SpatialIdError::TOutOfRange`] を返す。
-    /// - 区間が単一セルにならない場合は [`SpatialIdError::TIntervalError`] を返す。
+    /// - 区間が単一Segmentにならない場合は [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
     /// # use kasane_logic::SpatialId;
@@ -226,12 +226,12 @@ impl SingleId {
     /// assert_eq!(id.interval().seconds(), 1800);
     /// assert_eq!(id.t(), 809712);
     ///
-    /// // 1セルに収まらない区間（1800秒 × 3セル）は拒否する。
+    /// // 1Segmentに収まらない区間（1800秒 × 3Segment）は拒否する。
     /// assert!(SingleId::new(4, 0, 0, 0).unwrap().with_time_span(1800, 7200).is_err());
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = cells::span_to_interval(start, end)?;
+        let (interval, t_min, t_max) = segments::span_to_interval(start, end)?;
         if t_min != t_max {
             return Err(SpatialIdError::TIntervalError {
                 i: interval.seconds(),
@@ -243,7 +243,7 @@ impl SingleId {
 
     /// 同じ絶対秒区間を、別の単位で表し直した自身を返す。
     ///
-    /// 単位が変わっても指す時刻は変わらない。その単位で単一セルにならない場合は
+    /// 単位が変わっても指す時刻は変わらない。その単位で単一Segmentにならない場合は
     /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
@@ -252,7 +252,7 @@ impl SingleId {
     /// # {
     /// # use kasane_logic::{Interval, SingleId};
     /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(3600, 5).unwrap();
-    /// // 1時間ぶんは 1800 秒単位では 2 セルになるので単一にできない。
+    /// // 1時間ぶんは 1800 秒単位では 2 Segmentになるので単一にできない。
     /// assert!(id.clone().relabel_time(1800).is_err());
     /// assert_eq!(id.relabel_time(Interval::HOUR).unwrap().t(), 5);
     /// # }
@@ -287,8 +287,8 @@ impl SingleId {
     }
 
     /// 内部表現をそのまま取得する。クレート内部専用。
-    pub(crate) fn time_cells(&self) -> cells::TimeCells {
-        cells::time_cells_of(self.seconds_range())
+    pub(crate) fn time_segments(&self) -> segments::TimeSegments {
+        segments::time_segments_of(self.seconds_range())
     }
 
     /// 内部表現をそのまま設定する。クレート内部専用（検証済みの値を渡すこと）。

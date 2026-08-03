@@ -79,9 +79,9 @@ impl FlexId {
 mod tests {
     use crate::FlexId;
 
-    /// 全時間のセルはどちらの feature 構成でも作れる。
+    /// 全時間のSegmentはどちらの feature 構成でも作れる。
     #[test]
-    fn whole_time_cell_is_always_constructible() {
+    fn whole_time_segment_is_always_constructible() {
         assert!(
             FlexId::new(3, 1, 3, 1, 3, 1)
                 .unwrap()
@@ -90,13 +90,13 @@ mod tests {
         );
     }
 
-    /// `temporal_id` 無効時は、時間を持つセルを構築段階で弾く。
+    /// `temporal_id` 無効時は、時間を持つSegmentを構築段階で弾く。
     ///
     /// 無効時の木はT軸を分割しないため、受け付けると挿入した時間区間が黙って
     /// 全時間へ広がってしまう（読み出すと4倍などに化ける）。
     #[cfg(not(feature = "temporal_id"))]
     #[test]
-    fn temporal_cell_is_rejected_without_the_feature() {
+    fn temporal_segment_is_rejected_without_the_feature() {
         assert!(
             FlexId::new(3, 1, 3, 1, 3, 1)
                 .unwrap()
@@ -116,7 +116,7 @@ mod tests {
     /// `temporal_id` 有効時は従来どおり構築できる。
     #[cfg(feature = "temporal_id")]
     #[test]
-    fn temporal_cell_is_accepted_with_the_feature() {
+    fn temporal_segment_is_accepted_with_the_feature() {
         let id = FlexId::new(3, 1, 3, 1, 3, 1)
             .unwrap()
             .with_time(2u8, 1)

@@ -35,7 +35,7 @@ impl Interval {
     /// （`2^35` 秒 = 34,359,738,368 秒、約1089年）。[`new`](Self::new) はこれを超える値を拒む。
     pub const MAX_SECONDS: u64 = 1u64 << Self::MAX_POW;
 
-    /// 最も粗い時間区間を表す二進層の指数。時間軸の最大ズームレベル。
+    /// 最も粗い時間単位を表す二進層の指数。時間軸の最大ズームレベル。
     pub const MAX_POW: u8 = 35;
 
     /// 全時間（`2^35` 秒）。時間を指定していない ID はこの値を持つ。
@@ -113,10 +113,10 @@ impl Interval {
 
     /// この [`Interval`] の秒数が2の冪乗であるかを判定する。
     ///
-    /// 時間付き ID を生成する際、時間間隔が2の冪秒であれば、木構造の中で必ず1つの時間セル
+    /// 時間付き ID を生成する際、時間間隔が2の冪秒であれば、木構造の中で必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まるため、パフォーマンスが最適化される。
     /// 非2冪の秒数（例: 30分 = 1800秒）を指定した場合、このメソッドは `false` を返し、
-    /// 内部で最大十数個のセルに分解されるため処理コストが比例して増大する。
+    /// 内部で最大十数個のSegmentに分解されるため処理コストが比例して増大する。
     pub const fn is_power_of_two(self) -> bool {
         #[cfg(feature = "temporal_id")]
         {
@@ -129,7 +129,7 @@ impl Interval {
         }
     }
 
-    /// この単位で、Unix 時刻（秒）が属するセルのインデックス `{t}` を返す。
+    /// この単位で、Unix 時刻（秒）が属するSegmentのインデックス `{t}` を返す。
     ///
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)`。
     ///
@@ -251,7 +251,7 @@ mod tests {
 /// 3型（[`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`](crate::FlexId)）
 /// で、時間 API の名前・引数・戻り値の形が揃っていることを固定する。
 ///
-/// 型ごとに「表せる時間の形」は違う（1セル / 範囲 / 2進セル1個）が、**入口の名前と失敗の
+/// 型ごとに「表せる時間の形」は違う（1Segment / 範囲 / 2分岐Segment1個）が、**入口の名前と失敗の
 /// 仕方は同じ**であるべき。片方だけに生えた補助コンストラクタや、`Option` と `Result` の
 /// 混在を防ぐための回帰テストである。
 #[cfg(all(test, feature = "temporal_id"))]
@@ -302,7 +302,7 @@ mod api_symmetry {
         assert_eq!(by_const, by_u64);
     }
 
-    /// `with_time_at` は3型とも同じ名前で、Unix 時刻からセルを決める。
+    /// `with_time_at` は3型とも同じ名前で、Unix 時刻からSegmentを決める。
     #[test]
     fn with_time_at_is_available_on_every_type() {
         const UNIX: u64 = 1_770_000_000;
@@ -345,7 +345,7 @@ mod api_symmetry {
             assert_eq!(got.unwrap(), (1024, 2048));
         }
 
-        // [1800, 7200) は 1800 秒 × 3 セルなので、範囲でしか表せない。
+        // [1800, 7200) は 1800 秒 × 3 Segmentなので、範囲でしか表せない。
         assert!(
             SingleId::new(4, 0, 1, 1)
                 .unwrap()
@@ -383,7 +383,7 @@ mod api_symmetry {
         assert_eq!(range.clone().relabel_time(1800).unwrap().t(), [0, 3]);
         assert!(range.relabel_time(Interval::DAY).is_err());
 
-        // `FlexId` には `relabel_time` を持たせない。セルが秒区間を一意に決めるので、
+        // `FlexId` には `relabel_time` を持たせない。Segmentが秒区間を一意に決めるので、
         // 「同じ区間を別の単位で」は定義上ありえず、成功しても必ず元と同じ値になる
         // （常に no-op か Err にしかならないAPIは、対称性のためだけに置く価値がない）。
     }
