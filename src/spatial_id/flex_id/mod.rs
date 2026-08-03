@@ -15,18 +15,8 @@ use crate::{
     },
 };
 
-/// 拡張時空間ID。FlexTree のノードアドレスでもある。
-///
-/// **4軸（F / X / Y / T）とも「ズームレベル＋インデックス」で対称に持つ**のが
-/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) との違いで、軸ごとに
-/// 粒度を変えられる。時間軸のズームは空間軸（最大30）と範囲が違う
-/// （[`TZoomLevel`]、最大35＝1秒）ので型で区別する。
-///
-/// # `temporal_id` feature 無効時
-///
-/// 時間軸のフィールドは**存在しない**（`t_zoomlevel` / `t_index` ごと消える）。
-/// アクセサは残り、常に全時間（ズーム0・インデックス0）を返すので呼び出し側に `cfg` は
-/// 要らない。木も F/X/Y の3軸に戻るため、時間軸ぶんのメモリと計算が完全に消える。
+/// 拡張時空間IDを表現する型。
+/// 各次元がズームレベルとインデックス値を持つ。
 #[derive(Clone, Copy, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
     feature = "persist",
