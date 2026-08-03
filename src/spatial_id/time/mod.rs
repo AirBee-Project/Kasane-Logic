@@ -1,6 +1,7 @@
+pub mod allowed_intervals;
 pub mod interval;
-pub mod interval_set;
-pub(crate) mod segments;
+pub mod segment;
+pub mod span;
 
+pub use allowed_intervals::AllowedIntervals;
 pub use interval::Interval;
-pub use interval_set::IntervalSet;

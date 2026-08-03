@@ -84,4 +84,4 @@ pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
 
 Serde や OpenAPI のような公開型の横断的な実装方針も、個別の `rustdoc` に散らさず `/docs` に運用ルールとしてまとめる。
 
-プロジェクト内の固有ドメイン用語の定義と使い分け（例：「区間」「Segment」「FlexId」など）については、[用語集 (terminology.md)](./terminology.md) を参照すること。
+プロジェクト内の固有ドメイン用語の定義と使い分け（例：「区間」「TimeSegment」「FlexId」など）については、[用語集 (terminology.md)](./terminology.md) を参照すること。

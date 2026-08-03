@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
-use crate::{FlexId, IntervalSet, RangeId, SingleId, SpatialId};
+use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 
 #[cfg(feature = "persist")]
@@ -135,14 +135,14 @@ where
         self.inner.range_ids_ref(None)
     }
 
-    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    /// 時間の単位を [`AllowedIntervals`] の候補から選んで読み出す。
     ///
     /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
-    /// 暦の単位へ正規化したいだけなら `IntervalSet::calendar()`
+    /// 暦の単位へ正規化したいだけなら `AllowedIntervals::calendar()`
     /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
+        units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         self.inner.range_ids_ref(Some(units))
     }
@@ -150,7 +150,7 @@ where
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
+        units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.inner.flat_single_ids_in_ref(Some(units))
     }

@@ -183,16 +183,22 @@ pub trait SpatialId:
     /// # {
     /// # use kasane_logic::{Interval, SingleId, SpatialId};
     /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
-    /// assert_eq!(id.interval().seconds(), 1800);
+    /// assert_eq!(id.time_interval().seconds(), 1800);
     ///
     /// let plain = SingleId::new(12, 0, 3638, 1614).unwrap();
-    /// assert_eq!(plain.interval(), Interval::WHOLE);
+    /// assert_eq!(plain.time_interval(), Interval::WHOLE);
     /// # }
     /// ```
-    fn interval(&self) -> Interval;
+    fn time_interval(&self) -> Interval;
 
     /// 占有する絶対秒区間 `[start, end)` を返す。
     fn seconds_range(&self) -> (u64, u64);
+
+    /// 占有する絶対秒区間を [`TimeSpan`](crate::spatial_id::time::span::TimeSpan) として返す。
+    fn time_span(&self) -> crate::spatial_id::time::span::TimeSpan {
+        let (s, e) = self.seconds_range();
+        crate::spatial_id::time::span::TimeSpan::new_unchecked(s, e)
+    }
 
     /// 時間を指定していない（全時間を覆う）かを判定する。
     ///

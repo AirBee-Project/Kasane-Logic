@@ -231,7 +231,7 @@ impl SpatialId for RangeId {
         one * count
     }
 
-    fn interval(&self) -> Interval {
+    fn time_interval(&self) -> Interval {
         self.i
     }
 

@@ -18,7 +18,7 @@ use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::{FlexId, IntervalSet, RangeId, SpatialId};
+use crate::{AllowedIntervals, FlexId, RangeId, SpatialId};
 
 const SCHEMA_URL: &str = "https://airbee-project.github.io/schemas/json/v1.0.json";
 
@@ -87,7 +87,7 @@ impl Serialize for IdEntry {
         serialize_pair(&mut map, "x", self.range_id.x())?;
         serialize_pair(&mut map, "y", self.range_id.y())?;
         if !whole_time {
-            map.serialize_entry("i", &self.range_id.interval().seconds())?;
+            map.serialize_entry("i", &self.range_id.time_interval().seconds())?;
             serialize_pair(&mut map, "t", self.range_id.t())?;
         }
         if let Some(r) = self.r#ref {
@@ -300,8 +300,8 @@ where
 /// # `{i}` は既定の候補集合（暦の単位）へ正規化する
 ///
 /// JSON は外部へ渡る表現なので、`gcd` が選ぶ「その区間を表せる最も粗い秒数」ではなく
-/// [`IntervalSet::default`] の `{WHOLE, DAY, HOUR, MINUTE, SECOND}`（`temporal_id` 有効時。
-/// [`IntervalSet::calendar`] と同じ）に揃える。`gcd` だと隣り合う1時間×2が
+/// [`AllowedIntervals::default`] の `{WHOLE, DAY, HOUR, MINUTE, SECOND}`（`temporal_id` 有効時。
+/// [`AllowedIntervals::calendar`] と同じ）に揃える。`gcd` だと隣り合う1時間×2が
 /// `"i":7200`（2時間という単位）になってしまい、受け取り側が解釈しづらいためである。
 ///
 /// `calendar()` ではなく `default()` を呼ぶのは、`temporal_id` 無効時にも
@@ -322,7 +322,7 @@ where
     if has_temporal_split {
         crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
             iter,
-            Some(&IntervalSet::default()),
+            Some(&AllowedIntervals::default()),
         )
         .collect()
     } else {
@@ -436,7 +436,7 @@ mod tests {
     /// 木は時間を2の冪秒のSegmentで持つため、`1800` 秒のような単位は挿入時に複数Segmentへ分解される
     /// （この例では5個）。書き出し側で時間方向の結合を通すことで1件へ戻る。
     ///
-    /// ただし `{i}` は暦の単位（`IntervalSet::calendar`）へ正規化されるので、
+    /// ただし `{i}` は暦の単位（`AllowedIntervals::calendar`）へ正規化されるので、
     /// `1800` は JSON 上では `60`（分）× 30 Segmentになる。**ラベルは変わるが秒区間は同じ**で、
     /// 読み込んだ木の内容は元と一致する。
     #[cfg(feature = "temporal_id")]
@@ -470,7 +470,7 @@ mod tests {
         assert_eq!(*ids[0].1, 7);
     }
 
-    /// 隣り合う1時間×2は、暦の単位なら `3600 × 2 Segment` として書き出される。
+    /// 隣り合う1時間×2は、暦の単位なら `3600 × 2 TimeSegment` として書き出される。
     ///
     /// `gcd` だと `7200`（2時間という単位）になってしまい、受け取り側が解釈しづらい。
     #[cfg(feature = "temporal_id")]

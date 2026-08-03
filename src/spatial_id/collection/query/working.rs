@@ -25,9 +25,9 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 ///
 /// ```ignore
 /// fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
-///     let mut segments: Vec<(FlexId, V)> = Vec::new();
+///     let mut time_segments: Vec<(FlexId, V)> = Vec::new();
 ///     // ... bounds に重なるSegmentを読む ...
-///     Ok(segments.into_iter().collect())
+///     Ok(time_segments.into_iter().collect())
 /// }
 /// ```
 pub struct WorkingTree<V: SafeValue> {

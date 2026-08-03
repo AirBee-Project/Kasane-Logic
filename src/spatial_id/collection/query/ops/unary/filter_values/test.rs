@@ -3,7 +3,7 @@ use alloc::string::{String, ToString};
 
 use crate::{SingleId, Source, SpatialIdTable};
 
-fn segment(x: u32) -> SingleId {
+fn time_segment(x: u32) -> SingleId {
     SingleId::new(20, 0, x, 100).unwrap()
 }
 
@@ -21,10 +21,10 @@ fn rows<V: Clone + Ord + Send + Sync + 'static>(
 
 fn int_table() -> SpatialIdTable<i32> {
     let mut t = SpatialIdTable::new();
-    t.insert(segment(10), 1);
-    t.insert(segment(11), 5);
-    t.insert(segment(12), 10);
-    t.insert(segment(13), 20);
+    t.insert(time_segment(10), 1);
+    t.insert(time_segment(11), 5);
+    t.insert(time_segment(12), 10);
+    t.insert(time_segment(13), 20);
     t
 }
 
@@ -68,9 +68,9 @@ fn filter_not_in_keeps_the_outside() {
 #[test]
 fn filter_values_works_for_text() {
     let mut t: SpatialIdTable<String> = SpatialIdTable::new();
-    t.insert(segment(10), "apple".to_string());
-    t.insert(segment(11), "banana".to_string());
-    t.insert(segment(12), "cherry".to_string());
+    t.insert(time_segment(10), "apple".to_string());
+    t.insert(time_segment(11), "banana".to_string());
+    t.insert(time_segment(12), "cherry".to_string());
 
     let out: SpatialIdTable<String> = t
         .query()
@@ -105,14 +105,14 @@ fn filter_values_via_lazy_view() {
     let query = int_table().query().filter_in(5..=10);
 
     let got: alloc::vec::Vec<i32> = query
-        .lazy_get(segment(11))
+        .lazy_get(time_segment(11))
         .unwrap()
         .map(|(_, v)| v)
         .collect();
     assert_eq!(got, alloc::vec![5]);
 
     // 範囲外の値だったSegmentは何も返らない。
-    assert!(query.lazy_get(segment(13)).unwrap().next().is_none());
+    assert!(query.lazy_get(time_segment(13)).unwrap().next().is_none());
 }
 
 /// 切り分け: 範囲 (RangeId) を対象にした遅延取得で、複数Segmentが全て返ること。
@@ -157,14 +157,14 @@ fn filter_preserves_canonical_form() {
     assert_eq!(core.count(), 1, "隣接同値が畳まれていない");
 
     // 畳まれても覆っている空間は (0,0) と (1,0) の2Segment分であること
-    let segments: alloc::vec::Vec<crate::SingleId> = core
+    let time_segments: alloc::vec::Vec<crate::SingleId> = core
         .iter()
         .flat_map(|(flex_id, _)| crate::RangeId::from(&flex_id).single_ids())
         .collect();
-    let mut segments = segments;
-    segments.sort();
+    let mut time_segments = time_segments;
+    time_segments.sort();
     assert_eq!(
-        segments,
+        time_segments,
         alloc::vec![
             SingleId::new(4, 0, 0, 0).unwrap(),
             SingleId::new(4, 0, 1, 0).unwrap()

@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{Error, FlexId, IntervalSet, RangeId, Side, SingleId, SpatialId};
+use crate::{AllowedIntervals, Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
 use node_ops::MergeOp;
@@ -315,7 +315,7 @@ where
 
     /// 各Segmentを `f` で写し、**union**（左優先）で組み直した木を返す。
     ///
-    /// 「写像先が空間的に単射」な per-segment 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
+    /// 「写像先が空間的に単射」な per-time_segment 演算子（shift / 縮小 など）の汎用 recombiner。写像先が
     /// 重なる場合の値は union に従う。
     pub fn map_rebuild<F, I>(&self, f: F) -> Result<Self, Error>
     where
@@ -329,7 +329,7 @@ where
 
     /// 各Segmentを `f` で写し、**写像先の重なりを `resolve` で合成**して組み直した木を返す。
     ///
-    /// 「写像先が空間的に非単射」な per-segment 演算子（falloff / dilate / 拡大 / downsample …）の
+    /// 「写像先が空間的に非単射」な per-time_segment 演算子（falloff / dilate / 拡大 / downsample …）の
     /// 汎用 recombiner。`resolve` には `MergePolicy::resolve` 相当のクロージャを渡す（FlexTreeCore は
     /// query 層の `MergePolicy` に依存しない）。合成は `par_build_vec_with` や `insert_with`
     /// に委ねられる。
@@ -654,13 +654,13 @@ where
 
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
     ///
-    /// `units` に [`IntervalSet`] を渡すと、結合後の秒区間をその候補のうち最も粗い単位
+    /// `units` に [`AllowedIntervals`] を渡すと、結合後の秒区間をその候補のうち最も粗い単位
     /// （＝Segment数が候補の中で最小になる単位）で表す。`None` なら `gcd` で最も粗い単位を選ぶ。
     ///
     /// 木が時間軸で分割されていなければ結合対象が無いので、素通しの遅延イテレータを返す。
     pub fn range_ids_ref<'a>(
         &'a self,
-        units: Option<&'a IntervalSet>,
+        units: Option<&'a AllowedIntervals>,
     ) -> Box<dyn Iterator<Item = (RangeId, &'a V)> + 'a> {
         if !self.has_temporal_split() {
             // 全葉が全時間。結合対象が無いので集めずに素通しできる。
@@ -682,7 +682,7 @@ where
     /// [`flat_single_ids_ref`](Self::flat_single_ids_ref) の、時間単位を指定できる版。
     pub fn flat_single_ids_in_ref<'a>(
         &'a self,
-        units: Option<&'a IntervalSet>,
+        units: Option<&'a AllowedIntervals>,
     ) -> Box<dyn Iterator<Item = (SingleId, &'a V)> + 'a> {
         let Some(max_zoomlevel) = self.max_zoomlevel() else {
             return Box::new(core::iter::empty());
@@ -1261,22 +1261,22 @@ mod core_api_tests {
             .with_time(Interval::HOUR, [2, 2])
             .unwrap();
 
-        let segments: alloc::vec::Vec<_> = range.clone().into_iter().collect();
-        assert!(!segments.is_empty());
+        let time_segments: alloc::vec::Vec<_> = range.clone().into_iter().collect();
+        assert!(!time_segments.is_empty());
 
         let mut core: FlexTreeCore<u32> = FlexTreeCore::new();
-        for segment in &segments {
-            core.insert([*segment], 1);
+        for time_segment in &time_segments {
+            core.insert([*time_segment], 1);
         }
 
-        assert_eq!(core.count(), segments.len());
+        assert_eq!(core.count(), time_segments.len());
         core.assert_canonical();
 
         // 分解したSegmentの絶対秒区間を合算すると、元の秒区間と一致する。
-        let total_seconds: u64 = segments
+        let total_seconds: u64 = time_segments
             .iter()
-            .map(|segment| {
-                let (start, end) = segment.seconds_range();
+            .map(|time_segment| {
+                let (start, end) = time_segment.seconds_range();
                 end - start
             })
             .sum();
@@ -1285,7 +1285,7 @@ mod core_api_tests {
 
         // 分解元と同じFlexIdであることも確認する。
         assert!(
-            segments
+            time_segments
                 .iter()
                 .all(|c| c.f_index() == 0 && c.x_index() == 0)
         );

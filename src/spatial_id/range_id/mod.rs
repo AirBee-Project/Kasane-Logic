@@ -7,7 +7,7 @@ use crate::SpatialId;
 use crate::{
     Interval, SpatialIdError,
     error::Error,
-    spatial_id::{helpers, time::segments, zoom_level::ZoomLevel},
+    spatial_id::{helpers, time::span, zoom_level::ZoomLevel},
 };
 
 /// RangeIdは空間IDの範囲表現を表す型です。
@@ -150,7 +150,7 @@ impl RangeId {
             t.swap(0, 1);
         }
 
-        segments::validated_span(interval, t[0], t[1])?;
+        interval.validated_span(t[0], t[1])?;
         Ok(self.with_time_unchecked(interval, t))
     }
 
@@ -208,12 +208,14 @@ impl RangeId {
     /// // [1457481600, 1457483400) はちょうど 1800 秒ぶん。
     /// let id = RangeId::new(4, 0, 0, 0).unwrap()
     ///     .with_time_span(1_457_481_600, 1_457_483_400).unwrap();
-    /// assert_eq!(id.interval().seconds(), 1800);
+    /// assert_eq!(id.time_interval().seconds(), 1800);
     /// assert_eq!(id.t(), [809712, 809712]);
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = segments::span_to_interval(start, end)?;
+        let time_span =
+            span::TimeSpan::new(start, end).ok_or(SpatialIdError::TOutOfRange { i: 1, t: end })?;
+        let (interval, t_min, t_max) = time_span.to_interval_range()?;
         Ok(self.with_time_unchecked(interval, [t_min, t_max]))
     }
 
@@ -281,8 +283,8 @@ impl RangeId {
     }
 
     /// この `RangeId` の時間を、FlexTree が使う2分岐Segmentの列へ分解する。クレート内部専用。
-    pub(crate) fn time_segments(&self) -> segments::TimeSegments {
-        segments::time_segments_of(self.seconds_range())
+    pub(crate) fn time_segments(&self) -> span::TimeSegments {
+        self.time_span().into_segments()
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {

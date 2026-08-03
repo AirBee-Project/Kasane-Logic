@@ -18,7 +18,7 @@ use crate::SpatialId;
 #[allow(unused_imports)]
 use alloc::vec::Vec;
 
-use crate::{FlexId, IntervalSet, RangeId};
+use crate::{AllowedIntervals, FlexId, RangeId};
 
 /// 空間成分のみを `u128` へパックし、高速な一致判定を行う。
 #[inline(always)]
@@ -39,7 +39,7 @@ where
 {
     iter: I,
     pending: Option<(u128, FlexId, u64, u64, V)>,
-    units: Option<&'a IntervalSet>,
+    units: Option<&'a AllowedIntervals>,
 }
 
 impl<'a, I, V> Iterator for CoalesceTemporal<'a, I, V>
@@ -78,18 +78,18 @@ where
 
 /// 時間方向に隣接するSegmentを結合し、[`RangeId`] の列として返す。
 ///
-/// `units` に[`IntervalSet`]を渡すと、結合後の秒区間を**その候補のうち最も粗い単位**で
+/// `units` に[`AllowedIntervals`]を渡すと、結合後の秒区間を**その候補のうち最も粗い単位**で
 /// 表し直す（Segment数が候補の中で最小になる）。`None` の場合は「その区間を表せる最も粗い単位」
 /// （`gcd(開始秒, 幅)`）になり、Segment数は常に1になる。
 ///
-/// [`IntervalSet`] は必ず全区間を表せる候補を含むので、**この関数は失敗しない**。
+/// [`AllowedIntervals`] は必ず全区間を表せる候補を含むので、**この関数は失敗しない**。
 ///
 /// # 計算量
 ///
 /// `O(n)`。入力はあらかじめ `(FlexId, 開始秒)` 順に並んでいる前提。
 pub(crate) fn coalesce_temporal<'a, I, V>(
     rows: I,
-    units: Option<&'a IntervalSet>,
+    units: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (RangeId, V)> + 'a
 where
     I: IntoIterator<Item = (FlexId, V)> + 'a,
@@ -108,20 +108,20 @@ fn finish<V>(
     start: u64,
     end: u64,
     value: V,
-    units: Option<&IntervalSet>,
+    units: Option<&AllowedIntervals>,
 ) -> (RangeId, V) {
     let range = RangeId::from(key)
         .with_time_span(start, end)
         .expect("結合した秒区間は元のSegmentの和なので常に有効");
 
     // 候補集合が指定されていれば、その中で最も粗い（＝Segment数が最小の）単位へ表し直す。
-    // `IntervalSet` は必ず全区間を表せる候補を含むので、この `relabel_time` は失敗しない。
+    // `AllowedIntervals` は必ず全区間を表せる候補を含むので、この `relabel_time` は失敗しない。
     let range = match units {
         None => range,
         Some(units) => range
             .clone()
             .relabel_time(units.coarsest_dividing(start, end))
-            .expect("IntervalSet が選んだ単位は必ずこの区間を割り切る"),
+            .expect("AllowedIntervals が選んだ単位は必ずこの区間を割り切る"),
     };
 
     (range, value)
@@ -134,7 +134,7 @@ mod tests {
 
     fn coalesce_temporal_vec<V: Clone + PartialEq + Send>(
         items: impl IntoIterator<Item = (FlexId, V)>,
-        units: Option<&IntervalSet>,
+        units: Option<&AllowedIntervals>,
     ) -> Vec<(RangeId, V)> {
         let mut items: Vec<_> = items.into_iter().collect();
         items.sort_by(|a, b| {
@@ -161,13 +161,13 @@ mod tests {
             .with_time(1800, 809712)
             .unwrap();
 
-        let segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
+        let time_segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
         assert!(
-            segments.len() > 1,
+            time_segments.len() > 1,
             "1800秒は複数の2分岐Segmentへ分解されるはず"
         );
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 1, "結合されて1件になるはず");
         assert_eq!(merged[0].0.to_string(), "12/0/3638/1614_1800/809712");
     }
@@ -179,11 +179,11 @@ mod tests {
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 1u8)));
-        segments.extend(b.into_iter().map(|id| (id, 2u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 1u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 2u8)));
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].0.seconds_range(), (0, 3600));
         assert_eq!(merged[1].0.seconds_range(), (3600, 7200));
@@ -196,16 +196,16 @@ mod tests {
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 7u8)));
-        segments.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].0.seconds_range(), (0, 7200));
         // gcd(0, 7200) = 7200 なので「2時間」という単位で1Segmentになる。
         assert_eq!(
-            (merged[0].0.interval().seconds(), merged[0].0.t()),
+            (merged[0].0.time_interval().seconds(), merged[0].0.t()),
             (7200, [0, 0])
         );
     }
@@ -217,23 +217,23 @@ mod tests {
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 7u8)));
-        segments.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(segments, Some(IntervalSet::calendar()));
+        let merged = coalesce_temporal_vec(time_segments, Some(AllowedIntervals::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
-            (merged[0].0.interval().seconds(), merged[0].0.t()),
+            (merged[0].0.time_interval().seconds(), merged[0].0.t()),
             (3600, [0, 1])
         );
 
         // 候補が区間を割り切れないときは、必ず含まれる SECOND まで落ちる。
         // 候補集合が貧しいとSegment数が爆発することを示す例でもある
-        // （1時間 = 3600 Segment）。実用では `IntervalSet::calendar()` のように
+        // （1時間 = 3600 TimeSegment）。実用では `AllowedIntervals::calendar()` のように
         // 粒度の階段を用意しておくこと。
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(
             SingleId::new(12, 0, 3638, 1614)
                 .unwrap()
                 .with_time(Interval::HOUR, 0)
@@ -241,9 +241,10 @@ mod tests {
                 .into_iter()
                 .map(|id| (id, 7u8)),
         );
-        let merged = coalesce_temporal_vec(segments, Some(&IntervalSet::new([Interval::DAY])));
+        let merged =
+            coalesce_temporal_vec(time_segments, Some(&AllowedIntervals::new([Interval::DAY])));
         assert_eq!(
-            (merged[0].0.interval().seconds(), merged[0].0.t()),
+            (merged[0].0.time_interval().seconds(), merged[0].0.t()),
             (1, [0, 3599])
         );
         // 秒区間そのものは変わらない。
@@ -262,21 +263,21 @@ mod tests {
             .with_time(Interval::HOUR, 1)
             .unwrap();
 
-        let mut segments: Vec<(FlexId, u8)> = Vec::new();
-        segments.extend(a.into_iter().map(|id| (id, 7u8)));
-        segments.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
+        time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        assert_eq!(coalesce_temporal_vec(segments, None).len(), 2);
+        assert_eq!(coalesce_temporal_vec(time_segments, None).len(), 2);
     }
 
     /// 時間を使っていない場合は入力と1対1で対応する（全時間Segmentはそのまま）。
     #[test]
     fn passes_through_when_no_temporal_information() {
-        let segments: Vec<(FlexId, u8)> = (0..4u32)
+        let time_segments: Vec<(FlexId, u8)> = (0..4u32)
             .map(|x| (FlexId::new(3, 0, 3, x, 3, 0).unwrap(), 1u8))
             .collect();
 
-        let merged = coalesce_temporal_vec(segments, None);
+        let merged = coalesce_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 4);
         assert!(merged.iter().all(|(id, _)| id.is_whole_time()));
     }

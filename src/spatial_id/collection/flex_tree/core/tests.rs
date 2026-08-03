@@ -4,8 +4,8 @@ mod merge_with_tests {
     use crate::{RangeId, SingleId};
     use alloc::collections::BTreeMap;
 
-    /// 木を最大ズームの [`SingleId`] 群へ平坦化し、Segment→値の対応で取り出す。
-    fn segments(core: &FlexTreeCore<u32>) -> BTreeMap<SingleId, u32> {
+    /// 木を最大ズームの [`SingleId`] 群へ平坦化し、TimeSegment→値の対応で取り出す。
+    fn time_segments(core: &FlexTreeCore<u32>) -> BTreeMap<SingleId, u32> {
         core.flat_single_ids().collect()
     }
 
@@ -23,7 +23,7 @@ mod merge_with_tests {
         let merged = a.merge_with(&b, |x, y| x + y);
         merged.assert_canonical();
 
-        let c = segments(&merged);
+        let c = time_segments(&merged);
         assert_eq!(c.get(&SingleId::new(20, 0, 0, 0).unwrap()), Some(&3)); // a のみ
         assert_eq!(c.get(&SingleId::new(20, 0, 1, 0).unwrap()), Some(&12)); // 5+7
         assert_eq!(c.get(&SingleId::new(20, 0, 2, 0).unwrap()), Some(&9)); // b のみ
@@ -44,7 +44,7 @@ mod merge_with_tests {
         let merged = a.merge_with(&b, |x, y| x + y);
         merged.assert_canonical();
 
-        let c = segments(&merged);
+        let c = time_segments(&merged);
         assert_eq!(c.len(), 64);
         assert_eq!(c.get(&SingleId::new(20, 0, 0, 0).unwrap()), Some(&11)); // 1+10
         // 残りの 63 部分Segmentは a の値のまま。
@@ -62,7 +62,7 @@ mod merge_with_tests {
         let merged = a.merge_with(&a, |x, y| x + y);
         merged.assert_canonical();
 
-        let c = segments(&merged);
+        let c = time_segments(&merged);
         assert_eq!(c.get(&SingleId::new(20, 0, 5, 5).unwrap()), Some(&8));
         assert_eq!(c.get(&SingleId::new(20, 0, 6, 6).unwrap()), Some(&16));
     }
@@ -79,7 +79,7 @@ mod merge_with_tests {
         left.assert_canonical();
         right.assert_canonical();
 
-        assert_eq!(segments(&left), segments(&a));
-        assert_eq!(segments(&right), segments(&a));
+        assert_eq!(time_segments(&left), time_segments(&a));
+        assert_eq!(time_segments(&right), time_segments(&a));
     }
 }

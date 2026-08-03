@@ -8,7 +8,7 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
-use crate::{FlexId, FlexIdValue, IntervalSet, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{AllowedIntervals, FlexId, FlexIdValue, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
 #[derive(Clone, Debug)]
@@ -197,14 +197,14 @@ where
         self.coalesced_range_ids(None)
     }
 
-    /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
+    /// 時間の単位を [`AllowedIntervals`] の候補から選んで読み出す。
     ///
     /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
-    /// 暦の単位へ正規化したいだけなら `IntervalSet::calendar()`
+    /// 暦の単位へ正規化したいだけなら `AllowedIntervals::calendar()`
     /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
+        units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         self.coalesced_range_ids(Some(units))
     }
@@ -212,7 +212,7 @@ where
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
     pub fn flat_single_ids_in<'a>(
         &'a self,
-        units: &'a IntervalSet,
+        units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.expand_range_ids(Some(units))
     }
@@ -223,7 +223,7 @@ where
     /// （同じ値なら同じ rank なので結合条件は変わらない）、最後に辞書で引き直す。
     fn coalesced_range_ids<'a>(
         &'a self,
-        units: Option<&'a IntervalSet>,
+        units: Option<&'a AllowedIntervals>,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
         crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
             self.inner
@@ -243,7 +243,7 @@ where
     /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一Segmentの [`SingleId`] へ展開する。
     fn expand_range_ids<'a>(
         &'a self,
-        units: Option<&'a IntervalSet>,
+        units: Option<&'a AllowedIntervals>,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
         self.coalesced_range_ids(units)
             .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
