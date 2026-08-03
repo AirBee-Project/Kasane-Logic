@@ -1,7 +1,7 @@
 //! 単項クエリ演算子（extrude）のベンチマーク。
 //!
 //! extrude_fは列（X,Y footprint）ごとにまとめて展開する実装になっているため、
-//! 「同じ(X,Y)列を多数のセルが共有するケース」（列単位resolve_manyが効く）と
+//! 「同じ(X,Y)列を多数のSegmentが共有するケース」（列単位resolve_manyが効く）と
 //! 「列がほぼ互いに素なケース」（従来と同程度になるはず）の両方を計測する。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
@@ -9,7 +9,7 @@ use kasane_logic::{SingleId, Source, SpatialIdTable, merge_policy::Max};
 
 const OP_ZOOM: u8 = 25;
 
-/// n×n個の(X,Y)列それぞれに、異なるFを持つセルをstack個スタックして積む。
+/// n×n個の(X,Y)列それぞれに、異なるFを持つSegmentをstack個スタックして積む。
 /// 列単位のresolve_manyが効くケース。
 fn setup_stacked(n: u32, stack: i32) -> SpatialIdTable<u32> {
     let mut table = SpatialIdTable::new();

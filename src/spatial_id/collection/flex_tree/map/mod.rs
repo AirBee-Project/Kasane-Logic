@@ -62,7 +62,7 @@ where
         }
     }
 
-    /// この集合が値を持つ全セルを包む最小の[RangeId]を返します。
+    /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
     pub fn bounding_box(&self) -> Option<RangeId> {
         self.inner.bounding_box()
     }
@@ -137,7 +137,7 @@ where
 
     /// 時間の単位を [`IntervalSet`] の候補から選んで読み出す。
     ///
-    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でセル数が最小）。
+    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
     /// 暦の単位へ正規化したいだけなら `IntervalSet::calendar()`
     /// （`temporal_id` feature 有効時のみ）を直接渡せる。
     pub fn range_ids_in<'a>(

@@ -24,7 +24,7 @@ pub type ZoomLevel = Zoom<30>;
 /// # use kasane_logic::TZoomLevel;
 /// let z = TZoomLevel::new(5).unwrap();
 /// assert_eq!(z.get(), 5);
-/// assert_eq!(TZoomLevel::MAX.cell_seconds(), 1);
+/// assert_eq!(TZoomLevel::MAX.segment_seconds(), 1);
 /// ```
 pub type TZoomLevel = Zoom<35>;
 
@@ -85,7 +85,7 @@ impl<const LIMIT: u8> Zoom<LIMIT> {
     }
 
     /// このズームレベルにおけるインデックスの最大値（`2^z - 1`）。
-    /// 空間軸のX/Yと時間軸の生セルとで共有する式。
+    /// 空間軸のX/Yと時間軸の生Segmentとで共有する式。
     const fn max_index_u64(self) -> u64 {
         (1u64 << self.0) - 1
     }
@@ -170,8 +170,8 @@ impl Zoom<35> {
         self.max_index_u64()
     }
 
-    /// このズームレベルにおける1セルの秒数（`2^(MAX - z)`）。
-    pub const fn cell_seconds(self) -> u64 {
+    /// このズームレベルにおける1Segmentの秒数（`2^(MAX - z)`）。
+    pub const fn segment_seconds(self) -> u64 {
         1u64 << (Self::MAX.get() - self.0)
     }
 
@@ -179,7 +179,7 @@ impl Zoom<35> {
     pub const fn check_index(self, index: u64) -> Result<(), Error> {
         if index > self.max_index() {
             return Err(Error::SpatialId(SpatialIdError::TOutOfRange {
-                i: self.cell_seconds(),
+                i: self.segment_seconds(),
                 t: index,
             }));
         }

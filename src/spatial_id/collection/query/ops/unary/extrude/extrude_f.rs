@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
-/// 任意のボクセルの現在のF座標を無視し、絶対座標の指定範囲 [start_f, end_f] に引き延ばす演算子。
+/// 任意のボクSegmentの現在のF座標を無視し、絶対座標の指定範囲 [start_f, end_f] に引き延ばす演算子。
 pub struct ExtrudeF<P> {
     pub target_z: ZoomLevel,
     pub start_f: i32,
@@ -46,7 +46,7 @@ where
     fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
         let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(core.core().count());
 
-        // 元のツリーから全セルを取り出し、それぞれを引き延ばす
+        // 元のツリーから全Segmentを取り出し、それぞれを引き延ばす
         for (id, v) in core.core().iter_ref() {
             if let Ok(iter) = id.extrude_f(self.target_z.get(), self.start_f, self.end_f) {
                 for new_id in iter {

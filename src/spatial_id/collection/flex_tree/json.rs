@@ -262,7 +262,7 @@ where
     let mut unique: Vec<&'a V> = Vec::new();
     let mut ids: Vec<IdEntry> = Vec::new();
 
-    // 時間方向に隣接する同値セルを結合してから書き出す。木は時間を2の冪秒のセルで持つため、
+    // 時間方向に隣接する同値Segmentを結合してから書き出す。木は時間を2の冪秒のSegmentで持つため、
     // これを通さないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
     // 木にT軸の分割が無ければ結合対象は存在しないので、ソートごと省く。
     for (range_id, val) in coalesce_if_temporal(iter, has_temporal_split) {
@@ -340,7 +340,7 @@ pub(crate) fn serialize_without_values<S>(
 where
     S: Serializer,
 {
-    // 値ありの場合と同じく、時間方向に隣接するセルを結合してから書き出す。
+    // 値ありの場合と同じく、時間方向に隣接するSegmentを結合してから書き出す。
     let ids: Vec<IdEntry> =
         coalesce_if_temporal(iter.map(|flex_id| (flex_id, ())), has_temporal_split)
             .into_iter()
@@ -433,11 +433,11 @@ mod tests {
 
     /// コレクションを経由した JSON 往復で、**時空間領域が完全に保存される**。
     ///
-    /// 木は時間を2の冪秒のセルで持つため、`1800` 秒のような単位は挿入時に複数セルへ分解される
+    /// 木は時間を2の冪秒のSegmentで持つため、`1800` 秒のような単位は挿入時に複数Segmentへ分解される
     /// （この例では5個）。書き出し側で時間方向の結合を通すことで1件へ戻る。
     ///
     /// ただし `{i}` は暦の単位（`IntervalSet::calendar`）へ正規化されるので、
-    /// `1800` は JSON 上では `60`（分）× 30 セルになる。**ラベルは変わるが秒区間は同じ**で、
+    /// `1800` は JSON 上では `60`（分）× 30 Segmentになる。**ラベルは変わるが秒区間は同じ**で、
     /// 読み込んだ木の内容は元と一致する。
     #[cfg(feature = "temporal_id")]
     #[test]
@@ -452,7 +452,7 @@ mod tests {
 
         let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
         table.insert(original.clone(), 7);
-        assert!(table.count() > 1, "1800秒は複数セルへ分解されるはず");
+        assert!(table.count() > 1, "1800秒は複数Segmentへ分解されるはず");
 
         let json = serde_json::to_string(&table).unwrap();
         // 暦に無い 1800 秒は分へ落ちる。断片（`"i":8` など）にはならない。
@@ -470,7 +470,7 @@ mod tests {
         assert_eq!(*ids[0].1, 7);
     }
 
-    /// 隣り合う1時間×2は、暦の単位なら `3600 × 2 セル` として書き出される。
+    /// 隣り合う1時間×2は、暦の単位なら `3600 × 2 Segment` として書き出される。
     ///
     /// `gcd` だと `7200`（2時間という単位）になってしまい、受け取り側が解釈しづらい。
     #[cfg(feature = "temporal_id")]

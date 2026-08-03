@@ -67,9 +67,9 @@ impl FlexId {
     /// 2つの [`FlexId`] の重なっている領域（Intersection）を計算して返します。
     /// 重なりがない場合は [`None`] を返します。
     ///
-    /// どの軸も「浅い側のセルが深い側を含むか」で判定する。四分木（八分木）／2進トライでは
-    /// 異なるズームのセルは入れ子か素のどちらかしかないので、重なる場合の交差は必ず
-    /// 深い側のセルそのものになる。
+    /// どの軸も「浅い側のSegmentが深い側を含むか」で判定する。四分木（八分木）／2進トライでは
+    /// 異なるズームのSegmentは入れ子か素のどちらかしかないので、重なる場合の交差は必ず
+    /// 深い側のSegmentそのものになる。
     pub fn intersection(&self, other: &FlexId) -> Option<FlexId> {
         let (f_z, f_i) = nested_axis(
             self.f_zoomlevel(),
@@ -117,7 +117,7 @@ impl FlexId {
     /// [`RangeId`](crate::RangeId) と交差するか判定する。**時間軸も含めて**判定する。
     ///
     /// 木の走査（`RangeOverlapWalk`）は枝刈りで大半を落とすが、時間軸は
-    /// セルの2分割境界とターゲットの秒区間が一致するとは限らないため、はみ出した葉が
+    /// Segmentの2分割境界とターゲットの秒区間が一致するとは限らないため、はみ出した葉が
     /// 残りうる。ここが最終フィルタである。
     pub fn intersects_range(&self, range: &crate::RangeId) -> bool {
         // 時間軸だけは「共通ズームでの整数範囲」に落とせない（`RangeId` の `Interval` は
@@ -154,7 +154,7 @@ impl FlexId {
     }
 }
 
-/// 1軸について、2つのセルが入れ子なら「深い側」の `(zoom, index)` を返す。素なら [`None`]。
+/// 1軸について、2つのSegmentが入れ子なら「深い側」の `(zoom, index)` を返す。素なら [`None`]。
 ///
 /// F は符号付き `i32`、X/Y は `u32`、T は `u64` と幅が違うが判定式は同じなので、`i64` へ
 /// 揃えて1つの関数で扱う（このクレートが扱う範囲——`u32` の全域と `2^62` までの `u64`——は
@@ -170,12 +170,22 @@ fn nested_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
     ((deep_i >> shift) == shallow_i).then_some((deep_z, deep_i))
 }
 
-/// 1軸について、セルと（別ズームの）整数範囲が重なるか。
-fn overlaps_axis(cell_z: u8, cell_i: i64, range_z: u8, range_min: i64, range_max: i64) -> bool {
-    let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if cell_z > range_z {
-        (cell_z, cell_i, cell_i, range_z, range_min, range_max)
+/// 1軸について、Segmentと（別ズームの）整数範囲が重なるか。
+fn overlaps_axis(
+    segment_z: u8,
+    segment_i: i64,
+    range_z: u8,
+    range_min: i64,
+    range_max: i64,
+) -> bool {
+    let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if segment_z > range_z {
+        (
+            segment_z, segment_i, segment_i, range_z, range_min, range_max,
+        )
     } else {
-        (range_z, range_min, range_max, cell_z, cell_i, cell_i)
+        (
+            range_z, range_min, range_max, segment_z, segment_i, segment_i,
+        )
     };
     let shift = deep_z - shallow_z;
     !((deep_max >> shift) < shallow_min || (deep_min >> shift) > shallow_max)

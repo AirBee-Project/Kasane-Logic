@@ -56,7 +56,7 @@ pub fn sparse_random(z: u8, count: usize) -> Vec<SingleId> {
         .collect()
 }
 
-/// 対角線上のボクセル列。道路・コリドーをモデル化。
+/// 対角線上のボクSegment列。道路・コリドーをモデル化。
 pub fn linear_path(z: u8, count: usize) -> Vec<SingleId> {
     (0..count)
         .map(|i| SingleId::new(z, 0, i as u32, i as u32).unwrap())
@@ -87,7 +87,7 @@ pub fn multi_cluster(z: u8, count: usize) -> Vec<SingleId> {
     ids
 }
 
-/// 4 ボクセル間隔の水平スラブ 10 枚。多層ビルのフロアをモデル化。
+/// 4 ボクSegment間隔の水平スラブ 10 枚。多層ビルのフロアをモデル化。
 pub fn layered_floors(z: u8, count: usize) -> Vec<SingleId> {
     const FLOORS: usize = 10;
     const GAP: i32 = 4;

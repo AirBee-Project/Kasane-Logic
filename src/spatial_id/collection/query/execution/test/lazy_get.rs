@@ -71,16 +71,16 @@ fn lazy_view_get_with_default() {
 
 /// `lazy_get` は時間軸でも絞り込む。
 ///
-/// 木の走査は時間セルの2分割境界で枝刈りするが、ターゲットの秒区間とセル境界は一致するとは
+/// 木の走査は時間Segmentの2分割境界で枝刈りするが、ターゲットの秒区間とSegment境界は一致するとは
 /// 限らないので、はみ出した葉が残りうる。最終フィルタ（[`FlexId::intersects_range`]）が
-/// 時間を見ていないと、同じ空間セルの**別時刻の値**がそのまま返ってしまう。
+/// 時間を見ていないと、同じFlexIdの**別時刻の値**がそのまま返ってしまう。
 #[cfg(feature = "temporal_id")]
 #[test]
 fn lazy_get_filters_by_time() {
     use crate::{Interval, SingleId, SpatialIdTable};
     use alloc::collections::BTreeSet;
 
-    let cell = |t: u64| {
+    let segment = |t: u64| {
         SingleId::new(10, 0, 5, 5)
             .unwrap()
             .with_time(Interval::HOUR, t)
@@ -88,10 +88,10 @@ fn lazy_get_filters_by_time() {
     };
 
     let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
-    table.insert(cell(0), 1); // [0, 3600)
-    table.insert(cell(10), 2); // [36000, 39600)
+    table.insert(segment(0), 1); // [0, 3600)
+    table.insert(segment(10), 2); // [36000, 39600)
 
-    for (target, expected) in [(cell(0), 1), (cell(10), 2)] {
+    for (target, expected) in [(segment(0), 1), (segment(10), 2)] {
         let values: BTreeSet<i32> = table
             .clone()
             .query()

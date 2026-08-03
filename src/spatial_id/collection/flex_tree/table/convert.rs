@@ -2,7 +2,7 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::{FlexId, SingleId, SpatialIdTable};
 
 #[cfg(feature = "rayon")]
-use crate::CellValue;
+use crate::FlexIdValue;
 
 impl<V> SpatialIdTable<V>
 where
@@ -20,7 +20,7 @@ where
 /// `(FlexId, V)` 列から [`SpatialIdTable`] を並列に構築する（`feature = "rayon"`）。
 ///
 /// テーブルは値をランク（`usize`）へ内部符号化してから空間ツリーへ格納する。並列構築では
-/// (1) 出現値を並列に集めて重複排除・ソートしランクを決定的に割り当て、(2) 各セルを
+/// (1) 出現値を並列に集めて重複排除・ソートしランクを決定的に割り当て、(2) 各Segmentを
 /// ランクへ写し、(3) ランクの木を `FlexTreeCore::par_build_vec`(crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec)
 /// で並列構築する。
 ///
@@ -29,7 +29,7 @@ where
 #[cfg(feature = "rayon")]
 impl<V> rayon::iter::FromParallelIterator<(FlexId, V)> for SpatialIdTable<V>
 where
-    V: CellValue,
+    V: FlexIdValue,
 {
     fn from_par_iter<I>(par_iter: I) -> Self
     where
@@ -59,7 +59,7 @@ where
         }
         let current_rank = values.len();
 
-        // 3. 各セルをランクへ写す（ソート済み values への二分探索で引く）。
+        // 3. 各Segmentをランクへ写す（ソート済み values への二分探索で引く）。
         let rank_items: Vec<(FlexId, usize)> = items
             .into_par_iter()
             .map(|(id, v)| (id, values.binary_search(&v).unwrap() + 1))
@@ -83,7 +83,7 @@ where
 #[cfg(feature = "rayon")]
 impl<V> rayon::iter::ParallelExtend<(FlexId, V)> for SpatialIdTable<V>
 where
-    V: CellValue,
+    V: FlexIdValue,
 {
     fn par_extend<I>(&mut self, par_iter: I)
     where

@@ -7,7 +7,7 @@ use crate::SpatialId;
 use crate::{
     Interval, SpatialIdError,
     error::Error,
-    spatial_id::{helpers, time::cells, zoom_level::ZoomLevel},
+    spatial_id::{helpers, time::segments, zoom_level::ZoomLevel},
 };
 
 /// RangeIdは空間IDの範囲表現を表す型です。
@@ -92,7 +92,7 @@ impl RangeId {
 
     /// この `RangeId` の時間インデックス範囲 `[min, max]`（両端含む）を返します。
     ///
-    /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のセル）。
+    /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のSegment）。
     pub fn t(&self) -> [u64; 2] {
         #[cfg(feature = "temporal_id")]
         {
@@ -107,19 +107,19 @@ impl RangeId {
 
     /// 時間を設定した自身を返します（ビルダー形式）。
     ///
-    /// [`SingleId::with_time`](crate::SingleId::with_time)が単一セルしか受け取らないのに対し、
+    /// [`SingleId::with_time`](crate::SingleId::with_time)が単一Segmentしか受け取らないのに対し、
     /// こちらは空間と同じく**範囲**を受け取る。`t` は `[min, max]` の `[u64; 2]`、または
     /// 両端が等しい単一の `u64` のどちらでも渡せる（f/x/y 引数と同じ考え方）。
     ///
-    /// FlexTreeが必要とする2の冪秒のセルへの分解は、木へ挿入する段階
+    /// FlexTreeが必要とする2の冪秒のSegmentへの分解は、木へ挿入する段階
     /// （[`IntoIterator`]による[`FlexId`](crate::FlexId)への展開）で自動的に行われる。
     ///
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間セル
+    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まります。しかし非2冪の秒数（例: 1800秒）を指定した場合、
-    /// 内部で最大十数個のセルに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
+    /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
@@ -150,20 +150,20 @@ impl RangeId {
             t.swap(0, 1);
         }
 
-        cells::validated_span(interval, t[0], t[1])?;
+        segments::validated_span(interval, t[0], t[1])?;
         Ok(self.with_time_unchecked(interval, t))
     }
 
-    /// Unix 時刻（秒）が属する時間セルを設定した自身を返します。
+    /// Unix 時刻（秒）が属する時間Segmentを設定した自身を返します。
     ///
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)` をこちらで計算するので、呼び出し側で
-    /// インデックスを求める必要がない。範囲ではなく単一セルになる。
+    /// インデックスを求める必要がない。範囲ではなく単一Segmentになる。
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間セル
+    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まります。しかし非2冪の秒数（例: 1800秒）を指定した場合、
-    /// 内部で最大十数個のセルに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
+    /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
@@ -190,13 +190,13 @@ impl RangeId {
     /// 単位は「その区間をちょうど表せる最も粗い秒数」が自動で選ばれる
     /// （`start` と区間幅の最大公約数）。仕様が認める任意秒数の単位もそのまま出てくる。
     /// `RangeId` は時間も範囲で持てるので、**任意の区間を受け付ける**
-    /// （単一セルに限る [`SingleId::with_time_span`](crate::SingleId::with_time_span) との違い）。
+    /// （単一Segmentに限る [`SingleId::with_time_span`](crate::SingleId::with_time_span) との違い）。
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間セル
+    /// 木構造（`SpatialIdSet` など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まります。しかし非2冪の幅（例: 1800秒）が選ばれた場合、
-    /// 内部で最大十数個のセルに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
+    /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**します。
     /// パフォーマンスが重視される用途では、区間幅が1800秒や3600秒になる代わりに、**1024秒**や**4096秒**
     /// などの2の冪秒になるように指定することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
@@ -213,7 +213,7 @@ impl RangeId {
     /// # }
     /// ```
     pub fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
-        let (interval, t_min, t_max) = cells::span_to_interval(start, end)?;
+        let (interval, t_min, t_max) = segments::span_to_interval(start, end)?;
         Ok(self.with_time_unchecked(interval, [t_min, t_max]))
     }
 
@@ -280,9 +280,9 @@ impl RangeId {
         self
     }
 
-    /// この `RangeId` の時間を、FlexTree が使う2進セルの列へ分解する。クレート内部専用。
-    pub(crate) fn time_cells(&self) -> cells::TimeCells {
-        cells::time_cells_of(self.seconds_range())
+    /// この `RangeId` の時間を、FlexTree が使う2分岐Segmentの列へ分解する。クレート内部専用。
+    pub(crate) fn time_segments(&self) -> segments::TimeSegments {
+        segments::time_segments_of(self.seconds_range())
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {

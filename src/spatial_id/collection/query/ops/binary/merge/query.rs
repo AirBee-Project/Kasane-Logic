@@ -6,8 +6,8 @@ use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
     /// 2つのクエリ連鎖の結果を `MergePolicy` で重ね合わせる。
-    /// 片側にしか値が無いセルは `default` を相手側の値とみなして解決する
-    /// 両側とも値の無いセルはそのまま空となる。
+    /// 片側にしか値が無いSegmentは `default` を相手側の値とみなして解決する
+    /// 両側とも値の無いSegmentはそのまま空となる。
     pub fn merge<P: MergePolicy<V>>(self, other: Self, default: V, _policy: P) -> Self {
         if matches!(self, Query::Error(_)) {
             return self;

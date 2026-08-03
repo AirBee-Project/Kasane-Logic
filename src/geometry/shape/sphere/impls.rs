@@ -58,7 +58,7 @@ impl CoverSingleIds for Sphere {
     }
 }
 
-/// ズームレベル `z` における、水平方向（X/Y、値は同じ）のボクセル1辺の長さ`[m]`。
+/// ズームレベル `z` における、水平方向（X/Y、値は同じ）のボクSegment1辺の長さ`[m]`。
 ///
 /// 赤道周長 `2πa` をズームレベルで等分した値。
 pub fn voxel_length_xy(z: u8) -> f64 {
@@ -66,7 +66,7 @@ pub fn voxel_length_xy(z: u8) -> f64 {
     2.0 * core::f64::consts::PI * WGS84_A / n
 }
 
-/// ズームレベル `z` における、F方向（高度）のボクセル1辺の長さ`[m]`。
+/// ズームレベル `z` における、F方向（高度）のボクSegment1辺の長さ`[m]`。
 pub fn voxel_length_f(z: u8) -> f64 {
     libm::pow(2_f64, (25 - z as i32) as f64)
 }

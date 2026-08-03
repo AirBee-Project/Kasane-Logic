@@ -83,3 +83,5 @@ pub fn new(z: u8, f: i32, x: u32, y: u32) -> Result<SingleId, Error> {
 設計思想や、複数の型を横断するような大きな概念・思想に関する説明は`rustdoc`へ書くことは推奨しない。`/docs`にMarkdownファイルを作成して記述し、必要に応じてコード側のドキュメントからリンクを張る。
 
 Serde や OpenAPI のような公開型の横断的な実装方針も、個別の `rustdoc` に散らさず `/docs` に運用ルールとしてまとめる。
+
+プロジェクト内の固有ドメイン用語の定義と使い分け（例：「区間」「Segment」「FlexId」など）については、[用語集 (terminology.md)](./terminology.md) を参照すること。

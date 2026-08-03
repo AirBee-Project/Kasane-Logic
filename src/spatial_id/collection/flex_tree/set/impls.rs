@@ -29,7 +29,7 @@ impl Extend<FlexId> for SpatialIdSet {
 /// use kasane_logic::{SingleId, SpatialIdSet};
 /// use rayon::prelude::*;
 ///
-/// // 0..1024 は境界整列した連続 X 区間なので 1 異方セル（x_zoom を 10 段浅く）へ畳まれる。
+/// // 0..1024 は境界整列した連続 X 区間なので 1 異方Segment（x_zoom を 10 段浅く）へ畳まれる。
 /// let ids: Vec<SingleId> = (0..1024)
 ///     .map(|x| SingleId::new(20, 0, x, 0).unwrap())
 ///     .collect();

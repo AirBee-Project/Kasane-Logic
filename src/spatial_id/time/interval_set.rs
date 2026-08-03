@@ -11,9 +11,9 @@ use alloc::vec::Vec;
 ///
 /// - **`SECOND`（1秒）**: 任意の秒区間を必ず表せる保証。これが無いと、たとえば
 ///   候補が `{MINUTE}` だけのとき `[30, 90)` を表せない（`30` が `60` で割り切れない）。
-/// - **`WHOLE`（`2^35` 秒）**: 全時間の ID を1セルで表す保証。暦の単位は `2^35` を
+/// - **`WHOLE`（`2^35` 秒）**: 全時間の ID を1Segmentで表す保証。暦の単位は `2^35` を
 ///   割り切らない（`2^35 % 60 = 8`、`% 3600 = 2768`、`% 86400 = 13568`）ので、
-///   `WHOLE` が無いと時間を指定していない ID が `_1/0:34359738367`（343億セル）に化ける。
+///   `WHOLE` が無いと時間を指定していない ID が `_1/0:34359738367`（343億Segment）に化ける。
 ///
 /// ```
 /// # #[cfg(feature = "temporal_id")]
@@ -107,7 +107,7 @@ impl IntervalSet {
     /// # {
     /// # use kasane_logic::{Interval, IntervalSet};
     /// let units = IntervalSet::calendar();
-    /// // 2時間ぶんは「1時間 × 2セル」として表される（`gcd` なら `7200秒 × 1セル`）。
+    /// // 2時間ぶんは「1時間 × 2Segment」として表される（`gcd` なら `7200秒 × 1Segment`）。
     /// assert_eq!(units.coarsest_dividing(0, 7200), Interval::HOUR);
     /// // 暦で割り切れない区間は秒まで落ちる。
     /// assert_eq!(units.coarsest_dividing(30, 90), Interval::SECOND);
@@ -131,8 +131,8 @@ impl IntervalSet {
     /// 絶対秒区間 `[start, end)` を表せる候補のうち、**最も粗いもの**を返す。
     ///
     /// 単位 `u` でこの区間を表せる条件は `start % u == 0 && end % u == 0` である
-    /// （`t = [start/u, end/u - 1]` になる）。粗いほどセル数
-    /// （`t_max - t_min + 1`）が少なくなるので、これが候補の中でのセル数最小を与える。
+    /// （`t = [start/u, end/u - 1]` になる）。粗いほどSegment数
+    /// （`t_max - t_min + 1`）が少なくなるので、これが候補の中でのSegment数最小を与える。
     ///
     /// `Interval::SECOND` が必ず候補にあるため、**この関数は必ず値を返す**
     /// （`temporal_id` feature 無効時は全時間しか存在せず、`WHOLE` が返る）。
@@ -209,12 +209,12 @@ mod tests {
         );
     }
 
-    /// 全時間は `WHOLE` で1セルに収まる。
+    /// 全時間は `WHOLE` で1Segmentに収まる。
     ///
     /// 暦の単位はどれも `2^35` を割り切らないので、`WHOLE` を必須にしていないと
-    /// 時間なしの ID が `_1/0:34359738367`（343億セル）になってしまう。
+    /// 時間なしの ID が `_1/0:34359738367`（343億Segment）になってしまう。
     #[test]
-    fn whole_time_stays_a_single_cell() {
+    fn whole_time_stays_a_single_segment() {
         let units = IntervalSet::calendar();
         assert_eq!(
             units.coarsest_dividing(0, Interval::MAX_SECONDS),
@@ -236,7 +236,7 @@ mod tests {
         let units = IntervalSet::calendar();
         // ちょうど1日
         assert_eq!(units.coarsest_dividing(86_400, 172_800), Interval::DAY);
-        // 2時間ぶん（`gcd` なら 7200 秒だが、候補にないので 1 時間 × 2 セル）
+        // 2時間ぶん（`gcd` なら 7200 秒だが、候補にないので 1 時間 × 2 Segment）
         assert_eq!(units.coarsest_dividing(0, 7_200), Interval::HOUR);
         // 30分ぶん
         assert_eq!(units.coarsest_dividing(0, 1_800), Interval::MINUTE);
@@ -250,7 +250,7 @@ mod tests {
         let half_hour = Interval::new(1_800).unwrap();
         let units = IntervalSet::new([half_hour]);
         assert_eq!(units.coarsest_dividing(1_800, 3_600), half_hour);
-        // 候補に無い 3600 は選ばれず、1800 × 2 セルになる。
+        // 候補に無い 3600 は選ばれず、1800 × 2 Segmentになる。
         assert_eq!(units.coarsest_dividing(0, 3_600), half_hour);
     }
 }
@@ -267,7 +267,7 @@ mod collection_api {
     };
     use alloc::vec::Vec;
 
-    /// 同じ空間セルの隣り合う2時間ぶん。値は同じなので結合される。
+    /// 同じFlexIdの隣り合う2時間ぶん。値は同じなので結合される。
     fn two_hours() -> [SingleId; 2] {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         [
@@ -283,11 +283,11 @@ mod collection_api {
             set.insert(id);
         }
 
-        // 既定は gcd なので「7200 秒 × 1 セル」。
+        // 既定は gcd なので「7200 秒 × 1 Segment」。
         let natural: Vec<_> = set.range_ids().map(|r| r.to_string()).collect();
         assert_eq!(natural, ["12/0/3638/1614_7200/0"]);
 
-        // 暦に正規化すると「3600 秒 × 2 セル」。
+        // 暦に正規化すると「3600 秒 × 2 Segment」。
         let calendar: Vec<_> = set
             .range_ids_in(IntervalSet::calendar())
             .map(|r| r.to_string())
@@ -369,7 +369,7 @@ mod collection_api {
         }
     }
 
-    /// `flat_single_ids` 側でも単位を選べる。暦にすると2セルなので2件へ展開される。
+    /// `flat_single_ids` 側でも単位を選べる。暦にすると2Segmentなので2件へ展開される。
     #[test]
     fn flat_single_ids_honours_the_unit() {
         let mut set = SpatialIdSet::new();
@@ -377,10 +377,10 @@ mod collection_api {
             set.insert(id);
         }
 
-        // 既定（gcd, 7200秒 × 1セル）は1件。
+        // 既定（gcd, 7200秒 × 1Segment）は1件。
         assert_eq!(set.flat_single_ids().count(), 1);
 
-        // 暦（3600秒 × 2セル）は2件へ展開される。
+        // 暦（3600秒 × 2Segment）は2件へ展開される。
         let calendar: Vec<_> = set
             .flat_single_ids_in(IntervalSet::calendar())
             .map(|s| s.to_string())
@@ -391,7 +391,7 @@ mod collection_api {
     /// 時間を持たない ID は、候補集合を渡しても全時間のまま。
     ///
     /// 暦の単位はどれも `2^35` を割り切らないので、`WHOLE` が候補に無いと
-    /// `_1/0:34359738367`（343億セル）に化ける。
+    /// `_1/0:34359738367`（343億Segment）に化ける。
     #[test]
     fn whole_time_ids_are_untouched() {
         let mut set = SpatialIdSet::new();

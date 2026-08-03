@@ -1,18 +1,18 @@
-//! 木から読み出したセル列を、時間方向に結合してから書き出すための層。
+//! 木から読み出したSegment列を、時間方向に結合してから書き出すための層。
 //!
-//! FlexTree は時間軸を「2の冪秒の2進セル」として持つため、`Interval` が2の冪でない時間 ID
-//! （仕様が認める `1800` 秒など）は挿入時に複数セルへ分解される。読み出しでセルを1つずつ
+//! FlexTree は時間軸を「2の冪秒の2分岐Segment」として持つため、`Interval` が2の冪でない時間 ID
+//! （仕様が認める `1800` 秒など）は挿入時に複数Segmentへ分解される。読み出しでSegmentを1つずつ
 //! そのまま返すと、`12/0/3638/1614_1800/809712` が5つの断片になってしまい、
 //! 仕様書の `{i}/{t}` 表記が失われる。
 //!
-//! ここでは「空間セルと値が同じで、時間が隣接している」セルどうしを結合してから
+//! ここでは「FlexIdと値が同じで、時間が隣接している」Segmentどうしを結合してから
 //! `RangeId::with_time_span` に渡す。結合後の秒区間は元の区間に戻るので、
 //! `gcd` ベースの復元によって `1800/809712` がそのまま取り出せる。
 //!
-//! 結合は [`FlexId`] では表現できない（[`FlexId`] は2進セル1個しか持てない）ため、
+//! 結合は [`FlexId`] では表現できない（[`FlexId`] は2分岐Segment1個しか持てない）ため、
 //! 出力は [`RangeId`] である。したがってこの層は「[`RangeId`] / [`SingleId`] を書き出す経路」
 //! （`flat_single_ids` と JSON 直列化）専用で、`get` / `iter` のような [`FlexId`] を返す
-//! 経路は従来どおり生のセルを返す。
+//! 経路は従来どおり生のSegmentを返す。
 
 use crate::SpatialId;
 #[allow(unused_imports)]
@@ -31,7 +31,7 @@ fn spatial_key_u128(id: &FlexId) -> u128 {
         | (id.y_index() as u128)
 }
 
-/// 時間方向に隣接するセルを遅延評価で結合するイテレータ。
+/// 時間方向に隣接するSegmentを遅延評価で結合するイテレータ。
 pub struct CoalesceTemporal<'a, I, V>
 where
     I: Iterator<Item = (FlexId, V)>,
@@ -76,17 +76,17 @@ where
     }
 }
 
-/// 時間方向に隣接するセルを結合し、[`RangeId`] の列として返す。
+/// 時間方向に隣接するSegmentを結合し、[`RangeId`] の列として返す。
 ///
 /// `units` に[`IntervalSet`]を渡すと、結合後の秒区間を**その候補のうち最も粗い単位**で
-/// 表し直す（セル数が候補の中で最小になる）。`None` の場合は「その区間を表せる最も粗い単位」
-/// （`gcd(開始秒, 幅)`）になり、セル数は常に1になる。
+/// 表し直す（Segment数が候補の中で最小になる）。`None` の場合は「その区間を表せる最も粗い単位」
+/// （`gcd(開始秒, 幅)`）になり、Segment数は常に1になる。
 ///
 /// [`IntervalSet`] は必ず全区間を表せる候補を含むので、**この関数は失敗しない**。
 ///
 /// # 計算量
 ///
-/// `O(n)`。入力はあらかじめ `(空間セル, 開始秒)` 順に並んでいる前提。
+/// `O(n)`。入力はあらかじめ `(FlexId, 開始秒)` 順に並んでいる前提。
 pub(crate) fn coalesce_temporal<'a, I, V>(
     rows: I,
     units: Option<&'a IntervalSet>,
@@ -112,9 +112,9 @@ fn finish<V>(
 ) -> (RangeId, V) {
     let range = RangeId::from(key)
         .with_time_span(start, end)
-        .expect("結合した秒区間は元のセルの和なので常に有効");
+        .expect("結合した秒区間は元のSegmentの和なので常に有効");
 
-    // 候補集合が指定されていれば、その中で最も粗い（＝セル数が最小の）単位へ表し直す。
+    // 候補集合が指定されていれば、その中で最も粗い（＝Segment数が最小の）単位へ表し直す。
     // `IntervalSet` は必ず全区間を表せる候補を含むので、この `relabel_time` は失敗しない。
     let range = match units {
         None => range,
@@ -150,7 +150,7 @@ mod tests {
     /// 時間成分を全時間へ落とした [`FlexId`]。元のテストの `sorted_reference` 用。
     #[allow(dead_code)]
     pub(crate) fn spatial_key(flex_id: &FlexId) -> FlexId {
-        flex_id.with_time_cell(0, 0)
+        flex_id.with_time_segment(0, 0)
     }
 
     /// 仕様書 1.5.3 の例（`1800/809712`）が、分解 → 結合を経て元の表記へ戻る。
@@ -161,64 +161,67 @@ mod tests {
             .with_time(1800, 809712)
             .unwrap();
 
-        let cells: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
-        assert!(cells.len() > 1, "1800秒は複数の2進セルへ分解されるはず");
+        let segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
+        assert!(
+            segments.len() > 1,
+            "1800秒は複数の2分岐Segmentへ分解されるはず"
+        );
 
-        let merged = coalesce_temporal_vec(cells, None);
+        let merged = coalesce_temporal_vec(segments, None);
         assert_eq!(merged.len(), 1, "結合されて1件になるはず");
         assert_eq!(merged[0].0.to_string(), "12/0/3638/1614_1800/809712");
     }
 
-    /// 値が違うセルは結合しない。
+    /// 値が違うSegmentは結合しない。
     #[test]
     fn does_not_merge_across_different_values() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut cells: Vec<(FlexId, u8)> = Vec::new();
-        cells.extend(a.into_iter().map(|id| (id, 1u8)));
-        cells.extend(b.into_iter().map(|id| (id, 2u8)));
+        let mut segments: Vec<(FlexId, u8)> = Vec::new();
+        segments.extend(a.into_iter().map(|id| (id, 1u8)));
+        segments.extend(b.into_iter().map(|id| (id, 2u8)));
 
-        let merged = coalesce_temporal_vec(cells, None);
+        let merged = coalesce_temporal_vec(segments, None);
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].0.seconds_range(), (0, 3600));
         assert_eq!(merged[1].0.seconds_range(), (3600, 7200));
     }
 
-    /// 同じ値なら、隣接する2つの時間セルは1つに融合する。
+    /// 同じ値なら、隣接する2つの時間Segmentは1つに融合する。
     #[test]
-    fn merges_adjacent_cells_with_the_same_value() {
+    fn merges_adjacent_segments_with_the_same_value() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut cells: Vec<(FlexId, u8)> = Vec::new();
-        cells.extend(a.into_iter().map(|id| (id, 7u8)));
-        cells.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut segments: Vec<(FlexId, u8)> = Vec::new();
+        segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(cells, None);
+        let merged = coalesce_temporal_vec(segments, None);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].0.seconds_range(), (0, 7200));
-        // gcd(0, 7200) = 7200 なので「2時間」という単位で1セルになる。
+        // gcd(0, 7200) = 7200 なので「2時間」という単位で1Segmentになる。
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
             (7200, [0, 0])
         );
     }
 
-    /// 候補集合を渡すと、その中で最も粗い（＝セル数が最小の）単位が選ばれる。
+    /// 候補集合を渡すと、その中で最も粗い（＝Segment数が最小の）単位が選ばれる。
     #[test]
     fn candidate_set_picks_the_coarsest_unit() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
-        let mut cells: Vec<(FlexId, u8)> = Vec::new();
-        cells.extend(a.into_iter().map(|id| (id, 7u8)));
-        cells.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut segments: Vec<(FlexId, u8)> = Vec::new();
+        segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(cells, Some(IntervalSet::calendar()));
+        let merged = coalesce_temporal_vec(segments, Some(IntervalSet::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
@@ -226,11 +229,11 @@ mod tests {
         );
 
         // 候補が区間を割り切れないときは、必ず含まれる SECOND まで落ちる。
-        // 候補集合が貧しいとセル数が爆発することを示す例でもある
-        // （1時間 = 3600 セル）。実用では `IntervalSet::calendar()` のように
+        // 候補集合が貧しいとSegment数が爆発することを示す例でもある
+        // （1時間 = 3600 Segment）。実用では `IntervalSet::calendar()` のように
         // 粒度の階段を用意しておくこと。
-        let mut cells: Vec<(FlexId, u8)> = Vec::new();
-        cells.extend(
+        let mut segments: Vec<(FlexId, u8)> = Vec::new();
+        segments.extend(
             SingleId::new(12, 0, 3638, 1614)
                 .unwrap()
                 .with_time(Interval::HOUR, 0)
@@ -238,7 +241,7 @@ mod tests {
                 .into_iter()
                 .map(|id| (id, 7u8)),
         );
-        let merged = coalesce_temporal_vec(cells, Some(&IntervalSet::new([Interval::DAY])));
+        let merged = coalesce_temporal_vec(segments, Some(&IntervalSet::new([Interval::DAY])));
         assert_eq!(
             (merged[0].0.interval().seconds(), merged[0].0.t()),
             (1, [0, 3599])
@@ -247,9 +250,9 @@ mod tests {
         assert_eq!(merged[0].0.seconds_range(), (0, 3600));
     }
 
-    /// 空間セルが違えば、時間が連続していても結合しない。
+    /// FlexIdが違えば、時間が連続していても結合しない。
     #[test]
-    fn does_not_merge_across_different_cells() {
+    fn does_not_merge_across_different_segments() {
         let a = SingleId::new(12, 0, 3638, 1614)
             .unwrap()
             .with_time(Interval::HOUR, 0)
@@ -259,21 +262,21 @@ mod tests {
             .with_time(Interval::HOUR, 1)
             .unwrap();
 
-        let mut cells: Vec<(FlexId, u8)> = Vec::new();
-        cells.extend(a.into_iter().map(|id| (id, 7u8)));
-        cells.extend(b.into_iter().map(|id| (id, 7u8)));
+        let mut segments: Vec<(FlexId, u8)> = Vec::new();
+        segments.extend(a.into_iter().map(|id| (id, 7u8)));
+        segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        assert_eq!(coalesce_temporal_vec(cells, None).len(), 2);
+        assert_eq!(coalesce_temporal_vec(segments, None).len(), 2);
     }
 
-    /// 時間を使っていない場合は入力と1対1で対応する（全時間セルはそのまま）。
+    /// 時間を使っていない場合は入力と1対1で対応する（全時間Segmentはそのまま）。
     #[test]
     fn passes_through_when_no_temporal_information() {
-        let cells: Vec<(FlexId, u8)> = (0..4u32)
+        let segments: Vec<(FlexId, u8)> = (0..4u32)
             .map(|x| (FlexId::new(3, 0, 3, x, 3, 0).unwrap(), 1u8))
             .collect();
 
-        let merged = coalesce_temporal_vec(cells, None);
+        let merged = coalesce_temporal_vec(segments, None);
         assert_eq!(merged.len(), 4);
         assert!(merged.iter().all(|(id, _)| id.is_whole_time()));
     }

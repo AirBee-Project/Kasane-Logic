@@ -14,26 +14,26 @@ use crate::{Error, FlexId, RangeId, SpatialIdSet, SpatialIdTable};
 const SEQ_CONVERT_THRESHOLD: usize = 512;
 
 #[cfg(not(feature = "rayon"))]
-pub trait CellValue: Ord + Clone {}
+pub trait FlexIdValue: Ord + Clone {}
 #[cfg(not(feature = "rayon"))]
-impl<T: Ord + Clone> CellValue for T {}
+impl<T: Ord + Clone> FlexIdValue for T {}
 
 #[cfg(feature = "rayon")]
-pub trait CellValue: Ord + Clone + Send + Sync {}
+pub trait FlexIdValue: Ord + Clone + Send + Sync {}
 #[cfg(feature = "rayon")]
-impl<T: Ord + Clone + Send + Sync> CellValue for T {}
+impl<T: Ord + Clone + Send + Sync> FlexIdValue for T {}
 
 impl Source for SpatialIdSet {
     type Value = ();
 
     fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<()>, Error> {
-        let mut cells: Vec<(FlexId, ())> = Vec::new();
+        let mut segments: Vec<(FlexId, ())> = Vec::new();
         for b in bounds {
             for id in self.get_range(b) {
-                cells.push((id, ()));
+                segments.push((id, ()));
             }
         }
-        Ok(cells.into_iter().collect())
+        Ok(segments.into_iter().collect())
     }
 
     fn read_all(self: Box<Self>) -> Result<WorkingTree<()>, Error> {
@@ -51,22 +51,22 @@ impl From<WorkingTree<()>> for SpatialIdSet {
 
 impl<V> Source for SpatialIdTable<V>
 where
-    V: CellValue + 'static,
+    V: FlexIdValue + 'static,
 {
     type Value = V;
 
     fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
-        let mut cells: Vec<(FlexId, V)> = Vec::new();
+        let mut segments: Vec<(FlexId, V)> = Vec::new();
         for b in bounds {
             for (id, value) in self.get_range(b) {
-                cells.push((id, value.clone()));
+                segments.push((id, value.clone()));
             }
         }
-        Ok(cells.into_iter().collect())
+        Ok(segments.into_iter().collect())
     }
 
     fn read_all(self: Box<Self>) -> Result<WorkingTree<V>, Error> {
-        // rank ツリーを辞書で実体値へ展開。Table のセルは互いに素なので union（par_build_vec）で正しい。
+        // rank ツリーを辞書で実体値へ展開。Table のSegmentは互いに素なので union（par_build_vec）で正しい。
         #[cfg(feature = "rayon")]
         {
             let items: Vec<(FlexId, V)> = (*self).into_iter().collect();
@@ -94,19 +94,19 @@ where
 
 impl<V> From<WorkingTree<V>> for SpatialIdTable<V>
 where
-    V: CellValue + 'static,
+    V: FlexIdValue + 'static,
 {
-    /// 実体値の互いに素なセルを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
+    /// 実体値の互いに素なSegmentを辞書へ intern し直す。小入力は逐次で（rayon 起動コスト回避）。
     fn from(working: WorkingTree<V>) -> Self {
         let core = working.into_core();
         #[cfg(feature = "rayon")]
         {
-            let cells: Vec<(FlexId, V)> = core.into_iter().collect();
+            let segments: Vec<(FlexId, V)> = core.into_iter().collect();
             use rayon::iter::FromParallelIterator;
-            if cells.len() < SEQ_CONVERT_THRESHOLD {
-                cells.into_iter().collect()
+            if segments.len() < SEQ_CONVERT_THRESHOLD {
+                segments.into_iter().collect()
             } else {
-                SpatialIdTable::from_par_iter(cells)
+                SpatialIdTable::from_par_iter(segments)
             }
         }
         #[cfg(not(feature = "rayon"))]

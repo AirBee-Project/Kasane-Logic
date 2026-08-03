@@ -156,7 +156,7 @@ impl<V: SafeValue + 'static> Query<V> {
         }
     }
 
-    /// 対象領域(`target`)と交差するセルだけを遅延評価して返す。
+    /// 対象領域(`target`)と交差するSegmentだけを遅延評価して返す。
     pub fn lazy_get<T: crate::SpatialId>(
         &self,
         target: T,

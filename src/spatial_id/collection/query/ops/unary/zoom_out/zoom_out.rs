@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
-/// 指定されたズームレベルまで情報を落とし、複数の子ボクセルを`MergePolicy::resolve_many` で一括マージする単項演算子。
+/// 指定されたズームレベルまで情報を落とし、複数の子ボクSegmentを`MergePolicy::resolve_many` で一括マージする単項演算子。
 pub struct ZoomOut<V, P> {
     pub target_z: ZoomLevel,
     _marker: core::marker::PhantomData<fn() -> (V, P)>,

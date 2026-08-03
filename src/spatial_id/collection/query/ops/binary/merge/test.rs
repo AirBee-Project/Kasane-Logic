@@ -1,21 +1,21 @@
 use crate::spatial_id::collection::query::merge_policy::Sum;
 use crate::{SingleId, Source, SpatialIdTable};
 
-fn cell(x: u32, v: i32) -> (SingleId, i32) {
+fn segment(x: u32, v: i32) -> (SingleId, i32) {
     (SingleId::new(20, 0, x, 0).unwrap(), v)
 }
 
-/// 重なるセルは resolve(a, b)、片側にしかないセルは resolve(a, default) / resolve(default, b)、
-/// どちらにも無いセルは空のまま。
+/// 重なるSegmentは resolve(a, b)、片側にしかないSegmentは resolve(a, default) / resolve(default, b)、
+/// どちらにも無いSegmentは空のまま。
 #[test]
 fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     let mut a = SpatialIdTable::new();
     let mut b = SpatialIdTable::new();
 
-    let (only_a, av) = cell(100, 7); // Aのみ
-    let (both, av2) = cell(101, 3); // 両方
-    let (_, bv2) = cell(101, 4);
-    let (only_b, bv) = cell(102, 5); // Bのみ
+    let (only_a, av) = segment(100, 7); // Aのみ
+    let (both, av2) = segment(101, 3); // 両方
+    let (_, bv2) = segment(101, 4);
+    let (only_b, bv) = segment(102, 5); // Bのみ
 
     a.insert(only_a.clone(), av);
     a.insert(both.clone(), av2);
@@ -28,7 +28,7 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     assert_eq!(out.get(&both).next().unwrap().1, &7); // resolve(3, 4)
     assert_eq!(out.get(&only_b).next().unwrap().1, &5); // resolve(default=0, 5)
 
-    let neither = cell(103, 0).0;
+    let neither = segment(103, 0).0;
     assert!(out.get(&neither).next().is_none());
 }
 

@@ -29,24 +29,28 @@ mod tests {
 
     /// 重なり合う複数 bounds で読んでも、空間IDが重複せず正しい値で返ること。
     ///
-    /// 粗いセル（複数の細かい bounds と交差する）を含めることで、
-    /// 同一セルが複数回読み出される状況を作っている。
+    /// 粗いSegment（複数の細かい bounds と交差する）を含めることで、
+    /// 同一Segmentが複数回読み出される状況を作っている。
     #[test]
     fn read_subset_with_overlapping_bounds_has_no_duplicates() {
         let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
-        // z=18 の粗いセル1つ（z=20 では 4x4 の広がりを持つ）
+        // z=18 の粗いSegment1つ（z=20 では 4x4 の広がりを持つ）
         table.insert(SingleId::new(18, 0, 100, 100).unwrap(), 7);
 
-        // 上記の粗いセルと交差する、細かく分かれた 3 つの領域
+        // 上記の粗いSegmentと交差する、細かく分かれた 3 つの領域
         let bounds: Vec<RangeId> = (0..3)
             .map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
             .collect();
 
         let working = table.read_subset(&bounds).unwrap();
 
-        let cells: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
-        assert_eq!(cells.len(), 1, "同じセルが重複して入っている: {cells:?}");
-        assert_eq!(cells[0].1, 7);
+        let segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
+        assert_eq!(
+            segments.len(),
+            1,
+            "同じSegmentが重複して入っている: {segments:?}"
+        );
+        assert_eq!(segments[0].1, 7);
     }
 
     /// 単一 bounds でも、重なり合う bounds でも同じ結果になること。

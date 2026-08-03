@@ -41,7 +41,7 @@ mod persist_tests {
     /// [`SpatialIdMap::get`] と同じ結果を返すことを検証する。
     ///
     /// 上下ルートの選択と枝刈りを両方踏むよう、f の正負・ヒット・ミス・
-    /// 異方セル（RangeId 由来）・target がセルを覆う場合を含める。
+    /// 異方Segment（RangeId 由来）・target がSegmentを覆う場合を含める。
     #[test]
     fn archived_get_matches_in_memory_get() {
         let mut map = SpatialIdMap::<Vec<u8>>::new();
@@ -58,7 +58,7 @@ mod persist_tests {
         let targets = [
             SingleId::new(5, 3, 4, 6).unwrap(),  // 上半分・ヒット
             SingleId::new(5, -2, 4, 6).unwrap(), // 下半分・ヒット
-            SingleId::new(5, 2, 8, 5).unwrap(),  // RangeId 由来の異方セル
+            SingleId::new(5, 2, 8, 5).unwrap(),  // RangeId 由来の異方Segment
             SingleId::new(5, 3, 4, 7).unwrap(),  // 上半分・ミス
             SingleId::new(5, -2, 0, 0).unwrap(), // 下半分・ミス
             SingleId::new(0, 0, 0, 0).unwrap(),  // 上半分を丸ごと覆う
@@ -83,11 +83,11 @@ mod persist_tests {
         }
     }
 
-    /// `ArchivedSpatialIdMap::get_range` が、範囲と交差する全セルを返すこと。
+    /// `ArchivedSpatialIdMap::get_range` が、範囲と交差する全Segmentを返すこと。
     ///
-    /// 期待値は「全セルを走査して交差判定で絞ったもの」を真値として突き合わせる。
+    /// 期待値は「全Segmentを走査して交差判定で絞ったもの」を真値として突き合わせる。
     #[test]
-    fn archived_get_range_returns_all_intersecting_cells() {
+    fn archived_get_range_returns_all_intersecting_segments() {
         let mut map: SpatialIdMap<Vec<u8>> = SpatialIdMap::new();
         for x in 0..8u32 {
             map.insert(
@@ -114,7 +114,7 @@ mod persist_tests {
             .collect();
         got.sort_by_key(|a| a.0);
 
-        assert_eq!(expected.len(), 8, "前提: 8セルすべてが範囲と交差する");
+        assert_eq!(expected.len(), 8, "前提: 8Segmentすべてが範囲と交差する");
         assert_eq!(got, expected, "ゼロコピー側の範囲走査が一致しない");
     }
 

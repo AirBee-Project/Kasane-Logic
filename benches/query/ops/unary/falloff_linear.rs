@@ -43,7 +43,7 @@ fn bench_falloff_x(c: &mut Criterion) {
 }
 
 fn bench_falloff_x_y_chained(c: &mut Criterion) {
-    // 連鎖は中間セルが軸ごとに膨らむため、実行時間を抑えて最大 2500 セルまでに留める。
+    // 連鎖は中間Segmentが軸ごとに膨らむため、実行時間を抑えて最大 2500 Segmentまでに留める。
     bench_scaling(c, "UnaryOps/falloff_linear_x_then_y", &[1, 10, 50], |t| {
         t.query()
             .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
