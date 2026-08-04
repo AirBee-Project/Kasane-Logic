@@ -52,6 +52,7 @@ where
         let this = *self;
         Ok(this
             .inner
+            .optimize()
             .raw_run()?
             .into_iter()
             .map(|(id, value)| (id, (this.f)(value)))

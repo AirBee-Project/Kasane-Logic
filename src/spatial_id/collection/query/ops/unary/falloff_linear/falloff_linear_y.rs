@@ -36,7 +36,10 @@ where
     P: MergePolicy<V> + Send + Sync + 'static,
 {
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::separable_with_policy::<P>(P::IS_COMMUTATIVE)
+        CommutativityInfo::separable_with_policy::<P>(
+            crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::Y,
+            P::IS_COMMUTATIVE,
+        )
     }
     fn as_any(&self) -> &dyn core::any::Any {
         self

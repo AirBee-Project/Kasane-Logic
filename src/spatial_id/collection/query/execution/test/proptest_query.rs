@@ -109,12 +109,18 @@ define_query_ops! {
 
 proptest! {
     #![proptest_config(ProptestConfig {
-        cases: 20,
+        cases: 48,
         .. ProptestConfig::default()
     })]
 
+    /// `raw_run`（無最適化・宣言順のまま）と `run`（最適化込み）に加え、`run_on_subset`
+    /// （`lazy_get` の実体。`&self` のまま `plan_order` で並べ替える経路）も同じ結果になる
+    /// ことを、ランダムな演算の組み合わせで確認する。
+    ///
+    /// オフセットが小さく（±5）ズームが浅すぎない（10..=12、xy_maxは最低1023）ため、
+    /// `boundary_proptest.rs` で見つかった「shiftとfalloffの同軸並べ替えでエラーの
+    /// 有無が変わる」既知のバグ（範囲境界でのみ発生）を踏む見込みはほぼない。
     #[test]
-    #[ignore]
     fn test_random_query_raw_run_matches_run(
         z in 10..=12u8,
         items in prop::collection::vec((SingleId::arb_within(10..=12), 1..100u32), 1..5),
@@ -144,7 +150,7 @@ proptest! {
         let res_raw: Result<SpatialIdTable<u32>, _> = q_raw.raw_run().map(Into::into);
         let res_run: Result<SpatialIdTable<u32>, _> = q_run.run().map(Into::into);
 
-        match (res_raw, res_run) {
+        match (&res_raw, &res_run) {
             (Ok(raw), Ok(run)) => {
                 assert_eq!(
                     raw.flat_single_ids().collect::<Vec<_>>(),
@@ -160,6 +166,29 @@ proptest! {
             }
             (Err(e), Ok(_)) => {
                 panic!("run succeeded but raw_run failed with {:?}", e);
+            }
+        }
+
+        // 遅延経路（lazy_get = run_on_subset）も、エラーにならないケースでは raw_run と
+        // 一致すること。対象を全空間にすれば raw_run の全件と一致するはず。
+        if let Ok(expected) = &res_raw {
+            let mut q_lazy = table.clone().query();
+            for op in &ops {
+                q_lazy = op.apply(q_lazy);
+            }
+            let zl = crate::ZoomLevel::new(z).unwrap();
+            let bbox =
+                crate::RangeId::new(z, [zl.f_min(), zl.f_max()], [0, zl.xy_max()], [0, zl.xy_max()])
+                    .unwrap();
+            if let Ok(iter) = q_lazy.lazy_get(bbox) {
+                let mut got: Vec<(crate::FlexId, u32)> = iter.collect();
+                got.sort_unstable();
+
+                let mut exp: Vec<(crate::FlexId, u32)> =
+                    expected.iter().map(|(id, &v)| (id, v)).collect();
+                exp.sort_unstable();
+
+                assert_eq!(got, exp, "lazy_get produced a different ID set than raw_run!");
             }
         }
     }

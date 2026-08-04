@@ -87,5 +87,72 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
+/// [`group_commutative_ops`](Query::group_commutative_ops) +
+/// [`sort_commutative_ops`](Query::sort_commutative_ops) と同じ規則で導かれる実行順を、
+/// `ops` の所有権を消費せずインデックス列として返す。
+///
+/// `Query::Unary`/`Query::CommutativeGroup` は所有権を移さないと組み替えられない
+/// （`Box<dyn UnaryOperator>` は `Clone` できない）ため、`&Query` しか持てない
+/// [`Query::run_on_subset`](super::Query::run_on_subset) 系はこれまで最適化を経由できなかった。
+/// この関数は `commutativity_info` / `expansion_ratio` という `&self` メソッドだけを使って
+/// 並び順を計算するので、借用のままでも同じ判断ができる。
+///
+/// `Query::CommutativeGroup` の（全要素が互いに可換という不変条件を持つ）`ops` を渡しても
+/// 正しく動く：全ペアが可換なら、このアルゴリズムは自然に1つのクリークとして検出し
+/// `expansion_ratio` でソートするだけになる（＝ [`sort_commutative_ops`] と同じ結果）。
+/// そのため呼び出し側は `Unary` と `CommutativeGroup` を区別せずこの関数を使ってよい。
+pub(crate) fn plan_order<V: SafeValue + 'static>(ops: &[Box<dyn UnaryOperator<V>>]) -> Vec<usize> {
+    fn flush<V: SafeValue + 'static>(
+        ops: &[Box<dyn UnaryOperator<V>>],
+        clique: &mut Vec<usize>,
+        info: Option<CommutativityInfo>,
+        order: &mut Vec<usize>,
+    ) {
+        if clique.is_empty() {
+            return;
+        }
+        if clique.len() > 1 && info.is_some_and(|i| i.is_potentially_commutative()) {
+            clique.sort_by(|&a, &b| {
+                ops[a]
+                    .expansion_ratio()
+                    .partial_cmp(&ops[b].expansion_ratio())
+                    .unwrap_or(core::cmp::Ordering::Equal)
+            });
+        }
+        order.append(clique);
+    }
+
+    let mut order = Vec::with_capacity(ops.len());
+    let mut clique: Vec<usize> = Vec::new();
+    let mut clique_info: Option<CommutativityInfo> = None;
+
+    for (i, op) in ops.iter().enumerate() {
+        let info = op.commutativity_info();
+
+        let mut is_clique = false;
+        if let Some(cur_info) = clique_info
+            && cur_info.is_potentially_commutative()
+            && info.is_potentially_commutative()
+        {
+            is_clique = clique
+                .iter()
+                .all(|&existing| ops[existing].commutativity_info().can_commute_with(&info));
+        }
+
+        if is_clique
+            || (clique_info.is_some_and(|c| !c.is_potentially_commutative())
+                && !info.is_potentially_commutative())
+        {
+            clique.push(i);
+        } else {
+            flush(ops, &mut clique, clique_info, &mut order);
+            clique.push(i);
+            clique_info = Some(info);
+        }
+    }
+    flush(ops, &mut clique, clique_info, &mut order);
+    order
+}
+
 #[cfg(test)]
 mod test;

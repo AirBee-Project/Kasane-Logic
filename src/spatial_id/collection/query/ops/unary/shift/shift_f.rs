@@ -20,7 +20,9 @@ impl ShiftF {
 
 impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::separable_injective()
+        CommutativityInfo::separable_injective(
+            crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::F,
+        )
     }
 
     fn validate(&self) -> Result<(), Error> {

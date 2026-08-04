@@ -46,17 +46,23 @@ pub enum Query<V: SafeValue + 'static> {
 /// 処理する。中間木の構築が丸ごと消えるうえ、falloff は 2r+1 倍の中間データを作らずに
 /// 出力を直接生成できる。平坦化の見積もりが予算を超えた場合は、その演算だけ従来どおり
 /// 木の上で実行して次へ進む。
+///
+/// 区間内でも、途中でズームが上がる箇所があれば手前で区切る（[`grid_batch_len`] 参照）。
 pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
-    mut ops: &[Box<dyn UnaryOperator<V>>],
+    mut ops: &[&dyn UnaryOperator<V>],
     mut working: WorkingTree<V>,
 ) -> Result<WorkingTree<V>, Error> {
     while let Some(head) = ops.first() {
         // グリッドで実行できる演算の最長区間を取る。
         let grid_ops: Vec<GridOp<V>> = ops.iter().map_while(|op| op.grid_op()).collect();
+        let batch_len = grid_batch_len(&working, &grid_ops);
 
-        if let Some(result) = try_run_grid(&working, &grid_ops, grid_budget(&working)) {
+        if batch_len > 0
+            && let Some(result) =
+                try_run_grid(&working, &grid_ops[..batch_len], grid_budget(&working))
+        {
             working = result?;
-            ops = &ops[grid_ops.len()..];
+            ops = &ops[batch_len..];
             continue;
         }
 
@@ -65,6 +71,28 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
         ops = &ops[1..];
     }
     Ok(working)
+}
+
+/// `grid_ops` の先頭から、平坦化に必要なズームが単調非減少で収まる最長区間の長さを返す。
+///
+/// 平坦化ズームは「区間内の演算のズーム」と「その時点の木の解像度」のうち最大のもの
+/// （[`try_run_grid`] 参照）。ズームが1上がるごとに1葉あたりの見積もりコストは
+/// 軸ごとに2倍（3軸で最大8倍）増えるので、深いズームの演算が1つ混ざっているだけで、
+/// その前後にある浅いズームの演算まで巻き添えで深いズーム扱いにされると、予算超過で
+/// 全体が（本来なら平坦化できたはずの部分も含めて）木経路へ落ちてしまう。
+/// ズームが上がる境目で区間を区切り、浅いズームの演算はそのズームのまま先に平坦化させる。
+fn grid_batch_len<V: SafeValue>(working: &WorkingTree<V>, grid_ops: &[GridOp<V>]) -> usize {
+    let mut batch_zoom = working.core().max_zoomlevel().unwrap_or(0);
+    let mut len = 0;
+    for op in grid_ops {
+        let op_zoom = op.zoom().get();
+        if len > 0 && op_zoom > batch_zoom {
+            break;
+        }
+        batch_zoom = batch_zoom.max(op_zoom);
+        len += 1;
+    }
+    len
 }
 
 /// 平坦化を許す件数の上限。
@@ -103,7 +131,8 @@ impl<V: SafeValue + 'static> Query<V> {
             match query {
                 Query::Source(source) => source.read_all(),
                 Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
-                    run_unary_chain(&ops, run_internal(*input)?)
+                    let refs: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|b| b.as_ref()).collect();
+                    run_unary_chain(&refs, run_internal(*input)?)
                 }
                 Query::Binary(op, lhs, rhs) => {
                     #[cfg(feature = "rayon")]
@@ -149,17 +178,26 @@ impl<V: SafeValue + 'static> Query<V> {
         match self {
             Query::Source(s) => s.read_subset(&bounds),
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+                // `&self` しか持たないのでASTを組み替えられないが、`plan_order` は
+                // `commutativity_info` / `expansion_ratio` という `&self` メソッドだけで
+                // 同じ並び順を計算できる。`inverse_bounds` の逆算も同じ順序を逆から
+                // 辿らないと入力領域を正しく逆算できないため、両方をこの順序に揃える。
+                let order = group_commutative::plan_order(ops);
+
                 let mut req = bounds;
-                for op in ops.iter().rev() {
+                for &i in order.iter().rev() {
                     let mut next = Vec::new();
                     for r in req {
-                        next.extend(op.inverse_bounds(r));
+                        next.extend(ops[i].inverse_bounds(r));
                     }
                     next.sort_unstable();
                     next.dedup();
                     req = next;
                 }
-                run_unary_chain(ops, input.run_on_subset_unchecked(req)?)
+
+                let ordered: Vec<&dyn UnaryOperator<V>> =
+                    order.iter().map(|&i| ops[i].as_ref()).collect();
+                run_unary_chain(&ordered, input.run_on_subset_unchecked(req)?)
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();

@@ -83,7 +83,9 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::separable_injective()
+        CommutativityInfo::separable_injective(
+            crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::X,
+        )
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

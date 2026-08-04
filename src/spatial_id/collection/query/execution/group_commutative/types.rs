@@ -13,8 +13,13 @@ pub enum TargetAxis {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OperatorPattern {
     /// 「初期値 - f(d)」の形式をとる、空間操作が独立して行える変換。
-    /// `need_merge_policy` が `false` なら単射（移動のみ）、`true` なら値の伝播など衝突が発生しポリシー解決が必要な操作。
-    Separable { need_merge_policy: bool },
+    /// `need_merge_policy` が `false` なら単射（移動のみ、shiftなど）、`true` なら値の伝播など
+    /// 衝突が発生しポリシー解決が必要な操作（falloffなど）。
+    /// `axis` はこの変換が作用する軸（`can_commute_with` 参照）。
+    Separable {
+        need_merge_policy: bool,
+        axis: TargetAxis,
+    },
     /// 絶対座標の固定範囲へ値を写す変換（シフト同変ではない。ソースを平行移動しても出力範囲は追従しない）。`MergePolicy` で衝突解決する。異なる軸への適用同士は可換だが、同一軸への適用は不可換。
     AbsoluteTarget { axis: TargetAxis },
 
@@ -43,23 +48,30 @@ impl CommutativityInfo {
     }
 
     /// 「初期値 - f(d)」の形式で、衝突が発生しない（単射である）操作（Shiftなど）。
-    pub fn separable_injective() -> Self {
+    /// `axis` はこのシフトが作用する軸。
+    pub fn separable_injective(axis: TargetAxis) -> Self {
         Self(Some(CommutativityKey {
             pattern: OperatorPattern::Separable {
                 need_merge_policy: false,
+                axis,
             },
             policy: None,
         }))
     }
 
     /// 「初期値 - f(d)」の形式で、衝突が発生し集約が必要な操作（FalloffLinearなど）。
-    pub fn separable_with_policy<P: 'static>(policy_is_commutative: bool) -> Self {
+    /// `axis` はこの操作が作用する軸。
+    pub fn separable_with_policy<P: 'static>(
+        axis: TargetAxis,
+        policy_is_commutative: bool,
+    ) -> Self {
         if !policy_is_commutative {
             return Self::none();
         }
         Self(Some(CommutativityKey {
             pattern: OperatorPattern::Separable {
                 need_merge_policy: true,
+                axis,
             },
             policy: Some(TypeId::of::<P>()),
         }))
@@ -96,14 +108,28 @@ impl CommutativityInfo {
                     (
                         OperatorPattern::Separable {
                             need_merge_policy: c1,
+                            axis: axis1,
                         },
                         OperatorPattern::Separable {
                             need_merge_policy: c2,
+                            axis: axis2,
                         },
                     ) => {
-                        // policyが一致していれば常に可換。
-                        // 一致していなくても、どちらかが単射(need_merge_policy=false)なら可換。
-                        a.policy == b.policy || !c1 || !c2
+                        // 同じ軸で、どちらかが単射（shiftなど）なら不可換とする。
+                        // shiftは範囲外に出ると即座に`Err`を返すが、falloffのような集約操作
+                        // （need_merge_policy=true）は範囲外の寄与を距離ごとに黙って捨てる
+                        // だけで`Err`にならない。この非対称性があるため、同じ軸で並べ替える
+                        // と「エラーになるかどうか」自体が変わってしまう
+                        // （境界に置かれたSegmentで実際に発生する。詳細は
+                        // `boundary_proptest::same_axis_shift_then_falloff_can_change_error_outcome`
+                        // を参照）。異なる軸なら互いに独立なのでこの問題は起きない。
+                        if axis1 == axis2 && (!c1 || !c2) {
+                            false
+                        } else {
+                            // policyが一致していれば常に可換。
+                            // 一致していなくても、どちらかが単射(need_merge_policy=false)なら可換。
+                            a.policy == b.policy || !c1 || !c2
+                        }
                     }
                     (
                         OperatorPattern::AbsoluteTarget { axis: axis1 },

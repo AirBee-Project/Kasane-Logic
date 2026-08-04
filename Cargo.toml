@@ -189,6 +189,11 @@ harness = false
 required-features = ["rayon", "json"]
 
 [[bench]]
+name = "query_workflow_mixed_zoom"
+path = "benches/query/workflow/mixed_zoom.rs"
+harness = false
+
+[[bench]]
 name = "query_lazy_get"
 path = "benches/query/lazy/get.rs"
 harness = false

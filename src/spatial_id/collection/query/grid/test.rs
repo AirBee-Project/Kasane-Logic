@@ -37,7 +37,8 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
         Ok::<(), crate::Error>(())
     })();
 
-    let got = run_unary_chain(&ops, tree);
+    let refs: Vec<&dyn UnaryOperator<u32>> = ops.iter().map(|b| b.as_ref()).collect();
+    let got = run_unary_chain(&refs, tree);
 
     match (tree_result, got) {
         (Err(_), Err(_)) => {}
@@ -217,6 +218,22 @@ fn shift_after_wrapping_falloff_reorders_before_building() {
             ],
         );
     }
+}
+
+/// ズームが異なる演算が混ざった連続区間でも、木経路と同じ結果になる。
+///
+/// `run_unary_chain` は区間の途中でズームが上がる箇所があれば、そこで
+/// バッチを区切る（`grid_batch_len` 参照。浅いズームの演算が深いズームの演算に
+/// 巻き添えで高コスト化するのを避けるため）。区切っても結果がズレないことの回帰。
+#[test]
+fn mixed_zoom_chain_matches_tree_path() {
+    let ops: Ops = alloc::vec![
+        Box::new(ShiftX::new(6u8, 2).unwrap()),
+        Box::new(ShiftY::new(6u8, 1).unwrap()),
+        Box::new(FalloffLinearF::<Max>::new(8u8, 2).unwrap()),
+        Box::new(ShiftX::new(6u8, -1).unwrap()),
+    ];
+    assert_same(sample(), ops);
 }
 
 #[test]

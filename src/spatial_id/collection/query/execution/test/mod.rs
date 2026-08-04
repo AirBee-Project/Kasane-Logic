@@ -1,8 +1,53 @@
 pub mod ast_optimization;
+pub mod boundary_proptest;
 pub mod lazy_get;
 pub mod proptest_query;
 
 use crate::{SingleId, Source, SpatialIdTable};
+
+/// `grid_batch_len` はズームが上がる境目で区間を区切る。
+///
+/// z=10 の演算が2つ連続したあと z=18（深い）の演算が来ると、そこで区切って
+/// 最初の2つだけを先に低いズームで平坦化できるようにするはず（区切らずに全体を
+/// z=18 で平坦化しようとすると、浅いズームの演算まで巻き添えで見積もりコストが
+/// 跳ね上がり、予算超過で本来平坦化できたはずの分まで木経路に落ちてしまう）。
+#[test]
+fn grid_batch_len_splits_before_a_zoom_increase() {
+    use crate::ZoomLevel;
+    use crate::spatial_id::collection::query::execution::grid_batch_len;
+    use crate::spatial_id::collection::query::grid::{GridAxis, GridOp};
+    use crate::spatial_id::collection::query::working::WorkingTree;
+
+    let working = WorkingTree::<u32>::new();
+
+    let ops = alloc::vec![
+        GridOp::shift(GridAxis::X, ZoomLevel::new(10).unwrap(), 1),
+        GridOp::shift(GridAxis::Y, ZoomLevel::new(10).unwrap(), 1),
+        GridOp::shift(GridAxis::F, ZoomLevel::new(18).unwrap(), 1),
+        GridOp::shift(GridAxis::X, ZoomLevel::new(10).unwrap(), 1),
+    ];
+
+    assert_eq!(
+        grid_batch_len(&working, &ops),
+        2,
+        "z=18の演算の手前、z=10の2つだけで区切られるはず"
+    );
+
+    // 最初に確立した上限ズームを超えない限りは区切らない
+    // （深いズームの演算のあとに浅い/同じズームの演算が続いても、それらは巻き添えにならず
+    // 同じバッチに乗る＝この呼び出し内では割高にならない）。
+    let ceiling_established_first = alloc::vec![
+        GridOp::shift(GridAxis::X, ZoomLevel::new(18).unwrap(), 1),
+        GridOp::shift(GridAxis::Y, ZoomLevel::new(18).unwrap(), 1),
+        GridOp::shift(GridAxis::F, ZoomLevel::new(10).unwrap(), 1),
+        GridOp::shift(GridAxis::X, ZoomLevel::new(10).unwrap(), 1),
+    ];
+    assert_eq!(
+        grid_batch_len(&working, &ceiling_established_first),
+        4,
+        "上限ズームを更新しない演算が続く間は区切らないはず"
+    );
+}
 
 /// `run()`（最適化パイプライン込み）は `raw_run()`（無最適化）と同じ結果を返す。
 /// merge対象（ShiftX/ShiftY/ShiftF）とmerge対象外（FalloffLinear）を混在させ、
