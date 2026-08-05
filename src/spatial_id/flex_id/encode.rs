@@ -1,9 +1,29 @@
 use crate::{FlexId, spatial_id::zoom_level::ZoomLevel};
 
 impl FlexId {
-    /// 自身を固定長 14 バイトのバイト列に変換する。
+    /// [`encode`](Self::encode) / [`decode`](Self::decode) が扱う固定長バイト列の長さ。
     ///
-    /// # フォーマット
+    /// `temporal_id` feature の有無で軸数（3軸 or 4軸）が変わるため、長さも変わる。
+    /// バッファ確保などで長さが必要な場合は、ハードコードせずこの定数を使うこと。
+    #[cfg(feature = "temporal_id")]
+    pub const ENCODED_LEN: usize = 23;
+    #[cfg(not(feature = "temporal_id"))]
+    pub const ENCODED_LEN: usize = 14;
+
+    /// 自身を固定長バイト列に変換する。
+    ///
+    /// `temporal_id` feature が有効なら F/X/Y/T の全4軸（23バイト）、無効なら
+    /// F/X/Y の空間3軸のみ（14バイト。時間軸自体が存在しないため）をエンコードする。
+    /// バイト長は呼び出し側で分岐せず [`ENCODED_LEN`](Self::ENCODED_LEN) から得られる
+    /// ——つまり呼び出し側は feature の有無を意識せず常にこの関数を使えばよい。
+    ///
+    /// **`spatial_encode`のような空間3軸だけの版は意図的に用意していない。**
+    /// 過去に、永続化・ルーティングキーとして空間3軸のみのエンコードを使った結果、
+    /// 空間座標が同じで時間だけが異なる複数の [`FlexId`] が同じキーへ衝突し、
+    /// 兄弟ノードを黙って上書きし合うバグを引き起こした。`encode`/`decode` の1組に
+    /// 統一することで、この選択ミスがそもそも起こらないようにしている。
+    ///
+    /// # フォーマット（`temporal_id` 有効時、23バイト）
     ///
     /// ```text
     /// byte 0      : [zf: 5bit][zx: 5bit 上位3bit]
@@ -12,22 +32,23 @@ impl FlexId {
     ///               f_shifted = f_index - f_min(zf)  （0 以上の符号なし整数として格納）
     /// byte 6..=9  : x_index (u32, big-endian)
     /// byte 10..=13: y_index (u32, big-endian)
+    /// byte 14     : t_zoomlevel (u8)
+    /// byte 15..=22: t_index (u64, big-endian)
     /// ```
     ///
-    /// ズームレベル 3 つが各 5 ビット（合計 15 ビット）で 2 バイトに収まり、
-    /// 残りの 3 フィールドが各 4 バイト（big-endian）で続く。合計 14 バイト固定長。
+    /// `temporal_id` feature 無効時は byte 14 以降が存在せず、14バイトで終わる。
     ///
     /// # 動作例
     ///
     /// ```
     /// # use kasane_logic::FlexId;
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap();
-    /// let bytes = id.spatial_encode();
-    /// assert_eq!(bytes.len(), 14);
-    /// let decoded = FlexId::spatial_decode(&bytes).unwrap();
+    /// let bytes = id.encode();
+    /// assert_eq!(bytes.len(), FlexId::ENCODED_LEN);
+    /// let decoded = FlexId::decode(&bytes).unwrap();
     /// assert_eq!(decoded, id);
     /// ```
-    pub fn spatial_encode(&self) -> [u8; 14] {
+    pub fn encode(&self) -> [u8; Self::ENCODED_LEN] {
         let zf = self.f_zoomlevel();
         let zx = self.x_zoomlevel();
         let zy = self.y_zoomlevel();
@@ -43,34 +64,40 @@ impl FlexId {
         let byte0 = (header >> 7) as u8;
         let byte1 = ((header & 0x7F) << 1) as u8; // 下位 7bit を左に 1bit シフト（padding bit = 0）
 
-        let mut out = [0u8; 14];
+        let mut out = [0u8; Self::ENCODED_LEN];
         out[0] = byte0;
         out[1] = byte1;
         out[2..6].copy_from_slice(&f_shifted.to_be_bytes());
         out[6..10].copy_from_slice(&self.x_index().to_be_bytes());
         out[10..14].copy_from_slice(&self.y_index().to_be_bytes());
+
+        #[cfg(feature = "temporal_id")]
+        {
+            out[14] = self.t_zoomlevel();
+            out[15..23].copy_from_slice(&self.t().to_be_bytes());
+        }
+
         out
     }
 
-    /// 固定長 14 バイトのバイト列から [`FlexId`] を復元する。
-    ///
-    /// [`spatial_encode`](Self::spatial_encode) が生成したバイト列を元に [`FlexId`] を再構築する。
+    /// 固定長バイト列から [`FlexId`] を復元する（[`encode`](Self::encode) の逆変換）。
     ///
     /// # バリデーション
-    ///
     /// - ズームレベルが [`ZoomLevel::MAX`] を超える場合は [`crate::SpatialIdError::ZOutOfRange`] を返す。
     /// - 復元した `f_index` / `x_index` / `y_index` が各ズームレベルの範囲外の場合は
     ///   各種範囲外エラーを返す。
+    /// - `temporal_id` feature 有効時は、`t_zoomlevel` / `t_index` も
+    ///   [`with_time`](Self::with_time) と同じ検証を通す。
     ///
     /// # 動作例
     ///
     /// ```
     /// # use kasane_logic::FlexId;
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap();
-    /// let decoded = FlexId::spatial_decode(&id.spatial_encode()).unwrap();
+    /// let decoded = FlexId::decode(&id.encode()).unwrap();
     /// assert_eq!(decoded, id);
     /// ```
-    pub fn spatial_decode(bytes: &[u8; 14]) -> Result<Self, crate::error::Error> {
+    pub fn decode(bytes: &[u8; Self::ENCODED_LEN]) -> Result<Self, crate::error::Error> {
         // ヘッダー (15 ビット) を復元
         let header = ((bytes[0] as u16) << 7) | ((bytes[1] as u16) >> 1);
         let zf = ((header >> 10) & 0x1F) as u8;
@@ -96,6 +123,61 @@ impl FlexId {
         let f_min = ZoomLevel::new(zf).unwrap().f_min();
         let f_index = f_shifted as i64 + f_min as i64;
 
-        FlexId::new(zf, f_index as i32, zx, x_index, zy, y_index)
+        let id = FlexId::new(zf, f_index as i32, zx, x_index, zy, y_index)?;
+
+        #[cfg(feature = "temporal_id")]
+        {
+            let t_zoomlevel = bytes[14];
+            let t_index = u64::from_be_bytes(bytes[15..23].try_into().unwrap());
+            id.with_time(t_zoomlevel, t_index)
+        }
+
+        #[cfg(not(feature = "temporal_id"))]
+        Ok(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::FlexId;
+
+    #[test]
+    fn round_trips() {
+        let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap();
+        let decoded = FlexId::decode(&id.encode()).unwrap();
+        assert_eq!(decoded, id);
+    }
+
+    /// 空間座標が同じで時間だけが異なる2つの `FlexId` は区別できなければならない
+    /// （区別できないと、時間で分割したノードをこのバイト列をキーに永続化したとき、
+    /// 空間座標が同じで時間が違うだけの兄弟ノードが同一キーへ衝突して上書きし合う）。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn distinguishes_same_space_different_time() {
+        let base = FlexId::new(10, 3, 12, 909, 12, 403).unwrap();
+        let a = base.with_time(20u8, 5).unwrap();
+        let b = base.with_time(20u8, 6).unwrap();
+
+        assert_ne!(a.encode(), b.encode());
+    }
+
+    /// 往復変換で元の値（空間3軸＋時間軸）が厳密に戻ること。ズーム0（全時間）と
+    /// 最深ズーム（35）の両端、および中間の値で確認する。
+    #[cfg(feature = "temporal_id")]
+    #[test]
+    fn round_trips_with_time() {
+        let cases = [(0u8, 0u64), (35, (1u64 << 35) - 1), (20, 12345)];
+        for (t_zoomlevel, t_index) in cases {
+            let id = FlexId::new(18, -5, 18, 232848, 18, 103242)
+                .unwrap()
+                .with_time(t_zoomlevel, t_index)
+                .unwrap();
+            let bytes = id.encode();
+            assert_eq!(bytes.len(), FlexId::ENCODED_LEN);
+            let decoded = FlexId::decode(&bytes).unwrap();
+            assert_eq!(decoded, id);
+            assert_eq!(decoded.t_zoomlevel(), t_zoomlevel);
+            assert_eq!(decoded.t(), t_index);
+        }
     }
 }
