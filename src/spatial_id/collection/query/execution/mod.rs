@@ -46,13 +46,17 @@ pub enum Query<V: SafeValue + 'static> {
 /// 処理する。中間木の構築が丸ごと消えるうえ、falloff は 2r+1 倍の中間データを作らずに
 /// 出力を直接生成できる。平坦化の見積もりが予算を超えた場合は、その演算だけ従来どおり
 /// 木の上で実行して次へ進む。
-pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
-    mut ops: &[Box<dyn UnaryOperator<V>>],
+pub(crate) fn run_unary_chain<V, T>(
+    mut ops: &[T],
     mut working: WorkingTree<V>,
-) -> Result<WorkingTree<V>, Error> {
+) -> Result<WorkingTree<V>, Error>
+where
+    V: SafeValue + 'static,
+    T: core::borrow::Borrow<dyn UnaryOperator<V>>,
+{
     while let Some(head) = ops.first() {
         // グリッドで実行できる演算の最長区間を取る。
-        let grid_ops: Vec<GridOp<V>> = ops.iter().map_while(|op| op.grid_op()).collect();
+        let grid_ops: Vec<GridOp<V>> = ops.iter().map_while(|op| op.borrow().grid_op()).collect();
 
         if let Some(result) = try_run_grid(&working, &grid_ops, grid_budget(&working)) {
             working = result?;
@@ -61,7 +65,7 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
         }
 
         // グリッドに載らない（または載せる価値がない）ので木の上で実行する。
-        head.run(&mut working)?;
+        head.borrow().run(&mut working)?;
         ops = &ops[1..];
     }
     Ok(working)
@@ -149,17 +153,27 @@ impl<V: SafeValue + 'static> Query<V> {
         match self {
             Query::Source(s) => s.read_subset(&bounds),
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+                // `&self` しか持たないのでASTを組み替えられないが、`plan_order` は
+                // `commutativity_info` / `expansion_ratio` という `&self` メソッドだけで
+                // `group_commutative_ops` + `sort_commutative_ops` と同じ並び順を計算できる。
+                // `inverse_bounds` の逆算も同じ順序を逆から辿らないと入力領域を正しく
+                // 逆算できないため、両方をこの順序に揃える。
+                let order = group_commutative::plan_order(ops);
+
                 let mut req = bounds;
-                for op in ops.iter().rev() {
+                for &i in order.iter().rev() {
                     let mut next = Vec::new();
                     for r in req {
-                        next.extend(op.inverse_bounds(r));
+                        next.extend(ops[i].inverse_bounds(r));
                     }
                     next.sort_unstable();
                     next.dedup();
                     req = next;
                 }
-                run_unary_chain(ops, input.run_on_subset_unchecked(req)?)
+
+                let ordered: Vec<&dyn UnaryOperator<V>> =
+                    order.iter().map(|&i| ops[i].as_ref()).collect();
+                run_unary_chain(&ordered, input.run_on_subset_unchecked(req)?)
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();

@@ -3,6 +3,54 @@ use alloc::vec::Vec;
 
 use crate::{FlexId, Source, SpatialIdTable};
 
+/// `lazy_get`（`run_on_subset` 経由）は、明示的に `.optimize()` を呼んでいない
+/// 素の `Query::Unary` に対しても、内部で `plan_order` によりAST最適化と同じ並び順を
+/// 適用したうえで実行される。
+///
+/// わざと拡大率降順（悪い順序）で `falloff_linear_y(r=3) → falloff_linear_x(r=1)` と書き、
+/// `optimize()` を一切呼ばない `lazy_get` の結果が、無最適化の `raw_run_table` 基準値と
+/// 一致することを確認する（`.optimize()` を明示的に呼んだ場合も同様に一致することも
+/// あわせて確認する）。
+#[test]
+fn lazy_get_applies_ast_optimization_without_explicit_optimize_call() {
+    use crate::spatial_id::collection::query::merge_policy::Max;
+
+    let mut table = SpatialIdTable::<u32>::new();
+    table.insert(FlexId::new(10, 10, 10, 100, 10, 100).unwrap(), 50);
+
+    let build = || {
+        table
+            .clone()
+            .query()
+            .falloff_linear_y(10, 3, Max)
+            .falloff_linear_x(10, 1, Max)
+    };
+
+    let expected: SpatialIdTable<u32> = build().raw_run_table().unwrap();
+    let target = crate::RangeId::new(10, [10, 10], [90, 110], [90, 110]).unwrap();
+    let expected_map: alloc::collections::BTreeMap<_, _> = expected
+        .iter()
+        .filter(|(id, _)| id.intersects_range(&target.clone().into()))
+        .map(|(id, v)| (id, *v))
+        .collect();
+
+    // `.optimize()` を呼ばない素の Query::Unary のまま lazy_get する。
+    let unoptimized_lazy: alloc::collections::BTreeMap<_, _> =
+        build().lazy_get(target.clone()).unwrap().collect();
+    assert_eq!(
+        unoptimized_lazy, expected_map,
+        "optimize()を呼んでいないQuery::UnaryでもAST最適化と同じ並び順で実行されるはず"
+    );
+
+    // 明示的に `.optimize()` を呼んだ場合（Query::CommutativeGroup経由）も一致するはず。
+    let optimized_lazy: alloc::collections::BTreeMap<_, _> = build()
+        .optimize()
+        .lazy_get(target.clone())
+        .unwrap()
+        .collect();
+    assert_eq!(optimized_lazy, expected_map, "optimize()後のlazy_getが食い違う");
+}
+
 #[test]
 fn lazy_view_get_matches_run() {
     let mut table = SpatialIdTable::<u32>::new();
