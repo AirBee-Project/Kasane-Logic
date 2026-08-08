@@ -42,17 +42,21 @@ where
     fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<U>, Error> {
         Ok(self
             .inner
-            .run_on_subset(bounds.to_vec())?
+            .run_within(bounds.to_vec())?
             .into_iter()
             .map(|(id, value)| (id, (self.f)(value)))
             .collect())
     }
 
+    // 内側のクエリは外側から見ると `Query::Source` なので、外側の `validate` /
+    // `optimize` は中まで届かない（AST の走査が `Source` で止まる）。ここで
+    // `run_working_tree` を通すことで、内側も検証・最適化されることを保証する。
+    // `read_subset` が `run_within` を使うのと対になる。
     fn read_all(self: Box<Self>) -> Result<WorkingTree<U>, Error> {
         let this = *self;
         Ok(this
             .inner
-            .raw_run()?
+            .run_working_tree()?
             .into_iter()
             .map(|(id, value)| (id, (this.f)(value)))
             .collect())

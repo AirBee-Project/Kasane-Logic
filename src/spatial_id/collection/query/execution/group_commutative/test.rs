@@ -63,3 +63,46 @@ fn extrude_and_falloff_with_same_policy_do_not_group_together() {
         "ExtrudeXとFalloffLinearXは可換グループにまとめられてはいけない"
     );
 }
+
+/// 借用のまま実行順を決める `optimized_unary_order` が、AST を組み替える
+/// [`Query::optimize`] と**同じ順序**を出すこと。
+///
+/// ここがずれると、同じクエリでも [`Query::run`]（AST を消費して最適化できる）と
+/// [`Query::run_within`] / [`Query::lazy_get`]（`&self` しか持てない）で演算子の
+/// 適用順が変わる。結果は可換なので一致するが、実行コストだけが黙って変わってしまう。
+#[test]
+fn borrowed_order_matches_the_optimized_ast() {
+    use crate::spatial_id::collection::query::execution::group_commutative::optimized_unary_order;
+    use alloc::vec;
+    use alloc::vec::Vec;
+
+    // 拡大率（`expansion_ratio` = |start - end| + 1）がバラバラな可換な3つ。
+    let build = || {
+        let table: SpatialIdTable<i32> = SpatialIdTable::new();
+        table
+            .query()
+            .extrude_f(10, 0, 20, Max) // 21
+            .extrude_x(10, 0, 2, Max) //  3
+            .extrude_y(10, 0, 10, Max) // 11
+    };
+
+    let Query::Unary(ops, _) = build() else {
+        panic!("最適化前は Unary のはず");
+    };
+    let borrowed: Vec<f32> = optimized_unary_order(&ops)
+        .iter()
+        .map(|op| op.expansion_ratio())
+        .collect();
+
+    let Query::CommutativeGroup(_, grouped, _) = build().optimize() else {
+        panic!("3つとも可換なので CommutativeGroup になるはず");
+    };
+    let from_ast: Vec<f32> = grouped.iter().map(|op| op.expansion_ratio()).collect();
+
+    assert_eq!(borrowed, from_ast, "借用経路と AST 経路で適用順が違う");
+    assert_eq!(
+        borrowed,
+        vec![3.0, 11.0, 21.0],
+        "拡大率の小さい順になっていない"
+    );
+}

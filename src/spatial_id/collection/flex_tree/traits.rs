@@ -118,43 +118,62 @@ where
 }
 
 // ---------------------------------------------------------------------------
-// クエリ結果を具象コレクションで受け取るための便宜メソッド
+// クエリ結果を具象コレクションで受け取るための入口
 //
-// [`Query::run`] / [`Query::raw_run`] が返すのは作業木（[`FlexTreeCore`]）そのもの。
-// 具象コレクションへの変換にはコスト（辞書への再 intern とツリー再構築）がかかるため、
-// 変換するかどうかは呼び出し側が選べるようにしてある。以下はその変換込みの入口で、
-// `q.run()?.into()` と等価。
+// 実行メソッドは「検証・最適化するか」×「何で受け取るか」の2軸でできている。
+//
+// |                    | 検証・最適化あり        | AST の順序のまま           |
+// |--------------------|------------------------|---------------------------|
+// | `SpatialIdTable`   | `run`                  | `raw_run`                 |
+// | `SpatialIdSet`     | `run_set`              | `raw_run_set`             |
+// | `WorkingTree`      | `run_working_tree`     | `raw_run_working_tree`    |
+//
+// `raw_*` は「AST を組み替えず、書かれた順序のまま実行する」を意味する。テストや
+// ベンチで最適化の有無を比べるための口であり、通常は左列を使う。
+//
+// 戻り値の型を分けてあるのは変換コストが型ごとに大きく違うため。[`SpatialIdTable`]
+// への変換は値を辞書へ intern し直す（出現値のソート＋重複排除と木の写像）ので
+// O(N log N) + 木の再構築がかかる。[`SpatialIdSet`] は包み直すだけでコストゼロ。
+// 結果を走査するだけなら `run_working_tree` が最も速い。
 // ---------------------------------------------------------------------------
 
 impl<V: SafeValue + Ord + 'static> Query<V> {
     /// 検証・最適化して実行し、[`SpatialIdTable`] として返す。
     ///
-    /// `q.run()?.into()` と等価。結果を走査するだけなら [`run`](Query::run) の
-    /// 戻り値をそのまま使うほうが、辞書への再 intern の分だけ速い。
-    pub fn run_table(self) -> Result<SpatialIdTable<V>, Error> {
-        Ok(self.run()?.into())
+    /// `q.run_working_tree()?.into()` と等価。結果を走査するだけなら
+    /// [`run_working_tree`](Query::run_working_tree) の戻り値をそのまま使うほうが、
+    /// 辞書への再 intern の分だけ速い。
+    pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
+        Ok(self.run_working_tree()?.into())
     }
 
     /// 検証も最適化もせず実行し、[`SpatialIdTable`] として返す。
     ///
-    /// `q.raw_run()?.into()` と等価。
-    pub fn raw_run_table(self) -> Result<SpatialIdTable<V>, Error> {
-        Ok(self.raw_run()?.into())
+    /// `q.raw_run_working_tree()?.into()` と等価。
+    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
+        Ok(self.raw_run_working_tree()?.into())
     }
 }
 
 impl Query<()> {
     /// 検証・最適化して実行し、[`SpatialIdSet`] として返す。
     ///
-    /// `q.run()?.into()` と等価。集合への変換は包み直すだけでコストはかからない。
+    /// `q.run_working_tree()?.into()` と等価。集合への変換は包み直すだけでコストはかからない。
+    ///
+    /// # なぜ [`run`](Query::run) と同名にできないか
+    ///
+    /// [`run`](Query::run) は `impl<V: Ord> Query<V>` にあり、`()` も `Ord` を満たすので
+    /// `Query<()>` にも生えている。ここへ同名を定義すると inherent impl が重なって
+    /// コンパイルできない（E0592）。名前を分けるほうが、`Query<()>::run` が
+    /// `SpatialIdTable<()>`（`()` を1つだけ持つ辞書）という退化した型を返すより良い。
     pub fn run_set(self) -> Result<SpatialIdSet, Error> {
-        Ok(self.run()?.into())
+        Ok(self.run_working_tree()?.into())
     }
 
     /// 検証も最適化もせず実行し、[`SpatialIdSet`] として返す。
     ///
-    /// `q.raw_run()?.into()` と等価。
+    /// `q.raw_run_working_tree()?.into()` と等価。
     pub fn raw_run_set(self) -> Result<SpatialIdSet, Error> {
-        Ok(self.raw_run()?.into())
+        Ok(self.raw_run_working_tree()?.into())
     }
 }

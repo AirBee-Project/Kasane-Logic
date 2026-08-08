@@ -59,13 +59,7 @@ fn bench_shift(c: &mut Criterion) {
         c,
         "Workflow/BldgRisk_Shift",
         &[100, 1000, 5000, 52608],
-        |t| {
-            t.query()
-                .shift_x(24, 5)
-                .shift_y(24, -5)
-                .raw_run_table()
-                .unwrap()
-        },
+        |t| t.query().shift_x(24, 5).shift_y(24, -5).raw_run().unwrap(),
     );
 }
 
@@ -79,7 +73,7 @@ fn bench_falloff(c: &mut Criterion) {
                 .falloff_linear_x(24, 5, Max)
                 .falloff_linear_y(24, 5, Max)
                 .falloff_linear_f(24, 15, Max)
-                .raw_run_table()
+                .raw_run()
                 .unwrap()
         },
     );
@@ -97,7 +91,7 @@ fn bench_shift_and_falloff(c: &mut Criterion) {
                 .falloff_linear_x(24, 5, Max)
                 .falloff_linear_y(24, 5, Max)
                 .falloff_linear_f(24, 15, Max)
-                .raw_run_table()
+                .raw_run()
                 .unwrap()
         },
     );
@@ -111,7 +105,7 @@ fn bench_zoom_out(c: &mut Criterion) {
         |t| {
             t.query()
                 .zoom_out(ZoomLevel::new(18).unwrap(), Average)
-                .raw_run_table()
+                .raw_run()
                 .unwrap()
         },
     );

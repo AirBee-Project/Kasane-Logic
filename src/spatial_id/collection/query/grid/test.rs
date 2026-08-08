@@ -37,7 +37,9 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
         Ok::<(), crate::Error>(())
     })();
 
-    let got = run_unary_chain(&ops, tree);
+    let order: Vec<&dyn crate::spatial_id::collection::query::traits::UnaryOperator<u32>> =
+        ops.iter().map(|op| &**op).collect();
+    let got = run_unary_chain(&order, tree);
 
     match (tree_result, got) {
         (Err(_), Err(_)) => {}

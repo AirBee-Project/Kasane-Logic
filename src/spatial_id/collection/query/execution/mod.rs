@@ -1,6 +1,7 @@
 use super::traits::{BinaryOperator, UnaryOperator};
 use crate::Error;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::execution::group_commutative::optimized_unary_order;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::{GridOp, try_run_grid};
 use crate::spatial_id::collection::query::source::Source;
@@ -47,7 +48,7 @@ pub enum Query<V: SafeValue + 'static> {
 /// 出力を直接生成できる。平坦化の見積もりが予算を超えた場合は、その演算だけ従来どおり
 /// 木の上で実行して次へ進む。
 pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
-    mut ops: &[Box<dyn UnaryOperator<V>>],
+    mut ops: &[&dyn UnaryOperator<V>],
     mut working: WorkingTree<V>,
 ) -> Result<WorkingTree<V>, Error> {
     while let Some(head) = ops.first() {
@@ -97,13 +98,17 @@ impl<V: SafeValue + 'static> Query<V> {
         }
     }
 
-    /// 最適化もなく[Query]を実行する。
-    pub fn raw_run(self) -> Result<WorkingTree<V>, Error> {
+    /// 検証も最適化もせず [`Query`] を実行し、作業木のまま返す。
+    ///
+    /// AST に書かれた順序をそのまま適用する（`raw_` はそれを表す）。最適化後の順序で
+    /// 走らせたい場合は [`run_working_tree`](Self::run_working_tree) を使うこと。
+    pub fn raw_run_working_tree(self) -> Result<WorkingTree<V>, Error> {
         fn run_internal<V: SafeValue + 'static>(query: Query<V>) -> Result<WorkingTree<V>, Error> {
             match query {
                 Query::Source(source) => source.read_all(),
                 Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
-                    run_unary_chain(&ops, run_internal(*input)?)
+                    let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
+                    run_unary_chain(&order, run_internal(*input)?)
                 }
                 Query::Binary(op, lhs, rhs) => {
                     #[cfg(feature = "rayon")]
@@ -129,26 +134,45 @@ impl<V: SafeValue + 'static> Query<V> {
         self.group_commutative_ops().sort_commutative_ops()
     }
 
-    /// AST最適化を適用してから実行する。
-    pub fn run(self) -> Result<WorkingTree<V>, Error> {
+    /// 検証・AST最適化を適用して実行し、作業木のまま返す。
+    ///
+    /// 具象コレクションで受け取りたい場合は [`run`](Self::run)（[`SpatialIdTable`]）や
+    /// [`run_set`](Self::run_set)（[`SpatialIdSet`]）を使う。結果を走査するだけなら、
+    /// 辞書への再 intern が無いぶんこちらのほうが速い。
+    ///
+    /// [`SpatialIdTable`]: crate::SpatialIdTable
+    /// [`SpatialIdSet`]: crate::SpatialIdSet
+    pub fn run_working_tree(self) -> Result<WorkingTree<V>, Error> {
         self.validate()?;
-        self.optimize().raw_run()
+        self.optimize().raw_run_working_tree()
     }
 
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
-    pub fn run_on_subset(&self, bounds: Vec<crate::RangeId>) -> Result<WorkingTree<V>, Error> {
+    ///
+    /// AST 全体を評価してから絞るのではなく、各演算子の
+    /// [`inverse_bounds`](UnaryOperator::inverse_bounds) で必要な入力領域を逆算し、
+    /// [`Source::read_subset`] まで押し下げる。
+    ///
+    /// # [`run_working_tree`](Self::run_working_tree) との違い
+    ///
+    /// 評価範囲が違うだけで、**演算子の適用順は同じ**である。`&self` しか持てないので
+    /// AST を組み替える [`optimize`](Self::optimize) は呼べないが、同じ
+    /// `commutative_runs` を使って実行順だけを最適化後の順序へ揃えている。
+    ///
+    /// `&self` を取るので、領域を変えて何度でも呼べる（[`lazy_get`](Self::lazy_get) が
+    /// この上に乗っている）。
+    pub fn run_within(&self, bounds: Vec<crate::RangeId>) -> Result<WorkingTree<V>, Error> {
         self.validate()?;
-        self.run_on_subset_unchecked(bounds)
+        self.run_within_unchecked(bounds)
     }
 
-    /// [`run_on_subset`](Self::run_on_subset) の本体（再帰部分）。
-    fn run_on_subset_unchecked(
-        &self,
-        bounds: Vec<crate::RangeId>,
-    ) -> Result<WorkingTree<V>, Error> {
+    /// [`run_within`](Self::run_within) の本体（再帰部分）。
+    fn run_within_unchecked(&self, bounds: Vec<crate::RangeId>) -> Result<WorkingTree<V>, Error> {
         match self {
             Query::Source(s) => s.read_subset(&bounds),
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+                // 逆算は AST に書かれた順（実行の逆順）で辿る。並べ替えは可換な区間の
+                // 中でしか起きず、可換な演算子同士は必要入力領域も入れ替わらない。
                 let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
@@ -159,7 +183,10 @@ impl<V: SafeValue + 'static> Query<V> {
                     next.dedup();
                     req = next;
                 }
-                run_unary_chain(ops, input.run_on_subset_unchecked(req)?)
+                run_unary_chain(
+                    &optimized_unary_order(ops),
+                    input.run_within_unchecked(req)?,
+                )
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();
@@ -173,8 +200,8 @@ impl<V: SafeValue + 'static> Query<V> {
                 lhs_bounds.dedup();
                 rhs_bounds.sort_unstable();
                 rhs_bounds.dedup();
-                let mut lhs_working = lhs.run_on_subset_unchecked(lhs_bounds)?;
-                let rhs_working = rhs.run_on_subset_unchecked(rhs_bounds)?;
+                let mut lhs_working = lhs.run_within_unchecked(lhs_bounds)?;
+                let rhs_working = rhs.run_within_unchecked(rhs_bounds)?;
                 op.run(&mut lhs_working, &rhs_working)?;
                 Ok(lhs_working)
             }
@@ -187,7 +214,7 @@ impl<V: SafeValue + 'static> Query<V> {
         &self,
         target: T,
     ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_on_subset(vec![target.clone().into()])?;
+        let working = self.run_within(vec![target.clone().into()])?;
         let target_range: crate::RangeId = target.into();
 
         Ok(working
@@ -201,7 +228,7 @@ impl<V: SafeValue + 'static> Query<V> {
         target: T,
         default_value: V,
     ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_on_subset(vec![target.clone().into()])?;
+        let working = self.run_within(vec![target.clone().into()])?;
         let target_range: crate::RangeId = target.clone().into();
 
         let mut uncovered = crate::SpatialIdSet::new();

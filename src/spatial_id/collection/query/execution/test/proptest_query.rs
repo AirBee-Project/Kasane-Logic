@@ -141,8 +141,8 @@ proptest! {
             q_run = op.apply(q_run);
         }
 
-        let res_raw: Result<SpatialIdTable<u32>, _> = q_raw.raw_run().map(Into::into);
-        let res_run: Result<SpatialIdTable<u32>, _> = q_run.run().map(Into::into);
+        let res_raw: Result<SpatialIdTable<u32>, _> = q_raw.raw_run();
+        let res_run: Result<SpatialIdTable<u32>, _> = q_run.run();
 
         match (res_raw, res_run) {
             (Ok(raw), Ok(run)) => {
