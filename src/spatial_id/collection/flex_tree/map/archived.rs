@@ -8,10 +8,12 @@
 
 use alloc::vec::Vec;
 
-use super::arena::{ArchivedArenaNode, ArchivedMapArena, EMPTY_LEAF, check_format};
+use super::arena::{ArchivedArenaNode, ArchivedMapArena, EMPTY_LEAF, ExtEntries, check_format};
 use crate::spatial_id::collection::flex_tree::core::walk::{
     OverlapWalk, RangeOverlapWalk, TreeCursor,
 };
+use crate::spatial_id::collection::flex_tree::shard_path::ShardPath;
+use crate::spatial_id::collection::flex_tree::summary::ShardSummary;
 use crate::{Error, FlexId};
 
 /// バイト列を直接走査する ZeroCopy リーダ。`Arc` 木を再構築しない。
@@ -96,6 +98,33 @@ impl<'a> ArchivedSpatialIdMap<'a> {
     /// このバイト列に書かれている形式バージョン。
     pub fn format_version(&self) -> u16 {
         self.inner.version.to_native()
+    }
+
+    /// **木を1ノードも歩かずに**読める要約。
+    ///
+    /// サーバー側ではこれを KVS のシャード本体とは別キーへ写しておき、
+    /// [`ShardSummary::intersects`] で「本体を fetch する価値があるか」を判定する。
+    /// bounding box や絶対秒区間は位置依存で木のノードにキャッシュできないため
+    /// （理由は [`ShardSummary`] を参照）、書き込み時に1度だけ計算してバイト列へ焼いてある。
+    pub fn summary(&self) -> ShardSummary {
+        self.inner.summary.to_summary()
+    }
+
+    /// シャード木上の位置。書き込み側で位置が定まっていなければ [`None`]。
+    ///
+    /// [`ShardPath::key`] が KVS キーになる。
+    pub fn shard_path(&self) -> Option<ShardPath> {
+        ShardPath::from_key(&self.inner.shard_path)
+    }
+
+    /// 拡張領域（TLV）を走査する。**未知のタグは呼び出し側が無視すること。**
+    pub fn ext_entries(&self) -> ExtEntries<'a> {
+        ExtEntries::new(&self.inner.ext)
+    }
+
+    /// 拡張領域からタグ `tag` のペイロードを引く。無ければ [`None`]。
+    pub fn ext(&self, tag: u16) -> Option<&'a [u8]> {
+        self.ext_entries().find(tag)
     }
 
     /// `target` と重なるSegmentを走査し、各Segmentごとに `visit(clipped_id, packed_value)` を呼ぶ。

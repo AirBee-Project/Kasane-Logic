@@ -135,17 +135,20 @@ impl FlexId {
         overlaps_axis(
             self.f_zoomlevel(),
             self.f_index() as i64,
+            self.f_index() as i64,
             range.z(),
             range.f()[0] as i64,
             range.f()[1] as i64,
         ) && overlaps_axis(
             self.x_zoomlevel(),
             self.x_index() as i64,
+            self.x_index() as i64,
             range.z(),
             range.x()[0] as i64,
             range.x()[1] as i64,
         ) && overlaps_axis(
             self.y_zoomlevel(),
+            self.y_index() as i64,
             self.y_index() as i64,
             range.z(),
             range.y()[0] as i64,
@@ -170,22 +173,23 @@ fn nested_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
     ((deep_i >> shift) == shallow_i).then_some((deep_z, deep_i))
 }
 
-/// 1軸について、Segmentと（別ズームの）整数範囲が重なるか。
-fn overlaps_axis(
-    segment_z: u8,
-    segment_i: i64,
-    range_z: u8,
-    range_min: i64,
-    range_max: i64,
+/// 1軸について、ズームの異なる2つの整数範囲が重なるか。
+///
+/// 単体Segmentは `min == max` の範囲として渡す（[`FlexId::intersects_range`] の使い方）。
+/// 揃え方は**深い側を浅い側のズームまで右シフト**する。浅い側を左シフトして広げると
+/// 最大ズーム同士で桁が溢れうるうえ、`i64` への拡幅が要る。
+pub(crate) fn overlaps_axis(
+    a_z: u8,
+    a_min: i64,
+    a_max: i64,
+    b_z: u8,
+    b_min: i64,
+    b_max: i64,
 ) -> bool {
-    let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if segment_z > range_z {
-        (
-            segment_z, segment_i, segment_i, range_z, range_min, range_max,
-        )
+    let (deep_z, deep_min, deep_max, shallow_z, shallow_min, shallow_max) = if a_z > b_z {
+        (a_z, a_min, a_max, b_z, b_min, b_max)
     } else {
-        (
-            range_z, range_min, range_max, segment_z, segment_i, segment_i,
-        )
+        (b_z, b_min, b_max, a_z, a_min, a_max)
     };
     let shift = deep_z - shallow_z;
     !((deep_max >> shift) < shallow_min || (deep_min >> shift) > shallow_max)

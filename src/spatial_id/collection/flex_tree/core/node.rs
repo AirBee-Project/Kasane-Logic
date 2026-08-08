@@ -45,6 +45,20 @@ const _: () = assert!(
 /// Branch の両子（下・上）への参照ペア。
 type ChildRefs<'a, V> = (&'a SharedNode<Node<V>>, &'a SharedNode<Node<V>>);
 
+/// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
+///
+/// 値型に依存しないので [`Node`] のメソッドではなく自由関数にしてある。
+/// `Node<V>` を持たない側（[`ShardSummary`](crate::ShardSummary) など）が
+/// `Node::<()>::axis_bit(..)` のような無意味な型指定をせずに済む。
+pub(crate) const fn axis_bit(axis: Axis) -> u8 {
+    match axis {
+        Axis::F => 0b0001,
+        Axis::X => 0b0010,
+        Axis::Y => 0b0100,
+        Axis::T => 0b1000,
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum Node<V>
 where
@@ -122,16 +136,6 @@ where
         own.max(lower.max_zoom()).max(upper.max_zoom())
     }
 
-    /// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
-    pub(crate) fn axis_bit(axis: Axis) -> u8 {
-        match axis {
-            Axis::F => 0b0001,
-            Axis::X => 0b0010,
-            Axis::Y => 0b0100,
-            Axis::T => 0b1000,
-        }
-    }
-
     /// このノード配下が分割している軸の集合。Branch はキャッシュ済みで O(1)、Leaf は 0。
     pub(crate) fn split_mask(&self) -> u8 {
         match self {
@@ -163,7 +167,7 @@ where
     /// レベル `level` の Branch を構築・更新する際の `split_mask` を、両子から畳み上げる。
     /// 自身が分割する軸 `axis(level)` に、両子の分割軸を OR する。
     pub(crate) fn fold_split_mask(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
-        Self::axis_bit(Self::axis(level)) | lower.split_mask() | upper.split_mask()
+        axis_bit(Self::axis(level)) | lower.split_mask() | upper.split_mask()
     }
 
     /// Branch を構築する唯一の入口（smart constructor）。
@@ -647,7 +651,7 @@ where
         // ビットテストで O(1) に判定する（旧 subtree_splits_axis の O(部分木) 走査を排除）。
         // 子が等価なら両子の split_mask は一致するため、lower 側だけ見れば足りる。
         // ここを先に弾くことで、非等価な大半の枝は深い比較（O(部分木)）に入らない。
-        let axis_bit = Self::axis_bit(Self::axis(level));
+        let axis_bit = axis_bit(Self::axis(level));
         if (lower_child.split_mask() & axis_bit) != 0 {
             return None;
         }
@@ -786,7 +790,7 @@ where
         }
 
         // N1: 畳めるのに畳んでいない Branch は存在してはならない。
-        let axis_bit = Self::axis_bit(Self::axis(*level));
+        let axis_bit = axis_bit(Self::axis(*level));
         if (lower_child.split_mask() & axis_bit) == 0 && **lower_child == **upper_child {
             return Err(alloc::format!(
                 "level {level}: collapsible branch violates N1"

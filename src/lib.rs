@@ -86,7 +86,13 @@ pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
 pub use spatial_id::collection::flex_tree::map::archived::ArchivedSpatialIdMap;
 #[cfg(feature = "persist")]
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::arena::FORMAT_VERSION;
+pub use spatial_id::collection::flex_tree::map::arena::{
+    ExtEntries, FORMAT_VERSION, MIN_READABLE_FORMAT_VERSION, push_ext_entry,
+};
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::shard_path::ShardPath;
+#[doc(inline)]
+pub use spatial_id::collection::flex_tree::summary::ShardSummary;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 

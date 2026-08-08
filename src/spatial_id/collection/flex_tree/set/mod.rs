@@ -1,4 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::shard_path::ShardPath;
+use crate::spatial_id::collection::flex_tree::summary::ShardSummary;
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 pub mod convert;
@@ -161,6 +163,22 @@ impl SpatialIdSet {
     /// 集合の内部にある[FlexId]の個数を返す。
     pub fn count(&self) -> usize {
         self.inner.count()
+    }
+
+    /// この集合を、木を走査せずに評価するための要約を作る。
+    ///
+    /// 作成自体は O(葉数) だが、結果は小さな値の束なので、シャードのメタデータとして
+    /// 別途保存しておけば「本体を読む前の枝刈り」に使える
+    /// （[`ShardSummary::intersects`]）。
+    pub fn summary(&self) -> ShardSummary {
+        self.inner.summary()
+    }
+
+    /// この集合のシャード木上の位置。定まらない場合は [`None`]。
+    ///
+    /// [`ShardPath::key`] が KVS キーになる。
+    pub fn shard_path(&self) -> Option<&ShardPath> {
+        self.inner.shard_path()
     }
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。

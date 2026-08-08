@@ -132,6 +132,7 @@ where
             upper_root,
             empty_leaf,
             shard: None,
+            shard_path: None,
         }
     }
 }

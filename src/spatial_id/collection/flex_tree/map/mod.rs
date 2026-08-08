@@ -1,4 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::shard_path::ShardPath;
+use crate::spatial_id::collection::flex_tree::summary::ShardSummary;
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 
@@ -120,6 +122,19 @@ where
     /// 保持している[FlexId]の総数を返します。
     pub fn count(&self) -> usize {
         self.inner.count()
+    }
+
+    /// このマップを、木を走査せずに評価するための要約を作ります。
+    ///
+    /// `persist` feature が有効なら `to_bytes` がこれをバイト列へ焼き、
+    /// `ArchivedSpatialIdMap::summary` が木を復元せずに読み出せます。
+    pub fn summary(&self) -> ShardSummary {
+        self.inner.summary()
+    }
+
+    /// このマップのシャード木上の位置。定まらない場合は [`None`]。
+    pub fn shard_path(&self) -> Option<&ShardPath> {
+        self.inner.shard_path()
     }
 
     /// ツリーの最大ズームレベルを返します。

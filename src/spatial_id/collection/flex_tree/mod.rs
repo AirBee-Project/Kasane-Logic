@@ -4,5 +4,7 @@ pub(crate) mod core;
 pub mod json;
 pub mod map;
 pub mod set;
+pub mod shard_path;
+pub mod summary;
 pub mod table;
 pub mod traits;

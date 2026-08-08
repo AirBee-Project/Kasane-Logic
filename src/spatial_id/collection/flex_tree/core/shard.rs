@@ -57,15 +57,21 @@ where
 
     /// このシャード（[`shard`](Self::shard) 領域）を、現在のrootの軸で2分割し、切り取った部分木を `((下のシャード領域, 下の実体), (上のシャード領域, 上の実体))` で返す。
     /// シャード領域が未設定なら `None`を返す。
+    /// 分割した2枚には、親の [`shard_path`](Self::shard_path) を1段伸ばしたパスが入る
+    /// （親のパスが不明なら子も不明）。領域からパスを復元することはできないので、
+    /// **分割の瞬間に記録するこの経路が唯一の生成点**である。
     pub(crate) fn split_shard(&self) -> Option<((FlexId, Self), (FlexId, Self))> {
         let region = *self.shard()?;
         let axis = Self::region_split_axis(&region, self.has_temporal_split());
         let lower = split_child_id_checked(&region, axis, Side::Lower)?;
         let upper = split_child_id_checked(&region, axis, Side::Upper)?;
-        Some((
-            (lower, self.extract_region(lower)),
-            (upper, self.extract_region(upper)),
-        ))
+
+        let mut lower_piece = self.extract_region(lower);
+        let mut upper_piece = self.extract_region(upper);
+        lower_piece.shard_path = self.shard_path.as_ref().map(|p| p.child(Side::Lower));
+        upper_piece.shard_path = self.shard_path.as_ref().map(|p| p.child(Side::Upper));
+
+        Some(((lower, lower_piece), (upper, upper_piece)))
     }
 
     /// シャード領域を次に分割すべき軸を返す。
@@ -107,7 +113,16 @@ where
     pub(crate) fn extract_region(&self, region: FlexId) -> Self {
         let in_lower = region.f_index() < 0;
 
-        let mut piece = self.clone();
+        // 任意領域での切り出しはシャード木の1段分の分割とは限らないので、位置は引き継がない
+        // （正しい子のパスは [`split_shard`](Self::split_shard) が入れ直す）。
+        // `self.clone()` だと `shard_path` の `Vec` を確保してすぐ捨てることになるので組み立てる。
+        let mut piece = Self {
+            lower_root: self.lower_root.clone(),
+            upper_root: self.upper_root.clone(),
+            empty_leaf: self.empty_leaf.clone(),
+            shard: self.shard,
+            shard_path: None,
+        };
         {
             let (root, root_id) = if in_lower {
                 (&mut piece.lower_root, FlexId::LOWER_MAX)

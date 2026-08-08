@@ -2,6 +2,8 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
+use crate::spatial_id::collection::flex_tree::shard_path::ShardPath;
+use crate::spatial_id::collection::flex_tree::summary::ShardSummary;
 use crate::{AllowedIntervals, Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
@@ -32,6 +34,14 @@ where
 
     /// シャード空間の有無。
     pub(crate) shard: Option<FlexId>,
+
+    /// シャード木の中でのこの木の位置。KVS キーの生成に使う。
+    ///
+    /// 領域（[`shard`](Self::shard)）からは復元できない（理由は
+    /// [`shard_path`](crate::spatial_id::collection::flex_tree::shard_path) を参照）ので、
+    /// [`split_shard`](Self::split_shard) が1段ずつ記録する。位置が定まらない木では
+    /// [`None`]。
+    pub(crate) shard_path: Option<ShardPath>,
 }
 
 impl<V> Default for FlexTreeCore<V>
@@ -66,19 +76,58 @@ where
             upper_root: empty_leaf.clone(),
             empty_leaf,
             shard: None,
+            shard_path: None,
         }
     }
 
     /// シャード領域 `region` に閉じた空の[FlexTreeCore]を作成する。以降は `region` の内側だけを保持する。`region` の外側への挿入は無視される。
+    ///
+    /// `region` が半球まるごと（[`FlexId::UPPER_MAX`] / [`FlexId::LOWER_MAX`]）なら
+    /// シャード木の根なので [`shard_path`](Self::shard_path) も同時に定まる。それ以外の
+    /// 領域を直接指定した場合、その領域がシャード木のどこに位置するのかは領域だけからは
+    /// 決まらないため [`None`] になる。パスを引き継ぎたい場合は
+    /// [`new_in_shard_with_path`](Self::new_in_shard_with_path) を使う。
     pub fn new_in_shard(region: FlexId) -> Self {
+        let path = if region == FlexId::UPPER_MAX {
+            Some(ShardPath::root(true))
+        } else if region == FlexId::LOWER_MAX {
+            Some(ShardPath::root(false))
+        } else {
+            None
+        };
+        Self::new_in_shard_with_path(region, path)
+    }
+
+    /// シャード領域とシャード木上の位置を指定して空の[FlexTreeCore]を作成する。
+    ///
+    /// 永続化したシャードを読み戻すときのように、領域とパスの対応が呼び出し側で
+    /// 分かっている場合に使う。
+    pub fn new_in_shard_with_path(region: FlexId, path: Option<ShardPath>) -> Self {
         let mut core = Self::new();
         core.shard = Some(region);
+        core.shard_path = path;
         core
     }
 
     /// このツリーが閉じているシャード領域を返す。`None` は全空間。
     pub(crate) fn shard(&self) -> Option<&FlexId> {
         self.shard.as_ref()
+    }
+
+    /// このツリーのシャード木上の位置を返す。定まらない場合は `None`。
+    pub(crate) fn shard_path(&self) -> Option<&ShardPath> {
+        self.shard_path.as_ref()
+    }
+
+    /// 集合演算後のシャードパス。
+    ///
+    /// 一般に2つのシャードの演算結果はシャード木のノードではないので、
+    /// **両辺の位置が完全に一致するときだけ**引き継ぐ。それ以外は `None`（位置不明）。
+    fn shard_path_after_merge(a: &Option<ShardPath>, b: &Option<ShardPath>) -> Option<ShardPath> {
+        match (a, b) {
+            (Some(x), Some(y)) if x == y => Some(x.clone()),
+            _ => None,
+        }
     }
 
     /// 上下いずれかのルート同士を集合演算 `op` で突き合わせる、レベル0起点の薄いラッパ。
@@ -99,6 +148,7 @@ where
             upper_root: self.merge_roots(&self.upper_root, &other.upper_root, MergeOp::Union),
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_union(&self.shard, &other.shard),
+            shard_path: Self::shard_path_after_merge(&self.shard_path, &other.shard_path),
         }
     }
 
@@ -146,6 +196,7 @@ where
             ),
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_union(&self.shard, &other.shard),
+            shard_path: Self::shard_path_after_merge(&self.shard_path, &other.shard_path),
         }
     }
 
@@ -198,6 +249,7 @@ where
             ),
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_union(&self.shard, &other.shard),
+            shard_path: Self::shard_path_after_merge(&self.shard_path, &other.shard_path),
         }
     }
 
@@ -363,6 +415,7 @@ where
                 upper_root: self.empty_leaf.clone(),
                 empty_leaf: self.empty_leaf.clone(),
                 shard: Self::shard_after_intersection(&self.shard, &other.shard),
+                shard_path: Self::shard_path_after_merge(&self.shard_path, &other.shard_path),
             };
         }
 
@@ -379,6 +432,7 @@ where
             ),
             empty_leaf: self.empty_leaf.clone(),
             shard: Self::shard_after_intersection(&self.shard, &other.shard),
+            shard_path: Self::shard_path_after_merge(&self.shard_path, &other.shard_path),
         }
     }
 
@@ -394,6 +448,7 @@ where
             upper_root: self.merge_roots(&self.upper_root, &other.upper_root, MergeOp::Difference),
             empty_leaf: self.empty_leaf.clone(),
             shard: self.shard,
+            shard_path: self.shard_path.clone(),
         }
     }
 
@@ -538,8 +593,12 @@ where
     ///
     /// `temporal_id` feature 無効時は T の番自体が無い（`NUM_AXES == 3`）ため常に偽。
     pub(crate) fn has_temporal_split(&self) -> bool {
-        let mask = self.lower_root.split_mask() | self.upper_root.split_mask();
-        mask & Node::<V>::axis_bit(Axis::T) != 0
+        self.split_mask() & node::axis_bit(Axis::T) != 0
+    }
+
+    /// 上下ルートの `split_mask` を OR したもの。O(1)。
+    pub(crate) fn split_mask(&self) -> u8 {
+        self.lower_root.split_mask() | self.upper_root.split_mask()
     }
 
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
@@ -559,42 +618,83 @@ where
     ///
     /// 検証は `core_api_tests::bounding_box_covers_every_segment` を参照。
     pub fn bounding_box(&self) -> Option<RangeId> {
-        let max_z = self.max_zoomlevel()?;
+        self.summary().bbox
+    }
 
-        let mut f_acc = [i32::MAX, i32::MIN];
-        let mut x_acc = [u32::MAX, u32::MIN];
-        let mut y_acc = [u32::MAX, u32::MIN];
-        let mut any = false;
+    /// この木の要約（[`ShardSummary`]）を作る。葉を1度だけ走査するので O(葉数)。
+    ///
+    /// `leaf_count` と `split_mask` はノードのキャッシュから O(1) で取れるが、
+    /// bounding box と絶対秒区間は位置依存でノードに持てない
+    /// （[`summary`](super::summary) モジュールの説明を参照）ため、ここで走査して求める。
+    /// [`bounding_box`](Self::bounding_box) もこの1周に相乗りする。
+    pub fn summary(&self) -> ShardSummary {
+        let leaf_count = self.count() as u32;
+        let split_mask = self.split_mask();
 
-        // 各Segmentの範囲を `max_z` へ揃えてから min/max を取る。
+        // 空の木は `max_zoomlevel()` が `None`。逆に非空なら葉が必ず1枚以上あるので、
+        // このガードを抜けた先のループは必ず1回以上回る（`max_zoomlevel` の空判定は
+        // `iter_ref` が数えるのと同じ `leaf_count` を見ている）。
+        let Some(max_z) = self.max_zoomlevel() else {
+            return ShardSummary::empty();
+        };
+
+        // 各Segmentの範囲を共通ズーム `max_z` へ揃えてから min/max を取る。揃える前に
+        // 累積すると軸ごとにズームの異なるSegmentが混ざって比較できない。
         //
         // 木の走査経路から領域を復元する方法は、軸ごとにズームが異なるSegment
         // （パス圧縮された `FlexId`）で経路と実際の広がりがずれるため使わない。
+        let mut f_acc = [i64::MAX, i64::MIN];
+        let mut x_acc = [i64::MAX, i64::MIN];
+        let mut y_acc = [i64::MAX, i64::MIN];
+        let mut min_zoom = [u8::MAX; 3];
+        let mut max_zoom = [0u8; 3];
+        let mut t_zoom = [u8::MAX, 0u8];
+        let mut seconds = (u64::MAX, 0u64);
+
         for (flex_id, _) in self.iter_ref() {
+            let zooms = [
+                flex_id.f_zoomlevel(),
+                flex_id.x_zoomlevel(),
+                flex_id.y_zoomlevel(),
+            ];
+            for axis in 0..3 {
+                min_zoom[axis] = min_zoom[axis].min(zooms[axis]);
+                max_zoom[axis] = max_zoom[axis].max(zooms[axis]);
+            }
+            t_zoom[0] = t_zoom[0].min(flex_id.t_zoomlevel());
+            t_zoom[1] = t_zoom[1].max(flex_id.t_zoomlevel());
+
+            let (start, end) = flex_id.seconds_range();
+            seconds.0 = seconds.0.min(start);
+            seconds.1 = seconds.1.max(end);
+
             let range = RangeId::from(&flex_id);
             let shift = max_z - range.z();
-
-            let scale_min = |v: i64| v << shift;
-            let scale_max = |v: i64| ((v + 1) << shift) - 1;
-
-            let f = range.f();
-            let x = range.x();
-            let y = range.y();
-
-            f_acc[0] = f_acc[0].min(scale_min(f[0] as i64) as i32);
-            f_acc[1] = f_acc[1].max(scale_max(f[1] as i64) as i32);
-            x_acc[0] = x_acc[0].min(scale_min(x[0] as i64) as u32);
-            x_acc[1] = x_acc[1].max(scale_max(x[1] as i64) as u32);
-            y_acc[0] = y_acc[0].min(scale_min(y[0] as i64) as u32);
-            y_acc[1] = y_acc[1].max(scale_max(y[1] as i64) as u32);
-            any = true;
+            for (acc, axis) in [
+                (&mut f_acc, range.f().map(i64::from)),
+                (&mut x_acc, range.x().map(i64::from)),
+                (&mut y_acc, range.y().map(i64::from)),
+            ] {
+                acc[0] = acc[0].min(axis[0] << shift);
+                acc[1] = acc[1].max(((axis[1] + 1) << shift) - 1);
+            }
         }
 
-        if !any {
-            return None;
+        ShardSummary {
+            leaf_count,
+            split_mask,
+            max_zoom,
+            min_zoom,
+            t_zoom,
+            bbox: RangeId::new(
+                max_z,
+                [f_acc[0] as i32, f_acc[1] as i32],
+                [x_acc[0] as u32, x_acc[1] as u32],
+                [y_acc[0] as u32, y_acc[1] as u32],
+            )
+            .ok(),
+            seconds_range: Some(seconds),
         }
-
-        RangeId::new(max_z, f_acc, x_acc, y_acc).ok()
     }
 
     /// この [`FlexTreeCore`] に含まれる要素を、木全体の `max_zoomlevel` に揃えた [`SingleId`] として書き出す。

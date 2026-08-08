@@ -8,6 +8,8 @@ pub mod convert;
 pub mod json;
 pub mod test;
 
+use crate::spatial_id::collection::flex_tree::shard_path::ShardPath;
+use crate::spatial_id::collection::flex_tree::summary::ShardSummary;
 use crate::{AllowedIntervals, FlexId, FlexIdValue, RangeId, SingleId, SpatialId, SpatialIdSet};
 
 /// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
@@ -224,6 +226,16 @@ where
     /// 保持している[FlexId]の総数を返します。
     pub fn count(&self) -> usize {
         self.inner.count()
+    }
+
+    /// このテーブルを、木を走査せずに評価するための要約を作ります。
+    pub fn summary(&self) -> ShardSummary {
+        self.inner.summary()
+    }
+
+    /// このテーブルのシャード木上の位置。定まらない場合は [`None`]。
+    pub fn shard_path(&self) -> Option<&ShardPath> {
+        self.inner.shard_path()
     }
 
     /// ツリーの最大ズームレベルを返します。

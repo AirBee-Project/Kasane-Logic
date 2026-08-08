@@ -133,6 +133,7 @@ where
             upper_root: map_node(&self.upper_root, f, &empty_leaf),
             empty_leaf,
             shard: self.shard,
+            shard_path: self.shard_path.clone(),
         }
     }
 }
