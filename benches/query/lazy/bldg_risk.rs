@@ -67,7 +67,7 @@ fn bench_lazy_workflow(c: &mut Criterion) {
                         .shift_y(24, -5)
                         .falloff_linear_x(24, 5, Max)
                         .falloff_linear_y(24, 5, Max)
-                        .raw_run_table()
+                        .raw_run()
                         .unwrap();
                     let _ = res.get(&target_id).count();
                 },
@@ -92,7 +92,7 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
             .clone()
             .query()
             .zoom_out(ZoomLevel::new(18).unwrap(), Average)
-            .raw_run_table()
+            .raw_run()
             .unwrap();
         let target_id = zoomed.iter().next().unwrap().0;
 
@@ -115,7 +115,7 @@ fn bench_lazy_workflow_zoom_out(c: &mut Criterion) {
                     let res: SpatialIdTable<u32> = table_clone
                         .query()
                         .zoom_out(ZoomLevel::new(18).unwrap(), Average)
-                        .raw_run_table()
+                        .raw_run()
                         .unwrap();
                     let _ = res.get(&target_id).count();
                 },
