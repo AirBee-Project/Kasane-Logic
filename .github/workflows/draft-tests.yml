@@ -9,8 +9,8 @@ on:
 jobs:
   fmt_and_doc:
     if: github.event.pull_request.draft == true
-    name: cargo fmt & doc (Blacksmith)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    name: cargo fmt & doc
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - name: Checkout
@@ -27,7 +27,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "fmt-doc-blacksmith-4vcpu-ubuntu-2404"
+          shared-key: "fmt-doc-ubuntu-24.04"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
@@ -56,8 +56,8 @@ jobs:
 
   test:
     if: github.event.pull_request.draft == true
-    name: cargo test (Blacksmith)
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    name: cargo test
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -75,7 +75,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "test-blacksmith-8vcpu-ubuntu-2404"
+          shared-key: "test-ubuntu-24.04"
 
       - name: Test (std; various features)
         shell: bash
@@ -119,8 +119,8 @@ jobs:
 
   clippy:
     if: github.event.pull_request.draft == true
-    name: cargo clippy (Blacksmith)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    name: cargo clippy
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Checkout
@@ -137,7 +137,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "clippy-blacksmith-4vcpu-ubuntu-2404"
+          shared-key: "clippy-ubuntu-24.04"
 
       - name: Clippy (std)
         shell: bash
