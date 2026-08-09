@@ -54,31 +54,21 @@ impl From<&SingleId> for RangeId {
 }
 
 impl RangeId {
-    /// この [`RangeId`] が覆う時FlexIdを1つずつ [`SingleId`] として列挙する。
-    ///
-    /// [`SingleId`]は空間・時間ともに「1Segment」しか持てないため、**時間軸も分解する**。
-    /// したがって要素数は `(FのSegment数) × (XのSegment数) × (YのSegment数) × (時間のSegment数)` になる。
-    /// 空間の範囲が広いと要素数が爆発するのと同じく、時間の範囲が広い場合も
-    /// （例: 1秒単位で1日ぶんなら86400倍）
-    /// 要素数がそれに比例して増える点に注意すること。
-    ///
-    /// なお、FlexTree から読み出した [`RangeId`]（[`FlexId`] 由来）の時間成分は
-    /// 常に単一の2分岐Segmentなので、この経路で時間方向に増えることはない。
-    pub fn single_ids(self) -> Box<dyn Iterator<Item = SingleId>> {
+    /// この [RangeId]を[SingleId]に分解する。
+    pub fn single_ids(&self) -> Box<dyn Iterator<Item = SingleId>> {
         let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
+        let x = self.x;
         let y_range = self.y[0]..=self.y[1];
         let (interval, [t_min, t_max]) = (self.i, self.t());
 
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();
 
-            let x_iter = if self.x[0] <= self.x[1] {
-                (self.x[0]..=self.x[1]).collect::<Vec<_>>()
+            let x_iter: Box<dyn Iterator<Item = u32>> = if x[0] <= x[1] {
+                Box::new(x[0]..=x[1])
             } else {
-                (self.x[0]..=ZoomLevel::new(z).unwrap().xy_max())
-                    .chain(0..=self.x[1])
-                    .collect::<Vec<_>>()
+                Box::new((x[0]..=ZoomLevel::new(z).unwrap().xy_max()).chain(0..=x[1]))
             };
 
             x_iter.into_iter().flat_map(move |x| {
@@ -93,11 +83,7 @@ impl RangeId {
     }
 }
 
-/// この [`RangeId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開する。
-///
-/// `F × X × Y × 時間` の格子を割り当てなしで組み立てられないため、`Box<dyn Iterator>` を
-/// 返す（[`SingleId::into_iter`](crate::SingleId::into_iter) がヒープ確保をしないのとは対照的）。
-/// 割り当てを避けたい場合は、まず [`SingleId`] へ縮めてから展開すること。
+/// この [`RangeId`] を [FlexId]に分解する。
 impl IntoIterator for RangeId {
     type Item = FlexId;
     type IntoIter = Box<dyn Iterator<Item = FlexId>>;
