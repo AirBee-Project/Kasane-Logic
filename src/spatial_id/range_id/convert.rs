@@ -65,12 +65,10 @@ impl RangeId {
         let iter = f_range.flat_map(move |f| {
             let y_range = y_range.clone();
 
-            let x_iter = if x[0] <= x[1] {
-                (x[0]..=x[1]).collect::<Vec<_>>()
+            let x_iter: Box<dyn Iterator<Item = u32>> = if x[0] <= x[1] {
+                Box::new(x[0]..=x[1])
             } else {
-                (x[0]..=ZoomLevel::new(z).unwrap().xy_max())
-                    .chain(0..=x[1])
-                    .collect::<Vec<_>>()
+                Box::new((x[0]..=ZoomLevel::new(z).unwrap().xy_max()).chain(0..=x[1]))
             };
 
             x_iter.into_iter().flat_map(move |x| {
