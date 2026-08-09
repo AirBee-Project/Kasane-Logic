@@ -54,7 +54,6 @@ mod tests {
         // 残りの断片はどれも `child` と交差しない。
         assert!(diff.iter().all(|range| {
             range
-                .clone()
                 .single_ids()
                 .all(|id| id.intersection(&child).is_none())
         }));
