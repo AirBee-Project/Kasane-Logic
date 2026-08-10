@@ -92,7 +92,7 @@ fn borrowed_order_matches_the_optimized_ast() {
     let Query::Unary(ops, _) = build() else {
         panic!("最適化前は Unary のはず");
     };
-    let borrowed: Vec<f32> = optimized_unary_order(&ops)
+    let borrowed: Vec<f64> = optimized_unary_order(&ops)
         .iter()
         .map(|op| op.expansion_ratio())
         .collect();
@@ -100,7 +100,7 @@ fn borrowed_order_matches_the_optimized_ast() {
     let Query::CommutativeGroup(_, grouped, _) = build().optimize() else {
         panic!("3つとも可換なので CommutativeGroup になるはず");
     };
-    let from_ast: Vec<f32> = grouped.iter().map(|op| op.expansion_ratio()).collect();
+    let from_ast: Vec<f64> = grouped.iter().map(|op| op.expansion_ratio()).collect();
 
     assert_eq!(borrowed, from_ast, "借用経路と AST 経路で適用順が違う");
     assert_eq!(

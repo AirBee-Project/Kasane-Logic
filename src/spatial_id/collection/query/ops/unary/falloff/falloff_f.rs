@@ -55,8 +55,8 @@ where
         self
     }
 
-    fn expansion_ratio(&self) -> f32 {
-        (self.radius * 2 + 1) as f32
+    fn expansion_ratio(&self) -> f64 {
+        (self.radius * 2 + 1) as f64
     }
 
     fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {

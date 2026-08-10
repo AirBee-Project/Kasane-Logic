@@ -112,9 +112,8 @@ where
         CommutativityInfo::none()
     }
 
-    fn expansion_ratio(&self) -> f32 {
-        // 必ず減る（増えることはない）。
-        0.5
+    fn expansion_ratio(&self) -> f64 {
+        1.0 // フィルタリングでは増えないが、削除分を予測するのは難しいので 1.0
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
