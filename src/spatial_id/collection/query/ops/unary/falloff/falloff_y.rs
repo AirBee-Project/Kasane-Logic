@@ -41,7 +41,7 @@ impl<P> FalloffY<P> {
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for FalloffY<P>
+impl<V: SafeValue + 'static, P> UnaryOperator<V> for FalloffY<P>
 where
     V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
     <V as TryFrom<u32>>::Error: Debug,

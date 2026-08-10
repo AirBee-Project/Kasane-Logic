@@ -37,8 +37,9 @@ impl FlexId {
         } else {
             rad
         };
+        let attenuator = super::Attenuator::new(radius, pattern);
         for df in min_df..=max_df {
-            let attenuated = super::attenuate(value, df.unsigned_abs(), radius, pattern);
+            let attenuated = attenuator.attenuate(value, df.unsigned_abs());
 
             if let Ok(moved_ids) = self.shift_f(z, df) {
                 for moved in moved_ids {
@@ -82,8 +83,9 @@ impl FlexId {
         } else {
             rad
         };
+        let attenuator = super::Attenuator::new(radius, pattern);
         for dx in min_dx..=max_dx {
-            let attenuated = super::attenuate(value, dx.unsigned_abs(), radius, pattern);
+            let attenuated = attenuator.attenuate(value, dx.unsigned_abs());
 
             if let Ok(moved_ids) = self.shift_x(z, dx) {
                 for moved in moved_ids {
@@ -127,8 +129,9 @@ impl FlexId {
         } else {
             rad
         };
+        let attenuator = super::Attenuator::new(radius, pattern);
         for dy in min_dy..=max_dy {
-            let attenuated = super::attenuate(value, dy.unsigned_abs(), radius, pattern);
+            let attenuated = attenuator.attenuate(value, dy.unsigned_abs());
 
             if let Ok(moved_ids) = self.shift_y(z, dy) {
                 for moved in moved_ids {
