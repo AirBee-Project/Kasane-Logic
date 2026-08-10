@@ -161,32 +161,40 @@ harness = false
 required-features = ["rayon"]
 
 [[bench]]
-name = "query_ops_unary_shift"
-path = "benches/query/ops/unary/shift.rs"
+name = "query_unary_shift"
+path = "benches/query/unary/shift.rs"
 harness = false
+required-features = ["json"]
 
 [[bench]]
-name = "query_ops_unary_falloff"
-path = "benches/query/ops/unary/falloff.rs"
+name = "query_unary_falloff"
+path = "benches/query/unary/falloff.rs"
 harness = false
+required-features = ["json"]
 
 [[bench]]
-name = "query_ops_unary_extrude"
-path = "benches/query/ops/unary/extrude.rs"
+name = "query_unary_extrude"
+path = "benches/query/unary/extrude.rs"
 harness = false
+required-features = ["json"]
 
 [[bench]]
-name = "query_workflow_bldg_risk"
-path = "benches/query/workflow/bldg_risk.rs"
+name = "query_unary_filter_values"
+path = "benches/query/unary/filter_values.rs"
 harness = false
-required-features = ["rayon","json"]
+required-features = ["json"]
 
 [[bench]]
-name = "query_zoom_out"
-path = "benches/query/ops/zoom_out.rs"
+name = "query_unary_zoom_out"
+path = "benches/query/unary/zoom_out.rs"
 harness = false
-required-features = ["rayon","json"]
+required-features = ["json", "rayon"]
 
+[[bench]]
+name = "query_workflow_risk_diffusion"
+path = "benches/query/workflow/risk_diffusion.rs"
+harness = false
+required-features = ["json", "rayon"]
 
 [[example]]
 name = "table_json"
