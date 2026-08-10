@@ -13,7 +13,7 @@ fn bench_falloff(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
-    let distances = [1, 3, 5, 7, 10, 12, 15];
+    let distances = [1, 5, 10, 15];
 
     // 個別の次元で行う関数 (X)
     for &dist in &distances {
