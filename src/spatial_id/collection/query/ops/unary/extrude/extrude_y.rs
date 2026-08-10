@@ -44,7 +44,7 @@ where
     }
 
     fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
-        let expected_cap = (core.core().count() as f32 * self.expansion_ratio()) as usize;
+        let expected_cap = (core.core().count() as f64 * self.expansion_ratio()).ceil() as usize;
         let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(expected_cap);
 
         // 元のツリーから全Segmentを取り出し、それぞれを引き延ばす
@@ -112,8 +112,8 @@ where
         alloc::vec![bounds]
     }
 
-    fn expansion_ratio(&self) -> f32 {
-        self.start_y.abs_diff(self.end_y) as f32 + 1.0
+    fn expansion_ratio(&self) -> f64 {
+        self.start_y.abs_diff(self.end_y) as f64 + 1.0
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

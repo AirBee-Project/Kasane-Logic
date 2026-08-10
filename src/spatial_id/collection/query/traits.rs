@@ -40,7 +40,7 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
     fn as_any(&self) -> &dyn core::any::Any;
 
     /// 演算子を適用した際のデータサイズの推定拡大倍率。
-    fn expansion_ratio(&self) -> f32 {
+    fn expansion_ratio(&self) -> f64 {
         1.0
     }
 
