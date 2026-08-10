@@ -5,11 +5,13 @@ use core::fmt::Debug;
 use core::ops::{Div, Mul, Sub};
 
 impl FlexId {
-    /// F方向のへ値をリニアに減少させる。指定した距離で0になる。
-    pub fn falloff_linear_f<Z: Into<u8>, V>(
+    /// F方向へ値を減少させる。指定した距離で0になる。
+    pub fn falloff_f<Z: Into<u8>, V>(
         &self,
         z: Z,
         radius: u32,
+        direction: Option<crate::spatial_id::helpers::Side>,
+        pattern: super::FalloffPattern,
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
@@ -25,8 +27,18 @@ impl FlexId {
             return Ok(out.into_iter());
         }
 
-        for df in -rad..=rad {
-            let attenuated = super::attenuate(value, df.unsigned_abs(), radius);
+        let min_df = if direction == Some(crate::spatial_id::helpers::Side::Upper) {
+            0
+        } else {
+            -rad
+        };
+        let max_df = if direction == Some(crate::spatial_id::helpers::Side::Lower) {
+            0
+        } else {
+            rad
+        };
+        for df in min_df..=max_df {
+            let attenuated = super::attenuate(value, df.unsigned_abs(), radius, pattern);
 
             if let Ok(moved_ids) = self.shift_f(z, df) {
                 for moved in moved_ids {
@@ -38,11 +50,13 @@ impl FlexId {
         Ok(out.into_iter())
     }
 
-    /// F方向のへ値をリニアに減少させる。指定した距離で0になる。
-    pub fn falloff_linear_x<Z: Into<u8>, V>(
+    /// X方向へ値を減少させる。指定した距離で0になる。
+    pub fn falloff_x<Z: Into<u8>, V>(
         &self,
         z: Z,
         radius: u32,
+        direction: Option<crate::spatial_id::helpers::Side>,
+        pattern: super::FalloffPattern,
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
@@ -58,8 +72,18 @@ impl FlexId {
             return Ok(out.into_iter());
         }
 
-        for dx in -rad..=rad {
-            let attenuated = super::attenuate(value, dx.unsigned_abs(), radius);
+        let min_dx = if direction == Some(crate::spatial_id::helpers::Side::Upper) {
+            0
+        } else {
+            -rad
+        };
+        let max_dx = if direction == Some(crate::spatial_id::helpers::Side::Lower) {
+            0
+        } else {
+            rad
+        };
+        for dx in min_dx..=max_dx {
+            let attenuated = super::attenuate(value, dx.unsigned_abs(), radius, pattern);
 
             if let Ok(moved_ids) = self.shift_x(z, dx) {
                 for moved in moved_ids {
@@ -71,11 +95,13 @@ impl FlexId {
         Ok(out.into_iter())
     }
 
-    /// F方向のへ値をリニアに減少させる。指定した距離で0になる。
-    pub fn falloff_linear_y<Z: Into<u8>, V>(
+    /// Y方向へ値を減少させる。指定した距離で0になる。
+    pub fn falloff_y<Z: Into<u8>, V>(
         &self,
         z: Z,
         radius: u32,
+        direction: Option<crate::spatial_id::helpers::Side>,
+        pattern: super::FalloffPattern,
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
@@ -91,8 +117,18 @@ impl FlexId {
             return Ok(out.into_iter());
         }
 
-        for dy in -rad..=rad {
-            let attenuated = super::attenuate(value, dy.unsigned_abs(), radius);
+        let min_dy = if direction == Some(crate::spatial_id::helpers::Side::Upper) {
+            0
+        } else {
+            -rad
+        };
+        let max_dy = if direction == Some(crate::spatial_id::helpers::Side::Lower) {
+            0
+        } else {
+            rad
+        };
+        for dy in min_dy..=max_dy {
+            let attenuated = super::attenuate(value, dy.unsigned_abs(), radius, pattern);
 
             if let Ok(moved_ids) = self.shift_y(z, dy) {
                 for moved in moved_ids {

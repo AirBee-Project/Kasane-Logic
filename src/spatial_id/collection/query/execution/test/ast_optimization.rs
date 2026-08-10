@@ -3,6 +3,7 @@
 use crate::{
     Source, SpatialIdTable,
     spatial_id::collection::query::merge_policy::{Average, Max},
+    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 use proptest::prelude::*;
 use std::sync::OnceLock;
@@ -38,9 +39,9 @@ proptest! {
             .query()
             .zoom_out(zoom, Average)
             .extrude_f(25, ext_f_start, ext_f_end, Max)
-            .falloff_linear_x(25, falloff_x_rad, Max)
-            .falloff_linear_y(25, falloff_y_rad, Max)
-            .falloff_linear_f(25, falloff_f_rad, Max)
+            .falloff_x(25, falloff_x_rad, None, FalloffPattern::Linear, Max)
+            .falloff_y(25, falloff_y_rad, None, FalloffPattern::Linear, Max)
+            .falloff_f(25, falloff_f_rad, None, FalloffPattern::Linear, Max)
             .raw_run()
             .unwrap();
 
@@ -49,9 +50,9 @@ proptest! {
             .query()
             .zoom_out(zoom, Average)
             .extrude_f(25, ext_f_start, ext_f_end, Max)
-            .falloff_linear_x(25, falloff_x_rad, Max)
-            .falloff_linear_y(25, falloff_y_rad, Max)
-            .falloff_linear_f(25, falloff_f_rad, Max)
+            .falloff_x(25, falloff_x_rad, None, FalloffPattern::Linear, Max)
+            .falloff_y(25, falloff_y_rad, None, FalloffPattern::Linear, Max)
+            .falloff_f(25, falloff_f_rad, None, FalloffPattern::Linear, Max)
             .run()
             .unwrap();
 

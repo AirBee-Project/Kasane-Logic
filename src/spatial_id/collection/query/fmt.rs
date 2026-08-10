@@ -8,9 +8,9 @@ impl<V: SafeValue + 'static> core::fmt::Display for Query<V> {
     /// ```text
     /// Source
     /// → extrude_f(z=25, f=[0, 5], Max)
-    /// → falloff_linear_x(z=25, r=3, Max)
-    /// → falloff_linear_y(z=25, r=3, Max)
-    /// → falloff_linear_y(25, 1, Max)
+    /// → falloff_x(z=25, r=3, dir=Both, pat=Linear, Max)
+    /// → falloff_y(z=25, r=3, dir=Both, pat=Linear, Max)
+    /// → falloff_y(25, 1, dir=Both, pat=Linear, Max)
     /// → extrude_f(25, 0, 0, Max)
     /// ```
     ///
@@ -19,9 +19,9 @@ impl<V: SafeValue + 'static> core::fmt::Display for Query<V> {
     /// Source
     /// → extrude_f(z=25, f=[0, 5], Max)
     /// → [Group]
-    ///     falloff_linear_f(z=25, r=2, Max)
-    ///     falloff_linear_x(z=25, r=3, Max)
-    ///     falloff_linear_y(z=25, r=3, Max)
+    ///     falloff_f(z=25, r=2, dir=Both, pat=Linear, Max)
+    ///     falloff_x(z=25, r=3, dir=Both, pat=Linear, Max)
+    ///     falloff_y(z=25, r=3, dir=Both, pat=Linear, Max)
     /// ```
     ///
     /// # 出力例（Binary あり）
@@ -32,7 +32,7 @@ impl<V: SafeValue + 'static> core::fmt::Display for Query<V> {
     ///     → shift_x(z=25, x=3)
     ///   rhs:
     ///     Source
-    ///     → falloff_linear_f(z=25, r=2, Max)
+    ///     → falloff_f(z=25, r=2, dir=Both, pat=Linear, Max)
     /// ```
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         fmt_query(self, f, "")

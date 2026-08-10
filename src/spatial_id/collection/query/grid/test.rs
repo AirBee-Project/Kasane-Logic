@@ -5,6 +5,12 @@
 
 use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::grid::try_run_grid;
+use crate::spatial_id::collection::query::ops::unary::falloff::{
+    FalloffPattern, falloff_f::FalloffF, falloff_x::FalloffX, falloff_y::FalloffY,
+};
+use crate::spatial_id::collection::query::ops::unary::shift::{
+    shift_f::ShiftF, shift_x::ShiftX, shift_y::ShiftY,
+};
 use crate::spatial_id::collection::query::traits::UnaryOperator;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{FlexId, SingleId};
@@ -12,13 +18,6 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::merge_policy::{Max, Min, Sum};
-use crate::spatial_id::collection::query::ops::unary::falloff_linear::{
-    falloff_linear_f::FalloffLinearF, falloff_linear_x::FalloffLinearX,
-    falloff_linear_y::FalloffLinearY,
-};
-use crate::spatial_id::collection::query::ops::unary::shift::{
-    shift_f::ShiftF, shift_x::ShiftX, shift_y::ShiftY,
-};
 
 type Ops = Vec<Box<dyn UnaryOperator<u32>>>;
 
@@ -111,9 +110,9 @@ fn shift_at_coarser_zoom_matches_tree_path() {
 fn falloff_matches_tree_path() {
     for r in [1u32, 2, 5] {
         let ops: Ops = alloc::vec![
-            Box::new(FalloffLinearX::<Max>::new(8u8, r).unwrap()),
-            Box::new(FalloffLinearY::<Max>::new(8u8, r).unwrap()),
-            Box::new(FalloffLinearF::<Max>::new(8u8, r).unwrap()),
+            Box::new(FalloffX::<Max>::new(8u8, r, None, FalloffPattern::Linear).unwrap()),
+            Box::new(FalloffY::<Max>::new(8u8, r, None, FalloffPattern::Linear).unwrap()),
+            Box::new(FalloffF::<Max>::new(8u8, r, None, FalloffPattern::Linear).unwrap()),
         ];
         assert_same_via_grid(sample(), ops);
     }
@@ -122,14 +121,14 @@ fn falloff_matches_tree_path() {
 #[test]
 fn falloff_with_other_commutative_policies() {
     let ops: Ops = alloc::vec![
-        Box::new(FalloffLinearX::<Min>::new(8u8, 3).unwrap()),
-        Box::new(FalloffLinearY::<Min>::new(8u8, 2).unwrap()),
+        Box::new(FalloffX::<Min>::new(8u8, 3, None, FalloffPattern::Linear).unwrap()),
+        Box::new(FalloffY::<Min>::new(8u8, 2, None, FalloffPattern::Linear).unwrap()),
     ];
     assert_same_via_grid(sample(), ops);
 
     let ops: Ops = alloc::vec![
-        Box::new(FalloffLinearF::<Sum>::new(8u8, 2).unwrap()),
-        Box::new(FalloffLinearX::<Sum>::new(8u8, 2).unwrap()),
+        Box::new(FalloffF::<Sum>::new(8u8, 2, None, FalloffPattern::Linear).unwrap()),
+        Box::new(FalloffX::<Sum>::new(8u8, 2, None, FalloffPattern::Linear).unwrap()),
     ];
     assert_same_via_grid(sample(), ops);
 }
@@ -137,9 +136,13 @@ fn falloff_with_other_commutative_policies() {
 /// 演算ズームが木より粗い falloff（stride > 1 の経路）。
 #[test]
 fn falloff_at_coarser_zoom_matches_tree_path() {
-    let ops: Ops = alloc::vec![Box::new(FalloffLinearX::<Max>::new(6u8, 2).unwrap())];
+    let ops: Ops = alloc::vec![Box::new(
+        FalloffX::<Max>::new(6u8, 2, None, FalloffPattern::Linear).unwrap()
+    )];
     assert_same_via_grid(sample(), ops);
-    let ops: Ops = alloc::vec![Box::new(FalloffLinearF::<Max>::new(6u8, 3).unwrap())];
+    let ops: Ops = alloc::vec![Box::new(
+        FalloffF::<Max>::new(6u8, 3, None, FalloffPattern::Linear).unwrap()
+    )];
     assert_same_via_grid(sample(), ops);
 }
 
@@ -163,7 +166,8 @@ fn x_axis_wraps_like_tree_path() {
     assert_same_via_grid(
         tree,
         alloc::vec![
-            Box::new(FalloffLinearX::<Max>::new(5u8, 4).unwrap()) as Box<dyn UnaryOperator<u32>>
+            Box::new(FalloffX::<Max>::new(5u8, 4, None, FalloffPattern::Linear).unwrap())
+                as Box<dyn UnaryOperator<u32>>
         ],
     );
 }
@@ -192,13 +196,15 @@ fn falloff_clipped_at_boundary_like_tree_path() {
     assert_same(
         tree.clone(),
         alloc::vec![
-            Box::new(FalloffLinearF::<Max>::new(4u8, 4).unwrap()) as Box<dyn UnaryOperator<u32>>
+            Box::new(FalloffF::<Max>::new(4u8, 4, None, FalloffPattern::Linear).unwrap())
+                as Box<dyn UnaryOperator<u32>>
         ],
     );
     assert_same(
         tree,
         alloc::vec![
-            Box::new(FalloffLinearY::<Max>::new(4u8, 4).unwrap()) as Box<dyn UnaryOperator<u32>>
+            Box::new(FalloffY::<Max>::new(4u8, 4, None, FalloffPattern::Linear).unwrap())
+                as Box<dyn UnaryOperator<u32>>
         ],
     );
 }
@@ -212,7 +218,7 @@ fn shift_after_wrapping_falloff_reorders_before_building() {
         assert_same_via_grid(
             tree.clone(),
             alloc::vec![
-                Box::new(FalloffLinearX::<Max>::new(5u8, 1).unwrap())
+                Box::new(FalloffX::<Max>::new(5u8, 1, None, FalloffPattern::Linear).unwrap())
                     as Box<dyn UnaryOperator<u32>>,
                 Box::new(ShiftF::new(5u8, fd).unwrap()),
                 Box::new(ShiftY::new(5u8, yd).unwrap()),
@@ -227,7 +233,8 @@ fn empty_tree() {
     assert_same_via_grid(
         tree,
         alloc::vec![
-            Box::new(FalloffLinearX::<Max>::new(8u8, 3).unwrap()) as Box<dyn UnaryOperator<u32>>
+            Box::new(FalloffX::<Max>::new(8u8, 3, None, FalloffPattern::Linear).unwrap())
+                as Box<dyn UnaryOperator<u32>>
         ],
     );
 }
@@ -262,9 +269,12 @@ mod property {
         macro_rules! falloff {
             ($ty:ident, $r:expr, $p:expr) => {
                 match $p {
-                    0 => Box::new($ty::<Max>::new(z, $r).unwrap()) as Box<dyn UnaryOperator<u32>>,
-                    1 => Box::new($ty::<Min>::new(z, $r).unwrap()) as Box<dyn UnaryOperator<u32>>,
-                    _ => Box::new($ty::<Sum>::new(z, $r).unwrap()) as Box<dyn UnaryOperator<u32>>,
+                    0 => Box::new($ty::<Max>::new(z, $r, None, FalloffPattern::Linear).unwrap())
+                        as Box<dyn UnaryOperator<u32>>,
+                    1 => Box::new($ty::<Min>::new(z, $r, None, FalloffPattern::Linear).unwrap())
+                        as Box<dyn UnaryOperator<u32>>,
+                    _ => Box::new($ty::<Sum>::new(z, $r, None, FalloffPattern::Linear).unwrap())
+                        as Box<dyn UnaryOperator<u32>>,
                 }
             };
         }
@@ -272,9 +282,9 @@ mod property {
             Op::ShiftX(d) => Box::new(ShiftX::new(z, d).unwrap()),
             Op::ShiftY(d) => Box::new(ShiftY::new(z, d).unwrap()),
             Op::ShiftF(d) => Box::new(ShiftF::new(z, d).unwrap()),
-            Op::FalloffX(r, p) => falloff!(FalloffLinearX, r, p),
-            Op::FalloffY(r, p) => falloff!(FalloffLinearY, r, p),
-            Op::FalloffF(r, p) => falloff!(FalloffLinearF, r, p),
+            Op::FalloffX(r, p) => falloff!(FalloffX, r, p),
+            Op::FalloffY(r, p) => falloff!(FalloffY, r, p),
+            Op::FalloffF(r, p) => falloff!(FalloffF, r, p),
         }
     }
 
@@ -344,9 +354,9 @@ fn random_trees_match_tree_path() {
         let r = 1 + (next() % 4) as u32;
         let ops: Ops = alloc::vec![
             Box::new(ShiftX::new(z, (next() % 7) as i32 - 3).unwrap()),
-            Box::new(FalloffLinearX::<Max>::new(z, r).unwrap()),
-            Box::new(FalloffLinearY::<Max>::new(z, r).unwrap()),
-            Box::new(FalloffLinearF::<Max>::new(z, r).unwrap()),
+            Box::new(FalloffX::<Max>::new(z, r, None, FalloffPattern::Linear).unwrap()),
+            Box::new(FalloffY::<Max>::new(z, r, None, FalloffPattern::Linear).unwrap()),
+            Box::new(FalloffF::<Max>::new(z, r, None, FalloffPattern::Linear).unwrap()),
         ];
         assert_same(tree, ops);
     }

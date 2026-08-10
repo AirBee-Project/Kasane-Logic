@@ -12,24 +12,36 @@ use crate::{
     spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
 };
 
-pub struct FalloffLinearF<P> {
+use super::FalloffPattern;
+use crate::spatial_id::helpers::Side;
+
+pub struct FalloffY<P> {
     pub z: ZoomLevel,
     pub radius: u32,
+    pub direction: Option<Side>,
+    pub pattern: FalloffPattern,
     _marker: PhantomData<P>,
 }
 
-impl<P> FalloffLinearF<P> {
-    pub fn new<T: Into<u8>>(z: T, radius: u32) -> Result<Self, Error> {
+impl<P> FalloffY<P> {
+    pub fn new<T: Into<u8>>(
+        z: T,
+        radius: u32,
+        direction: Option<Side>,
+        pattern: FalloffPattern,
+    ) -> Result<Self, Error> {
         let z = ZoomLevel::new(z.into())?;
         Ok(Self {
             z,
             radius,
+            direction,
+            pattern,
             _marker: PhantomData,
         })
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for FalloffLinearF<P>
+impl<V: SafeValue, P> UnaryOperator<V> for FalloffY<P>
 where
     V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
     <V as TryFrom<u32>>::Error: Debug,
@@ -38,7 +50,6 @@ where
     fn commutativity_info(&self) -> CommutativityInfo {
         CommutativityInfo::separable_with_policy::<P>(P::IS_COMMUTATIVE)
     }
-
     fn as_any(&self) -> &dyn core::any::Any {
         self
     }
@@ -56,7 +67,7 @@ where
 
         // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
         let rebuilt = target.core().map_rebuild_with(
-            |id, value| id.falloff_linear_f(z, radius, value),
+            |id, value| id.falloff_y(z, radius, self.direction, self.pattern, value),
             |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
         *target = WorkingTree::from_core(rebuilt);
@@ -70,22 +81,28 @@ where
         let shift_z = max_z - z;
         let scale_t = max_z - target_z;
 
-        let delta = (self.radius as i64) * (1i64 << shift_z);
+        let delta = (self.radius as u32) * (1u32 << shift_z);
+        let mut min_delta = delta;
+        let mut max_delta = delta;
+        if let Some(side) = self.direction {
+            if side == crate::spatial_id::helpers::Side::Upper {
+                min_delta = 0;
+            } else {
+                max_delta = 0;
+            }
+        }
 
-        let f_min_max_z = (bounds.f()[0] as i64) * (1i64 << scale_t);
-        let f_max_max_z = ((bounds.f()[1] as i64) + 1) * (1i64 << scale_t) - 1;
+        let y_min_max_z = bounds.y()[0] * (1u32 << scale_t);
+        let y_max_max_z = (bounds.y()[1] + 1) * (1u32 << scale_t) - 1;
 
-        let max_z_obj = ZoomLevel::new(max_z).unwrap();
-        let min_f = max_z_obj.f_min() as i64;
-        let max_f = max_z_obj.f_max() as i64;
-
-        let new_min_max_z = (f_min_max_z - delta).clamp(min_f, max_f);
-        let new_max_max_z = (f_max_max_z + delta).clamp(min_f, max_f);
+        let max_len = 1u32 << max_z;
+        let new_min_max_z = y_min_max_z.saturating_sub(min_delta);
+        let new_max_max_z = y_max_max_z.saturating_add(max_delta).min(max_len - 1);
 
         if new_min_max_z <= new_max_max_z {
-            let new_min_target = (new_min_max_z >> scale_t) as i32;
-            let new_max_target = (new_max_max_z >> scale_t) as i32;
-            bounds.set_f([new_min_target, new_max_target]).unwrap();
+            let new_min_target = (new_min_max_z >> scale_t) as u32;
+            let new_max_target = (new_max_max_z >> scale_t) as u32;
+            bounds.set_y([new_min_target, new_max_target]).unwrap();
             alloc::vec![bounds]
         } else {
             alloc::vec![]
@@ -97,16 +114,29 @@ where
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let dir_str = match self.direction {
+            None => "Both",
+            Some(crate::spatial_id::helpers::Side::Upper) => "Upper",
+            Some(crate::spatial_id::helpers::Side::Lower) => "Lower",
+        };
         write!(
             f,
-            "falloff_linear_f(z={}, r={}, {})",
+            "falloff_y(z={}, r={}, dir={}, pat={:?}, {})",
             self.z.get(),
             self.radius,
+            dir_str,
+            self.pattern,
             P::NAME
         )
     }
 
     fn grid_op(&self) -> Option<GridOp<V>> {
-        super::grid_op::<V, P>(GridAxis::F, self.z, self.radius)
+        super::grid_op::<V, P>(
+            GridAxis::Y,
+            self.z,
+            self.radius,
+            self.direction,
+            self.pattern,
+        )
     }
 }

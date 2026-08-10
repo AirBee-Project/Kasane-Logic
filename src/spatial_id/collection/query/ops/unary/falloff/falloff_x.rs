@@ -12,24 +12,36 @@ use crate::{
     spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
 };
 
-pub struct FalloffLinearX<P> {
+use super::FalloffPattern;
+use crate::spatial_id::helpers::Side;
+
+pub struct FalloffX<P> {
     pub z: ZoomLevel,
     pub radius: u32,
+    pub direction: Option<Side>,
+    pub pattern: FalloffPattern,
     _marker: PhantomData<P>,
 }
 
-impl<P> FalloffLinearX<P> {
-    pub fn new<T: Into<u8>>(z: T, radius: u32) -> Result<Self, Error> {
+impl<P> FalloffX<P> {
+    pub fn new<T: Into<u8>>(
+        z: T,
+        radius: u32,
+        direction: Option<Side>,
+        pattern: FalloffPattern,
+    ) -> Result<Self, Error> {
         let z = ZoomLevel::new(z.into())?;
         Ok(Self {
             z,
             radius,
+            direction,
+            pattern,
             _marker: PhantomData,
         })
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for FalloffLinearX<P>
+impl<V: SafeValue, P> UnaryOperator<V> for FalloffX<P>
 where
     V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
     <V as TryFrom<u32>>::Error: Debug,
@@ -55,7 +67,7 @@ where
 
         // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
         let rebuilt = target.core().map_rebuild_with(
-            |id, value| id.falloff_linear_x(z, radius, value),
+            |id, value| id.falloff_x(z, radius, self.direction, self.pattern, value),
             |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
         *target = WorkingTree::from_core(rebuilt);
@@ -70,12 +82,21 @@ where
         let scale_t = max_z - target_z;
 
         let delta = (self.radius as i64) * (1i64 << shift_z);
+        let mut min_delta = delta;
+        let mut max_delta = delta;
+        if let Some(side) = self.direction {
+            if side == crate::spatial_id::helpers::Side::Upper {
+                min_delta = 0;
+            } else {
+                max_delta = 0;
+            }
+        }
 
         let x_min_max_z = (bounds.x()[0] as i64) * (1i64 << scale_t);
         let x_max_max_z = ((bounds.x()[1] as i64) + 1) * (1i64 << scale_t) - 1;
 
-        let new_min_max_z = x_min_max_z - delta;
-        let new_max_max_z = x_max_max_z + delta;
+        let new_min_max_z = x_min_max_z - min_delta;
+        let new_max_max_z = x_max_max_z + max_delta;
 
         let max_len = 1i64 << max_z;
         let new_min_max_z_wrapped = new_min_max_z.rem_euclid(max_len);
@@ -107,16 +128,29 @@ where
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let dir_str = match self.direction {
+            None => "Both",
+            Some(crate::spatial_id::helpers::Side::Upper) => "Upper",
+            Some(crate::spatial_id::helpers::Side::Lower) => "Lower",
+        };
         write!(
             f,
-            "falloff_linear_x(z={}, r={}, {})",
+            "falloff_x(z={}, r={}, dir={}, pat={:?}, {})",
             self.z.get(),
             self.radius,
+            dir_str,
+            self.pattern,
             P::NAME
         )
     }
 
     fn grid_op(&self) -> Option<GridOp<V>> {
-        super::grid_op::<V, P>(GridAxis::X, self.z, self.radius)
+        super::grid_op::<V, P>(
+            GridAxis::X,
+            self.z,
+            self.radius,
+            self.direction,
+            self.pattern,
+        )
     }
 }

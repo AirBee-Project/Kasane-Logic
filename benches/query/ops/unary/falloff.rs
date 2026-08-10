@@ -1,7 +1,10 @@
 //! 単項クエリ演算子（falloff_linear）のベンチマーク。
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use kasane_logic::{SingleId, Source, SpatialIdTable, merge_policy::Max};
+use kasane_logic::{
+    SingleId, Source, SpatialIdTable, merge_policy::Max,
+    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
+};
 
 const OP_ZOOM: u8 = 25;
 const FALLOFF_RADIUS: u32 = 8;
@@ -34,9 +37,9 @@ where
 }
 
 fn bench_falloff_x(c: &mut Criterion) {
-    bench_scaling(c, "UnaryOps/falloff_linear_x", &[1, 10, 50, 100], |t| {
+    bench_scaling(c, "UnaryOps/falloff_x", &[1, 10, 50, 100], |t| {
         t.query()
-            .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
+            .falloff_x(OP_ZOOM, FALLOFF_RADIUS, None, FalloffPattern::Linear, Max)
             .raw_run()
             .unwrap()
     });
@@ -44,10 +47,10 @@ fn bench_falloff_x(c: &mut Criterion) {
 
 fn bench_falloff_x_y_chained(c: &mut Criterion) {
     // 連鎖は中間Segmentが軸ごとに膨らむため、実行時間を抑えて最大 2500 Segmentまでに留める。
-    bench_scaling(c, "UnaryOps/falloff_linear_x_then_y", &[1, 10, 50], |t| {
+    bench_scaling(c, "UnaryOps/falloff_x_then_y", &[1, 10, 50], |t| {
         t.query()
-            .falloff_linear_x(OP_ZOOM, FALLOFF_RADIUS, Max)
-            .falloff_linear_y(OP_ZOOM, FALLOFF_RADIUS, Max)
+            .falloff_x(OP_ZOOM, FALLOFF_RADIUS, None, FalloffPattern::Linear, Max)
+            .falloff_y(OP_ZOOM, FALLOFF_RADIUS, None, FalloffPattern::Linear, Max)
             .raw_run()
             .unwrap()
     });
