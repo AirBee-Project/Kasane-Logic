@@ -44,7 +44,7 @@ where
     }
 
     fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
-        let expected_cap = (core.core().count() as f64 * self.expansion_ratio()).ceil() as usize;
+        let expected_cap = libm::ceil(core.core().count() as f64 * self.expansion_ratio()) as usize;
         let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(expected_cap);
 
         // 元のツリーから全Segmentを取り出し、それぞれを引き延ばす
