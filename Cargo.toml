@@ -161,7 +161,22 @@ harness = false
 required-features = ["rayon"]
 
 [[bench]]
-name = "query_bldg_workflow"
+name = "query_ops_unary_shift"
+path = "benches/query/ops/unary/shift.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_falloff"
+path = "benches/query/ops/unary/falloff.rs"
+harness = false
+
+[[bench]]
+name = "query_ops_unary_extrude"
+path = "benches/query/ops/unary/extrude.rs"
+harness = false
+
+[[bench]]
+name = "query_workflow_bldg_risk"
 path = "benches/query/workflow/bldg_risk.rs"
 harness = false
 required-features = ["rayon","json"]

@@ -2,6 +2,7 @@ use crate::{
     SingleId, Source, SpatialIdTable,
     spatial_id::collection::query::execution::Query,
     spatial_id::collection::query::merge_policy::{Average, Max, Min, Sum},
+    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 use alloc::vec::Vec;
 use proptest::prelude::*;
@@ -82,17 +83,17 @@ define_query_ops! {
         => |z, _zl, _fmin, _fmax, _xymax| (-5..=5i32).prop_map(move |off| QueryOp::ShiftF(z, off))
         => |q, z, offset| q.shift_f(*z, *offset),
 
-    FalloffLinearX(u8, u32, Policy)
-        => |z, _zl, _fmin, _fmax, _xymax| (1..=2u32, arb_policy()).prop_map(move |(r, p)| QueryOp::FalloffLinearX(z, r, p))
-        => |q, z, r, p| dispatch_policy!(q, falloff_linear_x(*z, *r), p),
+    FalloffX(u8, u32, Policy)
+        => |z, _zl, _fmin, _fmax, _xymax| (1..=2u32, arb_policy()).prop_map(move |(r, p)| QueryOp::FalloffX(z, r, p))
+        => |q, z, r, p| dispatch_policy!(q, falloff_x(*z, *r, None, FalloffPattern::Linear), p),
 
-    FalloffLinearY(u8, u32, Policy)
-        => |z, _zl, _fmin, _fmax, _xymax| (1..=2u32, arb_policy()).prop_map(move |(r, p)| QueryOp::FalloffLinearY(z, r, p))
-        => |q, z, r, p| dispatch_policy!(q, falloff_linear_y(*z, *r), p),
+    FalloffY(u8, u32, Policy)
+        => |z, _zl, _fmin, _fmax, _xymax| (1..=2u32, arb_policy()).prop_map(move |(r, p)| QueryOp::FalloffY(z, r, p))
+        => |q, z, r, p| dispatch_policy!(q, falloff_y(*z, *r, None, FalloffPattern::Linear), p),
 
-    FalloffLinearF(u8, u32, Policy)
-        => |z, _zl, _fmin, _fmax, _xymax| (1..=2u32, arb_policy()).prop_map(move |(r, p)| QueryOp::FalloffLinearF(z, r, p))
-        => |q, z, r, p| dispatch_policy!(q, falloff_linear_f(*z, *r), p),
+    FalloffF(u8, u32, Policy)
+        => |z, _zl, _fmin, _fmax, _xymax| (1..=2u32, arb_policy()).prop_map(move |(r, p)| QueryOp::FalloffF(z, r, p))
+        => |q, z, r, p| dispatch_policy!(q, falloff_f(*z, *r, None, FalloffPattern::Linear), p),
 
     ExtrudeX(u8, u32, u32, Policy)
         => |z, _zl, _fmin, _fmax, xymax: u32| (0..=xymax, 0..=5u32, arb_policy()).prop_map(move |(s, l, p)| QueryOp::ExtrudeX(z, s, u32::min(s + l, xymax), p))

@@ -2,7 +2,7 @@
 //!
 //! # 動機
 //!
-//! `shift` / `falloff_linear` は「1 軸方向の平行移動」しかしない分離可能な演算だが、
+//! `shift` / `falloff` は「1 軸方向の平行移動」しかしない分離可能な演算だが、
 //! 木の上で実行すると 1 演算ごとに
 //!
 //! 1. 全葉を `Vec<(FlexId, V)>` へ展開し（falloff なら 2r+1 倍に膨らむ）、
@@ -42,6 +42,7 @@ use crate::spatial_id::collection::flex_tree::core::bulk::{
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSync;
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, SafeValue};
 use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::spatial_id::helpers::Side;
 use crate::{Error, SpatialIdError, ZoomLevel};
 
 #[cfg(feature = "rayon")]
@@ -90,6 +91,7 @@ enum Kind<V> {
     Shift(i32),
     Falloff {
         radius: u32,
+        direction: Option<Side>,
         atten: Box<AttenFn<'static, V>>,
         resolve: Box<ResolveFn<'static, V>>,
     },
@@ -110,6 +112,7 @@ impl<V> GridOp<V> {
         axis: GridAxis,
         z: ZoomLevel,
         radius: u32,
+        direction: Option<Side>,
         atten: Box<AttenFn<'static, V>>,
         resolve: Box<ResolveFn<'static, V>>,
     ) -> Self {
@@ -118,6 +121,7 @@ impl<V> GridOp<V> {
             z,
             kind: Kind::Falloff {
                 radius,
+                direction,
                 atten,
                 resolve,
             },
@@ -209,13 +213,14 @@ impl<V: SafeValue> UniformGrid<V> {
             Kind::Shift(delta) => self.shift(op.axis, op.z, *delta).map(|()| Applied::Done),
             Kind::Falloff {
                 radius,
+                direction,
                 atten,
                 resolve,
             } => {
                 if *radius == 0 {
                     return Ok(Applied::Done);
                 }
-                Ok(self.falloff(op.axis, op.z, *radius, atten, resolve))
+                Ok(self.falloff(op.axis, op.z, *radius, *direction, atten, resolve))
             }
         }
     }
@@ -320,6 +325,7 @@ impl<V: SafeValue> UniformGrid<V> {
         axis: GridAxis,
         op_z: ZoomLevel,
         radius: u32,
+        direction: Option<Side>,
         atten: &AttenFn<'_, V>,
         resolve: &ResolveFn<'_, V>,
     ) -> Applied {
@@ -352,8 +358,30 @@ impl<V: SafeValue> UniformGrid<V> {
         // （`FlexId::shift_f` の `check_f`）。外れる分は元実装でも `Err` として捨てられる。
         let r = radius as i64;
         let df_range = match axis {
-            GridAxis::F => (-r).max(op_z.f_min() as i64)..=r.min(op_z.f_max() as i64),
-            _ => -r..=r,
+            GridAxis::F => {
+                let mut min_val = (-r).max(op_z.f_min() as i64);
+                let mut max_val = r.min(op_z.f_max() as i64);
+                if let Some(side) = direction {
+                    if side == Side::Upper {
+                        min_val = min_val.max(0);
+                    } else {
+                        max_val = max_val.min(0);
+                    }
+                }
+                min_val..=max_val
+            }
+            _ => {
+                let mut min_val = -r;
+                let mut max_val = r;
+                if let Some(side) = direction {
+                    if side == Side::Upper {
+                        min_val = min_val.max(0);
+                    } else {
+                        max_val = max_val.min(0);
+                    }
+                }
+                min_val..=max_val
+            }
         };
 
         let params = FalloffParams {
@@ -381,13 +409,13 @@ pub(crate) enum Applied {
     ///
     /// F / Y の falloff が軸範囲からはみ出す場合がこれにあたる。
     /// [`FlexId::shift_f`](crate::FlexId::shift_f) / `shift_y` は**葉の占有区間を丸ごと**
-    /// 見て範囲外なら `Err` を返し、`falloff_linear_*` はその `Err` を握り潰す。つまり
+    /// 見て範囲外なら `Err` を返し、`falloff_*` はその `Err` を握り潰す。つまり
     /// 「1 マスでもはみ出したら、その距離ぶんの寄与は葉ごと落ちる」という全か無かの
     /// 挙動になっている。平坦化すると葉の切れ目が消えるので、この単位を再現できない。
     ///
-    /// これは平坦化の原理的な限界ではなく、`falloff_linear_*` 側の粒度の粗さ
-    /// （同じ空間でも木の圧縮のされ方で結果が変わる）を保存しているだけである。
-    /// 将来 `falloff_linear_*` をマス単位のクリップへ直せば、この分岐ごと不要になる。
+    /// これは平坦化の原理的な限界ではなく、`falloff_*` 側の粒度の粗さ
+    /// に起因する。
+    /// 将来 `falloff_*` をマス単位のクリップへ直せば、この分岐ごと不要になる。
     Unsupported,
 }
 

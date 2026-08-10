@@ -1,7 +1,9 @@
 use crate::{
-    Source, SpatialIdTable, spatial_id::collection::flex_tree::core::SafeValue,
+    Source, SpatialIdTable,
+    spatial_id::collection::flex_tree::core::SafeValue,
     spatial_id::collection::query::execution::Query,
-    spatial_id::collection::query::merge_policy::Max,
+    spatial_id::collection::query::merge_policy::{Max, Sum},
+    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 
 /// AST中に `Query::CommutativeGroup` ノードが1つでも存在するか（再帰探索）。
@@ -52,10 +54,11 @@ fn test_group_commutative_ops() {
 #[test]
 fn extrude_and_falloff_with_same_policy_do_not_group_together() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
-    let query = table
-        .query()
-        .extrude_x(10, 0, 5, Max)
-        .falloff_linear_x(10, 2, Max);
+    let query =
+        table
+            .query()
+            .extrude_x(10, 0, 5, Max)
+            .falloff_x(10, 1, None, FalloffPattern::Linear, Sum);
 
     let grouped = query.group_commutative_ops();
     assert!(

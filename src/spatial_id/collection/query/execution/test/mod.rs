@@ -2,6 +2,8 @@ pub mod ast_optimization;
 pub mod lazy_get;
 pub mod proptest_query;
 
+use crate::spatial_id::collection::query::merge_policy::Sum;
+use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 use crate::{SingleId, Source, SpatialIdTable};
 
 /// `run()`（最適化パイプライン込み）は `raw_run()`（無最適化）と同じ結果を返す。
@@ -16,11 +18,7 @@ fn run_matches_raw_run() {
         .shift_x(10, 3)
         .shift_y(10, 4)
         .shift_f(10, 1)
-        .falloff_linear_x(
-            10,
-            2,
-            crate::spatial_id::collection::query::merge_policy::Sum,
-        )
+        .falloff_x(10, 2, None, FalloffPattern::Linear, Sum)
         .run()
         .unwrap();
 
@@ -31,9 +29,11 @@ fn run_matches_raw_run() {
         .shift_x(10, 3)
         .shift_y(10, 4)
         .shift_f(10, 1)
-        .falloff_linear_x(
+        .falloff_x(
             10,
             2,
+            None,
+            FalloffPattern::Linear,
             crate::spatial_id::collection::query::merge_policy::Sum,
         )
         .raw_run()

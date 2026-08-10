@@ -12,24 +12,36 @@ use crate::{
     spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
 };
 
-pub struct FalloffLinearX<P> {
+use super::FalloffPattern;
+use crate::spatial_id::helpers::Side;
+
+pub struct FalloffY<P> {
     pub z: ZoomLevel,
     pub radius: u32,
+    pub direction: Option<Side>,
+    pub pattern: FalloffPattern,
     _marker: PhantomData<P>,
 }
 
-impl<P> FalloffLinearX<P> {
-    pub fn new<T: Into<u8>>(z: T, radius: u32) -> Result<Self, Error> {
+impl<P> FalloffY<P> {
+    pub fn new<T: Into<u8>>(
+        z: T,
+        radius: u32,
+        direction: Option<Side>,
+        pattern: FalloffPattern,
+    ) -> Result<Self, Error> {
         let z = ZoomLevel::new(z.into())?;
         Ok(Self {
             z,
             radius,
+            direction,
+            pattern,
             _marker: PhantomData,
         })
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for FalloffLinearX<P>
+impl<V: SafeValue, P> UnaryOperator<V> for FalloffY<P>
 where
     V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
     <V as TryFrom<u32>>::Error: Debug,
@@ -55,51 +67,46 @@ where
 
         // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
         let rebuilt = target.core().map_rebuild_with(
-            |id, value| id.falloff_linear_x(z, radius, value),
+            |id, value| id.falloff_y(z, radius, self.direction, self.pattern, value),
             |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
         )?;
         *target = WorkingTree::from_core(rebuilt);
         Ok(())
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
         let target_z = bounds.z();
         let z = self.z.get();
         let max_z = z.max(target_z);
         let shift_z = max_z - z;
         let scale_t = max_z - target_z;
 
-        let delta = (self.radius as i64) * (1i64 << shift_z);
+        let delta = self.radius * (1u32 << shift_z);
+        let mut min_delta = delta;
+        let mut max_delta = delta;
+        if let Some(side) = self.direction {
+            if side == crate::spatial_id::helpers::Side::Upper {
+                min_delta = 0;
+            } else {
+                max_delta = 0;
+            }
+        }
 
-        let x_min_max_z = (bounds.x()[0] as i64) * (1i64 << scale_t);
-        let x_max_max_z = ((bounds.x()[1] as i64) + 1) * (1i64 << scale_t) - 1;
+        let y_min_max_z = bounds.y()[0] * (1u32 << scale_t);
+        let y_max_max_z = (bounds.y()[1] + 1) * (1u32 << scale_t) - 1;
 
-        let new_min_max_z = x_min_max_z - delta;
-        let new_max_max_z = x_max_max_z + delta;
+        let max_len = 1u32 << max_z;
+        let new_min_max_z = y_min_max_z.saturating_sub(min_delta);
+        let new_max_max_z = y_max_max_z.saturating_add(max_delta).min(max_len - 1);
 
-        let max_len = 1i64 << max_z;
-        let new_min_max_z_wrapped = new_min_max_z.rem_euclid(max_len);
-        let new_max_max_z_wrapped = new_max_max_z.rem_euclid(max_len);
-
-        let mut x_ranges = alloc::vec::Vec::new();
-        if new_max_max_z - new_min_max_z >= max_len {
-            x_ranges.push((0, max_len - 1));
-        } else if new_min_max_z_wrapped <= new_max_max_z_wrapped {
-            x_ranges.push((new_min_max_z_wrapped, new_max_max_z_wrapped));
+        if new_min_max_z <= new_max_max_z {
+            let new_min_target = new_min_max_z >> scale_t;
+            let new_max_target = new_max_max_z >> scale_t;
+            bounds.set_y([new_min_target, new_max_target]).unwrap();
+            alloc::vec![bounds]
         } else {
-            x_ranges.push((new_min_max_z_wrapped, max_len - 1));
-            x_ranges.push((0, new_max_max_z_wrapped));
+            alloc::vec![]
         }
-
-        let mut res = alloc::vec::Vec::new();
-        for (min_max_z, max_max_z) in x_ranges {
-            let mut new_bounds = bounds.clone();
-            let new_min_target = (min_max_z >> scale_t) as u32;
-            let new_max_target = (max_max_z >> scale_t) as u32;
-            new_bounds.set_x([new_min_target, new_max_target]).unwrap();
-            res.push(new_bounds);
-        }
-        res
     }
 
     fn validate(&self) -> Result<(), crate::Error> {
@@ -107,16 +114,29 @@ where
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let dir_str = match self.direction {
+            None => "Both",
+            Some(crate::spatial_id::helpers::Side::Upper) => "Upper",
+            Some(crate::spatial_id::helpers::Side::Lower) => "Lower",
+        };
         write!(
             f,
-            "falloff_linear_x(z={}, r={}, {})",
+            "falloff_y(z={}, r={}, dir={}, pat={:?}, {})",
             self.z.get(),
             self.radius,
+            dir_str,
+            self.pattern,
             P::NAME
         )
     }
 
     fn grid_op(&self) -> Option<GridOp<V>> {
-        super::grid_op::<V, P>(GridAxis::X, self.z, self.radius)
+        super::grid_op::<V, P>(
+            GridAxis::Y,
+            self.z,
+            self.radius,
+            self.direction,
+            self.pattern,
+        )
     }
 }
