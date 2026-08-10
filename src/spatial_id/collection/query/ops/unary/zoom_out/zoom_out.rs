@@ -37,44 +37,96 @@ where
     }
 
     fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
-        let mut leaves: Vec<(FlexId, V)> = core
-            .core()
-            .iter_ref()
-            .map(|(id, v)| (id, v.clone()))
-            .collect();
+        let target_z = self.target_z.get();
+        let old_tree = core::mem::take(core);
+        let mut leaves: Vec<(FlexId, Option<V>)> =
+            old_tree.into_iter().map(|(id, v)| (id, Some(v))).collect();
+
+        if leaves.is_empty() {
+            return Ok(());
+        }
 
         #[cfg(feature = "rayon")]
-        leaves.par_sort_unstable_by(|a, b| {
-            a.0.spatial_parent_at_zoom(self.target_z.get())
-                .unwrap()
-                .cmp(&b.0.spatial_parent_at_zoom(self.target_z.get()).unwrap())
-        });
+        {
+            if P::IS_COMMUTATIVE {
+                // O(N) HashMap aggregation for commutative policies
+                let mut map = hashbrown::HashMap::with_capacity(leaves.len());
+                for (id, v) in leaves {
+                    let parent = id.spatial_parent_at_zoom(target_z).unwrap();
+                    let val = v.unwrap();
+                    map.entry(parent)
+                        .and_modify(|e: &mut V| *e = P::resolve(e.clone(), val.clone()))
+                        .or_insert(val);
+                }
+
+                let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
+                new_items.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                *core = new_items.into_iter().collect();
+                return Ok(());
+            }
+
+            leaves.par_iter_mut().for_each(|(id, _)| {
+                *id = id.spatial_parent_at_zoom(target_z).unwrap();
+            });
+            leaves.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        }
 
         #[cfg(not(feature = "rayon"))]
-        leaves.sort_unstable_by(|a, b| {
-            a.0.spatial_parent_at_zoom(self.target_z.get())
-                .unwrap()
-                .cmp(&b.0.spatial_parent_at_zoom(self.target_z.get()).unwrap())
-        });
+        {
+            if P::IS_COMMUTATIVE {
+                // O(N) HashMap aggregation for commutative policies
+                let mut map = hashbrown::HashMap::with_capacity(leaves.len());
+                for (id, v) in leaves {
+                    let parent = id.spatial_parent_at_zoom(target_z).unwrap();
+                    let val = v.unwrap();
+                    map.entry(parent)
+                        .and_modify(|e: &mut V| *e = P::resolve(e.clone(), val.clone()))
+                        .or_insert(val);
+                }
 
-        let mut new_items = Vec::with_capacity(leaves.len());
-
-        for chunk in leaves.chunk_by(|a, b| {
-            a.0.spatial_parent_at_zoom(self.target_z.get()).unwrap()
-                == b.0.spatial_parent_at_zoom(self.target_z.get()).unwrap()
-        }) {
-            let parent_id = chunk[0]
-                .0
-                .spatial_parent_at_zoom(self.target_z.get())
-                .unwrap();
-            if let Some(merged) = P::resolve_many(chunk.iter().map(|(_, v)| v.clone())) {
-                new_items.push((parent_id, merged));
+                let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
+                new_items.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                *core = new_items.into_iter().collect();
+                return Ok(());
             }
+
+            for (id, _) in leaves.iter_mut() {
+                *id = id.spatial_parent_at_zoom(target_z).unwrap();
+            }
+            leaves.sort_unstable_by(|a, b| a.0.cmp(&b.0));
         }
+
+        #[cfg(feature = "rayon")]
+        let new_items: Vec<(FlexId, V)> = {
+            leaves
+                .par_chunk_by_mut(|a, b| a.0 == b.0)
+                .filter_map(|chunk| {
+                    let parent_id = chunk[0].0;
+                    let merged = P::resolve_many(chunk.iter_mut().map(|(_, v)| v.take().unwrap()))?;
+                    Some((parent_id, merged))
+                })
+                .collect()
+        };
+
+        #[cfg(not(feature = "rayon"))]
+        let new_items: Vec<(FlexId, V)> = {
+            leaves
+                .chunk_by_mut(|a, b| a.0 == b.0)
+                .filter_map(|chunk| {
+                    let parent_id = chunk[0].0;
+                    let merged = P::resolve_many(chunk.iter_mut().map(|(_, v)| v.take().unwrap()))?;
+                    Some((parent_id, merged))
+                })
+                .collect()
+        };
 
         *core = new_items.into_iter().collect();
 
         Ok(())
+    }
+
+    fn grid_op(&self) -> Option<crate::spatial_id::collection::query::grid::GridOp<V>> {
+        None // We no longer use GridOp as it is slower due to UniformGrid overhead
     }
 
     fn validate(&self) -> Result<(), crate::Error> {
