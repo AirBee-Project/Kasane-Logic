@@ -94,6 +94,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         Some(self.z)
     }
 
+    #[allow(private_interfaces)]
     fn apply_to_grid(
         &self,
         grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
