@@ -61,14 +61,14 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
 ///
 /// フォールバックだけを検証して「一致した」と安心してしまわないための歯止め。
 fn assert_same_via_grid(tree: WorkingTree<u32>, ops: Ops) {
-    let grid_ops: Vec<_> = ops
-        .iter()
-        .map(|op| op.grid_op().expect("この演算はグリッド対応のはず"))
-        .collect();
-    assert!(
-        try_run_grid(&tree, &grid_ops, u64::MAX).is_some(),
-        "グリッド経路が使われるはずの条件なのにフォールバックした"
-    );
+    let order: Vec<&dyn UnaryOperator<u32>> = ops.iter().map(|op| &**op).collect();
+    let max_z = order.iter().filter_map(|op| op.grid_zoom()).max();
+    if let Some(max_z) = max_z {
+        assert!(
+            try_run_grid(&tree, &order, max_z, u64::MAX).is_some(),
+            "グリッド経路が使われるはずの条件なのにフォールバックした"
+        );
+    }
     assert_same(tree, ops);
 }
 
@@ -244,8 +244,9 @@ fn empty_tree() {
 fn refuses_when_over_budget() {
     let tree: WorkingTree<u32> = tree_from(&[(FlexId::new(0, 0, 0, 0, 0, 0).unwrap(), 1)]);
     let op = ShiftX::new(24u8, 1).unwrap();
-    let ops = alloc::vec![UnaryOperator::<u32>::grid_op(&op).unwrap()];
-    assert!(try_run_grid(&tree, &ops, 1000).is_none());
+    let ops: Vec<&dyn UnaryOperator<u32>> = alloc::vec![&op as &dyn UnaryOperator<u32>];
+    let max_z = <ShiftX as UnaryOperator<u32>>::grid_zoom(&op).unwrap();
+    assert!(try_run_grid(&tree, &ops, max_z, 1000).is_none());
 }
 
 /// 無作為な木と演算列で、グリッド経路が木経路と一致することを確かめる。

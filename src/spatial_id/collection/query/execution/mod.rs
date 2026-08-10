@@ -3,7 +3,7 @@ use crate::Error;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::optimized_unary_order;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::grid::{GridOp, try_run_grid};
+use crate::spatial_id::collection::query::grid::try_run_grid;
 use crate::spatial_id::collection::query::source::Source;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use alloc::boxed::Box;
@@ -53,12 +53,26 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
 ) -> Result<WorkingTree<V>, Error> {
     while let Some(head) = ops.first() {
         // グリッドで実行できる演算の最長区間を取る。
-        let grid_ops: Vec<GridOp<V>> = ops.iter().map_while(|op| op.grid_op()).collect();
+        let mut grid_len = 0;
+        let mut max_z = None;
+        for op in ops.iter() {
+            if let Some(z) = op.grid_zoom() {
+                grid_len += 1;
+                max_z = Some(max_z.map_or(z, |m: crate::ZoomLevel| m.max(z)));
+            } else {
+                break;
+            }
+        }
 
-        if let Some(result) = try_run_grid(&working, &grid_ops, grid_budget(&working)) {
-            working = result?;
-            ops = &ops[grid_ops.len()..];
-            continue;
+        if grid_len > 0 {
+            let grid_ops = &ops[..grid_len];
+            if let Some(result) =
+                try_run_grid(&working, grid_ops, max_z.unwrap(), grid_budget(&working))
+            {
+                working = result?;
+                ops = &ops[grid_len..];
+                continue;
+            }
         }
 
         // グリッドに載らない（または載せる価値がない）ので木の上で実行する。

@@ -1,7 +1,6 @@
 use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
-use crate::spatial_id::collection::query::grid::GridOp;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, RangeId};
 use alloc::vec::Vec;
@@ -56,17 +55,24 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
 
     // --- 一様ズーム平坦表現（グリッド）用API ---
 
-    /// この演算子を一様ズームの平坦表現の上で直接実行するための記述を返す。
+    /// この演算子を一様ズームの平坦表現の上に載せる場合、対象とするズームレベルを返す。
     ///
-    /// クエリエンジンの内部最適化の口であり、クレート外からは実装できない
-    /// （`GridOp` を組み立てる手段が非公開）。既定の `None` のままでよい。
-    ///
-    /// `None` なら木経路（[`run`](Self::run)）で実行される。分離可能な演算（軸方向の
-    /// 平行移動だけで表せるもの）だけが `Some` を返せる。衝突解決を伴う演算は、可換な
-    /// [`MergePolicy`](crate::merge_policy::MergePolicy) のときだけ `Some` を返すこと
-    /// （グリッド側は畳み込み順を保証しない）。
+    /// `None` なら木経路（[`run`](Self::run)）で実行される。
     #[doc(hidden)]
-    fn grid_op(&self) -> Option<GridOp<V>> {
+    #[allow(private_interfaces)]
+    fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
         None
+    }
+
+    /// この演算子を一様ズームの平坦表現の上で直接実行する。
+    ///
+    /// クレート外からは実装できない（`UniformGrid` を組み立てる手段が非公開）。
+    #[doc(hidden)]
+    #[allow(private_interfaces)]
+    fn apply_to_grid(
+        &self,
+        _grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
+    ) -> Result<crate::spatial_id::collection::query::grid::Applied, Error> {
+        Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported)
     }
 }
