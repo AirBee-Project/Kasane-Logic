@@ -6,7 +6,7 @@
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
-    SingleId, Source, SpatialIdTable, ZoomLevel,
+    Source, SpatialIdTable, ZoomLevel,
     spatial_id::collection::query::merge_policy::{Average, Max},
     spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };

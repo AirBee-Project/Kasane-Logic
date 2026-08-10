@@ -81,7 +81,7 @@ where
         let shift_z = max_z - z;
         let scale_t = max_z - target_z;
 
-        let delta = (self.radius as u32) * (1u32 << shift_z);
+        let delta = self.radius * (1u32 << shift_z);
         let mut min_delta = delta;
         let mut max_delta = delta;
         if let Some(side) = self.direction {
@@ -100,8 +100,8 @@ where
         let new_max_max_z = y_max_max_z.saturating_add(max_delta).min(max_len - 1);
 
         if new_min_max_z <= new_max_max_z {
-            let new_min_target = (new_min_max_z >> scale_t) as u32;
-            let new_max_target = (new_max_max_z >> scale_t) as u32;
+            let new_min_target = new_min_max_z >> scale_t;
+            let new_max_target = new_max_max_z >> scale_t;
             bounds.set_y([new_min_target, new_max_target]).unwrap();
             alloc::vec![bounds]
         } else {
