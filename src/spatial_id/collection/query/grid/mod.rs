@@ -32,14 +32,13 @@
 //! 予算を超えるなら従来の木経路へフォールバックする。時間軸で分割された木も
 //! （ズームが揃わないので）フォールバックする。
 
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::ops::RangeInclusive;
 
 use crate::spatial_id::collection::flex_tree::core::bulk::{
     SingleEntry, expand_leaf, sort_and_dedup,
 };
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSync;
+use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSendSync, MaybeSync};
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, SafeValue};
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::spatial_id::helpers::Side;
@@ -63,75 +62,8 @@ pub(crate) enum GridAxis {
     Y,
 }
 
-/// 値の減衰。`(元の値, 演算ズーム単位での距離) -> 減衰後の値`。
-///
-/// `Send + Sync` を直に書いているのは、クレートの慣習である
-/// `MaybeSync` が自動トレイトでなくトレイトオブジェクトの境界に書けないため。
-pub(crate) type AttenFn<'a, V> = dyn Fn(&V, u32) -> V + Send + Sync + 'a;
-/// 重なった値の解決。可換なポリシーであること。`Send + Sync` の理由は [`AttenFn`] と同じ。
-pub(crate) type ResolveFn<'a, V> = dyn Fn(&V, &V) -> V + Send + Sync + 'a;
-
-/// `UniformGrid` 上で直接実行できる演算の記述。
-///
-/// 演算子側（`ShiftX` など）は
-/// `UnaryOperator::grid_op` でこれを返すだけでよく、グリッドの走査を演算子ごとに書かなくて済む。
-/// 値型 `V` に依存する部分（減衰・衝突解決）だけをクロージャで受け取る。
-///
-/// 中身はクエリエンジンの実装詳細なので公開していない。クレート外から新しい演算子を
-/// 定義する場合は `grid_op` を実装せず（既定の `None`）、木経路の `run` だけを書く。
-pub struct GridOp<V> {
-    axis: GridAxis,
-    /// 移動量・半径を数えるズームレベル。グリッドのズームはこれ以上でなければならない。
-    z: ZoomLevel,
-    kind: Kind<V>,
-}
-
-enum Kind<V> {
-    /// 軸方向の平行移動。`z` のインデックス単位での移動量。
-    Shift(i32),
-    Falloff {
-        radius: u32,
-        direction: Option<Side>,
-        atten: Box<AttenFn<'static, V>>,
-        resolve: Box<ResolveFn<'static, V>>,
-    },
-}
-
-impl<V> GridOp<V> {
-    /// 軸方向の平行移動。
-    pub(crate) fn shift(axis: GridAxis, z: ZoomLevel, delta: i32) -> Self {
-        Self {
-            axis,
-            z,
-            kind: Kind::Shift(delta),
-        }
-    }
-
-    /// 軸方向への線形減衰つき伝播。
-    pub(crate) fn falloff(
-        axis: GridAxis,
-        z: ZoomLevel,
-        radius: u32,
-        direction: Option<Side>,
-        atten: Box<AttenFn<'static, V>>,
-        resolve: Box<ResolveFn<'static, V>>,
-    ) -> Self {
-        Self {
-            axis,
-            z,
-            kind: Kind::Falloff {
-                radius,
-                direction,
-                atten,
-                resolve,
-            },
-        }
-    }
-
-    /// この演算が単位とするズームレベル。
-    pub(crate) fn zoom(&self) -> ZoomLevel {
-        self.z
-    }
+pub(crate) trait GridAttenuator<V> {
+    fn attenuate(&self, value: &V, distance: u32) -> V;
 }
 
 /// 整列順。`None` は不定を表す（[`UniformGrid::order`]）。
@@ -207,24 +139,6 @@ impl<V: SafeValue> UniformGrid<V> {
         ))
     }
 
-    /// 演算を 1 つ適用する。
-    pub(crate) fn apply(&mut self, op: &GridOp<V>) -> Result<Applied, Error> {
-        match &op.kind {
-            Kind::Shift(delta) => self.shift(op.axis, op.z, *delta).map(|()| Applied::Done),
-            Kind::Falloff {
-                radius,
-                direction,
-                atten,
-                resolve,
-            } => {
-                if *radius == 0 {
-                    return Ok(Applied::Done);
-                }
-                Ok(self.falloff(op.axis, op.z, *radius, *direction, atten, resolve))
-            }
-        }
-    }
-
     /// 対象軸を最下位キーにした並びにする。すでにその順ならなにもしない。
     fn sort_lanes(&mut self, axis: GridAxis) {
         if self.order == Some(Order::Lane(axis)) {
@@ -258,7 +172,12 @@ impl<V: SafeValue> UniformGrid<V> {
     ///
     /// F / Y で範囲外へ出るものがあれば、`FlexId::shift_f` / `shift_y` が `Err` を返して
     /// `map_rebuild` がそれを伝播するのと同じく、演算全体をエラーにする。X は巡回する。
-    fn shift(&mut self, axis: GridAxis, op_z: ZoomLevel, delta: i32) -> Result<(), Error> {
+    pub(crate) fn shift(
+        &mut self,
+        axis: GridAxis,
+        op_z: ZoomLevel,
+        delta: i32,
+    ) -> Result<(), Error> {
         if delta == 0 {
             return Ok(());
         }
@@ -320,15 +239,18 @@ impl<V: SafeValue> UniformGrid<V> {
     ///
     /// 伝播先が F / Y の軸範囲からはみ出す場合は [`Applied::Unsupported`] を返して
     /// 木経路へ譲る。理由は [`Applied`] を参照。
-    fn falloff(
+    pub(crate) fn falloff<P, A>(
         &mut self,
         axis: GridAxis,
         op_z: ZoomLevel,
         radius: u32,
         direction: Option<Side>,
-        atten: &AttenFn<'_, V>,
-        resolve: &ResolveFn<'_, V>,
-    ) -> Applied {
+        atten: &A,
+    ) -> Applied
+    where
+        P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
+        A: GridAttenuator<V> + MaybeSendSync,
+    {
         self.sort_lanes(axis);
 
         let span = 1i64 << self.z.get();
@@ -391,12 +313,12 @@ impl<V: SafeValue> UniformGrid<V> {
             df_range,
             wrap,
         };
-        self.entries = run_lanes(&self.entries, &params, atten, resolve);
+        self.entries = run_lanes::<V, P, A>(&self.entries, &params, atten);
 
         // 巡回（X）と飛び飛び格子（stride > 1）は出力が昇順・一意にならない。
         if params.stride != 1 || params.wrap.is_some() {
             self.order = None;
-            self.sort_morton(&|a: &V, b: &V| resolve(a, b));
+            self.sort_morton(&|a: &V, b: &V| P::resolve(a.clone(), b.clone()));
         }
         Applied::Done
     }
@@ -490,12 +412,15 @@ fn estimated_output(entries: usize, params: &FalloffParams) -> usize {
 }
 
 /// 全レーンを走査して出力を作る。レーン同士は独立なので並列に処理できる。
-fn run_lanes<V: SafeValue>(
+fn run_lanes<V: SafeValue, P, A>(
     entries: &[SingleEntry<V>],
     params: &FalloffParams,
-    atten: &AttenFn<'_, V>,
-    resolve: &ResolveFn<'_, V>,
-) -> Vec<SingleEntry<V>> {
+    atten: &A,
+) -> Vec<SingleEntry<V>>
+where
+    P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
+    A: GridAttenuator<V> + MaybeSendSync,
+{
     let axis = params.axis;
 
     #[cfg(feature = "rayon")]
@@ -509,7 +434,7 @@ fn run_lanes<V: SafeValue>(
                 .fold(
                     || (Vec::new(), Scratch::default()),
                     |(mut out, mut scratch), lane| {
-                        falloff_lane(lane, params, atten, resolve, &mut out, &mut scratch);
+                        falloff_lane::<V, P, A>(lane, params, atten, &mut out, &mut scratch);
                         (out, scratch)
                     },
                 )
@@ -527,7 +452,7 @@ fn run_lanes<V: SafeValue>(
     let mut out = Vec::with_capacity(estimated_output(entries.len(), params));
     let mut scratch = Scratch::default();
     for lane in entries.chunk_by(|a, b| same_lane(a, b, axis)) {
-        falloff_lane(lane, params, atten, resolve, &mut out, &mut scratch);
+        falloff_lane::<V, P, A>(lane, params, atten, &mut out, &mut scratch);
     }
     out
 }
@@ -538,14 +463,16 @@ fn run_lanes<V: SafeValue>(
 /// 入力を集める gather 型で走る。出力は昇順・一意で出るので、後段の整列も重なり解決も
 /// 要らない。`stride > 1` なら出力が飛び飛びの格子になるので、素直に 2r+1 個ずつ
 /// 書き出して呼び出し側の整列に任せる。
-fn falloff_lane<V: SafeValue>(
+fn falloff_lane<V: SafeValue, P, A>(
     lane: &[SingleEntry<V>],
     params: &FalloffParams,
-    atten: &AttenFn<'_, V>,
-    resolve: &ResolveFn<'_, V>,
+    atten: &A,
     out: &mut Vec<SingleEntry<V>>,
     scratch: &mut Scratch<V>,
-) {
+) where
+    P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
+    A: GridAttenuator<V>,
+{
     if lane.is_empty() {
         return;
     }
@@ -559,15 +486,15 @@ fn falloff_lane<V: SafeValue>(
     scratch.pos.reserve(lane.len());
     for entry in lane {
         for d in 0..=params.radius {
-            scratch.atten.push(atten(&entry.3, d));
+            scratch.atten.push(atten.attenuate(&entry.3, d));
         }
         scratch.pos.push(axis_pos(entry, params.axis));
     }
 
     if params.stride == 1 {
-        gather_lane(lane, params, resolve, out, scratch);
+        gather_lane::<V, P>(lane, params, out, scratch);
     } else {
-        scatter_lane(lane, params, out, scratch);
+        scatter_lane::<V>(lane, params, out, scratch);
     }
 }
 
@@ -610,13 +537,14 @@ fn scatter_lane<V: SafeValue>(
 ///
 /// 入力位置は昇順なので、出力位置 `q` を昇順に進めながら、窓 `[q-r, q+r]` に入る入力の
 /// 区間 `[lo, hi)` を両端の追従だけで保てる（各ポインタはレーンを 1 周するだけ）。
-fn gather_lane<V: SafeValue>(
+fn gather_lane<V: SafeValue, P>(
     lane: &[SingleEntry<V>],
     params: &FalloffParams,
-    resolve: &ResolveFn<'_, V>,
     out: &mut Vec<SingleEntry<V>>,
     scratch: &Scratch<V>,
-) {
+) where
+    P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
+{
     let r = params.radius as i64;
     let width = params.radius as usize + 1;
     let pos = &scratch.pos[..];
@@ -651,7 +579,7 @@ fn gather_lane<V: SafeValue>(
                 let v = &scratch.atten[(lo + offset) * width + df.unsigned_abs() as usize];
                 acc = Some(match acc {
                     None => v.clone(),
-                    Some(prev) => resolve(&prev, v),
+                    Some(prev) => P::resolve(prev, v.clone()),
                 });
             }
             if let Some(v) = acc {
@@ -696,26 +624,25 @@ fn sort_by_lane<V: SafeValue>(entries: &mut [SingleEntry<V>], axis: GridAxis) {
 /// 単項演算の並びをグリッド経路で実行する。
 ///
 /// 木を平坦化できた場合だけ `Some` を返す。`None` なら呼び出し側は従来の木経路で実行する。
-pub(crate) fn try_run_grid<V: SafeValue>(
+pub(crate) fn try_run_grid<V: SafeValue + 'static>(
     tree: &WorkingTree<V>,
-    ops: &[GridOp<V>],
+    ops: &[&dyn crate::spatial_id::collection::query::traits::UnaryOperator<V>],
+    max_z: ZoomLevel,
     budget: u64,
 ) -> Option<Result<WorkingTree<V>, Error>> {
     // 0 個の演算に「成功」を返すと、呼び出し側の走査が 1 つも進まなくなる。
     if ops.is_empty() {
         return None;
     }
-    // グリッドのズームは、演算のズームと入力の解像度の両方を表せる細かさが要る。
-    let z = ops
-        .iter()
-        .map(|op| op.zoom().get())
+
+    let z = core::iter::once(max_z.get())
         .chain(tree.core().max_zoomlevel())
         .max()?;
     let z = ZoomLevel::new(z).ok()?;
 
     let mut grid = UniformGrid::from_tree(tree, z, budget)?;
     for op in ops {
-        match grid.apply(op) {
+        match op.apply_to_grid(&mut grid) {
             Ok(Applied::Done) => {}
             // 途中まで進めたグリッドは捨てる。呼び出し側が元の木から木経路でやり直す。
             Ok(Applied::Unsupported) => return None,

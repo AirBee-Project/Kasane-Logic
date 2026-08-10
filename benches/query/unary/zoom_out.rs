@@ -13,7 +13,7 @@ fn bench_zoom_out(c: &mut Criterion) {
 
     let table = utils::get_full_data();
     // ズームレベルを24から18まで変化させる（元のデータが24と仮定）
-    let levels = [24, 23, 22, 21, 20, 19, 18];
+    let levels = [24, 22, 20, 18];
 
     for &level in &levels {
         group.bench_with_input(BenchmarkId::new("zoom_out_to", level), &level, |b, &lvl| {

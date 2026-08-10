@@ -123,10 +123,6 @@ where
         Ok(())
     }
 
-    fn grid_op(&self) -> Option<crate::spatial_id::collection::query::grid::GridOp<V>> {
-        None // We no longer use GridOp as it is slower due to UniformGrid overhead
-    }
-
     fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
     }

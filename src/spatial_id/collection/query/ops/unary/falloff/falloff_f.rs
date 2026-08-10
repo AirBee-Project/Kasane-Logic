@@ -1,6 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::grid::{GridAxis, GridOp};
+use crate::spatial_id::collection::query::grid::GridAxis;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use core::convert::TryFrom;
 use core::fmt::Debug;
@@ -41,7 +41,7 @@ impl<P> FalloffF<P> {
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for FalloffF<P>
+impl<V: SafeValue + 'static, P> UnaryOperator<V> for FalloffF<P>
 where
     V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
     <V as TryFrom<u32>>::Error: Debug,
@@ -134,13 +134,22 @@ where
         )
     }
 
-    fn grid_op(&self) -> Option<GridOp<V>> {
-        super::grid_op::<V, P>(
-            GridAxis::F,
-            self.z,
-            self.radius,
-            self.direction,
-            self.pattern,
-        )
+    fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
+        if !P::IS_COMMUTATIVE {
+            return None;
+        }
+        Some(self.z)
+    }
+
+    #[allow(private_interfaces)]
+    fn apply_to_grid(
+        &self,
+        grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
+    ) -> Result<crate::spatial_id::collection::query::grid::Applied, crate::Error> {
+        if !P::IS_COMMUTATIVE || self.radius == 0 {
+            return Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported);
+        }
+        let atten = super::Attenuator::new(self.radius, self.pattern);
+        Ok(grid.falloff::<P, _>(GridAxis::F, self.z, self.radius, self.direction, &atten))
     }
 }
