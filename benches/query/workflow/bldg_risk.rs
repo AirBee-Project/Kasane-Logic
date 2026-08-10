@@ -10,6 +10,7 @@ use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, 
 use kasane_logic::{
     Source, SpatialIdTable, ZoomLevel,
     merge_policy::{Average, Max},
+    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 use std::fs;
 use std::sync::OnceLock;
@@ -70,9 +71,9 @@ fn bench_falloff(c: &mut Criterion) {
         &[10, 100, 1000, 5000, 52608],
         |t| {
             t.query()
-                .falloff_linear_x(24, 5, Max)
-                .falloff_linear_y(24, 5, Max)
-                .falloff_linear_f(24, 15, Max)
+                .falloff_x(24, 5, None, FalloffPattern::Linear, Max)
+                .falloff_y(24, 5, None, FalloffPattern::Linear, Max)
+                .falloff_f(24, 15, None, FalloffPattern::Linear, Max)
                 .raw_run()
                 .unwrap()
         },
@@ -88,9 +89,9 @@ fn bench_shift_and_falloff(c: &mut Criterion) {
             t.query()
                 .shift_x(24, 5)
                 .shift_y(24, -5)
-                .falloff_linear_x(24, 5, Max)
-                .falloff_linear_y(24, 5, Max)
-                .falloff_linear_f(24, 15, Max)
+                .falloff_x(24, 5, None, FalloffPattern::Linear, Max)
+                .falloff_y(24, 5, None, FalloffPattern::Linear, Max)
+                .falloff_f(24, 15, None, FalloffPattern::Linear, Max)
                 .raw_run()
                 .unwrap()
         },

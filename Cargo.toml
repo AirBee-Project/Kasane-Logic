@@ -167,8 +167,8 @@ path = "benches/query/ops/unary/shift.rs"
 harness = false
 
 [[bench]]
-name = "query_ops_unary_falloff_linear"
-path = "benches/query/ops/unary/falloff_linear.rs"
+name = "query_ops_unary_falloff"
+path = "benches/query/ops/unary/falloff.rs"
 harness = false
 
 [[bench]]

@@ -1,6 +1,7 @@
 use alloc::collections::BTreeMap;
 
 use crate::spatial_id::collection::query::merge_policy::{Max, Sum};
+use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 use crate::{SingleId, Source, SpatialIdTable};
 
 /// z=20, f=0, y=0 に固定した行から `x -> value` の対応を取り出す。
@@ -24,7 +25,7 @@ fn falloff_x_single_segment() {
 
     let out = table
         .query()
-        .falloff_linear_x(20, 2, Sum)
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
         .raw_run()
         .unwrap();
     let r = row(&out);
@@ -46,7 +47,7 @@ fn falloff_x_overlap_sum() {
 
     let out = table
         .query()
-        .falloff_linear_x(20, 2, Sum)
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
         .raw_run()
         .unwrap();
     let r = row(&out);
@@ -72,7 +73,7 @@ fn falloff_x_overlap_max() {
 
     let out = table
         .query()
-        .falloff_linear_x(20, 2, Max)
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Max)
         .raw_run()
         .unwrap();
     let r = row(&out);
@@ -91,7 +92,7 @@ fn falloff_x_radius_zero_is_noop() {
 
     let out = table
         .query()
-        .falloff_linear_x(20, 0, Sum)
+        .falloff_x(20, 0, None, FalloffPattern::Linear, Sum)
         .raw_run()
         .unwrap();
     let r = row(&out);

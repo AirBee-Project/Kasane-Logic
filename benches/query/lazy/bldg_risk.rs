@@ -7,7 +7,8 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use kasane_logic::{
     Source, SpatialIdTable, ZoomLevel,
-    merge_policy::{Average, Max},
+    spatial_id::collection::query::merge_policy::{Average, Max},
+    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 use std::fs;
 use std::sync::OnceLock;
@@ -51,8 +52,8 @@ fn bench_lazy_workflow(c: &mut Criterion) {
                 .query()
                 .shift_x(24, 5)
                 .shift_y(24, -5)
-                .falloff_linear_x(24, 5, Max)
-                .falloff_linear_y(24, 5, Max);
+                .falloff_x(24, 5, None, FalloffPattern::Linear, Max)
+                .falloff_y(24, 5, None, FalloffPattern::Linear, Max);
             b.iter(|| query.lazy_get(target_id).unwrap().count());
         });
 
@@ -65,8 +66,8 @@ fn bench_lazy_workflow(c: &mut Criterion) {
                         .query()
                         .shift_x(24, 5)
                         .shift_y(24, -5)
-                        .falloff_linear_x(24, 5, Max)
-                        .falloff_linear_y(24, 5, Max)
+                        .falloff_x(24, 5, None, FalloffPattern::Linear, Max)
+                        .falloff_y(24, 5, None, FalloffPattern::Linear, Max)
                         .raw_run()
                         .unwrap();
                     let _ = res.get(&target_id).count();
