@@ -59,7 +59,7 @@ where
                 }
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
-                new_items.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                new_items.par_sort_unstable_by_key(|a| a.0);
                 *core = new_items.into_iter().collect();
                 return Ok(());
             }
@@ -67,7 +67,7 @@ where
             leaves.par_iter_mut().for_each(|(id, _)| {
                 *id = id.spatial_parent_at_zoom(target_z).unwrap();
             });
-            leaves.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            leaves.par_sort_unstable_by_key(|a| a.0);
         }
 
         #[cfg(not(feature = "rayon"))]
@@ -83,7 +83,7 @@ where
                 }
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
-                new_items.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                new_items.sort_unstable_by_key(|a| a.0);
                 *core = new_items.into_iter().collect();
                 return Ok(());
             }
@@ -91,7 +91,7 @@ where
             for (id, _) in leaves.iter_mut() {
                 *id = id.spatial_parent_at_zoom(target_z).unwrap();
             }
-            leaves.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+            leaves.sort_unstable_by_key(|a| a.0);
         }
 
         #[cfg(feature = "rayon")]
