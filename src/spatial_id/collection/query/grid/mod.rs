@@ -89,7 +89,6 @@ pub struct GridOp<V> {
 enum Kind<V> {
     /// 軸方向の平行移動。`z` のインデックス単位での移動量。
     Shift(i32),
-    /// 軸方向への線形減衰つき伝播。
     Falloff {
         radius: u32,
         direction: Option<Side>,
