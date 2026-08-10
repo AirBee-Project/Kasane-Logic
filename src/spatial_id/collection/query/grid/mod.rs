@@ -38,7 +38,7 @@ use core::ops::RangeInclusive;
 use crate::spatial_id::collection::flex_tree::core::bulk::{
     SingleEntry, expand_leaf, sort_and_dedup,
 };
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSync;
+use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSendSync, MaybeSync};
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, SafeValue};
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::spatial_id::helpers::Side;
@@ -249,7 +249,7 @@ impl<V: SafeValue> UniformGrid<V> {
     ) -> Applied
     where
         P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
-        A: GridAttenuator<V> + Send + Sync,
+        A: GridAttenuator<V> + MaybeSendSync,
     {
         self.sort_lanes(axis);
 
@@ -419,7 +419,7 @@ fn run_lanes<V: SafeValue, P, A>(
 ) -> Vec<SingleEntry<V>>
 where
     P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
-    A: GridAttenuator<V> + Send + Sync,
+    A: GridAttenuator<V> + MaybeSendSync,
 {
     let axis = params.axis;
 
