@@ -9,6 +9,8 @@ mod utils;
 fn bench_filter_values(c: &mut Criterion) {
     let mut group = c.benchmark_group("Unary/FilterValues");
     group.sample_size(10);
+    group.warm_up_time(std::time::Duration::from_millis(500));
+    group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
     let thresholds = [1, 2, 3, 4, 5];

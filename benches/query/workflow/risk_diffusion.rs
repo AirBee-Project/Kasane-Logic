@@ -22,6 +22,8 @@ fn run_query(table: SpatialIdTable<u32>) -> SpatialIdTable<u32> {
 fn bench_risk_diffusion(c: &mut Criterion) {
     let mut group = c.benchmark_group("Workflow/RiskDiffusion");
     group.sample_size(10);
+    group.warm_up_time(std::time::Duration::from_millis(500));
+    group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
 

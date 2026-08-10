@@ -8,6 +8,8 @@ mod utils;
 fn bench_zoom_out(c: &mut Criterion) {
     let mut group = c.benchmark_group("Unary/ZoomOut");
     group.sample_size(10);
+    group.warm_up_time(std::time::Duration::from_millis(500));
+    group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
     // ズームレベルを24から18まで変化させる（元のデータが24と仮定）

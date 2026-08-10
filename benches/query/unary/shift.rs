@@ -7,6 +7,8 @@ mod utils;
 fn bench_shift(c: &mut Criterion) {
     let mut group = c.benchmark_group("Unary/Shift");
     group.sample_size(10);
+    group.warm_up_time(std::time::Duration::from_millis(500));
+    group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
     let distances = [1, 3, 5, 7, 10, 12, 15];
