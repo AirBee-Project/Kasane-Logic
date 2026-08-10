@@ -1,5 +1,5 @@
 use core::ops::Bound;
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::Source;
 use kasane_logic::spatial_id::collection::query::ops::unary::filter_values::ValuePredicate;
 
@@ -11,17 +11,26 @@ fn bench_filter_values(c: &mut Criterion) {
     group.sample_size(10);
 
     let table = utils::get_full_data();
-    group.bench_function("filter_values_in_range", |b| {
-        b.iter_batched(
-            || table.clone(),
-            |t| {
-                // リスク値(3以上)を抽出する
-                let predicate = ValuePredicate::InRange(Bound::Included(3), Bound::Unbounded);
-                t.query().filter_values(predicate).raw_run().unwrap()
+    let thresholds = [1, 2, 3, 4, 5];
+
+    for &threshold in &thresholds {
+        group.bench_with_input(
+            BenchmarkId::new("greater_than_or_equal", threshold),
+            &threshold,
+            |b, &t_val| {
+                b.iter_batched(
+                    || table.clone(),
+                    |t| {
+                        let predicate =
+                            ValuePredicate::InRange(Bound::Included(t_val), Bound::Unbounded);
+                        t.query().filter_values(predicate).raw_run().unwrap()
+                    },
+                    BatchSize::SmallInput,
+                );
             },
-            BatchSize::SmallInput,
         );
-    });
+    }
+
     group.finish();
 }
 

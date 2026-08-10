@@ -196,13 +196,6 @@ path = "benches/query/workflow/risk_diffusion.rs"
 harness = false
 required-features = ["json", "rayon"]
 
-[[bench]]
-name = "query_workflow_aggregation"
-path = "benches/query/workflow/aggregation.rs"
-harness = false
-required-features = ["json", "rayon"]
-
-
 [[example]]
 name = "table_json"
 required-features = ["json"]

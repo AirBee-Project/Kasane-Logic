@@ -1,4 +1,4 @@
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::Source;
 
 #[path = "../utils.rs"]
@@ -9,47 +9,58 @@ fn bench_shift(c: &mut Criterion) {
     group.sample_size(10);
 
     let table = utils::get_full_data();
+    let distances = [1, 3, 5, 7, 10, 12, 15];
 
-    // 個別の次元で行う関数 (X, Y, F)
-    group.bench_function("shift_x", |b| {
-        b.iter_batched(
-            || table.clone(),
-            |t| t.query().shift_x(24, 5).raw_run().unwrap(),
-            BatchSize::SmallInput,
-        );
-    });
+    // 個別の次元で行う関数 (X)
+    for &dist in &distances {
+        group.bench_with_input(BenchmarkId::new("shift_x", dist), &dist, |b, &d| {
+            b.iter_batched(
+                || table.clone(),
+                |t| t.query().shift_x(24, d).raw_run().unwrap(),
+                BatchSize::SmallInput,
+            );
+        });
+    }
 
-    group.bench_function("shift_y", |b| {
-        b.iter_batched(
-            || table.clone(),
-            |t| t.query().shift_y(24, 5).raw_run().unwrap(),
-            BatchSize::SmallInput,
-        );
-    });
+    // 個別の次元で行う関数 (Y)
+    for &dist in &distances {
+        group.bench_with_input(BenchmarkId::new("shift_y", dist), &dist, |b, &d| {
+            b.iter_batched(
+                || table.clone(),
+                |t| t.query().shift_y(24, d).raw_run().unwrap(),
+                BatchSize::SmallInput,
+            );
+        });
+    }
 
-    group.bench_function("shift_f", |b| {
-        b.iter_batched(
-            || table.clone(),
-            |t| t.query().shift_f(24, 5).raw_run().unwrap(),
-            BatchSize::SmallInput,
-        );
-    });
+    // 個別の次元で行う関数 (F)
+    for &dist in &distances {
+        group.bench_with_input(BenchmarkId::new("shift_f", dist), &dist, |b, &d| {
+            b.iter_batched(
+                || table.clone(),
+                |t| t.query().shift_f(24, d).raw_run().unwrap(),
+                BatchSize::SmallInput,
+            );
+        });
+    }
 
     // 全ての次元で行う関数
-    group.bench_function("shift_all", |b| {
-        b.iter_batched(
-            || table.clone(),
-            |t| {
-                t.query()
-                    .shift_x(24, 5)
-                    .shift_y(24, -5)
-                    .shift_f(24, 2)
-                    .raw_run()
-                    .unwrap()
-            },
-            BatchSize::SmallInput,
-        );
-    });
+    for &dist in &distances {
+        group.bench_with_input(BenchmarkId::new("shift_all", dist), &dist, |b, &d| {
+            b.iter_batched(
+                || table.clone(),
+                |t| {
+                    t.query()
+                        .shift_x(24, d)
+                        .shift_y(24, -d)
+                        .shift_f(24, d)
+                        .raw_run()
+                        .unwrap()
+                },
+                BatchSize::SmallInput,
+            );
+        });
+    }
 
     group.finish();
 }
