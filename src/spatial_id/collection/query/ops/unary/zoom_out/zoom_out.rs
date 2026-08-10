@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
-/// 指定されたズームレベルまで情報を落とし、複数の子ボクSegmentを`MergePolicy::resolve_many` で一括マージする単項演算子。
+/// 指定されたズームレベルまで情報を落とす演算子。
 pub struct ZoomOut<V, P> {
     pub target_z: ZoomLevel,
     _marker: core::marker::PhantomData<fn() -> (V, P)>,
@@ -49,7 +49,6 @@ where
         #[cfg(feature = "rayon")]
         {
             if P::IS_COMMUTATIVE {
-                // O(N) HashMap aggregation for commutative policies
                 let mut map = hashbrown::HashMap::with_capacity(leaves.len());
                 for (id, v) in leaves {
                     let parent = id.spatial_parent_at_zoom(target_z).unwrap();
@@ -74,7 +73,6 @@ where
         #[cfg(not(feature = "rayon"))]
         {
             if P::IS_COMMUTATIVE {
-                // O(N) HashMap aggregation for commutative policies
                 let mut map = hashbrown::HashMap::with_capacity(leaves.len());
                 for (id, v) in leaves {
                     let parent = id.spatial_parent_at_zoom(target_z).unwrap();
