@@ -5,6 +5,7 @@ pub mod insert;
 pub mod par;
 pub mod query;
 pub mod remove;
+pub mod upsert;
 
 #[cfg(test)]
 use crate::{RangeId, SingleId, SpatialIdTable};

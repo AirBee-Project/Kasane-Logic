@@ -100,9 +100,9 @@ where
         }
     }
 
-    /// 空間に値を挿入します。
-    pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
-        let rank = match self.dictionary.get(&value) {
+    /// `value` に対応する rank を返す。無ければ新規発行して辞書へ登録する。
+    fn rank_for(&mut self, value: V) -> usize {
+        match self.dictionary.get(&value) {
             Some(v) => *v,
             None => {
                 self.current_rank += 1;
@@ -111,9 +111,35 @@ where
                 self.dictionary.insert(value, self.current_rank);
                 self.current_rank
             }
-        };
+        }
+    }
 
+    /// 空間に値を挿入します。
+    pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
+        let rank = self.rank_for(value);
         self.inner.insert(target, rank);
+        self.value_index_built = false;
+    }
+
+    /// まだ値の無い場所にだけ挿入します（Upsert）。既に値がある場所はそのまま保ちます。
+    ///
+    /// **書く場所が無ければ `value` の rank も登録しない。** 先に登録してしまうと、
+    /// target が既に全て埋まっていた場合に誰も使わない rank が辞書に残り、
+    /// [`values`](Self::values) が幽霊値を返すことになる。
+    pub fn upsert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
+        let occupied: SpatialIdSet = self.get_overlapping(&target).map(|(f, _)| f).collect();
+        let mut target_set = SpatialIdSet::new();
+        target_set.insert(target);
+        let empty = &target_set - &occupied;
+
+        if empty.is_empty() {
+            return;
+        }
+
+        let rank = self.rank_for(value);
+        for f in empty.flex_ids() {
+            self.inner.insert(f, rank);
+        }
         self.value_index_built = false;
     }
 
