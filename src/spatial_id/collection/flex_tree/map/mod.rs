@@ -77,6 +77,12 @@ where
         self.inner.insert(target, value);
     }
 
+    /// まだ値の無い場所にだけ挿入します（Upsert）。既に値がある場所はそのまま保ちます。
+    pub fn upsert<S: SpatialId>(&mut self, target: S, value: V) {
+        self.inner
+            .insert_with(target, value, &|old, _new| old.clone());
+    }
+
     /// 特定の空間（target）と交差するすべての領域と、その値への参照を返します。
     pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
     where
