@@ -109,7 +109,7 @@ where
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::none()
+        CommutativityInfo::None
     }
 
     fn expansion_ratio(&self) -> f64 {

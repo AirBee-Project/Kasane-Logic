@@ -39,7 +39,7 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
     /// ダウンキャスト用
     fn as_any(&self) -> &dyn core::any::Any;
 
-    /// 演算子を適用した際のデータサイズの推定拡大倍率。
+    /// 演算子を適用した際のデータサイズの推定拡大倍率
     fn expansion_ratio(&self) -> f64 {
         1.0
     }
@@ -53,20 +53,12 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
         write!(f, "?")
     }
 
-    // --- 一様ズーム平坦表現（グリッド）用API ---
-
-    /// この演算子を一様ズームの平坦表現の上に載せる場合、対象とするズームレベルを返す。
-    ///
-    /// `None` なら木経路（[`run`](Self::run)）で実行される。
     #[doc(hidden)]
     #[allow(private_interfaces)]
     fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
         None
     }
 
-    /// この演算子を一様ズームの平坦表現の上で直接実行する。
-    ///
-    /// クレート外からは実装できない（`UniformGrid` を組み立てる手段が非公開）。
     #[doc(hidden)]
     #[allow(private_interfaces)]
     fn apply_to_grid(

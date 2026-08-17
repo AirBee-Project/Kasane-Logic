@@ -75,7 +75,7 @@ fn extrude_and_falloff_with_same_policy_do_not_group_together() {
 /// 適用順が変わる。結果は可換なので一致するが、実行コストだけが黙って変わってしまう。
 #[test]
 fn borrowed_order_matches_the_optimized_ast() {
-    use crate::spatial_id::collection::query::execution::group_commutative::optimized_unary_order;
+    use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
     use alloc::vec;
     use alloc::vec::Vec;
 
@@ -92,7 +92,8 @@ fn borrowed_order_matches_the_optimized_ast() {
     let Query::Unary(ops, _) = build() else {
         panic!("最適化前は Unary のはず");
     };
-    let borrowed: Vec<f64> = optimized_unary_order(&ops)
+    let borrowed: Vec<f64> = ops
+        .optimized_order()
         .iter()
         .map(|op| op.expansion_ratio())
         .collect();

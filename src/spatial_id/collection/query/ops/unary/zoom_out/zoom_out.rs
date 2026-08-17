@@ -136,7 +136,7 @@ where
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::none()
+        CommutativityInfo::None
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

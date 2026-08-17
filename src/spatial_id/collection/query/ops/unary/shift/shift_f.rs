@@ -20,7 +20,7 @@ impl ShiftF {
 
 impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::separable_injective()
+        CommutativityInfo::Separable { policy: None }
     }
 
     fn validate(&self) -> Result<(), Error> {

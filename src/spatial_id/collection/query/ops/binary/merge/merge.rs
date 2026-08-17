@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-/// 2つの作業木を `MergePolicy` で重ね合わせる二項演算子。
+/// `MergePolicy` で重ね合わせる二項演算子。
 pub struct Merge<V, P> {
     default: V,
     _marker: core::marker::PhantomData<fn() -> P>,
