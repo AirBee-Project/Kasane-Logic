@@ -23,6 +23,7 @@ rayon = { version = "1.10", optional = true }
 rkyv = { version = "0.8.17", features = ["unaligned"], optional = true }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
+tracing = { version = "0.1", default-features = false, features = ["std"], optional = true }
 
 [features]
 default = ["std", "rayon", "json","temporal_id"]
@@ -33,6 +34,9 @@ temporal_id = []
 rand = ["dep:rand"]
 persist = ["dep:rkyv", "std"]
 json = ["dep:serde", "dep:serde_json"]
+# Query 実行の各フェーズ（ソース読み取り／二項マージ／単項適用）へ tracing スパンを張る。
+# エクスポーターへの依存はアプリ側（tracing-subscriber 等）に委ね、このクレートは facade にのみ依存する。
+tracing = ["dep:tracing", "std"]
 
 [dev-dependencies]
 rand = "0.10.1"
