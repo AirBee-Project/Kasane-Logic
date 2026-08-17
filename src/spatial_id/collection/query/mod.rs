@@ -19,13 +19,8 @@ pub mod working;
 /// クエリの表示の実装
 pub mod fmt;
 
-/// 分離可能演算のための一様ズームの平坦表現
-///
-/// クエリエンジンの実装詳細。`UnaryOperator::grid_op` の戻り値型を名指しできるよう
-/// 公開しているだけで、中身は不透明。ドキュメントには出さない。
 #[doc(hidden)]
 pub mod grid;
-
 pub use execution::Query;
 pub use merge_policy::MergePolicy;
 pub use working::WorkingTree;

@@ -48,7 +48,12 @@ where
     P: MergePolicy<V> + Send + Sync + 'static,
 {
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::separable_with_policy::<P>(P::IS_COMMUTATIVE)
+        if !P::IS_COMMUTATIVE {
+            return CommutativityInfo::None;
+        }
+        CommutativityInfo::Separable {
+            policy: Some(core::any::TypeId::of::<P>()),
+        }
     }
 
     fn as_any(&self) -> &dyn core::any::Any {

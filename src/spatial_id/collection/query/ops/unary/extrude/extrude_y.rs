@@ -79,10 +79,13 @@ where
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::absolute_target::<P>(
-            crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::Y,
-            P::IS_COMMUTATIVE,
-        )
+        if !P::IS_COMMUTATIVE {
+            return CommutativityInfo::None;
+        }
+        CommutativityInfo::AbsoluteTarget {
+            axis: crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::Y,
+            policy: Some(core::any::TypeId::of::<P>()),
+        }
     }
 
     fn as_any(&self) -> &dyn core::any::Any {

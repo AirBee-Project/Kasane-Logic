@@ -71,7 +71,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::separable_injective()
+        CommutativityInfo::Separable { policy: None }
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

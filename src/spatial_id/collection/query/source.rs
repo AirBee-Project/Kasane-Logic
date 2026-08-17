@@ -1,16 +1,15 @@
-use alloc::boxed::Box;
-
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, RangeId};
+use alloc::boxed::Box;
 
 /// クエリを実行するためのTrait。読み取りさえできればよい。
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<Self::Value>, Error>;
+    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<Self::Value>, Error>;
 
     fn read_all(self: Box<Self>) -> Result<WorkingTree<Self::Value>, Error>;
 
@@ -32,7 +31,7 @@ mod tests {
     /// 粗いSegment（複数の細かい bounds と交差する）を含めることで、
     /// 同一Segmentが複数回読み出される状況を作っている。
     #[test]
-    fn read_subset_with_overlapping_bounds_has_no_duplicates() {
+    fn read_range_ids_with_overlapping_bounds_has_no_duplicates() {
         let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
         // z=18 の粗いSegment1つ（z=20 では 4x4 の広がりを持つ）
         table.insert(SingleId::new(18, 0, 100, 100).unwrap(), 7);
@@ -42,7 +41,7 @@ mod tests {
             .map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
             .collect();
 
-        let working = table.read_subset(&bounds).unwrap();
+        let working = table.read_range_ids(&bounds).unwrap();
 
         let time_segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
         assert_eq!(
@@ -69,9 +68,9 @@ mod tests {
         ];
 
         let mut a: Vec<(crate::FlexId, i32)> =
-            table.read_subset(&single).unwrap().into_iter().collect();
+            table.read_range_ids(&single).unwrap().into_iter().collect();
         let mut b: Vec<(crate::FlexId, i32)> = table
-            .read_subset(&overlapping)
+            .read_range_ids(&overlapping)
             .unwrap()
             .into_iter()
             .collect();

@@ -25,7 +25,7 @@ impl<T: Ord + Clone + Send + Sync> FlexIdValue for T {}
 impl Source for SpatialIdSet {
     type Value = ();
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<()>, Error> {
+    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<()>, Error> {
         let mut time_segments: Vec<(FlexId, ())> = Vec::new();
         for b in bounds {
             for id in self.get_range(b) {
@@ -54,7 +54,7 @@ where
 {
     type Value = V;
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
+    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
         let mut time_segments: Vec<(FlexId, V)> = Vec::new();
         for b in bounds {
             for (id, value) in self.get_range(b) {

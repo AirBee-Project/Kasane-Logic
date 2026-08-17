@@ -9,7 +9,6 @@ use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
 use crate::{Error, RangeId};
 
-/// 部分クエリ `inner` の結果の値を `f` で写し、別の値型の作業木として読み出す入力源。
 pub struct MapValues<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
     f: F,
@@ -39,7 +38,7 @@ where
 {
     type Value = U;
 
-    fn read_subset(&self, bounds: &[RangeId]) -> Result<WorkingTree<U>, Error> {
+    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<U>, Error> {
         Ok(self
             .inner
             .run_within(bounds.to_vec())?
@@ -48,10 +47,6 @@ where
             .collect())
     }
 
-    // 内側のクエリは外側から見ると `Query::Source` なので、外側の `validate` /
-    // `optimize` は中まで届かない（AST の走査が `Source` で止まる）。ここで
-    // `run_working_tree` を通すことで、内側も検証・最適化されることを保証する。
-    // `read_subset` が `run_within` を使うのと対になる。
     fn read_all(self: Box<Self>) -> Result<WorkingTree<U>, Error> {
         let this = *self;
         Ok(this
