@@ -441,6 +441,9 @@ impl RangeId {
             }
             .into());
         }
+        if ZoomLevel::new(target_z).is_err() {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
+        }
 
         let (x_min, x_max) = self.x_fine_range(target_z);
         let x_min = x_min as i64;
@@ -542,6 +545,9 @@ impl RangeId {
             }
             .into());
         }
+        if ZoomLevel::new(target_z).is_err() {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
+        }
 
         let (y_min, y_max) = self.y_fine_range(target_z);
         let mut result = self.clone();
@@ -605,6 +611,9 @@ impl RangeId {
                 target_z,
             }
             .into());
+        }
+        if ZoomLevel::new(target_z).is_err() {
+            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
         }
 
         let (f_min, f_max) = self.f_fine_range(target_z);
