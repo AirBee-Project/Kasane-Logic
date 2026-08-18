@@ -44,7 +44,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         Ok(())
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         let target_z = bounds.z();
         let z = self.z.get();
         let max_z = z.max(target_z);
@@ -63,23 +63,11 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         let new_min_max_z_wrapped = new_min_max_z.rem_euclid(max_len);
         let new_max_max_z_wrapped = new_max_max_z.rem_euclid(max_len);
 
-        let mut x_ranges = alloc::vec::Vec::new();
-        if new_min_max_z_wrapped <= new_max_max_z_wrapped {
-            x_ranges.push((new_min_max_z_wrapped, new_max_max_z_wrapped));
-        } else {
-            x_ranges.push((new_min_max_z_wrapped, max_len - 1));
-            x_ranges.push((0, new_max_max_z_wrapped));
-        }
-
-        let mut res = alloc::vec::Vec::new();
-        for (min_max_z, max_max_z) in x_ranges {
-            let mut new_bounds = bounds.clone();
-            let new_min_target = (min_max_z >> scale_t) as u32;
-            let new_max_target = (max_max_z >> scale_t) as u32;
-            new_bounds.set_x([new_min_target, new_max_target]).unwrap();
-            res.push(new_bounds);
-        }
-        res
+        let mut new_bounds = bounds.clone();
+        let new_min_target = (new_min_max_z_wrapped >> scale_t) as u32;
+        let new_max_target = (new_max_max_z_wrapped >> scale_t) as u32;
+        new_bounds.set_x([new_min_target, new_max_target]).unwrap();
+        Some(new_bounds)
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {

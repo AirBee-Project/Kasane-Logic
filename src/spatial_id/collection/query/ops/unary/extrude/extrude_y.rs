@@ -92,7 +92,7 @@ where
         self
     }
 
-    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
         let target_z = self.target_z.get();
         let bounds_z = bounds.z();
         let max_z = target_z.max(bounds_z);
@@ -107,12 +107,12 @@ where
         let bounds_max_max_z = ((bounds.y()[1] as i64) + 1) * (1i64 << scale_b) - 1;
 
         if target_max_max_z < bounds_min_max_z || bounds_max_max_z < target_min_max_z {
-            return alloc::vec![];
+            return None;
         }
 
         let xy_max = crate::ZoomLevel::new(bounds_z).unwrap().xy_max();
         bounds.set_y([0, xy_max]).unwrap();
-        alloc::vec![bounds]
+        Some(bounds)
     }
 
     fn expansion_ratio(&self) -> f64 {

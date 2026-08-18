@@ -79,7 +79,7 @@ where
         Ok(())
     }
 
-    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
+    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
         let target_z = bounds.z();
         let z = self.z.get();
         let max_z = z.max(target_z);
@@ -108,9 +108,9 @@ where
             let new_min_target = new_min_max_z >> scale_t;
             let new_max_target = new_max_max_z >> scale_t;
             bounds.set_y([new_min_target, new_max_target]).unwrap();
-            alloc::vec![bounds]
+            Some(bounds)
         } else {
-            alloc::vec![]
+            None
         }
     }
 

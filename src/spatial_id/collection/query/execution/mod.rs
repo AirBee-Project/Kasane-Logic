@@ -221,7 +221,9 @@ impl<V: SafeValue + 'static> Query<V> {
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
                     for r in req {
-                        next.extend(op.inverse_bounds(r));
+                        if let Some(inv) = op.inverse_bounds(r) {
+                            next.push(inv);
+                        }
                     }
                     next.sort_unstable();
                     next.dedup();
@@ -243,8 +245,12 @@ impl<V: SafeValue + 'static> Query<V> {
                 let mut rhs_bounds = Vec::new();
                 for b in bounds {
                     let (l, r) = op.inverse_bounds(b.clone());
-                    lhs_bounds.extend(l);
-                    rhs_bounds.extend(r);
+                    if let Some(lb) = l {
+                        lhs_bounds.push(lb);
+                    }
+                    if let Some(rb) = r {
+                        rhs_bounds.push(rb);
+                    }
                 }
                 lhs_bounds.sort_unstable();
                 lhs_bounds.dedup();
