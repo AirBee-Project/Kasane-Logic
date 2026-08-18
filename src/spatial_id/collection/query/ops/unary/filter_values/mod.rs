@@ -104,8 +104,8 @@ where
         Ok(())
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> alloc::vec::Vec<crate::RangeId> {
-        alloc::vec![bounds]
+    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+        Some(bounds)
     }
 
     fn commutativity_info(&self) -> CommutativityInfo {

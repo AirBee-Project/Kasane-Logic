@@ -29,6 +29,31 @@ mod tests {
         assert_eq!(flex_id.y_index(), 1);
     }
 
+    /// get_range() は x軸の折り返し表現（`x[0] > x[1]`、経度方向の周期境界をまたぐ範囲）
+    /// でも、同じ領域を昇順で指定した場合と同じ結果を返す（回帰テスト）。
+    ///
+    /// 木の枝刈り（`Node::overlapping_children_range`）が `target.x()[0]`/`[1]` を
+    /// 単純な min/max として扱い、この折り返し規約（[`RangeId::set_x`]と同じ規約）を
+    /// 考慮していなかったため、折り返し範囲を渡すと本来ヒットするはずのSegmentを
+    /// 見失うことがあった。
+    #[test]
+    fn get_range_handles_wrapped_x() {
+        let id = SingleId::new(2, 0, 2, 0).unwrap();
+        let table = build_table(&[TableEntry::Single(id, 42)]);
+
+        // [1, 0] は折り返し規約上 {1,2,3,0}（= z=2 の x 全域）を表す。
+        let mut wrapped = RangeId::new(2, 0, 0, 0).unwrap();
+        wrapped.set_x([1, 0]).unwrap();
+        assert_eq!(wrapped.x(), [1, 0]);
+
+        let full = RangeId::new(2, 0, [0, 3], 0).unwrap();
+        let via_wrapped_count = table.get_range(&wrapped).count();
+        let via_full_count = table.get_range(&full).count();
+
+        assert_eq!(via_wrapped_count, 1, "折り返し範囲でも1件ヒットするはず");
+        assert_eq!(via_wrapped_count, via_full_count);
+    }
+
     /// value_range() が値の範囲条件に一致する組だけを順序付きで返すことを検証する。
     #[test]
     fn value_range_returns_expected_pairs_in_order() {

@@ -258,6 +258,23 @@ where
         }
 
         let shift = target_z - 1 - depth;
+
+        // X軸は経度方向の周期境界を持ち、`x[0] > x[1]` が折り返し
+        // （[`RangeId::set_x`](crate::RangeId::set_x)と同じ規約）を表す。分解ロジックは
+        // `RangeId::split_wrapped_range` を共有する（x軸丸め込みと同じ規約を二重に持たない）。
+        // F/Yはこの規約を持たない（常に昇順）ので、そのまま単一区間として扱える。
+        if axis == Axis::X {
+            let x = target.x();
+            let xy_max = (1i64 << target_z) - 1;
+            if let Some([(a_min, a_max), (b_min, b_max)]) =
+                crate::RangeId::split_wrapped_range(x[0] as i64, x[1] as i64, xy_max)
+            {
+                let left = Self::which_child(a_min as u32, a_max as u32, shift);
+                let right = Self::which_child(b_min as u32, b_max as u32, shift);
+                return Self::union_overlapping_children(left, right);
+            }
+        }
+
         let (min_idx, max_idx) = match axis {
             Axis::F => (target.f()[0] as u32, target.f()[1] as u32),
             Axis::X => (target.x()[0], target.x()[1]),
@@ -265,6 +282,12 @@ where
             Axis::T => unreachable!("Tは上でBothを返し済み"),
         };
 
+        Self::which_child(min_idx, max_idx, shift)
+    }
+
+    /// `[min_idx, max_idx]`（折り返しなし）が、レベルを1段降りたときにどちらの子と
+    /// 交差しうるかを返す。
+    fn which_child(min_idx: u32, max_idx: u32, shift: u8) -> OverlappingChildren {
         let min_path = min_idx >> shift;
         let max_path = max_idx >> shift;
 
@@ -276,6 +299,21 @@ where
             }
         } else {
             OverlappingChildren::Both
+        }
+    }
+
+    /// 折り返した範囲を2つの非折り返し区間に分けて判定した結果を合成する。
+    /// どちらかが `Both` を返す、または互いに異なる側を指す場合は、
+    /// 全体としても両方の子と交差しうる。
+    fn union_overlapping_children(
+        a: OverlappingChildren,
+        b: OverlappingChildren,
+    ) -> OverlappingChildren {
+        match (a, b) {
+            (OverlappingChildren::Only(sa), OverlappingChildren::Only(sb)) if sa == sb => {
+                OverlappingChildren::Only(sa)
+            }
+            _ => OverlappingChildren::Both,
         }
     }
 
