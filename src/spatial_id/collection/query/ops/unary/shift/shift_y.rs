@@ -68,8 +68,9 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
     fn apply_to_grid(
         &self,
         grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
+        token: &crate::CancellationToken,
     ) -> Result<crate::spatial_id::collection::query::grid::Applied, crate::Error> {
-        grid.shift(GridAxis::Y, self.z, self.y)
+        grid.shift(GridAxis::Y, self.z, self.y, token)
             .map(|_| crate::spatial_id::collection::query::grid::Applied::Done)
     }
 }

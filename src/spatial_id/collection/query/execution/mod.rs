@@ -175,7 +175,13 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
             let grid_ops = &ops[..grid_len];
             let grid_result = {
                 trace_span!("kasane_logic.query.unary.grid", op_count = grid_len);
-                try_run_grid(&working, grid_ops, max_z.unwrap(), grid_budget(&working))
+                try_run_grid(
+                    &working,
+                    grid_ops,
+                    max_z.unwrap(),
+                    grid_budget(&working),
+                    token,
+                )
             };
             if let Some(result) = grid_result {
                 working = result?;

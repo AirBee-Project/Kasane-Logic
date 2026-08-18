@@ -87,3 +87,40 @@ fn never_cancelled_token_ignores_cancel() {
     token.cancel();
     assert!(!token.is_cancelled());
 }
+
+#[test]
+fn check_amortized_only_checks_periodically() {
+    let token = CancellationToken::new();
+    token.cancel();
+
+    let mut ctr = 0u32;
+    for _ in 0..4095 {
+        assert!(token.check_amortized(&mut ctr).is_ok());
+    }
+    assert_eq!(token.check_amortized(&mut ctr), Err(Error::Cancelled));
+}
+
+#[test]
+fn try_run_grid_stops_when_cancelled() {
+    use crate::spatial_id::collection::query::grid::try_run_grid;
+    use crate::spatial_id::collection::query::ops::unary::shift::shift_x::ShiftX;
+
+    let mut table = SpatialIdTable::<i32>::new();
+    table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
+    let working = table
+        .read_range_ids(
+            &[RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())],
+            &CancellationToken::new(),
+        )
+        .unwrap();
+
+    let op = ShiftX::new(10, 1).unwrap();
+    let ops: [&dyn UnaryOperator<i32>; 1] = [&op];
+    let max_z = <ShiftX as UnaryOperator<i32>>::grid_zoom(&op).unwrap();
+
+    let token = CancellationToken::new();
+    token.cancel();
+
+    let result = try_run_grid(&working, &ops, max_z, u64::MAX, &token);
+    assert!(matches!(result, Some(Err(Error::Cancelled))));
+}

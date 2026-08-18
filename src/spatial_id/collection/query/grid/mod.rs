@@ -42,7 +42,7 @@ use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSendSync, MaybeSy
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, SafeValue};
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::spatial_id::helpers::Side;
-use crate::{Error, SpatialIdError, ZoomLevel};
+use crate::{CancellationToken, Error, SpatialIdError, ZoomLevel};
 
 #[cfg(feature = "rayon")]
 use crate::spatial_id::collection::flex_tree::core::parallel::PAR_SLICE_CUTOFF;
@@ -177,6 +177,7 @@ impl<V: SafeValue> UniformGrid<V> {
         axis: GridAxis,
         op_z: ZoomLevel,
         delta: i32,
+        token: &CancellationToken,
     ) -> Result<(), Error> {
         if delta == 0 {
             return Ok(());
@@ -186,7 +187,9 @@ impl<V: SafeValue> UniformGrid<V> {
         let span = 1i64 << self.z.get();
 
         if axis == GridAxis::X {
+            let mut ctr = 0u32;
             for e in &mut self.entries {
+                token.check_amortized(&mut ctr)?;
                 e.1 = (e.1 as i64 + d).rem_euclid(span) as u32;
             }
             // 巡回で並びが崩れる（位置の一意性は保たれる）。
@@ -215,7 +218,9 @@ impl<V: SafeValue> UniformGrid<V> {
             }
         }
 
+        let mut ctr = 0u32;
         for e in &mut self.entries {
+            token.check_amortized(&mut ctr)?;
             match axis {
                 GridAxis::F => e.0 = (e.0 as i64 + d) as i32,
                 GridAxis::Y => e.2 = (e.2 as i64 + d) as u32,
@@ -246,7 +251,8 @@ impl<V: SafeValue> UniformGrid<V> {
         radius: u32,
         direction: Option<Side>,
         atten: &A,
-    ) -> Applied
+        token: &CancellationToken,
+    ) -> Result<Applied, Error>
     where
         P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
         A: GridAttenuator<V> + MaybeSendSync,
@@ -273,7 +279,7 @@ impl<V: SafeValue> UniformGrid<V> {
             // X だけは巡回できる。はみ出す先は反対側へ回り込む。
             (GridAxis::X, true) => Some(span),
             // F / Y は葉単位の全か無かを再現できないので木経路へ譲る。
-            (GridAxis::F | GridAxis::Y, true) => return Applied::Unsupported,
+            (GridAxis::F | GridAxis::Y, true) => return Ok(Applied::Unsupported),
         };
 
         // 移動量は「ズーム op_z のインデックス」として有効な範囲に限られる
@@ -313,14 +319,14 @@ impl<V: SafeValue> UniformGrid<V> {
             df_range,
             wrap,
         };
-        self.entries = run_lanes::<V, P, A>(&self.entries, &params, atten);
+        self.entries = run_lanes::<V, P, A>(&self.entries, &params, atten, token)?;
 
         // 巡回（X）と飛び飛び格子（stride > 1）は出力が昇順・一意にならない。
         if params.stride != 1 || params.wrap.is_some() {
             self.order = None;
             self.sort_morton(&|a: &V, b: &V| P::resolve(a.clone(), b.clone()));
         }
-        Applied::Done
+        Ok(Applied::Done)
     }
 }
 
@@ -416,7 +422,8 @@ fn run_lanes<V: SafeValue, P, A>(
     entries: &[SingleEntry<V>],
     params: &FalloffParams,
     atten: &A,
-) -> Vec<SingleEntry<V>>
+    token: &CancellationToken,
+) -> Result<Vec<SingleEntry<V>>, Error>
 where
     P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
     A: GridAttenuator<V> + MaybeSendSync,
@@ -428,33 +435,47 @@ where
         use rayon::prelude::*;
         if entries.len() >= PAR_SLICE_CUTOFF {
             // 作業領域は fold のタスクごとに使い回す。レーン数は数百万になりうるので、
-            // レーン単位で確保すると確保コストが支配的になる。
-            let chunks: Vec<Vec<SingleEntry<V>>> = entries
+            // レーン単位で確保すると確保コストが支配的になる。カウンタもタスクごとに
+            // 使い回すことで、レーンをまたいだ間引きになる（トークンはスレッド間で共有）。
+            let chunks: Vec<Result<Vec<SingleEntry<V>>, Error>> = entries
                 .par_chunk_by(|a, b| same_lane(a, b, axis))
                 .fold(
-                    || (Vec::new(), Scratch::default()),
-                    |(mut out, mut scratch), lane| {
-                        falloff_lane::<V, P, A>(lane, params, atten, &mut out, &mut scratch);
-                        (out, scratch)
+                    || (Ok(Vec::new()), Scratch::default(), 0u32),
+                    |(acc, mut scratch, mut ctr), lane| {
+                        let acc = acc.and_then(|mut out| {
+                            token.check_amortized(&mut ctr)?;
+                            falloff_lane::<V, P, A>(
+                                lane,
+                                params,
+                                atten,
+                                &mut out,
+                                &mut scratch,
+                                token,
+                            )?;
+                            Ok(out)
+                        });
+                        (acc, scratch, ctr)
                     },
                 )
-                .map(|(out, _)| out)
+                .map(|(acc, _, _)| acc)
                 .collect();
 
-            let mut out = Vec::with_capacity(chunks.iter().map(Vec::len).sum());
-            for c in chunks {
-                out.extend(c);
+            let mut out = Vec::new();
+            for chunk in chunks {
+                out.extend(chunk?);
             }
-            return out;
+            return Ok(out);
         }
     }
 
     let mut out = Vec::with_capacity(estimated_output(entries.len(), params));
     let mut scratch = Scratch::default();
+    let mut ctr = 0u32;
     for lane in entries.chunk_by(|a, b| same_lane(a, b, axis)) {
-        falloff_lane::<V, P, A>(lane, params, atten, &mut out, &mut scratch);
+        token.check_amortized(&mut ctr)?;
+        falloff_lane::<V, P, A>(lane, params, atten, &mut out, &mut scratch, token)?;
     }
-    out
+    Ok(out)
 }
 
 /// 1 レーンぶんの走査。`lane` は対象軸の昇順・位置一意。
@@ -469,12 +490,14 @@ fn falloff_lane<V: SafeValue, P, A>(
     atten: &A,
     out: &mut Vec<SingleEntry<V>>,
     scratch: &mut Scratch<V>,
-) where
+    token: &CancellationToken,
+) -> Result<(), Error>
+where
     P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
     A: GridAttenuator<V>,
 {
     if lane.is_empty() {
-        return;
+        return Ok(());
     }
 
     // 距離ごとの減衰値と対象軸の位置を先に作る。出力位置ごとに割り算をやり直さず、
@@ -484,7 +507,9 @@ fn falloff_lane<V: SafeValue, P, A>(
     scratch.atten.reserve(lane.len() * width);
     scratch.pos.clear();
     scratch.pos.reserve(lane.len());
+    let mut ctr = 0u32;
     for entry in lane {
+        token.check_amortized(&mut ctr)?;
         for d in 0..=params.radius {
             scratch.atten.push(atten.attenuate(&entry.3, d));
         }
@@ -492,9 +517,9 @@ fn falloff_lane<V: SafeValue, P, A>(
     }
 
     if params.stride == 1 {
-        gather_lane::<V, P>(lane, params, out, scratch);
+        gather_lane::<V, P>(lane, params, out, scratch, token)
     } else {
-        scatter_lane::<V>(lane, params, out, scratch);
+        scatter_lane::<V>(lane, params, out, scratch, token)
     }
 }
 
@@ -517,9 +542,12 @@ fn scatter_lane<V: SafeValue>(
     params: &FalloffParams,
     out: &mut Vec<SingleEntry<V>>,
     scratch: &Scratch<V>,
-) {
+    token: &CancellationToken,
+) -> Result<(), Error> {
     let width = params.radius as usize + 1;
+    let mut ctr = 0u32;
     for (k, entry) in lane.iter().enumerate() {
+        token.check_amortized(&mut ctr)?;
         for df in params.df_range.clone() {
             let value = scratch.atten[k * width + df.unsigned_abs() as usize].clone();
             emit(
@@ -531,6 +559,7 @@ fn scatter_lane<V: SafeValue>(
             );
         }
     }
+    Ok(())
 }
 
 /// 密な格子（`stride == 1`）向けの収集。出力位置ごとに半径内の入力を畳み込む。
@@ -542,7 +571,9 @@ fn gather_lane<V: SafeValue, P>(
     params: &FalloffParams,
     out: &mut Vec<SingleEntry<V>>,
     scratch: &Scratch<V>,
-) where
+    token: &CancellationToken,
+) -> Result<(), Error>
+where
     P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
 {
     let r = params.radius as i64;
@@ -551,6 +582,7 @@ fn gather_lane<V: SafeValue, P>(
 
     let (mut lo, mut hi) = (0usize, 0usize);
     let mut k = 0usize;
+    let mut ctr = 0u32;
     while k < lane.len() {
         // 半径 r で被覆区間が繋がる入力のかたまりを 1 つ取り、その被覆区間を埋める。
         let start = pos[k] - r;
@@ -562,6 +594,8 @@ fn gather_lane<V: SafeValue, P>(
         }
 
         for q in start..=end {
+            token.check_amortized(&mut ctr)?;
+
             while lo < pos.len() && pos[lo] + r < q {
                 lo += 1;
             }
@@ -589,6 +623,7 @@ fn gather_lane<V: SafeValue, P>(
 
         k = last + 1;
     }
+    Ok(())
 }
 
 /// 対象軸を最下位キーにして整列する。
@@ -629,6 +664,7 @@ pub(crate) fn try_run_grid<V: SafeValue + 'static>(
     ops: &[&dyn crate::spatial_id::collection::query::traits::UnaryOperator<V>],
     max_z: ZoomLevel,
     budget: u64,
+    token: &CancellationToken,
 ) -> Option<Result<WorkingTree<V>, Error>> {
     // 0 個の演算に「成功」を返すと、呼び出し側の走査が 1 つも進まなくなる。
     if ops.is_empty() {
@@ -642,7 +678,10 @@ pub(crate) fn try_run_grid<V: SafeValue + 'static>(
 
     let mut grid = UniformGrid::from_tree(tree, z, budget)?;
     for op in ops {
-        match op.apply_to_grid(&mut grid) {
+        if token.is_cancelled() {
+            return Some(Err(Error::Cancelled));
+        }
+        match op.apply_to_grid(&mut grid, token) {
             Ok(Applied::Done) => {}
             // 途中まで進めたグリッドは捨てる。呼び出し側が元の木から木経路でやり直す。
             Ok(Applied::Unsupported) => return None,

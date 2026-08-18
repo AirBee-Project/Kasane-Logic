@@ -66,7 +66,7 @@ fn assert_same_via_grid(tree: WorkingTree<u32>, ops: Ops) {
     let max_z = order.iter().filter_map(|op| op.grid_zoom()).max();
     if let Some(max_z) = max_z {
         assert!(
-            try_run_grid(&tree, &order, max_z, u64::MAX).is_some(),
+            try_run_grid(&tree, &order, max_z, u64::MAX, &CancellationToken::new()).is_some(),
             "グリッド経路が使われるはずの条件なのにフォールバックした"
         );
     }
@@ -247,7 +247,7 @@ fn refuses_when_over_budget() {
     let op = ShiftX::new(24u8, 1).unwrap();
     let ops: Vec<&dyn UnaryOperator<u32>> = alloc::vec![&op as &dyn UnaryOperator<u32>];
     let max_z = <ShiftX as UnaryOperator<u32>>::grid_zoom(&op).unwrap();
-    assert!(try_run_grid(&tree, &ops, max_z, 1000).is_none());
+    assert!(try_run_grid(&tree, &ops, max_z, 1000, &CancellationToken::new()).is_none());
 }
 
 /// 無作為な木と演算列で、グリッド経路が木経路と一致することを確かめる。
