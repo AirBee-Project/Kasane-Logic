@@ -94,7 +94,14 @@ impl<V: SafeValue> UniformGrid<V> {
     /// 次のいずれかなら [`None`] を返し、呼び出し側は従来の木経路へ落ちる。
     /// - 木が時間軸で分割されている（ズームが揃わない）
     /// - 件数が `budget`（および [`MAX_BYTES`] 相当）を超える
-    pub(crate) fn from_tree(tree: &WorkingTree<V>, z: ZoomLevel, budget: u64) -> Option<Self> {
+    ///
+    /// この `None` と `Some(Err(_))` を混同してはいけない。前者は木経路へフォールバック してよいが、後者（キャンセルなど）でフォールバックすると打ち切りが無効になる。
+    pub(crate) fn from_tree(
+        tree: &WorkingTree<V>,
+        z: ZoomLevel,
+        budget: u64,
+        token: &CancellationToken,
+    ) -> Option<Result<Self, Error>> {
         let core = tree.core();
         if core.has_temporal_split() {
             return None;
@@ -104,7 +111,11 @@ impl<V: SafeValue> UniformGrid<V> {
         // 上限はバイト数で決めたいので、1 件あたりの実サイズで割って件数に直す。
         let limit = budget.min(MAX_BYTES / core::mem::size_of::<SingleEntry<V>>() as u64);
         let mut total: u64 = 0;
+        let mut ctr = 0u32;
         for (id, _) in core.iter_ref() {
+            if let Err(e) = token.check_amortized(&mut ctr) {
+                return Some(Err(e));
+            }
             let bits = (z.get() - id.f_zoomlevel())
                 + (z.get() - id.x_zoomlevel())
                 + (z.get() - id.y_zoomlevel());
@@ -119,15 +130,19 @@ impl<V: SafeValue> UniformGrid<V> {
         }
 
         let mut entries: Vec<SingleEntry<V>> = Vec::with_capacity(total as usize);
+        let mut ctr = 0u32;
         for (id, value) in core.iter_ref() {
+            if let Err(e) = token.check_amortized(&mut ctr) {
+                return Some(Err(e));
+            }
             expand_leaf(&id, z.get(), value, &mut entries);
         }
 
-        Some(Self {
+        Some(Ok(Self {
             z,
             entries,
             order: None,
-        })
+        }))
     }
 
     /// 木を組み直す。
@@ -161,11 +176,24 @@ impl<V: SafeValue> UniformGrid<V> {
     }
 
     /// 対象軸の位置の範囲 `[min, max]`。空なら [`None`]。
-    fn axis_span(&self, axis: GridAxis) -> Option<RangeInclusive<i64>> {
+    fn axis_span(
+        &self,
+        axis: GridAxis,
+        token: &CancellationToken,
+    ) -> Result<Option<RangeInclusive<i64>>, Error> {
         let mut it = self.entries.iter().map(|e| axis_pos(e, axis));
-        let first = it.next()?;
-        let (min, max) = it.fold((first, first), |(lo, hi), p| (lo.min(p), hi.max(p)));
-        Some(min..=max)
+        let Some(first) = it.next() else {
+            return Ok(None);
+        };
+        let mut lo = first;
+        let mut hi = first;
+        let mut ctr = 0u32;
+        for p in it {
+            token.check_amortized(&mut ctr)?;
+            lo = lo.min(p);
+            hi = hi.max(p);
+        }
+        Ok(Some(lo..=hi))
     }
 
     /// 軸方向の平行移動。
@@ -198,7 +226,10 @@ impl<V: SafeValue> UniformGrid<V> {
         }
 
         // 移動先が軸の範囲を外れる葉があれば、木経路と同じく演算全体をエラーにする。
-        if let Some(moved) = self.axis_span(axis).map(|s| s.start() + d..=s.end() + d) {
+        if let Some(moved) = self
+            .axis_span(axis, token)?
+            .map(|s| s.start() + d..=s.end() + d)
+        {
             match axis {
                 GridAxis::F => {
                     self.z.check_f(*moved.start() as i32)?;
@@ -264,7 +295,7 @@ impl<V: SafeValue> UniformGrid<V> {
         let reach = radius as i64 * stride;
 
         // 伝播が軸の外へ届くか。届かないなら、はみ出しも巡回も起こらない。
-        let overflows = self.axis_span(axis).is_some_and(|s| {
+        let overflows = self.axis_span(axis, token)?.is_some_and(|s| {
             let (lo, hi) = if axis == GridAxis::F {
                 (-span, span - 1)
             } else {
@@ -676,7 +707,11 @@ pub(crate) fn try_run_grid<V: SafeValue + 'static>(
         .max()?;
     let z = ZoomLevel::new(z).ok()?;
 
-    let mut grid = UniformGrid::from_tree(tree, z, budget)?;
+    let mut grid = match UniformGrid::from_tree(tree, z, budget, token) {
+        Some(Ok(grid)) => grid,
+        Some(Err(e)) => return Some(Err(e)),
+        None => return None,
+    };
     for op in ops {
         if token.is_cancelled() {
             return Some(Err(Error::Cancelled));

@@ -2,7 +2,10 @@ use alloc::vec;
 
 use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::{CancellationToken, Error, RangeId, SingleId, Source, SpatialIdTable};
+use crate::{
+    CancellationToken, Error, FlexId, RangeId, SingleId, Source, SpatialIdTable, WorkingTree,
+    ZoomLevel,
+};
 
 #[test]
 fn run_within_stops_immediately_when_already_cancelled() {
@@ -122,5 +125,29 @@ fn try_run_grid_stops_when_cancelled() {
     token.cancel();
 
     let result = try_run_grid(&working, &ops, max_z, u64::MAX, &token);
+    assert!(matches!(result, Some(Err(Error::Cancelled))));
+}
+
+#[test]
+fn from_tree_checks_cancellation_during_estimation() {
+    use crate::spatial_id::collection::query::grid::UniformGrid;
+
+    // check_amortized の間引き間隔(4096回)より多い葉数を用意し、from_tree 自身の
+    // ループ内チェックが（try_run_grid の呼び出し前チェックに頼らず）機能することを確かめる。
+    // 値を互い違いにして、隣接Segmentが同値統合されて葉数が縮まないようにする。
+    let tree: WorkingTree<i32> = (0..5000u32)
+        .map(|i| {
+            (
+                FlexId::new(12, 0, 12, i % 4000, 12, i / 4000).unwrap(),
+                i as i32,
+            )
+        })
+        .collect();
+
+    let token = CancellationToken::new();
+    token.cancel();
+
+    let z = ZoomLevel::new(12).unwrap();
+    let result = UniformGrid::from_tree(&tree, z, u64::MAX, &token);
     assert!(matches!(result, Some(Err(Error::Cancelled))));
 }
