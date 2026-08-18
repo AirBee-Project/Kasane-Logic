@@ -75,7 +75,9 @@ fn x_edges_shift_rejects_target_z_beyond_zoom_level_max() {
     let result = id.x_edges_shift(too_large, 0, 0);
     assert_eq!(
         result,
-        Err(Error::SpatialId(SpatialIdError::ZOutOfRange { z: too_large }))
+        Err(Error::SpatialId(SpatialIdError::ZOutOfRange {
+            z: too_large
+        }))
     );
 }
 
