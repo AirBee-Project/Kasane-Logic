@@ -1,5 +1,6 @@
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, RangeId};
@@ -9,9 +10,16 @@ use alloc::boxed::Box;
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
 
-    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<Self::Value>, Error>;
+    fn read_range_ids(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<WorkingTree<Self::Value>, Error>;
 
-    fn read_all(self: Box<Self>) -> Result<WorkingTree<Self::Value>, Error>;
+    fn read_all(
+        self: Box<Self>,
+        token: &CancellationToken,
+    ) -> Result<WorkingTree<Self::Value>, Error>;
 
     fn query(self) -> Query<Self::Value>
     where
@@ -23,7 +31,7 @@ pub trait Source: MaybeSendSync {
 
 #[cfg(test)]
 mod tests {
-    use crate::{RangeId, SingleId, Source, SpatialIdTable};
+    use crate::{CancellationToken, RangeId, SingleId, Source, SpatialIdTable};
     use alloc::vec::Vec;
 
     /// 重なり合う複数 bounds で読んでも、空間IDが重複せず正しい値で返ること。
@@ -41,7 +49,9 @@ mod tests {
             .map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
             .collect();
 
-        let working = table.read_range_ids(&bounds).unwrap();
+        let working = table
+            .read_range_ids(&bounds, &CancellationToken::new())
+            .unwrap();
 
         let time_segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
         assert_eq!(
@@ -67,10 +77,13 @@ mod tests {
             RangeId::new(20, [0, 0], [403, 407], [400, 400]).unwrap(),
         ];
 
-        let mut a: Vec<(crate::FlexId, i32)> =
-            table.read_range_ids(&single).unwrap().into_iter().collect();
+        let mut a: Vec<(crate::FlexId, i32)> = table
+            .read_range_ids(&single, &CancellationToken::new())
+            .unwrap()
+            .into_iter()
+            .collect();
         let mut b: Vec<(crate::FlexId, i32)> = table
-            .read_range_ids(&overlapping)
+            .read_range_ids(&overlapping, &CancellationToken::new())
             .unwrap()
             .into_iter()
             .collect();

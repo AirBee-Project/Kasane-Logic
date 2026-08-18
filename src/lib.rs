@@ -109,6 +109,8 @@ pub use spatial_id::zoom_level::ZoomLevel;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::core::SafeValue;
 #[doc(inline)]
+pub use spatial_id::collection::query::cancellation::CancellationToken;
+#[doc(inline)]
 pub use spatial_id::collection::query::execution::Query;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy;

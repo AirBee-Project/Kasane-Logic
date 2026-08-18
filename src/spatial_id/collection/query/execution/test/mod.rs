@@ -1,4 +1,5 @@
 pub mod ast_optimization;
+pub mod cancellation;
 pub mod lazy_get;
 pub mod proptest_query;
 

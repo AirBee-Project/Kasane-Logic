@@ -1,3 +1,6 @@
+/// クエリ実行を途中で打ち切るための協調的キャンセル
+pub mod cancellation;
+
 /// 演算子の種類
 pub mod ops;
 

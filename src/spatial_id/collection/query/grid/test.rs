@@ -3,6 +3,7 @@
 //! 木経路は `UnaryOperator::run`（`map_rebuild` 系）そのものなので、両者を突き合わせれば
 //! 高速化で意味が変わっていないことを固定できる。
 
+use crate::CancellationToken;
 use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::grid::try_run_grid;
 use crate::spatial_id::collection::query::ops::unary::falloff::{
@@ -38,7 +39,7 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
 
     let order: Vec<&dyn crate::spatial_id::collection::query::traits::UnaryOperator<u32>> =
         ops.iter().map(|op| &**op).collect();
-    let got = run_unary_chain(&order, tree);
+    let got = run_unary_chain(&order, tree, &CancellationToken::new());
 
     match (tree_result, got) {
         (Err(_), Err(_)) => {}

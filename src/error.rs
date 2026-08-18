@@ -54,6 +54,9 @@ pub enum Error {
         /// バイト列に書かれていたレイアウトフラグ。
         found: u8,
     },
+
+    /// [`CancellationToken`](crate::CancellationToken) によりキャンセルされた。
+    Cancelled,
 }
 
 /// Geometry 関連で発生するエラー。
@@ -159,6 +162,7 @@ impl fmt::Display for Error {
                 f,
                 "unsupported persisted format layout: expected {expected:#010b}, found {found:#010b}"
             ),
+            Error::Cancelled => write!(f, "query execution was cancelled"),
         }
     }
 }
