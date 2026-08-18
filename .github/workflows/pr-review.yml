@@ -18,6 +18,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # issue_comment イベントの場合、デフォルトでは main が checkout されてしまうため、対象のPRを明示的にcheckoutする
+          ref: refs/pull/${{ github.event.issue.number }}/head
 
       - name: Gemini AI Code Reviewer
         uses: sshnaidm/gemini-code-review-action@v2
@@ -25,7 +27,6 @@ jobs:
           gemini-key: ${{ secrets.GEMINI_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           model: gemini-2.5-flash
-          # 古い設定ファイル（ai-review-config.yml）の内容を反映
           exclude: "*.txt,*.json,*.yaml,*.yml,package-lock.json,bun.lockb"
           system-prompt: |
             あなたはシニアエンジニアとして、PR内容をレビューしてください。
