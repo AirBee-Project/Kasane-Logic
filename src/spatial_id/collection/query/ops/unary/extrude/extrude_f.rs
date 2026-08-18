@@ -98,13 +98,13 @@ where
         let max_z = target_z.max(bounds_z);
 
         let scale_t = max_z - target_z;
-        let scale_b = max_z - bounds_z;
 
         let target_min_max_z = (self.start_f as i64) * (1i64 << scale_t);
         let target_max_max_z = ((self.end_f as i64) + 1) * (1i64 << scale_t) - 1;
 
-        let bounds_min_max_z = (bounds.f()[0] as i64) * (1i64 << scale_b);
-        let bounds_max_max_z = ((bounds.f()[1] as i64) + 1) * (1i64 << scale_b) - 1;
+        let (bounds_min_max_z, bounds_max_max_z) = bounds.f_fine_range(max_z);
+        let bounds_min_max_z = bounds_min_max_z as i64;
+        let bounds_max_max_z = bounds_max_max_z as i64;
 
         if target_max_max_z < bounds_min_max_z || bounds_max_max_z < target_min_max_z {
             return None;

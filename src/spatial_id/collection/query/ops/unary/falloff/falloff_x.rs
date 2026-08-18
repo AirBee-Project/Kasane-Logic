@@ -80,13 +80,10 @@ where
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
-        let target_z = bounds.z();
         let z = self.z.get();
-        let max_z = z.max(target_z);
-        let shift_z = max_z - z;
-        let scale_t = max_z - target_z;
+        let target_z = z.max(bounds.z());
 
-        let delta = (self.radius as i64) * (1i64 << shift_z);
+        let delta = (self.radius as i64) * (1i64 << (target_z - z));
         let mut min_delta = delta;
         let mut max_delta = delta;
         if let Some(side) = self.direction {
@@ -97,27 +94,9 @@ where
             }
         }
 
-        let x_min_max_z = (bounds.x()[0] as i64) * (1i64 << scale_t);
-        let x_max_max_z = ((bounds.x()[1] as i64) + 1) * (1i64 << scale_t) - 1;
-
-        let new_min_max_z = x_min_max_z - min_delta;
-        let new_max_max_z = x_max_max_z + max_delta;
-
-        let max_len = 1i64 << max_z;
-        let new_min_max_z_wrapped = new_min_max_z.rem_euclid(max_len);
-        let new_max_max_z_wrapped = new_max_max_z.rem_euclid(max_len);
-
-        let (new_min, new_max) = if new_max_max_z - new_min_max_z >= max_len {
-            (0, max_len - 1)
-        } else {
-            (new_min_max_z_wrapped, new_max_max_z_wrapped)
-        };
-
-        let mut new_bounds = bounds.clone();
-        let new_min_target = (new_min >> scale_t) as u32;
-        let new_max_target = (new_max >> scale_t) as u32;
-        new_bounds.set_x([new_min_target, new_max_target]).unwrap();
-        Some(new_bounds)
+        bounds
+            .x_edges_shift(target_z, -min_delta, max_delta)
+            .unwrap()
     }
 
     fn validate(&self) -> Result<(), crate::Error> {

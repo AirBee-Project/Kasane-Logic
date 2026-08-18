@@ -98,15 +98,31 @@ where
         let max_z = target_z.max(bounds_z);
 
         let scale_t = max_z - target_z;
-        let scale_b = max_z - bounds_z;
 
         let target_min_max_z = (self.start_x as i64) * (1i64 << scale_t);
         let target_max_max_z = ((self.end_x as i64) + 1) * (1i64 << scale_t) - 1;
 
-        let bounds_min_max_z = (bounds.x()[0] as i64) * (1i64 << scale_b);
-        let bounds_max_max_z = ((bounds.x()[1] as i64) + 1) * (1i64 << scale_b) - 1;
+        let (bounds_min_max_z, bounds_max_max_z) = bounds.x_fine_range(max_z);
+        let bounds_min_max_z = bounds_min_max_z as i64;
+        let bounds_max_max_z = bounds_max_max_z as i64;
 
-        if target_max_max_z < bounds_min_max_z || bounds_max_max_z < target_min_max_z {
+        let overlaps = |min: i64, max: i64| !(target_max_max_z < min || max < target_min_max_z);
+
+        // bounds のx軸が折り返し（`bounds.x()[0] > bounds.x()[1]`）の場合、x_fine_range は
+        // それを考慮せず min > max のまま返す。2つの非折り返し区間に分解し、どちらかが
+        // target と重なれば良い（単純な区間判定は折り返しには使えないため）。
+        let has_overlap = match crate::RangeId::split_wrapped_range(
+            bounds_min_max_z,
+            bounds_max_max_z,
+            (1i64 << max_z) - 1,
+        ) {
+            Some([(a_min, a_max), (b_min, b_max)]) => {
+                overlaps(a_min, a_max) || overlaps(b_min, b_max)
+            }
+            None => overlaps(bounds_min_max_z, bounds_max_max_z),
+        };
+
+        if !has_overlap {
             return None;
         }
 

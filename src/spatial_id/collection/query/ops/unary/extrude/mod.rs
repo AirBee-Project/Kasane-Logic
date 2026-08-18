@@ -3,3 +3,6 @@ pub mod extrude_x;
 pub mod extrude_y;
 pub mod primitive;
 pub mod query;
+
+#[cfg(test)]
+mod test;
