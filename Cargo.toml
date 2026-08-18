@@ -34,9 +34,9 @@ temporal_id = []
 rand = ["dep:rand"]
 persist = ["dep:rkyv", "std"]
 json = ["dep:serde", "dep:serde_json"]
-# Query 実行の各フェーズ（ソース読み取り／二項マージ／単項適用）へ tracing スパンを張る。
-# エクスポーターへの依存はアプリ側（tracing-subscriber 等）に委ね、このクレートは facade にのみ依存する。
-tracing = ["dep:tracing", "std"]
+
+# 実験的機能。予告なく変更・削除されうる。
+unstable = ["dep:tracing", "std"]
 
 [dev-dependencies]
 rand = "0.10.1"

@@ -6,6 +6,7 @@ use crate::spatial_id::collection::query::execution::group_commutative::types::C
 use crate::spatial_id::collection::query::grid::try_run_grid;
 use crate::spatial_id::collection::query::source::Source;
 use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::trace::trace_span;
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -14,18 +15,6 @@ pub mod group_commutative;
 
 #[cfg(test)]
 mod test;
-
-/// `tracing` feature が有効なときだけ、呼び出し元のブロックの終わりまでスパンを張る。
-/// 無効時はコンパイル時に消える（[`super::flex_tree::core::node_ops::join_at`] と同じ考え方）。
-///
-/// 呼び出し側のスコープへ直接展開する必要があるため、`{}` で包まない
-/// （包むとガードがその場で drop され、スパンが即座に閉じてしまう）。
-macro_rules! trace_span {
-    ($($arg:tt)*) => {
-        #[cfg(feature = "tracing")]
-        let _kasane_logic_span = ::tracing::debug_span!($($arg)*).entered();
-    };
-}
 
 /// Query全体を表現する型。
 pub enum Query<V: SafeValue + 'static> {
@@ -175,15 +164,23 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
 
         if grid_len > 0 {
             let grid_ops = &ops[..grid_len];
-            if let Some(result) =
+            let grid_result = {
+                trace_span!("kasane_logic.query.unary.grid", op_count = grid_len);
                 try_run_grid(&working, grid_ops, max_z.unwrap(), grid_budget(&working))
-            {
+            };
+            if let Some(result) = grid_result {
                 working = result?;
                 ops = &ops[grid_len..];
                 continue;
             }
         }
-        head.run(&mut working)?;
+        {
+            trace_span!(
+                "kasane_logic.query.unary.op",
+                op = %core::fmt::from_fn(|f| head.fmt_op(f)),
+            );
+            head.run(&mut working)?;
+        }
         ops = &ops[1..];
     }
     Ok(working)
@@ -200,16 +197,15 @@ fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
 impl<V: SafeValue + 'static> Query<V> {
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
     pub fn run_within(&self, bounds: Vec<crate::RangeId>) -> Result<WorkingTree<V>, Error> {
-        trace_span!("kasane_logic.query.run_within", target_regions = bounds.len());
+        trace_span!(
+            "kasane_logic.query.run_within",
+            target_regions = bounds.len()
+        );
         self.validate()?;
         self.run_within_unchecked(bounds)
     }
 
     /// [`run_within`](Self::run_within) の本体（再帰部分）。
-    ///
-    /// `tracing` feature 有効時、ここで張るスパンは AST の形どおりに入れ子になる。ノードの
-    /// 自己時間（子スパンに属さない時間）が、`Source` 実装（I/O 等）や `Binary`/`Unary` の
-    /// 適用（CPU）のどちらに費やされているかを、外部からの計測なしに切り分けられる。
     fn run_within_unchecked(&self, bounds: Vec<crate::RangeId>) -> Result<WorkingTree<V>, Error> {
         match self {
             Query::Source(s) => {
@@ -238,7 +234,10 @@ impl<V: SafeValue + 'static> Query<V> {
                 }
             }
             Query::Binary(op, lhs, rhs) => {
-                trace_span!("kasane_logic.query.binary");
+                trace_span!(
+                    "kasane_logic.query.binary",
+                    op = %core::fmt::from_fn(|f| op.fmt_op(f)),
+                );
 
                 let mut lhs_bounds = Vec::new();
                 let mut rhs_bounds = Vec::new();
@@ -254,7 +253,12 @@ impl<V: SafeValue + 'static> Query<V> {
                 let mut lhs_working = lhs.run_within_unchecked(lhs_bounds)?;
                 let rhs_working = rhs.run_within_unchecked(rhs_bounds)?;
                 {
-                    trace_span!("kasane_logic.query.binary.merge");
+                    trace_span!(
+                        "kasane_logic.query.binary.merge",
+                        op = %core::fmt::from_fn(|f| op.fmt_op(f)),
+                        lhs_count = lhs_working.count(),
+                        rhs_count = rhs_working.count(),
+                    );
                     op.run(&mut lhs_working, &rhs_working)?;
                 }
                 Ok(lhs_working)

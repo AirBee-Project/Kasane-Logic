@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
+use crate::trace::trace_span;
 use crate::{AllowedIntervals, Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
@@ -94,6 +95,11 @@ where
 
     /// 2つの [FlexTreeCore] の和集合を計算します。
     pub fn union(&self, other: &Self) -> Self {
+        trace_span!(
+            "kasane_logic.flex_tree.union",
+            lhs_count = self.count(),
+            rhs_count = other.count(),
+        );
         Self {
             lower_root: self.merge_roots(&self.lower_root, &other.lower_root, MergeOp::Union),
             upper_root: self.merge_roots(&self.upper_root, &other.upper_root, MergeOp::Union),
@@ -115,6 +121,12 @@ where
     where
         R: Fn(&V, &V) -> V + MaybeSync,
     {
+        trace_span!(
+            "kasane_logic.flex_tree.merge_with",
+            lhs_count = self.count(),
+            rhs_count = other.count(),
+        );
+
         // 終端規則: 片側が空なら相手を通し（構造共有）、両側が値付き葉なら resolve で合成。
         // `resolve(v, v) != v` になりうる（例: 加算）ため MergeOp のような ptr_eq ショートカットは
         // 使わず、両側に値のある領域は必ず葉まで降りて解決する。
@@ -161,6 +173,12 @@ where
     where
         R: Fn(&V, &V) -> V + MaybeSync,
     {
+        trace_span!(
+            "kasane_logic.flex_tree.merge_with_default",
+            lhs_count = self.count(),
+            rhs_count = other.count(),
+        );
+
         let terminal = |a: &SharedNode<Node<V>>, b: &SharedNode<Node<V>>, _e: &_| match (&**a, &**b)
         {
             (Node::Leaf { value: None }, Node::Leaf { value: None }) => Some(a.clone()),
@@ -1074,6 +1092,7 @@ impl<V: SafeValue> FromIterator<(FlexId, V)> for FlexTreeCore<V> {
     /// O(深さ) なので、事前のソートや重複除去は不要。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
         let items: Vec<_> = iter.into_iter().collect();
+        trace_span!("kasane_logic.flex_tree.from_iter", item_count = items.len());
 
         #[cfg(feature = "rayon")]
         {

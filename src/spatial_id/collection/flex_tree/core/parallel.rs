@@ -17,6 +17,7 @@ use super::FlexTreeCore;
 use super::ptr::SafeValue;
 use super::spatial_sort_key;
 use crate::FlexId;
+use crate::trace::trace_span;
 
 /// 1 チャンクの最小サイズ。これ未満に刻むと union 簡約の回数がかさんで逆効果になる。
 /// [`from_flexids_with_policy`](FlexTreeCore::from_flexids_with_policy) のチャンク分割でも使う。
@@ -46,14 +47,21 @@ where
         if items.is_empty() {
             return Self::new();
         }
+        trace_span!("kasane_logic.flex_tree.par_build", item_count = items.len());
 
         // 空間ソートキーのキャッシュ
-        let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
-            .into_iter()
-            .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
-            .collect();
-
-        keyed_items.par_sort_unstable_by_key(|(key, _)| *key);
+        let keyed_items: Vec<(super::SortKey, (FlexId, V))> = {
+            trace_span!(
+                "kasane_logic.flex_tree.par_build.sort",
+                item_count = items.len()
+            );
+            let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
+                .into_iter()
+                .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
+                .collect();
+            keyed_items.par_sort_unstable_by_key(|(key, _)| *key);
+            keyed_items
+        };
 
         let threads = rayon::current_num_threads().max(1);
         // 1 スレッドあたり数チャンクに割って負荷を均しつつ、下限で刻み過ぎを防ぐ。
@@ -84,13 +92,24 @@ where
         {
             use rayon::prelude::*;
 
-            // 空間ソートキーのキャッシュ
-            let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
-                .into_iter()
-                .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
-                .collect();
+            trace_span!(
+                "kasane_logic.flex_tree.par_build_with",
+                item_count = items.len()
+            );
 
-            keyed_items.par_sort_unstable_by_key(|(key, _)| *key);
+            // 空間ソートキーのキャッシュ
+            let keyed_items: Vec<(super::SortKey, (FlexId, V))> = {
+                trace_span!(
+                    "kasane_logic.flex_tree.par_build_with.sort",
+                    item_count = items.len(),
+                );
+                let mut keyed_items: Vec<(super::SortKey, (FlexId, V))> = items
+                    .into_iter()
+                    .map(|(id, val)| (spatial_sort_key(&id), (id, val)))
+                    .collect();
+                keyed_items.par_sort_unstable_by_key(|(key, _)| *key);
+                keyed_items
+            };
 
             let threads = rayon::current_num_threads().max(1);
             let chunk_size = (keyed_items.len() / (threads * 4)).max(MIN_PAR_CHUNK);
