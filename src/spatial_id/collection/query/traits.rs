@@ -62,6 +62,7 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
     fn apply_to_grid(
         &self,
         _grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
+        _token: &crate::CancellationToken,
     ) -> Result<crate::spatial_id::collection::query::grid::Applied, Error> {
         Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported)
     }

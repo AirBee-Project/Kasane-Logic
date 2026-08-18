@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::source::Source;
 use crate::spatial_id::collection::query::working::WorkingTree;
@@ -25,9 +26,16 @@ impl<T: Ord + Clone + Send + Sync> FlexIdValue for T {}
 impl Source for SpatialIdSet {
     type Value = ();
 
-    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<()>, Error> {
+    fn read_range_ids(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<WorkingTree<()>, Error> {
         let mut time_segments: Vec<(FlexId, ())> = Vec::new();
         for b in bounds {
+            if token.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
             for id in self.get_range(b) {
                 time_segments.push((id, ()));
             }
@@ -35,7 +43,10 @@ impl Source for SpatialIdSet {
         Ok(time_segments.into_iter().collect())
     }
 
-    fn read_all(self: Box<Self>) -> Result<WorkingTree<()>, Error> {
+    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<()>, Error> {
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
         // 所有権ごと移し替えるだけ（クローンしない）。
         Ok(WorkingTree::from_core(SpatialIdSet::into_core(*self)))
     }
@@ -54,9 +65,16 @@ where
 {
     type Value = V;
 
-    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<V>, Error> {
+    fn read_range_ids(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<WorkingTree<V>, Error> {
         let mut time_segments: Vec<(FlexId, V)> = Vec::new();
         for b in bounds {
+            if token.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
             for (id, value) in self.get_range(b) {
                 time_segments.push((id, value.clone()));
             }
@@ -64,7 +82,10 @@ where
         Ok(time_segments.into_iter().collect())
     }
 
-    fn read_all(self: Box<Self>) -> Result<WorkingTree<V>, Error> {
+    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<V>, Error> {
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
         // rank ツリーを辞書で実体値へ展開する。ランク → 実体値は単射なので、木の形は
         // まったく変わらない。平坦化して組み直す必要はなく、値だけを写せばよい。
         //

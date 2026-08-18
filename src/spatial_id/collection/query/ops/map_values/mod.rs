@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
 use crate::{Error, RangeId};
 
@@ -38,16 +39,23 @@ where
 {
     type Value = U;
 
-    fn read_range_ids(&self, bounds: &[RangeId]) -> Result<WorkingTree<U>, Error> {
+    fn read_range_ids(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<WorkingTree<U>, Error> {
         Ok(self
             .inner
-            .run_within(bounds.to_vec())?
+            .run_within(bounds.to_vec(), token)?
             .into_iter()
             .map(|(id, value)| (id, (self.f)(value)))
             .collect())
     }
 
-    fn read_all(self: Box<Self>) -> Result<WorkingTree<U>, Error> {
+    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<U>, Error> {
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
         let this = *self;
         Ok(this
             .inner

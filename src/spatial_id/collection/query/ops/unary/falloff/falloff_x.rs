@@ -131,11 +131,19 @@ where
     fn apply_to_grid(
         &self,
         grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
+        token: &crate::CancellationToken,
     ) -> Result<crate::spatial_id::collection::query::grid::Applied, crate::Error> {
         if !P::IS_COMMUTATIVE || self.radius == 0 {
             return Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported);
         }
         let atten = super::Attenuator::new(self.radius, self.pattern);
-        Ok(grid.falloff::<P, _>(GridAxis::X, self.z, self.radius, self.direction, &atten))
+        grid.falloff::<P, _>(
+            GridAxis::X,
+            self.z,
+            self.radius,
+            self.direction,
+            &atten,
+            token,
+        )
     }
 }
