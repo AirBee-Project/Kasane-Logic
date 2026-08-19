@@ -139,6 +139,23 @@ where
         CommutativityInfo::None
     }
 
+    fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
+        Some(self.target_z)
+    }
+
+    #[allow(private_interfaces)]
+    fn apply_to_grid(
+        &self,
+        grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
+        token: &crate::CancellationToken,
+    ) -> Result<crate::spatial_id::collection::query::grid::Applied, Error> {
+        if !P::IS_COMMUTATIVE {
+            return Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported);
+        }
+        grid.zoom_out::<P>(self.target_z, token)?;
+        Ok(crate::spatial_id::collection::query::grid::Applied::Done)
+    }
+
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "zoom_out(z={})", self.target_z.get())
     }
