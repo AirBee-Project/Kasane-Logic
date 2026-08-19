@@ -82,7 +82,7 @@ const MAX_BYTES: u64 = 512 * 1024 * 1024;
 ///
 /// すべて全時間（`t_zoomlevel == 0`）で、空間 3 軸のズームは `z` に揃っている。
 /// 位置は重複しない（各演算がこの不変条件を保つ）。
-pub(crate) struct UniformGrid<V: SafeValue> {
+pub struct UniformGrid<V: SafeValue> {
     z: ZoomLevel,
     entries: Vec<SingleEntry<V>>,
     order: Option<Order>,
@@ -395,7 +395,7 @@ impl<V: SafeValue> UniformGrid<V> {
 }
 
 /// グリッド経路で実行しきれたか。
-pub(crate) enum Applied {
+pub enum Applied {
     Done,
     /// グリッドでは元の意味を再現できないので木経路に任せる。
     ///
