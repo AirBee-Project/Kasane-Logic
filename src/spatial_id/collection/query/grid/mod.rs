@@ -82,7 +82,7 @@ const MAX_BYTES: u64 = 512 * 1024 * 1024;
 ///
 /// すべて全時間（`t_zoomlevel == 0`）で、空間 3 軸のズームは `z` に揃っている。
 /// 位置は重複しない（各演算がこの不変条件を保つ）。
-pub struct UniformGrid<V: SafeValue> {
+pub(crate) struct UniformGrid<V: SafeValue> {
     z: ZoomLevel,
     entries: Vec<SingleEntry<V>>,
     order: Option<Order>,
@@ -196,33 +196,6 @@ impl<V: SafeValue> UniformGrid<V> {
         Ok(Some(lo..=hi))
     }
 
-    /// 対象軸のインデックスを `>> Δz` してマージするズームアウト。
-    pub(crate) fn zoom_out<
-        P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
-    >(
-        &mut self,
-        target_z: ZoomLevel,
-        token: &CancellationToken,
-    ) -> Result<(), Error> {
-        if target_z.get() >= self.z.get() {
-            return Ok(());
-        }
-        let dz = self.z.get() - target_z.get();
-
-        let mut ctr = 0u32;
-        for e in &mut self.entries {
-            token.check_amortized(&mut ctr)?;
-            e.0 >>= dz;
-            e.1 >>= dz;
-            e.2 >>= dz;
-        }
-
-        self.z = target_z;
-        self.order = None;
-        self.sort_morton(&|a: &V, b: &V| P::resolve(a.clone(), b.clone()));
-        Ok(())
-    }
-
     /// 軸方向の平行移動。
     ///
     /// F / Y で範囲外へ出るものがあれば、`FlexId::shift_f` / `shift_y` が `Err` を返して
@@ -233,12 +206,9 @@ impl<V: SafeValue> UniformGrid<V> {
         op_z: ZoomLevel,
         delta: i32,
         token: &CancellationToken,
-    ) -> Result<Applied, Error> {
-        if self.z.get() < op_z.get() {
-            return Ok(Applied::Unsupported);
-        }
+    ) -> Result<(), Error> {
         if delta == 0 {
-            return Ok(Applied::Done);
+            return Ok(());
         }
         // グリッドのズームは op_z 以上（呼び出し側が保証）。
         let d = delta as i64 * (1i64 << (self.z.get() - op_z.get()));
@@ -252,7 +222,7 @@ impl<V: SafeValue> UniformGrid<V> {
             }
             // 巡回で並びが崩れる（位置の一意性は保たれる）。
             self.order = None;
-            return Ok(Applied::Done);
+            return Ok(());
         }
 
         // 移動先が軸の範囲を外れる葉があれば、木経路と同じく演算全体をエラーにする。
@@ -295,7 +265,7 @@ impl<V: SafeValue> UniformGrid<V> {
         if self.order == Some(Order::Morton) {
             self.order = None;
         }
-        Ok(Applied::Done)
+        Ok(())
     }
 
     /// 線形減衰つきの伝播。
@@ -318,9 +288,6 @@ impl<V: SafeValue> UniformGrid<V> {
         P: crate::spatial_id::collection::query::merge_policy::MergePolicy<V>,
         A: GridAttenuator<V> + MaybeSendSync,
     {
-        if self.z.get() < op_z.get() {
-            return Ok(Applied::Unsupported);
-        }
         self.sort_lanes(axis);
 
         let span = 1i64 << self.z.get();
@@ -395,7 +362,7 @@ impl<V: SafeValue> UniformGrid<V> {
 }
 
 /// グリッド経路で実行しきれたか。
-pub enum Applied {
+pub(crate) enum Applied {
     Done,
     /// グリッドでは元の意味を再現できないので木経路に任せる。
     ///
@@ -524,7 +491,7 @@ where
                 .map(|(acc, _, _)| acc)
                 .collect();
 
-            let mut out = Vec::with_capacity(estimated_output(entries.len(), params));
+            let mut out = Vec::new();
             for chunk in chunks {
                 out.extend(chunk?);
             }
