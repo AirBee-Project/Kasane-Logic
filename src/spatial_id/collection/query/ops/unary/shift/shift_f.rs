@@ -73,5 +73,6 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
         token: &crate::CancellationToken,
     ) -> Result<crate::spatial_id::collection::query::grid::Applied, crate::Error> {
         grid.shift(GridAxis::F, self.z, self.f, token)
+            .map(|_| crate::spatial_id::collection::query::grid::Applied::Done)
     }
 }

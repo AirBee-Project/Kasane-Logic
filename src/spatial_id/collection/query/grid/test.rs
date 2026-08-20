@@ -264,7 +264,6 @@ mod property {
         FalloffX(u32, u8),
         FalloffY(u32, u8),
         FalloffF(u32, u8),
-        ZoomOut(u8),
     }
 
     /// 可換なポリシー（グリッド経路が対象とするもの）だけを選ぶ。
@@ -288,12 +287,6 @@ mod property {
             Op::FalloffX(r, p) => falloff!(FalloffX, r, p),
             Op::FalloffY(r, p) => falloff!(FalloffY, r, p),
             Op::FalloffF(r, p) => falloff!(FalloffF, r, p),
-            Op::ZoomOut(dz) => Box::new(
-                crate::spatial_id::collection::query::ops::unary::zoom_out::zoom_out::ZoomOut::<
-                    u32,
-                    Max,
-                >::new(crate::ZoomLevel::new(z.saturating_sub(dz)).unwrap()),
-            ),
         }
     }
 
@@ -305,7 +298,6 @@ mod property {
             (0..=3u32, 0..=2u8).prop_map(|(r, p)| Op::FalloffX(r, p)),
             (0..=3u32, 0..=2u8).prop_map(|(r, p)| Op::FalloffY(r, p)),
             (0..=3u32, 0..=2u8).prop_map(|(r, p)| Op::FalloffF(r, p)),
-            (0..=2u8).prop_map(Op::ZoomOut),
         ]
     }
 
