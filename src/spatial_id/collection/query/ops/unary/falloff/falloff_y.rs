@@ -2,6 +2,7 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::GridAxis;
 use crate::spatial_id::collection::query::working::WorkingTree;
+use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;

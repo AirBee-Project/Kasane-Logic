@@ -22,7 +22,7 @@ pub fn run_composed_chain<V: SafeValue + 'static>(
     let resolver = ops.iter().rev().find_map(|op| op.tree_resolver());
     let tree = if let Some(resolve_fn) = resolver {
         WorkingTree::from_core(
-            crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec_with(
+            crate::spatial_id::collection::flex_tree::core::FlexTreeCore::build_vec_with(
                 final_items,
                 resolve_fn,
             ),
@@ -74,7 +74,7 @@ pub fn run_composed_chain_flat<V: SafeValue + 'static>(
                 .find_map(|op| op.tree_resolver());
             let mut tree = if let Some(resolve_fn) = resolver {
                 WorkingTree::from_core(
-                    crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec_with(
+                    crate::spatial_id::collection::flex_tree::core::FlexTreeCore::build_vec_with(
                         current_items,
                         resolve_fn,
                     ),

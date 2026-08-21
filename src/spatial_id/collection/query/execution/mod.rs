@@ -162,7 +162,7 @@ impl<V: SafeValue + 'static> Query<V> {
         let items = run_internal_flat(self, &CancellationToken::never())?;
         let tree = if let Some(resolve_fn) = resolver {
             WorkingTree::from_core(
-                crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec_with(
+                crate::spatial_id::collection::flex_tree::core::FlexTreeCore::build_vec_with(
                     items, resolve_fn,
                 ),
             )
