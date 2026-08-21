@@ -4,7 +4,7 @@
 //! 高速化で意味が変わっていないことを固定できる。
 
 use crate::CancellationToken;
-use crate::spatial_id::collection::query::execution::run_unary_chain;
+use crate::spatial_id::collection::query::execution::composed_chain::run_composed_chain;
 use crate::spatial_id::collection::query::grid::try_run_grid;
 use crate::spatial_id::collection::query::ops::unary::falloff::{
     FalloffPattern, falloff_f::FalloffF, falloff_x::FalloffX, falloff_y::FalloffY,
@@ -26,7 +26,7 @@ fn tree_from(ids: &[(FlexId, u32)]) -> WorkingTree<u32> {
     ids.iter().cloned().collect()
 }
 
-/// 本番経路（[`run_unary_chain`] = グリッド＋フォールバック）が、木経路だけで
+/// 本番経路（[`run_composed_chain`] = グリッド＋フォールバック）が、木経路だけで
 /// 実行した結果と一致することを確かめる。これが常に成り立つべき不変条件。
 fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
     let mut expected = tree.clone();
@@ -39,7 +39,7 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
 
     let order: Vec<&dyn crate::spatial_id::collection::query::traits::UnaryOperator<u32>> =
         ops.iter().map(|op| &**op).collect();
-    let got = run_unary_chain(&order, tree, &CancellationToken::new());
+    let got = run_composed_chain(&order, tree, &CancellationToken::new());
 
     match (tree_result, got) {
         (Err(_), Err(_)) => {}
@@ -48,6 +48,24 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
             let mut b: Vec<(FlexId, u32)> = expected.into_iter().collect();
             a.sort();
             b.sort();
+            if a != b {
+                println!("Different elements:");
+                let mut i = 0;
+                let mut j = 0;
+                while i < a.len() || j < b.len() {
+                    if i < a.len() && j < b.len() && a[i] == b[j] {
+                        i += 1;
+                        j += 1;
+                    } else if i < a.len() && (j == b.len() || a[i] < b[j]) {
+                        println!("ONLY IN A (composed_chain): {:?}", a[i]);
+                        i += 1;
+                    } else {
+                        println!("ONLY IN B (WorkingTree): {:?}", b[j]);
+                        j += 1;
+                    }
+                }
+            }
+            assert_eq!(a.len(), b.len(), "Lengths differ");
             assert_eq!(a, b, "本番経路と木経路で結果が違う");
         }
         (t, g) => panic!(

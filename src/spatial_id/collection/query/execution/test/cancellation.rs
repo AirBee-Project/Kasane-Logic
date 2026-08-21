@@ -1,11 +1,8 @@
 use alloc::vec;
 
-use crate::spatial_id::collection::query::execution::run_unary_chain;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::{
-    CancellationToken, Error, FlexId, RangeId, SingleId, Source, SpatialIdTable, WorkingTree,
-    ZoomLevel,
-};
+use crate::{Error, FlexId, RangeId, SingleId, Source, SpatialIdTable, WorkingTree, ZoomLevel};
 
 #[test]
 fn run_within_stops_immediately_when_already_cancelled() {
@@ -79,7 +76,9 @@ fn run_unary_chain_checks_cancellation_between_ops() {
     token.cancel();
 
     assert_eq!(
-        run_unary_chain(&ops, working, &token),
+        crate::spatial_id::collection::query::execution::composed_chain::run_composed_chain(
+            &ops, working, &token
+        ),
         Err(Error::Cancelled)
     );
 }

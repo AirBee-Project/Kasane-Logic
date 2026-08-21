@@ -78,6 +78,28 @@ where
         Ok(())
     }
 
+    fn forward_map(
+        &self,
+        id: crate::FlexId,
+        value: V,
+        out: &mut alloc::vec::Vec<(crate::FlexId, V)>,
+    ) -> Result<(), crate::Error> {
+        for new_id in id.extrude_y(self.target_z.get(), self.start_y, self.end_y)? {
+            out.push((new_id, value.clone()));
+        }
+        Ok(())
+    }
+
+    fn collision_merge(&self) -> Option<fn(&mut alloc::vec::Vec<(crate::FlexId, V)>)> {
+        Some(
+            crate::spatial_id::collection::query::execution::composed_chain::merge_sorted_vec::<V, P>,
+        )
+    }
+
+    fn tree_resolver(&self) -> Option<fn(&V, &V) -> V> {
+        Some(|a: &V, b: &V| P::resolve(a.clone(), b.clone()))
+    }
+
     fn commutativity_info(&self) -> CommutativityInfo {
         if !P::IS_COMMUTATIVE {
             return CommutativityInfo::None;

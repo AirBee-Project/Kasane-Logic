@@ -16,10 +16,31 @@ pub trait Source: MaybeSendSync {
         token: &CancellationToken,
     ) -> Result<WorkingTree<Self::Value>, Error>;
 
+    /// 木構造を作らずに、フラットな Vec（チャンク）として必要な要素だけを返す
+    fn read_range_ids_flat(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<alloc::vec::Vec<(crate::FlexId, Self::Value)>, Error> {
+        // デフォルト実装は WorkingTree 経由（後方互換性）
+        let tree = self.read_range_ids(bounds, token)?;
+        Ok(tree.into_iter().collect())
+    }
+
     fn read_all(
         self: Box<Self>,
         token: &CancellationToken,
     ) -> Result<WorkingTree<Self::Value>, Error>;
+
+    /// 木構造を作らずに、フラットな Vec（チャンク）として全要素を返す
+    fn read_all_flat(
+        self: Box<Self>,
+        token: &CancellationToken,
+    ) -> Result<alloc::vec::Vec<(crate::FlexId, Self::Value)>, Error> {
+        // デフォルト実装は WorkingTree 経由（後方互換性）
+        let tree = self.read_all(token)?;
+        Ok(tree.into_iter().collect())
+    }
 
     fn query(self) -> Query<Self::Value>
     where

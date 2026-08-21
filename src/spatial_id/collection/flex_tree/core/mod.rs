@@ -372,6 +372,24 @@ where
         Ok(core)
     }
 
+    /// `(FlexId, 値)` の配列と合成リゾルバから木を構築する。
+    pub fn build_vec_with<R>(items: Vec<(FlexId, V)>, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + MaybeSync,
+    {
+        #[cfg(feature = "rayon")]
+        {
+            if items.len() >= parallel::MIN_PAR_CHUNK {
+                return Self::par_build_vec_with(items, resolve);
+            }
+        }
+        let mut core = Self::new();
+        for (id, value) in items {
+            core.insert_with(id, value, &resolve);
+        }
+        core
+    }
+
     pub fn intersection(&self, other: &Self) -> Self {
         if let (Some(a), Some(b)) = (&self.shard, &other.shard)
             && a.intersection(b).is_none()

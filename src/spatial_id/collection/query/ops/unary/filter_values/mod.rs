@@ -104,6 +104,18 @@ where
         Ok(())
     }
 
+    fn forward_map(
+        &self,
+        id: crate::FlexId,
+        value: V,
+        out: &mut alloc::vec::Vec<(crate::FlexId, V)>,
+    ) -> Result<(), crate::Error> {
+        if self.predicate.matches(&value) {
+            out.push((id, value));
+        }
+        Ok(())
+    }
+
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         Some(bounds)
     }

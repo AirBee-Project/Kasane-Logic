@@ -52,6 +52,21 @@ where
             .collect())
     }
 
+    fn read_range_ids_flat(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<alloc::vec::Vec<(crate::FlexId, U)>, Error> {
+        // Query::run_within_flat を呼ぶのが理想ですが、今は run_within を使って Vec にします。
+        // 後で Query 側も完全にフラット化します。
+        Ok(self
+            .inner
+            .run_within(bounds.to_vec(), token)?
+            .into_iter()
+            .map(|(id, value)| (id, (self.f)(value)))
+            .collect())
+    }
+
     fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<U>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
@@ -60,6 +75,22 @@ where
         Ok(this
             .inner
             .run_working_tree()?
+            .into_iter()
+            .map(|(id, value)| (id, (this.f)(value)))
+            .collect())
+    }
+
+    fn read_all_flat(
+        self: Box<Self>,
+        token: &CancellationToken,
+    ) -> Result<alloc::vec::Vec<(crate::FlexId, U)>, Error> {
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let this = *self;
+        Ok(this
+            .inner
+            .raw_run_working_tree()?
             .into_iter()
             .map(|(id, value)| (id, (this.f)(value)))
             .collect())
