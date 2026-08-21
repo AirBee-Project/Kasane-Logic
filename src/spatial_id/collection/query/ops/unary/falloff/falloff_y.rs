@@ -79,8 +79,39 @@ where
         Ok(())
     }
 
+    fn forward_map(
+        &self,
+        id: crate::FlexId,
+        value: V,
+        out: &mut Vec<(crate::FlexId, V)>,
+    ) -> Result<(), Error> {
+        if self.radius == 0 {
+            out.push((id, value));
+            return Ok(());
+        }
+        let z = self.z.get();
+        let radius = self.radius;
+        let iter = id.falloff_y(z, radius, self.direction, self.pattern, &value)?;
+        out.extend(iter);
+        Ok(())
+    }
+
     fn can_forward_map(&self) -> bool {
         false
+    }
+
+    fn can_forward_map_uniform(&self) -> bool {
+        true
+    }
+
+    fn collision_merge(&self) -> Option<fn(&mut Vec<(crate::FlexId, V)>)> {
+        Some(
+            crate::spatial_id::collection::query::execution::composed_chain::merge_sorted_vec::<V, P>,
+        )
+    }
+
+    fn tree_resolver(&self) -> Option<fn(&V, &V) -> V> {
+        Some(|a: &V, b: &V| P::resolve(a.clone(), b.clone()))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {

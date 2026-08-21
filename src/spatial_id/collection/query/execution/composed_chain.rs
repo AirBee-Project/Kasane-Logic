@@ -18,7 +18,19 @@ pub fn run_composed_chain<V: SafeValue + 'static>(
     }
     let current_items: Vec<(FlexId, V)> = working.into_iter().collect();
     let final_items = run_composed_chain_flat(ops, current_items, token)?;
-    Ok(final_items.into_iter().collect())
+
+    let resolver = ops.iter().rev().find_map(|op| op.tree_resolver());
+    let tree = if let Some(resolve_fn) = resolver {
+        WorkingTree::from_core(
+            crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec_with(
+                final_items,
+                resolve_fn,
+            ),
+        )
+    } else {
+        final_items.into_iter().collect()
+    };
+    Ok(tree)
 }
 
 /// 演算子チェーンを中間木および中間Vecなしでダイレクト1パス（パイプライン）で実行し、フラットな Vec を返す。
@@ -39,9 +51,37 @@ pub fn run_composed_chain_flat<V: SafeValue + 'static>(
             return Err(Error::Cancelled);
         }
 
+        let uniform_z = uniform_zoom_level(&current_items);
+        let oob = has_out_of_bounds(&current_items);
+        let can_flat = |op: &dyn UnaryOperator<V>| {
+            if oob {
+                return false;
+            }
+            if let (Some((fz, xz, yz, _)), Some(gz)) = (uniform_z, op.grid_zoom()) {
+                let z = gz.get();
+                if fz == z && xz == z && yz == z {
+                    return op.can_forward_map_uniform();
+                }
+            }
+            op.can_forward_map()
+        };
+
         // Forward map に非対応な演算子の場合は WorkingTree へフォールバック
-        if !ops[start_idx].can_forward_map() {
-            let mut tree: WorkingTree<V> = current_items.into_iter().collect();
+        if !can_flat(ops[start_idx]) {
+            let resolver = ops[..start_idx]
+                .iter()
+                .rev()
+                .find_map(|op| op.tree_resolver());
+            let mut tree = if let Some(resolve_fn) = resolver {
+                WorkingTree::from_core(
+                    crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec_with(
+                        current_items,
+                        resolve_fn,
+                    ),
+                )
+            } else {
+                current_items.into_iter().collect()
+            };
             ops[start_idx].run(&mut tree)?;
             current_items = tree.into_iter().collect();
             start_idx += 1;
@@ -50,7 +90,7 @@ pub fn run_composed_chain_flat<V: SafeValue + 'static>(
 
         // can_forward_map == true が連続するサブグループ（区間）を抽出
         let mut end_idx = start_idx;
-        while end_idx < ops.len() && ops[end_idx].can_forward_map() {
+        while end_idx < ops.len() && can_flat(ops[end_idx]) {
             end_idx += 1;
         }
 
@@ -63,6 +103,32 @@ pub fn run_composed_chain_flat<V: SafeValue + 'static>(
     }
 
     Ok(current_items)
+}
+
+fn uniform_zoom_level<V>(items: &[(FlexId, V)]) -> Option<(u8, u8, u8, u8)> {
+    if items.is_empty() {
+        return None;
+    }
+    let first = &items[0].0;
+    let fz = first.f_zoomlevel();
+    let xz = first.x_zoomlevel();
+    let yz = first.y_zoomlevel();
+    let tz = first.t_zoomlevel();
+
+    if items.iter().all(|(id, _)| {
+        id.f_zoomlevel() == fz
+            && id.x_zoomlevel() == xz
+            && id.y_zoomlevel() == yz
+            && id.t_zoomlevel() == tz
+    }) {
+        Some((fz, xz, yz, tz))
+    } else {
+        None
+    }
+}
+
+fn has_out_of_bounds<V>(items: &[(FlexId, V)]) -> bool {
+    items.iter().any(|(id, _)| id.f_index() < 0)
 }
 
 /// 連続する `sub_ops`（全て forward_map 対応）を中間 Vec なしの 1 パス（パイプライン）で評価する。

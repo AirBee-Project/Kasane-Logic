@@ -70,12 +70,23 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
         true
     }
 
+    /// 入力要素のズームレベルが均一（SingleId 等）である場合に `forward_map` を用いた直接合成計算をサポートしているか。
+    fn can_forward_map_uniform(&self) -> bool {
+        self.can_forward_map()
+    }
+
     /// 同じ [`FlexId`] に複数の出力が集まる演算子は、ここでマージ関数を返す。
     /// 返される関数は、ソート済みの `data` を受け取ってインプレースでマージを行う。
     ///
     /// 衝突しない演算子（shift, filter_values 等）は [`None`]（デフォルト）を返す。
     #[allow(clippy::type_complexity)]
     fn collision_merge(&self) -> Option<fn(&mut Vec<(FlexId, V)>)> {
+        None
+    }
+
+    /// 最終的に木を構築する際、空間の重なりを合成するリゾルバ関数（MergePolicy::resolve 相当）。
+    #[allow(clippy::type_complexity)]
+    fn tree_resolver(&self) -> Option<fn(&V, &V) -> V> {
         None
     }
 

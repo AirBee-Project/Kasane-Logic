@@ -153,8 +153,23 @@ impl<V: SafeValue + 'static> Query<V> {
                 Query::Error(e) => Err(e),
             }
         }
+        let resolver = match &self {
+            Query::Unary(ops, _) | Query::CommutativeGroup(_, ops, _) => {
+                ops.iter().rev().find_map(|op| op.tree_resolver())
+            }
+            _ => None,
+        };
         let items = run_internal_flat(self, &CancellationToken::never())?;
-        Ok(items.into_iter().collect())
+        let tree = if let Some(resolve_fn) = resolver {
+            WorkingTree::from_core(
+                crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec_with(
+                    items, resolve_fn,
+                ),
+            )
+        } else {
+            items.into_iter().collect()
+        };
+        Ok(tree)
     }
 }
 

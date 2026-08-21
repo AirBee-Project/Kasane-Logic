@@ -96,6 +96,10 @@ where
         )
     }
 
+    fn tree_resolver(&self) -> Option<fn(&V, &V) -> V> {
+        Some(|a: &V, b: &V| P::resolve(a.clone(), b.clone()))
+    }
+
     fn commutativity_info(&self) -> CommutativityInfo {
         if !P::IS_COMMUTATIVE {
             return CommutativityInfo::None;
