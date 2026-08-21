@@ -80,6 +80,10 @@ where
         Ok(())
     }
 
+    fn can_forward_map(&self) -> bool {
+        false
+    }
+
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         let z = self.z.get();
         let target_z = z.max(bounds.z());

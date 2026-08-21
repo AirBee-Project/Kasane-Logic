@@ -448,7 +448,7 @@ where
 
 pub struct SpatialIdTableIntoIter<V: FlexIdValue> {
     inner: crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<usize>,
-    reverse_dictionary: alloc::collections::BTreeMap<usize, V>,
+    by_rank: Vec<Option<V>>,
 }
 
 impl<V: FlexIdValue> Iterator for SpatialIdTableIntoIter<V> {
@@ -456,9 +456,8 @@ impl<V: FlexIdValue> Iterator for SpatialIdTableIntoIter<V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(flex_id, rank)| {
-            let value = self
-                .reverse_dictionary
-                .get(&rank)
+            let value = self.by_rank[rank]
+                .as_ref()
                 .expect("Dictionary mismatch")
                 .clone();
             (flex_id, value)
@@ -471,9 +470,17 @@ impl<V: FlexIdValue> IntoIterator for SpatialIdTable<V> {
     type IntoIter = SpatialIdTableIntoIter<V>;
 
     fn into_iter(self) -> Self::IntoIter {
+        // Option<&V> ではなく V のクローンを積んでおくか、あるいは所有権を移す
+        let mut by_rank = alloc::vec![None; self.current_rank + 1];
+        for (rank, value) in self.reverse_dictionary.into_iter() {
+            if let Some(slot) = by_rank.get_mut(rank) {
+                *slot = Some(value);
+            }
+        }
+
         SpatialIdTableIntoIter {
             inner: self.inner.into_iter(),
-            reverse_dictionary: self.reverse_dictionary,
+            by_rank,
         }
     }
 }

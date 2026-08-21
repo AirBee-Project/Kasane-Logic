@@ -50,6 +50,22 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
         Ok(())
     }
 
+    fn forward_map(
+        &self,
+        id: crate::FlexId,
+        value: V,
+        out: &mut alloc::vec::Vec<(crate::FlexId, V)>,
+    ) -> Result<(), crate::Error> {
+        if self.f == 0 {
+            out.push((id, value));
+            return Ok(());
+        }
+        for new_id in id.shift_f(self.z.get(), self.f)? {
+            out.push((new_id, value.clone()));
+        }
+        Ok(())
+    }
+
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         let z = self.z.get();
         let target_z = z.max(bounds.z());

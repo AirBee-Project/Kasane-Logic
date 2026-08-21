@@ -4,7 +4,6 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::grid::try_run_grid;
 use crate::spatial_id::collection::query::source::Source;
 use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::trace::trace_span;
@@ -12,6 +11,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
+pub mod composed_chain;
 pub mod group_commutative;
 
 #[cfg(test)]
@@ -118,98 +118,51 @@ impl<V: SafeValue + 'static> Query<V> {
 
     /// 検証も最適化もせず [`Query`] を実行し、[WorkingTree]のまま返す。
     pub fn raw_run_working_tree(self) -> Result<WorkingTree<V>, Error> {
-        fn run_internal<V: SafeValue + 'static>(
+        fn run_internal_flat<V: SafeValue + 'static>(
             query: Query<V>,
             token: &CancellationToken,
-        ) -> Result<WorkingTree<V>, Error> {
+        ) -> Result<alloc::vec::Vec<(crate::FlexId, V)>, Error> {
             match query {
-                Query::Source(source) => source.read_all(token),
+                Query::Source(source) => source.read_all_flat(token),
                 Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                    run_unary_chain(&order, run_internal(*input, token)?, token)
+                    composed_chain::run_composed_chain_flat(
+                        &order,
+                        run_internal_flat(*input, token)?,
+                        token,
+                    )
                 }
                 Query::Binary(op, lhs, rhs) => {
                     #[cfg(feature = "rayon")]
-                    let (lhs_res, rhs_res) =
-                        rayon::join(|| run_internal(*lhs, token), || run_internal(*rhs, token));
+                    let (lhs_res, rhs_res) = rayon::join(
+                        || run_internal_flat(*lhs, token),
+                        || run_internal_flat(*rhs, token),
+                    );
 
                     #[cfg(not(feature = "rayon"))]
-                    let (lhs_res, rhs_res) = (run_internal(*lhs, token), run_internal(*rhs, token));
+                    let (lhs_res, rhs_res) = (
+                        run_internal_flat(*lhs, token),
+                        run_internal_flat(*rhs, token),
+                    );
 
-                    let mut lhs_res = lhs_res?;
-                    let rhs_res = rhs_res?;
+                    let mut lhs_res = lhs_res?.into_iter().collect::<WorkingTree<V>>();
+                    let rhs_res = rhs_res?.into_iter().collect::<WorkingTree<V>>();
                     op.run(&mut lhs_res, &rhs_res)?;
-                    Ok(lhs_res)
+                    Ok(lhs_res.into_iter().collect())
                 }
                 Query::Error(e) => Err(e),
             }
         }
-        run_internal(self, &CancellationToken::never())
+        let items = run_internal_flat(self, &CancellationToken::never())?;
+        Ok(items.into_iter().collect())
     }
-}
-
-/// 単項演算の並びを作業木へ適用する。
-pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
-    mut ops: &[&dyn UnaryOperator<V>],
-    mut working: WorkingTree<V>,
-    token: &CancellationToken,
-) -> Result<WorkingTree<V>, Error> {
-    while let Some(head) = ops.first() {
-        if token.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-
-        // グリッドで実行できる演算の最長区間を取る。
-        let mut grid_len = 0;
-        let mut max_z = None;
-        for op in ops.iter() {
-            if let Some(z) = op.grid_zoom() {
-                grid_len += 1;
-                max_z = Some(max_z.map_or(z, |m: crate::ZoomLevel| m.max(z)));
-            } else {
-                break;
-            }
-        }
-
-        if grid_len > 0 {
-            let grid_ops = &ops[..grid_len];
-            let grid_result = {
-                trace_span!("kasane_logic.query.unary.grid", op_count = grid_len);
-                try_run_grid(
-                    &working,
-                    grid_ops,
-                    max_z.unwrap(),
-                    grid_budget(&working),
-                    token,
-                )
-            };
-            if let Some(result) = grid_result {
-                working = result?;
-                ops = &ops[grid_len..];
-                continue;
-            }
-        }
-        {
-            trace_span!(
-                "kasane_logic.query.unary.op",
-                op = %core::fmt::from_fn(|f| head.fmt_op(f)),
-            );
-            head.run(&mut working)?;
-        }
-        ops = &ops[1..];
-    }
-    Ok(working)
-}
-
-/// 平坦化を許す件数の上限。
-fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
-    (working.count() as u64)
-        .saturating_mul(64)
-        .saturating_add(1 << 20)
 }
 
 // Queryの遅延実行
 impl<V: SafeValue + 'static> Query<V> {
+    /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
+    ///
+    /// `token` がキャンセルされると、AST を辿る途中で気づき次第 [`Error::Cancelled`] を返す。
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
     ///
     /// `token` がキャンセルされると、AST を辿る途中で気づき次第 [`Error::Cancelled`] を返す。
@@ -223,15 +176,16 @@ impl<V: SafeValue + 'static> Query<V> {
             target_regions = bounds.len()
         );
         self.validate()?;
-        self.run_within_unchecked(bounds, token)
+        let items = self.run_within_flat(bounds, token)?;
+        Ok(items.into_iter().collect())
     }
 
-    /// [`run_within`](Self::run_within) の本体（再帰部分）。
-    fn run_within_unchecked(
+    /// [`run_within`](Self::run_within) の本体（再帰部分）。木を作らずフラットな Vec を返す。
+    fn run_within_flat(
         &self,
         bounds: Vec<crate::RangeId>,
         token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
+    ) -> Result<Vec<(crate::FlexId, V)>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
@@ -239,7 +193,7 @@ impl<V: SafeValue + 'static> Query<V> {
         match self {
             Query::Source(s) => {
                 trace_span!("kasane_logic.query.source_read", bound_count = bounds.len());
-                s.read_range_ids(&bounds, token)
+                s.read_range_ids_flat(&bounds, token)
             }
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                 trace_span!("kasane_logic.query.unary", op_count = ops.len());
@@ -258,10 +212,14 @@ impl<V: SafeValue + 'static> Query<V> {
                     next.dedup();
                     req = next;
                 }
-                let input_working = input.run_within_unchecked(req, token)?;
+                let input_items = input.run_within_flat(req, token)?;
                 {
                     trace_span!("kasane_logic.query.unary.apply");
-                    run_unary_chain(&ops.optimized_order(), input_working, token)
+                    composed_chain::run_composed_chain_flat(
+                        &ops.optimized_order(),
+                        input_items,
+                        token,
+                    )
                 }
             }
             Query::Binary(op, lhs, rhs) => {
@@ -285,8 +243,11 @@ impl<V: SafeValue + 'static> Query<V> {
                 lhs_bounds.dedup();
                 rhs_bounds.sort_unstable();
                 rhs_bounds.dedup();
-                let mut lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
-                let rhs_working = rhs.run_within_unchecked(rhs_bounds, token)?;
+                // 二項演算子は現在 WorkingTree を要求するため、ここで一度木を組む
+                let lhs_items = lhs.run_within_flat(lhs_bounds, token)?;
+                let mut lhs_working = lhs_items.into_iter().collect::<WorkingTree<V>>();
+                let rhs_items = rhs.run_within_flat(rhs_bounds, token)?;
+                let rhs_working = rhs_items.into_iter().collect::<WorkingTree<V>>();
                 {
                     trace_span!(
                         "kasane_logic.query.binary.merge",
@@ -296,7 +257,7 @@ impl<V: SafeValue + 'static> Query<V> {
                     );
                     op.run(&mut lhs_working, &rhs_working)?;
                 }
-                Ok(lhs_working)
+                Ok(lhs_working.into_iter().collect())
             }
             Query::Error(e) => Err(e.clone()),
         }
@@ -308,10 +269,11 @@ impl<V: SafeValue + 'static> Query<V> {
         &self,
         target: T,
     ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_within(vec![target.clone().into()], &CancellationToken::never())?;
+        let items =
+            self.run_within_flat(vec![target.clone().into()], &CancellationToken::never())?;
         let target_range: crate::RangeId = target.into();
 
-        Ok(working
+        Ok(items
             .into_iter()
             .filter(move |(id, _)| id.intersects_range(&target_range)))
     }
@@ -323,13 +285,14 @@ impl<V: SafeValue + 'static> Query<V> {
         target: T,
         default_value: V,
     ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_within(vec![target.clone().into()], &CancellationToken::never())?;
+        let items =
+            self.run_within_flat(vec![target.clone().into()], &CancellationToken::never())?;
         let target_range: crate::RangeId = target.clone().into();
 
         let mut uncovered = crate::SpatialIdSet::new();
         uncovered.insert(target.into());
 
-        let mut working_iter = working.into_iter();
+        let mut working_iter = items.into_iter();
         let mut default_iter = None;
 
         Ok(core::iter::from_fn(move || {

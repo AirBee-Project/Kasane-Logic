@@ -1,4 +1,5 @@
 //! 一様ズームの [`SingleId`](crate::SingleId) 列からの、木のボトムアップ一括構築。
+#![allow(dead_code)]
 //!
 //! # なぜ必要か
 //!

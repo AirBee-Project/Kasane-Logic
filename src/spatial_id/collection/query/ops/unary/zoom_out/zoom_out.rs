@@ -123,6 +123,23 @@ where
         Ok(())
     }
 
+    fn forward_map(
+        &self,
+        id: crate::FlexId,
+        value: V,
+        out: &mut alloc::vec::Vec<(crate::FlexId, V)>,
+    ) -> Result<(), crate::Error> {
+        let parent = id.spatial_parent_at_zoom(self.target_z.get()).unwrap();
+        out.push((parent, value));
+        Ok(())
+    }
+
+    fn collision_merge(&self) -> Option<fn(&mut alloc::vec::Vec<(crate::FlexId, V)>)> {
+        Some(
+            crate::spatial_id::collection::query::execution::composed_chain::merge_sorted_vec::<V, P>,
+        )
+    }
+
     fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
     }

@@ -43,12 +43,39 @@ impl Source for SpatialIdSet {
         Ok(time_segments.into_iter().collect())
     }
 
+    fn read_range_ids_flat(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<Vec<(FlexId, ())>, Error> {
+        let mut time_segments: Vec<(FlexId, ())> = Vec::new();
+        for b in bounds {
+            if token.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
+            for id in self.get_range(b) {
+                time_segments.push((id, ()));
+            }
+        }
+        Ok(time_segments)
+    }
+
     fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<()>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
         // 所有権ごと移し替えるだけ（クローンしない）。
         Ok(WorkingTree::from_core(SpatialIdSet::into_core(*self)))
+    }
+
+    fn read_all_flat(
+        self: Box<Self>,
+        token: &CancellationToken,
+    ) -> Result<Vec<(FlexId, ())>, Error> {
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        Ok(self.into_iter().collect())
     }
 }
 
@@ -82,6 +109,27 @@ where
         Ok(time_segments.into_iter().collect())
     }
 
+    fn read_range_ids_flat(
+        &self,
+        bounds: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<Vec<(FlexId, V)>, Error> {
+        let mut time_segments: Vec<(FlexId, V)> = Vec::new();
+        let by_rank = self.values_by_rank();
+        for b in bounds {
+            if token.is_cancelled() {
+                return Err(Error::Cancelled);
+            }
+            for (id, rank) in self.rank_core().get_overlapping_ref(b.clone()) {
+                let value = by_rank[*rank]
+                    .expect("ツリー内のランクは必ず逆引き辞書にある")
+                    .clone();
+                time_segments.push((id, value));
+            }
+        }
+        Ok(time_segments)
+    }
+
     fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<V>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
@@ -99,6 +147,29 @@ where
                     .clone()
             }),
         ))
+    }
+
+    fn read_all_flat(
+        self: Box<Self>,
+        token: &CancellationToken,
+    ) -> Result<Vec<(FlexId, V)>, Error> {
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let by_rank = self.values_by_rank();
+        Ok(self
+            .rank_core()
+            .clone()
+            .into_iter()
+            .map(|(id, rank)| {
+                (
+                    id,
+                    by_rank[rank]
+                        .expect("ツリー内のランクは必ず逆引き辞書にある")
+                        .clone(),
+                )
+            })
+            .collect())
     }
 }
 
