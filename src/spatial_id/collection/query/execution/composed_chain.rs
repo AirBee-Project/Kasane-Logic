@@ -74,16 +74,7 @@ fn run_pipeline_segment<V: SafeValue + 'static>(
         return Ok(input);
     }
 
-    // 拡大率から最終出力件数を推定して事前確保
-    let mut total_expansion = 1.0;
-    let mut need_merge = false;
-    for op in sub_ops {
-        total_expansion *= op.expansion_ratio();
-        if op.collision_merge().is_some() {
-            need_merge = true;
-        }
-    }
-    let _estimated_cap = libm::ceil(input.len() as f64 * total_expansion) as usize;
+    let need_merge = sub_ops.iter().any(|op| op.collision_merge().is_some());
 
     #[cfg(feature = "rayon")]
     let mut final_out: Vec<(FlexId, V)> = {
@@ -113,6 +104,8 @@ fn run_pipeline_segment<V: SafeValue + 'static>(
 
     #[cfg(not(feature = "rayon"))]
     let mut final_out: Vec<(FlexId, V)> = {
+        let total_expansion: f64 = sub_ops.iter().map(|op| op.expansion_ratio()).product();
+        let estimated_cap = libm::ceil(input.len() as f64 * total_expansion) as usize;
         let mut out = Vec::with_capacity(estimated_cap);
         let mut tmp_bufs: Vec<Vec<(FlexId, V)>> =
             (0..sub_ops.len()).map(|_| Vec::with_capacity(4)).collect();
@@ -173,7 +166,7 @@ fn apply_pipeline_item<V: SafeValue + 'static>(
     Ok(())
 }
 
-/// ソート済み `Vec` の隣接する同一 [`FlexId`] を [`MergePolicy::resolve_many`] でマージして詰める。
+/// ソート済み `Vec` の隣接する同一 [`FlexId`] を [`crate::spatial_id::collection::query::merge_policy::MergePolicy::resolve_many`] でマージして詰める。
 #[allow(clippy::collapsible_if)]
 pub fn merge_sorted_vec<
     V: SafeValue,
