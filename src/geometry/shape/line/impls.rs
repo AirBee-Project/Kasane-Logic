@@ -9,7 +9,11 @@ impl Shape for Line {
 }
 
 impl CoverSingleIds for Line {
-    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    type Value = ();
+    fn cover_single_ids_with(
+        &self,
+        z: u8,
+    ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
         let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
         let z = zoom.get();
         let a = self.points[0];
@@ -44,7 +48,7 @@ impl CoverSingleIds for Line {
             voxels.pop();
             voxels.extend(line_iter);
         }
-        Ok(voxels.into_iter())
+        Ok(voxels.into_iter().map(|id| (id, ())))
     }
 }
 
