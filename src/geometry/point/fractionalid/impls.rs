@@ -37,12 +37,13 @@ impl From<FractionalId> for Ecef {
 impl Point for FractionalId {}
 
 impl CoverSingleIds for FractionalId {
-    fn cover_single_ids(
+    type Value = ();
+    fn cover_single_ids_with(
         &self,
         z: u8,
-    ) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
+    ) -> Result<impl Iterator<Item = (crate::SingleId, Self::Value)>, crate::Error> {
         let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
         let coord: Coordinate = (*self).into();
-        Ok(core::iter::once(coord.single_id(zoom.get())?))
+        Ok(core::iter::once((coord.single_id(zoom.get())?, ())))
     }
 }

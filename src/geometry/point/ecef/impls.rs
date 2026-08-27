@@ -62,11 +62,12 @@ impl Sub for Ecef {
 }
 
 impl CoverSingleIds for Ecef {
-    fn cover_single_ids(
+    type Value = ();
+    fn cover_single_ids_with(
         &self,
         z: u8,
-    ) -> Result<impl Iterator<Item = crate::SingleId>, crate::Error> {
+    ) -> Result<impl Iterator<Item = (crate::SingleId, Self::Value)>, crate::Error> {
         let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
-        Ok(core::iter::once(self.single_id(zoom.get())?))
+        Ok(core::iter::once((self.single_id(zoom.get())?, ())))
     }
 }

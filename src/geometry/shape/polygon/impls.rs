@@ -28,6 +28,7 @@ impl Shape for Polygon {
 }
 
 impl CoverSingleIds for Polygon {
+    type Value = ();
     /// ポリゴン領域を覆う全ての [`SingleId`] を取得する。
     ///
     /// ポリゴンを内部で複数の三角形に分割し、それぞれの三角形が覆う空間IDの和集合を計算して返す。
@@ -59,7 +60,10 @@ impl CoverSingleIds for Polygon {
     /// let ids: Vec<_> = polygon.cover_single_ids(20).unwrap().collect();
     /// assert!(ids.len() > 0);
     /// ```
-    fn cover_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, crate::Error> {
+    fn cover_single_ids_with(
+        &self,
+        z: u8,
+    ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, crate::Error> {
         let mut unique_ids = HashSet::new();
 
         for triangle in self.expand_triangles() {
@@ -69,6 +73,6 @@ impl CoverSingleIds for Polygon {
             }
         }
 
-        Ok(unique_ids.into_iter())
+        Ok(unique_ids.into_iter().map(|id| (id, ())))
     }
 }
