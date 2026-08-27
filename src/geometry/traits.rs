@@ -51,4 +51,3 @@ impl<T: CoverRangeIds, V: Clone> CoverRangeIds for (T, V) {
         Ok(self.0.cover_range_ids(z)?.map(move |id| (id, val.clone())))
     }
 }
-
