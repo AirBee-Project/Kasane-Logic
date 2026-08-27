@@ -14,7 +14,6 @@ impl Shape for Solid {
     }
 }
 
-
 impl CoverSingleIds for Solid {
     type Value = ();
     fn cover_single_ids_with(
