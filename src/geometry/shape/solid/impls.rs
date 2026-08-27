@@ -14,13 +14,6 @@ impl Shape for Solid {
     }
 }
 
-fn attach_unit(id: SingleId) -> (SingleId, ()) {
-    (id, ())
-}
-
-fn attach_unit_range(id: RangeId) -> (RangeId, ()) {
-    (id, ())
-}
 
 impl CoverSingleIds for Solid {
     type Value = ();
@@ -28,10 +21,11 @@ impl CoverSingleIds for Solid {
         &self,
         z: u8,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
+        let attach = |id| (id, ());
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
 
         if surface_set.is_empty() {
-            return Ok(HashSet::new().into_iter().map(attach_unit));
+            return Ok(HashSet::new().into_iter().map(attach));
         }
 
         let existence_range = surface_set.iter().fold(None, |acc, s| {
@@ -106,7 +100,7 @@ impl CoverSingleIds for Solid {
                 }
             }
         }
-        Ok(cuboid_set.into_iter().map(attach_unit))
+        Ok(cuboid_set.into_iter().map(attach))
     }
 }
 
@@ -116,9 +110,10 @@ impl CoverRangeIds for Solid {
         &self,
         z: u8,
     ) -> Result<impl Iterator<Item = (RangeId, Self::Value)>, Error> {
+        let attach = |id| (id, ());
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         if surface_set.is_empty() {
-            return Ok(Vec::new().into_iter().map(attach_unit_range));
+            return Ok(Vec::new().into_iter().map(attach));
         }
 
         let first = surface_set.iter().next().unwrap();
@@ -234,6 +229,6 @@ impl CoverRangeIds for Solid {
             }
         }
 
-        Ok(results.into_iter().map(attach_unit_range))
+        Ok(results.into_iter().map(attach))
     }
 }

@@ -29,25 +29,3 @@ pub trait CoverRangeIds {
         Ok(self.cover_range_ids_with(z)?.map(|(id, _)| id))
     }
 }
-
-impl<T: CoverSingleIds, V: Clone> CoverSingleIds for (T, V) {
-    type Value = V;
-    fn cover_single_ids_with(
-        &self,
-        z: u8,
-    ) -> Result<impl Iterator<Item = (crate::SingleId, Self::Value)>, crate::Error> {
-        let val = self.1.clone();
-        Ok(self.0.cover_single_ids(z)?.map(move |id| (id, val.clone())))
-    }
-}
-
-impl<T: CoverRangeIds, V: Clone> CoverRangeIds for (T, V) {
-    type Value = V;
-    fn cover_range_ids_with(
-        &self,
-        z: u8,
-    ) -> Result<impl Iterator<Item = (crate::RangeId, Self::Value)>, crate::Error> {
-        let val = self.1.clone();
-        Ok(self.0.cover_range_ids(z)?.map(move |id| (id, val.clone())))
-    }
-}
