@@ -40,9 +40,9 @@ impl CoverSingleIds for FractionalId {
     type Value = ();
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (crate::SingleId, Self::Value)>, crate::Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
         let coord: Coordinate = (*self).into();
         Ok(core::iter::once((coord.single_id(zoom.get())?, ())))
     }

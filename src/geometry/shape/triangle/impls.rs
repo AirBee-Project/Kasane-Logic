@@ -15,8 +15,9 @@ impl CoverSingleIds for Triangle {
     type Value = ();
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
+        let z = z.into();
         let points: [Vec3FractionalId; 3] = [
             Vec3FractionalId::from(self.points[0].fractional_id(z)?),
             Vec3FractionalId::from(self.points[1].fractional_id(z)?),

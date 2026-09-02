@@ -118,7 +118,11 @@ impl Triangle {
     }
 
     ///[SingleId]の集合へ変換を行います。
-    pub fn single_ids_limited(self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    pub fn single_ids_limited(
+        self,
+        z: impl Into<u8>,
+    ) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let z = z.into();
         let points: [Vec3FractionalId; 3] = [
             Vec3FractionalId::from(self.points[0].fractional_id(z)?),
             Vec3FractionalId::from(self.points[1].fractional_id(z)?),

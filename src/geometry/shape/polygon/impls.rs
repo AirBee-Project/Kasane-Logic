@@ -62,8 +62,9 @@ impl CoverSingleIds for Polygon {
     /// ```
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, crate::Error> {
+        let z = z.into();
         let mut unique_ids = HashSet::new();
 
         for triangle in self.expand_triangles() {

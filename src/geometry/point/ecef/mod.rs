@@ -118,13 +118,13 @@ impl Ecef {
     }
 
     /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換する。
-    pub fn single_id(&self, z: u8) -> Result<SingleId, Error> {
+    pub fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
         coordinate.single_id(z)
     }
 
     /// この ECEF 座標を、指定されたズームレベルの [`RangeId`] に変換する。
-    pub fn range_id(&self, z: u8) -> Result<RangeId, Error> {
+    pub fn range_id(&self, z: impl Into<u8>) -> Result<RangeId, Error> {
         let coordinate: Coordinate = (*self).try_into()?;
         Ok(RangeId::from(coordinate.single_id(z)?))
     }

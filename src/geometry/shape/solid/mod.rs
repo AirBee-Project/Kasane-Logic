@@ -97,7 +97,11 @@ impl Solid {
     }
 
     /// 指定されたズームレベル `z` における、この [Solid] の表面を覆う [SingleId] の集合を返す。
-    pub fn surface_single_ids(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    pub fn surface_single_ids(
+        &self,
+        z: impl Into<u8>,
+    ) -> Result<impl Iterator<Item = SingleId>, Error> {
+        let z = z.into();
         // HashSetで重複を除去
         let mut unique_ids = HashSet::new();
 
