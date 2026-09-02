@@ -216,8 +216,8 @@ impl Coordinate {
     ///     &SingleId::new(24, 10, 14715409, 6646263)
     /// )
     /// ```
-    pub fn single_id(&self, z: u8) -> Result<SingleId, Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+    pub fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let lat = self.latitude;

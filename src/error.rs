@@ -88,6 +88,9 @@ pub enum GeometryError {
 
     /// Y 方向インデックスが、指定されたズームレベルに対して有効範囲外であることを示す。
     FractionalYOutOfRange { z: u8, y: f64 },
+
+    ///存在しない標準地域メッシュが挿入されたことを示す
+    RegionmeshNotExist { index: u32 },
 }
 
 /// SpatialId 関連で発生するエラー。
@@ -221,6 +224,9 @@ impl fmt::Display for GeometryError {
                     "Fractional Y coordinate '{}' is out of range for ZoomLevel '{}'",
                     y, z
                 )
+            }
+            GeometryError::RegionmeshNotExist { index } => {
+                write!(f, "Regiomesh '{}' does not exist", index)
             }
         }
     }

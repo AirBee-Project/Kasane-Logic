@@ -13,3 +13,5 @@ pub mod shape;
 pub mod traits;
 
 pub mod vec3;
+
+pub mod geodata_structs;
