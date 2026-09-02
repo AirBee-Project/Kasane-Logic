@@ -13,7 +13,7 @@ pub struct Vec3FractionalId {
 }
 
 impl Vec3FractionalId {
-    pub fn fractional_id(&self, z: u8) -> Result<FractionalId, Error> {
+    pub fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
         let id = FractionalId::new(z, self.a, self.b, self.c)?;
         Ok(id)
     }

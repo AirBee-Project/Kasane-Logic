@@ -14,9 +14,9 @@ impl CoverSingleIds for Sphere {
     type Value = ();
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, crate::Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let center = self.center;

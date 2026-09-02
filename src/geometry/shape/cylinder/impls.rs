@@ -12,7 +12,7 @@ impl CoverSingleIds for Cylinder {
     type Value = ();
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
         let solid = self.rough_solid();
         #[allow(clippy::needless_collect)]
@@ -25,7 +25,7 @@ impl CoverRangeIds for Cylinder {
     type Value = ();
     fn cover_range_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (RangeId, Self::Value)>, Error> {
         let solid = self.rough_solid();
         #[allow(clippy::needless_collect)]

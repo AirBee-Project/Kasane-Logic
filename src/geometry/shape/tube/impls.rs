@@ -5,8 +5,9 @@ impl CoverSingleIds for Tube {
     type Value = ();
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
+        let z = z.into();
         let mut ids: HashSet<_> = Sphere::new(self.points[0], self.radius_m)?
             .cover_single_ids(z)?
             .collect();

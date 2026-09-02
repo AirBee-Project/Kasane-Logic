@@ -12,9 +12,9 @@ impl CoverSingleIds for Line {
     type Value = ();
     fn cover_single_ids_with(
         &self,
-        z: u8,
+        z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
         let a = self.points[0];
         let b = self.points[1];
