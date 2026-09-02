@@ -5,10 +5,11 @@ use crate::spatial_id::collection::query::merge_policy::MergePolicy;
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
-    pub fn merge<P: MergePolicy<V>>(self, other: Self, default: V, _policy: P) -> Self {
+    pub fn merge<P: MergePolicy<V>>(self, other: impl Into<Self>, default: V, _policy: P) -> Self {
         if matches!(self, Query::Error(_)) {
             return self;
         }
+        let other = other.into();
         if matches!(other, Query::Error(_)) {
             return other;
         }
