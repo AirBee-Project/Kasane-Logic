@@ -1,11 +1,11 @@
-use crate::{Coordinate, CoverRangeIds, Error, GeometryError, RangeId};
+use crate::{Coordinate, Error, GeometryError, RangeId};
 
 ///標準地域メッシュ型を表すトレイト
 //より詳細なメッシュが必要になったらu32ではなくu64でもいいと思う
 pub struct RegionMesh(MeshType);
 
 impl RegionMesh {
-    fn new(code: u32) -> Result<Self, Error> {
+    pub fn new(code: u32) -> Result<Self, Error> {
         let digit = if code == 0 { 1 } else { code.ilog10() + 1 };
         if digit == 4 {
             Ok(Self(MeshType::First(code)))
@@ -17,10 +17,13 @@ impl RegionMesh {
             Err(GeometryError::RegionmeshNotExist { index: code }.into())
         }
     }
-    unsafe fn direct_new(mesh: MeshType) -> Self {
+    /// # Safety
+    /// この操作はunsafeである。標準地域メッシュの規格に適合するかどうかに関わらず、整数をMeshTypeのenumに包む。
+    pub unsafe fn direct_new(mesh: MeshType) -> Self {
         Self(mesh)
     }
-    fn code(&self) -> u32 {
+    /// 範囲メッシュのコードを返す
+    pub fn code(&self) -> u32 {
         self.0.code()
     }
 }
@@ -44,7 +47,7 @@ impl MeshType {
     }
 }
 
-fn mesh_to_rangeid(mesh: MeshType, z: impl Into<u8>) -> Result<RangeId, crate::Error> {
+pub fn mesh_to_rangeid(mesh: MeshType, z: impl Into<u8>) -> Result<RangeId, crate::Error> {
     let z = z.into();
     match mesh {
         MeshType::First(code) => {
