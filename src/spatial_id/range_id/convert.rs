@@ -55,31 +55,31 @@ impl From<&SingleId> for RangeId {
 
 impl RangeId {
     /// この [RangeId]を[SingleId]に分解する。
-    pub fn single_ids(&self) -> Box<dyn Iterator<Item = SingleId>> {
+    pub fn single_ids(self) -> impl Iterator<Item = SingleId> {
         let z = self.z.get();
         let f_range = self.f[0]..=self.f[1];
         let x = self.x;
         let y_range = self.y[0]..=self.y[1];
         let (interval, [t_min, t_max]) = (self.i, self.t());
 
-        let iter = f_range.flat_map(move |f| {
+        f_range.flat_map(move |f| {
             let y_range = y_range.clone();
 
-            let x_iter: Box<dyn Iterator<Item = u32>> = if x[0] <= x[1] {
-                Box::new(x[0]..=x[1])
+            let x_iter = if x[0] <= x[1] {
+                #[allow(clippy::reversed_empty_ranges)]
+                (x[0]..=x[1]).chain(1..=0)
             } else {
-                Box::new((x[0]..=ZoomLevel::new(z).unwrap().xy_max()).chain(0..=x[1]))
+                (x[0]..=ZoomLevel::new(z).unwrap().xy_max()).chain(0..=x[1])
             };
 
-            x_iter.into_iter().flat_map(move |x| {
+            x_iter.flat_map(move |x| {
                 let y_range = y_range.clone();
                 y_range.flat_map(move |y: u32| {
                     let base = SingleId::new(z, f, x, y).unwrap();
                     (t_min..=t_max).map(move |t| base.clone().with_time_unchecked(interval, t))
                 })
             })
-        });
-        Box::new(iter)
+        })
     }
 }
 

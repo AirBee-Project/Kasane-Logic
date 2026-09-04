@@ -1,4 +1,4 @@
-use crate::{Coordinate, Error, GeometryError, RangeId};
+use crate::{Coordinate, CoverRangeIds, CoverSingleIds, Error, GeometryError, RangeId, SingleId};
 
 ///標準地域メッシュ型を表すトレイト
 //より詳細なメッシュが必要になったらu32ではなくu64でもいいと思う
@@ -28,7 +28,7 @@ impl RegionMesh {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///メッシュの種類による分岐を表す列挙型
 pub enum MeshType {
     ///1次メッシュを表すバリアント
@@ -47,8 +47,39 @@ impl MeshType {
     }
 }
 
-pub fn mesh_to_rangeid(mesh: MeshType, z: impl Into<u8>) -> Result<RangeId, crate::Error> {
-    let z = z.into();
+impl CoverSingleIds for RegionMesh {
+    fn cover_single_ids(&self, z: impl Into<u8>) -> Result<impl Iterator<Item = SingleId>, Error> {
+        Ok(mesh_to_rangeid(&self.0, z.into())?.single_ids())
+    }
+    fn cover_single_ids_with<V>(
+        &self,
+        z: impl Into<u8>,
+        value: V,
+    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
+    where
+        V: Clone + 'static,
+    {
+        Ok(mesh_to_rangeid(&self.0, z.into())?
+            .single_ids()
+            .map(move |id| (id, value.clone())))
+    }
+}
+
+///標準地域メッシュを覆うようにRangeIdを生成する。Fにはデフォルトで0が割り当てられている。
+impl CoverRangeIds for RegionMesh {
+    fn cover_range_ids_with<V>(
+        &self,
+        z: impl Into<u8>,
+        value: V,
+    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error> {
+        Ok(core::iter::once((
+            mesh_to_rangeid(&self.0, z.into())?,
+            value,
+        )))
+    }
+}
+
+fn mesh_to_rangeid(mesh: &MeshType, z: u8) -> Result<RangeId, crate::Error> {
     match mesh {
         MeshType::First(code) => {
             let f = (code / 100) as f64;

@@ -9,27 +9,33 @@ impl Shape for Cylinder {
 }
 
 impl CoverSingleIds for Cylinder {
-    type Value = ();
-    fn cover_single_ids_with(
+    fn cover_single_ids_with<V>(
         &self,
-        z: u8,
-    ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
+        z: impl Into<u8>,
+        value: V,
+    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
+    where
+        V: Clone + 'static,
+    {
         let solid = self.rough_solid();
         #[allow(clippy::needless_collect)]
-        let ids: Vec<_> = solid.cover_single_ids_with(z)?.collect();
+        let ids: Vec<_> = solid.cover_single_ids_with(z, value)?.collect();
         Ok(ids.into_iter())
     }
 }
 
 impl CoverRangeIds for Cylinder {
-    type Value = ();
-    fn cover_range_ids_with(
+    fn cover_range_ids_with<V>(
         &self,
-        z: u8,
-    ) -> Result<impl Iterator<Item = (RangeId, Self::Value)>, Error> {
+        z: impl Into<u8>,
+        value: V,
+    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error>
+    where
+        V: Clone + 'static,
+    {
         let solid = self.rough_solid();
         #[allow(clippy::needless_collect)]
-        let ids: Vec<_> = solid.cover_range_ids_with(z)?.collect();
+        let ids: Vec<_> = solid.cover_range_ids_with(z, value)?.collect();
         Ok(ids.into_iter())
     }
 }

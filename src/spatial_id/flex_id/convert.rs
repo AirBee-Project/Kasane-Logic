@@ -1,6 +1,4 @@
 use crate::SpatialId;
-use alloc::boxed::Box;
-
 use crate::{FlexId, RangeId, SingleId};
 
 impl From<FlexId> for RangeId {
@@ -56,7 +54,7 @@ impl IntoIterator for FlexId {
 }
 
 impl FlexId {
-    pub fn single_ids(self) -> Box<dyn Iterator<Item = SingleId>> {
-        Box::new(RangeId::from(self).single_ids())
+    pub fn single_ids(self) -> impl Iterator<Item = SingleId> {
+        RangeId::from(self).single_ids()
     }
 }
