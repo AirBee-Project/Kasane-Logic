@@ -126,7 +126,7 @@ impl CoverRangeIds for RegionMesh {
     }
 }
 
-/// 複数の [`RegionMesh`] と値のペアを、指定したズームレベル `z` で [`SpatialIdMap`] に変換します。
+/// 複数の [`RegionMesh`] と値のペアを、指定したズームレベル `z` で [`HashMap<SingleId,V>`] に変換します。
 /// 重なり合う空間領域の値は `merge_function` に従って集約・競合解消されます。
 pub fn regionmesh_into_hashmap<V, I, F>(
     iter: I,
