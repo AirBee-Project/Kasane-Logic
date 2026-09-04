@@ -1,6 +1,6 @@
 use crate::{Coordinate, CoverRangeIds, CoverSingleIds, Error, GeometryError, RangeId, SingleId};
 
-///標準地域メッシュ型を表すトレイト
+///地域メッシュを表す型
 //より詳細なメッシュが必要になったらu32ではなくu64でもいいと思う
 pub struct RegionMesh(MeshType);
 
@@ -10,8 +10,19 @@ impl RegionMesh {
         if digit == 4 {
             Ok(Self(MeshType::First(code)))
         } else if digit == 6 {
+            let f2 = (code % 100) / 10;
+            let h2 = code % 10;
+            if f2 > 7 || h2 > 7 {
+                return Err(GeometryError::RegionmeshNotExist { index: code }.into());
+            }
             Ok(Self(MeshType::Second(code)))
         } else if digit == 8 {
+            let f2 = (code % 10000) / 1000;
+            let h2 = (code % 1000) / 100;
+            if f2 > 7 || h2 > 7 {
+                return Err(GeometryError::RegionmeshNotExist { index: code }.into());
+            }
+
             Ok(Self(MeshType::Third(code)))
         } else {
             Err(GeometryError::RegionmeshNotExist { index: code }.into())
@@ -31,11 +42,11 @@ impl RegionMesh {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///メッシュの種類による分岐を表す列挙型
 pub enum MeshType {
-    ///1次メッシュを表すバリアント
+    ///1次メッシュを表す
     First(u32),
-    ///2次メッシュを表すバリアント
+    ///2次メッシュを表す
     Second(u32),
-    ///3次メッシュを表すバリアント
+    ///3次メッシュを表す
     Third(u32),
 }
 
@@ -79,7 +90,7 @@ impl CoverRangeIds for RegionMesh {
                 let f = (code / 100) as f64;
                 let h = (code % 100) as f64;
                 let lat_min = f / 1.5;
-                let lat_max = lat_min + 1.5;
+                let lat_max = lat_min + 1.0 / 1.5;
                 let lon_min = h + 100.0;
                 let lon_max = lon_min + 1.0;
                 let id1 = Coordinate::new(lat_min, lon_min, 0.0)?.single_id(z)?;
@@ -126,8 +137,8 @@ impl CoverRangeIds for RegionMesh {
     }
 }
 
-/// 複数の [`RegionMesh`] と値のペアを、指定したズームレベル `z` で [`HashMap<SingleId,V>`] に変換します。
-/// 重なり合う空間領域の値は `merge_function` に従って集約・競合解消されます。
+/// 複数の [`RegionMesh`] と値のペアを、指定したズームレベル `z` で [`hashbrown::HashMap<SingleId, V>`] に変換する。
+/// 重なり合う空間領域の値は `merge_function` に従って集約・競合解消される。
 pub fn regionmesh_into_hashmap<V, I, F>(
     iter: I,
     z: impl Into<u8>,
