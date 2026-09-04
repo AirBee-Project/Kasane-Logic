@@ -29,8 +29,8 @@ impl RegionMesh {
         }
     }
     /// # Safety
-    /// この操作はunsafeである。標準地域メッシュの規格に適合するかどうかに関わらず、整数をMeshTypeのenumに包む。
-    pub unsafe fn direct_new(mesh: MeshType) -> Self {
+    /// この操作はunsafeである。地域メッシュの規格に適合するかどうかに関わらず、RegionMesh型に包む。
+    pub unsafe fn new_unchecked(mesh: MeshType) -> Self {
         Self(mesh)
     }
     /// 範囲メッシュのコードを返す
