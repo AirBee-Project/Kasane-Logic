@@ -330,7 +330,12 @@ impl FlexId {
     /// - `index` がズーム `z` のF範囲外の場合は [`SpatialIdError::FOutOfRange`] を返す。
     /// - 拡張後の区間が `max(f_zoomlevel, z)` のF範囲を超える場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
-    pub fn stretch_f(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
+    pub fn stretch_f(
+        &self,
+        z: impl Into<u8>,
+        index: i32,
+    ) -> Result<impl Iterator<Item = FlexId>, Error> {
+        let z = z.into();
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
@@ -392,7 +397,12 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    pub fn stretch_x(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
+    pub fn stretch_x(
+        &self,
+        z: impl Into<u8>,
+        index: i32,
+    ) -> Result<impl Iterator<Item = FlexId>, Error> {
+        let z = z.into();
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }
@@ -461,7 +471,12 @@ impl FlexId {
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - 拡張後の区間が `max(y_zoomlevel, z)` のY範囲を超える場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
-    pub fn stretch_y(&self, z: u8, index: i32) -> Result<impl Iterator<Item = FlexId>, Error> {
+    pub fn stretch_y(
+        &self,
+        z: impl Into<u8>,
+        index: i32,
+    ) -> Result<impl Iterator<Item = FlexId>, Error> {
+        let z = z.into();
         if z > ZoomLevel::MAX.get() {
             return Err(SpatialIdError::ZOutOfRange { z }.into());
         }

@@ -4,10 +4,11 @@ use crate::spatial_id::collection::query::execution::Query;
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
-    pub fn intersection(self, other: Self) -> Self {
+    pub fn intersection(self, other: impl Into<Self>) -> Self {
         if matches!(self, Query::Error(_)) {
             return self;
         }
+        let other = other.into();
         if matches!(other, Query::Error(_)) {
             return other;
         }
