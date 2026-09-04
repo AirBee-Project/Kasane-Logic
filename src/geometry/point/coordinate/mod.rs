@@ -267,8 +267,8 @@ impl Coordinate {
     ///     FractionalId::new(24, 10.0, 14715409.371845974, 6646263.059889234).unwrap()
     /// )
     /// ```
-    pub fn fractional_id(&self, z: u8) -> Result<FractionalId, Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+    pub fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
+        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let lat = self.latitude;
