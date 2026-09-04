@@ -26,11 +26,54 @@ impl RegionMesh {
     pub fn code(&self) -> u32 {
         self.0.code()
     }
+}
 
-    pub fn single_ids(&self, z: impl Into<u8>) -> Result<impl Iterator<Item = SingleId>, Error> {
-        Ok(self.range_id(z.into())?.single_ids())
+#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+///メッシュの種類による分岐を表す列挙型
+pub enum MeshType {
+    ///1次メッシュを表すバリアント
+    First(u32),
+    ///2次メッシュを表すバリアント
+    Second(u32),
+    ///3次メッシュを表すバリアント
+    Third(u32),
+}
+
+impl MeshType {
+    pub fn code(&self) -> u32 {
+        match *self {
+            MeshType::First(code) | MeshType::Second(code) | MeshType::Third(code) => code,
+        }
     }
-    pub fn range_id(&self, z: u8) -> Result<RangeId, crate::Error> {
+}
+
+impl CoverSingleIds for RegionMesh {
+    fn cover_single_ids(&self, z: impl Into<u8>) -> Result<impl Iterator<Item = SingleId>, Error> {
+        Ok(self.cover_range_ids(z.into())?.flat_map(|r| r.single_ids()))
+    }
+    fn cover_single_ids_with<V>(
+        &self,
+        z: impl Into<u8>,
+        value: V,
+    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
+    where
+        V: Clone + 'static,
+    {
+        Ok(self
+            .cover_range_ids(z.into())?
+            .flat_map(|r| r.single_ids())
+            .map(move |id| (id, value.clone())))
+    }
+}
+
+///標準地域メッシュを覆うようにRangeIdを生成する。Fにはデフォルトで0が割り当てられている。
+impl CoverRangeIds for RegionMesh {
+    fn cover_range_ids_with<V>(
+        &self,
+        z: impl Into<u8>,
+        value: V,
+    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error> {
+        let z = z.into();
         let (id1, id2) = match self.0 {
             MeshType::First(code) => {
                 let f = (code / 100) as f64;
@@ -78,56 +121,8 @@ impl RegionMesh {
             [id1.x(), id2.x()],
             [id1.y(), id2.y()],
         )?;
-        Ok(range_id)
-    }
-}
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
-///メッシュの種類による分岐を表す列挙型
-pub enum MeshType {
-    ///1次メッシュを表すバリアント
-    First(u32),
-    ///2次メッシュを表すバリアント
-    Second(u32),
-    ///3次メッシュを表すバリアント
-    Third(u32),
-}
-
-impl MeshType {
-    pub fn code(&self) -> u32 {
-        match *self {
-            MeshType::First(code) | MeshType::Second(code) | MeshType::Third(code) => code,
-        }
-    }
-}
-
-impl CoverSingleIds for RegionMesh {
-    fn cover_single_ids(&self, z: impl Into<u8>) -> Result<impl Iterator<Item = SingleId>, Error> {
-        Ok(self.range_id(z.into())?.single_ids())
-    }
-    fn cover_single_ids_with<V>(
-        &self,
-        z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
-    where
-        V: Clone + 'static,
-    {
-        Ok(self
-            .range_id(z.into())?
-            .single_ids()
-            .map(move |id| (id, value.clone())))
-    }
-}
-
-///標準地域メッシュを覆うようにRangeIdを生成する。Fにはデフォルトで0が割り当てられている。
-impl CoverRangeIds for RegionMesh {
-    fn cover_range_ids_with<V>(
-        &self,
-        z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error> {
-        Ok(core::iter::once((self.range_id(z.into())?, value)))
+        Ok(core::iter::once((range_id, value)))
     }
 }
 
@@ -147,7 +142,7 @@ where
     let mut aggregated = hashbrown::HashMap::<SingleId, V>::new();
 
     for (mesh, value) in iter {
-        for single_id in mesh.single_ids(z)? {
+        for single_id in mesh.cover_single_ids(z)? {
             aggregated
                 .entry(single_id)
                 .and_modify(|existing| {
