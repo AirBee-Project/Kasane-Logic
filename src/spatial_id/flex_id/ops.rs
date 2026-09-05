@@ -114,6 +114,61 @@ impl FlexId {
         })
     }
 
+    /// `self` が `other` を完全に包含するか判定します。
+    ///
+    /// ```
+    /// # use kasane_logic::FlexId;
+    /// let parent = FlexId::new(2, 0, 2, 0, 2, 0).unwrap();
+    /// let child = FlexId::new(3, 0, 3, 0, 3, 0).unwrap();
+    /// let other = FlexId::new(2, 1, 2, 0, 2, 0).unwrap();
+    ///
+    /// assert!(parent.contains(&child));
+    /// assert!(!parent.contains(&other));
+    /// assert!(!child.contains(&parent)); // 子は親を包含しない
+    /// assert!(parent.contains(&parent)); // 自身は自身を包含する
+    /// ```
+    pub fn contains(&self, other: &FlexId) -> bool {
+        if !contains_axis(
+            self.f_zoomlevel(),
+            self.f_index() as i64,
+            other.f_zoomlevel(),
+            other.f_index() as i64,
+        ) {
+            return false;
+        }
+        if !contains_axis(
+            self.x_zoomlevel(),
+            self.x_index() as i64,
+            other.x_zoomlevel(),
+            other.x_index() as i64,
+        ) {
+            return false;
+        }
+        if !contains_axis(
+            self.y_zoomlevel(),
+            self.y_index() as i64,
+            other.y_zoomlevel(),
+            other.y_index() as i64,
+        ) {
+            return false;
+        }
+
+        // `temporal_id` 無効時は双方とも全時間で必ず入れ子なので、判定ごと消す。
+        #[cfg(feature = "temporal_id")]
+        {
+            if !contains_axis(
+                self.t_zoomlevel(),
+                self.t() as i64,
+                other.t_zoomlevel(),
+                other.t() as i64,
+            ) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     /// [`RangeId`](crate::RangeId) と交差するか判定する。**時間軸も含めて**判定する。
     ///
     /// 木の走査（`RangeOverlapWalk`）は枝刈りで大半を落とすが、時間軸は
@@ -152,6 +207,18 @@ impl FlexId {
             range.y()[1] as i64,
         )
     }
+}
+
+/// 1軸について、`(shallow_z, shallow_i)` が `(deep_z, deep_i)` を包含するか判定する。
+///
+/// [`nested_axis`] と違い対称ではない（`self` 側を浅い側に固定して判定する）ため、
+/// 深さが逆（`shallow_z > deep_z`）なら即座に包含しないと判断できる。
+fn contains_axis(shallow_z: u8, shallow_i: i64, deep_z: u8, deep_i: i64) -> bool {
+    if shallow_z > deep_z {
+        return false;
+    }
+    let shift = deep_z - shallow_z;
+    (deep_i >> shift) == shallow_i
 }
 
 /// 1軸について、2つのSegmentが入れ子なら「深い側」の `(zoom, index)` を返す。素なら [`None`]。
