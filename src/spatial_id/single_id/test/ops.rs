@@ -52,7 +52,7 @@ mod tests {
         let child_range = RangeId::from(&child);
         assert!(!diff.contains(&child_range));
         // 残りの断片はどれも `child` と交差しない。
-        assert!(diff.iter().all(|range| {
+        assert!(diff.into_iter().all(move |range| {
             range
                 .single_ids()
                 .all(|id| id.intersection(&child).is_none())

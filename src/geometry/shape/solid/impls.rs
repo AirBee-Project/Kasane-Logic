@@ -15,13 +15,16 @@ impl Shape for Solid {
 }
 
 impl CoverSingleIds for Solid {
-    type Value = ();
-    fn cover_single_ids_with(
+    fn cover_single_ids_with<V>(
         &self,
         z: impl Into<u8>,
-    ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, Error> {
-        let z = z.into();
-        let attach = |id| (id, ());
+        value: V,
+    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
+    where
+        V: Clone + 'static,
+    {
+        let z: u8 = z.into();
+        let attach = move |id| (id, value.clone());
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
 
         if surface_set.is_empty() {
@@ -105,13 +108,16 @@ impl CoverSingleIds for Solid {
 }
 
 impl CoverRangeIds for Solid {
-    type Value = ();
-    fn cover_range_ids_with(
+    fn cover_range_ids_with<V>(
         &self,
         z: impl Into<u8>,
-    ) -> Result<impl Iterator<Item = (RangeId, Self::Value)>, Error> {
-        let z = z.into();
-        let attach = |id| (id, ());
+        value: V,
+    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error>
+    where
+        V: Clone + 'static,
+    {
+        let z: u8 = z.into();
+        let attach = move |id| (id, value.clone());
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         if surface_set.is_empty() {
             return Ok(Vec::new().into_iter().map(attach));

@@ -11,11 +11,14 @@ impl Shape for Sphere {
 }
 
 impl CoverSingleIds for Sphere {
-    type Value = ();
-    fn cover_single_ids_with(
+    fn cover_single_ids_with<V>(
         &self,
         z: impl Into<u8>,
-    ) -> Result<impl Iterator<Item = (SingleId, Self::Value)>, crate::Error> {
+        value: V,
+    ) -> Result<impl Iterator<Item = (SingleId, V)>, crate::Error>
+    where
+        V: Clone + 'static,
+    {
         let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
@@ -59,7 +62,7 @@ impl CoverSingleIds for Sphere {
                 let p: Coordinate = id.spatial_center();
                 center.distance(&p) <= radius + voxel_diag_half
             })
-            .map(|id| (id, ())))
+            .map(move |id| (id, value.clone())))
     }
 }
 
