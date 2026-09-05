@@ -169,6 +169,59 @@ impl FlexId {
         true
     }
 
+    /// `self` と `other` の両方を包含する最小の [`FlexId`] を返します。
+    ///
+    /// ```
+    /// # use kasane_logic::FlexId;
+    /// let a = FlexId::new(3, 0, 3, 0, 3, 0).unwrap();
+    /// let b = FlexId::new(3, 1, 3, 0, 3, 0).unwrap();
+    ///
+    /// let enclosing = a.smallest_enclosing(&b).unwrap();
+    /// assert!(enclosing.contains(&a));
+    /// assert!(enclosing.contains(&b));
+    /// ```
+    pub fn smallest_enclosing(&self, other: &FlexId) -> Option<FlexId> {
+        let (f_z, f_i) = enclosing_axis(
+            self.f_zoomlevel(),
+            self.f_index() as i64,
+            other.f_zoomlevel(),
+            other.f_index() as i64,
+        )?;
+        let (x_z, x_i) = enclosing_axis(
+            self.x_zoomlevel(),
+            self.x_index() as i64,
+            other.x_zoomlevel(),
+            other.x_index() as i64,
+        )?;
+        let (y_z, y_i) = enclosing_axis(
+            self.y_zoomlevel(),
+            self.y_index() as i64,
+            other.y_zoomlevel(),
+            other.y_index() as i64,
+        )?;
+
+        #[cfg(feature = "temporal_id")]
+        let (t_z, t_i) = enclosing_axis(
+            self.t_zoomlevel(),
+            self.t() as i64,
+            other.t_zoomlevel(),
+            other.t() as i64,
+        )?;
+
+        Some(FlexId {
+            f_zoomlevel: ZoomLevel::new(f_z).unwrap(),
+            f_index: f_i as i32,
+            x_zoomlevel: ZoomLevel::new(x_z).unwrap(),
+            x_index: x_i as u32,
+            y_zoomlevel: ZoomLevel::new(y_z).unwrap(),
+            y_index: y_i as u32,
+            #[cfg(feature = "temporal_id")]
+            t_zoomlevel: TZoomLevel::new(t_z).unwrap(),
+            #[cfg(feature = "temporal_id")]
+            t_index: t_i as u64,
+        })
+    }
+
     /// [`RangeId`](crate::RangeId) と交差するか判定する。**時間軸も含めて**判定する。
     ///
     /// 木の走査（`RangeOverlapWalk`）は枝刈りで大半を落とすが、時間軸は
@@ -219,6 +272,30 @@ fn contains_axis(shallow_z: u8, shallow_i: i64, deep_z: u8, deep_i: i64) -> bool
     }
     let shift = deep_z - shallow_z;
     (deep_i >> shift) == shallow_i
+}
+
+/// 1軸について、2つのSegmentを両方とも包含する最小共通祖先の `(zoom, index)` を返す。
+///
+/// 浅い方のズームまで両者を合わせたあと、index が一致するまで1段ずつズームを落として
+/// いく（＝共通のビットプレフィックスを探す）。X/Y/Tのような0始まりの軸ではズーム0の
+/// index が常に0に収束するため必ず一致するが、**F軸は符号付きで、ズーム0でも `-1`/`0`
+/// の2値がありうる**ため、その場合は最後まで一致せず [`None`] を返す
+/// （符号付き算術シフトでは `-1 >> n == -1` のまま、`0 >> n == 0` のままで収束しない）。
+fn enclosing_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
+    let mut z = z1.min(z2);
+    let mut a = i1 >> (z1 - z);
+    let mut b = i2 >> (z2 - z);
+
+    while a != b {
+        if z == 0 {
+            return None;
+        }
+        a >>= 1;
+        b >>= 1;
+        z -= 1;
+    }
+
+    Some((z, a))
 }
 
 /// 1軸について、2つのSegmentが入れ子なら「深い側」の `(zoom, index)` を返す。素なら [`None`]。
