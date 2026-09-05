@@ -14,4 +14,4 @@ pub mod traits;
 
 pub mod vec3;
 
-pub mod geodata_structs;
+pub mod geodata_formats;

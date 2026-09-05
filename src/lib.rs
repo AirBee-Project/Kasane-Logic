@@ -34,7 +34,7 @@ pub use geometry::shape::cylinder::Cylinder;
 pub use geometry::shape::tube::Tube;
 
 #[doc(inline)]
-pub use geometry::geodata_structs::regionmesh::RegionMesh;
+pub use geometry::geodata_formats::regionmesh::RegionMesh;
 
 // geometry: types
 #[doc(inline)]
