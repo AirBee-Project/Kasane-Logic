@@ -37,6 +37,34 @@ impl RegionMesh {
     pub fn code(&self) -> u32 {
         self.0.code()
     }
+
+    /// 複数の [`RegionMesh`] と値のペアを、指定したズームレベル `z` で [`hashbrown::HashMap<SingleId, V>`] に変換する。
+    /// 重なり合う空間領域の値は `merge_function` に従って集約・競合解消される。
+    pub fn regionmesh_into_hashmap<V, I, F>(
+        iter: I,
+        z: impl Into<u8>,
+        merge_function: F,
+    ) -> Result<hashbrown::HashMap<SingleId, V>, Error>
+    where
+        I: IntoIterator<Item = (RegionMesh, V)>,
+        V: Clone + PartialEq + Send + Sync + 'static,
+        F: Fn(V, V) -> V,
+    {
+        let z = z.into();
+        let mut aggregated = hashbrown::HashMap::<SingleId, V>::new();
+
+        for (mesh, value) in iter {
+            for single_id in mesh.cover_single_ids(z)? {
+                aggregated
+                    .entry(single_id)
+                    .and_modify(|existing| {
+                        *existing = merge_function(existing.clone(), value.clone());
+                    })
+                    .or_insert_with(|| value.clone());
+            }
+        }
+        Ok(aggregated)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
@@ -135,32 +163,4 @@ impl CoverRangeIds for RegionMesh {
 
         Ok(core::iter::once((range_id, value)))
     }
-}
-
-/// 複数の [`RegionMesh`] と値のペアを、指定したズームレベル `z` で [`hashbrown::HashMap<SingleId, V>`] に変換する。
-/// 重なり合う空間領域の値は `merge_function` に従って集約・競合解消される。
-pub fn regionmesh_into_hashmap<V, I, F>(
-    iter: I,
-    z: impl Into<u8>,
-    merge_function: F,
-) -> Result<hashbrown::HashMap<SingleId, V>, Error>
-where
-    I: IntoIterator<Item = (RegionMesh, V)>,
-    V: Clone + PartialEq + Send + Sync + 'static,
-    F: Fn(V, V) -> V,
-{
-    let z = z.into();
-    let mut aggregated = hashbrown::HashMap::<SingleId, V>::new();
-
-    for (mesh, value) in iter {
-        for single_id in mesh.cover_single_ids(z)? {
-            aggregated
-                .entry(single_id)
-                .and_modify(|existing| {
-                    *existing = merge_function(existing.clone(), value.clone());
-                })
-                .or_insert_with(|| value.clone());
-        }
-    }
-    Ok(aggregated)
 }
