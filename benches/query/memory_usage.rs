@@ -18,9 +18,7 @@ use kasane_logic::{
 #[path = "utils.rs"]
 mod utils;
 
-// ────────────────────────────────────────────────────────────────
 // カスタムアロケータ
-// ────────────────────────────────────────────────────────────────
 
 static TRACKING: AtomicBool = AtomicBool::new(false);
 static CURRENT: AtomicIsize = AtomicIsize::new(0);
@@ -194,9 +192,7 @@ where
     )
 }
 
-// ────────────────────────────────────────────────────────────────
 // クエリ実行
-// ────────────────────────────────────────────────────────────────
 
 fn print_row(name: &str, scope: &str, mode: &str, res: &PerfResult) {
     let wall_ms = res.wall_time.as_secs_f64() * 1000.0;

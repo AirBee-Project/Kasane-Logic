@@ -21,9 +21,7 @@ pub const PATTERNS: &[(&str, PatternFn)] = &[
     ("Checkerboard", checkerboard),
 ];
 
-// ────────────────────────────────────────────────────────────────
 // パターン生成関数
-// ────────────────────────────────────────────────────────────────
 
 /// 連続した 3-D ブロック。FlexTree のノードマージが最大限発生するベストケース。
 pub fn dense_cluster(z: u8, count: usize) -> Vec<SingleId> {
@@ -127,9 +125,7 @@ pub fn checkerboard(z: u8, count: usize) -> Vec<SingleId> {
     ids
 }
 
-// ────────────────────────────────────────────────────────────────
 // ヘルパー
-// ────────────────────────────────────────────────────────────────
 
 pub fn build_set(ids: &[SingleId]) -> SpatialIdSet {
     let mut set = SpatialIdSet::new();

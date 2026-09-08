@@ -21,12 +21,10 @@ use patterns::{COUNTS, PATTERNS, Z};
 
 use kasane_logic::{SingleId, SpatialIdSet};
 
-// ────────────────────────────────────────────────────────────────
 // カスタムアロケータ
 //
 // TRACKING フラグが true の間だけヒープ増減を記録する。
 // フラグ外（パターン生成の Vec など）はカウントしない。
-// ────────────────────────────────────────────────────────────────
 
 static TRACKING: AtomicBool = AtomicBool::new(false);
 static CURRENT: AtomicIsize = AtomicIsize::new(0);
@@ -84,9 +82,7 @@ fn stop_tracking() -> (usize, usize) {
     (current, peak)
 }
 
-// ────────────────────────────────────────────────────────────────
 // 計測ロジック
-// ────────────────────────────────────────────────────────────────
 
 struct MemResult {
     final_bytes: usize,
@@ -119,9 +115,7 @@ fn fmt_bytes(b: usize) -> String {
     }
 }
 
-// ────────────────────────────────────────────────────────────────
 // エントリポイント
-// ────────────────────────────────────────────────────────────────
 
 fn main() {
     println!("## SpatialIdSet Insert ヒープメモリ使用量 (z={Z})");
