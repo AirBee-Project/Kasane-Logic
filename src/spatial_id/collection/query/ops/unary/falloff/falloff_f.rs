@@ -121,26 +121,4 @@ where
             .f_edges_shift(target_z, -min_delta, max_delta)
             .unwrap()
     }
-
-    fn forward_bounds(&self, bounds: RangeId) -> Option<RangeId> {
-        // 逆算(出力→入力)と対になる、入力→出力の写像。片側だけに広がる場合
-        // (`direction`指定あり)、逆算で伸ばした側と反対側が伸びる(鏡写し)。
-        let z = self.z.get();
-        let target_z = z.max(bounds.z());
-
-        let delta = (self.radius as i64) * (1i64 << (target_z - z));
-        let mut min_delta = delta;
-        let mut max_delta = delta;
-        if let Some(side) = self.direction {
-            if side == Side::Upper {
-                min_delta = 0;
-            } else {
-                max_delta = 0;
-            }
-        }
-
-        bounds
-            .f_edges_shift(target_z, -max_delta, min_delta)
-            .unwrap()
-    }
 }

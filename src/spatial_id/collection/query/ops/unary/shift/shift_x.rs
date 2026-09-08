@@ -57,12 +57,4 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         let delta = (self.x as i64) * (1i64 << (target_z - z));
         bounds.x_edges_shift(target_z, -delta, -delta).unwrap()
     }
-
-    fn forward_bounds(&self, bounds: RangeId) -> Option<RangeId> {
-        // 単純な平行移動なので、逆算(-delta)の符号を反転させるだけでよい。
-        let z = self.z.get();
-        let target_z = z.max(bounds.z());
-        let delta = (self.x as i64) * (1i64 << (target_z - z));
-        bounds.x_edges_shift(target_z, delta, delta).unwrap()
-    }
 }

@@ -1,5 +1,7 @@
+use alloc::vec::Vec;
+
 use crate::spatial_id::collection::query::merge_policy::{Average, Max};
-use crate::{SingleId, Source, SpatialIdTable, ZoomLevel};
+use crate::{FlexId, RangeId, SingleId, Source, SpatialIdTable, ZoomLevel};
 
 #[test]
 fn zoom_out_average_8_children() {
@@ -60,4 +62,21 @@ fn zoom_out_max_partial_children() {
 
     // Max of {10, 99, 5} is 99
     assert_eq!(*result, 99);
+}
+
+/// zoom_outは、自分の出力を要求された`target`の外まで返してはいけない
+/// (`run_within`で狭い範囲だけを問い合わせても、無関係な親Segmentまで漏れてはいけない)。
+#[test]
+fn zoom_out_run_within_respects_target() {
+    let mut table = SpatialIdTable::<i32>::new();
+    table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 1); // 親 (19,0,0,0)
+    table.insert(SingleId::new(20, 0, 2, 2).unwrap(), 2); // 別の親 (19,0,1,1)
+
+    let query = table.query().zoom_out(19, Max);
+
+    let target: RangeId = SingleId::new(19, 0, 0, 0).unwrap().into();
+    let got: Vec<(FlexId, i32)> = query.run_within(target.clone()).unwrap().collect();
+
+    assert!(!got.is_empty());
+    assert!(got.iter().all(|(id, _)| id.intersects_range(&target)));
 }

@@ -1,7 +1,6 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use kasane_logic::Source;
 use kasane_logic::merge_policy::Max;
-use kasane_logic::spatial_id::collection::query::cancellation::CancellationToken;
 use kasane_logic::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 
 #[path = "../utils.rs"]
@@ -24,10 +23,8 @@ fn bench_falloff(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run_by_segments(CancellationToken::never())
-                        .inspect(|r| {
-                            r.as_ref().unwrap();
-                        })
+                        .run()
+                        .unwrap()
                         .count()
                 },
                 BatchSize::SmallInput,
@@ -43,10 +40,8 @@ fn bench_falloff(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run_by_segments(CancellationToken::never())
-                        .inspect(|r| {
-                            r.as_ref().unwrap();
-                        })
+                        .run()
+                        .unwrap()
                         .count()
                 },
                 BatchSize::SmallInput,
@@ -62,10 +57,8 @@ fn bench_falloff(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run_by_segments(CancellationToken::never())
-                        .inspect(|r| {
-                            r.as_ref().unwrap();
-                        })
+                        .run()
+                        .unwrap()
                         .count()
                 },
                 BatchSize::SmallInput,
@@ -83,10 +76,8 @@ fn bench_falloff(c: &mut Criterion) {
                         .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
                         .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
                         .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run_by_segments(CancellationToken::never())
-                        .inspect(|r| {
-                            r.as_ref().unwrap();
-                        })
+                        .run()
+                        .unwrap()
                         .count()
                 },
                 BatchSize::SmallInput,

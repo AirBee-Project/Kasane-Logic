@@ -103,20 +103,4 @@ where
             .unwrap();
         Some(bounds)
     }
-
-    fn forward_bounds(&self, input: RangeId) -> Option<RangeId> {
-        // どのFから来ても行き先は常に[start_f, end_f]なので、入力のFは見ない。
-        // X/Yは変えないので、target_zと入力のズームの細かい方へ合わせてから運ぶ。
-        let target_z = self.target_z.get();
-        let max_z = target_z.max(input.z());
-        let scale = 1i64 << (max_z - target_z);
-
-        let f_min = (self.start_f as i64) * scale;
-        let f_max = ((self.end_f as i64) + 1) * scale - 1;
-
-        let x = input.x_fine_range(max_z);
-        let y = input.y_fine_range(max_z);
-
-        RangeId::new(max_z, [f_min as i32, f_max as i32], [x.0, x.1], [y.0, y.1]).ok()
-    }
 }

@@ -46,7 +46,7 @@ where
         // 値を写すだけで位置は動かさないので、逆算した領域は`target`そのものでよい。
         Ok(Box::new(
             self.inner
-                .run_within(target, token)?
+                .run_within_cancellable(target, token)?
                 .map(move |(id, value)| (id, (self.f)(value))),
         ))
     }

@@ -59,11 +59,4 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
         let delta = (self.f as i64) * (1i64 << (target_z - z));
         bounds.f_edges_shift(target_z, -delta, -delta).unwrap()
     }
-
-    fn forward_bounds(&self, bounds: RangeId) -> Option<RangeId> {
-        let z = self.z.get();
-        let target_z = z.max(bounds.z());
-        let delta = (self.f as i64) * (1i64 << (target_z - z));
-        bounds.f_edges_shift(target_z, delta, delta).unwrap()
-    }
 }

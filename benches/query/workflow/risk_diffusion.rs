@@ -1,7 +1,6 @@
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use kasane_logic::{
     Side::Upper, Source, SpatialIdTable, merge_policy::Max,
-    spatial_id::collection::query::cancellation::CancellationToken,
     spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 
@@ -12,8 +11,6 @@ mod utils;
 ///
 /// 結果を`SpatialIdTable`などへ集約せず`count()`で消費するのは、集約先の分だけ
 /// メモリ使用量が水増しされるのを避け、クエリエンジン自体のメモリ挙動を測るため。
-/// `run_by_segments`はSourceが実際に持つSegmentごとに影響範囲を求めて評価するので、
-/// falloffを3段連結しても、全域をまとめて展開する`run()`より小さな単位で処理できる。
 fn run_query(table: SpatialIdTable<u32>) -> usize {
     table
         .query()
@@ -21,10 +18,8 @@ fn run_query(table: SpatialIdTable<u32>) -> usize {
         .falloff_f(25, 10, Some(Upper), FalloffPattern::Linear, Max)
         .falloff_x(25, 10, None, FalloffPattern::Linear, Max)
         .falloff_y(25, 10, None, FalloffPattern::Linear, Max)
-        .run_by_segments(CancellationToken::never())
-        .inspect(|r| {
-            r.as_ref().unwrap();
-        })
+        .run()
+        .unwrap()
         .count()
 }
 

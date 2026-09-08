@@ -101,20 +101,4 @@ where
         bounds.set_y([0, xy_max]).unwrap();
         Some(bounds)
     }
-
-    fn forward_bounds(&self, input: RangeId) -> Option<RangeId> {
-        // どのYから来ても行き先は常に[start_y, end_y]なので、入力のYは見ない。
-        // F/Xは変えないので、target_zと入力のズームの細かい方へ合わせてから運ぶ。
-        let target_z = self.target_z.get();
-        let max_z = target_z.max(input.z());
-        let scale = 1u32 << (max_z - target_z);
-
-        let y_min = self.start_y.checked_mul(scale)?;
-        let y_max = self.end_y.checked_mul(scale)?.checked_add(scale - 1)?;
-
-        let f = input.f_fine_range(max_z);
-        let x = input.x_fine_range(max_z);
-
-        RangeId::new(max_z, [f.0, f.1], [x.0, x.1], [y_min, y_max]).ok()
-    }
 }

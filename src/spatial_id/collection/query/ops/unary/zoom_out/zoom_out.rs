@@ -35,7 +35,7 @@ where
     fn run<'a>(
         &'a self,
         input: ValueIter<'a, V>,
-        _target: RangeId,
+        target: RangeId,
         token: CancellationToken,
     ) -> Result<ValueIter<'a, V>, Error> {
         let target_z = self.target_z.get();
@@ -67,7 +67,11 @@ where
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.par_sort_unstable_by_key(|a| a.0);
-                return Ok(Box::new(new_items.into_iter()));
+                return Ok(Box::new(
+                    new_items
+                        .into_iter()
+                        .filter(move |(id, _)| id.intersects_range(&target)),
+                ));
             }
 
             leaves.par_iter_mut().for_each(|(id, _)| {
@@ -90,7 +94,11 @@ where
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.sort_unstable_by_key(|a| a.0);
-                return Ok(Box::new(new_items.into_iter()));
+                return Ok(Box::new(
+                    new_items
+                        .into_iter()
+                        .filter(move |(id, _)| id.intersects_range(&target)),
+                ));
             }
 
             for (id, _) in leaves.iter_mut() {
@@ -123,7 +131,11 @@ where
                 .collect()
         };
 
-        Ok(Box::new(new_items.into_iter()))
+        Ok(Box::new(
+            new_items
+                .into_iter()
+                .filter(move |(id, _)| id.intersects_range(&target)),
+        ))
     }
 
     fn inverse_bounds(&self, bounds: RangeId) -> Option<RangeId> {
@@ -131,16 +143,6 @@ where
             Some(bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap())
         } else {
             Some(bounds)
-        }
-    }
-
-    fn forward_bounds(&self, input: RangeId) -> Option<RangeId> {
-        // 複数の子が同じ親へ落ちるだけで、写像そのものは逆算と同じ「target_zより
-        // 細かければ親を取る」で表せる。
-        if input.z() > self.target_z.get() {
-            Some(input.spatial_parent_at_zoom(self.target_z.get()).unwrap())
-        } else {
-            Some(input)
         }
     }
 }
