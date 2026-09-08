@@ -165,38 +165,8 @@ harness = false
 required-features = ["rayon"]
 
 [[bench]]
-name = "query_unary_shift"
-path = "benches/query/unary/shift.rs"
-harness = false
-required-features = ["json"]
-
-[[bench]]
-name = "query_unary_falloff"
-path = "benches/query/unary/falloff.rs"
-harness = false
-required-features = ["json"]
-
-[[bench]]
-name = "query_unary_extrude"
-path = "benches/query/unary/extrude.rs"
-harness = false
-required-features = ["json"]
-
-[[bench]]
-name = "query_unary_filter_values"
-path = "benches/query/unary/filter_values.rs"
-harness = false
-required-features = ["json"]
-
-[[bench]]
-name = "query_unary_zoom_out"
-path = "benches/query/unary/zoom_out.rs"
-harness = false
-required-features = ["json", "rayon"]
-
-[[bench]]
-name = "query_workflow_risk_diffusion"
-path = "benches/query/workflow/risk_diffusion.rs"
+name = "query_speed"
+path = "benches/query/speed.rs"
 harness = false
 required-features = ["json", "rayon"]
 

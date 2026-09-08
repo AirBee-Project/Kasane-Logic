@@ -10,7 +10,6 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 
 mod cases;
-#[path = "utils.rs"]
 mod utils;
 
 // カスタムアロケータ
@@ -211,9 +210,6 @@ fn main() {
     let table = utils::get_full_data();
     let input_count = table.iter().count();
 
-    // 代表的な局所領域
-    let region_target = cases::sample_region_target(table);
-
     let logical_cores = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1);
@@ -228,90 +224,16 @@ fn main() {
     println!("| クエリ名 | 評価スコープ | 実行モード | 出力要素数 | 実行時間 (Wall) | CPU時間 (換算) | CPUサイクル | 実効並列度 | ピークメモリ | 最終メモリ |");
     println!("|:---|:---|:---|---:|---:|---:|---:|---:|---:|---:|");
 
-    // 1. Falloff_X (dist = 1)
-    {
-        let t = table.clone();
-        let (res, _) = measure(move || {
-            let cnt = cases::falloff_x(t, 1).run().unwrap().count();
-            (cnt, ())
-        });
-        print_row("Falloff_X (dist=1)", "Full", "Stream (count)", &res);
-    }
-    {
-        let t = table.clone();
-        let (res, _tbl) = measure(move || {
-            let tbl = cases::falloff_x(t, 1).collect_table().unwrap();
-            (tbl.iter().count(), tbl)
-        });
-        print_row("Falloff_X (dist=1)", "Full", "Collect (Table)", &res);
-    }
+    for case in cases::CORE_BENCH_CASES {
+        // Stream モード
+        let (res, _) = measure(|| (case.run_stream(table), ()));
+        print_row(case.name, case.scope, "Stream (count)", &res);
 
-    // 2. Falloff_X (dist = 5)
-    {
-        let t = table.clone();
-        let (res, _) = measure(move || {
-            let cnt = cases::falloff_x(t, 5).run().unwrap().count();
-            (cnt, ())
-        });
-        print_row("Falloff_X (dist=5)", "Full", "Stream (count)", &res);
-    }
-
-    // 3. ZoomOut (z = 20)
-    {
-        let t = table.clone();
-        let (res, _) = measure(move || {
-            let cnt = cases::zoom_out(t, 20).run().unwrap().count();
-            (cnt, ())
-        });
-        print_row("ZoomOut (z=20)", "Full", "Stream (count)", &res);
-    }
-    {
-        let t = table.clone();
-        let (res, _tbl) = measure(move || {
-            let tbl = cases::zoom_out(t, 20).collect_table().unwrap();
-            (tbl.iter().count(), tbl)
-        });
-        print_row("ZoomOut (z=20)", "Full", "Collect (Table)", &res);
-    }
-
-    // 4. Shift_All (dist = 5)
-    {
-        let t = table.clone();
-        let (res, _) = measure(move || {
-            let cnt = cases::shift_all(t, 5).run().unwrap().count();
-            (cnt, ())
-        });
-        print_row("Shift_All (dist=5)", "Full", "Stream (count)", &res);
-    }
-
-    // 5. Extrude_X (dist = 5)
-    {
-        let t = table.clone();
-        let (res, _) = measure(move || {
-            let cnt = cases::extrude_x(t, 5).run().unwrap().count();
-            (cnt, ())
-        });
-        print_row("Extrude_X (dist=5)", "Full", "Stream (count)", &res);
-    }
-
-    // 6. Regional RiskDiffusion (部分評価: run_within)
-    {
-        let t = table.clone();
-        let target = region_target.clone();
-        let (res, _) = measure(move || {
-            let cnt = cases::risk_diffusion(t, 5).run_within(target).unwrap().count();
-            (cnt, ())
-        });
-        print_row("RiskDiffusion (Region)", "Regional", "Stream (count)", &res);
-    }
-    {
-        let t = table.clone();
-        let target = region_target.clone();
-        let (res, _tbl) = measure(move || {
-            let tbl = cases::risk_diffusion(t, 5).collect_table_within(target).unwrap();
-            (tbl.iter().count(), tbl)
-        });
-        print_row("RiskDiffusion (Region)", "Regional", "Collect (Table)", &res);
+        // Collect モード
+        if case.test_collect {
+            let (res, _) = measure(|| (case.run_collect(table), ()));
+            print_row(case.name, case.scope, "Collect (Table)", &res);
+        }
     }
 
     println!();
