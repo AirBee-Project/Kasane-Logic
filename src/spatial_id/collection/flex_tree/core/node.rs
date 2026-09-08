@@ -707,7 +707,7 @@ where
     ///
     /// Tのインデックスは`u64`（他軸は`u32`以下）のため、比較は`u64`へ揃えて行う
     /// （F/Xは既存と同じビットパターンでゼロ拡張されるだけで意味は変わらない）。
-    fn forking(target: &FlexId, level: u8) -> Side {
+    pub(crate) fn forking(target: &FlexId, level: u8) -> Side {
         let axis = Self::axis(level);
         let depth = Self::depth(level);
 
