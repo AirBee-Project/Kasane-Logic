@@ -200,6 +200,13 @@ path = "benches/query/workflow/risk_diffusion.rs"
 harness = false
 required-features = ["json", "rayon"]
 
+[[bench]]
+name = "query_memory"
+path = "benches/query/memory_usage.rs"
+harness = false
+required-features = ["json", "rayon"]
+
+
 [[example]]
 name = "table_json"
 required-features = ["json"]

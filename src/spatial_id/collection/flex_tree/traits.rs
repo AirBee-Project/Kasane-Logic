@@ -107,6 +107,15 @@ impl<V: SafeValue + Ord + 'static> Query<V> {
         let tree: FlexTreeCore<V> = self.run()?.collect();
         Ok(tree.into())
     }
+
+    /// 対象領域内のクエリを実行し、結果を [`SpatialIdTable`] へ集約する。
+    pub fn collect_table_within(
+        &self,
+        target: impl Into<RangeId>,
+    ) -> Result<SpatialIdTable<V>, Error> {
+        let tree: FlexTreeCore<V> = self.run_within(target)?.collect();
+        Ok(tree.into())
+    }
 }
 
 impl Query<()> {
@@ -119,4 +128,11 @@ impl Query<()> {
         let tree: FlexTreeCore<()> = self.run()?.collect();
         Ok(tree.into())
     }
+
+    /// 対象領域内のクエリを実行し、結果を [`SpatialIdSet`] へ集約する。
+    pub fn collect_set_within(&self, target: impl Into<RangeId>) -> Result<SpatialIdSet, Error> {
+        let tree: FlexTreeCore<()> = self.run_within(target)?.collect();
+        Ok(tree.into())
+    }
 }
+
