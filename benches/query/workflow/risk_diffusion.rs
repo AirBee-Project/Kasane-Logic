@@ -1,26 +1,13 @@
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-use kasane_logic::{
-    Side::Upper, Source, SpatialIdTable, merge_policy::Max,
-    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
-};
+use kasane_logic::SpatialIdTable;
 
+#[path = "../cases.rs"]
+mod cases;
 #[path = "../utils.rs"]
 mod utils;
 
-/// ユーザー定義のクエリ。ここにベンチマークしたいクエリを一度だけ記述してください。
-///
-/// 結果を`SpatialIdTable`などへ集約せず`count()`で消費するのは、集約先の分だけ
-/// メモリ使用量が水増しされるのを避け、クエリエンジン自体のメモリ挙動を測るため。
 fn run_query(table: SpatialIdTable<u32>) -> usize {
-    table
-        .query()
-        .zoom_out(22, Max)
-        .falloff_f(25, 10, Some(Upper), FalloffPattern::Linear, Max)
-        .falloff_x(25, 10, None, FalloffPattern::Linear, Max)
-        .falloff_y(25, 10, None, FalloffPattern::Linear, Max)
-        .run()
-        .unwrap()
-        .count()
+    cases::risk_diffusion(table, 10).run().unwrap().count()
 }
 
 fn bench_risk_diffusion(c: &mut Criterion) {

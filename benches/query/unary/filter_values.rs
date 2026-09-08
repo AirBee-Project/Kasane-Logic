@@ -1,8 +1,7 @@
-use core::ops::Bound;
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
-use kasane_logic::spatial_id::collection::query::ops::unary::filter_values::ValuePredicate;
 
+#[path = "../cases.rs"]
+mod cases;
 #[path = "../utils.rs"]
 mod utils;
 
@@ -13,20 +12,15 @@ fn bench_filter_values(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
-    let thresholds = [1, 2, 3, 4, 5];
 
-    for &threshold in &thresholds {
+    for &threshold in &cases::FILTER_THRESHOLDS {
         group.bench_with_input(
             BenchmarkId::new("greater_than_or_equal", threshold),
             &threshold,
             |b, &t_val| {
                 b.iter_batched(
                     || table.clone(),
-                    |t| {
-                        let predicate =
-                            ValuePredicate::InRange(Bound::Included(t_val), Bound::Unbounded);
-                        t.query().filter_values(predicate).run().unwrap().count()
-                    },
+                    |t| cases::filter_values(t, t_val).run().unwrap().count(),
                     BatchSize::SmallInput,
                 );
             },

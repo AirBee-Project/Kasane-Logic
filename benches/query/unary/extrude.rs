@@ -1,7 +1,7 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
-use kasane_logic::merge_policy::Max;
 
+#[path = "../cases.rs"]
+mod cases;
 #[path = "../utils.rs"]
 mod utils;
 
@@ -12,70 +12,21 @@ fn bench_extrude(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
-    let distances: [i32; 4] = [1, 5, 10, 15];
 
-    // 個別の次元で行う関数 (X)
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("extrude_x", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .extrude_x(24, 0, d as u32, Max)
-                        .run()
-                        .unwrap()
-                        .count()
+    for &dim in &["x", "y", "f", "all"] {
+        for &dist in &cases::DEFAULT_DISTANCES {
+            group.bench_with_input(
+                BenchmarkId::new(format!("extrude_{}", dim), dist),
+                &dist,
+                |b, &d| {
+                    b.iter_batched(
+                        || table.clone(),
+                        |t| cases::extrude_by_dim(t, dim, d).run().unwrap().count(),
+                        BatchSize::SmallInput,
+                    );
                 },
-                BatchSize::SmallInput,
             );
-        });
-    }
-
-    // 個別の次元で行う関数 (Y)
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("extrude_y", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .extrude_y(24, 0, d as u32, Max)
-                        .run()
-                        .unwrap()
-                        .count()
-                },
-                BatchSize::SmallInput,
-            );
-        });
-    }
-
-    // 個別の次元で行う関数 (F)
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("extrude_f", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| t.query().extrude_f(24, 0, d, Max).run().unwrap().count(),
-                BatchSize::SmallInput,
-            );
-        });
-    }
-
-    // 全ての次元で行う関数
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("extrude_all", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .extrude_x(24, 0, d as u32, Max)
-                        .extrude_y(24, 0, d as u32, Max)
-                        .extrude_f(24, 0, d, Max)
-                        .run()
-                        .unwrap()
-                        .count()
-                },
-                BatchSize::SmallInput,
-            );
-        });
+        }
     }
 
     group.finish();

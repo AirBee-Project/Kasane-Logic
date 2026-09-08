@@ -1,8 +1,7 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
-use kasane_logic::merge_policy::Max;
-use kasane_logic::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 
+#[path = "../cases.rs"]
+mod cases;
 #[path = "../utils.rs"]
 mod utils;
 
@@ -13,76 +12,21 @@ fn bench_falloff(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
-    let distances = [1, 5, 10, 15];
 
-    // 個別の次元で行う関数 (X)
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("falloff_x", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run()
-                        .unwrap()
-                        .count()
+    for &dim in &["x", "y", "f", "all"] {
+        for &dist in &cases::DEFAULT_DISTANCES {
+            group.bench_with_input(
+                BenchmarkId::new(format!("falloff_{}", dim), dist),
+                &dist,
+                |b, &d| {
+                    b.iter_batched(
+                        || table.clone(),
+                        |t| cases::falloff_by_dim(t, dim, d as u32).run().unwrap().count(),
+                        BatchSize::SmallInput,
+                    );
                 },
-                BatchSize::SmallInput,
             );
-        });
-    }
-
-    // 個別の次元で行う関数 (Y)
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("falloff_y", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run()
-                        .unwrap()
-                        .count()
-                },
-                BatchSize::SmallInput,
-            );
-        });
-    }
-
-    // 個別の次元で行う関数 (F)
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("falloff_f", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run()
-                        .unwrap()
-                        .count()
-                },
-                BatchSize::SmallInput,
-            );
-        });
-    }
-
-    // 全ての次元で行う関数
-    for &dist in &distances {
-        group.bench_with_input(BenchmarkId::new("falloff_all", dist), &dist, |b, &d| {
-            b.iter_batched(
-                || table.clone(),
-                |t| {
-                    t.query()
-                        .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run()
-                        .unwrap()
-                        .count()
-                },
-                BatchSize::SmallInput,
-            );
-        });
+        }
     }
 
     group.finish();

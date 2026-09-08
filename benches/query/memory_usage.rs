@@ -9,12 +9,7 @@
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 
-use kasane_logic::{
-    RangeId, Side::Upper, Source, ZoomLevel,
-    merge_policy::{Average, Max},
-    spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
-};
-
+mod cases;
 #[path = "utils.rs"]
 mod utils;
 
@@ -216,15 +211,8 @@ fn main() {
     let table = utils::get_full_data();
     let input_count = table.iter().count();
 
-    // 代表的な局所領域（データが存在する領域から1つ選定して周辺±20マスを対象とする）
-    let sample_id = table.iter().next().map(|(id, _)| id).unwrap();
-    let base_range = RangeId::from(sample_id);
-    let region_target = base_range
-        .x_edges_shift(base_range.z(), -20, 20)
-        .ok()
-        .flatten()
-        .and_then(|r| r.y_edges_shift(base_range.z(), -20, 20).ok().flatten())
-        .unwrap_or(base_range);
+    // 代表的な局所領域
+    let region_target = cases::sample_region_target(table);
 
     let logical_cores = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -244,12 +232,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _) = measure(move || {
-            let cnt = t
-                .query()
-                .falloff_x(24, 1, None, FalloffPattern::Linear, Max)
-                .run()
-                .unwrap()
-                .count();
+            let cnt = cases::falloff_x(t, 1).run().unwrap().count();
             (cnt, ())
         });
         print_row("Falloff_X (dist=1)", "Full", "Stream (count)", &res);
@@ -257,11 +240,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _tbl) = measure(move || {
-            let tbl = t
-                .query()
-                .falloff_x(24, 1, None, FalloffPattern::Linear, Max)
-                .collect_table()
-                .unwrap();
+            let tbl = cases::falloff_x(t, 1).collect_table().unwrap();
             (tbl.iter().count(), tbl)
         });
         print_row("Falloff_X (dist=1)", "Full", "Collect (Table)", &res);
@@ -271,12 +250,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _) = measure(move || {
-            let cnt = t
-                .query()
-                .falloff_x(24, 5, None, FalloffPattern::Linear, Max)
-                .run()
-                .unwrap()
-                .count();
+            let cnt = cases::falloff_x(t, 5).run().unwrap().count();
             (cnt, ())
         });
         print_row("Falloff_X (dist=5)", "Full", "Stream (count)", &res);
@@ -286,12 +260,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _) = measure(move || {
-            let cnt = t
-                .query()
-                .zoom_out(ZoomLevel::new(20).unwrap(), Average)
-                .run()
-                .unwrap()
-                .count();
+            let cnt = cases::zoom_out(t, 20).run().unwrap().count();
             (cnt, ())
         });
         print_row("ZoomOut (z=20)", "Full", "Stream (count)", &res);
@@ -299,11 +268,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _tbl) = measure(move || {
-            let tbl = t
-                .query()
-                .zoom_out(ZoomLevel::new(20).unwrap(), Average)
-                .collect_table()
-                .unwrap();
+            let tbl = cases::zoom_out(t, 20).collect_table().unwrap();
             (tbl.iter().count(), tbl)
         });
         print_row("ZoomOut (z=20)", "Full", "Collect (Table)", &res);
@@ -313,14 +278,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _) = measure(move || {
-            let cnt = t
-                .query()
-                .shift_x(24, 5)
-                .shift_y(24, -5)
-                .shift_f(24, 5)
-                .run()
-                .unwrap()
-                .count();
+            let cnt = cases::shift_all(t, 5).run().unwrap().count();
             (cnt, ())
         });
         print_row("Shift_All (dist=5)", "Full", "Stream (count)", &res);
@@ -330,12 +288,7 @@ fn main() {
     {
         let t = table.clone();
         let (res, _) = measure(move || {
-            let cnt = t
-                .query()
-                .extrude_x(24, 0, 5, Max)
-                .run()
-                .unwrap()
-                .count();
+            let cnt = cases::extrude_x(t, 5).run().unwrap().count();
             (cnt, ())
         });
         print_row("Extrude_X (dist=5)", "Full", "Stream (count)", &res);
@@ -346,15 +299,7 @@ fn main() {
         let t = table.clone();
         let target = region_target.clone();
         let (res, _) = measure(move || {
-            let cnt = t
-                .query()
-                .zoom_out(22, Max)
-                .falloff_f(25, 5, Some(Upper), FalloffPattern::Linear, Max)
-                .falloff_x(25, 5, None, FalloffPattern::Linear, Max)
-                .falloff_y(25, 5, None, FalloffPattern::Linear, Max)
-                .run_within(target)
-                .unwrap()
-                .count();
+            let cnt = cases::risk_diffusion(t, 5).run_within(target).unwrap().count();
             (cnt, ())
         });
         print_row("RiskDiffusion (Region)", "Regional", "Stream (count)", &res);
@@ -363,14 +308,7 @@ fn main() {
         let t = table.clone();
         let target = region_target.clone();
         let (res, _tbl) = measure(move || {
-            let tbl = t
-                .query()
-                .zoom_out(22, Max)
-                .falloff_f(25, 5, Some(Upper), FalloffPattern::Linear, Max)
-                .falloff_x(25, 5, None, FalloffPattern::Linear, Max)
-                .falloff_y(25, 5, None, FalloffPattern::Linear, Max)
-                .collect_table_within(target)
-                .unwrap();
+            let tbl = cases::risk_diffusion(t, 5).collect_table_within(target).unwrap();
             (tbl.iter().count(), tbl)
         });
         print_row("RiskDiffusion (Region)", "Regional", "Collect (Table)", &res);

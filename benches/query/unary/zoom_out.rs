@@ -1,7 +1,7 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::merge_policy::Average;
-use kasane_logic::{Source, ZoomLevel};
 
+#[path = "../cases.rs"]
+mod cases;
 #[path = "../utils.rs"]
 mod utils;
 
@@ -12,21 +12,12 @@ fn bench_zoom_out(c: &mut Criterion) {
     group.measurement_time(std::time::Duration::from_secs(1));
 
     let table = utils::get_full_data();
-    // ズームレベルを24から18まで変化させる（元のデータが24と仮定）
-    let levels = [24, 22, 20, 18];
 
-    for &level in &levels {
+    for &level in &cases::ZOOM_LEVELS {
         group.bench_with_input(BenchmarkId::new("zoom_out_to", level), &level, |b, &lvl| {
             b.iter_batched(
                 || table.clone(),
-                |t| {
-                    let target_level = ZoomLevel::new(lvl).unwrap();
-                    t.query()
-                        .zoom_out(target_level, Average)
-                        .run()
-                        .unwrap()
-                        .count()
-                },
+                |t| cases::zoom_out(t, lvl).run().unwrap().count(),
                 BatchSize::SmallInput,
             );
         });
