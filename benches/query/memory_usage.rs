@@ -217,11 +217,19 @@ fn main() {
 
     println!("# Query Engine 総合パフォーマンスベンチマーク (速度・CPU並列度・メモリ)");
     println!();
-    println!("- 入力データ: `sample/bldg_risk.json` ({} アイテム)", input_count);
-    println!("- 論理CPUコア数: {} コア (推定コア周波数: {:.2} GHz)", logical_cores, freq_ghz);
+    println!(
+        "- 入力データ: `sample/bldg_risk.json` ({} アイテム)",
+        input_count
+    );
+    println!(
+        "- 論理CPUコア数: {} コア (推定コア周波数: {:.2} GHz)",
+        logical_cores, freq_ghz
+    );
     println!("- 計測方式: `QueryProcessCycleTime` (CPU クロックサイクル精密積算)");
     println!();
-    println!("| クエリ名 | 評価スコープ | 実行モード | 出力要素数 | 実行時間 (Wall) | CPU時間 (換算) | CPUサイクル | 実効並列度 | ピークメモリ | 最終メモリ |");
+    println!(
+        "| クエリ名 | 評価スコープ | 実行モード | 出力要素数 | 実行時間 (Wall) | CPU時間 (換算) | CPUサイクル | 実効並列度 | ピークメモリ | 最終メモリ |"
+    );
     println!("|:---|:---|:---|---:|---:|---:|---:|---:|---:|---:|");
 
     for case in cases::CORE_BENCH_CASES {
@@ -239,7 +247,9 @@ fn main() {
     println!();
     println!("- **実行時間 (Wall)**: 実測所要時間（ミリ秒）");
     println!("- **CPU時間**: プロセスが消費した総CPU計算時間（ユーザー + カーネル）");
-    println!("- **実効並列度**: `CPU時間 ÷ 実行時間`（1.0xならシングルスレッド相当、10.0xなら平均10コア稼働）");
+    println!(
+        "- **実効並列度**: `CPU時間 ÷ 実行時間`（1.0xならシングルスレッド相当、10.0xなら平均10コア稼働）"
+    );
     println!("- **ピークメモリ**: クエリ実行中に到達したヒープメモリの最大瞬間使用量");
     println!("- **最終メモリ**: 評価完了後も保持されるヒープメモリ");
 }

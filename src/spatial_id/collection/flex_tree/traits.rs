@@ -135,4 +135,3 @@ impl Query<()> {
         Ok(tree.into())
     }
 }
-
