@@ -58,24 +58,6 @@ where
         self.inner.bounding_box()
     }
 
-    /// ランクを格納した内部ツリー。
-    pub(crate) fn rank_core(&self) -> &FlexTreeCore<usize> {
-        &self.inner
-    }
-
-    /// ランクを添字にして実体値を引ける密な表。`[0]` は常に [`None`]（ランクは 1 始まり）。
-    ///
-    /// 葉ごとに逆引きするなら、`BTreeMap` を葉の数だけ降りるより一度均したほうが速い。
-    pub(crate) fn values_by_rank(&self) -> Vec<Option<&V>> {
-        let mut by_rank = alloc::vec![None; self.current_rank + 1];
-        for (&rank, value) in &self.reverse_dictionary {
-            if let Some(slot) = by_rank.get_mut(rank) {
-                *slot = Some(value);
-            }
-        }
-        by_rank
-    }
-
     /// ランクのツリーと、ランク順（1 始まり）に並んだ実体値からテーブルを組む。
     ///
     /// `ranks` の各葉は `values` のインデックス + 1 でなければならない。値インデックスは
@@ -156,7 +138,7 @@ where
     /// 特定の範囲（RangeId）と交差するすべての領域と、その値への参照を返します。
     pub fn get_range<'a>(
         &'a self,
-        target: &'a crate::RangeId,
+        target: &crate::RangeId,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         self.inner.range_overlap_ref(target).map(move |(id, rank)| {
             (

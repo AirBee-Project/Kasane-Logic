@@ -8,7 +8,6 @@ pub use convert::{LeavesIntoIter, LeavesIterRef};
 use node::{Axis, Node};
 use node_ops::MergeOp;
 pub use ptr::SafeValue;
-pub(crate) mod bulk;
 mod convert;
 pub mod node;
 pub mod node_ops;

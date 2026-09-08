@@ -2,7 +2,7 @@ use super::{extrude_f::ExtrudeF, extrude_x::ExtrudeX, extrude_y::ExtrudeY};
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::{
     ZoomLevel,
-    spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
+    spatial_id::collection::query::{Query, merge_policy::MergePolicy},
 };
 
 impl<V: SafeValue + 'static> Query<V> {

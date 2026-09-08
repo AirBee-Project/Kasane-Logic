@@ -1,12 +1,10 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, SafeValue};
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::spatial_id::collection::query::execution::Query;
-use crate::spatial_id::collection::query::source::Source;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, FlexId, RangeId, SpatialIdSet, SpatialIdTable};
+use crate::spatial_id::collection::query::{Query, Source, ValueIter};
+use crate::{Error, RangeId, SpatialIdSet, SpatialIdTable};
 
 /// Table の出入口変換で、これ未満なら rayon を使わず逐次で組む閾値。
 /// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
@@ -26,36 +24,22 @@ impl<T: Ord + Clone + Send + Sync> FlexIdValue for T {}
 impl Source for SpatialIdSet {
     type Value = ();
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
-        token: &CancellationToken,
-    ) -> Result<WorkingTree<()>, Error> {
-        let mut time_segments: Vec<(FlexId, ())> = Vec::new();
-        for b in bounds {
-            if token.is_cancelled() {
-                return Err(Error::Cancelled);
-            }
-            for id in self.get_range(b) {
-                time_segments.push((id, ()));
-            }
-        }
-        Ok(time_segments.into_iter().collect())
-    }
-
-    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<()>, Error> {
-        if token.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        // 所有権ごと移し替えるだけ（クローンしない）。
-        Ok(WorkingTree::from_core(SpatialIdSet::into_core(*self)))
+    fn get<'a>(
+        &'a self,
+        target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, ()>, Error> {
+        let mut counter = 0u32;
+        Ok(Box::new(self.get_range(&target).map_while(move |id| {
+            token.check_amortized(&mut counter).ok().map(|_| (id, ()))
+        })))
     }
 }
 
-impl From<WorkingTree<()>> for SpatialIdSet {
+impl From<FlexTreeCore<()>> for SpatialIdSet {
     /// 包み直すだけでコストはかからない。
-    fn from(working: WorkingTree<()>) -> Self {
-        SpatialIdSet::from_core(working.into_core())
+    fn from(core: FlexTreeCore<()>) -> Self {
+        SpatialIdSet::from_core(core)
     }
 }
 
@@ -65,53 +49,32 @@ where
 {
     type Value = V;
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
-        token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
-        let mut time_segments: Vec<(FlexId, V)> = Vec::new();
-        for b in bounds {
-            if token.is_cancelled() {
-                return Err(Error::Cancelled);
-            }
-            for (id, value) in self.get_range(b) {
-                time_segments.push((id, value.clone()));
-            }
-        }
-        Ok(time_segments.into_iter().collect())
-    }
-
-    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<V>, Error> {
-        if token.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        // rank ツリーを辞書で実体値へ展開する。ランク → 実体値は単射なので、木の形は
-        // まったく変わらない。平坦化して組み直す必要はなく、値だけを写せばよい。
-        //
-        // 引きは葉ごとに走る。`BTreeMap` を葉の数だけ降りるとポインタ追跡が効くので、
-        // 木へ入る前にランク添字の密な表へ均しておく。
-        let by_rank = self.values_by_rank();
-        Ok(WorkingTree::from_core(
-            self.rank_core().map_values_injective(&|rank: &usize| {
-                by_rank[*rank]
-                    .expect("ツリー内のランクは必ず逆引き辞書にある")
-                    .clone()
-            }),
-        ))
+    fn get<'a>(
+        &'a self,
+        target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
+        let mut counter = 0u32;
+        Ok(Box::new(self.get_range(&target).map_while(
+            move |(id, v)| {
+                token
+                    .check_amortized(&mut counter)
+                    .ok()
+                    .map(|_| (id, v.clone()))
+            },
+        )))
     }
 }
 
-impl<V> From<WorkingTree<V>> for SpatialIdTable<V>
+impl<V> From<FlexTreeCore<V>> for SpatialIdTable<V>
 where
     V: FlexIdValue + 'static,
 {
     /// 実体値のSegmentを辞書へ intern し直す。
     ///
-    /// 実体値 → ランクは単射なので、[`read_all`](Source::read_all) と同じく木の形は
-    /// 変わらない。出現値を集めて辞書を作り、木は値だけを写す。
-    fn from(working: WorkingTree<V>) -> Self {
-        let core = working.into_core();
+    /// 実体値 → ランクは単射なので、木の形は変わらない。出現値を集めて辞書を作り、
+    /// 木は値だけを写す。
+    fn from(core: FlexTreeCore<V>) -> Self {
         if core.is_empty() {
             return SpatialIdTable::new();
         }
@@ -138,63 +101,22 @@ where
     }
 }
 
-// ---------------------------------------------------------------------------
-// クエリ結果を具象コレクションで受け取るための入口
-//
-// 実行メソッドは「検証・最適化するか」×「何で受け取るか」の2軸でできている。
-//
-// |                    | 検証・最適化あり        | AST の順序のまま           |
-// |--------------------|------------------------|---------------------------|
-// | `SpatialIdTable`   | `run`                  | `raw_run`                 |
-// | `SpatialIdSet`     | `run_set`              | `raw_run_set`             |
-// | `WorkingTree`      | `run_working_tree`     | `raw_run_working_tree`    |
-//
-// `raw_*` は「AST を組み替えず、書かれた順序のまま実行する」を意味する。テストや
-// ベンチで最適化の有無を比べるための口であり、通常は左列を使う。
-//
-// 戻り値の型を分けてあるのは変換コストが型ごとに大きく違うため。[`SpatialIdTable`]
-// への変換は値を辞書へ intern し直す（出現値のソート＋重複排除と木の写像）ので
-// O(N log N) + 木の再構築がかかる。[`SpatialIdSet`] は包み直すだけでコストゼロ。
-// 結果を走査するだけなら `run_working_tree` が最も速い。
-// ---------------------------------------------------------------------------
-
 impl<V: SafeValue + Ord + 'static> Query<V> {
-    /// 検証・最適化して実行し、[`SpatialIdTable`] として返す。
-    ///
-    /// `q.run_working_tree()?.into()` と等価。結果を走査するだけなら
-    /// [`run_working_tree`](Query::run_working_tree) の戻り値をそのまま使うほうが、
-    /// 辞書への再 intern の分だけ速い。
-    pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
-        Ok(self.run_working_tree()?.into())
-    }
-
-    /// 検証も最適化もせず実行し、[`SpatialIdTable`] として返す。
-    ///
-    /// `q.raw_run_working_tree()?.into()` と等価。
-    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
-        Ok(self.raw_run_working_tree()?.into())
+    /// クエリを実行し、結果を [`SpatialIdTable`] へ集約する。
+    pub fn collect_table(&self) -> Result<SpatialIdTable<V>, Error> {
+        let tree: FlexTreeCore<V> = self.run()?.collect();
+        Ok(tree.into())
     }
 }
 
 impl Query<()> {
-    /// 検証・最適化して実行し、[`SpatialIdSet`] として返す。
+    /// クエリを実行し、結果を [`SpatialIdSet`] へ集約する。
     ///
-    /// `q.run_working_tree()?.into()` と等価。集合への変換は包み直すだけでコストはかからない。
-    ///
-    /// # なぜ [`run`](Query::run) と同名にできないか
-    ///
-    /// [`run`](Query::run) は `impl<V: Ord> Query<V>` にあり、`()` も `Ord` を満たすので
-    /// `Query<()>` にも生えている。ここへ同名を定義すると inherent impl が重なって
-    /// コンパイルできない（E0592）。名前を分けるほうが、`Query<()>::run` が
-    /// `SpatialIdTable<()>`（`()` を1つだけ持つ辞書）という退化した型を返すより良い。
-    pub fn run_set(self) -> Result<SpatialIdSet, Error> {
-        Ok(self.run_working_tree()?.into())
-    }
-
-    /// 検証も最適化もせず実行し、[`SpatialIdSet`] として返す。
-    ///
-    /// `q.raw_run_working_tree()?.into()` と等価。
-    pub fn raw_run_set(self) -> Result<SpatialIdSet, Error> {
-        Ok(self.raw_run_working_tree()?.into())
+    /// [`collect_table`](Query::collect_table) と同名にできないのは、`()` も `Ord` を
+    /// 満たすため `impl<V: Ord> Query<V>` の実装と重なって inherent impl の衝突（E0592）に
+    /// なるため。
+    pub fn collect_set(&self) -> Result<SpatialIdSet, Error> {
+        let tree: FlexTreeCore<()> = self.run()?.collect();
+        Ok(tree.into())
     }
 }

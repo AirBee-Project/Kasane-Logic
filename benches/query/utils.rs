@@ -12,13 +12,3 @@ pub fn get_full_data() -> &'static SpatialIdTable<u32> {
         serde_json::from_str(&json_str).expect("Failed to parse JSON")
     })
 }
-
-/// ベンチマーク結果のテーブルをJSONとしてファイルに保存する
-#[allow(dead_code)]
-pub fn save_result_json(name: &str, table: &SpatialIdTable<u32>) {
-    let dir = "bench_results";
-    fs::create_dir_all(dir).expect("Failed to create bench_results directory");
-    let path = format!("{}/{}.json", dir, name);
-    let json_str = serde_json::to_string(table).expect("Failed to serialize table");
-    fs::write(&path, json_str).expect("Failed to write result json");
-}

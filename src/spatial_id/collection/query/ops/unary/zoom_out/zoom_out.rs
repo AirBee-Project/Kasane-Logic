@@ -1,14 +1,10 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{
-    Error, FlexId,
-    spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
-        zoom_level::ZoomLevel,
-    },
-};
+use alloc::boxed::Box;
 use alloc::vec::Vec;
+
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::{MergePolicy, UnaryOperator, ValueIter};
+use crate::{Error, FlexId, RangeId, spatial_id::zoom_level::ZoomLevel};
 
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -32,20 +28,31 @@ impl<V: SafeValue + 'static, P> UnaryOperator<V> for ZoomOut<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
+    fn validate(&self) -> Result<(), Error> {
+        Ok(())
     }
 
-    fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
+    fn run<'a>(
+        &'a self,
+        input: ValueIter<'a, V>,
+        _target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
         let target_z = self.target_z.get();
-        let old_tree = core::mem::take(core);
-        let mut leaves: Vec<(FlexId, Option<V>)> =
-            old_tree.into_iter().map(|(id, v)| (id, Some(v))).collect();
-
-        if leaves.is_empty() {
-            return Ok(());
+        let mut counter = 0u32;
+        let mut leaves: Vec<(FlexId, Option<V>)> = Vec::new();
+        for (id, v) in input {
+            token.check_amortized(&mut counter)?;
+            leaves.push((id, Some(v)));
         }
 
+        if leaves.is_empty() {
+            return Ok(Box::new(core::iter::empty()));
+        }
+
+        // 複数の子Segmentが同じ親へ落ちるので、可換なポリシーなら順序を問わず
+        // HashMapへ畳み込める。非可換なら resolve_many に順序を委ねる必要があるため、
+        // 親IDでソートしてから連続run（chunk）ごとに解決する。
         #[cfg(feature = "rayon")]
         {
             if P::IS_COMMUTATIVE {
@@ -60,8 +67,7 @@ where
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.par_sort_unstable_by_key(|a| a.0);
-                *core = new_items.into_iter().collect();
-                return Ok(());
+                return Ok(Box::new(new_items.into_iter()));
             }
 
             leaves.par_iter_mut().for_each(|(id, _)| {
@@ -84,8 +90,7 @@ where
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.sort_unstable_by_key(|a| a.0);
-                *core = new_items.into_iter().collect();
-                return Ok(());
+                return Ok(Box::new(new_items.into_iter()));
             }
 
             for (id, _) in leaves.iter_mut() {
@@ -118,16 +123,10 @@ where
                 .collect()
         };
 
-        *core = new_items.into_iter().collect();
-
-        Ok(())
+        Ok(Box::new(new_items.into_iter()))
     }
 
-    fn validate(&self) -> Result<(), crate::Error> {
-        Ok(())
-    }
-
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn inverse_bounds(&self, bounds: RangeId) -> Option<RangeId> {
         if bounds.z() > self.target_z.get() {
             Some(bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap())
         } else {
@@ -135,11 +134,13 @@ where
         }
     }
 
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::None
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "zoom_out(z={})", self.target_z.get())
+    fn forward_bounds(&self, input: RangeId) -> Option<RangeId> {
+        // 複数の子が同じ親へ落ちるだけで、写像そのものは逆算と同じ「target_zより
+        // 細かければ親を取る」で表せる。
+        if input.z() > self.target_z.get() {
+            Some(input.spatial_parent_at_zoom(self.target_z.get()).unwrap())
+        } else {
+            Some(input)
+        }
     }
 }

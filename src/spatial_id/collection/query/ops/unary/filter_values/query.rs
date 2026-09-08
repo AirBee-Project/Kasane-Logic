@@ -1,6 +1,6 @@
 use super::{FilterValues, ValuePredicate};
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::query::execution::Query;
+use crate::spatial_id::collection::query::Query;
 
 impl<V: SafeValue + Ord + 'static> Query<V> {
     /// 指定した値を持つ空間IDだけを残す。

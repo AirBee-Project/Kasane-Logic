@@ -3,7 +3,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::Error;
 
-/// [`CancellationToken::check_amortized`] が実際に確認する間隔（呼び出し回数）。
+/// [`CancellationToken::check_amortized`] が実際に確認する間隔
 const AMORTIZED_CHECK_INTERVAL: u32 = 0xFFF;
 
 #[derive(Clone, Debug)]

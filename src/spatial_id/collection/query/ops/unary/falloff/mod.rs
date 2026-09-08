@@ -66,14 +66,3 @@ where
         }
     }
 }
-
-impl<V> crate::spatial_id::collection::query::grid::GridAttenuator<V> for Attenuator<V>
-where
-    V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
-    <V as TryFrom<u32>>::Error: Debug,
-{
-    #[inline(always)]
-    fn attenuate(&self, value: &V, distance: u32) -> V {
-        self.attenuate(value, distance)
-    }
-}

@@ -1,16 +1,12 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{
-    Error, FlexId,
-    spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
-        zoom_level::ZoomLevel,
-    },
-};
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
+
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::{MergePolicy, UnaryOperator, ValueIter};
+use crate::{Error, FlexId, RangeId, ZoomLevel};
 
 /// 任意のボクSegmentの現在のX座標を無視し、絶対座標の指定範囲 [start_x, end_x] に引き延ばす演算子。
 pub struct ExtrudeX<P> {
@@ -31,7 +27,7 @@ impl<P> ExtrudeX<P> {
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for ExtrudeX<P>
+impl<V: SafeValue + 'static, P> UnaryOperator<V> for ExtrudeX<P>
 where
     P: MergePolicy<V>,
 {
@@ -43,27 +39,35 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
-        let expected_cap = libm::ceil(core.core().count() as f64 * self.expansion_ratio()) as usize;
-        let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(expected_cap);
+    fn run<'a>(
+        &'a self,
+        input: ValueIter<'a, V>,
+        target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
+        let target_z = self.target_z.get();
 
-        // 元のツリーから全Segmentを取り出し、それぞれを引き延ばす
-        for (id, v) in core.core().iter_ref() {
-            if let Ok(iter) = id.extrude_x(self.target_z.get(), self.start_x, self.end_x) {
-                for new_id in iter {
-                    extruded.push((new_id, v.clone()));
-                }
+        // 引き延ばした先の絶対座標は入力Segmentどうしで重なり得るため、いったん全展開して
+        // 同じ移動先ごとに resolve_many で合成し直す。extrudeは1入力が[start,end]全体へ
+        // 広がるので、`target`と交差しない候補を生成した端から捨てる効果が特に大きい
+        // （`target`が`everything()`のときはフィルタが素通しになるだけで挙動は変わらない）。
+        let mut extruded: Vec<(FlexId, V)> = Vec::new();
+        let mut counter = 0u32;
+        for (id, v) in input {
+            token.check_amortized(&mut counter)?;
+            if let Ok(iter) = id.extrude_x(target_z, self.start_x, self.end_x) {
+                extruded.extend(
+                    iter.filter(|new_id| new_id.intersects_range(&target))
+                        .map(|new_id| (new_id, v.clone())),
+                );
             }
         }
 
-        // 重複や競合を解決するため、IDでソートする
         #[cfg(feature = "rayon")]
         extruded.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
-
         #[cfg(not(feature = "rayon"))]
         extruded.sort_unstable_by_key(|a| a.0);
 
-        // 連続する同じIDのグループごとに resolve_many を適用
         let mut new_items = Vec::with_capacity(extruded.len());
         for chunk in extruded.chunk_by(|a, b| a.0 == b.0) {
             let id = chunk[0].0;
@@ -72,27 +76,10 @@ where
             }
         }
 
-        // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = new_items.into_iter().collect();
-
-        Ok(())
+        Ok(Box::new(new_items.into_iter()))
     }
 
-    fn commutativity_info(&self) -> CommutativityInfo {
-        if !P::IS_COMMUTATIVE {
-            return CommutativityInfo::None;
-        }
-        CommutativityInfo::AbsoluteTarget {
-            axis: crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::X,
-            policy: Some(core::any::TypeId::of::<P>()),
-        }
-    }
-
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn inverse_bounds(&self, mut bounds: RangeId) -> Option<RangeId> {
         let target_z = self.target_z.get();
         let bounds_z = bounds.z();
         let max_z = target_z.max(bounds_z);
@@ -111,7 +98,7 @@ where
         // bounds のx軸が折り返し（`bounds.x()[0] > bounds.x()[1]`）の場合、x_fine_range は
         // それを考慮せず min > max のまま返す。2つの非折り返し区間に分解し、どちらかが
         // target と重なれば良い（単純な区間判定は折り返しには使えないため）。
-        let has_overlap = match crate::RangeId::split_wrapped_range(
+        let has_overlap = match RangeId::split_wrapped_range(
             bounds_min_max_z,
             bounds_max_max_z,
             (1i64 << max_z) - 1,
@@ -126,23 +113,24 @@ where
             return None;
         }
 
-        let xy_max = crate::ZoomLevel::new(bounds_z).unwrap().xy_max();
+        let xy_max = ZoomLevel::new(bounds_z).unwrap().xy_max();
         bounds.set_x([0, xy_max]).unwrap();
         Some(bounds)
     }
 
-    fn expansion_ratio(&self) -> f64 {
-        self.start_x.abs_diff(self.end_x) as f64 + 1.0
-    }
+    fn forward_bounds(&self, input: RangeId) -> Option<RangeId> {
+        // どのXから来ても行き先は常に[start_x, end_x]なので、入力のXは見ない。
+        // F/Yは変えないので、target_zと入力のズームの細かい方へ合わせてから運ぶ。
+        let target_z = self.target_z.get();
+        let max_z = target_z.max(input.z());
+        let scale = 1u32 << (max_z - target_z);
 
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "extrude_x(z={}, x=[{}, {}], {})",
-            self.target_z.get(),
-            self.start_x,
-            self.end_x,
-            P::NAME
-        )
+        let x_min = self.start_x.checked_mul(scale)?;
+        let x_max = self.end_x.checked_mul(scale)?.checked_add(scale - 1)?;
+
+        let f = input.f_fine_range(max_z);
+        let y = input.y_fine_range(max_z);
+
+        RangeId::new(max_z, [f.0, f.1], [x_min, x_max], [y.0, y.1]).ok()
     }
 }

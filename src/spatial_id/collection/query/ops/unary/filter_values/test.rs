@@ -30,28 +30,36 @@ fn int_table() -> SpatialIdTable<i32> {
 
 #[test]
 fn filter_eq_keeps_only_that_value() {
-    let out = int_table().query().filter_eq(10).raw_run().unwrap();
+    let out = int_table().query().filter_eq(10).collect_table().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(12, 10)]);
 }
 
 #[test]
 fn filter_in_is_inclusive() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_in(5..=10).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = int_table()
+        .query()
+        .filter_in(5..=10)
+        .collect_table()
+        .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(11, 5), (12, 10)]);
 }
 
 #[test]
 fn filter_in_open_bound() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_in(10..).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = int_table().query().filter_in(10..).collect_table().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(12, 10), (13, 20)]);
 }
 
 #[test]
 fn filter_not_in_keeps_the_outside() {
-    let out: SpatialIdTable<i32> = int_table().query().filter_not_in(5..=10).raw_run().unwrap();
+    let out: SpatialIdTable<i32> = int_table()
+        .query()
+        .filter_not_in(5..=10)
+        .collect_table()
+        .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(10, 1), (13, 20)]);
 }
@@ -67,7 +75,7 @@ fn filter_values_works_for_text() {
     let out: SpatialIdTable<String> = t
         .query()
         .filter_in("b".to_string()..="bz".to_string())
-        .raw_run()
+        .collect_table()
         .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(11, "banana".to_string())]);
@@ -82,47 +90,12 @@ fn invalid_range_is_rejected_by_validate() {
             core::ops::Bound::Included(100),
             core::ops::Bound::Included(1),
         ))
-        .run();
+        .collect_table();
 
     assert!(matches!(
         result,
         Err(crate::Error::InvalidQueryParameter(_))
     ));
-}
-
-/// 遅延評価（対象領域限定）でも同じ絞り込み結果になる。
-#[test]
-fn filter_values_via_lazy_view() {
-    let query = int_table().query().filter_in(5..=10);
-
-    let got: alloc::vec::Vec<i32> = query
-        .lazy_get(time_segment(11))
-        .unwrap()
-        .map(|(_, v)| v)
-        .collect();
-    assert_eq!(got, alloc::vec![5]);
-
-    // 範囲外の値だったSegmentは何も返らない。
-    assert!(query.lazy_get(time_segment(13)).unwrap().next().is_none());
-}
-
-/// 切り分け: 範囲 (RangeId) を対象にした遅延取得で、複数Segmentが全て返ること。
-#[test]
-fn lazy_get_over_range_returns_all_segments() {
-    use crate::RangeId;
-
-    let mut t: SpatialIdTable<i32> = SpatialIdTable::new();
-    for i in 0..4u32 {
-        t.insert(SingleId::new(20, 0, 790000 + i, 500000).unwrap(), i as i32);
-    }
-
-    let bbox = RangeId::new(20, [0, 0], [790000, 790003], [500000, 500000]).unwrap();
-
-    let query = t.query();
-    let mut got: alloc::vec::Vec<i32> = query.lazy_get(bbox).unwrap().map(|(_, v)| v).collect();
-    got.sort();
-
-    assert_eq!(got, alloc::vec![0, 1, 2, 3]);
 }
 
 /// 刈った結果が正規形を保つこと。

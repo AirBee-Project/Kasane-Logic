@@ -1,10 +1,10 @@
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
-use super::falloff_x::FalloffX;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::merge_policy::{Max, Sum};
 use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
-use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::{SingleId, Source, SpatialIdTable};
+use crate::{FlexId, SingleId, Source, SpatialIdTable};
 
 /// z=20, f=0, y=0 に固定した行から `x -> value` の対応を取り出す。
 fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
@@ -28,7 +28,7 @@ fn falloff_x_single_segment() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
-        .raw_run()
+        .collect_table()
         .unwrap();
     let r = row(&out);
 
@@ -50,7 +50,7 @@ fn falloff_x_overlap_sum() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
-        .raw_run()
+        .collect_table()
         .unwrap();
     let r = row(&out);
 
@@ -76,7 +76,7 @@ fn falloff_x_overlap_max() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Max)
-        .raw_run()
+        .collect_table()
         .unwrap();
     let r = row(&out);
 
@@ -86,19 +86,87 @@ fn falloff_x_overlap_max() {
     assert_eq!(r.get(&102), Some(&4));
 }
 
-/// `falloff_x` の逆算が、falloff のズームより粗いズームへ周期境界（経度方向の折り返し）を
-/// 丸め込む際、以前は丸め込み後に隙間が消えているかどうかの判定を誤り、必要な入力領域の
-/// 半分しか要求しないことがあった。z=1 の x=0 の1コマだけをターゲットにすると、
-/// z=2 のfine x では{0,1}に相当し、falloff(半径1)で寄与しうる入力 s∈{3,0,1,2}（全域）が
-/// 必要になる。
+/// `lazy_get`で対象範囲だけに絞っても、範囲外にある元Segmentからの減衰寄与を
+/// 正しく拾えること（`inverse_bounds`が対象領域を半径分だけ広げてSourceへ問い合わせる）。
 #[test]
-fn falloff_x_inverse_bounds_wrapped_coarsen_covers_needed_range() {
-    let op = FalloffX::<Sum>::new(2, 1, None, FalloffPattern::Linear).unwrap();
+fn falloff_x_lazy_get_reaches_outside_source() {
+    let mut table = SpatialIdTable::new();
+    table.insert(time_segment(100, 4).0, 4); // 元Segmentはx=100のみ
 
-    let bounds = crate::RangeId::new(1, [-2, 1], 0, [0, 1]).unwrap();
-    let inv = <FalloffX<Sum> as UnaryOperator<u32>>::inverse_bounds(&op, bounds).unwrap();
+    let query = table
+        .query()
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Sum);
 
-    assert_eq!(inv.x(), [0, 1]);
+    // 対象はx=99だけ（元のx=100はこの対象範囲の外）。それでも半径2の減衰で
+    // x=99へ2が届くはず。
+    let got: Vec<i32> = query
+        .lazy_get(time_segment(99, 0).0)
+        .unwrap()
+        .map(|(_, v)| v)
+        .collect();
+    assert_eq!(got, alloc::vec![2]);
+
+    // 半径の外（x=200）には何も届かない。
+    assert!(
+        query
+            .lazy_get(time_segment(200, 0).0)
+            .unwrap()
+            .next()
+            .is_none()
+    );
+}
+
+/// `run_by_segments`(Sourceが持つSegmentごとに`forward_bounds`で影響範囲を求めて評価)が
+/// `run()`(全域を一度に評価)と完全に同じ結果を返すこと。Segment同士の影響範囲が重なっても
+/// 欠落・重複が起きないことを確認する。
+#[test]
+fn falloff_x_run_by_segments_matches_run() {
+    let mut table = SpatialIdTable::new();
+    table.insert(time_segment(100, 4).0, 4);
+    table.insert(time_segment(102, 4).0, 4); // 隣接Segment。影響範囲が重なる。
+    table.insert(time_segment(300, 6).0, 6);
+
+    let query = table
+        .query()
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Sum);
+
+    let mut full: Vec<(FlexId, i32)> = query.run().unwrap().collect();
+    full.sort();
+
+    let mut by_segments: Vec<(FlexId, i32)> = query
+        .run_by_segments(CancellationToken::never())
+        .map(|r| r.unwrap())
+        .collect();
+    by_segments.sort();
+
+    assert_eq!(full, by_segments);
+    assert!(!full.is_empty());
+}
+
+/// shift → falloff のように異なる演算を連結しても、`forward_bounds`の合成が正しく
+/// 効いて`run()`と一致すること。
+#[test]
+fn shift_then_falloff_run_by_segments_matches_run() {
+    let mut table = SpatialIdTable::new();
+    table.insert(time_segment(100, 4).0, 4);
+    table.insert(time_segment(300, 6).0, 6);
+
+    let query = table
+        .query()
+        .shift_x(20, 50)
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Sum);
+
+    let mut full: Vec<(FlexId, i32)> = query.run().unwrap().collect();
+    full.sort();
+
+    let mut by_segments: Vec<(FlexId, i32)> = query
+        .run_by_segments(CancellationToken::never())
+        .map(|r| r.unwrap())
+        .collect();
+    by_segments.sort();
+
+    assert_eq!(full, by_segments);
+    assert!(!full.is_empty());
 }
 
 /// 半径0の falloff は恒等（no-op）。
@@ -110,7 +178,7 @@ fn falloff_x_radius_zero_is_noop() {
     let out = table
         .query()
         .falloff_x(20, 0, None, FalloffPattern::Linear, Sum)
-        .raw_run()
+        .collect_table()
         .unwrap();
     let r = row(&out);
 

@@ -1,4 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSync;
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 
@@ -179,5 +180,43 @@ where
     /// マップに保持されている全ての空間と値への参照のペアを返します。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
         self.inner.iter_ref()
+    }
+
+    /// `self` と `other` の両方に値がある領域だけを残します。値は `self` 側を保ちます。
+    pub fn intersection(&self, other: &Self) -> Self {
+        Self {
+            inner: self.inner.intersection(&other.inner),
+        }
+    }
+
+    /// `self` から `other` にも値がある領域を取り除きます。
+    pub fn difference(&self, other: &Self) -> Self {
+        Self {
+            inner: self.inner.difference(&other.inner),
+        }
+    }
+
+    /// 片側にしか値が無い領域も `default` で埋めたうえで、両方を `resolve` で重ね合わせます。
+    pub fn merge_with_default<R>(&self, other: &Self, default: &V, resolve: R) -> Self
+    where
+        R: Fn(&V, &V) -> V + MaybeSync,
+    {
+        Self {
+            inner: self
+                .inner
+                .merge_with_default(&other.inner, default, resolve),
+        }
+    }
+}
+
+impl<V> IntoIterator for SpatialIdMap<V>
+where
+    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue,
+{
+    type Item = (FlexId, V);
+    type IntoIter = crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
     }
 }

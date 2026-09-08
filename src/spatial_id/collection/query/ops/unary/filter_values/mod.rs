@@ -1,12 +1,15 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
 pub mod query;
 #[cfg(test)]
 mod test;
 
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use alloc::boxed::Box;
+
 use crate::{
-    Error,
-    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::UnaryOperator},
+    Error, RangeId,
+    spatial_id::collection::{
+        flex_tree::core::SafeValue,
+        query::{UnaryOperator, ValueIter, cancellation::CancellationToken},
+    },
 };
 
 use core::ops::Bound;
@@ -90,37 +93,17 @@ where
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
-        // この演算子はSegmentを取り除くだけで空間的な形を変えないので、木を平坦化して
-        // 組み直す必要はない。`retain_values` は変化した経路だけを copy-on-write で
-        // 作り直すため、条件を満たす部分木は `Arc` ごと保たれる。
-        target
-            .core_mut()
-            .retain_values(|value| self.predicate.matches(value));
-        Ok(())
-    }
-
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
-        Some(bounds)
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::None
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        1.0 // フィルタリングでは増えないが、削除分を予測するのは難しいので 1.0
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match &self.predicate {
-            ValuePredicate::Equals(_) => write!(f, "filter_values(== v)"),
-            ValuePredicate::InRange(_, _) => write!(f, "filter_values(in range)"),
-            ValuePredicate::NotInRange(_, _) => write!(f, "filter_values(not in range)"),
-        }
+    fn run<'a>(
+        &'a self,
+        input: ValueIter<'a, V>,
+        _target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
+        let mut counter = 0u32;
+        Ok(Box::new(
+            input
+                .map_while(move |item| token.check_amortized(&mut counter).ok().map(|_| item))
+                .filter(move |(_, value)| self.predicate.matches(value)),
+        ))
     }
 }

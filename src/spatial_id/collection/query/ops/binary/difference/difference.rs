@@ -1,7 +1,11 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
+use alloc::boxed::Box;
+
 use crate::{
-    Error,
-    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::BinaryOperator},
+    Error, SpatialIdMap,
+    spatial_id::collection::{
+        flex_tree::core::SafeValue,
+        query::{BinaryOperator, ValueIter, cancellation::CancellationToken},
+    },
 };
 
 pub struct Difference<V> {
@@ -23,26 +27,28 @@ impl<V> Default for Difference<V> {
 }
 
 impl<V: SafeValue> BinaryOperator<V> for Difference<V> {
-    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error> {
-        if target_a.core().count() == 0 {
-            return Ok(());
+    fn run<'a>(
+        &'a self,
+        lhs: ValueIter<'a, V>,
+        rhs: ValueIter<'a, V>,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
+        let lhs_tree: SpatialIdMap<V> = lhs.collect();
+        if lhs_tree.is_empty() {
+            return Ok(Box::new(core::iter::empty()));
         }
-        if target_b.core().count() == 0 {
-            return Ok(());
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
         }
-        let diff = target_a.core().difference(target_b.core());
-        *target_a = WorkingTree::from_core(diff);
-        Ok(())
-    }
+        let rhs_tree: SpatialIdMap<V> = rhs.collect();
+        if rhs_tree.is_empty() {
+            return Ok(Box::new(lhs_tree.into_iter()));
+        }
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
 
-    fn inverse_bounds(
-        &self,
-        output_bounds: crate::RangeId,
-    ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
-        (Some(output_bounds.clone()), Some(output_bounds))
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "difference")
+        let diff = lhs_tree.difference(&rhs_tree);
+        Ok(Box::new(diff.into_iter()))
     }
 }

@@ -112,17 +112,15 @@ pub use spatial_id::zoom_level::ZoomLevel;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::core::SafeValue;
 #[doc(inline)]
-pub use spatial_id::collection::query::cancellation::CancellationToken;
+pub use spatial_id::collection::query::Query;
 #[doc(inline)]
-pub use spatial_id::collection::query::execution::Query;
+pub use spatial_id::collection::query::Source;
+#[doc(inline)]
+pub use spatial_id::collection::query::cancellation::CancellationToken;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
-#[doc(inline)]
-pub use spatial_id::collection::query::source::Source;
-#[doc(inline)]
-pub use spatial_id::collection::query::working::WorkingTree;
 
 #[doc(inline)]
 pub use spatial_id::time::AllowedIntervals;

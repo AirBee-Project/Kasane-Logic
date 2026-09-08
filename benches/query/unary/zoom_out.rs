@@ -21,7 +21,11 @@ fn bench_zoom_out(c: &mut Criterion) {
                 || table.clone(),
                 |t| {
                     let target_level = ZoomLevel::new(lvl).unwrap();
-                    t.query().zoom_out(target_level, Average).raw_run().unwrap()
+                    t.query()
+                        .zoom_out(target_level, Average)
+                        .run()
+                        .unwrap()
+                        .count()
                 },
                 BatchSize::SmallInput,
             );

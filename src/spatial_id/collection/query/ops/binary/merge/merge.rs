@@ -1,9 +1,10 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
+use alloc::boxed::Box;
+
 use crate::{
-    Error,
+    Error, SpatialIdMap,
     spatial_id::collection::{
         flex_tree::core::SafeValue,
-        query::{merge_policy::MergePolicy, traits::BinaryOperator},
+        query::{BinaryOperator, MergePolicy, ValueIter, cancellation::CancellationToken},
     },
 };
 
@@ -26,27 +27,27 @@ impl<V: SafeValue, P> BinaryOperator<V> for Merge<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error> {
-        if target_a.core().count() == 0 && target_b.core().count() == 0 {
-            return Ok(());
+    fn run<'a>(
+        &'a self,
+        lhs: ValueIter<'a, V>,
+        rhs: ValueIter<'a, V>,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
+        let lhs_tree: SpatialIdMap<V> = lhs.collect();
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
         }
-        let merged = target_a
-            .core()
-            .merge_with_default(target_b.core(), &self.default, |a, b| {
-                P::resolve(a.clone(), b.clone())
-            });
-        *target_a = WorkingTree::from_core(merged);
-        Ok(())
-    }
+        let rhs_tree: SpatialIdMap<V> = rhs.collect();
+        if lhs_tree.is_empty() && rhs_tree.is_empty() {
+            return Ok(Box::new(core::iter::empty()));
+        }
+        if token.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
 
-    fn inverse_bounds(
-        &self,
-        output_bounds: crate::RangeId,
-    ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
-        (Some(output_bounds.clone()), Some(output_bounds))
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "merge({})", P::NAME)
+        let merged = lhs_tree.merge_with_default(&rhs_tree, &self.default, |a, b| {
+            P::resolve(a.clone(), b.clone())
+        });
+        Ok(Box::new(merged.into_iter()))
     }
 }

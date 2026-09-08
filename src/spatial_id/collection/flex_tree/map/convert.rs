@@ -18,12 +18,12 @@ impl<V> FromIterator<(FlexId, V)> for SpatialIdMap<V>
 where
     V: SafeValue,
 {
+    /// `FlexTreeCore` 側の一括構築（`feature = "rayon"` では並列ソート＋分割構築）へ委譲する。
+    /// 1件ずつ `insert` するより、大きな入力ではずっと速い。
     fn from_iter<T: IntoIterator<Item = (FlexId, V)>>(iter: T) -> Self {
-        let mut map = SpatialIdMap::new();
-        for (id, value) in iter {
-            map.insert(id, value);
+        Self {
+            inner: iter.into_iter().collect(),
         }
-        map
     }
 }
 

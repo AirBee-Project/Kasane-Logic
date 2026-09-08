@@ -58,11 +58,6 @@ impl SpatialIdSet {
         self.inner.bounding_box()
     }
 
-    /// 所有権ごと内部 [`FlexTreeCore`] を取り出す（クエリ実行の入口変換用）。
-    pub(crate) fn into_core(self) -> FlexTreeCore<()> {
-        self.inner
-    }
-
     /// 限定的な領域に閉じた空の[SpatialIdSet]を作成する。
     /// `region` の内側だけを保持し、`region` の外側への操作は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
@@ -108,10 +103,7 @@ impl SpatialIdSet {
     }
 
     /// 指定した範囲（RangeId）と重なる空間IDを切り出して返す。
-    pub fn get_range<'a>(
-        &'a self,
-        target: &'a crate::RangeId,
-    ) -> impl Iterator<Item = FlexId> + 'a {
+    pub fn get_range<'a>(&'a self, target: &crate::RangeId) -> impl Iterator<Item = FlexId> + 'a {
         self.inner
             .range_overlap_ref(target)
             .map(|(flex_id, _value)| flex_id)

@@ -9,13 +9,13 @@ use crate::{FlexId, Side};
 /// `target`（単一Segment）と交差する葉を参照付きで辿るイテレータ。
 ///
 /// 走査の本体は [`OverlapWalk`] にあり、ここは葉から値を取り出すだけ。
-pub type OverlapIterRef<'a, V> = core::iter::FilterMap<
+pub(crate) type OverlapIterRef<'a, V> = core::iter::FilterMap<
     OverlapWalk<&'a Node<V>>,
     fn((FlexId, &'a Node<V>)) -> Option<(FlexId, &'a V)>,
 >;
 
 /// `target`（範囲）と交差する葉を参照付きで辿るイテレータ。
-pub type RangeOverlapIterRef<'a, V> = core::iter::FilterMap<
+pub(crate) type RangeOverlapIterRef<'a, V> = core::iter::FilterMap<
     RangeOverlapWalk<&'a Node<V>>,
     fn((FlexId, &'a Node<V>)) -> Option<(FlexId, &'a V)>,
 >;
@@ -39,12 +39,12 @@ where
             .map(|(flex_id, value)| (flex_id, value.clone()))
     }
 
-    pub fn overlap_ref(&self, target: FlexId) -> OverlapIterRef<'_, V> {
+    pub(crate) fn overlap_ref(&self, target: FlexId) -> OverlapIterRef<'_, V> {
         let roots = self.overlap_root_stack(&target);
         OverlapWalk::new(roots, target).filter_map(leaf_value as fn(_) -> _)
     }
 
-    pub fn range_overlap_ref(&self, target: &crate::RangeId) -> RangeOverlapIterRef<'_, V> {
+    pub(crate) fn range_overlap_ref(&self, target: &crate::RangeId) -> RangeOverlapIterRef<'_, V> {
         RangeOverlapWalk::new(self.range_overlap_root_stack(target))
             .filter_map(leaf_value as fn(_) -> _)
     }

@@ -1,16 +1,17 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::grid::GridAxis;
-use crate::spatial_id::collection::query::working::WorkingTree;
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::ops::{Div, Mul, Sub};
 
-use crate::{
-    Error, ZoomLevel,
-    spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
-};
+#[cfg(feature = "rayon")]
+use rayon::prelude::*;
+
+use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::{MergePolicy, UnaryOperator, ValueIter};
+use crate::{Error, FlexId, RangeId, ZoomLevel};
 
 use super::FalloffPattern;
 use crate::spatial_id::helpers::Side;
@@ -47,40 +48,61 @@ where
     <V as TryFrom<u32>>::Error: Debug,
     P: MergePolicy<V> + Send + Sync + 'static,
 {
-    fn commutativity_info(&self) -> CommutativityInfo {
-        if !P::IS_COMMUTATIVE {
-            return CommutativityInfo::None;
-        }
-        CommutativityInfo::Separable {
-            policy: Some(core::any::TypeId::of::<P>()),
-        }
+    fn validate(&self) -> Result<(), Error> {
+        Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        (self.radius * 2 + 1) as f64
-    }
-
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
+    fn run<'a>(
+        &'a self,
+        input: ValueIter<'a, V>,
+        target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
         if self.radius == 0 {
-            return Ok(());
+            return Ok(input);
         }
         let z = self.z.get();
         let radius = self.radius;
 
-        // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
-        let rebuilt = target.core().map_rebuild_with(
-            |id, value| id.falloff_f(z, radius, self.direction, self.pattern, value),
-            |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
-        )?;
-        *target = WorkingTree::from_core(rebuilt);
-        Ok(())
+        // 減衰の到達域が近傍の入力Segment同士で重なり得るため、いったん全展開して
+        // 同じ位置ごとに resolve で合成し直す。木(FlexTreeCore)は使わない —
+        // このあと捨てる中間結果のために分岐構造やCOW共有を組む意味が無く、
+        // ソート済み配列の方がずっと安い。
+        //
+        // HashMapへ直接resolveしながら畳み込む方式も試したが、FlexIdのハッシュ計算と
+        // ランダムアクセスパターンのコストが、ソートのキャッシュ効率の良さを大きく上回り
+        // 実測で大幅に遅く・重くなった（数百万要素規模でVec+ソートの3倍以上）。
+        //
+        // `target`と交差しない候補は生成した端から捨てる。`run_within`で狭い範囲だけが
+        // 要求されている場合、これで無駄な候補をバッファへ積まずに済む
+        // （`target`が`everything()`のときはフィルタが素通しになるだけで挙動は変わらない）。
+        let mut scattered: Vec<(FlexId, V)> = Vec::new();
+        let mut counter = 0u32;
+        for (id, value) in input {
+            token.check_amortized(&mut counter)?;
+            if let Ok(iter) = id.falloff_f(z, radius, self.direction, self.pattern, &value) {
+                scattered.extend(iter.filter(|(out_id, _)| out_id.intersects_range(&target)));
+            }
+        }
+
+        #[cfg(feature = "rayon")]
+        scattered.par_sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        #[cfg(not(feature = "rayon"))]
+        scattered.sort_unstable_by_key(|a| a.0);
+
+        let mut new_items = Vec::with_capacity(scattered.len());
+        for chunk in scattered.chunk_by(|a, b| a.0 == b.0) {
+            let id = chunk[0].0;
+            let merged = chunk[1..]
+                .iter()
+                .fold(chunk[0].1.clone(), |acc, (_, v)| P::resolve(acc, v.clone()));
+            new_items.push((id, merged));
+        }
+
+        Ok(Box::new(new_items.into_iter()))
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn inverse_bounds(&self, bounds: RangeId) -> Option<RangeId> {
         let z = self.z.get();
         let target_z = z.max(bounds.z());
 
@@ -88,7 +110,7 @@ where
         let mut min_delta = delta;
         let mut max_delta = delta;
         if let Some(side) = self.direction {
-            if side == crate::spatial_id::helpers::Side::Upper {
+            if side == Side::Upper {
                 min_delta = 0;
             } else {
                 max_delta = 0;
@@ -100,51 +122,25 @@ where
             .unwrap()
     }
 
-    fn validate(&self) -> Result<(), crate::Error> {
-        Ok(())
-    }
+    fn forward_bounds(&self, bounds: RangeId) -> Option<RangeId> {
+        // 逆算(出力→入力)と対になる、入力→出力の写像。片側だけに広がる場合
+        // (`direction`指定あり)、逆算で伸ばした側と反対側が伸びる(鏡写し)。
+        let z = self.z.get();
+        let target_z = z.max(bounds.z());
 
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let dir_str = match self.direction {
-            None => "Both",
-            Some(crate::spatial_id::helpers::Side::Upper) => "Upper",
-            Some(crate::spatial_id::helpers::Side::Lower) => "Lower",
-        };
-        write!(
-            f,
-            "falloff_f(z={}, r={}, dir={}, pat={:?}, {})",
-            self.z.get(),
-            self.radius,
-            dir_str,
-            self.pattern,
-            P::NAME
-        )
-    }
-
-    fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
-        if !P::IS_COMMUTATIVE {
-            return None;
+        let delta = (self.radius as i64) * (1i64 << (target_z - z));
+        let mut min_delta = delta;
+        let mut max_delta = delta;
+        if let Some(side) = self.direction {
+            if side == Side::Upper {
+                min_delta = 0;
+            } else {
+                max_delta = 0;
+            }
         }
-        Some(self.z)
-    }
 
-    #[allow(private_interfaces)]
-    fn apply_to_grid(
-        &self,
-        grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
-        token: &crate::CancellationToken,
-    ) -> Result<crate::spatial_id::collection::query::grid::Applied, crate::Error> {
-        if !P::IS_COMMUTATIVE || self.radius == 0 {
-            return Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported);
-        }
-        let atten = super::Attenuator::new(self.radius, self.pattern);
-        grid.falloff::<P, _>(
-            GridAxis::F,
-            self.z,
-            self.radius,
-            self.direction,
-            &atten,
-            token,
-        )
+        bounds
+            .f_edges_shift(target_z, -max_delta, min_delta)
+            .unwrap()
     }
 }

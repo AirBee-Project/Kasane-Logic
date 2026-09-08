@@ -1,8 +1,9 @@
+use alloc::boxed::Box;
+
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::grid::GridAxis;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::{UnaryOperator, ValueIter};
+use crate::{Error, RangeId, ZoomLevel};
 
 /// 作業木全体を高さ（F）方向へ、ズームレベル `z` のインデックス値 `f` 個分だけ平行移動する単項演算。
 pub struct ShiftF {
@@ -19,60 +20,50 @@ impl ShiftF {
 }
 
 impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::Separable { policy: None }
-    }
-
     fn validate(&self) -> Result<(), Error> {
         let zl = ZoomLevel::new(self.z.get())?;
         zl.check_f(self.f)?;
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
+    fn run<'a>(
+        &'a self,
+        input: ValueIter<'a, V>,
+        _target: RangeId,
+        token: CancellationToken,
+    ) -> Result<ValueIter<'a, V>, Error> {
         let z = self.z.get();
         let index = self.f;
         if index == 0 {
-            return Ok(());
+            return Ok(input);
         }
-
-        let rebuilt = target.core().map_rebuild(|id, value| {
-            let value = value.clone();
-            Ok(id
-                .shift_f(z, index)?
-                .map(move |moved| (moved, value.clone())))
-        })?;
-        *target = WorkingTree::from_core(rebuilt);
-        Ok(())
+        let mut counter = 0u32;
+        Ok(Box::new(
+            input
+                .map_while(move |item| token.check_amortized(&mut counter).ok().map(|_| item))
+                .flat_map(move |(id, value)| {
+                    // F方向は周回しないため、上下端付近のSegmentは移動先がズーム範囲外になり得る。
+                    // 個々の要素をResultにして全段を貫通させるコストを避け、範囲外に出た要素は消える。
+                    id.shift_f(z, index)
+                        .ok()
+                        .into_iter()
+                        .flatten()
+                        .map(move |moved| (moved, value.clone()))
+                }),
+        ))
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn inverse_bounds(&self, bounds: RangeId) -> Option<RangeId> {
         let z = self.z.get();
         let target_z = z.max(bounds.z());
         let delta = (self.f as i64) * (1i64 << (target_z - z));
-
         bounds.f_edges_shift(target_z, -delta, -delta).unwrap()
     }
 
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "shift_f(z={}, f={})", self.z.get(), self.f)
-    }
-
-    fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
-        Some(self.z)
-    }
-
-    #[allow(private_interfaces)]
-    fn apply_to_grid(
-        &self,
-        grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
-        token: &crate::CancellationToken,
-    ) -> Result<crate::spatial_id::collection::query::grid::Applied, crate::Error> {
-        grid.shift(GridAxis::F, self.z, self.f, token)
-            .map(|_| crate::spatial_id::collection::query::grid::Applied::Done)
+    fn forward_bounds(&self, bounds: RangeId) -> Option<RangeId> {
+        let z = self.z.get();
+        let target_z = z.max(bounds.z());
+        let delta = (self.f as i64) * (1i64 << (target_z - z));
+        bounds.f_edges_shift(target_z, delta, delta).unwrap()
     }
 }

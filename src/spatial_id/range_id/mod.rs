@@ -819,4 +819,15 @@ impl RangeId {
             t: self.t,
         })
     }
+
+    /// 全空間・全時間を表す [`RangeId`] を返します。
+    ///
+    /// ```
+    /// # use kasane_logic::RangeId;
+    /// let id = RangeId::everything();
+    /// assert_eq!(id.z(), 0);
+    /// ```
+    pub fn everything() -> RangeId {
+        RangeId::new(0, [-1, 0], [0, 0], [0, 0]).expect("z=0の全域RangeIdは常に構築できる")
+    }
 }

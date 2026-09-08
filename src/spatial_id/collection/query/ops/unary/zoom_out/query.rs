@@ -1,7 +1,7 @@
 use super::ZoomOut;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::merge_policy::MergePolicy;
-use crate::spatial_id::{collection::query::execution::Query, zoom_level::ZoomLevel};
+use crate::spatial_id::{collection::query::Query, zoom_level::ZoomLevel};
 
 impl<V: SafeValue + 'static> Query<V> {
     /// 指定されたズームレベルまで情報を落とし、複数の子ボクSegmentを`MergePolicy::resolve_many` で一括マージする単項演算子。
