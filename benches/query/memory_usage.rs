@@ -12,8 +12,6 @@ use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 mod cases;
 mod utils;
 
-// カスタムアロケータ
-
 static TRACKING: AtomicBool = AtomicBool::new(false);
 static CURRENT: AtomicIsize = AtomicIsize::new(0);
 static PEAK: AtomicUsize = AtomicUsize::new(0);
