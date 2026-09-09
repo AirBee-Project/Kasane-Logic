@@ -16,10 +16,6 @@ use kasane_logic::{
     },
 };
 
-pub const DEFAULT_DISTANCES: [i32; 4] = [1, 5, 10, 15];
-pub const ZOOM_LEVELS: [u8; 4] = [24, 22, 20, 18];
-pub const FILTER_THRESHOLDS: [u32; 5] = [1, 2, 3, 4, 5];
-
 /// 代表的な局所領域（データが存在する領域から1つ選定して周辺±20マスを対象とする）
 pub fn sample_region_target(table: &SpatialIdTable<u32>) -> RangeId {
     let sample_id = table.iter().next().map(|(id, _)| id).unwrap();
@@ -72,70 +68,82 @@ impl TestCase {
 
 // クエリビルダー関数群
 
+// `sample/bldg_risk.json` の実データは z<=23 (z23が大半) までしか存在しない。
+// これより細かい z を指定すると、shift/extrude/falloff の内部実装
+// (`segment_scale = 1 << (max_z - item_z)`) が全アイテムを不要に分割してから
+// 処理するため、指定距離から想定されるより大幅に重いワークロードになる。
+// そのため実データの最大 z と揃えている。
+const NATIVE_Z: u8 = 23;
+
 pub fn shift_x(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
-    table.query().shift_x(24, dist)
+    table.query().shift_x(NATIVE_Z, dist)
 }
 
 pub fn shift_y(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
-    table.query().shift_y(24, dist)
+    table.query().shift_y(NATIVE_Z, dist)
 }
 
 pub fn shift_f(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
-    table.query().shift_f(24, dist)
+    table.query().shift_f(NATIVE_Z, dist)
 }
 
 pub fn shift_all(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
     table
         .query()
-        .shift_x(24, dist)
-        .shift_y(24, -dist)
-        .shift_f(24, dist)
+        .shift_x(NATIVE_Z, dist)
+        .shift_y(NATIVE_Z, -dist)
+        .shift_f(NATIVE_Z, dist)
 }
 
 pub fn extrude_x(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
-    table.query().extrude_x(24, 0, dist as u32, Max)
+    // `dist as u32` は負値だとラップして XOutOfRange を引き起こすため、
+    // 呼び出し側は必ず非負の距離を渡すこと(shift系のような符号付きオフセットではない)。
+    debug_assert!(dist >= 0, "extrude distance must be non-negative");
+    table.query().extrude_x(NATIVE_Z, 0, dist as u32, Max)
 }
 
 pub fn extrude_y(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
-    table.query().extrude_y(24, 0, dist as u32, Max)
+    debug_assert!(dist >= 0, "extrude distance must be non-negative");
+    table.query().extrude_y(NATIVE_Z, 0, dist as u32, Max)
 }
 
 pub fn extrude_f(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
-    table.query().extrude_f(24, 0, dist, Max)
+    table.query().extrude_f(NATIVE_Z, 0, dist, Max)
 }
 
 pub fn extrude_all(table: SpatialIdTable<u32>, dist: i32) -> Query<u32> {
+    debug_assert!(dist >= 0, "extrude distance must be non-negative");
     table
         .query()
-        .extrude_x(24, 0, dist as u32, Max)
-        .extrude_y(24, 0, dist as u32, Max)
-        .extrude_f(24, 0, dist, Max)
+        .extrude_x(NATIVE_Z, 0, dist as u32, Max)
+        .extrude_y(NATIVE_Z, 0, dist as u32, Max)
+        .extrude_f(NATIVE_Z, 0, dist, Max)
 }
 
 pub fn falloff_x(table: SpatialIdTable<u32>, dist: u32) -> Query<u32> {
     table
         .query()
-        .falloff_x(24, dist, None, FalloffPattern::Linear, Max)
+        .falloff_x(NATIVE_Z, dist, None, FalloffPattern::Linear, Max)
 }
 
 pub fn falloff_y(table: SpatialIdTable<u32>, dist: u32) -> Query<u32> {
     table
         .query()
-        .falloff_y(24, dist, None, FalloffPattern::Linear, Max)
+        .falloff_y(NATIVE_Z, dist, None, FalloffPattern::Linear, Max)
 }
 
 pub fn falloff_f(table: SpatialIdTable<u32>, dist: u32) -> Query<u32> {
     table
         .query()
-        .falloff_f(24, dist, None, FalloffPattern::Linear, Max)
+        .falloff_f(NATIVE_Z, dist, None, FalloffPattern::Linear, Max)
 }
 
 pub fn falloff_all(table: SpatialIdTable<u32>, dist: u32) -> Query<u32> {
     table
         .query()
-        .falloff_x(24, dist, None, FalloffPattern::Linear, Max)
-        .falloff_y(24, dist, None, FalloffPattern::Linear, Max)
-        .falloff_f(24, dist, None, FalloffPattern::Linear, Max)
+        .falloff_x(NATIVE_Z, dist, None, FalloffPattern::Linear, Max)
+        .falloff_y(NATIVE_Z, dist, None, FalloffPattern::Linear, Max)
+        .falloff_f(NATIVE_Z, dist, None, FalloffPattern::Linear, Max)
 }
 
 pub fn zoom_out(table: SpatialIdTable<u32>, target_z: u8) -> Query<u32> {
@@ -149,12 +157,22 @@ pub fn filter_values(table: SpatialIdTable<u32>, threshold: u32) -> Query<u32> {
 }
 
 pub fn risk_diffusion(table: SpatialIdTable<u32>, radius: u32) -> Query<u32> {
+    // zoom_out 後のデータは z=22 に統一される。falloff の z をこれより細かく
+    // 指定すると (前述の NATIVE_Z と同じ理由で) 全アイテムが不要に分割されて
+    // 出力要素数が数百倍に膨れ上がるため、z=22 に揃える。
+    const DIFFUSION_Z: u8 = 22;
     table
         .query()
-        .zoom_out(22, Max)
-        .falloff_f(25, radius, Some(Upper), FalloffPattern::Linear, Max)
-        .falloff_x(25, radius, None, FalloffPattern::Linear, Max)
-        .falloff_y(25, radius, None, FalloffPattern::Linear, Max)
+        .zoom_out(DIFFUSION_Z, Max)
+        .falloff_f(
+            DIFFUSION_Z,
+            radius,
+            Some(Upper),
+            FalloffPattern::Linear,
+            Max,
+        )
+        .falloff_x(DIFFUSION_Z, radius, None, FalloffPattern::Linear, Max)
+        .falloff_y(DIFFUSION_Z, radius, None, FalloffPattern::Linear, Max)
 }
 
 // テストケース配列 (Table-Driven)
@@ -554,14 +572,6 @@ pub static FALLOFF_CASES: &[TestCase] = &[
 
 pub static ZOOM_OUT_CASES: &[TestCase] = &[
     TestCase {
-        name: "zoom_out_to/24",
-        group: "Unary/ZoomOut",
-        scope: "Full",
-        build: |t| zoom_out(t, 24),
-        target: None,
-        test_collect: true,
-    },
-    TestCase {
         name: "zoom_out_to/22",
         group: "Unary/ZoomOut",
         scope: "Full",
@@ -585,46 +595,54 @@ pub static ZOOM_OUT_CASES: &[TestCase] = &[
         target: None,
         test_collect: true,
     },
+    TestCase {
+        name: "zoom_out_to/16",
+        group: "Unary/ZoomOut",
+        scope: "Full",
+        build: |t| zoom_out(t, 16),
+        target: None,
+        test_collect: true,
+    },
 ];
 
 pub static FILTER_CASES: &[TestCase] = &[
     TestCase {
-        name: "greater_than_or_equal/1",
+        name: "greater_than_or_equal/10",
         group: "Unary/FilterValues",
         scope: "Full",
-        build: |t| filter_values(t, 1),
+        build: |t| filter_values(t, 10),
         target: None,
         test_collect: true,
     },
     TestCase {
-        name: "greater_than_or_equal/2",
+        name: "greater_than_or_equal/30",
         group: "Unary/FilterValues",
         scope: "Full",
-        build: |t| filter_values(t, 2),
+        build: |t| filter_values(t, 30),
         target: None,
         test_collect: true,
     },
     TestCase {
-        name: "greater_than_or_equal/3",
+        name: "greater_than_or_equal/50",
         group: "Unary/FilterValues",
         scope: "Full",
-        build: |t| filter_values(t, 3),
+        build: |t| filter_values(t, 50),
         target: None,
         test_collect: true,
     },
     TestCase {
-        name: "greater_than_or_equal/4",
+        name: "greater_than_or_equal/70",
         group: "Unary/FilterValues",
         scope: "Full",
-        build: |t| filter_values(t, 4),
+        build: |t| filter_values(t, 70),
         target: None,
         test_collect: true,
     },
     TestCase {
-        name: "greater_than_or_equal/5",
+        name: "greater_than_or_equal/90",
         group: "Unary/FilterValues",
         scope: "Full",
-        build: |t| filter_values(t, 5),
+        build: |t| filter_values(t, 90),
         target: None,
         test_collect: true,
     },
@@ -645,58 +663,55 @@ pub static WORKFLOW_CASES: &[TestCase] = &[
         scope: "Full",
         build: |t| risk_diffusion(t, 10),
         target: None,
-        test_collect: false, // 1億要素超のため Collect はOOM回避
+        // falloff の z を zoom_out 後のデータ解像度 (DIFFUSION_Z) に揃えたことで
+        // 出力は約100万要素・ピークメモリ約860MBに収まることを実測済み（修正前は
+        // falloff の z がデータより細かく、内部でアイテムが不要に分割された結果
+        // 1億要素超に膨れ上がりOOM/ハングの危険があった）。
+        test_collect: true,
     },
 ];
 
-/// 総合パフォーマンス（CPU・メモリ・速度）測定用の代表ケース一覧
-pub static CORE_BENCH_CASES: &[TestCase] = &[
-    TestCase {
-        name: "Falloff_X (dist=1)",
-        group: "Unary/Falloff",
-        scope: "Full",
-        build: |t| falloff_x(t, 1),
-        target: None,
-        test_collect: true,
-    },
-    TestCase {
-        name: "Falloff_X (dist=5)",
-        group: "Unary/Falloff",
-        scope: "Full",
-        build: |t| falloff_x(t, 5),
-        target: None,
-        test_collect: false,
-    },
-    TestCase {
-        name: "ZoomOut (z=20)",
-        group: "Unary/ZoomOut",
-        scope: "Full",
-        build: |t| zoom_out(t, 20),
-        target: None,
-        test_collect: true,
-    },
-    TestCase {
-        name: "Shift_All (dist=5)",
-        group: "Unary/Shift",
-        scope: "Full",
-        build: |t| shift_all(t, 5),
-        target: None,
-        test_collect: false,
-    },
-    TestCase {
-        name: "Extrude_X (dist=5)",
-        group: "Unary/Extrude",
-        scope: "Full",
-        build: |t| extrude_x(t, 5),
-        target: None,
-        test_collect: false,
-    },
-    TestCase {
-        name: "RiskDiffusion (Region)",
-        group: "Workflow/RiskDiffusion",
-        scope: "Regional",
-        build: |t| risk_diffusion(t, 5),
-        target: Some(sample_region_target),
-        test_collect: true,
-    },
-];
+/// 総合パフォーマンス（CPU・メモリ・速度）測定用の代表ケース一覧。
+/// 各ケースは SHIFT_CASES 等の該当エントリのコピーではなく、構造体更新構文で
+/// そのエントリ自身を参照する。これにより元の配列側でパラメータを変更した際に
+/// ここが古い値のまま取り残される(ドリフトする)ことがない。
+pub fn core_bench_cases() -> Vec<TestCase> {
+    // インデックス指定が配列の並び替えでずれていないことを検証する
+    // (該当エントリが期待した dist/z のケースであることを名前で確認する)。
+    debug_assert_eq!(FALLOFF_CASES[0].name, "falloff_x/1");
+    debug_assert_eq!(FALLOFF_CASES[1].name, "falloff_x/5");
+    debug_assert_eq!(ZOOM_OUT_CASES[1].name, "zoom_out_to/20");
+    debug_assert_eq!(SHIFT_CASES[13].name, "shift_all/5");
+    debug_assert_eq!(EXTRUDE_CASES[1].name, "extrude_x/5");
+    debug_assert_eq!(WORKFLOW_CASES[0].name, "RiskDiffusion (Regional)");
+
+    vec![
+        TestCase {
+            name: "Falloff_X (dist=1)",
+            ..FALLOFF_CASES[0]
+        },
+        TestCase {
+            name: "Falloff_X (dist=5)",
+            test_collect: false,
+            ..FALLOFF_CASES[1]
+        },
+        TestCase {
+            name: "ZoomOut (z=20)",
+            ..ZOOM_OUT_CASES[1]
+        },
+        TestCase {
+            name: "Shift_All (dist=5)",
+            test_collect: false,
+            ..SHIFT_CASES[13]
+        },
+        TestCase {
+            name: "Extrude_X (dist=5)",
+            test_collect: false,
+            ..EXTRUDE_CASES[1]
+        },
+        TestCase {
+            name: "RiskDiffusion (Region)",
+            ..WORKFLOW_CASES[0]
+        },
+    ]
+}

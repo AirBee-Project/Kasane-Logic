@@ -18,27 +18,39 @@ static PEAK: AtomicUsize = AtomicUsize::new(0);
 
 struct TrackingAllocator;
 
+fn warn_current_underflow() {
+    static WARNED: AtomicBool = AtomicBool::new(false);
+    if !WARNED.swap(true, Ordering::Relaxed) {
+        eprintln!(
+            "警告: CURRENT が負になりました（ケース間で計測ウィンドウを跨いだメモリ解放が発生しています）。以降の final_bytes/peak_bytes は実際より低く出る可能性があります。"
+        );
+    }
+}
+
+fn track_delta(delta: isize) {
+    if delta == 0 {
+        return;
+    }
+    let after = CURRENT.fetch_add(delta, Ordering::Relaxed) + delta;
+    if after < 0 {
+        warn_current_underflow();
+        return;
+    }
+    let after_u = after as usize;
+    let mut peak = PEAK.load(Ordering::Relaxed);
+    while after_u > peak {
+        match PEAK.compare_exchange_weak(peak, after_u, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => break,
+            Err(p) => peak = p,
+        }
+    }
+}
+
 unsafe impl GlobalAlloc for TrackingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = unsafe { System.alloc(layout) };
         if !ptr.is_null() && TRACKING.load(Ordering::Relaxed) {
-            let after = CURRENT.fetch_add(layout.size() as isize, Ordering::Relaxed)
-                + layout.size() as isize;
-            if after > 0 {
-                let after_u = after as usize;
-                let mut peak = PEAK.load(Ordering::Relaxed);
-                while after_u > peak {
-                    match PEAK.compare_exchange_weak(
-                        peak,
-                        after_u,
-                        Ordering::Relaxed,
-                        Ordering::Relaxed,
-                    ) {
-                        Ok(_) => break,
-                        Err(p) => peak = p,
-                    }
-                }
-            }
+            track_delta(layout.size() as isize);
         }
         ptr
     }
@@ -46,8 +58,16 @@ unsafe impl GlobalAlloc for TrackingAllocator {
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         unsafe { System.dealloc(ptr, layout) };
         if TRACKING.load(Ordering::Relaxed) {
-            CURRENT.fetch_sub(layout.size() as isize, Ordering::Relaxed);
+            track_delta(-(layout.size() as isize));
         }
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let new_ptr = unsafe { System.realloc(ptr, layout, new_size) };
+        if !new_ptr.is_null() && TRACKING.load(Ordering::Relaxed) {
+            track_delta(new_size as isize - layout.size() as isize);
+        }
+        new_ptr
     }
 }
 
@@ -67,16 +87,18 @@ fn stop_tracking() -> (usize, usize) {
     (current, peak)
 }
 
+/// プロセス全体の累積 CPU クロックサイクル数を取得する。
+/// `QueryProcessCycleTime` が失敗した場合は `None`（呼び出し側で「取得不可」として扱う）。
 #[cfg(windows)]
-fn get_process_cycle_time() -> u64 {
+fn get_process_cycle_time() -> Option<u64> {
     unsafe {
         unsafe extern "system" {
             fn GetCurrentProcess() -> isize;
             fn QueryProcessCycleTime(hProcess: isize, cycle_time: *mut u64) -> i32;
         }
         let mut cycles = 0u64;
-        QueryProcessCycleTime(GetCurrentProcess(), &mut cycles);
-        cycles
+        let ok = QueryProcessCycleTime(GetCurrentProcess(), &mut cycles);
+        if ok != 0 { Some(cycles) } else { None }
     }
 }
 
@@ -90,26 +112,35 @@ fn estimate_core_frequency_hz() -> f64 {
         }
         let mut c1 = 0u64;
         let mut c2 = 0u64;
-        QueryThreadCycleTime(GetCurrentThread(), &mut c1);
+        let ok1 = QueryThreadCycleTime(GetCurrentThread(), &mut c1);
         let t1 = Instant::now();
         // 約 3ms スピンしてスレッド消費サイクルと実時間を測る
         while t1.elapsed().as_micros() < 3000 {
             core::hint::spin_loop();
         }
         let elapsed = t1.elapsed().as_secs_f64();
-        QueryThreadCycleTime(GetCurrentThread(), &mut c2);
+        let ok2 = QueryThreadCycleTime(GetCurrentThread(), &mut c2);
+        if ok1 == 0 || ok2 == 0 {
+            eprintln!(
+                "警告: QueryThreadCycleTime の取得に失敗したため、コア周波数をフォールバック値 (3.0 GHz) として扱います。CPU時間の換算値は不正確です。"
+            );
+            return 3.0e9;
+        }
         let cycles = c2.saturating_sub(c1);
         if elapsed > 0.0 && cycles > 0 {
             cycles as f64 / elapsed
         } else {
-            3.0e9 // フォールバック: 3.0 GHz
+            eprintln!(
+                "警告: コア周波数の推定に失敗したため、フォールバック値 (3.0 GHz) を使用します。CPU時間の換算値は不正確です。"
+            );
+            3.0e9
         }
     }
 }
 
 #[cfg(not(windows))]
-fn get_process_cycle_time() -> u64 {
-    0
+fn get_process_cycle_time() -> Option<u64> {
+    None
 }
 #[cfg(not(windows))]
 fn estimate_core_frequency_hz() -> f64 {
@@ -122,15 +153,43 @@ fn get_core_freq() -> f64 {
     *CORE_FREQ_HZ.get_or_init(estimate_core_frequency_hz)
 }
 
+static LOGICAL_CORES: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+
+fn get_logical_cores() -> usize {
+    *LOGICAL_CORES.get_or_init(|| {
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+    })
+}
+
+fn warn_cycle_time_unavailable() {
+    static WARNED: AtomicBool = AtomicBool::new(false);
+    if !WARNED.swap(true, Ordering::Relaxed) {
+        eprintln!(
+            "警告: QueryProcessCycleTime の取得に失敗したケースがあります。該当行の CPU時間・CPUサイクル・実効並列度は `N/A` と表示されます。"
+        );
+    }
+}
+
+fn warn_parallelism_clamped() {
+    static WARNED: AtomicBool = AtomicBool::new(false);
+    if !WARNED.swap(true, Ordering::Relaxed) {
+        eprintln!(
+            "警告: 実効並列度が論理コア数を超えたため、表示値を論理コア数でクランプしています（他ケースの残存CPU活動が混入した可能性があります）。"
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 struct PerfResult {
     output_count: usize,
     peak_bytes: usize,
     final_bytes: usize,
     wall_time: std::time::Duration,
-    cycles: u64,
-    cpu_time_ms: f64,
-    parallelism: f64,
+    cycles: Option<u64>,
+    cpu_time_ms: Option<f64>,
+    parallelism: Option<f64>,
 }
 
 fn fmt_bytes(b: usize) -> String {
@@ -160,15 +219,29 @@ where
     let end_cycles = get_process_cycle_time();
     let (final_bytes, peak_bytes) = stop_tracking();
 
-    let cycles = end_cycles.saturating_sub(start_cycles);
-    let cpu_time_secs = cycles as f64 / freq;
-    let cpu_time_ms = cpu_time_secs * 1000.0;
-    let wall_secs = wall_time.as_secs_f64();
-    let parallelism = if wall_secs > 0.0 {
-        cpu_time_secs / wall_secs
-    } else {
-        0.0
+    let cycles = match (start_cycles, end_cycles) {
+        (Some(s), Some(e)) => Some(e.saturating_sub(s)),
+        _ => {
+            warn_cycle_time_unavailable();
+            None
+        }
     };
+    let cpu_time_secs = cycles.map(|c| c as f64 / freq);
+    let cpu_time_ms = cpu_time_secs.map(|s| s * 1000.0);
+    let wall_secs = wall_time.as_secs_f64();
+    let parallelism = cpu_time_secs.and_then(|cpu_secs| {
+        if wall_secs <= 0.0 {
+            return None;
+        }
+        let raw = cpu_secs / wall_secs;
+        let cap = get_logical_cores() as f64;
+        if raw > cap {
+            warn_parallelism_clamped();
+            Some(cap)
+        } else {
+            Some(raw)
+        }
+    });
 
     (
         PerfResult {
@@ -188,17 +261,28 @@ where
 
 fn print_row(name: &str, scope: &str, mode: &str, res: &PerfResult) {
     let wall_ms = res.wall_time.as_secs_f64() * 1000.0;
-    let mcycles = res.cycles as f64 / 1_000_000.0;
+    let cpu_time_str = match res.cpu_time_ms {
+        Some(v) => format!("{:.2} ms", v),
+        None => "N/A".to_string(),
+    };
+    let mcycles_str = match res.cycles {
+        Some(c) => format!("{:.1} M", c as f64 / 1_000_000.0),
+        None => "N/A".to_string(),
+    };
+    let parallelism_str = match res.parallelism {
+        Some(p) => format!("{:.1}x", p),
+        None => "N/A".to_string(),
+    };
     println!(
-        "| {} | {} | {} | {} | {:.2} ms | {:.2} ms | {:.1} M | {:.1}x | {} | {} |",
+        "| {} | {} | {} | {} | {:.2} ms | {} | {} | {} | {} | {} |",
         name,
         scope,
         mode,
         res.output_count,
         wall_ms,
-        res.cpu_time_ms,
-        mcycles,
-        res.parallelism,
+        cpu_time_str,
+        mcycles_str,
+        parallelism_str,
         fmt_bytes(res.peak_bytes),
         fmt_bytes(res.final_bytes)
     );
@@ -208,9 +292,7 @@ fn main() {
     let table = utils::get_full_data();
     let input_count = table.iter().count();
 
-    let logical_cores = std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1);
+    let logical_cores = get_logical_cores();
     let freq_ghz = get_core_freq() / 1.0e9;
 
     println!("# Query Engine 総合パフォーマンスベンチマーク (速度・CPU並列度・メモリ)");
@@ -230,7 +312,7 @@ fn main() {
     );
     println!("|:---|:---|:---|---:|---:|---:|---:|---:|---:|---:|");
 
-    for case in cases::CORE_BENCH_CASES {
+    for case in cases::core_bench_cases() {
         // Stream モード
         let (res, _) = measure(|| (case.run_stream(table), ()));
         print_row(case.name, case.scope, "Stream (count)", &res);
