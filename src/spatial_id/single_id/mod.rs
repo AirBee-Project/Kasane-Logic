@@ -550,13 +550,9 @@ impl SingleId {
         }
 
         let difference = self.z() - target_z;
-        let f = if self.f == -1 {
-            -1
-        } else {
-            self.f >> difference
-        };
-        let x = self.x >> (difference as u32);
-        let y = self.y >> (difference as u32);
+        let f = self.f >> difference;
+        let x = self.x >> difference;
+        let y = self.y >> difference;
 
         Ok(SingleId {
             z: target_zoom,
