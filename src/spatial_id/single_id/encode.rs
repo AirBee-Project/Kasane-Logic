@@ -52,7 +52,7 @@ impl SingleId {
     ///
     /// `spatial_encode()` が返すキーと組み合わせることで、`self` が含む子孫IDを
     /// `range(self.spatial_encode()..=self.spatial_encode_prefix_max())` のように探索できる。
-    /// 返す値は、空間パス部分の未使用下位ビットをすべて 1 にしたものであり、ズームレベル `z` は維持する。
+    /// 返す値は、空間パス部分の未使用下位ビットをすべて 1 にしたものであり、ズームレベル `z` は最大値を持たせる。
     ///
     /// # 動作コスト
     ///
@@ -87,10 +87,7 @@ impl SingleId {
             shift -= 1;
         }
 
-        if shift >= 37 {
-            let mask = ((1u128 << (shift - 36)) - 1) << 37;
-            v |= mask;
-        }
+        v |= ((1u128 << (shift - 31)) - 1) << 32;
 
         let mut bytes = [0u8; 12];
         bytes.copy_from_slice(&v.to_be_bytes()[0..12]);
