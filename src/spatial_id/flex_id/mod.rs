@@ -9,6 +9,7 @@ pub mod ops;
 use crate::{
     Error, Side, SpatialIdError,
     spatial_id::{
+        collection::flex_tree::core::node::Dimension,
         range_id::convert::{split_f, split_xy},
         time::span,
         zoom_level::{TZoomLevel, ZoomLevel},
@@ -628,6 +629,26 @@ impl FlexId {
     #[cfg(not(feature = "temporal_id"))]
     pub fn split_t(&self, _side: Side) -> Option<FlexId> {
         None
+    }
+
+    /// `axis` 方向のズームレベルを返す。軸を値で選ぶ必要があるFlexTreeの実装用。
+    pub(crate) fn zoomlevel_on(&self, axis: Dimension) -> u8 {
+        match axis {
+            Dimension::F => self.f_zoomlevel(),
+            Dimension::X => self.x_zoomlevel(),
+            Dimension::Y => self.y_zoomlevel(),
+            Dimension::T => self.t_zoomlevel(),
+        }
+    }
+
+    /// `axis` 方向で二つに切り分けた `side` 側を返す。その軸が最大ズームなら [`None`]。軸を値で選ぶ必要があるFlexTreeの実装用。
+    pub(crate) fn split_on(&self, axis: Dimension, side: Side) -> Option<FlexId> {
+        match axis {
+            Dimension::F => self.split_f(side),
+            Dimension::X => self.split_x(side),
+            Dimension::Y => self.split_y(side),
+            Dimension::T => self.split_t(side),
+        }
     }
 
     /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。

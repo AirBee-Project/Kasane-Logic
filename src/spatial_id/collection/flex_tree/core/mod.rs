@@ -5,7 +5,7 @@ use hashbrown::HashSet;
 use crate::trace::trace_span;
 use crate::{AllowedIntervals, Error, FlexId, RangeId, Side, SingleId, SpatialId};
 pub use convert::{LeavesIntoIter, LeavesIterRef};
-use node::{Axis, Node};
+use node::{Dimension, Node};
 use node_ops::MergeOp;
 pub use ptr::SafeValue;
 pub(crate) mod bulk;
@@ -557,7 +557,7 @@ where
     /// `temporal_id` feature 無効時は T の番自体が無い（`NUM_AXES == 3`）ため常に偽。
     pub(crate) fn has_temporal_split(&self) -> bool {
         let mask = self.lower_root.split_mask() | self.upper_root.split_mask();
-        mask & Node::<V>::axis_bit(Axis::T) != 0
+        mask & Node::<V>::axis_bit(Dimension::T) != 0
     }
 
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
@@ -1047,12 +1047,12 @@ pub(crate) fn spatial_sort_key(id: &FlexId) -> SortKey {
 }
 
 /// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
-pub(crate) fn split_child_id(current_id: &FlexId, axis: Axis, side: Side) -> FlexId {
+pub(crate) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
     match axis {
-        Axis::F => current_id.split_f(side).unwrap(),
-        Axis::X => current_id.split_x(side).unwrap(),
-        Axis::Y => current_id.split_y(side).unwrap(),
-        Axis::T => current_id.split_t(side).unwrap(),
+        Dimension::F => current_id.split_f(side).unwrap(),
+        Dimension::X => current_id.split_x(side).unwrap(),
+        Dimension::Y => current_id.split_y(side).unwrap(),
+        Dimension::T => current_id.split_t(side).unwrap(),
     }
 }
 

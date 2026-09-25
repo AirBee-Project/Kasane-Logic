@@ -30,7 +30,7 @@ impl FlexId {
         // 軸ごとに違うのは「その軸のズームを取る方法」と「その軸で2分する方法」だけ。
         // `temporal_id` 無効時はTの軸自体が無いので、空回りする1周ごと削る。
         //
-        // `node::Axis`（FlexTreeが分割する軸そのもの）とは別物なので、同じ名前を避けて
+        // `node::Dimension`（FlexTreeが分割する軸そのもの）とは別物なので、同じ名前を避けて
         // `AxisOps` にしている（これは軸の値ではなく、軸ごとの操作関数のペア）。
         type AxisOps = (fn(&FlexId) -> u8, fn(&FlexId, Side) -> Option<FlexId>);
         #[cfg(feature = "temporal_id")]

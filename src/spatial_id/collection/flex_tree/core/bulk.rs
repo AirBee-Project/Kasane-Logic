@@ -33,7 +33,7 @@
 use alloc::vec::Vec;
 
 use super::FlexTreeCore;
-use super::node::{Axis, LEAF_LEVEL, Node};
+use super::node::{Dimension, LEAF_LEVEL, Node};
 use super::node_ops::join_at;
 use super::ptr::{MaybeSync, SafeValue, SharedNode};
 
@@ -159,7 +159,7 @@ fn build_slice<V: SafeValue>(
             });
         }
         // T は全時間（ズーム 0）なので常に消化済み。
-        if !matches!(Node::<V>::axis(level), Axis::T) && Node::<V>::depth(level) < z {
+        if !matches!(Node::<V>::axis(level), Dimension::T) && Node::<V>::depth(level) < z {
             break level;
         }
         level += 1;
@@ -183,12 +183,12 @@ fn build_slice<V: SafeValue>(
 /// `axis` 方向のインデックスから、深度に対応する 1 ビットを取り出す。
 /// [`Node::forking`] と同じ式（F は 2 の補数のビットをそのまま使う）。
 #[inline]
-fn axis_bit<V>(entry: &SingleEntry<V>, axis: Axis, shift: u8) -> u32 {
+fn axis_bit<V>(entry: &SingleEntry<V>, axis: Dimension, shift: u8) -> u32 {
     let index = match axis {
-        Axis::F => entry.0 as u32,
-        Axis::X => entry.1,
-        Axis::Y => entry.2,
-        Axis::T => unreachable!("T は消化済みとして読み飛ばしている"),
+        Dimension::F => entry.0 as u32,
+        Dimension::X => entry.1,
+        Dimension::Y => entry.2,
+        Dimension::T => unreachable!("T は消化済みとして読み飛ばしている"),
     };
     (index >> shift) & 1
 }

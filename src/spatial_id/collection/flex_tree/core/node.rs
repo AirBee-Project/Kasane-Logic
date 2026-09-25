@@ -6,11 +6,12 @@ use crate::{FlexId, Side};
 /// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
 /// だけの規約で、他に意味は無い。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Axis {
-    F,
-    X,
-    Y,
-    T,
+#[repr(u8)]
+pub enum Dimension {
+    F = 0,
+    X = 1,
+    Y = 2,
+    T = 3,
 }
 
 /// 木が同時に分割する軸の数。
@@ -116,19 +117,19 @@ where
     /// 時間軸（T）の分割は空間解像度に寄与しないため 0 として扱う。
     pub(crate) fn fold_max_zoom(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
         let own = match Self::axis(level) {
-            Axis::F | Axis::X | Axis::Y => Self::depth(level) + 1,
-            Axis::T => 0,
+            Dimension::F | Dimension::X | Dimension::Y => Self::depth(level) + 1,
+            Dimension::T => 0,
         };
         own.max(lower.max_zoom()).max(upper.max_zoom())
     }
 
     /// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
-    pub(crate) fn axis_bit(axis: Axis) -> u8 {
+    pub(crate) fn axis_bit(axis: Dimension) -> u8 {
         match axis {
-            Axis::F => 0b0001,
-            Axis::X => 0b0010,
-            Axis::Y => 0b0100,
-            Axis::T => 0b1000,
+            Dimension::F => 0b0001,
+            Dimension::X => 0b0010,
+            Dimension::Y => 0b0100,
+            Dimension::T => 0b1000,
         }
     }
 
@@ -195,12 +196,12 @@ where
     }
 
     /// level から対象とする軸(F, X, Y, T) を返す
-    pub(crate) fn axis(level: u8) -> Axis {
+    pub(crate) fn axis(level: u8) -> Dimension {
         match level % NUM_AXES {
-            0 => Axis::F,
-            1 => Axis::X,
-            2 => Axis::Y,
-            3 => Axis::T,
+            0 => Dimension::F,
+            1 => Dimension::X,
+            2 => Dimension::Y,
+            3 => Dimension::T,
             _ => unreachable!(),
         }
     }
@@ -211,12 +212,12 @@ where
     }
 
     /// FlexId の指定次元に対するズームレベルを返す
-    fn target_zoom(axis: Axis, target: &FlexId) -> u8 {
+    fn target_zoom(axis: Dimension, target: &FlexId) -> u8 {
         match axis {
-            Axis::F => target.f_zoomlevel(),
-            Axis::X => target.x_zoomlevel(),
-            Axis::Y => target.y_zoomlevel(),
-            Axis::T => target.t_zoomlevel(),
+            Dimension::F => target.f_zoomlevel(),
+            Dimension::X => target.x_zoomlevel(),
+            Dimension::Y => target.y_zoomlevel(),
+            Dimension::T => target.t_zoomlevel(),
         }
     }
 
@@ -246,7 +247,7 @@ where
     ) -> OverlappingChildren {
         let axis = Self::axis(level);
 
-        if matches!(axis, Axis::T) {
+        if matches!(axis, Dimension::T) {
             return Self::overlapping_children_time(target, current_id);
         }
 
@@ -263,7 +264,7 @@ where
         // （[`RangeId::set_x`](crate::RangeId::set_x)と同じ規約）を表す。分解ロジックは
         // `RangeId::split_wrapped_range` を共有する（x軸丸め込みと同じ規約を二重に持たない）。
         // F/Yはこの規約を持たない（常に昇順）ので、そのまま単一区間として扱える。
-        if axis == Axis::X {
+        if axis == Dimension::X {
             let x = target.x();
             let xy_max = (1i64 << target_z) - 1;
             if let Some([(a_min, a_max), (b_min, b_max)]) =
@@ -276,10 +277,10 @@ where
         }
 
         let (min_idx, max_idx) = match axis {
-            Axis::F => (target.f()[0] as u32, target.f()[1] as u32),
-            Axis::X => (target.x()[0], target.x()[1]),
-            Axis::Y => (target.y()[0], target.y()[1]),
-            Axis::T => unreachable!("Tは上でBothを返し済み"),
+            Dimension::F => (target.f()[0] as u32, target.f()[1] as u32),
+            Dimension::X => (target.x()[0], target.x()[1]),
+            Dimension::Y => (target.y()[0], target.y()[1]),
+            Dimension::T => unreachable!("Tは上でBothを返し済み"),
         };
 
         Self::which_child(min_idx, max_idx, shift)
@@ -712,10 +713,10 @@ where
         let depth = Self::depth(level);
 
         let (target_z, index): (u8, u64) = match axis {
-            Axis::F => (target.f_zoomlevel(), (target.f_index() as u32) as u64),
-            Axis::X => (target.x_zoomlevel(), target.x_index() as u64),
-            Axis::Y => (target.y_zoomlevel(), target.y_index() as u64),
-            Axis::T => (target.t_zoomlevel(), target.t()),
+            Dimension::F => (target.f_zoomlevel(), (target.f_index() as u32) as u64),
+            Dimension::X => (target.x_zoomlevel(), target.x_index() as u64),
+            Dimension::Y => (target.y_zoomlevel(), target.y_index() as u64),
+            Dimension::T => (target.t_zoomlevel(), target.t()),
         };
 
         if depth >= target_z {

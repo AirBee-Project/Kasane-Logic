@@ -52,7 +52,7 @@ mod test;
 
 /// 分離可能演算が作用する軸。
 ///
-/// 木の [`Axis`](crate::spatial_id::collection::flex_tree::core::node::Axis) と違い、
+/// 木の [`Dimension`](crate::spatial_id::collection::flex_tree::core::node::Dimension) と違い、
 /// 時間軸を持たない。分離可能演算は空間 3 軸にしか作用しないので、時間の分だけ
 /// 到達しない分岐を書かずに済む。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

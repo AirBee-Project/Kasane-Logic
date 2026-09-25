@@ -1,7 +1,7 @@
 use super::ptr::SafeValue;
 use super::{
     FlexTreeCore,
-    node::{Axis, NUM_AXES, Node},
+    node::{Dimension, NUM_AXES, Node},
     ptr::SharedNode,
     split_child_id,
 };
@@ -37,12 +37,12 @@ fn node_level_of(id: &FlexId) -> u8 {
 /// [`split_shard`](FlexTreeCore::split_shard) は木を降りるのではなくシャード領域を自分で
 /// 割るため、これ以上割れない軸に当たりうる。木の降下側（[`split_child_id`]）は
 /// 「分割が必要＝まだ割れる」ことが保証されているので `unwrap` のままでよい。
-fn split_child_id_checked(current_id: &FlexId, axis: Axis, side: Side) -> Option<FlexId> {
+fn split_child_id_checked(current_id: &FlexId, axis: Dimension, side: Side) -> Option<FlexId> {
     match axis {
-        Axis::F => current_id.split_f(side),
-        Axis::X => current_id.split_x(side),
-        Axis::Y => current_id.split_y(side),
-        Axis::T => current_id.split_t(side),
+        Dimension::F => current_id.split_f(side),
+        Dimension::X => current_id.split_x(side),
+        Dimension::Y => current_id.split_y(side),
+        Dimension::T => current_id.split_t(side),
     }
 }
 
@@ -84,23 +84,23 @@ where
     /// [`should_split_shard`](Self::should_split_shard) は `count()` で判定するので、
     /// これを選ぶと分割しても件数が減らずシャーディングが収束しない。
     /// 時間方向に実際の構造がある木でだけTを巡回に加える。
-    fn region_split_axis(region: &FlexId, has_temporal: bool) -> Axis {
+    fn region_split_axis(region: &FlexId, has_temporal: bool) -> Dimension {
         let spatial =
             region.f_zoomlevel() as u32 + region.x_zoomlevel() as u32 + region.y_zoomlevel() as u32;
 
         if !has_temporal {
             return match spatial % 3 {
-                0 => Axis::F,
-                1 => Axis::X,
-                _ => Axis::Y,
+                0 => Dimension::F,
+                1 => Dimension::X,
+                _ => Dimension::Y,
             };
         }
 
         match (spatial + region.t_zoomlevel() as u32) % 4 {
-            0 => Axis::F,
-            1 => Axis::X,
-            2 => Axis::Y,
-            _ => Axis::T,
+            0 => Dimension::F,
+            1 => Dimension::X,
+            2 => Dimension::Y,
+            _ => Dimension::T,
         }
     }
 
