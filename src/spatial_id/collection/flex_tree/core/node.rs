@@ -4,33 +4,36 @@ use crate::{FlexId, Side};
 
 pub use crate::spatial_id::dimension::Dimension;
 
-/// 木が同時に分割する軸の数。
+/// 木が同時に分割する次元の数。
 ///
-/// `temporal_id` feature が有効なら F/X/Y/T の4軸、無効なら F/X/Y の3軸。
-/// 時間を使わないビルドで4軸のまま回すと、[`Node::insert_mut`] の軸スキップ歩行が
+/// `temporal_id` feature が有効なら F/X/Y/T の4次元、無効なら F/X/Y の3次元。
+/// 時間を使わないビルドで4次元のまま回すと、[`Node::insert_mut`] の次元スキップ歩行が
 /// 空振りするTの番のぶんだけ余計にレベルを進み、挿入が素直に 4/3 倍遅くなる。
 #[cfg(feature = "temporal_id")]
-pub(crate) const NUM_AXES: u8 = 4;
+pub(crate) const NUM_DIMENSIONS: u8 = 4;
 #[cfg(not(feature = "temporal_id"))]
-pub(crate) const NUM_AXES: u8 = 3;
+pub(crate) const NUM_DIMENSIONS: u8 = 3;
+
+#[allow(dead_code)]
+pub(crate) const NUM_AXES: u8 = NUM_DIMENSIONS;
 
 /// 葉ノードの仮想ツリーレベル。木を降りる操作で「葉に達した」ことを表す
 /// 番兵として使う。実在の Branch はこれ未満のレベルしか持たない。
 ///
-/// 経験則 `NUM_AXES * (最深軸の最大ズーム + 1)` に従う。4軸版はTが最深（最大ズーム
+/// 経験則 `NUM_DIMENSIONS * (最深次元の最大ズーム + 1)` に従う。4次元版はTが最深（最大ズーム
 /// [`Interval::MAX_POW`](crate::Interval::MAX_POW) = 35）かつサイクル内で最後
-/// （位置3）なので `4*(35+1) = 144`、3軸版は `3*(30+1) = 93`。
+/// （位置3）なので `4*(35+1) = 144`、3次元版は `3*(30+1) = 93`。
 #[cfg(feature = "temporal_id")]
 pub(crate) const LEAF_LEVEL: u8 = 144;
 #[cfg(not(feature = "temporal_id"))]
 pub(crate) const LEAF_LEVEL: u8 = 93;
 
-/// [`covers_all_axes`](Node::covers_all_axes) は `level + (NUM_AXES - 1)` を計算するため、
+/// [`covers_all_dimensions`](Node::covers_all_dimensions) は `level + (NUM_DIMENSIONS - 1)` を計算するため、
 /// レベル番号が `u8` に収まりきることをコンパイル時に確かめておく。
-/// 軸を1本増やすと 4軸版で 255 に達し、静かにオーバーフローする。
+/// 次元を1本増やすと 4次元版で 255 に達し、静かにオーバーフローする。
 const _: () = assert!(
-    (LEAF_LEVEL as u16) + (NUM_AXES as u16) - 1 <= u8::MAX as u16,
-    "LEAF_LEVEL + NUM_AXES - 1 が u8 を超える。軸を増やすならレベル型を広げること"
+    (LEAF_LEVEL as u16) + (NUM_DIMENSIONS as u16) - 1 <= u8::MAX as u16,
+    "LEAF_LEVEL + NUM_DIMENSIONS - 1 が u8 を超える。次元を増やすならレベル型を広げること"
 );
 
 /// Branch の両子（下・上）への参照ペア。
@@ -114,13 +117,15 @@ where
     }
 
     /// 次元に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
+    #[inline]
+    pub(crate) fn dimension_bit(dimension: Dimension) -> u8 {
+        dimension.bit()
+    }
+
+    #[inline]
+    #[allow(dead_code)]
     pub(crate) fn axis_bit(dimension: Dimension) -> u8 {
-        match dimension {
-            Dimension::F => 0b0001,
-            Dimension::X => 0b0010,
-            Dimension::Y => 0b0100,
-            Dimension::T => 0b1000,
-        }
+        Self::dimension_bit(dimension)
     }
 
     /// このノード配下が分割している軸の集合。Branch はキャッシュ済みで O(1)、Leaf は 0。
@@ -152,9 +157,9 @@ where
     }
 
     /// レベル `level` の Branch を構築・更新する際の `split_mask` を、両子から畳み上げる。
-    /// 自身が分割する軸 `axis(level)` に、両子の分割軸を OR する。
+    /// 自身が分割する次元 `dimension(level)` に、両子の分割次元を OR する。
     pub(crate) fn fold_split_mask(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
-        Self::axis_bit(Self::axis(level)) | lower.split_mask() | upper.split_mask()
+        Self::dimension_bit(Self::dimension(level)) | lower.split_mask() | upper.split_mask()
     }
 
     /// Branch を構築する唯一の入口（smart constructor）。
@@ -185,9 +190,9 @@ where
         })
     }
 
-    /// level から対象とする軸(F, X, Y, T) を返す
-    pub(crate) fn axis(level: u8) -> Dimension {
-        match level % NUM_AXES {
+    /// level から対象とする次元(F, X, Y, T) を返す
+    pub(crate) fn dimension(level: u8) -> Dimension {
+        match level % NUM_DIMENSIONS {
             0 => Dimension::F,
             1 => Dimension::X,
             2 => Dimension::Y,
@@ -196,9 +201,15 @@ where
         }
     }
 
-    /// level から各軸の深度を返す
+    #[inline]
+    #[allow(dead_code)]
+    pub(crate) fn axis(level: u8) -> Dimension {
+        Self::dimension(level)
+    }
+
+    /// level から各次元の深度を返す
     pub fn depth(level: u8) -> u8 {
-        level / NUM_AXES
+        level / NUM_DIMENSIONS
     }
 
     /// FlexId の指定次元に対するズームレベルを返す
@@ -235,9 +246,9 @@ where
         level: u8,
         current_id: &FlexId,
     ) -> OverlappingChildren {
-        let axis = Self::axis(level);
+        let dimension = Self::dimension(level);
 
-        if matches!(axis, Dimension::T) {
+        if matches!(dimension, Dimension::T) {
             return Self::overlapping_children_time(target, current_id);
         }
 
@@ -254,7 +265,7 @@ where
         // （[`RangeId::set_x`](crate::RangeId::set_x)と同じ規約）を表す。分解ロジックは
         // `RangeId::split_wrapped_range` を共有する（x軸丸め込みと同じ規約を二重に持たない）。
         // F/Yはこの規約を持たない（常に昇順）ので、そのまま単一区間として扱える。
-        if axis == Dimension::X {
+        if dimension == Dimension::X {
             let x = target.x();
             let xy_max = (1i64 << target_z) - 1;
             if let Some([(a_min, a_max), (b_min, b_max)]) =
@@ -266,7 +277,7 @@ where
             }
         }
 
-        let (min_idx, max_idx) = match axis {
+        let (min_idx, max_idx) = match dimension {
             Dimension::F => (target.f()[0] as u32, target.f()[1] as u32),
             Dimension::X => (target.x()[0], target.x()[1]),
             Dimension::Y => (target.y()[0], target.y()[1]),
@@ -338,22 +349,22 @@ where
     /// `shard.rs`がシャード領域から次に分割すべき軸・レベルを再構成する際にも使うため
     /// `pub(crate)`にしている。
     pub(crate) fn covers(target: &FlexId, level: u8) -> bool {
-        let axis = Self::axis(level);
+        let dimension = Self::dimension(level);
         let depth = Self::depth(level);
-        Self::target_zoom(axis, target) <= depth
+        Self::target_zoom(dimension, target) <= depth
     }
 
     /// レベル `level` に居るとき、サイクル内の位置 `p` の軸を何回分割し終えているか。
     ///
-    /// `passed(level, p) = (level + (NUM_AXES - 1 - p)) / NUM_AXES`。
-    /// 軸数から導出するので、`temporal_id` の有無（4軸／3軸）どちらでも成り立つ。
+    /// `passed(level, p) = (level + (NUM_DIMENSIONS - 1 - p)) / NUM_DIMENSIONS`。
+    /// 次元数から導出するので、`temporal_id` の有無（4次元／3次元）どちらでも成り立つ。
     const fn passed(level: u8, position: u8) -> u8 {
-        (level + (NUM_AXES - 1 - position)) / NUM_AXES
+        (level + (NUM_DIMENSIONS - 1 - position)) / NUM_DIMENSIONS
     }
 
-    /// target が現在の空間境界を**全軸**で完全に覆うか判定する。
-    /// 1軸だけ見るのは [`covers`](Self::covers)。
-    pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
+    /// target が現在の空間境界を**全次元**で完全に覆うか判定する。
+    /// 1次元だけ見るのは [`covers`](Self::covers)。
+    pub(crate) fn covers_all_dimensions(target: &FlexId, level: u8) -> bool {
         let spatial = target.f_zoomlevel() <= Self::passed(level, 0)
             && target.x_zoomlevel() <= Self::passed(level, 1)
             && target.y_zoomlevel() <= Self::passed(level, 2);
@@ -363,11 +374,17 @@ where
             spatial && target.t_zoomlevel() <= Self::passed(level, 3)
         }
 
-        // 3軸版にはTの番が無く、時間は常に全時間（ズーム0）なので判定不要。
+        // 3次元版にはTの番が無く、時間は常に全時間（ズーム0）なので判定不要。
         #[cfg(not(feature = "temporal_id"))]
         {
             spatial
         }
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
+        Self::covers_all_dimensions(target, level)
     }
 
     /// 持続的データ構造に挿入します。
@@ -676,8 +693,8 @@ where
         // ビットテストで O(1) に判定する（旧 subtree_splits_axis の O(部分木) 走査を排除）。
         // 子が等価なら両子の split_mask は一致するため、lower 側だけ見れば足りる。
         // ここを先に弾くことで、非等価な大半の枝は深い比較（O(部分木)）に入らない。
-        let axis_bit = Self::axis_bit(Self::axis(level));
-        if (lower_child.split_mask() & axis_bit) != 0 {
+        let dimension_bit = Self::dimension_bit(Self::dimension(level));
+        if (lower_child.split_mask() & dimension_bit) != 0 {
             return None;
         }
 
@@ -699,10 +716,10 @@ where
     /// Tのインデックスは`u64`（他軸は`u32`以下）のため、比較は`u64`へ揃えて行う
     /// （F/Xは既存と同じビットパターンでゼロ拡張されるだけで意味は変わらない）。
     fn forking(target: &FlexId, level: u8) -> Side {
-        let axis = Self::axis(level);
+        let dimension = Self::dimension(level);
         let depth = Self::depth(level);
 
-        let (target_z, index): (u8, u64) = match axis {
+        let (target_z, index): (u8, u64) = match dimension {
             Dimension::F => (target.f_zoomlevel(), (target.f_index() as u32) as u64),
             Dimension::X => (target.x_zoomlevel(), target.x_index() as u64),
             Dimension::Y => (target.y_zoomlevel(), target.y_index() as u64),
@@ -815,8 +832,8 @@ where
         }
 
         // N1: 畳めるのに畳んでいない Branch は存在してはならない。
-        let axis_bit = Self::axis_bit(Self::axis(*level));
-        if (lower_child.split_mask() & axis_bit) == 0 && **lower_child == **upper_child {
+        let dimension_bit = Self::dimension_bit(Self::dimension(*level));
+        if (lower_child.split_mask() & dimension_bit) == 0 && **lower_child == **upper_child {
             return Err(alloc::format!(
                 "level {level}: collapsible branch violates N1"
             ));

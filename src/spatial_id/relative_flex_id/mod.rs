@@ -18,8 +18,8 @@ impl FlexId {
         if !ancestor.contains(self) {
             return Err(SpatialIdError::NotAncestor.into());
         }
-        // 各軸で、祖先からの深さと、その深さぶんの下位ビットを求める
-        let relative = from_axes(zip_axes(self, ancestor, |(z, i), (az, ai)| {
+        // 各次元で、祖先からの深さと、その深さぶんの下位ビットを求める
+        let relative = from_dimensions(zip_dimensions(self, ancestor, |(z, i), (az, ai)| {
             let dz = z - az;
             (dz, i - (ai << dz))
         }))?;
@@ -39,7 +39,7 @@ impl RelativeFlexId {
     }
 
     /// `ancestor` を原点として、[FlexId] を復元する。
-    /// どれかの軸で最大ズームを超えるなら [`SpatialIdError::ZOutOfRange`] を返す。
+    /// どれかの次元で最大ズームを超えるなら [`SpatialIdError::ZOutOfRange`] を返す。
     pub(crate) fn to_absolute(self, ancestor: &FlexId) -> Result<FlexId, Error> {
         let max_zoom = [
             ZoomLevel::MAX.get(),
@@ -47,22 +47,25 @@ impl RelativeFlexId {
             ZoomLevel::MAX.get(),
             TZoomLevel::MAX.get(),
         ];
-        for (((az, _), (rz, _)), max) in axes(ancestor).into_iter().zip(axes(&self.0)).zip(max_zoom)
+        for (((az, _), (rz, _)), max) in dimensions(ancestor)
+            .into_iter()
+            .zip(dimensions(&self.0))
+            .zip(max_zoom)
         {
             if az + rz > max {
                 return Err(SpatialIdError::ZOutOfRange { z: az + rz }.into());
             }
         }
-        from_axes(zip_axes(ancestor, &self.0, |(az, ai), (rz, ri)| {
+        from_dimensions(zip_dimensions(ancestor, &self.0, |(az, ai), (rz, ri)| {
             (az + rz, (ai << rz) + ri)
         }))
     }
 }
 
-/// F / X / Y / T の各軸の `(ズーム, インデックス)`。
-type Axes = [(u8, i64); 4];
+/// F / X / Y / T の各次元の `(ズーム, インデックス)`。
+type Dimensions = [(u8, i64); 4];
 
-fn axes(id: &FlexId) -> Axes {
+fn dimensions(id: &FlexId) -> Dimensions {
     [
         (id.f_zoomlevel(), id.f_index() as i64),
         (id.x_zoomlevel(), id.x_index() as i64),
@@ -71,13 +74,17 @@ fn axes(id: &FlexId) -> Axes {
     ]
 }
 
-/// 2つの ID の各軸を `f` で組み合わせる。
-fn zip_axes(a: &FlexId, b: &FlexId, f: impl Fn((u8, i64), (u8, i64)) -> (u8, i64)) -> Axes {
-    let (a, b) = (axes(a), axes(b));
+/// 2つの ID の各次元を `f` で組み合わせる。
+fn zip_dimensions(
+    a: &FlexId,
+    b: &FlexId,
+    f: impl Fn((u8, i64), (u8, i64)) -> (u8, i64),
+) -> Dimensions {
+    let (a, b) = (dimensions(a), dimensions(b));
     core::array::from_fn(|i| f(a[i], b[i]))
 }
 
-fn from_axes([(fz, f), (xz, x), (yz, y), (tz, t)]: Axes) -> Result<FlexId, Error> {
+fn from_dimensions([(fz, f), (xz, x), (yz, y), (tz, t)]: Dimensions) -> Result<FlexId, Error> {
     Ok(FlexId::new(fz, f as i32, xz, x as u32, yz, y as u32)?.with_time_segment(tz, t as u64))
 }
 

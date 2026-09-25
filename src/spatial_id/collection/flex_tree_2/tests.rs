@@ -4,7 +4,10 @@ use alloc::vec::Vec;
 
 use super::FlexTreeCore2;
 use super::node::Node;
-use crate::{FlexId, Side, spatial_id::dimension::Dimension};
+use crate::{
+    FlexId, Side,
+    spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
+};
 
 /// Leaf と Branch の数。Skip は位置の移動だけなので数えない。
 fn node_count<V>(node: &Node<V>) -> usize {
@@ -175,12 +178,17 @@ fn sample_points(next: &mut impl FnMut(u64) -> u64, ids: &[FlexId]) -> Vec<FlexI
     points
 }
 
-/// Skip を足しても Node の大きさが変わらない（Skip の中身はポインタの先）。
+/// Skip は `path` をノード内に直接持つので、Node の大きさは Skip で決まる。
+/// `path`（`RelativeFlexId`）以外の部分（`split_dimensions`・`child`・タグ）は 16 バイトに収まる。
+///
+/// `RelativeFlexId` の大きさは時間次元の有無で変わる（`temporal_id` ありで 24B、なしで 16B）ため、
+/// Node の大きさは決め打ちせず `RelativeFlexId` から求める。
 #[test]
 fn node_size_with_inlined_skip() {
-    // Skip の path を Box からインライン化（ゼロアロケーション）したため、
-    // Node のサイズは 40 バイト（24B の WithoutSkip に RelativeFlexId が乗る）。
-    assert_eq!(core::mem::size_of::<Node<u64>>(), 40);
+    assert_eq!(
+        core::mem::size_of::<Node<u64>>(),
+        core::mem::size_of::<RelativeFlexId>() + 16
+    );
 }
 
 #[test]

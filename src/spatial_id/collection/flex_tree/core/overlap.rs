@@ -147,13 +147,13 @@ where
                 unreachable!("葉は上で処理済み")
             };
 
-            let axis = Node::<V>::axis(*level);
+            let dimension = Node::<V>::dimension(*level);
             match Node::<V>::overlapping_children(target, *level) {
                 OverlappingChildren::Both => {
-                    let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                    let upper_id = split_child_id(&current_id, dimension, Side::Upper);
                     Self::prune_node_mut(upper_child, target, upper_id, removed, empty_leaf);
 
-                    let lower_id = split_child_id(&current_id, axis, Side::Lower);
+                    let lower_id = split_child_id(&current_id, dimension, Side::Lower);
                     Self::prune_node_mut(lower_child, target, lower_id, removed, empty_leaf);
                 }
                 OverlappingChildren::Only(side) => {
@@ -161,7 +161,7 @@ where
                         Side::Lower => &mut *lower_child,
                         Side::Upper => &mut *upper_child,
                     };
-                    let child_id = split_child_id(&current_id, axis, side);
+                    let child_id = split_child_id(&current_id, dimension, side);
                     Self::prune_node_mut(child, target, child_id, removed, empty_leaf);
                 }
             }

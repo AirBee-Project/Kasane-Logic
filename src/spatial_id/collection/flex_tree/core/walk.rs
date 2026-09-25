@@ -156,9 +156,9 @@ fn push_children<C: TreeCursor>(
     upper: C,
     overlapping: OverlappingChildren,
 ) {
-    let axis = Node::<()>::axis(level);
+    let dimension = Node::<()>::dimension(level);
     let mut push = |side: Side, child: C| {
-        stack.push((child, split_child_id(current_id, axis, side)));
+        stack.push((child, split_child_id(current_id, dimension, side)));
     };
 
     match overlapping {

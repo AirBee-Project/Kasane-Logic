@@ -27,27 +27,27 @@ impl FlexId {
 
         let mut current = *self;
 
-        // 軸ごとに違うのは「その軸のズームを取る方法」と「その軸で2分する方法」だけ。
-        // `temporal_id` 無効時はTの軸自体が無いので、空回りする1周ごと削る。
+        // 次元ごとに違うのは「その次元のズームを取る方法」と「その次元で2分する方法」だけ。
+        // `temporal_id` 無効時はTの次元自体が無いので、空回りする1周ごと削る。
         //
         // `Dimension`（次元そのものを表す値）とは別物なので、同じ名前を避けて
-        // `AxisOps` にしている（これは軸の値ではなく、軸ごとの操作関数のペア）。
-        type AxisOps = (fn(&FlexId) -> u8, fn(&FlexId, Side) -> Option<FlexId>);
+        // `DimensionOps` にしている（これは次元の値ではなく、次元ごとの操作関数のペア）。
+        type DimensionOps = (fn(&FlexId) -> u8, fn(&FlexId, Side) -> Option<FlexId>);
         #[cfg(feature = "temporal_id")]
-        const AXES: [AxisOps; 4] = [
+        const DIMENSIONS: [DimensionOps; 4] = [
             (FlexId::f_zoomlevel, FlexId::split_f),
             (FlexId::x_zoomlevel, FlexId::split_x),
             (FlexId::y_zoomlevel, FlexId::split_y),
             (FlexId::t_zoomlevel, FlexId::split_t),
         ];
         #[cfg(not(feature = "temporal_id"))]
-        const AXES: [AxisOps; 3] = [
+        const DIMENSIONS: [DimensionOps; 3] = [
             (FlexId::f_zoomlevel, FlexId::split_f),
             (FlexId::x_zoomlevel, FlexId::split_x),
             (FlexId::y_zoomlevel, FlexId::split_y),
         ];
 
-        for (zoom_of, split) in AXES {
+        for (zoom_of, split) in DIMENSIONS {
             while zoom_of(&current) < zoom_of(&intersect) {
                 let lower = split(&current, Side::Lower).expect("交差より浅いので必ず割れる");
                 let upper = split(&current, Side::Upper).expect("交差より浅いので必ず割れる");
@@ -71,19 +71,19 @@ impl FlexId {
     /// 異なるズームのSegmentは入れ子か素のどちらかしかないので、重なる場合の交差は必ず
     /// 深い側のSegmentそのものになる。
     pub fn intersection(&self, other: &FlexId) -> Option<FlexId> {
-        let (f_z, f_i) = nested_axis(
+        let (f_z, f_i) = nested_dimension(
             self.f_zoomlevel(),
             self.f_index() as i64,
             other.f_zoomlevel(),
             other.f_index() as i64,
         )?;
-        let (x_z, x_i) = nested_axis(
+        let (x_z, x_i) = nested_dimension(
             self.x_zoomlevel(),
             self.x_index() as i64,
             other.x_zoomlevel(),
             other.x_index() as i64,
         )?;
-        let (y_z, y_i) = nested_axis(
+        let (y_z, y_i) = nested_dimension(
             self.y_zoomlevel(),
             self.y_index() as i64,
             other.y_zoomlevel(),
@@ -93,7 +93,7 @@ impl FlexId {
         // 時間軸は `temporal_id` 無効時には存在しない（双方とも全時間で必ず入れ子）ので、
         // 判定ごと消して空間3軸だけの費用に戻す。
         #[cfg(feature = "temporal_id")]
-        let (t_z, t_i) = nested_axis(
+        let (t_z, t_i) = nested_dimension(
             self.t_zoomlevel(),
             self.t() as i64,
             other.t_zoomlevel(),
@@ -128,7 +128,7 @@ impl FlexId {
     /// assert!(parent.contains(&parent)); // 自身は自身を包含する
     /// ```
     pub fn contains(&self, other: &FlexId) -> bool {
-        if !contains_axis(
+        if !contains_dimension(
             self.f_zoomlevel(),
             self.f_index() as i64,
             other.f_zoomlevel(),
@@ -136,7 +136,7 @@ impl FlexId {
         ) {
             return false;
         }
-        if !contains_axis(
+        if !contains_dimension(
             self.x_zoomlevel(),
             self.x_index() as i64,
             other.x_zoomlevel(),
@@ -144,7 +144,7 @@ impl FlexId {
         ) {
             return false;
         }
-        if !contains_axis(
+        if !contains_dimension(
             self.y_zoomlevel(),
             self.y_index() as i64,
             other.y_zoomlevel(),
@@ -156,7 +156,7 @@ impl FlexId {
         // `temporal_id` 無効時は双方とも全時間で必ず入れ子なので、判定ごと消す。
         #[cfg(feature = "temporal_id")]
         {
-            if !contains_axis(
+            if !contains_dimension(
                 self.t_zoomlevel(),
                 self.t() as i64,
                 other.t_zoomlevel(),
@@ -187,19 +187,19 @@ impl FlexId {
             }
         }
 
-        overlaps_axis(
+        overlaps_dimension(
             self.f_zoomlevel(),
             self.f_index() as i64,
             range.z(),
             range.f()[0] as i64,
             range.f()[1] as i64,
-        ) && overlaps_axis(
+        ) && overlaps_dimension(
             self.x_zoomlevel(),
             self.x_index() as i64,
             range.z(),
             range.x()[0] as i64,
             range.x()[1] as i64,
-        ) && overlaps_axis(
+        ) && overlaps_dimension(
             self.y_zoomlevel(),
             self.y_index() as i64,
             range.z(),
@@ -209,11 +209,11 @@ impl FlexId {
     }
 }
 
-/// 1軸について、`(shallow_z, shallow_i)` が `(deep_z, deep_i)` を包含するか判定する。
+/// 1次元について、`(shallow_z, shallow_i)` が `(deep_z, deep_i)` を包含するか判定する。
 ///
-/// [`nested_axis`] と違い対称ではない（`self` 側を浅い側に固定して判定する）ため、
+/// [`nested_dimension`] と違い対称ではない（`self` 側を浅い側に固定して判定する）ため、
 /// 深さが逆（`shallow_z > deep_z`）なら即座に包含しないと判断できる。
-fn contains_axis(shallow_z: u8, shallow_i: i64, deep_z: u8, deep_i: i64) -> bool {
+fn contains_dimension(shallow_z: u8, shallow_i: i64, deep_z: u8, deep_i: i64) -> bool {
     if shallow_z > deep_z {
         return false;
     }
@@ -221,12 +221,12 @@ fn contains_axis(shallow_z: u8, shallow_i: i64, deep_z: u8, deep_i: i64) -> bool
     (deep_i >> shift) == shallow_i
 }
 
-/// 1軸について、2つのSegmentが入れ子なら「深い側」の `(zoom, index)` を返す。素なら [`None`]。
+/// 1次元について、2つのSegmentが入れ子なら「深い側」の `(zoom, index)` を返す。素なら [`None`]。
 ///
 /// F は符号付き `i32`、X/Y は `u32`、T は `u64` と幅が違うが判定式は同じなので、`i64` へ
 /// 揃えて1つの関数で扱う（このクレートが扱う範囲——`u32` の全域と `2^62` までの `u64`——は
 /// `i64` で情報を落とさずに表せる）。
-fn nested_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
+fn nested_dimension(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
     let (deep_z, deep_i, shallow_z, shallow_i) = if z1 > z2 {
         (z1, i1, z2, i2)
     } else {
@@ -237,8 +237,8 @@ fn nested_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
     ((deep_i >> shift) == shallow_i).then_some((deep_z, deep_i))
 }
 
-/// 1軸について、Segmentと（別ズームの）整数範囲が重なるか。
-fn overlaps_axis(
+/// 1次元について、Segmentと（別ズームの）整数範囲が重なるか。
+fn overlaps_dimension(
     segment_z: u8,
     segment_i: i64,
     range_z: u8,

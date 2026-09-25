@@ -269,9 +269,9 @@ where
                 upper_child,
                 ..
             } => {
-                let axis = Node::<V>::axis(*level);
-                let lower_id = split_child_id(&current_id, axis, Side::Lower);
-                let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                let dimension = Node::<V>::dimension(*level);
+                let lower_id = split_child_id(&current_id, dimension, Side::Lower);
+                let upper_id = split_child_id(&current_id, dimension, Side::Upper);
 
                 if *leaf_count as usize >= node_ops::PARALLEL_LEAF_CUTOFF {
                     let (lr, ur): (Result<Vec<_>, Error>, Result<Vec<_>, Error>) = rayon::join(
@@ -322,9 +322,9 @@ where
                 upper_child,
                 ..
             } => {
-                let axis = Node::<V>::axis(*level);
-                let lower_id = split_child_id(&current_id, axis, Side::Lower);
-                let upper_id = split_child_id(&current_id, axis, Side::Upper);
+                let dimension = Node::<V>::dimension(*level);
+                let lower_id = split_child_id(&current_id, dimension, Side::Lower);
+                let upper_id = split_child_id(&current_id, dimension, Side::Upper);
                 Self::expand_into(lower_child.as_ref(), lower_id, f, out)?;
                 Self::expand_into(upper_child.as_ref(), upper_id, f, out)?;
                 Ok(())
@@ -554,16 +554,16 @@ where
     /// 時間方向の結合（[`coalesce_temporal`](super::coalesce::coalesce_temporal)）を
     /// まるごと省略でき、`flat_single_ids_ref` の遅延評価を保てる。
     ///
-    /// `temporal_id` feature 無効時は T の番自体が無い（`NUM_AXES == 3`）ため常に偽。
+    /// `temporal_id` feature 無効時は T の番自体が無い（`NUM_DIMENSIONS == 3`）ため常に偽。
     pub(crate) fn has_temporal_split(&self) -> bool {
         let mask = self.lower_root.split_mask() | self.upper_root.split_mask();
-        mask & Node::<V>::axis_bit(Dimension::T) != 0
+        mask & Node::<V>::dimension_bit(Dimension::T) != 0
     }
 
     /// この [`FlexTreeCore`] に含まれる要素のうち、最も高いズームレベル値を返します。ここでいう解像度は、各 [`FlexId`] の `f/x/y` それぞれのズームレベルの最大値です。
     /// 空の木では [`None`] を返します。
     ///
-    /// 検証は `core_api_tests::max_zoomlevel_reports_the_finest_axis` を参照。
+    /// 検証は `core_api_tests::max_zoomlevel_reports_the_finest_dimension` を参照。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         if self.is_empty() {
             return None;
@@ -1002,11 +1002,11 @@ pub(crate) type SortKey = u128;
 #[cfg(all(feature = "rayon", not(feature = "temporal_id")))]
 pub(crate) type SortKey = u64;
 
-/// 軸のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
+/// 次元のインデックスを、ズームに依らず先頭ビット揃え（MSB 揃え）で `bits` 幅へ正規化する。
 /// 粗い（浅い）Segmentは上位ビット側に、細かいSegmentは下位ビットまで伸びる。
 #[cfg(feature = "rayon")]
 #[inline]
-fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
+fn dimension_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
     let z = zoom as u32;
     let a = if z <= bits {
         index << (bits - z)
@@ -1022,21 +1022,21 @@ fn axis_aligned(index: u64, zoom: u8, bits: u32) -> u64 {
 /// チャンク木同士の [`union`](FlexTreeCore::union) / [`merge_with`](FlexTreeCore::merge_with) が
 /// 互いにほぼ素になって簡約が軽くなる。並列バルク構築と値解決構築の双方で使う。
 /// `temporal_id` 有効時はTのインデックスが`u64`まで取りうるため、キー全体を[`SortKey`]
-/// = `u128`に拡張している（4軸×20bit=80bitで`u64`に収まらない）。無効時はT軸が無いので
-/// 3軸×20bit=60bitの`u64`に戻る。
+/// = `u128`に拡張している（4次元×20bit=80bitで`u64`に収まらない）。無効時はT次元が無いので
+/// 3次元×20bit=60bitの`u64`に戻る。
 #[cfg(feature = "rayon")]
 #[inline]
 pub(crate) fn spatial_sort_key(id: &FlexId) -> SortKey {
     const B: u32 = SORT_KEY_BITS;
     // F は符号付き。木は最初に符号でルートを分けるため、符号ビットを最上位に置く。
     let f_biased = (id.f_index() as i64 + (1i64 << 30)) as u64;
-    let fa = axis_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B) as SortKey;
-    let xa = axis_aligned(id.x_index() as u64, id.x_zoomlevel(), B) as SortKey;
-    let ya = axis_aligned(id.y_index() as u64, id.y_zoomlevel(), B) as SortKey;
+    let fa = dimension_aligned(f_biased, id.f_zoomlevel().saturating_add(1), B) as SortKey;
+    let xa = dimension_aligned(id.x_index() as u64, id.x_zoomlevel(), B) as SortKey;
+    let ya = dimension_aligned(id.y_index() as u64, id.y_zoomlevel(), B) as SortKey;
 
     #[cfg(feature = "temporal_id")]
     {
-        let ta = axis_aligned(id.t(), id.t_zoomlevel(), B) as SortKey;
+        let ta = dimension_aligned(id.t(), id.t_zoomlevel(), B) as SortKey;
         (fa << (3 * B)) | (xa << (2 * B)) | (ya << B) | ta
     }
 
@@ -1117,7 +1117,7 @@ mod core_api_tests {
     use crate::{RangeId, SingleId};
 
     #[test]
-    fn max_zoomlevel_reports_the_finest_axis() {
+    fn max_zoomlevel_reports_the_finest_dimension() {
         let mut core = FlexTreeCore::new();
         core.insert(RangeId::new(4, [0, 1], [0, 0], [0, 0]).unwrap(), ());
         assert_eq!(core.max_zoomlevel(), Some(4));

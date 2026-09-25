@@ -695,7 +695,7 @@ impl FlexId {
             Separated,
         }
 
-        fn axis_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
+        fn dimension_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
             let shift = (common - zoom) as i64;
             (index << shift, ((index + 1) << shift) - 1)
         }
@@ -720,20 +720,20 @@ impl FlexId {
 
         let cf = self.f_zoomlevel().max(other.f_zoomlevel());
         let rf = classify(
-            axis_range(self.f_zoomlevel(), self.f_index() as i64, cf),
-            axis_range(other.f_zoomlevel(), other.f_index() as i64, cf),
+            dimension_range(self.f_zoomlevel(), self.f_index() as i64, cf),
+            dimension_range(other.f_zoomlevel(), other.f_index() as i64, cf),
             None,
         );
         let cx = self.x_zoomlevel().max(other.x_zoomlevel());
         let rx = classify(
-            axis_range(self.x_zoomlevel(), self.x_index() as i64, cx),
-            axis_range(other.x_zoomlevel(), other.x_index() as i64, cx),
+            dimension_range(self.x_zoomlevel(), self.x_index() as i64, cx),
+            dimension_range(other.x_zoomlevel(), other.x_index() as i64, cx),
             Some(1i64 << cx),
         );
         let cy = self.y_zoomlevel().max(other.y_zoomlevel());
         let ry = classify(
-            axis_range(self.y_zoomlevel(), self.y_index() as i64, cy),
-            axis_range(other.y_zoomlevel(), other.y_index() as i64, cy),
+            dimension_range(self.y_zoomlevel(), self.y_index() as i64, cy),
+            dimension_range(other.y_zoomlevel(), other.y_index() as i64, cy),
             None,
         );
 
