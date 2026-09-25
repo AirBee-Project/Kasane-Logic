@@ -1046,9 +1046,9 @@ pub(crate) fn spatial_sort_key(id: &FlexId) -> SortKey {
     }
 }
 
-/// 軸と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
-pub(crate) fn split_child_id(current_id: &FlexId, axis: Dimension, side: Side) -> FlexId {
-    match axis {
+/// 次元と side に応じて、現在 ID から子ノード側の ID を1段分割して返す。
+pub(crate) fn split_child_id(current_id: &FlexId, dimension: Dimension, side: Side) -> FlexId {
+    match dimension {
         Dimension::F => current_id.split_f(side).unwrap(),
         Dimension::X => current_id.split_x(side).unwrap(),
         Dimension::Y => current_id.split_y(side).unwrap(),

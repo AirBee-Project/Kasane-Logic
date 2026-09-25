@@ -14,6 +14,11 @@ pub enum Dimension {
     T = 3,
 }
 
+impl Dimension {
+    /// 全ての軸（F→X→Y→T の順）。
+    pub(crate) const ALL: [Dimension; 4] = [Dimension::F, Dimension::X, Dimension::Y, Dimension::T];
+}
+
 /// 木が同時に分割する軸の数。
 ///
 /// `temporal_id` feature が有効なら F/X/Y/T の4軸、無効なら F/X/Y の3軸。
@@ -123,9 +128,9 @@ where
         own.max(lower.max_zoom()).max(upper.max_zoom())
     }
 
-    /// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
-    pub(crate) fn axis_bit(axis: Dimension) -> u8 {
-        match axis {
+    /// 次元に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
+    pub(crate) fn axis_bit(dimension: Dimension) -> u8 {
+        match dimension {
             Dimension::F => 0b0001,
             Dimension::X => 0b0010,
             Dimension::Y => 0b0100,
@@ -212,8 +217,8 @@ where
     }
 
     /// FlexId の指定次元に対するズームレベルを返す
-    fn target_zoom(axis: Dimension, target: &FlexId) -> u8 {
-        match axis {
+    fn target_zoom(dimension: Dimension, target: &FlexId) -> u8 {
+        match dimension {
             Dimension::F => target.f_zoomlevel(),
             Dimension::X => target.x_zoomlevel(),
             Dimension::Y => target.y_zoomlevel(),

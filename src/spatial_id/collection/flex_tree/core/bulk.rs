@@ -180,11 +180,11 @@ fn build_slice<V: SafeValue>(
     Node::mk(split_level, new_lower, new_upper, empty_leaf)
 }
 
-/// `axis` 方向のインデックスから、深度に対応する 1 ビットを取り出す。
+/// `dimension` 方向のインデックスから、深度に対応する 1 ビットを取り出す。
 /// [`Node::forking`] と同じ式（F は 2 の補数のビットをそのまま使う）。
 #[inline]
-fn axis_bit<V>(entry: &SingleEntry<V>, axis: Dimension, shift: u8) -> u32 {
-    let index = match axis {
+fn axis_bit<V>(entry: &SingleEntry<V>, dimension: Dimension, shift: u8) -> u32 {
+    let index = match dimension {
         Dimension::F => entry.0 as u32,
         Dimension::X => entry.1,
         Dimension::Y => entry.2,

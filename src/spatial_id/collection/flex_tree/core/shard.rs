@@ -32,13 +32,13 @@ fn node_level_of(id: &FlexId) -> u8 {
     level.max(0) as u8
 }
 
-/// [`split_child_id`] と同じだが、その軸が最大ズームに達していれば [`None`] を返す。
+/// [`split_child_id`] と同じだが、その次元が最大ズームに達していれば [`None`] を返す。
 ///
 /// [`split_shard`](FlexTreeCore::split_shard) は木を降りるのではなくシャード領域を自分で
-/// 割るため、これ以上割れない軸に当たりうる。木の降下側（[`split_child_id`]）は
+/// 割るため、これ以上割れない次元に当たりうる。木の降下側（[`split_child_id`]）は
 /// 「分割が必要＝まだ割れる」ことが保証されているので `unwrap` のままでよい。
-fn split_child_id_checked(current_id: &FlexId, axis: Dimension, side: Side) -> Option<FlexId> {
-    match axis {
+fn split_child_id_checked(current_id: &FlexId, dimension: Dimension, side: Side) -> Option<FlexId> {
+    match dimension {
         Dimension::F => current_id.split_f(side),
         Dimension::X => current_id.split_x(side),
         Dimension::Y => current_id.split_y(side),

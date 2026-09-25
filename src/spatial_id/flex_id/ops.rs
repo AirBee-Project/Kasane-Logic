@@ -226,6 +226,66 @@ fn contains_axis(shallow_z: u8, shallow_i: i64, deep_z: u8, deep_i: i64) -> bool
 /// F は符号付き `i32`、X/Y は `u32`、T は `u64` と幅が違うが判定式は同じなので、`i64` へ
 /// 揃えて1つの関数で扱う（このクレートが扱う範囲——`u32` の全域と `2^62` までの `u64`——は
 /// `i64` で情報を落とさずに表せる）。
+impl FlexId {
+    /// `self` と `other` を両方含む最小の [`FlexId`]（共通の祖先）を返す。
+    ///
+    /// 各軸でインデックスの共通する上位ビットを取る。F の上下（符号）が異なると
+    /// 共通の祖先が無いので [`None`]。FlexTreeの実装用。
+    pub(crate) fn common_ancestor(&self, other: &FlexId) -> Option<FlexId> {
+        let (f_z, f_i) = common_prefix_axis(
+            self.f_zoomlevel(),
+            self.f_index() as i64,
+            other.f_zoomlevel(),
+            other.f_index() as i64,
+        )?;
+        let (x_z, x_i) = common_prefix_axis(
+            self.x_zoomlevel(),
+            self.x_index() as i64,
+            other.x_zoomlevel(),
+            other.x_index() as i64,
+        )?;
+        let (y_z, y_i) = common_prefix_axis(
+            self.y_zoomlevel(),
+            self.y_index() as i64,
+            other.y_zoomlevel(),
+            other.y_index() as i64,
+        )?;
+        #[cfg(feature = "temporal_id")]
+        let (t_z, t_i) = common_prefix_axis(
+            self.t_zoomlevel(),
+            self.t() as i64,
+            other.t_zoomlevel(),
+            other.t() as i64,
+        )?;
+
+        Some(FlexId {
+            f_zoomlevel: ZoomLevel::new(f_z).unwrap(),
+            f_index: f_i as i32,
+            x_zoomlevel: ZoomLevel::new(x_z).unwrap(),
+            x_index: x_i as u32,
+            y_zoomlevel: ZoomLevel::new(y_z).unwrap(),
+            y_index: y_i as u32,
+            #[cfg(feature = "temporal_id")]
+            t_zoomlevel: TZoomLevel::new(t_z).unwrap(),
+            #[cfg(feature = "temporal_id")]
+            t_index: t_i as u64,
+        })
+    }
+}
+
+/// 1軸について、2つのSegmentを両方含む最も深いSegment（共通の上位ビット）を返す。
+/// ズーム0でも一致しなければ [`None`]（F の上下が異なる場合だけ起きる）。
+fn common_prefix_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
+    let mut z = z1.min(z2);
+    let (mut a, mut b) = (i1 >> (z1 - z), i2 >> (z2 - z));
+    while a != b {
+        z = z.checked_sub(1)?;
+        a >>= 1;
+        b >>= 1;
+    }
+    Some((z, a))
+}
+
 fn nested_axis(z1: u8, i1: i64, z2: u8, i2: i64) -> Option<(u8, i64)> {
     let (deep_z, deep_i, shallow_z, shallow_i) = if z1 > z2 {
         (z1, i1, z2, i2)
