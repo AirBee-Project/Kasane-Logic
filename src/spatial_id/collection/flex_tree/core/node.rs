@@ -2,22 +2,7 @@ use super::ptr::{SafeValue, SharedNode};
 use crate::SpatialId;
 use crate::{FlexId, Side};
 
-/// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2分岐Segment
-/// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
-/// だけの規約で、他に意味は無い。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum Dimension {
-    F = 0,
-    X = 1,
-    Y = 2,
-    T = 3,
-}
-
-impl Dimension {
-    /// 全ての軸（F→X→Y→T の順）。
-    pub(crate) const ALL: [Dimension; 4] = [Dimension::F, Dimension::X, Dimension::Y, Dimension::T];
-}
+pub use crate::spatial_id::dimension::Dimension;
 
 /// 木が同時に分割する軸の数。
 ///

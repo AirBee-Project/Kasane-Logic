@@ -1,4 +1,5 @@
 pub mod collection;
+pub(crate) mod dimension;
 pub mod single_id;
 pub mod time;
 pub mod traits;

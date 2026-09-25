@@ -1,16 +1,19 @@
 use crate::{
     Error, FlexId, SpatialIdError,
-    spatial_id::zoom_level::{TZoomLevel, ZoomLevel},
+    spatial_id::{
+        dimension::Dimension,
+        zoom_level::{TZoomLevel, ZoomLevel},
+    },
 };
 
-/// ある祖先の [`FlexId`] を起点とした相対的な ID。
+/// ある祖先の [FlexId] を起点とした相対的な位置を表す[FlexID]。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct RelativeFlexId(FlexId);
 
 impl FlexId {
-    /// `ancestor` を原点とした相対 ID を返す。
+    /// `ancestor` を原点とした[RelativeFlexId]を返す。
     ///
-    /// `ancestor` が自身を包含していなければ [`SpatialIdError::NotAncestor`] を返す。
+    /// `ancestor`が完全に自身を包含していなければ [`SpatialIdError::NotAncestor`] を返す。
     pub(crate) fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
         if !ancestor.contains(self) {
             return Err(SpatialIdError::NotAncestor.into());
@@ -25,12 +28,19 @@ impl FlexId {
 }
 
 impl RelativeFlexId {
-    /// `ancestor` を原点として、自身の絶対 ID を復元する。[`FlexId::relative_to`] の逆で、
-    /// `id.relative_to(&a)?.to_absolute(&a)? == id`。
-    ///
+    /// 祖先から `dimension`において何段深いかを返す。
+    pub(crate) fn depth_on(self, dimension: Dimension) -> u8 {
+        self.0.zoomlevel_on(dimension)
+    }
+
+    /// 祖先より深くなっている次元の集合（[`Dimension::bit`] の OR）。
+    pub(crate) fn deeper_dimensions(&self) -> u8 {
+        Dimension::mask(|d| self.depth_on(d) > 0)
+    }
+
+    /// `ancestor` を原点として、[FlexId] を復元する。
     /// どれかの軸で最大ズームを超えるなら [`SpatialIdError::ZOutOfRange`] を返す。
     pub(crate) fn to_absolute(self, ancestor: &FlexId) -> Result<FlexId, Error> {
-        // 最大ズームを超えるならインデックスを計算する前に弾く（左シフトの桁あふれも防ぐ）
         let max_zoom = [
             ZoomLevel::MAX.get(),
             ZoomLevel::MAX.get(),
@@ -43,8 +53,6 @@ impl RelativeFlexId {
                 return Err(SpatialIdError::ZOutOfRange { z: az + rz }.into());
             }
         }
-
-        // 各軸で、祖先のインデックスを深さぶん左シフトして下位ビットを足す
         from_axes(zip_axes(ancestor, &self.0, |(az, ai), (rz, ri)| {
             (az + rz, (ai << rz) + ri)
         }))
