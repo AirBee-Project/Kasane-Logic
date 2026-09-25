@@ -8,6 +8,7 @@ pub mod zoom_level;
 pub mod flex_id;
 pub mod helpers;
 pub mod range_id;
+pub(crate) mod relative_flex_id;
 
 #[cfg(test)]
 mod tests;

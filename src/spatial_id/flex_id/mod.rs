@@ -631,9 +631,9 @@ impl FlexId {
         None
     }
 
-    /// `axis` 方向のズームレベルを返す。軸を値で選ぶ必要があるFlexTreeの実装用。
-    pub(crate) fn zoomlevel_on(&self, axis: Dimension) -> u8 {
-        match axis {
+    /// `dimension` 方向のズームレベルを返す。軸を値で選ぶ必要があるFlexTreeの実装用。
+    pub(crate) fn zoomlevel_on(&self, dimension: Dimension) -> u8 {
+        match dimension {
             Dimension::F => self.f_zoomlevel(),
             Dimension::X => self.x_zoomlevel(),
             Dimension::Y => self.y_zoomlevel(),
@@ -641,9 +641,9 @@ impl FlexId {
         }
     }
 
-    /// `axis` 方向で二つに切り分けた `side` 側を返す。その軸が最大ズームなら [`None`]。軸を値で選ぶ必要があるFlexTreeの実装用。
-    pub(crate) fn split_on(&self, axis: Dimension, side: Side) -> Option<FlexId> {
-        match axis {
+    /// `dimension` 方向で二つに切り分けた `side` 側を返す。その軸が最大ズームなら [`None`]。軸を値で選ぶ必要があるFlexTreeの実装用。
+    pub(crate) fn split_on(&self, dimension: Dimension, side: Side) -> Option<FlexId> {
+        match dimension {
             Dimension::F => self.split_f(side),
             Dimension::X => self.split_x(side),
             Dimension::Y => self.split_y(side),
