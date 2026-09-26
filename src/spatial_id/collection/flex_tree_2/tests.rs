@@ -1,5 +1,6 @@
 use alloc::format;
 use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use super::FlexTreeCore2;
@@ -19,12 +20,16 @@ fn node_count<V>(node: &Node<V>) -> usize {
 }
 
 /// 領域 `this` のノードがカノニカル形の規則を守っているか検査する。
-fn check_canonical<V: Clone + PartialEq>(node: &Node<V>, this: FlexId) -> Result<(), String> {
+fn check_canonical<V: Clone + Ord + core::fmt::Debug>(
+    node: &Node<V>,
+    this: FlexId,
+) -> Result<(), String> {
     match node {
         Node::Leaf(_) => Ok(()),
         Node::Branch {
             dimension,
             split_dimensions,
+            value_range,
             lower,
             upper,
         } => {
@@ -40,6 +45,18 @@ fn check_canonical<V: Clone + PartialEq>(node: &Node<V>, this: FlexId) -> Result
             }
             if this.coarsest_dimension_in(*split_dimensions) != Some(*dimension) {
                 return Err(format!("{this:?}: 一番粗い次元で割っていない"));
+            }
+            let (l_min, l_max) = lower
+                .value_range()
+                .ok_or_else(|| format!("{this:?}: lower が空の Branch"))?;
+            let (u_min, u_max) = upper
+                .value_range()
+                .ok_or_else(|| format!("{this:?}: upper が空の Branch"))?;
+            let expected_range = [l_min.min(u_min).clone(), l_max.max(u_max).clone()];
+            if value_range != &expected_range {
+                return Err(format!(
+                    "{this:?}: value_range が不正: 実際 {value_range:?}, 期待 {expected_range:?}"
+                ));
             }
             check_canonical(lower, this.split_on(*dimension, Side::Lower).unwrap())?;
             check_canonical(upper, this.split_on(*dimension, Side::Upper).unwrap())
@@ -76,13 +93,13 @@ fn check_canonical<V: Clone + PartialEq>(node: &Node<V>, this: FlexId) -> Result
     }
 }
 
-fn assert_canonical<V: Clone + PartialEq>(tree: &FlexTreeCore2<V>) {
+fn assert_canonical<V: Clone + Ord + core::fmt::Debug>(tree: &FlexTreeCore2<V>) {
     check_canonical(&tree.upper_root, FlexId::UPPER_MAX).unwrap();
     check_canonical(&tree.lower_root, FlexId::LOWER_MAX).unwrap();
 }
 
 /// 葉の列から木を組み立てる。
-fn build<'a, V: Clone + PartialEq + 'a>(
+fn build<'a, V: Clone + Ord + 'a>(
     leaves: impl IntoIterator<Item = (FlexId, &'a V)>,
 ) -> FlexTreeCore2<V> {
     let mut tree = FlexTreeCore2::new();
@@ -93,7 +110,7 @@ fn build<'a, V: Clone + PartialEq + 'a>(
 }
 
 /// 木の中で `point` を含む葉の値。
-fn value_at<V: Clone + PartialEq>(tree: &FlexTreeCore2<V>, point: &FlexId) -> Option<V> {
+fn value_at<V: Clone + Ord>(tree: &FlexTreeCore2<V>, point: &FlexId) -> Option<V> {
     tree.iter()
         .find(|(id, _)| id.contains(point))
         .map(|(_, v)| v.clone())
@@ -178,17 +195,16 @@ fn sample_points(next: &mut impl FnMut(u64) -> u64, ids: &[FlexId]) -> Vec<FlexI
     points
 }
 
-/// Skip は `path` をノード内に直接持つので、Node の大きさは Skip で決まる。
-/// `path`（`RelativeFlexId`）以外の部分（`split_dimensions`・`child`・タグ）は 16 バイトに収まる。
+/// Node の大きさは、一番大きいバリアント（Branch か Skip）の中身にタグを足した大きさを超えない。
 ///
-/// `RelativeFlexId` の大きさは時間次元の有無で変わる（`temporal_id` ありで 24B、なしで 16B）ため、
-/// Node の大きさは決め打ちせず `RelativeFlexId` から求める。
+/// どちらが大きいかは値の型と時間次元の有無で変わる（`RelativeFlexId` は `temporal_id` ありで 24B、
+/// なしで 16B）ため、大きさは決め打ちせず両方の中身から求める。
 #[test]
-fn node_size_with_inlined_skip() {
-    assert_eq!(
-        core::mem::size_of::<Node<u64>>(),
-        core::mem::size_of::<RelativeFlexId>() + 16
-    );
+fn node_size_is_bounded_by_largest_variant() {
+    use core::mem::size_of;
+    let branch = size_of::<(Dimension, u8, [u64; 2], Arc<()>, Arc<()>)>();
+    let skip = size_of::<(RelativeFlexId, u8, Arc<()>)>();
+    assert!(size_of::<Node<u64>>() <= branch.max(skip) + 8);
 }
 
 #[test]
@@ -347,6 +363,84 @@ fn set_operations_match_model() {
                 assert_eq!(value_at(&intersection, &point).is_some(), in_a && in_b);
                 assert_eq!(value_at(&difference, &point).is_some(), in_a && !in_b);
             }
+        }
+    }
+}
+
+/// 木全体の value_range, min_value, max_value の基本動作テスト。
+#[test]
+fn value_range_basic() {
+    let mut tree: FlexTreeCore2<u64> = FlexTreeCore2::new();
+    assert_eq!(tree.value_range(), None);
+    assert_eq!(tree.min_value(), None);
+    assert_eq!(tree.max_value(), None);
+
+    let id1 = FlexId::new(2, 0, 2, 0, 2, 0).unwrap();
+    tree.insert(id1, 50);
+    assert_eq!(tree.value_range(), Some((&50, &50)));
+    assert_eq!(tree.min_value(), Some(&50));
+    assert_eq!(tree.max_value(), Some(&50));
+
+    let id2 = FlexId::new(2, 0, 2, 1, 2, 1).unwrap();
+    tree.insert(id2, 20);
+    assert_eq!(tree.value_range(), Some((&20, &50)));
+    assert_eq!(tree.min_value(), Some(&20));
+    assert_eq!(tree.max_value(), Some(&50));
+
+    let id3 = FlexId::new(2, 0, 2, 2, 2, 2).unwrap();
+    tree.insert(id3, 80);
+    assert_eq!(tree.value_range(), Some((&20, &80)));
+    assert_eq!(tree.min_value(), Some(&20));
+    assert_eq!(tree.max_value(), Some(&80));
+}
+
+/// Branch の [min, max] を使った filter_range の枝刈りと参照モデル一致テスト。
+#[test]
+fn filter_range_prunes_and_matches_model() {
+    let mut next = rng(42);
+    for max_zoom in [4, 10] {
+        for _ in 0..30 {
+            let mut tree = FlexTreeCore2::new();
+            let mut writes = Vec::new();
+            let mut ids = Vec::new();
+
+            for _ in 0..20 {
+                let id = random_id(&mut next, max_zoom);
+                let value = next(100) + 10; // 10..=109
+                tree.insert(id, value);
+                writes.push((id, Some(value)));
+                ids.push(id);
+            }
+            assert_canonical(&tree);
+
+            let (min_bound, max_bound) = (30u64, 70u64);
+            let filtered = tree.filter_range(min_bound..=max_bound);
+            assert_canonical(&filtered);
+
+            // フィルター後のすべての葉の値が範囲内にあること
+            for (_, val) in filtered.iter() {
+                assert!(*val >= min_bound && *val <= max_bound);
+            }
+
+            // 標本点での値が参照モデルと完全に一致すること
+            for point in sample_points(&mut next, &ids) {
+                let expected =
+                    model_value_at(&writes, &point).filter(|v| *v >= min_bound && *v <= max_bound);
+                assert_eq!(value_at(&filtered, &point), expected);
+            }
+
+            // 全体を包含する範囲なら、木全体がそのまま返る（O(1) Pass）
+            if let Some((&tree_min, &tree_max)) = tree.value_range() {
+                let full = tree.filter_range(tree_min..=tree_max);
+                assert_eq!(full, tree);
+                // 非有界範囲 `..` でも同様
+                let full_unbounded = tree.filter_range(..);
+                assert_eq!(full_unbounded, tree);
+            }
+
+            // 完全に範囲外なら、空の木になる（O(1) Prune）
+            let empty = tree.filter_range(1000..=2000);
+            assert_eq!(empty.iter().count(), 0);
         }
     }
 }

@@ -1,6 +1,7 @@
 use crate::FlexId;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::ops::RangeBounds;
 use node::Node;
 
 mod node;
@@ -13,13 +14,13 @@ pub struct FlexTreeCore2<V> {
     lower_root: Arc<Node<V>>,
 }
 
-impl<V: Clone + PartialEq> Default for FlexTreeCore2<V> {
+impl<V: Clone + Ord> Default for FlexTreeCore2<V> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<V: Clone + PartialEq> FlexTreeCore2<V> {
+impl<V: Clone + Ord> FlexTreeCore2<V> {
     /// 空の[FlexTreeCore2]を作成する
     pub fn new() -> Self {
         FlexTreeCore2 {
@@ -49,13 +50,44 @@ impl<V: Clone + PartialEq> FlexTreeCore2<V> {
     }
 
     /// 積集合。`other` にも値がある場所だけ、`self` の値を残す。
-    pub fn intersection<W: Clone + PartialEq>(&self, other: &FlexTreeCore2<W>) -> Self {
+    pub fn intersection<W: Clone + Ord>(&self, other: &FlexTreeCore2<W>) -> Self {
         self.merge(other, &Node::intersection_rule)
     }
 
     /// 差集合。`other` に値がある場所を `self` から取り除く。
-    pub fn difference<W: Clone + PartialEq>(&self, other: &FlexTreeCore2<W>) -> Self {
+    pub fn difference<W: Clone + Ord>(&self, other: &FlexTreeCore2<W>) -> Self {
         self.merge(other, &Node::difference_rule)
+    }
+
+    /// [FlexTreeCore2]全体に存在する値の範囲 `[min, max]` を返す。[FlexTreeCore2]が空なら [`None`]。
+    pub fn value_range(&self) -> Option<(&V, &V)> {
+        match (self.upper_root.value_range(), self.lower_root.value_range()) {
+            (None, None) => None,
+            (Some(u), None) => Some(u),
+            (None, Some(l)) => Some(l),
+            (Some((u_min, u_max)), Some((l_min, l_max))) => {
+                Some((u_min.min(l_min), u_max.max(l_max)))
+            }
+        }
+    }
+
+    /// 全体に存在する値の最小値を返す。値がまだなければ [`None`]。
+    pub fn min_value(&self) -> Option<&V> {
+        self.value_range().map(|(min, _)| min)
+    }
+
+    /// 全体に存在する値の最大値を返す。値がまだなければ [`None`]。
+    pub fn max_value(&self) -> Option<&V> {
+        self.value_range().map(|(_, max)| max)
+    }
+
+    /// 値が指定した範囲 `range` に含まれる領域だけを残した[FlexTreeCore2]を作成する。
+    pub fn filter_range<R: RangeBounds<V>>(&self, range: R) -> Self {
+        let (start, end) = (range.start_bound(), range.end_bound());
+        FlexTreeCore2 {
+            upper_root: Node::filter_range(&FlexId::UPPER_MAX, &self.upper_root, start, end),
+            lower_root: Node::filter_range(&FlexId::LOWER_MAX, &self.lower_root, start, end),
+        }
     }
 
     /// 値を持つ全ての領域と値への参照を返す。
@@ -76,7 +108,7 @@ impl<V: Clone + PartialEq> FlexTreeCore2<V> {
     }
 
     /// 上下のルートどうしを `rule` で重ね合わせる。
-    fn merge<W: Clone + PartialEq>(
+    fn merge<W: Clone + Ord>(
         &self,
         other: &FlexTreeCore2<W>,
         rule: &impl Fn(&Arc<Node<V>>, &Arc<Node<W>>) -> Option<Arc<Node<V>>>,

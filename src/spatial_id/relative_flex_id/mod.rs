@@ -6,15 +6,19 @@ use crate::{
     },
 };
 
-/// ある祖先の [FlexId] を起点とした相対的な位置を表す[FlexID]。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct RelativeFlexId(FlexId);
+/// ある祖先の [FlexId] を起点とした相対的な位置を表す[FlexId]。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "persist",
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
+)]
+pub struct RelativeFlexId(FlexId);
 
 impl FlexId {
     /// `ancestor` を原点とした[RelativeFlexId]を返す。
     ///
     /// `ancestor`が完全に自身を包含していなければ [`SpatialIdError::NotAncestor`] を返す。
-    pub(crate) fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
+    pub fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
         if !ancestor.contains(self) {
             return Err(SpatialIdError::NotAncestor.into());
         }
@@ -28,8 +32,28 @@ impl FlexId {
 }
 
 impl RelativeFlexId {
+    /// 祖先から F 次元において何段深いかを返す。
+    pub fn f_depth(&self) -> u8 {
+        self.0.f_zoomlevel()
+    }
+
+    /// 祖先から X 次元において何段深いかを返す。
+    pub fn x_depth(&self) -> u8 {
+        self.0.x_zoomlevel()
+    }
+
+    /// 祖先から Y 次元において何段深いかを返す。
+    pub fn y_depth(&self) -> u8 {
+        self.0.y_zoomlevel()
+    }
+
+    /// 祖先から T 次元において何段深いかを返す。
+    pub fn t_depth(&self) -> u8 {
+        self.0.t_zoomlevel()
+    }
+
     /// 祖先から `dimension`において何段深いかを返す。
-    pub(crate) fn depth_on(self, dimension: Dimension) -> u8 {
+    pub fn depth_on(self, dimension: Dimension) -> u8 {
         self.0.zoomlevel_on(dimension)
     }
 
@@ -40,7 +64,7 @@ impl RelativeFlexId {
 
     /// `ancestor` を原点として、[FlexId] を復元する。
     /// どれかの次元で最大ズームを超えるなら [`SpatialIdError::ZOutOfRange`] を返す。
-    pub(crate) fn to_absolute(self, ancestor: &FlexId) -> Result<FlexId, Error> {
+    pub fn to_absolute(self, ancestor: &FlexId) -> Result<FlexId, Error> {
         let max_zoom = [
             ZoomLevel::MAX.get(),
             ZoomLevel::MAX.get(),
@@ -122,5 +146,21 @@ mod tests {
             relative.to_absolute(&deep),
             Err(SpatialIdError::ZOutOfRange { z: 60 }.into())
         );
+    }
+
+    /// クレートルートから RelativeFlexId および Dimension が利用でき、深さ取得が正しく動作することを検証。
+    #[test]
+    fn test_relative_flex_id_depths_and_root_export() {
+        use crate::{Dimension, RelativeFlexId};
+        let ancestor = FlexId::new(2, 1, 1, 0, 3, 5).unwrap();
+        let descendant = FlexId::new(5, 12, 4, 7, 3, 5).unwrap();
+        let rel: RelativeFlexId = descendant.relative_to(&ancestor).unwrap();
+        assert_eq!(rel.f_depth(), 3);
+        assert_eq!(rel.x_depth(), 3);
+        assert_eq!(rel.y_depth(), 0);
+        assert_eq!(rel.depth_on(Dimension::F), 3);
+        assert_eq!(rel.depth_on(Dimension::X), 3);
+        assert_eq!(rel.depth_on(Dimension::Y), 0);
+        assert_eq!(rel.to_absolute(&ancestor).unwrap(), descendant);
     }
 }
