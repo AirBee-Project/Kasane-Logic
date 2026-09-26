@@ -9,6 +9,7 @@ pub mod ops;
 use crate::{
     Error, Side, SpatialIdError,
     spatial_id::{
+        dimension::Dimension,
         range_id::convert::{split_f, split_xy},
         time::span,
         zoom_level::{TZoomLevel, ZoomLevel},
@@ -630,6 +631,50 @@ impl FlexId {
         None
     }
 
+    /// `dimension` 方向のズームレベルを返す。軸を値で選ぶ必要があるFlexTreeの実装用。
+    pub(crate) fn zoomlevel_on(&self, dimension: Dimension) -> u8 {
+        match dimension {
+            Dimension::F => self.f_zoomlevel(),
+            Dimension::X => self.x_zoomlevel(),
+            Dimension::Y => self.y_zoomlevel(),
+            Dimension::T => self.t_zoomlevel(),
+        }
+    }
+
+    /// `dimension` 方向で二つに切り分けた `side` 側を返す。その軸が最大ズームなら [`None`]。軸を値で選ぶ必要があるFlexTreeの実装用。
+    pub(crate) fn split_on(&self, dimension: Dimension, side: Side) -> Option<FlexId> {
+        match dimension {
+            Dimension::F => self.split_f(side),
+            Dimension::X => self.split_x(side),
+            Dimension::Y => self.split_y(side),
+            Dimension::T => self.split_t(side),
+        }
+    }
+
+    /// `dimension` 方向で二つに切り分けた側のうち、`target` を含む側を返す。その次元が最大ズームなら [`None`]。
+    pub(crate) fn split_toward(&self, dimension: Dimension, target: &FlexId) -> Option<FlexId> {
+        let upper = self.split_on(dimension, Side::Upper)?;
+        if upper.contains(target) {
+            Some(upper)
+        } else {
+            self.split_on(dimension, Side::Lower)
+        }
+    }
+
+    /// 自身が `other` より細かい次元の集合（[`Dimension::bit`] の OR）。
+    pub(crate) fn finer_dimensions_than(&self, other: &FlexId) -> u8 {
+        Dimension::mask(|d| self.zoomlevel_on(d) > other.zoomlevel_on(d))
+    }
+
+    /// 次元の集合 `dimensions`（[`Dimension::bit`] の OR）のうち、自身のズームが一番粗い次元を返す。
+    /// 同じズームなら F→X→Y→T の順。空なら [`None`]。
+    pub(crate) fn coarsest_dimension_in(&self, dimensions: u8) -> Option<Dimension> {
+        Dimension::ALL
+            .into_iter()
+            .filter(|&d| dimensions & d.bit() != 0)
+            .min_by_key(|&d| (self.zoomlevel_on(d), d as u8))
+    }
+
     /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。
     ///
     /// ```
@@ -650,7 +695,7 @@ impl FlexId {
             Separated,
         }
 
-        fn axis_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
+        fn dimension_range(zoom: u8, index: i64, common: u8) -> (i64, i64) {
             let shift = (common - zoom) as i64;
             (index << shift, ((index + 1) << shift) - 1)
         }
@@ -675,20 +720,20 @@ impl FlexId {
 
         let cf = self.f_zoomlevel().max(other.f_zoomlevel());
         let rf = classify(
-            axis_range(self.f_zoomlevel(), self.f_index() as i64, cf),
-            axis_range(other.f_zoomlevel(), other.f_index() as i64, cf),
+            dimension_range(self.f_zoomlevel(), self.f_index() as i64, cf),
+            dimension_range(other.f_zoomlevel(), other.f_index() as i64, cf),
             None,
         );
         let cx = self.x_zoomlevel().max(other.x_zoomlevel());
         let rx = classify(
-            axis_range(self.x_zoomlevel(), self.x_index() as i64, cx),
-            axis_range(other.x_zoomlevel(), other.x_index() as i64, cx),
+            dimension_range(self.x_zoomlevel(), self.x_index() as i64, cx),
+            dimension_range(other.x_zoomlevel(), other.x_index() as i64, cx),
             Some(1i64 << cx),
         );
         let cy = self.y_zoomlevel().max(other.y_zoomlevel());
         let ry = classify(
-            axis_range(self.y_zoomlevel(), self.y_index() as i64, cy),
-            axis_range(other.y_zoomlevel(), other.y_index() as i64, cy),
+            dimension_range(self.y_zoomlevel(), self.y_index() as i64, cy),
+            dimension_range(other.y_zoomlevel(), other.y_index() as i64, cy),
             None,
         );
 

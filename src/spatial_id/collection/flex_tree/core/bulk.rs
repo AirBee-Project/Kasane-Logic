@@ -33,7 +33,7 @@
 use alloc::vec::Vec;
 
 use super::FlexTreeCore;
-use super::node::{Axis, LEAF_LEVEL, Node};
+use super::node::{Dimension, LEAF_LEVEL, Node};
 use super::node_ops::join_at;
 use super::ptr::{MaybeSync, SafeValue, SharedNode};
 
@@ -83,14 +83,14 @@ fn sort_key<V>(entry: &SingleEntry<V>) -> (bool, u128) {
     (entry.0 < 0, morton_key(entry.0, entry.1, entry.2))
 }
 
-/// 一様ズーム `z` において、全軸を消化しきる（＝葉になる）レベル。
+/// 一様ズーム `z` において、全次元を消化しきる（＝葉になる）レベル。
 ///
-/// [`Node::covers_all_axes`] と同じ判定なので、軸数（`temporal_id` の有無で 3 or 4）が
+/// [`Node::covers_all_dimensions`] と同じ判定なので、次元数（`temporal_id` の有無で 3 or 4）が
 /// 変わっても追従するよう、式を置かず実際に走査して求める。z ごとに一度だけ呼ぶ。
 fn leaf_level_for<V: SafeValue>(z: u8) -> u8 {
     let probe = crate::FlexId::new(z, 0, z, 0, z, 0).expect("z はズーム範囲内");
     let mut level = 0u8;
-    while level < LEAF_LEVEL && !Node::<V>::covers_all_axes(&probe, level) {
+    while level < LEAF_LEVEL && !Node::<V>::covers_all_dimensions(&probe, level) {
         level += 1;
     }
     level
@@ -159,15 +159,15 @@ fn build_slice<V: SafeValue>(
             });
         }
         // T は全時間（ズーム 0）なので常に消化済み。
-        if !matches!(Node::<V>::axis(level), Axis::T) && Node::<V>::depth(level) < z {
+        if !matches!(Node::<V>::dimension(level), Dimension::T) && Node::<V>::depth(level) < z {
             break level;
         }
         level += 1;
     };
 
-    let axis = Node::<V>::axis(split_level);
+    let dimension = Node::<V>::dimension(split_level);
     let shift = z - 1 - Node::<V>::depth(split_level);
-    let split = entries.partition_point(|e| axis_bit(e, axis, shift) == 0);
+    let split = entries.partition_point(|e| dimension_bit(e, dimension, shift) == 0);
     let (lo, hi) = entries.split_at(split);
 
     let (new_lower, new_upper) = join_at!(
@@ -180,15 +180,15 @@ fn build_slice<V: SafeValue>(
     Node::mk(split_level, new_lower, new_upper, empty_leaf)
 }
 
-/// `axis` 方向のインデックスから、深度に対応する 1 ビットを取り出す。
+/// `dimension` 方向のインデックスから、深度に対応する 1 ビットを取り出す。
 /// [`Node::forking`] と同じ式（F は 2 の補数のビットをそのまま使う）。
 #[inline]
-fn axis_bit<V>(entry: &SingleEntry<V>, axis: Axis, shift: u8) -> u32 {
-    let index = match axis {
-        Axis::F => entry.0 as u32,
-        Axis::X => entry.1,
-        Axis::Y => entry.2,
-        Axis::T => unreachable!("T は消化済みとして読み飛ばしている"),
+fn dimension_bit<V>(entry: &SingleEntry<V>, dimension: Dimension, shift: u8) -> u32 {
+    let index = match dimension {
+        Dimension::F => entry.0 as u32,
+        Dimension::X => entry.1,
+        Dimension::Y => entry.2,
+        Dimension::T => unreachable!("T は消化済みとして読み飛ばしている"),
     };
     (index >> shift) & 1
 }

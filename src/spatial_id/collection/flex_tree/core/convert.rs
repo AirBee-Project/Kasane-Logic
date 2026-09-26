@@ -33,9 +33,9 @@ fn push_children<T>(
     lower: T,
     upper: T,
 ) {
-    let axis = Node::<()>::axis(level);
-    stack.push((upper, split_child_id(current_id, axis, Side::Upper)));
-    stack.push((lower, split_child_id(current_id, axis, Side::Lower)));
+    let dimension = Node::<()>::dimension(level);
+    stack.push((upper, split_child_id(current_id, dimension, Side::Upper)));
+    stack.push((lower, split_child_id(current_id, dimension, Side::Lower)));
 }
 
 impl<'a, V> Iterator for LeavesIterRef<'a, V>
