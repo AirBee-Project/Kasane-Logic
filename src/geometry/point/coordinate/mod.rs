@@ -343,10 +343,10 @@ impl Coordinate {
     ///     Coordinate::new(0.0, 0.0, 10.0).unwrap(),
     ///     Coordinate::new(10.0, 10.0, 20.0).unwrap(),
     /// ];
-    /// let center = Coordinate::center_gravity(&points);
+    /// let center = Coordinate::centroid(&points);
     /// assert_eq!(center.latitude(), 5.0);
     /// ```
-    pub fn center_gravity<I>(coordinates: I) -> Coordinate
+    pub fn centroid<I>(coordinates: I) -> Coordinate
     where
         I: IntoIterator,
         I::Item: Borrow<Coordinate>,
