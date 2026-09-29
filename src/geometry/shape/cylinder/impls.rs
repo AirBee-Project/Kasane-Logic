@@ -4,7 +4,7 @@ use crate::{Coordinate, CoverRangeIds, CoverSingleIds, Cylinder, Error, RangeId,
 
 impl Shape for Cylinder {
     fn center(&self) -> Coordinate {
-        Coordinate::center_gravity([self.start, self.end])
+        Coordinate::centroid([self.start, self.end])
     }
 }
 

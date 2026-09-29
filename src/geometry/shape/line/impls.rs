@@ -4,7 +4,7 @@ use crate::{Coordinate, Ecef, Error, Line, Shape, SingleId, geometry::traits::Co
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(self.points)
+        Coordinate::centroid(self.points)
     }
 }
 

@@ -10,7 +10,7 @@ use crate::{
 
 impl Shape for Solid {
     fn center(&self) -> Coordinate {
-        Coordinate::center_gravity(self.expand_coordinates())
+        Coordinate::centroid(self.expand_coordinates())
     }
 }
 
