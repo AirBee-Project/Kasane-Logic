@@ -1,9 +1,10 @@
 use crate::FlexId;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use core::ops::RangeBounds;
+pub use iter::{IntoIter, Iter};
 use node::Node;
 
+mod iter;
 mod node;
 #[cfg(test)]
 mod tests;
@@ -91,20 +92,8 @@ impl<V: Clone + Ord> FlexTreeCore2<V> {
     }
 
     /// 値を持つ全ての領域と値への参照を返す。
-    pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> {
-        let mut out = Vec::new();
-        for (root, id) in self.roots() {
-            root.collect(&id, &mut out);
-        }
-        out.into_iter()
-    }
-
-    /// 上下のルートと領域 ID の組を返す。
-    fn roots(&self) -> [(&Arc<Node<V>>, FlexId); 2] {
-        [
-            (&self.upper_root, FlexId::UPPER_MAX),
-            (&self.lower_root, FlexId::LOWER_MAX),
-        ]
+    pub fn iter(&self) -> Iter<'_, V> {
+        Iter::new(self)
     }
 
     /// 上下のルートどうしを `rule` で重ね合わせる。

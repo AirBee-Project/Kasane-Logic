@@ -444,3 +444,77 @@ fn filter_range_prunes_and_matches_model() {
         }
     }
 }
+
+/// 参照実装：再帰でたどって、値を持つ領域を下側から順に集める。
+fn collect_recursive<'a, V>(node: &'a Node<V>, this: FlexId, out: &mut Vec<(FlexId, &'a V)>) {
+    match node {
+        Node::Leaf(None) => {}
+        Node::Leaf(Some(value)) => out.push((this, value)),
+        Node::Branch {
+            dimension,
+            lower,
+            upper,
+            ..
+        } => {
+            collect_recursive(lower, this.split_on(*dimension, Side::Lower).unwrap(), out);
+            collect_recursive(upper, this.split_on(*dimension, Side::Upper).unwrap(), out);
+        }
+        Node::Skip { path, child, .. } => {
+            collect_recursive(child, path.to_absolute(&this).unwrap(), out);
+        }
+    }
+}
+
+/// `iter`・`&tree` と `tree` の `IntoIterator` が、再帰でたどった結果と同じ順・同じ中身を返し、
+/// `FromIterator`・`Extend` で組み直すと元の木に戻ることを確かめる。
+#[test]
+fn iterators_match_recursive_walk_and_round_trip() {
+    let mut next = rng(0xfeed);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let mut tree = FlexTreeCore2::new();
+            for _ in 0..40 {
+                let id = random_id(&mut next, max_zoom);
+                if next(4) == 0 {
+                    tree.remove(id);
+                } else {
+                    tree.insert(id, next(3));
+                }
+            }
+
+            let mut expected = Vec::new();
+            collect_recursive(&tree.upper_root, FlexId::UPPER_MAX, &mut expected);
+            collect_recursive(&tree.lower_root, FlexId::LOWER_MAX, &mut expected);
+
+            assert_eq!(tree.iter().collect::<Vec<_>>(), expected);
+            assert_eq!((&tree).into_iter().collect::<Vec<_>>(), expected);
+            let owned: Vec<(FlexId, u64)> = expected.iter().map(|&(id, v)| (id, *v)).collect();
+
+            // 他の木とノードを共有している場合（値をクローンする経路）
+            let shared = tree.clone();
+            assert_eq!(shared.into_iter().collect::<Vec<_>>(), owned);
+
+            // FromIterator と Extend で組み直すと元の木に戻る
+            let rebuilt: FlexTreeCore2<u64> = owned.iter().copied().collect();
+            assert_eq!(rebuilt, tree);
+            let mut extended = FlexTreeCore2::new();
+            extended.extend(owned.iter().copied());
+            assert_eq!(extended, tree);
+
+            // どこにも共有されていない場合（値をムーブする経路）
+            assert_eq!(tree.into_iter().collect::<Vec<_>>(), owned);
+        }
+    }
+}
+
+/// 空の木のイテレーターは何も返さず、使い切った後も `None` を返し続ける。
+#[test]
+fn empty_tree_iterators_are_fused() {
+    let tree: FlexTreeCore2<u64> = FlexTreeCore2::new();
+    let mut iter = tree.iter();
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    let mut owned = tree.into_iter();
+    assert_eq!(owned.next(), None);
+    assert_eq!(owned.next(), None);
+}

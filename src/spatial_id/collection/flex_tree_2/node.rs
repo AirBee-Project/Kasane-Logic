@@ -1,5 +1,4 @@
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use core::ops::{Bound, RangeBounds};
 
 use crate::{
@@ -243,29 +242,6 @@ impl<V: Clone + Ord> Node<V> {
 
     pub(super) fn is_empty(&self) -> bool {
         matches!(self, Node::Leaf(None))
-    }
-
-    /// 領域 `this` のこのノード配下で、値を持つ領域を `out` へ集める。
-    pub(super) fn collect<'a>(&'a self, this: &FlexId, out: &mut Vec<(FlexId, &'a V)>) {
-        match self {
-            Node::Leaf(None) => {}
-            Node::Leaf(Some(value)) => out.push((*this, value)),
-            Node::Branch {
-                dimension,
-                lower,
-                upper,
-                ..
-            } => {
-                let lower_id = this.split_on(*dimension, Side::Lower).unwrap();
-                let upper_id = this.split_on(*dimension, Side::Upper).unwrap();
-                lower.collect(&lower_id, out);
-                upper.collect(&upper_id, out);
-            }
-            Node::Skip { path, child, .. } => {
-                let region = path.to_absolute(this).unwrap();
-                child.collect(&region, out);
-            }
-        }
     }
 
     /// 上書き（insert）。`b` に値がある場所は `b`、無い場所は `a`。
