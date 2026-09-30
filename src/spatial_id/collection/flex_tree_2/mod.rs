@@ -80,7 +80,7 @@ mod tests;
 /// assert_eq!(tree.filter_range(Risk::Mid..).len(), 1);
 /// assert_eq!(tree.filter_values(ValueSet::single(Risk::Low)).len(), 1);
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct FlexTreeCore2<V, S = MinMax<V>> {
     upper_root: Arc<Node<V, S>>,
     lower_root: Arc<Node<V, S>>,

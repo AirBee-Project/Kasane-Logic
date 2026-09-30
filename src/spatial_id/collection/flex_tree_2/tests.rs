@@ -933,3 +933,45 @@ fn traversal_stack_fits_height_bound() {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+struct Counted(u64);
+
+static COUNTED_EQ_CALLS: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+impl PartialEq for Counted {
+    fn eq(&self, other: &Self) -> bool {
+        COUNTED_EQ_CALLS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        self.0 == other.0
+    }
+}
+
+impl Eq for Counted {}
+
+/// 共有している部分木は中身を比べない。1か所だけ変えた木との比較でも、値を比べるのは変えた経路の上だけ。
+#[test]
+fn eq_skips_shared_subtrees() {
+    use core::sync::atomic::Ordering::Relaxed;
+
+    let mut next = rng(19);
+    let mut tree = FlexTreeCore2::<Counted, NoSummary>::default();
+    for i in 0..1000 {
+        tree.insert(random_id(&mut next, 20), Counted(i % 5));
+    }
+    let height = usize::from(tree.upper_root.height().max(tree.lower_root.height()));
+
+    let calls = COUNTED_EQ_CALLS.load(Relaxed);
+    assert!(tree == tree.clone());
+    assert_eq!(COUNTED_EQ_CALLS.load(Relaxed) - calls, 0);
+
+    let mut changed = tree.clone();
+    changed.insert(random_id(&mut next, 20), Counted(99));
+    let calls = COUNTED_EQ_CALLS.load(Relaxed);
+    assert!(tree != changed);
+    let compared = COUNTED_EQ_CALLS.load(Relaxed) - calls;
+    assert!(
+        compared <= height + 2,
+        "値を {compared} 回比べた（高さ {height}、Leaf {}）",
+        tree.len()
+    );
+}

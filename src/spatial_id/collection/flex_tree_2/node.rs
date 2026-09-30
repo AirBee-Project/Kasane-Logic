@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Node は自分の領域を持たず、親から渡される領域 `this`との相対的な位置で意味を持つ。辿る関数が`this`を持つことで様々な操作を行う。
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Node<V, S> {
     Leaf(Option<V>),
     Branch {
