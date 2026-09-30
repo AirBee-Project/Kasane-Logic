@@ -6,10 +6,9 @@ on:
       - main
     types: [opened, synchronize, reopened, converted_to_draft]
 
-# ローカル用の nightly 高速化設定を無効化し、stable で検証する。
+# 最終検証は stable で行う。
 env:
   RUSTUP_TOOLCHAIN: stable
-  RUSTFLAGS: ""
 
 jobs:
   fmt_and_doc:
@@ -20,6 +19,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Disable local fast build config
+        shell: bash
+        run: rm .cargo/fast.toml
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -32,6 +35,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
+          cache-on-failure: true
           shared-key: "fmt-doc-ubuntu-24.04"
 
       - name: Check formatting
@@ -68,6 +72,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Disable local fast build config
+        shell: bash
+        run: rm .cargo/fast.toml
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -80,6 +88,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
+          cache-on-failure: true
           shared-key: "test-ubuntu-24.04"
 
       - name: Test (std; various features)
@@ -131,6 +140,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Disable local fast build config
+        shell: bash
+        run: rm .cargo/fast.toml
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -142,6 +155,7 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
+          cache-on-failure: true
           shared-key: "clippy-ubuntu-24.04"
 
       - name: Clippy (std)

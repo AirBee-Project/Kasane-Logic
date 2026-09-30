@@ -1,19 +1,5 @@
+# nightly 専用の高速化設定は fast.toml にある。CI は stable で検証するため、fast.toml を削除して使う。
+include = [{ path = "fast.toml", optional = true }]
+
 [alias]
 ci = "run --package xtask --"
-
-[build]
-rustflags = ["-Zthreads=0"]
-
-[target.x86_64-pc-windows-msvc]
-linker = "rust-lld.exe"
-rustflags = ["-Zthreads=0"]
-
-[target.x86_64-unknown-linux-gnu]
-linker = "clang"
-rustflags = ["-Zthreads=0", "-C", "link-arg=-fuse-ld=mold"]
-
-[target.aarch64-apple-darwin]
-rustflags = ["-Zthreads=0", "-C", "split-debuginfo=unpacked"]
-
-[target.x86_64-apple-darwin]
-rustflags = ["-Zthreads=0", "-C", "split-debuginfo=unpacked"]

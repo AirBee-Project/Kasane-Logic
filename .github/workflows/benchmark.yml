@@ -10,10 +10,9 @@ permissions:
   pages: write
   id-token: write
 
-# ローカル用の nightly 高速化設定を無効化し、stable で検証する。
+# 最終検証は stable で行う。
 env:
   RUSTUP_TOOLCHAIN: stable
-  RUSTFLAGS: ""
 
 jobs:
   build-benchmarks:
@@ -24,6 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Disable local fast build config
+        shell: bash
+        run: rm .cargo/fast.toml
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -32,6 +35,8 @@ jobs:
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - name: Get benchmark list
         id: benches
@@ -94,6 +99,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Disable local fast build config
+        shell: bash
+        run: rm .cargo/fast.toml
+
       - name: Download all benchmark results
         uses: actions/download-artifact@v4
         with:
@@ -149,11 +158,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Disable local fast build config
+        shell: bash
+        run: rm .cargo/fast.toml
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       - name: Run memory benchmark
         run: cargo bench --bench spatial_id_set_memory >> $GITHUB_STEP_SUMMARY

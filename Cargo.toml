@@ -40,10 +40,10 @@ unstable = ["dep:tracing", "std"]
 
 [dev-dependencies]
 rand = "0.10.1"
-proptest = "1.11.0"
+proptest = { version = "1.11.0", default-features = false, features = ["std", "bit-set"] }
 rand_chacha = "0.10.0"
 insta = "1"
-criterion = { version = "0.8.2", features = ["html_reports"] }
+criterion = { version = "0.8.2", default-features = false, features = ["cargo_bench_support", "html_reports"] }
 
 [profile.dev]
 debug = 0 
