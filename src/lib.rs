@@ -8,6 +8,9 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
+// derive マクロが生成する `::kasane_logic::…` を、このクレートの中でも解決できるようにする。
+extern crate self as kasane_logic;
+
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 

@@ -1,6 +1,7 @@
+use alloc::borrow::Cow;
 use alloc::sync::Arc;
-use core::ops::{Bound, RangeBounds};
 
+use super::summary::{MinMax, Summary};
 use crate::{
     FlexId, Side,
     spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
@@ -8,38 +9,110 @@ use crate::{
 
 /// ノードは自分の領域を持たず、親から渡される領域 `this`との相対的な位置で意味を持つ。辿る関数が`this`を持つことで様々な操作を行う。
 #[derive(Debug, PartialEq)]
-pub(crate) enum Node<V> {
+pub(crate) enum Node<V, S> {
     Leaf(Option<V>),
     Branch {
         dimension: Dimension,
         /// 配下で割っている次元のビットマスク。自身の `dimension` とlowerとupperの集合を合わせたもの。
         split_dimensions: u8,
-        /// 配下に存在する値の最小値と最大値 `[min, max]`。
-        value_range: [V; 2],
-        lower: Arc<Node<V>>,
-        upper: Arc<Node<V>>,
+        /// 配下で値を持つ[FlexId]の数。
+        leaf_count: usize,
+        summary: S,
+        lower: Arc<Node<V, S>>,
+        upper: Arc<Node<V, S>>,
     },
     Skip {
         path: RelativeFlexId,
         /// 配下で割っている次元のビットマスク。行き先が狭い次元（`path` の深くなっている次元）と `child` の集合を合わせたもの。
         split_dimensions: u8,
-        child: Arc<Node<V>>,
+        child: Arc<Node<V, S>>,
     },
 }
 
-impl<V: Clone + Ord> Node<V> {
+/// [`Node::filter`] で、Branch の集計から配下をまとめて判断した結果。
+pub(super) enum Decision {
+    /// 配下をすべて残す。
+    KeepAll,
+    /// 配下をすべて捨てる。
+    DropAll,
+    /// 集計だけでは決まらないので、子へ降りて判断する。
+    Descend,
+}
+
+impl<V, S> Node<V, S> {
     /// 空の[Node]を作成する。
     pub(super) fn empty() -> Arc<Self> {
         Arc::new(Node::Leaf(None))
     }
 
+    pub(super) fn is_empty(&self) -> bool {
+        matches!(self, Node::Leaf(None))
+    }
+
+    /// 配下の値を持つ[FlexId]の数。
+    pub(super) fn leaf_count(&self) -> usize {
+        match self {
+            Node::Leaf(None) => 0,
+            Node::Leaf(Some(_)) => 1,
+            Node::Branch { leaf_count, .. } => *leaf_count,
+            Node::Skip { child, .. } => child.leaf_count(),
+        }
+    }
+
+    /// 配下で割っている次元の集合のビットマスク。ビットマスクは[`Dimension::bit`]のOR。
+    pub(super) fn split_dimensions(&self) -> u8 {
+        match self {
+            Node::Leaf(_) => 0,
+            Node::Branch {
+                split_dimensions, ..
+            }
+            | Node::Skip {
+                split_dimensions, ..
+            } => *split_dimensions,
+        }
+    }
+
+    /// このノードを「最初にどの次元で割るか」。Leaf なら [`None`]。
+    fn head_dimension(&self, this: &FlexId) -> Option<Dimension> {
+        match self {
+            Node::Leaf(_) => None,
+            Node::Branch { dimension, .. } => Some(*dimension),
+            Node::Skip {
+                split_dimensions, ..
+            } => this.coarsest_dimension_in(*split_dimensions),
+        }
+    }
+
+    /// 自身が `dimension` で割った Branch で、子が `lower`・`upper` そのもの（同じ Arc）なら true。
+    fn has_children(&self, dimension: Dimension, lower: &Arc<Self>, upper: &Arc<Self>) -> bool {
+        matches!(self, Node::Branch { dimension: d, lower: l, upper: u, .. }
+            if *d == dimension && Arc::ptr_eq(l, lower) && Arc::ptr_eq(u, upper))
+    }
+}
+
+impl<V, S: AsRef<MinMax<V>>> Node<V, S> {
     /// このノード配下の値の範囲 `[min, max]` を返す。空なら [`None`]。
     pub(super) fn value_range(&self) -> Option<(&V, &V)> {
         match self {
             Node::Leaf(None) => None,
             Node::Leaf(Some(v)) => Some((v, v)),
-            Node::Branch { value_range, .. } => Some((&value_range[0], &value_range[1])),
+            Node::Branch { summary, .. } => {
+                let range = summary.as_ref();
+                Some((range.min(), range.max()))
+            }
             Node::Skip { child, .. } => child.value_range(),
+        }
+    }
+}
+
+impl<V: PartialEq, S: Summary<V>> Node<V, S> {
+    /// このノード配下の値の集計。空なら [`None`]。
+    pub(super) fn summary(&self) -> Option<Cow<'_, S>> {
+        match self {
+            Node::Leaf(None) => None,
+            Node::Leaf(Some(value)) => Some(Cow::Owned(S::new(value))),
+            Node::Branch { summary, .. } => Some(Cow::Borrowed(summary)),
+            Node::Skip { child, .. } => child.summary(),
         }
     }
 
@@ -65,14 +138,15 @@ impl<V: Clone + Ord> Node<V> {
             let lower_id = this.split_on(dimension, Side::Lower).unwrap();
             return Node::skip(this, &lower_id, lower);
         }
-        let (lower_min, lower_max) = lower.value_range().expect("非空ノードは値の範囲を持つ");
-        let (upper_min, upper_max) = upper.value_range().expect("非空ノードは値の範囲を持つ");
-        let min = lower_min.min(upper_min).clone();
-        let max = lower_max.max(upper_max).clone();
+        let (Some(lower_summary), Some(upper_summary)) = (lower.summary(), upper.summary()) else {
+            unreachable!("空でないNodeは必ずSummaryを持つ")
+        };
+        let summary = lower_summary.merge(&upper_summary);
         Arc::new(Node::Branch {
             dimension,
             split_dimensions: dimension.bit() | lower.split_dimensions() | upper.split_dimensions(),
-            value_range: [min, max],
+            leaf_count: lower.leaf_count() + upper.leaf_count(),
+            summary,
             lower,
             upper,
         })
@@ -102,11 +176,11 @@ impl<V: Clone + Ord> Node<V> {
     }
 
     /// 2 つの木 `a`・`b` を、領域 `this` の上で同時にたどって重ね合わせる。
-    pub(super) fn merge<W: Clone + Ord>(
+    pub(super) fn merge<W: PartialEq, T: Summary<W>>(
         this: &FlexId,
         a: &Arc<Self>,
-        b: &Arc<Node<W>>,
-        merge_rule: &impl Fn(&Arc<Self>, &Arc<Node<W>>) -> Option<Arc<Self>>,
+        b: &Arc<Node<W, T>>,
+        merge_rule: &impl Fn(&Arc<Self>, &Arc<Node<W, T>>) -> Option<Arc<Self>>,
     ) -> Arc<Self> {
         if let Some(result) = merge_rule(a, b).or_else(|| Node::merge_skips(this, a, b, merge_rule))
         {
@@ -134,19 +208,13 @@ impl<V: Clone + Ord> Node<V> {
         Node::join(this, dimension, lower, upper)
     }
 
-    /// 自身が `dimension` で割った Branch で、子が `lower`・`upper` そのもの（同じ Arc）なら true。
-    fn has_children(&self, dimension: Dimension, lower: &Arc<Self>, upper: &Arc<Self>) -> bool {
-        matches!(self, Node::Branch { dimension: d, lower: l, upper: u, .. }
-            if *d == dimension && Arc::ptr_eq(l, lower) && Arc::ptr_eq(u, upper))
-    }
-
     /// 両方が Skip なら、2 つの行き先が同じ側にある間はノードを作らずに降り、
     /// 分かれる地点で 1 回だけ重ね合わせる。どちらかが Skip でなければ [`None`]。
-    fn merge_skips<W: Clone + Ord>(
+    fn merge_skips<W: PartialEq, T: Summary<W>>(
         this: &FlexId,
         a: &Arc<Self>,
-        b: &Arc<Node<W>>,
-        rule: &impl Fn(&Arc<Self>, &Arc<Node<W>>) -> Option<Arc<Self>>,
+        b: &Arc<Node<W, T>>,
+        rule: &impl Fn(&Arc<Self>, &Arc<Node<W, T>>) -> Option<Arc<Self>>,
     ) -> Option<Arc<Self>> {
         let (
             Node::Skip {
@@ -190,17 +258,6 @@ impl<V: Clone + Ord> Node<V> {
         Some(Node::skip(this, &at, Node::merge(&at, &a, &b, rule)))
     }
 
-    /// このノードを「最初にどの次元で割るか」。Leaf なら [`None`]。カノニカルな Skip は行き先が狭い次元から割るので、キャッシュ済みの集合から一番粗い次元を選べばよい。
-    fn head_dimension(&self, this: &FlexId) -> Option<Dimension> {
-        match self {
-            Node::Leaf(_) => None,
-            Node::Branch { dimension, .. } => Some(*dimension),
-            Node::Skip {
-                split_dimensions, ..
-            } => this.coarsest_dimension_in(*split_dimensions),
-        }
-    }
-
     /// 領域 `this` の `node` を `dimension` で割った `[下, 上]`（`join` の逆）。
     ///
     /// `node` が `dimension` で割っていなければ、その次元では中身が変わらないので、
@@ -227,34 +284,7 @@ impl<V: Clone + Ord> Node<V> {
         }
     }
 
-    /// 配下で割っている次元の集合のビットマスク。ビットマスクは[`Dimension::bit`]のOR。
-    pub(super) fn split_dimensions(&self) -> u8 {
-        match self {
-            Node::Leaf(_) => 0,
-            Node::Branch {
-                split_dimensions, ..
-            }
-            | Node::Skip {
-                split_dimensions, ..
-            } => *split_dimensions,
-        }
-    }
-
-    pub(super) fn is_empty(&self) -> bool {
-        matches!(self, Node::Leaf(None))
-    }
-
-    /// 上書き（insert）。`b` に値がある場所は `b`、無い場所は `a`。
-    pub(super) fn overwrite_rule(a: &Arc<Self>, b: &Arc<Self>) -> Option<Arc<Self>> {
-        match (&**a, &**b) {
-            _ if Arc::ptr_eq(a, b) => Some(a.clone()),
-            (_, Node::Leaf(None)) => Some(a.clone()),
-            (Node::Leaf(None), _) | (_, Node::Leaf(Some(_))) => Some(b.clone()),
-            _ => None,
-        }
-    }
-
-    /// 和。`a` に値がある場所は `a`、無い場所は `b`。
+    /// 和。`a` に値がある場所は `a`、無い場所は `b`。`a` を書き込む値にすれば上書き（insert）になる。
     pub(super) fn union_rule(a: &Arc<Self>, b: &Arc<Self>) -> Option<Arc<Self>> {
         match (&**a, &**b) {
             _ if Arc::ptr_eq(a, b) => Some(a.clone()),
@@ -265,9 +295,9 @@ impl<V: Clone + Ord> Node<V> {
     }
 
     /// 積。`b` に値がある場所だけ `a` を残す。
-    pub(super) fn intersection_rule<W: Clone + Ord>(
+    pub(super) fn intersection_rule<W: PartialEq, T: Summary<W>>(
         a: &Arc<Self>,
-        b: &Arc<Node<W>>,
+        b: &Arc<Node<W, T>>,
     ) -> Option<Arc<Self>> {
         if Arc::as_ptr(a) as *const () == Arc::as_ptr(b) as *const () {
             return Some(a.clone());
@@ -280,9 +310,9 @@ impl<V: Clone + Ord> Node<V> {
     }
 
     /// 差。`b` に値がある場所の `a` を消す。
-    pub(super) fn difference_rule<W: Clone + Ord>(
+    pub(super) fn difference_rule<W: PartialEq, T: Summary<W>>(
         a: &Arc<Self>,
-        b: &Arc<Node<W>>,
+        b: &Arc<Node<W, T>>,
     ) -> Option<Arc<Self>> {
         if Arc::as_ptr(a) as *const () == Arc::as_ptr(b) as *const () {
             return Some(Node::empty());
@@ -294,70 +324,50 @@ impl<V: Clone + Ord> Node<V> {
         }
     }
 
-    /// 与えられた値の範囲 `(start, end)` に含まれる値だけを残し、範囲外を空にする。
-    pub(super) fn filter_range(
+    /// 領域 `this` の `node` から、値が条件を満たす葉だけを残す。
+    ///
+    /// Branch は集計を `classify` で判断し、配下をまとめて残すか捨てられるならそれ以上降りない。
+    /// 葉は `keep` で判断する。変化の無い部分木は元の [Arc] をそのまま使う。
+    pub(super) fn filter(
         this: &FlexId,
         node: &Arc<Self>,
-        start: Bound<&V>,
-        end: Bound<&V>,
+        classify: &impl Fn(&S) -> Decision,
+        keep: &impl Fn(&V) -> bool,
     ) -> Arc<Self> {
-        let Some((min, max)) = node.value_range() else {
-            return node.clone();
-        };
-        let range = (start, end);
-        // 完全に範囲外なら、部分木全体を一括で刈り取る
-        if is_disjoint(min, max, start, end) {
-            return Node::empty();
-        }
-        // 完全に範囲内なら、部分木全体をそのまま残す
-        if range.contains(min) && range.contains(max) {
-            return node.clone();
-        }
-
         match &**node {
-            Node::Leaf(_) => unreachable!("Leafでは範囲の内か外かが必ず決まる"),
+            Node::Leaf(None) => node.clone(),
+            Node::Leaf(Some(value)) if keep(value) => node.clone(),
+            Node::Leaf(Some(_)) => Node::empty(),
             Node::Branch {
                 dimension,
+                summary,
                 lower,
                 upper,
                 ..
-            } => {
-                let lower_id = this.split_on(*dimension, Side::Lower).unwrap();
-                let upper_id = this.split_on(*dimension, Side::Upper).unwrap();
-                let new_lower = Self::filter_range(&lower_id, lower, start, end);
-                let new_upper = Self::filter_range(&upper_id, upper, start, end);
-                if Arc::ptr_eq(lower, &new_lower) && Arc::ptr_eq(upper, &new_upper) {
-                    node.clone()
-                } else {
-                    Node::join(this, *dimension, new_lower, new_upper)
+            } => match classify(summary) {
+                Decision::KeepAll => node.clone(),
+                Decision::DropAll => Node::empty(),
+                Decision::Descend => {
+                    let lower_id = this.split_on(*dimension, Side::Lower).unwrap();
+                    let upper_id = this.split_on(*dimension, Side::Upper).unwrap();
+                    let lower = Node::filter(&lower_id, lower, classify, keep);
+                    let upper = Node::filter(&upper_id, upper, classify, keep);
+                    if node.has_children(*dimension, &lower, &upper) {
+                        return node.clone();
+                    }
+                    Node::join(this, *dimension, lower, upper)
                 }
-            }
+            },
             Node::Skip { path, child, .. } => {
                 let region = path.to_absolute(this).unwrap();
-                let new_child = Self::filter_range(&region, child, start, end);
+                let new_child = Node::filter(&region, child, classify, keep);
                 if Arc::ptr_eq(child, &new_child) {
-                    node.clone()
-                } else {
-                    Node::skip(this, &region, new_child)
+                    return node.clone();
                 }
+                Node::skip(this, &region, new_child)
             }
         }
     }
-}
-
-/// 値 `min..=max` が範囲 `(start, end)` と交差しないなら true。
-fn is_disjoint<V: Ord>(min: &V, max: &V, start: Bound<&V>, end: Bound<&V>) -> bool {
-    let before_start = match start {
-        Bound::Included(s) => max < s,
-        Bound::Excluded(s) => max <= s,
-        Bound::Unbounded => false,
-    };
-    let after_end = match end {
-        Bound::Included(e) => min > e,
-        Bound::Excluded(e) => min >= e,
-        Bound::Unbounded => false,
-    };
-    before_start || after_end
 }
 
 /// Skip の行き先が `region`、その先で割っている次元が `child_split` のとき、

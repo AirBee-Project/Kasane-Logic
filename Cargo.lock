@@ -486,6 +486,7 @@ dependencies = [
  "criterion",
  "hashbrown 0.17.1",
  "insta",
+ "kasane-logic-derive",
  "libm",
  "proptest",
  "rand 0.10.2",
@@ -495,6 +496,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tracing",
+]
+
+[[package]]
+name = "kasane-logic-derive"
+version = "0.1.4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
