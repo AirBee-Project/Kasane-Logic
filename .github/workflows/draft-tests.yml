@@ -6,6 +6,11 @@ on:
       - main
     types: [opened, synchronize, reopened, converted_to_draft]
 
+# ローカル用の nightly 高速化設定を無効化し、stable で検証する。
+env:
+  RUSTUP_TOOLCHAIN: stable
+  RUSTFLAGS: ""
+
 jobs:
   fmt_and_doc:
     if: github.event.pull_request.draft == true
