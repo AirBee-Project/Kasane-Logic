@@ -1,6 +1,7 @@
 use alloc::borrow::Cow;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::ptr;
 
 use super::summary::{MinMax, Summary};
 use crate::{
@@ -11,25 +12,43 @@ use crate::{
 /// Node は自分の領域を持たず、親から渡される領域 `this`との相対的な位置で意味を持つ。辿る関数が`this`を持つことで様々な操作を行う。
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Node<V, S> {
-    Leaf(Option<V>),
-    Branch {
-        dimension: Dimension,
-        /// 自身と子孫が割っている次元のビットマスク。自身の `dimension` とlowerとupperの集合を合わせたもの。
-        split_dimensions: u8,
-        /// 自身と子孫で Branch が縦に何段続くかの最大。Node を辿るスタックの大きさに使う。
-        height: u8,
-        /// 子孫に含まれる、値を持つ[FlexId]の数。
-        leaf_count: usize,
-        summary: S,
-        lower: Arc<Node<V, S>>,
-        upper: Arc<Node<V, S>>,
-    },
-    Skip {
-        path: RelativeFlexId,
-        /// 自身と子孫が割っている次元のビットマスク。行き先が狭い次元（`path` の深くなっている次元）と `child` の集合を合わせたもの。
-        split_dimensions: u8,
-        child: Arc<Node<V, S>>,
-    },
+    Empty,
+    Leaf(V),
+    Branch(Arc<Branch<V, S>>),
+    Skip(Arc<Skip<V, S>>),
+}
+
+impl<V: Clone, S> Clone for Node<V, S> {
+    fn clone(&self) -> Self {
+        match self {
+            Node::Empty => Node::Empty,
+            Node::Leaf(value) => Node::Leaf(value.clone()),
+            Node::Branch(branch) => Node::Branch(branch.clone()),
+            Node::Skip(skip) => Node::Skip(skip.clone()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Branch<V, S> {
+    pub(super) dimension: Dimension,
+    /// 自身と子孫が割っている次元のビットマスク。自身の `dimension` とlowerとupperの集合を合わせたもの。
+    pub(super) split_dimensions: u8,
+    /// 自身と子孫で Branch が縦に何段続くかの最大。Node を辿るスタックの大きさに使う。
+    pub(super) height: u8,
+    /// 子孫に含まれる、値を持つ[FlexId]の数。
+    pub(super) leaf_count: usize,
+    pub(super) summary: S,
+    pub(super) lower: Node<V, S>,
+    pub(super) upper: Node<V, S>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Skip<V, S> {
+    pub(super) path: RelativeFlexId,
+    /// 自身と子孫が割っている次元のビットマスク。自身の `dimension` とlowerとupperの集合を合わせたもの。
+    pub(super) split_dimensions: u8,
+    pub(super) child: Node<V, S>,
 }
 
 /// [`Node::filter`] で、Branch の領域と Summary から子孫をまとめて判断した結果。
@@ -43,81 +62,75 @@ pub(super) enum Decision {
 }
 
 impl<V, S> Node<V, S> {
-    /// 空の[Node]を作成する。
-    pub(super) fn empty() -> Arc<Self> {
-        Arc::new(Node::Leaf(None))
-    }
-
     pub(super) fn is_empty(&self) -> bool {
-        matches!(self, Node::Leaf(None))
+        matches!(self, Node::Empty)
     }
 
     /// 子孫に含まれる、値を持つ[FlexId]の数。
     pub(super) fn leaf_count(&self) -> usize {
         match self {
-            Node::Leaf(None) => 0,
-            Node::Leaf(Some(_)) => 1,
-            Node::Branch { leaf_count, .. } => *leaf_count,
-            Node::Skip { child, .. } => child.leaf_count(),
+            Node::Empty => 0,
+            Node::Leaf(_) => 1,
+            Node::Branch(branch) => branch.leaf_count,
+            Node::Skip(skip) => skip.child.leaf_count(),
         }
     }
 
     /// 自身と子孫で Branch が縦に何段続くかの最大。Leaf なら 0。
     pub(super) fn height(&self) -> u8 {
         match self {
-            Node::Leaf(_) => 0,
-            Node::Branch { height, .. } => *height,
-            Node::Skip { child, .. } => child.height(),
+            Node::Empty | Node::Leaf(_) => 0,
+            Node::Branch(branch) => branch.height,
+            Node::Skip(skip) => skip.child.height(),
         }
     }
 
     /// 自身と子孫が割っている次元の集合のビットマスク。ビットマスクは[`Dimension::bit`]のOR。
     pub(super) fn split_dimensions(&self) -> u8 {
         match self {
-            Node::Leaf(_) => 0,
-            Node::Branch {
-                split_dimensions, ..
-            }
-            | Node::Skip {
-                split_dimensions, ..
-            } => *split_dimensions,
+            Node::Empty | Node::Leaf(_) => 0,
+            Node::Branch(branch) => branch.split_dimensions,
+            Node::Skip(skip) => skip.split_dimensions,
         }
     }
 
     /// この Node を「最初にどの次元で割るか」。Leaf なら [`None`]。
     fn head_dimension(&self, this: &FlexId) -> Option<Dimension> {
         match self {
-            Node::Leaf(_) => None,
-            Node::Branch { dimension, .. } => Some(*dimension),
-            Node::Skip {
-                split_dimensions, ..
-            } => this.coarsest_dimension_in(*split_dimensions),
+            Node::Empty | Node::Leaf(_) => None,
+            Node::Branch(branch) => Some(branch.dimension),
+            Node::Skip(skip) => this.coarsest_dimension_in(skip.split_dimensions),
         }
     }
 
     /// 領域 `this` のこの Node の子を、下側から取り出されるように `stack` へ積む。Leaf なら何もしない。
     pub(super) fn push_children<'a>(&'a self, this: FlexId, stack: &mut Vec<(&'a Self, FlexId)>) {
         match self {
-            Node::Leaf(_) => {}
-            Node::Branch {
-                dimension,
-                lower,
-                upper,
-                ..
-            } => {
-                stack.push((upper, this.split_on(*dimension, Side::Upper).unwrap()));
-                stack.push((lower, this.split_on(*dimension, Side::Lower).unwrap()));
+            Node::Empty | Node::Leaf(_) => {}
+            Node::Branch(branch) => {
+                let dimension = branch.dimension;
+                stack.push((
+                    &branch.upper,
+                    this.split_on(dimension, Side::Upper).unwrap(),
+                ));
+                stack.push((
+                    &branch.lower,
+                    this.split_on(dimension, Side::Lower).unwrap(),
+                ));
             }
-            Node::Skip { path, child, .. } => {
-                stack.push((child, path.to_absolute(&this).unwrap()));
+            Node::Skip(skip) => {
+                stack.push((&skip.child, skip.path.to_absolute(&this).unwrap()));
             }
         }
     }
 
-    /// 自身が `dimension` で割った Branch で、子が `lower`・`upper` そのもの（同じ Arc）なら true。
-    fn has_children(&self, dimension: Dimension, lower: &Arc<Self>, upper: &Arc<Self>) -> bool {
-        matches!(self, Node::Branch { dimension: d, lower: l, upper: u, .. }
-            if *d == dimension && Arc::ptr_eq(l, lower) && Arc::ptr_eq(u, upper))
+    /// 同じ Branch・Skip の Arc を指しているなら true。値の型が違う Node とも比べられる。
+    fn ptr_eq<W, T>(&self, other: &Node<W, T>) -> bool {
+        match (self, other) {
+            (Node::Branch(a), Node::Branch(b)) => ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b)),
+            (Node::Skip(a), Node::Skip(b)) => ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b)),
+            _ => false,
+        }
     }
 }
 
@@ -125,35 +138,52 @@ impl<V, S: AsRef<MinMax<V>>> Node<V, S> {
     /// この Node と子孫の値の範囲 `[min, max]` を返す。空なら [`None`]。
     pub(super) fn value_range(&self) -> Option<(&V, &V)> {
         match self {
-            Node::Leaf(None) => None,
-            Node::Leaf(Some(v)) => Some((v, v)),
-            Node::Branch { summary, .. } => {
-                let range = summary.as_ref();
+            Node::Empty => None,
+            Node::Leaf(v) => Some((v, v)),
+            Node::Branch(branch) => {
+                let range = branch.summary.as_ref();
                 Some((range.min(), range.max()))
             }
-            Node::Skip { child, .. } => child.value_range(),
+            Node::Skip(skip) => skip.child.value_range(),
         }
     }
 }
 
-impl<V: PartialEq, S: Summary<V>> Node<V, S> {
+impl<V, S: Summary<V>> Node<V, S> {
     /// この Node と子孫の値の Summary。空なら [`None`]。
     pub(super) fn summary(&self) -> Option<Cow<'_, S>> {
         match self {
-            Node::Leaf(None) => None,
-            Node::Leaf(Some(value)) => Some(Cow::Owned(S::new(value))),
-            Node::Branch { summary, .. } => Some(Cow::Borrowed(summary)),
-            Node::Skip { child, .. } => child.summary(),
+            Node::Empty => None,
+            Node::Leaf(value) => Some(Cow::Owned(S::new(value))),
+            Node::Branch(branch) => Some(Cow::Borrowed(&branch.summary)),
+            Node::Skip(skip) => skip.child.summary(),
+        }
+    }
+}
+
+impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
+    /// 中身を辿らずに同じと分かるなら true。変化の無い部分で元の Arc を使い回すために使う。
+    fn is_same(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Node::Empty, Node::Empty) => true,
+            (Node::Leaf(a), Node::Leaf(b)) => a == b,
+            _ => self.ptr_eq(other),
         }
     }
 
+    /// 自身が `dimension` で割った Branch で、子が `lower`・`upper` と同じなら true。
+    fn has_children(&self, dimension: Dimension, lower: &Self, upper: &Self) -> bool {
+        matches!(self, Node::Branch(branch)
+            if branch.dimension == dimension && branch.lower.is_same(lower) && branch.upper.is_same(upper))
+    }
+
     /// 領域 `this` を `dimension` で割った左右 `lower`,`upper` を、カノニカル形の1つの[Node]に合わせる。
-    fn join(this: &FlexId, dimension: Dimension, lower: Arc<Self>, upper: Arc<Self>) -> Arc<Self> {
+    fn join(this: &FlexId, dimension: Dimension, lower: Self, upper: Self) -> Self {
         // Branch はここでしか作らない。これでどの操作の結果もカノニカル形になる。
         // Node は領域との相対位置で意味を持つので、子孫が `dimension` で割っている Node を
         // 広い `this` へ持ち上げると意味が変わる。左右が同じでも、そのときは割ったままにする。
         if lower.split_dimensions() & dimension.bit() == 0
-            && (Arc::ptr_eq(&lower, &upper) || lower == upper)
+            && (lower.is_same(&upper) || lower == upper)
         {
             return lower;
         }
@@ -170,7 +200,7 @@ impl<V: PartialEq, S: Summary<V>> Node<V, S> {
             unreachable!("空でないNodeは必ずSummaryを持つ")
         };
         let summary = lower_summary.merge(&upper_summary);
-        Arc::new(Node::Branch {
+        Node::Branch(Arc::new(Branch {
             dimension,
             split_dimensions: dimension.bit() | lower.split_dimensions() | upper.split_dimensions(),
             height: 1 + lower.height().max(upper.height()),
@@ -178,45 +208,38 @@ impl<V: PartialEq, S: Summary<V>> Node<V, S> {
             summary,
             lower,
             upper,
-        })
+        }))
     }
 
     /// 領域 `this` のうち、内側の `target` だけに `child` があり、外側は空の[Node]を作る。
-    pub(super) fn skip(this: &FlexId, target: &FlexId, child: Arc<Self>) -> Arc<Self> {
+    pub(super) fn skip(this: &FlexId, target: &FlexId, child: Self) -> Self {
         if target == this {
             return child;
         }
-        let (target_id, child) = match &*child {
+        let (target_id, child) = match child {
             // 空はどこに置いても空
-            Node::Leaf(None) => return child,
+            Node::Empty => return Node::Empty,
             // Skip の先へさらに Skip しないよう、Skip の行き先から直接張り直す
-            Node::Skip {
-                path, child: inner, ..
-            } => (path.to_absolute(target).unwrap(), inner.clone()),
-            _ => (*target, child),
+            Node::Skip(skip) => (skip.path.to_absolute(target).unwrap(), skip.child.clone()),
+            child => (*target, child),
         };
         let path = target_id.relative_to(this).unwrap();
         let split_dimensions = path.deeper_dimensions() | child.split_dimensions();
-        Arc::new(Node::Skip {
+        Node::Skip(Arc::new(Skip {
             path,
             split_dimensions,
             child,
-        })
+        }))
     }
 
     /// 2 つの Node `a`・`b` を、領域 `this` の上で `merge_rule` に従って重ね合わせる。
-    ///
-    /// `empty` は、結果の空の場所に使う空の Leaf（`a` 側の型と `b` 側の型）。
-    pub(super) fn merge<W: PartialEq, T: Summary<W>>(
+    pub(super) fn merge<W: PartialEq + Clone, T: Summary<W>>(
         this: &FlexId,
-        a: &Arc<Self>,
-        b: &Arc<Node<W, T>>,
-        merge_rule: &impl Fn(&Arc<Self>, &Arc<Node<W, T>>, &Arc<Self>) -> Option<Arc<Self>>,
-        empty: &(Arc<Self>, Arc<Node<W, T>>),
-    ) -> Arc<Self> {
-        // 空の Leaf を毎回確保しないよう、呼び出し側が操作ごとに1組だけ作った `empty` を使い回す
-        if let Some(result) =
-            merge_rule(a, b, &empty.0).or_else(|| Node::merge_skips(this, a, b, merge_rule, empty))
+        a: &Self,
+        b: &Node<W, T>,
+        merge_rule: &impl Fn(&Self, &Node<W, T>) -> Option<Self>,
+    ) -> Self {
+        if let Some(result) = merge_rule(a, b).or_else(|| Node::merge_skips(this, a, b, merge_rule))
         {
             return result;
         }
@@ -228,12 +251,12 @@ impl<V: PartialEq, S: Summary<V>> Node<V, S> {
             .coarsest_dimension_in(heads)
             .expect("Leaf どうしは merge_rule が答えを決める");
 
-        let [a_lower, a_upper] = Node::split(this, a, dimension, &empty.0);
-        let [b_lower, b_upper] = Node::split(this, b, dimension, &empty.1);
+        let [a_lower, a_upper] = a.split(this, dimension);
+        let [b_lower, b_upper] = b.split(this, dimension);
         let lower_id = this.split_on(dimension, Side::Lower).unwrap();
         let upper_id = this.split_on(dimension, Side::Upper).unwrap();
-        let lower = Node::merge(&lower_id, &a_lower, &b_lower, merge_rule, empty);
-        let upper = Node::merge(&upper_id, &a_upper, &b_upper, merge_rule, empty);
+        let lower = Node::merge(&lower_id, &a_lower, &b_lower, merge_rule);
+        let upper = Node::merge(&upper_id, &a_upper, &b_upper, merge_rule);
 
         if a.has_children(dimension, &lower, &upper) {
             return a.clone();
@@ -243,32 +266,22 @@ impl<V: PartialEq, S: Summary<V>> Node<V, S> {
 
     /// `a`・`b` がどちらも Skip で、2 つの行き先を共に含む `this` より狭い領域があれば、
     /// その領域で重ね合わせた結果を返す。無ければ [`None`]。
-    fn merge_skips<W: PartialEq, T: Summary<W>>(
+    fn merge_skips<W: PartialEq + Clone, T: Summary<W>>(
         this: &FlexId,
-        a: &Arc<Self>,
-        b: &Arc<Node<W, T>>,
-        rule: &impl Fn(&Arc<Self>, &Arc<Node<W, T>>, &Arc<Self>) -> Option<Arc<Self>>,
-        empty: &(Arc<Self>, Arc<Node<W, T>>),
-    ) -> Option<Arc<Self>> {
-        let (
-            Node::Skip {
-                path: path_a,
-                child: child_a,
-                ..
-            },
-            Node::Skip {
-                path: path_b,
-                child: child_b,
-                ..
-            },
-        ) = (&**a, &**b)
-        else {
+        a: &Self,
+        b: &Node<W, T>,
+        rule: &impl Fn(&Self, &Node<W, T>) -> Option<Self>,
+    ) -> Option<Self> {
+        let (Node::Skip(skip_a), Node::Skip(skip_b)) = (a, b) else {
             return None;
         };
         // 行き先が分かれるまでは途中の Node を作らずに降り、分かれる地点で1回だけ重ね合わせる
-        let region_a = path_a.to_absolute(this).unwrap();
-        let region_b = path_b.to_absolute(this).unwrap();
-        let (split_a, split_b) = (child_a.split_dimensions(), child_b.split_dimensions());
+        let region_a = skip_a.path.to_absolute(this).unwrap();
+        let region_b = skip_b.path.to_absolute(this).unwrap();
+        let (split_a, split_b) = (
+            skip_a.child.split_dimensions(),
+            skip_b.child.split_dimensions(),
+        );
 
         let mut at = *this;
         while let (Some(da), Some(db)) = (
@@ -288,130 +301,100 @@ impl<V: PartialEq, S: Summary<V>> Node<V, S> {
             return None;
         }
 
-        let a = Node::skip(&at, &region_a, child_a.clone());
-        let b = Node::skip(&at, &region_b, child_b.clone());
-        Some(Node::skip(this, &at, Node::merge(&at, &a, &b, rule, empty)))
+        let a = Node::skip(&at, &region_a, skip_a.child.clone());
+        let b = Node::skip(&at, &region_b, skip_b.child.clone());
+        Some(Node::skip(this, &at, Node::merge(&at, &a, &b, rule)))
     }
 
-    /// 領域 `this` の `node` を `dimension` で割った `[下, 上]`（`join` の逆）。空の側は `empty` を使う。
+    /// 領域 `this` のこの Node を `dimension` で割った `[下, 上]`（`join` の逆）。
     ///
-    /// `node` が `dimension` で割っていなければ、両側に `node` を返す。
-    fn split(
-        this: &FlexId,
-        node: &Arc<Self>,
-        dimension: Dimension,
-        empty: &Arc<Self>,
-    ) -> [Arc<Self>; 2] {
-        match &**node {
-            Node::Branch {
-                dimension: d,
-                lower,
-                upper,
-                ..
-            } if *d == dimension => [lower.clone(), upper.clone()],
-            Node::Skip { path, child, .. } if path.depth_on(dimension) > 0 => {
-                let region = path.to_absolute(this).unwrap();
+    /// `dimension` で割っていなければ、両側にこの Node を返す。
+    fn split(&self, this: &FlexId, dimension: Dimension) -> [Cow<'_, Self>; 2] {
+        match self {
+            Node::Branch(branch) if branch.dimension == dimension => {
+                [Cow::Borrowed(&branch.lower), Cow::Borrowed(&branch.upper)]
+            }
+            Node::Skip(skip) if skip.path.depth_on(dimension) > 0 => {
+                let region = skip.path.to_absolute(this).unwrap();
                 let next = this.split_toward(dimension, &region).unwrap();
-                let rest = Node::skip(&next, &region, child.clone());
+                let rest = Cow::Owned(Node::skip(&next, &region, skip.child.clone()));
                 if next == this.split_on(dimension, Side::Upper).unwrap() {
-                    [empty.clone(), rest]
+                    [Cow::Owned(Node::Empty), rest]
                 } else {
-                    [rest, empty.clone()]
+                    [rest, Cow::Owned(Node::Empty)]
                 }
             }
             // その次元では中身が変わらないので、下も上も同じ中身になる
-            _ => [node.clone(), node.clone()],
+            _ => [Cow::Borrowed(self), Cow::Borrowed(self)],
         }
     }
 
     /// 和。`a` に値がある場所は `a`、無い場所は `b`。
-    pub(super) fn union_rule(
-        a: &Arc<Self>,
-        b: &Arc<Self>,
-        _empty: &Arc<Self>,
-    ) -> Option<Arc<Self>> {
-        match (&**a, &**b) {
-            _ if Arc::ptr_eq(a, b) => Some(a.clone()),
-            (Node::Leaf(Some(_)), _) | (_, Node::Leaf(None)) => Some(a.clone()),
-            (Node::Leaf(None), _) => Some(b.clone()),
+    pub(super) fn union_rule(a: &Self, b: &Self) -> Option<Self> {
+        match (a, b) {
+            _ if a.ptr_eq(b) => Some(a.clone()),
+            (Node::Leaf(_), _) | (_, Node::Empty) => Some(a.clone()),
+            (Node::Empty, _) => Some(b.clone()),
             _ => None,
         }
     }
 
     /// 積。`b` に値がある場所だけ `a` を残す。
-    pub(super) fn intersection_rule<W: PartialEq, T: Summary<W>>(
-        a: &Arc<Self>,
-        b: &Arc<Node<W, T>>,
-        empty: &Arc<Self>,
-    ) -> Option<Arc<Self>> {
-        if Arc::as_ptr(a) as *const () == Arc::as_ptr(b) as *const () {
-            return Some(a.clone());
-        }
-        match (&**a, &**b) {
-            (Node::Leaf(None), _) | (_, Node::Leaf(Some(_))) => Some(a.clone()),
-            (_, Node::Leaf(None)) => Some(empty.clone()),
+    pub(super) fn intersection_rule<W, T>(a: &Self, b: &Node<W, T>) -> Option<Self> {
+        match (a, b) {
+            _ if a.ptr_eq(b) => Some(a.clone()),
+            (Node::Empty, _) | (_, Node::Leaf(_)) => Some(a.clone()),
+            (_, Node::Empty) => Some(Node::Empty),
             _ => None,
         }
     }
 
     /// 差。`b` に値がある場所の `a` を消す。
-    pub(super) fn difference_rule<W: PartialEq, T: Summary<W>>(
-        a: &Arc<Self>,
-        b: &Arc<Node<W, T>>,
-        empty: &Arc<Self>,
-    ) -> Option<Arc<Self>> {
-        if Arc::as_ptr(a) as *const () == Arc::as_ptr(b) as *const () {
-            return Some(empty.clone());
-        }
-        match (&**a, &**b) {
-            (Node::Leaf(None), _) | (_, Node::Leaf(None)) => Some(a.clone()),
-            (_, Node::Leaf(Some(_))) => Some(empty.clone()),
+    pub(super) fn difference_rule<W, T>(a: &Self, b: &Node<W, T>) -> Option<Self> {
+        match (a, b) {
+            _ if a.ptr_eq(b) => Some(Node::Empty),
+            (Node::Empty, _) | (_, Node::Empty) => Some(a.clone()),
+            (_, Node::Leaf(_)) => Some(Node::Empty),
             _ => None,
         }
     }
 
-    /// 領域 `this` の `node` から、条件を満たす Leaf だけを残す。捨てた場所には `empty` を使う。
+    /// 領域 `this` の `node` から、条件を満たす Leaf だけを残す。
     ///
     /// Branch は領域と Summary を `classify` で判断し、子孫をまとめて残すか捨てられるならそれ以上降りない。
     /// Leaf は領域と値を `keep` で判断する。変化の無い Node は元の [Arc] をそのまま使う。
     pub(super) fn filter(
         this: &FlexId,
-        node: &Arc<Self>,
+        node: &Self,
         classify: &impl Fn(&FlexId, &S) -> Decision,
         keep: &impl Fn(&FlexId, &V) -> bool,
-        empty: &Arc<Self>,
-    ) -> Arc<Self> {
-        match &**node {
-            Node::Leaf(None) => node.clone(),
-            Node::Leaf(Some(value)) if keep(this, value) => node.clone(),
-            Node::Leaf(Some(_)) => empty.clone(),
-            Node::Branch {
-                dimension,
-                summary,
-                lower,
-                upper,
-                ..
-            } => match classify(this, summary) {
+    ) -> Self {
+        match node {
+            Node::Empty => Node::Empty,
+            Node::Leaf(value) if keep(this, value) => node.clone(),
+            Node::Leaf(_) => Node::Empty,
+            Node::Branch(branch) => match classify(this, &branch.summary) {
                 Decision::KeepAll => node.clone(),
-                Decision::DropAll => empty.clone(),
+                Decision::DropAll => Node::Empty,
                 Decision::Descend => {
-                    let lower_id = this.split_on(*dimension, Side::Lower).unwrap();
-                    let upper_id = this.split_on(*dimension, Side::Upper).unwrap();
-                    let lower = Node::filter(&lower_id, lower, classify, keep, empty);
-                    let upper = Node::filter(&upper_id, upper, classify, keep, empty);
-                    if node.has_children(*dimension, &lower, &upper) {
+                    let dimension = branch.dimension;
+                    let lower_id = this.split_on(dimension, Side::Lower).unwrap();
+                    let upper_id = this.split_on(dimension, Side::Upper).unwrap();
+                    let lower = Node::filter(&lower_id, &branch.lower, classify, keep);
+                    let upper = Node::filter(&upper_id, &branch.upper, classify, keep);
+                    if node.has_children(dimension, &lower, &upper) {
                         return node.clone();
                     }
-                    Node::join(this, *dimension, lower, upper)
+                    Node::join(this, dimension, lower, upper)
                 }
             },
-            Node::Skip { path, child, .. } => {
-                let region = path.to_absolute(this).unwrap();
-                let new_child = Node::filter(&region, child, classify, keep, empty);
-                if Arc::ptr_eq(child, &new_child) {
+            Node::Skip(skip) => {
+                let region = skip.path.to_absolute(this).unwrap();
+                let child = Node::filter(&region, &skip.child, classify, keep);
+                if child.is_same(&skip.child) {
                     return node.clone();
                 }
-                Node::skip(this, &region, new_child)
+                Node::skip(this, &region, child)
             }
         }
     }

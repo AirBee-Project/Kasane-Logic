@@ -1,5 +1,4 @@
 use crate::{FlexId, RangeId, SpatialId};
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::iter::from_fn;
 use core::ops::{Bound, RangeBounds};
@@ -82,11 +81,11 @@ mod tests;
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct FlexTreeCore2<V, S = MinMax<V>> {
-    upper_root: Arc<Node<V, S>>,
-    lower_root: Arc<Node<V, S>>,
+    upper_root: Node<V, S>,
+    lower_root: Node<V, S>,
 }
 
-impl<V, S> Clone for FlexTreeCore2<V, S> {
+impl<V: Clone, S> Clone for FlexTreeCore2<V, S> {
     fn clone(&self) -> Self {
         FlexTreeCore2 {
             upper_root: self.upper_root.clone(),
@@ -97,10 +96,9 @@ impl<V, S> Clone for FlexTreeCore2<V, S> {
 
 impl<V, S> Default for FlexTreeCore2<V, S> {
     fn default() -> Self {
-        let empty = Node::empty();
         FlexTreeCore2 {
-            upper_root: empty.clone(),
-            lower_root: empty,
+            upper_root: Node::Empty,
+            lower_root: Node::Empty,
         }
     }
 }
@@ -194,7 +192,7 @@ impl<V, S> FlexTreeCore2<V, S> {
                 if !overlaps(&this) {
                     continue;
                 }
-                if let Node::Leaf(Some(value)) = node {
+                if let Node::Leaf(value) = node {
                     return Some((this, value));
                 }
                 node.push_children(this, &mut stack);
@@ -210,13 +208,13 @@ impl<V, S> FlexTreeCore2<V, S> {
         let height = self.upper_root.height().max(self.lower_root.height());
         let mut stack = Vec::with_capacity(usize::from(height) + 2);
         // 後に積んだものから取り出すので、上側のルートを後に積む
-        stack.push((&*self.lower_root, FlexId::LOWER_MAX));
-        stack.push((&*self.upper_root, FlexId::UPPER_MAX));
+        stack.push((&self.lower_root, FlexId::LOWER_MAX));
+        stack.push((&self.upper_root, FlexId::UPPER_MAX));
         stack
     }
 
     /// `target` を含む方のルート（北半球か南半球）と、その領域を返す。
-    fn root_for(&mut self, target: &FlexId) -> (&mut Arc<Node<V, S>>, FlexId) {
+    fn root_for(&mut self, target: &FlexId) -> (&mut Node<V, S>, FlexId) {
         if target.f_index().is_negative() {
             (&mut self.lower_root, FlexId::LOWER_MAX)
         } else {
@@ -225,14 +223,14 @@ impl<V, S> FlexTreeCore2<V, S> {
     }
 }
 
-impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
+impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore2<V, S> {
     /// `target` の領域に `value` を書き込む。既に値がある場所は上書きされる。
     ///
     /// `target` には [FlexId] のほか、[SingleId](crate::SingleId) や [RangeId] をそのまま渡せる。
     pub fn insert(&mut self, target: impl IntoIterator<Item = FlexId>, value: V) {
         // 上書きは、書き込む値を優先した和集合
-        self.insert_by_rule(target, value, &|existing, written, empty| {
-            Node::union_rule(written, existing, empty)
+        self.insert_by_rule(target, value, &|existing, written| {
+            Node::union_rule(written, existing)
         });
     }
 
@@ -243,17 +241,16 @@ impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
         value: V,
         resolve: impl Fn(&V, &V) -> V,
     ) {
-        self.insert_by_rule(target, value, &|existing, written, _empty| match (
-            &**existing,
-            &**written,
-        ) {
-            (_, Node::Leaf(None)) => Some(existing.clone()),
-            (Node::Leaf(None), _) => Some(written.clone()),
-            (Node::Leaf(Some(old)), Node::Leaf(Some(new))) => {
-                Some(Arc::new(Node::Leaf(Some(resolve(old, new)))))
-            }
-            _ => None,
-        });
+        self.insert_by_rule(
+            target,
+            value,
+            &|existing, written| match (existing, written) {
+                (_, Node::Empty) => Some(existing.clone()),
+                (Node::Empty, _) => Some(written.clone()),
+                (Node::Leaf(old), Node::Leaf(new)) => Some(Node::Leaf(resolve(old, new))),
+                _ => None,
+            },
+        );
     }
 
     /// `target` の領域を空にし、取り除いた部分を FlexTreeCore2 として返す。
@@ -296,12 +293,18 @@ impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
     }
 
     /// 積集合。`other` にも値がある場所だけ、`self` の値を残す。
-    pub fn intersection<W: PartialEq, T: Summary<W>>(&self, other: &FlexTreeCore2<W, T>) -> Self {
+    pub fn intersection<W: PartialEq + Clone, T: Summary<W>>(
+        &self,
+        other: &FlexTreeCore2<W, T>,
+    ) -> Self {
         self.merge(other, &Node::intersection_rule)
     }
 
     /// 差集合。`other` に値がある場所を `self` から取り除く。
-    pub fn difference<W: PartialEq, T: Summary<W>>(&self, other: &FlexTreeCore2<W, T>) -> Self {
+    pub fn difference<W: PartialEq + Clone, T: Summary<W>>(
+        &self,
+        other: &FlexTreeCore2<W, T>,
+    ) -> Self {
         self.merge(other, &Node::difference_rule)
     }
 
@@ -319,39 +322,34 @@ impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
         &mut self,
         target: impl IntoIterator<Item = FlexId>,
         value: V,
-        rule: &impl Fn(&Arc<Node<V, S>>, &Arc<Node<V, S>>, &Arc<Node<V, S>>) -> Option<Arc<Node<V, S>>>,
+        rule: &impl Fn(&Node<V, S>, &Node<V, S>) -> Option<Node<V, S>>,
     ) {
-        let leaf = Arc::new(Node::Leaf(Some(value)));
-        let empty = Node::empty();
-        let empty = (empty.clone(), empty);
+        let leaf = Node::Leaf(value);
         for id in target {
             let (root, root_id) = self.root_for(&id);
             let written = Node::skip(&root_id, &id, leaf.clone());
-            *root = Node::merge(&root_id, root, &written, rule, &empty);
+            *root = Node::merge(&root_id, root, &written, rule);
         }
     }
 
     /// 上下のルートどうしを `rule` で重ね合わせる。
-    fn merge<W: PartialEq, T: Summary<W>>(
+    fn merge<W: PartialEq + Clone, T: Summary<W>>(
         &self,
         other: &FlexTreeCore2<W, T>,
-        rule: &impl Fn(&Arc<Node<V, S>>, &Arc<Node<W, T>>, &Arc<Node<V, S>>) -> Option<Arc<Node<V, S>>>,
+        rule: &impl Fn(&Node<V, S>, &Node<W, T>) -> Option<Node<V, S>>,
     ) -> Self {
-        let empty = (Node::empty(), Node::empty());
         FlexTreeCore2 {
             upper_root: Node::merge(
                 &FlexId::UPPER_MAX,
                 &self.upper_root,
                 &other.upper_root,
                 rule,
-                &empty,
             ),
             lower_root: Node::merge(
                 &FlexId::LOWER_MAX,
                 &self.lower_root,
                 &other.lower_root,
                 rule,
-                &empty,
             ),
         }
     }
@@ -362,15 +360,14 @@ impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
         classify: &impl Fn(&FlexId, &S) -> Decision,
         keep: &impl Fn(&FlexId, &V) -> bool,
     ) -> Self {
-        let empty = Node::empty();
         FlexTreeCore2 {
-            upper_root: Node::filter(&FlexId::UPPER_MAX, &self.upper_root, classify, keep, &empty),
-            lower_root: Node::filter(&FlexId::LOWER_MAX, &self.lower_root, classify, keep, &empty),
+            upper_root: Node::filter(&FlexId::UPPER_MAX, &self.upper_root, classify, keep),
+            lower_root: Node::filter(&FlexId::LOWER_MAX, &self.lower_root, classify, keep),
         }
     }
 }
 
-impl<V: Ord, S: Summary<V> + AsRef<MinMax<V>>> FlexTreeCore2<V, S> {
+impl<V: Ord + Clone, S: Summary<V> + AsRef<MinMax<V>>> FlexTreeCore2<V, S> {
     /// [FlexTreeCore2]全体に存在する値の範囲 `[min, max]` を返す。[FlexTreeCore2]が空なら [`None`]。
     pub fn value_range(&self) -> Option<(&V, &V)> {
         match (self.upper_root.value_range(), self.lower_root.value_range()) {

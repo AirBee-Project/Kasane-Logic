@@ -4,20 +4,17 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use super::node::Node;
+use super::node::{Branch, Node, Skip};
 use super::{BitMask, FlexTreeCore2, MinMax, NoSummary, Summary, ValueSet};
-use crate::{
-    FlexId, RangeId, Side, SingleId,
-    spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
-};
+use crate::{FlexId, RangeId, Side, SingleId, spatial_id::dimension::Dimension};
 
 /// Leaf と Branch の数。Skip は数えない。
 fn node_count<V, S>(node: &Node<V, S>) -> usize {
     match node {
-        Node::Leaf(_) => 1,
-        Node::Branch { lower, upper, .. } => 1 + node_count(lower) + node_count(upper),
+        Node::Empty | Node::Leaf(_) => 1,
+        Node::Branch(branch) => 1 + node_count(&branch.lower) + node_count(&branch.upper),
         // Skip は位置を移すだけで、値も分岐も持たない
-        Node::Skip { child, .. } => node_count(child),
+        Node::Skip(skip) => node_count(&skip.child),
     }
 }
 
@@ -27,16 +24,17 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
     this: FlexId,
 ) -> Result<(), String> {
     match node {
-        Node::Leaf(_) => Ok(()),
-        Node::Branch {
-            dimension,
-            split_dimensions,
-            height,
-            leaf_count,
-            summary,
-            lower,
-            upper,
-        } => {
+        Node::Empty | Node::Leaf(_) => Ok(()),
+        Node::Branch(branch) => {
+            let Branch {
+                dimension,
+                split_dimensions,
+                height,
+                leaf_count,
+                summary,
+                lower,
+                upper,
+            } = &**branch;
             let expected = dimension.bit() | lower.split_dimensions() | upper.split_dimensions();
             if *split_dimensions != expected {
                 return Err(format!("{this:?}: split_dimensions のキャッシュが古い"));
@@ -74,12 +72,13 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
             check_canonical(lower, this.split_on(*dimension, Side::Lower).unwrap())?;
             check_canonical(upper, this.split_on(*dimension, Side::Upper).unwrap())
         }
-        Node::Skip {
-            path,
-            split_dimensions,
-            child,
-        } => {
-            if matches!(**child, Node::Leaf(None) | Node::Skip { .. }) {
+        Node::Skip(skip) => {
+            let Skip {
+                path,
+                split_dimensions,
+                child,
+            } = &**skip;
+            if matches!(child, Node::Empty | Node::Skip(_)) {
                 return Err(format!("{this:?}: Skip の先が空または Skip"));
             }
             if *split_dimensions != (path.deeper_dimensions() | child.split_dimensions()) {
@@ -208,16 +207,11 @@ fn sample_points(next: &mut impl FnMut(u64) -> u64, ids: &[FlexId]) -> Vec<FlexI
     points
 }
 
-/// Node の大きさは、一番大きいバリアント（Branch か Skip）の中身にタグを足した大きさを超えない。
+/// Node は値か Arc 1つ分にタグを足した大きさで、Branch・Skip の中身の大きさに引きずられない。
 #[test]
-fn node_size_is_bounded_by_largest_variant() {
+fn node_size_is_value_or_pointer() {
     use core::mem::size_of;
-    // どちらが大きいかは値の型と時間次元の有無で変わる（`RelativeFlexId` は `temporal_id` ありで 24B、
-    // なしで 16B）ので、大きさは決め打ちせず両方の中身から求める
-
-    let branch = size_of::<(Dimension, u8, u8, usize, MinMax<u64>, Arc<()>, Arc<()>)>();
-    let skip = size_of::<(RelativeFlexId, u8, Arc<()>)>();
-    assert!(size_of::<Node<u64, MinMax<u64>>>() <= branch.max(skip) + 8);
+    assert!(size_of::<Node<u64, MinMax<u64>>>() <= size_of::<u64>().max(size_of::<Arc<()>>()) + 8);
 }
 
 #[test]
@@ -232,7 +226,7 @@ fn f_zero_goes_to_upper_root() {
 fn insert_whole_root_becomes_single_leaf() {
     let mut tree = FlexTreeCore2::<u64>::default();
     tree.insert(FlexId::UPPER_MAX, 7u64);
-    assert!(matches!(*tree.upper_root, Node::Leaf(Some(7))));
+    assert!(matches!(tree.upper_root, Node::Leaf(7)));
 }
 
 #[test]
@@ -240,7 +234,7 @@ fn sibling_halves_with_same_value_merge() {
     let mut tree = FlexTreeCore2::<u64>::default();
     tree.insert(FlexId::new(1, 0, 0, 0, 0, 0).unwrap(), 5u64);
     tree.insert(FlexId::new(1, 1, 0, 0, 0, 0).unwrap(), 5u64);
-    assert!(matches!(*tree.upper_root, Node::Leaf(Some(5))));
+    assert!(matches!(tree.upper_root, Node::Leaf(5)));
 }
 
 #[test]
@@ -250,10 +244,10 @@ fn overwrite_inside_filled_leaf_splits() {
     tree.insert(FlexId::new(2, 1, 2, 3, 2, 0).unwrap(), 2u64);
     assert!(tree.iter().count() > 2);
     // 周りに値があるので段は飛ばさない
-    assert!(matches!(*tree.upper_root, Node::Branch { .. }));
+    assert!(matches!(tree.upper_root, Node::Branch(_)));
 
     tree.insert(FlexId::new(2, 1, 2, 3, 2, 0).unwrap(), 1u64);
-    assert!(matches!(*tree.upper_root, Node::Leaf(Some(1))));
+    assert!(matches!(tree.upper_root, Node::Leaf(1)));
 }
 
 /// 空の FlexTreeCore2 へ細かい点を入れても、一本道の Branch を作らず Skip 1 つで降りる。
@@ -261,9 +255,7 @@ fn overwrite_inside_filled_leaf_splits() {
 fn deep_point_in_empty_tree_skips_levels() {
     let mut tree = FlexTreeCore2::<u64>::default();
     tree.insert(FlexId::new(20, 12345, 20, 54321, 20, 999).unwrap(), 1u64);
-    assert!(
-        matches!(&*tree.upper_root, Node::Skip { child, .. } if matches!(**child, Node::Leaf(Some(1))))
-    );
+    assert!(matches!(&tree.upper_root, Node::Skip(skip) if matches!(skip.child, Node::Leaf(1))));
 }
 
 /// 離れた2点は、分かれる地点の Branch 1 つの下に並ぶ。
@@ -457,19 +449,23 @@ fn filter_range_prunes_and_matches_model() {
 /// 参照実装：再帰でたどって、値を持つ領域を下側から順に集める。
 fn collect_recursive<'a, V, S>(node: &'a Node<V, S>, this: FlexId, out: &mut Vec<(FlexId, &'a V)>) {
     match node {
-        Node::Leaf(None) => {}
-        Node::Leaf(Some(value)) => out.push((this, value)),
-        Node::Branch {
-            dimension,
-            lower,
-            upper,
-            ..
-        } => {
-            collect_recursive(lower, this.split_on(*dimension, Side::Lower).unwrap(), out);
-            collect_recursive(upper, this.split_on(*dimension, Side::Upper).unwrap(), out);
+        Node::Empty => {}
+        Node::Leaf(value) => out.push((this, value)),
+        Node::Branch(branch) => {
+            let dimension = branch.dimension;
+            collect_recursive(
+                &branch.lower,
+                this.split_on(dimension, Side::Lower).unwrap(),
+                out,
+            );
+            collect_recursive(
+                &branch.upper,
+                this.split_on(dimension, Side::Upper).unwrap(),
+                out,
+            );
         }
-        Node::Skip { path, child, .. } => {
-            collect_recursive(child, path.to_absolute(&this).unwrap(), out);
+        Node::Skip(skip) => {
+            collect_recursive(&skip.child, skip.path.to_absolute(&this).unwrap(), out);
         }
     }
 }
@@ -918,8 +914,8 @@ fn traversal_stack_fits_height_bound() {
             let bound = usize::from(tree.upper_root.height().max(tree.lower_root.height())) + 2;
 
             let mut stack = Vec::from([
-                (&*tree.lower_root, FlexId::LOWER_MAX),
-                (&*tree.upper_root, FlexId::UPPER_MAX),
+                (&tree.lower_root, FlexId::LOWER_MAX),
+                (&tree.upper_root, FlexId::UPPER_MAX),
             ]);
             let mut deepest = stack.len();
             while let Some((node, this)) = stack.pop() {

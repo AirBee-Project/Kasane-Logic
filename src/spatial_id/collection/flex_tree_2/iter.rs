@@ -38,7 +38,7 @@ impl<'a, V, S> Iterator for Iter<'a, V, S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, this)) = self.stack.pop() {
-            if let Node::Leaf(Some(value)) = node {
+            if let Node::Leaf(value) = node {
                 self.remaining -= 1;
                 return Some((this, value));
             }
@@ -59,7 +59,7 @@ impl<V, S> FusedIterator for Iter<'_, V, S> {}
 /// [FlexTreeCore2]を消費して、値を持つ領域と値を1つずつ返すイテレーター。
 #[derive(Debug)]
 pub struct IntoIter<V, S> {
-    stack: Vec<(Arc<Node<V, S>>, FlexId)>,
+    stack: Vec<(Node<V, S>, FlexId)>,
     /// まだ返していない要素の数。
     remaining: usize,
 }
@@ -69,38 +69,29 @@ impl<V: Clone, S> Iterator for IntoIter<V, S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, this)) = self.stack.pop() {
-            match Arc::try_unwrap(node) {
-                Ok(Node::Leaf(Some(value))) => {
+            match node {
+                Node::Empty => {}
+                Node::Leaf(value) => {
                     self.remaining -= 1;
                     return Some((this, value));
                 }
-                Ok(Node::Leaf(None)) => {}
-                Ok(Node::Branch {
-                    dimension,
-                    lower,
-                    upper,
-                    ..
-                }) => self.push_branch(this, dimension, lower, upper),
-                Ok(Node::Skip { path, child, .. }) => {
-                    self.stack.push((child, path.to_absolute(&this).unwrap()));
-                }
-                Err(shared) => match &*shared {
-                    Node::Leaf(Some(value)) => {
-                        self.remaining -= 1;
-                        return Some((this, value.clone()));
+                Node::Branch(branch) => match Arc::try_unwrap(branch) {
+                    Ok(branch) => {
+                        self.push_branch(this, branch.dimension, branch.lower, branch.upper)
                     }
-                    Node::Leaf(None) => {}
-                    Node::Branch {
-                        dimension,
-                        lower,
-                        upper,
-                        ..
-                    } => self.push_branch(this, *dimension, lower.clone(), upper.clone()),
-                    Node::Skip { path, child, .. } => {
-                        self.stack
-                            .push((child.clone(), path.to_absolute(&this).unwrap()));
-                    }
+                    Err(branch) => self.push_branch(
+                        this,
+                        branch.dimension,
+                        branch.lower.clone(),
+                        branch.upper.clone(),
+                    ),
                 },
+                Node::Skip(skip) => {
+                    let region = skip.path.to_absolute(&this).unwrap();
+                    let child = Arc::try_unwrap(skip)
+                        .map_or_else(|skip| skip.child.clone(), |skip| skip.child);
+                    self.stack.push((child, region));
+                }
             }
         }
         None
@@ -117,8 +108,8 @@ impl<V, S> IntoIter<V, S> {
         &mut self,
         this: FlexId,
         dimension: Dimension,
-        lower: Arc<Node<V, S>>,
-        upper: Arc<Node<V, S>>,
+        lower: Node<V, S>,
+        upper: Node<V, S>,
     ) {
         self.stack
             .push((upper, this.split_on(dimension, Side::Upper).unwrap()));
@@ -155,7 +146,7 @@ impl<V: Clone, S> IntoIterator for FlexTreeCore2<V, S> {
     }
 }
 
-impl<V: PartialEq, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore2<V, S> {
+impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore2<V, S> {
     /// 順に [`insert`](FlexTreeCore2::insert) する。重なる場所は後の値で上書きされる。
     fn extend<I: IntoIterator<Item = (FlexId, V)>>(&mut self, iter: I) {
         for (id, value) in iter {
@@ -164,7 +155,7 @@ impl<V: PartialEq, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore2<V, S> {
     }
 }
 
-impl<V: PartialEq, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore2<V, S> {
+impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore2<V, S> {
     /// 順に [`insert`](FlexTreeCore2::insert) して組み立てる。重なる場所は後の値で上書きされる。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
         let mut tree = FlexTreeCore2::default();
