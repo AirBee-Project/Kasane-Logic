@@ -7,20 +7,21 @@ use core::fmt::Debug;
 use super::node::Node;
 use super::{BitMask, FlexTreeCore2, MinMax, NoSummary, Summary, ValueSet};
 use crate::{
-    FlexId, Side,
+    FlexId, RangeId, Side, SingleId,
     spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
 };
 
-/// Leaf と Branch の数。Skip は位置の移動だけなので数えない。
+/// Leaf と Branch の数。Skip は数えない。
 fn node_count<V, S>(node: &Node<V, S>) -> usize {
     match node {
         Node::Leaf(_) => 1,
         Node::Branch { lower, upper, .. } => 1 + node_count(lower) + node_count(upper),
+        // Skip は位置を移すだけで、値も分岐も持たない
         Node::Skip { child, .. } => node_count(child),
     }
 }
 
-/// 領域 `this` のノードがカノニカル形の規則を守っているか検査する。
+/// 領域 `this` の Node がカノニカル形の規則を守っているか検査する。
 fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
     node: &Node<V, S>,
     this: FlexId,
@@ -30,6 +31,7 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
         Node::Branch {
             dimension,
             split_dimensions,
+            height,
             leaf_count,
             summary,
             lower,
@@ -47,6 +49,12 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
             }
             if this.coarsest_dimension_in(*split_dimensions) != Some(*dimension) {
                 return Err(format!("{this:?}: 一番粗い次元で割っていない"));
+            }
+            let expected_height = 1 + lower.height().max(upper.height());
+            if *height != expected_height {
+                return Err(format!(
+                    "{this:?}: height が不正: 実際 {height}, 期待 {expected_height}"
+                ));
             }
             let expected_count = lower.leaf_count() + upper.leaf_count();
             if *leaf_count != expected_count {
@@ -103,7 +111,7 @@ fn assert_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(tree: &FlexTree
     check_canonical(&tree.lower_root, FlexId::LOWER_MAX).unwrap();
 }
 
-/// 葉の列から木を組み立てる。
+/// FlexId と値の列から FlexTreeCore2 を組み立てる。
 fn build<'a, V: Clone + Ord + 'a>(
     leaves: impl IntoIterator<Item = (FlexId, &'a V)>,
 ) -> FlexTreeCore2<V> {
@@ -114,7 +122,7 @@ fn build<'a, V: Clone + Ord + 'a>(
     tree
 }
 
-/// 木の中で `point` を含む葉の値。
+/// FlexTreeCore2 の中で `point` を含む FlexId の値。
 fn value_at<V: Clone, S>(tree: &FlexTreeCore2<V, S>, point: &FlexId) -> Option<V> {
     tree.iter()
         .find(|(id, _)| id.contains(point))
@@ -201,13 +209,13 @@ fn sample_points(next: &mut impl FnMut(u64) -> u64, ids: &[FlexId]) -> Vec<FlexI
 }
 
 /// Node の大きさは、一番大きいバリアント（Branch か Skip）の中身にタグを足した大きさを超えない。
-///
-/// どちらが大きいかは値の型と時間次元の有無で変わる（`RelativeFlexId` は `temporal_id` ありで 24B、
-/// なしで 16B）ため、大きさは決め打ちせず両方の中身から求める。
 #[test]
 fn node_size_is_bounded_by_largest_variant() {
     use core::mem::size_of;
-    let branch = size_of::<(Dimension, u8, usize, MinMax<u64>, Arc<()>, Arc<()>)>();
+    // どちらが大きいかは値の型と時間次元の有無で変わる（`RelativeFlexId` は `temporal_id` ありで 24B、
+    // なしで 16B）ので、大きさは決め打ちせず両方の中身から求める
+
+    let branch = size_of::<(Dimension, u8, u8, usize, MinMax<u64>, Arc<()>, Arc<()>)>();
     let skip = size_of::<(RelativeFlexId, u8, Arc<()>)>();
     assert!(size_of::<Node<u64, MinMax<u64>>>() <= branch.max(skip) + 8);
 }
@@ -244,12 +252,11 @@ fn overwrite_inside_filled_leaf_splits() {
     // 周りに値があるので段は飛ばさない
     assert!(matches!(*tree.upper_root, Node::Branch { .. }));
 
-    // 同じ場所を元の値で上書きすると、全体が1つの葉に戻る
     tree.insert(FlexId::new(2, 1, 2, 3, 2, 0).unwrap(), 1u64);
     assert!(matches!(*tree.upper_root, Node::Leaf(Some(1))));
 }
 
-/// 空の木へ細かい点を入れても、一本道の Branch を作らず Skip 1 つで降りる。
+/// 空の FlexTreeCore2 へ細かい点を入れても、一本道の Branch を作らず Skip 1 つで降りる。
 #[test]
 fn deep_point_in_empty_tree_skips_levels() {
     let mut tree = FlexTreeCore2::<u64>::default();
@@ -265,13 +272,13 @@ fn two_distant_points_share_one_fork() {
     let mut tree = FlexTreeCore2::<u64>::default();
     tree.insert(FlexId::new(20, 1, 20, 1, 20, 1).unwrap(), 1u64);
     tree.insert(FlexId::new(20, 1, 20, 900_000, 20, 1).unwrap(), 2u64);
-    // 分岐の Branch 1つと、各点の葉
+    // 分岐の Branch 1つと、各点の Leaf
     assert_eq!(node_count(&tree.upper_root), 3);
     assert_eq!(tree.iter().count(), 2);
     assert_canonical(&tree);
 }
 
-/// 挿入した点を消すと空の木に戻る。
+/// 挿入した点を消すと空の FlexTreeCore2 に戻る。
 #[test]
 fn remove_restores_empty_tree() {
     let mut tree = FlexTreeCore2::<u64>::default();
@@ -285,7 +292,7 @@ fn remove_restores_empty_tree() {
 }
 
 /// 乱数で上書き挿入と削除を繰り返し、参照モデルと値が一致し、常にカノニカル形であることを確かめる。
-/// さらに、別の分け方の葉（各葉を半分に割ったもの・自分の葉を逆順）から組み直しても同じ形になることを確かめる。
+/// さらに、別の分け方の FlexId（各 FlexId を半分に割ったもの・自分の FlexId を逆順）から組み直しても同じ形になることを確かめる。
 /// 粗い ID が重なり合う場合と、細かい ID が疎に散る場合（段飛ばしが多い）の両方を試す。
 #[test]
 fn random_updates_match_model_and_stay_canonical() {
@@ -313,7 +320,6 @@ fn random_updates_match_model_and_stay_canonical() {
                 assert_eq!(value_at(&tree, &point), model_value_at(&writes, &point));
             }
 
-            // 各葉を分割できる次元で半分に割った、別の分け方の葉から組み直す
             let halves: Vec<(FlexId, &u64)> = tree
                 .iter()
                 .flat_map(|(id, v)| {
@@ -375,7 +381,7 @@ fn set_operations_match_model() {
     }
 }
 
-/// 木全体の value_range, min_value, max_value の基本動作テスト。
+/// FlexTreeCore2 全体の value_range, min_value, max_value の基本動作テスト。
 #[test]
 fn value_range_basic() {
     let mut tree: FlexTreeCore2<u64> = FlexTreeCore2::default();
@@ -425,28 +431,23 @@ fn filter_range_prunes_and_matches_model() {
             let filtered = tree.filter_range(min_bound..=max_bound);
             assert_canonical(&filtered);
 
-            // フィルター後のすべての葉の値が範囲内にあること
             for (_, val) in filtered.iter() {
                 assert!(*val >= min_bound && *val <= max_bound);
             }
 
-            // 標本点での値が参照モデルと完全に一致すること
             for point in sample_points(&mut next, &ids) {
                 let expected =
                     model_value_at(&writes, &point).filter(|v| *v >= min_bound && *v <= max_bound);
                 assert_eq!(value_at(&filtered, &point), expected);
             }
 
-            // 全体を包含する範囲なら、木全体がそのまま返る（O(1) Pass）
             if let Some((&tree_min, &tree_max)) = tree.value_range() {
                 let full = tree.filter_range(tree_min..=tree_max);
                 assert_eq!(full, tree);
-                // 非有界範囲 `..` でも同様
                 let full_unbounded = tree.filter_range(..);
                 assert_eq!(full_unbounded, tree);
             }
 
-            // 完全に範囲外なら、空の木になる（O(1) Prune）
             let empty = tree.filter_range(1000..=2000);
             assert_eq!(empty.iter().count(), 0);
         }
@@ -474,7 +475,7 @@ fn collect_recursive<'a, V, S>(node: &'a Node<V, S>, this: FlexId, out: &mut Vec
 }
 
 /// `iter`・`&tree` と `tree` の `IntoIterator` が、再帰でたどった結果と同じ順・同じ中身を返し、
-/// `FromIterator`・`Extend` で組み直すと元の木に戻ることを確かめる。
+/// `FromIterator`・`Extend` で組み直すと元の FlexTreeCore2 に戻ることを確かめる。
 #[test]
 fn iterators_match_recursive_walk_and_round_trip() {
     let mut next = rng(0xfeed);
@@ -498,11 +499,10 @@ fn iterators_match_recursive_walk_and_round_trip() {
             assert_eq!((&tree).into_iter().collect::<Vec<_>>(), expected);
             let owned: Vec<(FlexId, u64)> = expected.iter().map(|&(id, v)| (id, *v)).collect();
 
-            // 他の木とノードを共有している場合（値をクローンする経路）
+            // 他の FlexTreeCore2 と Node を共有している場合（値をクローンする経路）
             let shared = tree.clone();
             assert_eq!(shared.into_iter().collect::<Vec<_>>(), owned);
 
-            // FromIterator と Extend で組み直すと元の木に戻る
             let rebuilt: FlexTreeCore2<u64> = owned.iter().copied().collect();
             assert_eq!(rebuilt, tree);
             let mut extended = FlexTreeCore2::default();
@@ -515,7 +515,7 @@ fn iterators_match_recursive_walk_and_round_trip() {
     }
 }
 
-/// 空の木のイテレーターは何も返さず、使い切った後も `None` を返し続ける。
+/// 空の FlexTreeCore2 のイテレーターは何も返さず、使い切った後も `None` を返し続ける。
 #[test]
 fn empty_tree_iterators_are_fused() {
     let tree: FlexTreeCore2<u64> = FlexTreeCore2::default();
@@ -549,7 +549,7 @@ const COLORS: [Color; 4] = [Color::Red, Color::Green, Color::Blue, Color::Yellow
 /// 書き込みの履歴。`None` は削除。
 type Writes<V> = Vec<(FlexId, Option<V>)>;
 
-/// 乱数で上書き挿入と削除を繰り返した木と、その書き込み履歴を作る。
+/// 乱数で上書き挿入と削除を繰り返した FlexTreeCore2 と、その書き込み履歴を作る。
 fn random_tree<V: PartialEq + Clone, S: Summary<V>>(
     next: &mut impl FnMut(u64) -> u64,
     max_zoom: u64,
@@ -621,7 +621,7 @@ fn len_and_size_hint_match_iteration() {
     }
 }
 
-/// ValueSet を集計に持つ木で、`value_set` が現れる値の集合と一致し、`filter_values` が参照モデルと一致する。
+/// ValueSet を Summary に持つ FlexTreeCore2 で、`value_set` が現れる値の集合と一致し、`filter_values` が参照モデルと一致する。
 #[test]
 fn value_set_summary_matches_model() {
     let mut next = rng(314);
@@ -651,14 +651,13 @@ fn value_set_summary_matches_model() {
                 }
             }
 
-            // すべて残すなら木はそのまま、何も残さないなら空になる
             assert_eq!(tree.filter_values(present), tree);
             assert!(tree.filter_values(ValueSet::EMPTY).is_empty());
         }
     }
 }
 
-/// 2つの集計を組み合わせると、範囲とビットマスクの両方で絞り込める。
+/// 2つの Summary を組み合わせると、範囲とビットマスクの両方で絞り込める。
 #[test]
 fn paired_summary_supports_both_filters() {
     let mut tree: FlexTreeCore2<Color, (MinMax<Color>, ValueSet<Color>)> = FlexTreeCore2::default();
@@ -685,7 +684,7 @@ fn paired_summary_supports_both_filters() {
     );
 }
 
-/// `NoSummary` なら `Ord` でない値も持て、集計の違う木どうしで集合演算ができる。
+/// `NoSummary` なら `Ord` でない値も持て、Summary の違う FlexTreeCore2 どうしで集合演算ができる。
 #[test]
 fn no_summary_holds_unordered_values() {
     let a_id = FlexId::new(1, 0, 0, 0, 0, 0).unwrap();
@@ -700,4 +699,237 @@ fn no_summary_holds_unordered_values() {
     region.insert(a_id, 7);
     let kept: Vec<_> = tree.intersection(&region).into_iter().collect();
     assert_eq!(kept, [(a_id, 0.5)]);
+}
+
+/// 重ならないとは限らない、ランダムな FlexId の列。
+fn random_targets(next: &mut impl FnMut(u64) -> u64, max_zoom: u64) -> Vec<FlexId> {
+    let count = 1 + next(3);
+    (0..count).map(|_| random_id(next, max_zoom)).collect()
+}
+
+/// FlexId の列が覆う領域。
+fn region_of(ids: &[FlexId]) -> FlexTreeCore2<(), NoSummary> {
+    let mut region = FlexTreeCore2::default();
+    region.insert(ids.iter().copied(), ());
+    region
+}
+
+/// 複数の領域への `insert` は、1つずつ `insert` した結果と同じになる。
+#[test]
+fn insert_many_ids_matches_inserting_one_by_one() {
+    let mut next = rng(11);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (base, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let targets = random_targets(&mut next, max_zoom);
+
+            let mut at_once = base.clone();
+            at_once.insert(targets.iter().copied(), 9);
+            let mut one_by_one = base.clone();
+            for id in &targets {
+                one_by_one.insert(*id, 9);
+            }
+            assert_canonical(&at_once);
+            assert_eq!(at_once, one_by_one);
+        }
+    }
+}
+
+/// `insert_with` は、既に値がある場所を `resolve(既存, 新しい値)` にし、空の場所には新しい値を置く。
+#[test]
+fn insert_with_matches_model() {
+    let mut next = rng(12);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let mut tree = FlexTreeCore2::<u64>::default();
+            let mut writes: Writes<u64> = Vec::new();
+            for _ in 0..30 {
+                let id = random_id(&mut next, max_zoom);
+                if next(4) == 0 {
+                    tree.remove(id);
+                    writes.push((id, None));
+                } else {
+                    let value = 1 + next(3);
+                    tree.insert_with(id, value, |old, new| old + new);
+                    writes.push((id, Some(value)));
+                }
+                assert_canonical(&tree);
+            }
+
+            let ids: Vec<FlexId> = writes.iter().map(|(id, _)| *id).collect();
+            for point in sample_points(&mut next, &ids) {
+                // 削除（None）で空に戻り、書き込みは既存の値に足される
+                let expected = writes
+                    .iter()
+                    .filter(|(id, _)| id.contains(&point))
+                    .fold(None, |current, (_, write)| {
+                        write.map(|v| current.map_or(v, |c: u64| c + v))
+                    });
+                assert_eq!(value_at(&tree, &point), expected);
+            }
+        }
+    }
+}
+
+/// `get` は、`target` との共通部分に切り取った FlexId を返す。組み直すと積集合と一致する。
+#[test]
+fn get_matches_intersection() {
+    let mut next = rng(13);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let targets = random_targets(&mut next, max_zoom);
+
+            let got: FlexTreeCore2<u64> = tree
+                .get(targets.iter().copied())
+                .map(|(id, v)| (id, *v))
+                .collect();
+            assert_eq!(got, tree.intersection(&region_of(&targets)));
+            for (id, _) in tree.get(targets.iter().copied()) {
+                assert!(targets.iter().any(|t| t.contains(&id)));
+            }
+        }
+    }
+}
+
+/// `get_overlapping` と `get_overlapping_range` は、重なる FlexId をそのまま、1回ずつ、`iter` と同じ順で返す。
+#[test]
+fn get_overlapping_returns_whole_leaves_once() {
+    let mut next = rng(14);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+
+            let targets = random_targets(&mut next, max_zoom);
+            let expected: Vec<_> = tree
+                .iter()
+                .filter(|(leaf, _)| targets.iter().any(|t| leaf.intersection(t).is_some()))
+                .collect();
+            let got: Vec<_> = tree.get_overlapping(targets.iter().copied()).collect();
+            assert_eq!(got, expected);
+
+            let z = next(max_zoom) as u8;
+            let span = 1i64 << z;
+            let f0 = next(2 << z) as i64 - span;
+            let (x0, y0) = (next(1 << z), next(1 << z));
+            let range = RangeId::new(
+                z,
+                [f0 as i32, (f0 + next(3) as i64).min(span - 1) as i32],
+                [x0 as u32, (x0 + next(3)).min(span as u64 - 1) as u32],
+                [y0 as u32, (y0 + next(3)).min(span as u64 - 1) as u32],
+            )
+            .unwrap();
+            let expected: Vec<_> = tree
+                .iter()
+                .filter(|(leaf, _)| leaf.intersects_range(&range))
+                .collect();
+            let got: Vec<_> = tree.get_overlapping_range(&range).collect();
+            assert_eq!(got, expected);
+        }
+    }
+}
+
+/// `remove` は `target` の部分を取り除き、取り除いた部分（積集合）を返す。
+#[test]
+fn remove_returns_removed_part() {
+    let mut next = rng(15);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (mut tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let before = tree.clone();
+            let targets = random_targets(&mut next, max_zoom);
+            let region = region_of(&targets);
+
+            let removed = tree.remove(targets.iter().copied());
+            assert_canonical(&tree);
+            assert_canonical(&removed);
+            assert_eq!(removed, before.intersection(&region));
+            assert_eq!(tree, before.difference(&region));
+        }
+    }
+}
+
+/// `remove_overlapping` は、`target` と重なる FlexId を丸ごと取り除く。
+#[test]
+fn remove_overlapping_removes_whole_leaves() {
+    let mut next = rng(16);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (mut tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let before = tree.clone();
+            let targets = random_targets(&mut next, max_zoom);
+            let overlaps = |leaf: &FlexId| targets.iter().any(|t| leaf.intersection(t).is_some());
+
+            let removed = tree.remove_overlapping(targets.iter().copied());
+            assert_canonical(&tree);
+            assert_canonical(&removed);
+            assert_eq!(removed.union(&tree), before);
+            assert!(removed.iter().all(|(leaf, _)| overlaps(&leaf)));
+            assert!(tree.iter().all(|(leaf, _)| !overlaps(&leaf)));
+        }
+    }
+}
+
+/// `neighbors_share_face` は、面で接する領域だけを返し、自身や角で接する領域は返さない。
+#[test]
+fn neighbors_share_face_returns_face_neighbors_only() {
+    let at = |f, x, y| SingleId::new(4, f, x, y).unwrap();
+    let center = at(3, 5, 6);
+
+    let mut tree = FlexTreeCore2::<u64>::default();
+    tree.insert(center.clone(), 0);
+    for (value, cell) in [
+        (1, at(2, 5, 6)),
+        (2, at(4, 5, 6)),
+        (3, at(3, 4, 6)),
+        (4, at(3, 6, 6)),
+        (5, at(3, 5, 5)),
+        (6, at(3, 5, 7)),
+        (7, at(3, 6, 7)),
+    ] {
+        tree.insert(cell, value);
+    }
+
+    let mut values: Vec<u64> = tree
+        .neighbors_share_face(&center)
+        .map(|(_, v)| *v)
+        .collect();
+    values.sort();
+    assert_eq!(values, [1, 2, 3, 4, 5, 6]);
+}
+
+/// `clear` で空になる。
+#[test]
+fn clear_empties_tree() {
+    let mut tree = FlexTreeCore2::<u64>::default();
+    tree.insert(FlexId::UPPER_MAX, 1);
+    tree.clear();
+    assert!(tree.is_empty());
+    assert_eq!(tree, FlexTreeCore2::default());
+}
+
+/// Node を辿るスタックは、確保した大きさ（高さ + 2）を超えない。超えると走査の途中で再確保が起きる。
+#[test]
+fn traversal_stack_fits_height_bound() {
+    let mut next = rng(17);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let bound = usize::from(tree.upper_root.height().max(tree.lower_root.height())) + 2;
+
+            let mut stack = Vec::from([
+                (&*tree.lower_root, FlexId::LOWER_MAX),
+                (&*tree.upper_root, FlexId::UPPER_MAX),
+            ]);
+            let mut deepest = stack.len();
+            while let Some((node, this)) = stack.pop() {
+                node.push_children(this, &mut stack);
+                deepest = deepest.max(stack.len());
+            }
+            assert!(
+                deepest <= bound,
+                "スタック {deepest} が上限 {bound} を超えた"
+            );
+        }
+    }
 }

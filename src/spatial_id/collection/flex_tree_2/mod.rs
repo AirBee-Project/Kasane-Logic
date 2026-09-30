@@ -1,5 +1,7 @@
-use crate::FlexId;
+use crate::{FlexId, RangeId, SpatialId};
 use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::iter::from_fn;
 use core::ops::{Bound, RangeBounds};
 pub use iter::{IntoIter, Iter};
 pub use kasane_logic_derive::BitMask;
@@ -56,7 +58,7 @@ mod tests;
 ///
 /// ## 範囲と種類の両方で絞る
 ///
-/// 2つの集計をタプルで組み合わせる。型が長くなるので型エイリアスを付けるとよい。
+/// 2つの Summary をタプルで組み合わせる。型が長くなるので型エイリアスを付けるとよい。
 ///
 /// ```
 /// use kasane_logic::FlexId;
@@ -95,9 +97,10 @@ impl<V, S> Clone for FlexTreeCore2<V, S> {
 
 impl<V, S> Default for FlexTreeCore2<V, S> {
     fn default() -> Self {
+        let empty = Node::empty();
         FlexTreeCore2 {
-            upper_root: Node::empty(),
-            lower_root: Node::empty(),
+            upper_root: empty.clone(),
+            lower_root: empty,
         }
     }
 }
@@ -116,8 +119,103 @@ impl<V, S> FlexTreeCore2<V, S> {
         Iter::new(self)
     }
 
-    /// `target` が属する[Node]と、その[FlexId]を返す。
-    /// 北半球と南半球の最初の分割用。
+    /// 全ての値を消す。
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    /// `target` と重なる領域と値を、`target` との共通部分に切り取って返す。
+    ///
+    /// `target` の各[FlexId]が互いに重ならなければ、返す領域も互いに重ならない。
+    pub fn get<'a>(
+        &'a self,
+        target: impl IntoIterator<Item = FlexId, IntoIter: 'a>,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        target.into_iter().flat_map(move |t| {
+            self.overlapping(move |region| region.intersection(&t).is_some())
+                .filter_map(move |(leaf, value)| Some((leaf.intersection(&t)?, value)))
+        })
+    }
+
+    /// `target` と重なる領域と値を、切り取らずにそのまま返す。各領域は1回だけ返す。
+    pub fn get_overlapping<'a>(
+        &'a self,
+        target: impl IntoIterator<Item = FlexId>,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        let targets: Vec<FlexId> = target.into_iter().collect();
+        self.overlapping(move |region| targets.iter().any(|t| region.intersection(t).is_some()))
+    }
+
+    /// 範囲 `target` と重なる領域と値を、切り取らずにそのまま返す。時間軸も含めて判定する。
+    pub fn get_overlapping_range<'a>(
+        &'a self,
+        target: &RangeId,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        let target = target.clone();
+        self.overlapping(move |region| region.intersects_range(&target))
+    }
+
+    /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
+    pub fn neighbors_share_face<'a, T: SpatialId>(
+        &'a self,
+        target: &T,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        // 各方向に1つずらした領域が、面で接しうる候補
+        let mut shifted: Vec<FlexId> = Vec::new();
+        for delta in [-1, 1] {
+            let mut f = target.clone();
+            if f.move_f(delta).is_ok() {
+                shifted.extend(f);
+            }
+            let mut y = target.clone();
+            if y.move_y(delta).is_ok() {
+                shifted.extend(y);
+            }
+            let mut x = target.clone();
+            x.move_x(delta);
+            shifted.extend(x);
+        }
+
+        let own: Vec<FlexId> = target.clone().into_iter().collect();
+        self.get_overlapping(shifted).filter(move |(leaf, _)| {
+            own.iter().all(|o| leaf.intersection(o).is_none())
+                && own.iter().any(|o| o.shares_face(leaf))
+        })
+    }
+
+    /// 値を持つ Leaf のうち、領域が `overlaps` を満たすものを FlexId と値で返す。`overlaps` を満たさない Node の子孫は辿らない。
+    fn overlapping<'a>(
+        &'a self,
+        overlaps: impl Fn(&FlexId) -> bool + 'a,
+    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
+        let mut stack = self.new_stack();
+        from_fn(move || {
+            while let Some((node, this)) = stack.pop() {
+                if !overlaps(&this) {
+                    continue;
+                }
+                if let Node::Leaf(Some(value)) = node {
+                    return Some((this, value));
+                }
+                node.push_children(this, &mut stack);
+            }
+            None
+        })
+    }
+
+    /// 上下のルートを積んだ、[Node] を辿るためのスタックを返す。
+    fn new_stack(&self) -> Vec<(&Node<V, S>, FlexId)> {
+        // 辿っている経路の各 Branch につき未処理の子が1つ積まれ、もう一方のルートと今の子の分が加わる。
+        // スタックは高さ + 2 を超えないので、最後まで再確保しない。
+        let height = self.upper_root.height().max(self.lower_root.height());
+        let mut stack = Vec::with_capacity(usize::from(height) + 2);
+        // 後に積んだものから取り出すので、上側のルートを後に積む
+        stack.push((&*self.lower_root, FlexId::LOWER_MAX));
+        stack.push((&*self.upper_root, FlexId::UPPER_MAX));
+        stack
+    }
+
+    /// `target` を含む方のルート（北半球か南半球）と、その領域を返す。
     fn root_for(&mut self, target: &FlexId) -> (&mut Arc<Node<V, S>>, FlexId) {
         if target.f_index().is_negative() {
             (&mut self.lower_root, FlexId::LOWER_MAX)
@@ -128,20 +226,68 @@ impl<V, S> FlexTreeCore2<V, S> {
 }
 
 impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
-    /// [FlexId]と値を挿入する。
-    /// 既に値がある場合には上書きされる。
-    pub fn insert(&mut self, target: FlexId, value: V) {
-        let (root, root_flexid) = self.root_for(&target);
-        let written = Node::only_at(&root_flexid, &target, value);
+    /// `target` の領域に `value` を書き込む。既に値がある場所は上書きされる。
+    ///
+    /// `target` には [FlexId] のほか、[SingleId](crate::SingleId) や [RangeId] をそのまま渡せる。
+    pub fn insert(&mut self, target: impl IntoIterator<Item = FlexId>, value: V) {
         // 上書きは、書き込む値を優先した和集合
-        *root = Node::merge(&root_flexid, &written, root, &Node::union_rule);
+        self.insert_by_rule(target, value, &|existing, written, empty| {
+            Node::union_rule(written, existing, empty)
+        });
     }
 
-    /// `target` の領域を空にする。
-    pub fn remove(&mut self, target: FlexId) {
-        let (root, root_flexid) = self.root_for(&target);
-        let removed = Node::<(), NoSummary>::only_at(&root_flexid, &target, ());
-        *root = Node::merge(&root_flexid, root, &removed, &Node::difference_rule);
+    /// `target` の領域に `value` を書き込む。既に値がある場所は `resolve(既存の値, value)` にする。
+    pub fn insert_with(
+        &mut self,
+        target: impl IntoIterator<Item = FlexId>,
+        value: V,
+        resolve: impl Fn(&V, &V) -> V,
+    ) {
+        self.insert_by_rule(target, value, &|existing, written, _empty| match (
+            &**existing,
+            &**written,
+        ) {
+            (_, Node::Leaf(None)) => Some(existing.clone()),
+            (Node::Leaf(None), _) => Some(written.clone()),
+            (Node::Leaf(Some(old)), Node::Leaf(Some(new))) => {
+                Some(Arc::new(Node::Leaf(Some(resolve(old, new)))))
+            }
+            _ => None,
+        });
+    }
+
+    /// `target` の領域を空にし、取り除いた部分を FlexTreeCore2 として返す。
+    pub fn remove(&mut self, target: impl IntoIterator<Item = FlexId>) -> Self {
+        let mut region = FlexTreeCore2::<(), NoSummary>::default();
+        region.insert(target, ());
+        let removed = self.intersection(&region);
+        *self = self.difference(&region);
+        removed
+    }
+
+    /// `target` と重なる領域を、切り取らずに丸ごと取り除き、取り除いた部分を FlexTreeCore2 として返す。
+    pub fn remove_overlapping(&mut self, target: impl IntoIterator<Item = FlexId>) -> Self {
+        let targets: Vec<FlexId> = target.into_iter().collect();
+        let overlaps = |region: &FlexId| targets.iter().any(|t| region.intersection(t).is_some());
+        let removed_part = |region: &FlexId, _: &S| {
+            if !overlaps(region) {
+                Decision::DropAll
+            } else if targets.iter().any(|t| t.contains(region)) {
+                Decision::KeepAll
+            } else {
+                Decision::Descend
+            }
+        };
+        let removed = self.filter(&removed_part, &|leaf, _| overlaps(leaf));
+        *self = self.filter(
+            &|region, summary| match removed_part(region, summary) {
+                Decision::KeepAll => Decision::DropAll,
+                Decision::DropAll => Decision::KeepAll,
+                Decision::Descend => Decision::Descend,
+            },
+            &|leaf, _| !overlaps(leaf),
+        );
+        removed
     }
 
     /// 和集合。両方に値がある場所は `self` の値を使う。
@@ -159,7 +305,7 @@ impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
         self.merge(other, &Node::difference_rule)
     }
 
-    /// 木全体の値の集計。空なら [`None`]。
+    /// FlexTreeCore2 全体の Summary。空なら [`None`]。
     pub fn summary(&self) -> Option<S> {
         match (self.upper_root.summary(), self.lower_root.summary()) {
             (Some(upper), Some(lower)) => Some(upper.merge(&lower)),
@@ -168,33 +314,58 @@ impl<V: PartialEq, S: Summary<V>> FlexTreeCore2<V, S> {
         }
     }
 
+    /// `target` の各領域だけに `value` を持つ Node を作り、既存の Node と `rule` で重ね合わせる。
+    fn insert_by_rule(
+        &mut self,
+        target: impl IntoIterator<Item = FlexId>,
+        value: V,
+        rule: &impl Fn(&Arc<Node<V, S>>, &Arc<Node<V, S>>, &Arc<Node<V, S>>) -> Option<Arc<Node<V, S>>>,
+    ) {
+        let leaf = Arc::new(Node::Leaf(Some(value)));
+        let empty = Node::empty();
+        let empty = (empty.clone(), empty);
+        for id in target {
+            let (root, root_id) = self.root_for(&id);
+            let written = Node::skip(&root_id, &id, leaf.clone());
+            *root = Node::merge(&root_id, root, &written, rule, &empty);
+        }
+    }
+
     /// 上下のルートどうしを `rule` で重ね合わせる。
     fn merge<W: PartialEq, T: Summary<W>>(
         &self,
         other: &FlexTreeCore2<W, T>,
-        rule: &impl Fn(&Arc<Node<V, S>>, &Arc<Node<W, T>>) -> Option<Arc<Node<V, S>>>,
+        rule: &impl Fn(&Arc<Node<V, S>>, &Arc<Node<W, T>>, &Arc<Node<V, S>>) -> Option<Arc<Node<V, S>>>,
     ) -> Self {
+        let empty = (Node::empty(), Node::empty());
         FlexTreeCore2 {
             upper_root: Node::merge(
                 &FlexId::UPPER_MAX,
                 &self.upper_root,
                 &other.upper_root,
                 rule,
+                &empty,
             ),
             lower_root: Node::merge(
                 &FlexId::LOWER_MAX,
                 &self.lower_root,
                 &other.lower_root,
                 rule,
+                &empty,
             ),
         }
     }
 
-    /// 値が条件を満たす領域だけを残す。詳しくは [`Node::filter`]。
-    fn filter(&self, classify: &impl Fn(&S) -> Decision, keep: &impl Fn(&V) -> bool) -> Self {
+    /// 条件を満たす[FlexId]だけを残す。
+    fn filter(
+        &self,
+        classify: &impl Fn(&FlexId, &S) -> Decision,
+        keep: &impl Fn(&FlexId, &V) -> bool,
+    ) -> Self {
+        let empty = Node::empty();
         FlexTreeCore2 {
-            upper_root: Node::filter(&FlexId::UPPER_MAX, &self.upper_root, classify, keep),
-            lower_root: Node::filter(&FlexId::LOWER_MAX, &self.lower_root, classify, keep),
+            upper_root: Node::filter(&FlexId::UPPER_MAX, &self.upper_root, classify, keep, &empty),
+            lower_root: Node::filter(&FlexId::LOWER_MAX, &self.lower_root, classify, keep, &empty),
         }
     }
 }
@@ -224,7 +395,7 @@ impl<V: Ord, S: Summary<V> + AsRef<MinMax<V>>> FlexTreeCore2<V, S> {
 
     /// 値が指定した範囲 `range` に含まれる領域だけを残した[FlexTreeCore2]を作成する。
     pub fn filter_range<R: RangeBounds<V>>(&self, range: R) -> Self {
-        let classify = |summary: &S| {
+        let classify = |_: &FlexId, summary: &S| {
             let (min, max) = (summary.as_ref().min(), summary.as_ref().max());
             if is_disjoint(min, max, range.start_bound(), range.end_bound()) {
                 Decision::DropAll
@@ -234,12 +405,12 @@ impl<V: Ord, S: Summary<V> + AsRef<MinMax<V>>> FlexTreeCore2<V, S> {
                 Decision::Descend
             }
         };
-        self.filter(&classify, &|value| range.contains(value))
+        self.filter(&classify, &|_, value| range.contains(value))
     }
 }
 
 impl<V: BitMask + PartialEq, S: Summary<V> + AsRef<ValueSet<V>>> FlexTreeCore2<V, S> {
-    /// 木全体に現れる値の集合。空なら [`ValueSet::EMPTY`]。
+    /// FlexTreeCore2 全体に現れる値の集合。空なら [`ValueSet::EMPTY`]。
     pub fn value_set(&self) -> ValueSet<V> {
         self.summary()
             .map_or(ValueSet::EMPTY, |summary| *summary.as_ref())
@@ -247,7 +418,7 @@ impl<V: BitMask + PartialEq, S: Summary<V> + AsRef<ValueSet<V>>> FlexTreeCore2<V
 
     /// 値が `values` に含まれる領域だけを残した[FlexTreeCore2]を作成する。
     pub fn filter_values(&self, values: ValueSet<V>) -> Self {
-        let classify = |summary: &S| {
+        let classify = |_: &FlexId, summary: &S| {
             let present = summary.as_ref();
             if present.is_disjoint(&values) {
                 Decision::DropAll
@@ -257,7 +428,7 @@ impl<V: BitMask + PartialEq, S: Summary<V> + AsRef<ValueSet<V>>> FlexTreeCore2<V
                 Decision::Descend
             }
         };
-        self.filter(&classify, &|value| values.contains(*value))
+        self.filter(&classify, &|_, value| values.contains(*value))
     }
 }
 

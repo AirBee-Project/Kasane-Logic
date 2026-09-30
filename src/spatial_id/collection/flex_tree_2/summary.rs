@@ -1,7 +1,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-/// [Node::Branch]が持つ自身より下の木の値についてのキャッシュ情報
+/// `Branch` が子孫の値についてキャッシュする情報。
 pub trait Summary<V>: Clone + PartialEq {
     /// 値1つだけの[Summary]を作成する。
     fn new(value: &V) -> Self;
@@ -24,7 +24,7 @@ impl<V> Summary<V> for NoSummary {
     }
 }
 
-/// 値の最小値と最大値 `[min, max]`を[Summary]として集計する型。
+/// 値の最小値と最大値 `[min, max]` を持つ [Summary]。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MinMax<V> {
     min: V,
@@ -109,7 +109,7 @@ impl<E: BitMask> BitMask for Option<E> {
     }
 }
 
-/// 配下に現れる値の集合を、[BitMask::index] 番目のビットで表したもの。
+/// 子孫に現れる値の集合を、[BitMask::index] 番目のビットで表したもの。
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct ValueSet<V> {
     bits: u64,

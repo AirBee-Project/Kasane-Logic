@@ -34,3 +34,36 @@
   - 過去に使われていた **`axis` / `axes`** は、次元を表す用途としては廃止・統一対象です。
   - ※なお、2次元グリッドに対する方向別1次元畳み込み（Separable convolution）など、ドメイン概念としての次元（F/X/Y/T）とは異なるアルゴリズム上の走査軸を指す場合に限り、例外的に `GridAxis` などの用語が用いられます。
 - **コード例**: `Dimension` 列挙型、`FlexId::dimensions()`、`Node::covers_all_dimensions()` など
+
+## 6. FlexTreeCore{N}
+
+- **定義**: `FlexId` と値 `V` を対応付けて保持する木構造の型。`FlexTreeCore`・`FlexTreeCore2` のように、実装ごとに番号の付いた型があります。6〜9 の用語は、これらすべての型に共通して使います。
+- **命名規則**:
+  - 「木」「ツリー」と訳さず、対象の型名（**`FlexTreeCore2`** など）で書きます。
+  - 特定の型に限らない説明では **`FlexTreeCore{N}`** と書きます。
+- **コード例**: `FlexTreeCore<V>`、`FlexTreeCore2<V, S>`
+
+## 7. Node
+
+- **定義**: `FlexTreeCore{N}` を構成する要素。自分の `FlexId` を持たず、辿るときに親から渡される領域で意味を持ちます。次の種類があり、どれを持つかは型によります。
+  - **Leaf**: 値を1つ持つか、空。値を持つ `Leaf` が、値を持つ `FlexId` 1つに対応します。
+  - **Branch**: 領域を1つの `Dimension` で2つに分けます。
+  - **Skip**: 片側が空の `Branch` が続く経路を、1つにまとめます（例: `FlexTreeCore2`）。
+- **命名規則**: 「ノード」「葉」と訳さず、**`Node`**・**`Leaf`**・**`Branch`**・**`Skip`** と書きます。値を持つ領域そのものを指すときは **`FlexId`** と書きます。
+- **コード例**: `Node::Leaf`、`Node::Branch`、`Node::Skip`
+
+## 8. 子孫
+
+- **定義**: ある `Node` から子を辿って到達できるすべての `Node`。自身は含みません。
+- **命名規則**: 「配下」「部分木」「下位」とは書かず、**子孫** と書きます。自身も含めるときは「自身と子孫」と書きます。
+- **使用例**: 「子孫の値の `Summary`」「自身と子孫が割っている次元」
+
+## 9. Summary
+
+- **定義**: `Branch` が子孫の値についてキャッシュする情報。持つかどうかと種類は型によります（例: `FlexTreeCore2` の `MinMax`・`ValueSet`・`NoSummary`）。
+- **命名規則**: 「集計」と訳さず、**`Summary`** と書きます。
+- **コード例**: `Summary` トレイト、`MinMax`、`ValueSet`、`NoSummary`
+
+## 共通の規則
+
+型として存在する名前（`FlexId`・`FlexTreeCore{N}`・`Node`・`Leaf`・`Branch`・`Skip`・`Summary` など）は、ドキュメントやコメントでも日本語に訳さず、型名のまま書きます。

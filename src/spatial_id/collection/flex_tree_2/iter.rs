@@ -7,7 +7,7 @@ use super::node::Node;
 use super::summary::Summary;
 use crate::{FlexId, Side, spatial_id::dimension::Dimension};
 
-/// [FlexTreeCore2]の値を持つ領域と値への参照を、木を辿りながら1つずつ返すイテレーター。
+/// [FlexTreeCore2]の値を持つ領域と値への参照を、Node を辿りながら1つずつ返すイテレーター。
 #[derive(Debug)]
 pub struct Iter<'a, V, S> {
     stack: Vec<(&'a Node<V, S>, FlexId)>,
@@ -17,12 +17,8 @@ pub struct Iter<'a, V, S> {
 
 impl<'a, V, S> Iter<'a, V, S> {
     pub(super) fn new(tree: &'a FlexTreeCore2<V, S>) -> Self {
-        // 後に積んだものから取り出すので、上側のルートを後に積む
         Iter {
-            stack: Vec::from([
-                (&*tree.lower_root, FlexId::LOWER_MAX),
-                (&*tree.upper_root, FlexId::UPPER_MAX),
-            ]),
+            stack: tree.new_stack(),
             remaining: tree.len(),
         }
     }
@@ -42,28 +38,11 @@ impl<'a, V, S> Iterator for Iter<'a, V, S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, this)) = self.stack.pop() {
-            match node {
-                Node::Leaf(None) => {}
-                Node::Leaf(Some(value)) => {
-                    self.remaining -= 1;
-                    return Some((this, value));
-                }
-                Node::Branch {
-                    dimension,
-                    lower,
-                    upper,
-                    ..
-                } => {
-                    // 下側を先に返すため、上側を先に積む
-                    self.stack
-                        .push((upper, this.split_on(*dimension, Side::Upper).unwrap()));
-                    self.stack
-                        .push((lower, this.split_on(*dimension, Side::Lower).unwrap()));
-                }
-                Node::Skip { path, child, .. } => {
-                    self.stack.push((child, path.to_absolute(&this).unwrap()));
-                }
+            if let Node::Leaf(Some(value)) = node {
+                self.remaining -= 1;
+                return Some((this, value));
             }
+            node.push_children(this, &mut self.stack);
         }
         None
     }
@@ -167,13 +146,12 @@ impl<V: Clone, S> IntoIterator for FlexTreeCore2<V, S> {
 
     fn into_iter(self) -> Self::IntoIter {
         let remaining = self.len();
-        IntoIter {
-            stack: Vec::from([
-                (self.lower_root, FlexId::LOWER_MAX),
-                (self.upper_root, FlexId::UPPER_MAX),
-            ]),
-            remaining,
-        }
+        let height = self.upper_root.height().max(self.lower_root.height());
+        let mut stack = Vec::with_capacity(usize::from(height) + 2);
+        // 後に積んだものから取り出すので、上側のルートを後に積む
+        stack.push((self.lower_root, FlexId::LOWER_MAX));
+        stack.push((self.upper_root, FlexId::UPPER_MAX));
+        IntoIter { stack, remaining }
     }
 }
 
