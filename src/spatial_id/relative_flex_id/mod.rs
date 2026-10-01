@@ -16,17 +16,20 @@ pub struct RelativeFlexId(FlexId);
 
 impl FlexId {
     /// `ancestor` を原点とした[RelativeFlexId]を返す。
-    ///
     /// `ancestor`が完全に自身を包含していなければ [`SpatialIdError::NotAncestor`] を返す。
     pub fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
         if !ancestor.contains(self) {
             return Err(SpatialIdError::NotAncestor.into());
         }
         // 各次元で、祖先からの深さと、その深さぶんの下位ビットを求める
-        let relative = from_dimensions(zip_dimensions(self, ancestor, |(z, i), (az, ai)| {
-            let dz = z - az;
-            (dz, i - (ai << dz))
-        }))?;
+        let [(fz, f), (xz, x), (yz, y), (tz, t)] =
+            zip_dimensions(self, ancestor, |(z, i), (az, ai)| {
+                let dz = z - az;
+                (dz, i - (ai << dz))
+            });
+        // SAFETY: 祖先に含まれるので、深さは自身のズーム以下、下位ビットは `0..2^深さ` に収まる
+        let relative = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
+            .with_time_segment(tz, t as u64);
         Ok(RelativeFlexId(relative))
     }
 }
@@ -80,9 +83,14 @@ impl RelativeFlexId {
                 return Err(SpatialIdError::ZOutOfRange { z: az + rz }.into());
             }
         }
-        from_dimensions(zip_dimensions(ancestor, &self.0, |(az, ai), (rz, ri)| {
-            (az + rz, (ai << rz) + ri)
-        }))
+        let [(fz, f), (xz, x), (yz, y), (tz, t)] =
+            zip_dimensions(ancestor, &self.0, |(az, ai), (rz, ri)| {
+                (az + rz, (ai << rz) + ri)
+            });
+        // SAFETY: ズームは上限以下。インデックスは祖先の区間を `2^深さ` 等分したうちの1つなので、そのズームの範囲に収まる
+        let absolute = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
+            .with_time_segment(tz, t as u64);
+        Ok(absolute)
     }
 }
 
@@ -106,10 +114,6 @@ fn zip_dimensions(
 ) -> Dimensions {
     let (a, b) = (dimensions(a), dimensions(b));
     core::array::from_fn(|i| f(a[i], b[i]))
-}
-
-fn from_dimensions([(fz, f), (xz, x), (yz, y), (tz, t)]: Dimensions) -> Result<FlexId, Error> {
-    Ok(FlexId::new(fz, f as i32, xz, x as u32, yz, y as u32)?.with_time_segment(tz, t as u64))
 }
 
 #[cfg(test)]
