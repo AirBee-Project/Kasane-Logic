@@ -42,7 +42,7 @@ impl<'a, V, S> Iterator for Iter<'a, V, S> {
                 self.remaining -= 1;
                 return Some((this, value));
             }
-            node.push_children(this, &mut self.stack);
+            self.stack.extend(node.children(this).rev());
         }
         None
     }

@@ -919,7 +919,7 @@ fn traversal_stack_fits_height_bound() {
             ]);
             let mut deepest = stack.len();
             while let Some((node, this)) = stack.pop() {
-                node.push_children(this, &mut stack);
+                stack.extend(node.children(this).rev());
                 deepest = deepest.max(stack.len());
             }
             assert!(
@@ -970,4 +970,33 @@ fn eq_skips_shared_subtrees() {
         "値を {compared} 回比べた（高さ {height}、Leaf {}）",
         tree.len()
     );
+}
+
+/// 書き込みは Node をその場で書き換えることがあるが、clone した FlexTreeCore2 には影響しない。
+#[test]
+fn writes_do_not_change_clones() {
+    let mut next = rng(20);
+    for max_zoom in [5, 20] {
+        for _ in 0..50 {
+            let (mut tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let snapshot = tree.clone();
+            let before: Vec<(FlexId, u64)> = snapshot.iter().map(|(id, v)| (id, *v)).collect();
+
+            for _ in 0..10 {
+                let id = random_id(&mut next, max_zoom);
+                match next(3) {
+                    0 => tree.insert(id, 9),
+                    1 => tree.insert_with(id, 9, |old, new| old + new),
+                    _ => {
+                        tree.remove(id);
+                    }
+                }
+            }
+            assert_canonical(&snapshot);
+            assert_eq!(
+                snapshot.iter().map(|(id, v)| (id, *v)).collect::<Vec<_>>(),
+                before
+            );
+        }
+    }
 }
