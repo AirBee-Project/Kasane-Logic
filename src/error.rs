@@ -124,6 +124,9 @@ pub enum SpatialIdError {
 
     /// シャードのマージに渡された2つが、指定親領域の正当な兄弟（下半分/上半分）でないことを示す。
     InvalidShardMerge,
+
+    /// 祖先として渡された ID が、対象の ID を包含していないことを示す。
+    NotAncestor,
 }
 
 impl From<GeometryError> for Error {
@@ -287,6 +290,9 @@ impl fmt::Display for SpatialIdError {
                     f,
                     "the two shards are not valid siblings of the parent region"
                 )
+            }
+            SpatialIdError::NotAncestor => {
+                write!(f, "the given ancestor does not contain the target ID")
             }
         }
     }

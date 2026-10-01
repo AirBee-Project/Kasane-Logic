@@ -8,6 +8,9 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
+// derive マクロが生成する `::kasane_logic::…` を、このクレートの中でも解決できるようにする。
+extern crate self as kasane_logic;
+
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
@@ -76,6 +79,8 @@ pub use spatial_id::flex_id::FlexId;
 #[doc(inline)]
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
+pub use spatial_id::relative_flex_id::RelativeFlexId;
+#[doc(inline)]
 pub use spatial_id::single_id::SingleId;
 
 // spatial_id: collection types
@@ -97,6 +102,8 @@ pub use spatial_id::collection::flex_tree::map::arena::FORMAT_VERSION;
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
 // spatial_id: traits
+#[doc(inline)]
+pub use spatial_id::dimension::Dimension;
 #[doc(inline)]
 pub use spatial_id::helpers::Side;
 #[doc(inline)]

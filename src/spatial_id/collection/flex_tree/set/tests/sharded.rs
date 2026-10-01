@@ -163,13 +163,13 @@ fn splitting_a_whole_space_shard_works() {
     assert_eq!(lower_region.y_zoomlevel(), 0);
 }
 
-/// シャード分割は軸をローテーションする。
+/// シャード分割は次元をローテーションする。
 ///
-/// 1軸に偏るとシャードがその軸方向の薄いスライスに退化し、地理データ（Fが薄くX/Yが広い）
+/// 1次元に偏るとシャードがその次元方向の薄いスライスに退化し、地理データ（Fが薄くX/Yが広い）
 /// では負荷が極端に偏る。分割レベルを「覆っていない最初のレベル」で求めていた頃は、
-/// Fが1段でも深いと常にレベル0＝F軸が選ばれ、F方向にしか割れなくなっていた。
+/// Fが1段でも深いと常にレベル0＝F次元が選ばれ、F方向にしか割れなくなっていた。
 #[test]
-fn split_shard_rotates_axes() {
+fn split_shard_rotates_dimensions() {
     let mut set = SpatialIdSet::new_in_shard(FlexId::new(1, 0, 1, 0, 1, 0).unwrap());
     for f in 0..4 {
         for x in 0..4u32 {

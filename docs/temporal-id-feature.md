@@ -140,7 +140,7 @@ JSON  : { "z":12, "f":[0], "x":[3638], "y":[1614], "i":1800, "t":[809712] }
 
 - `with_time()` / `with_time_at()` / `with_time_seconds()` で任意の時間区間を扱える。
 - `intersection` / `difference` が時間も考慮する。
-- 木は時間軸を第4の分割軸（`Axis::T`、`NUM_AXES = 4`、`LEAF_LEVEL = 144`）として保持する。
+- 木は時間軸を第4の分割軸（`Dimension::T`、`NUM_AXES = 4`、`LEAF_LEVEL = 144`）として保持する。
 
 ### 永続化形式への影響
 

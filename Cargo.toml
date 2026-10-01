@@ -9,12 +9,14 @@ description = "This is Kasane-logic"
 [workspace]
 members = [
     ".",
+    "kasane-logic-derive",
     "xtask"
 ]
 
 [dependencies]
 # デフォルトで必要なもの
 hashbrown = "0.17.1"
+kasane-logic-derive = { version = "0.1.4", path = "kasane-logic-derive" }
 libm = "0.2.16"
 
 # featuresで切り替え可能なもの
