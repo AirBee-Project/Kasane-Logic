@@ -4,9 +4,9 @@ use alloc::vec::Vec;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
-use crate::spatial_id::collection::query::source::Source;
+use crate::spatial_id::collection::query::source::{Source, SourceIter};
 use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, FlexId, RangeId, SpatialIdSet, SpatialIdTable};
+use crate::{Error, RangeId, SpatialIdSet, SpatialIdTable};
 
 /// Table の出入口変換で、これ未満なら rayon を使わず逐次で組む閾値。
 /// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
@@ -26,29 +26,21 @@ impl<T: Ord + Clone + Send + Sync> FlexIdValue for T {}
 impl Source for SpatialIdSet {
     type Value = ();
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
-        token: &CancellationToken,
-    ) -> Result<WorkingTree<()>, Error> {
-        let mut time_segments: Vec<(FlexId, ())> = Vec::new();
-        for b in bounds {
-            if token.is_cancelled() {
-                return Err(Error::Cancelled);
-            }
-            for id in self.get_range(b) {
-                time_segments.push((id, ()));
-            }
-        }
-        Ok(time_segments.into_iter().collect())
+    fn read_range_ids<'a>(
+        &'a self,
+        bounds: &'a [RangeId],
+        _token: &CancellationToken,
+    ) -> Result<SourceIter<'a, ()>, Error> {
+        Ok(Box::new(
+            bounds
+                .iter()
+                .flat_map(move |b| self.get_range(b))
+                .map(|id| Ok((id, ()))),
+        ))
     }
 
-    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<()>, Error> {
-        if token.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        // 所有権ごと移し替えるだけ（クローンしない）。
-        Ok(WorkingTree::from_core(SpatialIdSet::into_core(*self)))
+    fn read_all_fast(&self) -> Option<WorkingTree<()>> {
+        Some(WorkingTree::from_core(self.clone().into_core()))
     }
 }
 
@@ -65,34 +57,27 @@ where
 {
     type Value = V;
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
-        token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
-        let mut time_segments: Vec<(FlexId, V)> = Vec::new();
-        for b in bounds {
-            if token.is_cancelled() {
-                return Err(Error::Cancelled);
-            }
-            for (id, value) in self.get_range(b) {
-                time_segments.push((id, value.clone()));
-            }
-        }
-        Ok(time_segments.into_iter().collect())
+    fn read_range_ids<'a>(
+        &'a self,
+        bounds: &'a [RangeId],
+        _token: &CancellationToken,
+    ) -> Result<SourceIter<'a, V>, Error> {
+        Ok(Box::new(
+            bounds
+                .iter()
+                .flat_map(move |b| self.get_range(b))
+                .map(|(id, value)| Ok((id, value.clone()))),
+        ))
     }
 
-    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<V>, Error> {
-        if token.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
+    fn read_all_fast(&self) -> Option<WorkingTree<V>> {
         // rank ツリーを辞書で実体値へ展開する。ランク → 実体値は単射なので、木の形は
         // まったく変わらない。平坦化して組み直す必要はなく、値だけを写せばよい。
         //
         // 引きは葉ごとに走る。`BTreeMap` を葉の数だけ降りるとポインタ追跡が効くので、
         // 木へ入る前にランク添字の密な表へ均しておく。
         let by_rank = self.values_by_rank();
-        Ok(WorkingTree::from_core(
+        Some(WorkingTree::from_core(
             self.rank_core().map_values_injective(&|rank: &usize| {
                 by_rank[*rank]
                     .expect("ツリー内のランクは必ず逆引き辞書にある")
@@ -108,7 +93,7 @@ where
 {
     /// 実体値のSegmentを辞書へ intern し直す。
     ///
-    /// 実体値 → ランクは単射なので、[`read_all`](Source::read_all) と同じく木の形は
+    /// 実体値 → ランクは単射なので、[`read_all_fast`](Source::read_all_fast) と同じく木の形は
     /// 変わらない。出現値を集めて辞書を作り、木は値だけを写す。
     fn from(working: WorkingTree<V>) -> Self {
         let core = working.into_core();

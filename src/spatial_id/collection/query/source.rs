@@ -3,23 +3,25 @@ use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, RangeId};
+use crate::{Error, FlexId, RangeId};
 use alloc::boxed::Box;
+
+pub type SourceIter<'a, V> = Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>;
 
 /// クエリを実行するためのTrait。読み取りさえできればよい。
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
+    fn read_range_ids<'a>(
+        &'a self,
+        bounds: &'a [RangeId],
         token: &CancellationToken,
-    ) -> Result<WorkingTree<Self::Value>, Error>;
+    ) -> Result<SourceIter<'a, Self::Value>, Error>;
 
-    fn read_all(
-        self: Box<Self>,
-        token: &CancellationToken,
-    ) -> Result<WorkingTree<Self::Value>, Error>;
+    #[doc(hidden)]
+    fn read_all_fast(&self) -> Option<WorkingTree<Self::Value>> {
+        None
+    }
 
     fn query(self) -> Query<Self::Value>
     where
@@ -38,7 +40,7 @@ impl<V: SafeValue + 'static, S: Source<Value = V> + 'static> From<S> for Query<V
 
 #[cfg(test)]
 mod tests {
-    use crate::{CancellationToken, RangeId, SingleId, Source, SpatialIdTable};
+    use crate::{CancellationToken, RangeId, SingleId, Source, SpatialIdTable, WorkingTree};
     use alloc::vec::Vec;
 
     /// 重なり合う複数 bounds で読んでも、空間IDが重複せず正しい値で返ること。
@@ -56,8 +58,10 @@ mod tests {
             .map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
             .collect();
 
-        let working = table
+        let working: WorkingTree<i32> = table
             .read_range_ids(&bounds, &CancellationToken::new())
+            .unwrap()
+            .collect::<Result<_, _>>()
             .unwrap();
 
         let time_segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
@@ -87,10 +91,14 @@ mod tests {
         let mut a: Vec<(crate::FlexId, i32)> = table
             .read_range_ids(&single, &CancellationToken::new())
             .unwrap()
+            .collect::<Result<WorkingTree<_>, _>>()
+            .unwrap()
             .into_iter()
             .collect();
         let mut b: Vec<(crate::FlexId, i32)> = table
             .read_range_ids(&overlapping, &CancellationToken::new())
+            .unwrap()
+            .collect::<Result<WorkingTree<_>, _>>()
             .unwrap()
             .into_iter()
             .collect();
