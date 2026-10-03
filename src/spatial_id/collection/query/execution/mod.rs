@@ -123,7 +123,7 @@ impl<V: SafeValue + 'static> Query<V> {
             token: &CancellationToken,
         ) -> Result<WorkingTree<V>, Error> {
             match query {
-                Query::Source(source) => source.read_all(token),
+                Query::Source(source) => read_source(&*source, &[whole_space()], token),
                 Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                     run_unary_chain(&order, run_internal(*input, token)?, token)
@@ -201,6 +201,35 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
     Ok(working)
 }
 
+/// 入力源を`WorkingTree`として読み出す。
+fn read_source<V: SafeValue + 'static>(
+    source: &dyn Source<Value = V>,
+    bounds: &[crate::RangeId],
+    token: &CancellationToken,
+) -> Result<WorkingTree<V>, Error> {
+    if let [only] = bounds
+        && *only == whole_space()
+        && let Some(working) = source.read_all_fast()
+    {
+        return Ok(working);
+    }
+
+    let mut counter = 0u32;
+
+    source
+        .read_range_ids(bounds, token)?
+        .map(|item| {
+            token.check_amortized(&mut counter)?;
+            item
+        })
+        .collect()
+}
+
+/// 時空間の全域を表す範囲。
+fn whole_space() -> crate::RangeId {
+    crate::RangeId::new(0, [-1, 0], [0, 0], [0, 0]).expect("z=0の全域は常に構築できる")
+}
+
 /// 平坦化を許す件数の上限。
 fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
     (working.count() as u64)
@@ -239,7 +268,7 @@ impl<V: SafeValue + 'static> Query<V> {
         match self {
             Query::Source(s) => {
                 trace_span!("kasane_logic.query.source_read", bound_count = bounds.len());
-                s.read_range_ids(&bounds, token)
+                read_source(&**s, &bounds, token)
             }
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                 trace_span!("kasane_logic.query.unary", op_count = ops.len());
