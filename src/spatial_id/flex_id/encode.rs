@@ -43,7 +43,7 @@ impl FlexId {
         let zy = self.y_zoomlevel();
 
         // f_index をオフセット付きの符号なし整数へ変換
-        let f_min = ZoomLevel::new(zf).unwrap().f_min();
+        let f_min = self.f_zoomlevel.f_min();
         let f_shifted = (self.f_index() - f_min) as u32;
 
         // ズームレベル 3 つを 15 ビットに詰める

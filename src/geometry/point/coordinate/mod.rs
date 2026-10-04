@@ -217,16 +217,16 @@ impl Coordinate {
     /// )
     /// ```
     pub fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
+        let zoom = ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let lat = self.latitude;
         let lon = self.longitude;
         let alt = self.altitude;
 
-        let f_min = ZoomLevel::new(z).unwrap().f_min() as i64;
-        let f_max = ZoomLevel::new(z).unwrap().f_max() as i64;
-        let xy_max = ZoomLevel::new(z).unwrap().xy_max() as i64;
+        let f_min = zoom.f_min() as i64;
+        let f_max = zoom.f_max() as i64;
+        let xy_max = zoom.xy_max() as i64;
 
         //Z=25のとき高さはちょうど1m
         let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
@@ -268,7 +268,7 @@ impl Coordinate {
     /// )
     /// ```
     pub fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
+        let zoom = ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let lat = self.latitude;
