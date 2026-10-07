@@ -17,7 +17,7 @@ pub enum Dimension {
 impl Dimension {
     pub const ALL: [Dimension; 4] = [Dimension::F, Dimension::X, Dimension::Y, Dimension::T];
 
-    pub(crate) const fn bit(self) -> u8 {
+    pub const fn bit(self) -> u8 {
         1 << self as u8
     }
 

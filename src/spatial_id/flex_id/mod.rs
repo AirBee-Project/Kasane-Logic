@@ -63,6 +63,14 @@ impl FlexId {
         t_index: 0,
     };
 
+    /// 全空間を重ならずに覆う最大の [`FlexId`]。`[UPPER_MAX, LOWER_MAX]` の順。
+    pub const ROOTS: [FlexId; 2] = [Self::UPPER_MAX, Self::LOWER_MAX];
+
+    /// [`ROOTS`](Self::ROOTS) のうち、自身を含むものの添字。
+    pub fn root_index(&self) -> usize {
+        usize::from(self.f_index.is_negative())
+    }
+
     pub fn f_zoomlevel(&self) -> u8 {
         self.f_zoomlevel.get()
     }
@@ -642,7 +650,7 @@ impl FlexId {
     }
 
     /// `dimension` 方向で二つに切り分けた `side` 側を返す。その軸が最大ズームなら [`None`]。軸を値で選ぶ必要があるFlexTreeの実装用。
-    pub(crate) fn split_on(&self, dimension: Dimension, side: Side) -> Option<FlexId> {
+    pub fn split_on(&self, dimension: Dimension, side: Side) -> Option<FlexId> {
         match dimension {
             Dimension::F => self.split_f(side),
             Dimension::X => self.split_x(side),
@@ -652,7 +660,7 @@ impl FlexId {
     }
 
     /// `dimension` 方向で二つに切り分けた側のうち、`target` を含む側を返す。その次元が最大ズームなら [`None`]。
-    pub(crate) fn split_toward(&self, dimension: Dimension, target: &FlexId) -> Option<FlexId> {
+    pub fn split_toward(&self, dimension: Dimension, target: &FlexId) -> Option<FlexId> {
         let upper = self.split_on(dimension, Side::Upper)?;
         if upper.contains(target) {
             Some(upper)
@@ -662,13 +670,13 @@ impl FlexId {
     }
 
     /// 自身が `other` より細かい次元の集合（[`Dimension::bit`] の OR）。
-    pub(crate) fn finer_dimensions_than(&self, other: &FlexId) -> u8 {
+    pub fn finer_dimensions_than(&self, other: &FlexId) -> u8 {
         Dimension::mask(|d| self.zoomlevel_on(d) > other.zoomlevel_on(d))
     }
 
     /// 次元の集合 `dimensions`（[`Dimension::bit`] の OR）のうち、自身のズームが一番粗い次元を返す。
     /// 同じズームなら F→X→Y→T の順。空なら [`None`]。
-    pub(crate) fn coarsest_dimension_in(&self, dimensions: u8) -> Option<Dimension> {
+    pub fn coarsest_dimension_in(&self, dimensions: u8) -> Option<Dimension> {
         Dimension::ALL
             .into_iter()
             .filter(|&d| dimensions & d.bit() != 0)
