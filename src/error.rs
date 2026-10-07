@@ -14,7 +14,7 @@ pub enum Error {
     /// その入力源・実装が対応していない操作。
     ///
     /// 例: 全走査が現実的でないディスク上の入力源に対する
-    /// [`Source::read_range_ids`](crate::Source::read_range_ids)。
+    /// [`Source::read_flex_ids`](crate::Source::read_flex_ids)。
     Unsupported(&'static str),
 
     /// クエリ演算子のパラメータが不正であることを示す。

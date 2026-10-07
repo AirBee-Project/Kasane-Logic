@@ -8,7 +8,7 @@ use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::source::SourceIter;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
-use crate::{Error, RangeId};
+use crate::{Error, FlexId, RangeId};
 
 pub struct MapValues<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
@@ -39,14 +39,14 @@ where
 {
     type Value = U;
 
-    fn read_range_ids<'a>(
+    fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [RangeId],
+        bounds: &'a [FlexId],
         token: &CancellationToken,
     ) -> Result<SourceIter<'a, U>, Error> {
         Ok(Box::new(
             self.inner
-                .run_within(bounds.to_vec(), token)?
+                .run_within(bounds.iter().map(RangeId::from).collect(), token)?
                 .into_iter()
                 .map(move |(id, value)| Ok((id, (self.f)(value)))),
         ))

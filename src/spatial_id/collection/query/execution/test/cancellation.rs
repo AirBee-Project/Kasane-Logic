@@ -63,8 +63,8 @@ fn run_unary_chain_checks_cancellation_between_ops() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
     let working: WorkingTree<i32> = table
-        .read_range_ids(
-            &[RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())],
+        .read_flex_ids(
+            &[FlexId::new(10, 0, 10, 100, 10, 100).unwrap()],
             &CancellationToken::new(),
         )
         .unwrap()
@@ -113,8 +113,8 @@ fn try_run_grid_stops_when_cancelled() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
     let working: WorkingTree<i32> = table
-        .read_range_ids(
-            &[RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())],
+        .read_flex_ids(
+            &[FlexId::new(10, 0, 10, 100, 10, 100).unwrap()],
             &CancellationToken::new(),
         )
         .unwrap()

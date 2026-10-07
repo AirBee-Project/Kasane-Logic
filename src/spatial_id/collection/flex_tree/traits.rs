@@ -6,7 +6,7 @@ use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::source::{Source, SourceIter};
 use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, RangeId, SpatialIdSet, SpatialIdTable};
+use crate::{Error, FlexId, SpatialIdSet, SpatialIdTable};
 
 /// Table の出入口変換で、これ未満なら rayon を使わず逐次で組む閾値。
 /// 単発・小規模クエリで rayon 起動コスト（par_build / from_par_iter の par_sort 等）を避ける。
@@ -26,21 +26,17 @@ impl<T: Ord + Clone + Send + Sync> FlexIdValue for T {}
 impl Source for SpatialIdSet {
     type Value = ();
 
-    fn read_range_ids<'a>(
+    fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [RangeId],
+        bounds: &'a [FlexId],
         _token: &CancellationToken,
     ) -> Result<SourceIter<'a, ()>, Error> {
         Ok(Box::new(
             bounds
                 .iter()
-                .flat_map(move |b| self.get_range(b))
+                .flat_map(move |b| self.overlap(*b))
                 .map(|id| Ok((id, ()))),
         ))
-    }
-
-    fn read_all_fast(&self) -> Option<WorkingTree<()>> {
-        Some(WorkingTree::from_core(self.clone().into_core()))
     }
 }
 
@@ -57,32 +53,16 @@ where
 {
     type Value = V;
 
-    fn read_range_ids<'a>(
+    fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [RangeId],
+        bounds: &'a [FlexId],
         _token: &CancellationToken,
     ) -> Result<SourceIter<'a, V>, Error> {
         Ok(Box::new(
             bounds
                 .iter()
-                .flat_map(move |b| self.get_range(b))
+                .flat_map(move |b| self.overlap(*b))
                 .map(|(id, value)| Ok((id, value.clone()))),
-        ))
-    }
-
-    fn read_all_fast(&self) -> Option<WorkingTree<V>> {
-        // rank ツリーを辞書で実体値へ展開する。ランク → 実体値は単射なので、木の形は
-        // まったく変わらない。平坦化して組み直す必要はなく、値だけを写せばよい。
-        //
-        // 引きは葉ごとに走る。`BTreeMap` を葉の数だけ降りるとポインタ追跡が効くので、
-        // 木へ入る前にランク添字の密な表へ均しておく。
-        let by_rank = self.values_by_rank();
-        Some(WorkingTree::from_core(
-            self.rank_core().map_values_injective(&|rank: &usize| {
-                by_rank[*rank]
-                    .expect("ツリー内のランクは必ず逆引き辞書にある")
-                    .clone()
-            }),
         ))
     }
 }
@@ -93,8 +73,8 @@ where
 {
     /// 実体値のSegmentを辞書へ intern し直す。
     ///
-    /// 実体値 → ランクは単射なので、[`read_all_fast`](Source::read_all_fast) と同じく木の形は
-    /// 変わらない。出現値を集めて辞書を作り、木は値だけを写す。
+    /// 実体値 → ランクは単射なので、木の形は変わらない。
+    /// 出現値を集めて辞書を作り、木は値だけを写す。
     fn from(working: WorkingTree<V>) -> Self {
         let core = working.into_core();
         if core.is_empty() {
