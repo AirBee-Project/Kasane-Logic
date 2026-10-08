@@ -121,6 +121,15 @@ impl<V, S> FlexTreeCore<V, S> {
         Iter::new(self)
     }
 
+    /// 値を持つ[FlexId]の F/X/Y のズームレベルのうち、最も高いもの。空なら [`None`]。
+    ///
+    /// キャッシュを持たず、値を持つ全ての[FlexId]を走査する（O(n)）。
+    pub fn max_zoomlevel(&self) -> Option<u8> {
+        self.iter()
+            .map(|(id, _)| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
+            .max()
+    }
+
     /// 全ての値を消す。
     pub fn clear(&mut self) {
         *self = Self::default();

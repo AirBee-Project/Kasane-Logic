@@ -9,17 +9,15 @@
 //! 出さない）は `#[derive(Serialize, Deserialize)]` だけでは表現できないため、`IdEntry` だけは
 //! `Serializer`/`Deserializer` を直接叩く手書き実装にしている。
 
+use crate::spatial_id::collection::flex_tree::coalesce::range_ids;
+use crate::{AllowedIntervals, FlexId, RangeId, SpatialId};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
-
 use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-use crate::spatial_id::collection::flex_tree::coalesce::range_ids;
-use crate::{AllowedIntervals, FlexId, RangeId, SpatialId};
 
 const SCHEMA_URL: &str = "https://airbee-project.github.io/schemas/json/v1.0.json";
 

@@ -81,7 +81,6 @@ impl Query<()> {
     pub fn run_set(self) -> Result<SpatialIdSet, Error> {
         Ok(SpatialIdSet {
             inner: self.run_table()?.inner,
-            shard: None,
         })
     }
 
@@ -89,7 +88,6 @@ impl Query<()> {
     pub fn raw_run_set(self) -> Result<SpatialIdSet, Error> {
         Ok(SpatialIdSet {
             inner: self.raw_run_table()?.inner,
-            shard: None,
         })
     }
 }

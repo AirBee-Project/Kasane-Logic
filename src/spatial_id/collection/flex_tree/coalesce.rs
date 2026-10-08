@@ -125,12 +125,12 @@ pub(crate) fn range_ids<'a, V: PartialEq + 'a>(
     )
 }
 
-/// [`range_ids`] を、全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+/// [`range_ids`] を、ズームレベル `max_z` に揃えた [`SingleId`] へ展開する。`max_z` は全Segmentのズーム以上であること。
 pub(crate) fn flat_single_ids<'a, V: PartialEq + Clone + 'a>(
     rows: impl Iterator<Item = (FlexId, V)> + Clone + 'a,
+    max_z: u8,
     units: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (SingleId, V)> + 'a {
-    let max_z = max_zoomlevel(rows.clone().map(|(id, _)| id)).unwrap_or(0);
     range_ids(rows, units).flat_map(move |(range, value)| {
         let range = if range.z() == max_z {
             range
@@ -141,39 +141,6 @@ pub(crate) fn flat_single_ids<'a, V: PartialEq + Clone + 'a>(
         };
         range.single_ids().map(move |id| (id, value.clone()))
     })
-}
-
-/// 各 [`FlexId`] の F/X/Y のズームレベルのうち、最も高いもの。空なら [`None`]。
-pub(crate) fn max_zoomlevel(ids: impl Iterator<Item = FlexId>) -> Option<u8> {
-    ids.map(|id| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
-        .max()
-}
-
-/// 全Segmentを包む最小の [`RangeId`]。空なら [`None`]。
-pub(crate) fn bounding_box(ids: impl Iterator<Item = FlexId> + Clone) -> Option<RangeId> {
-    let max_z = max_zoomlevel(ids.clone())?;
-    let mut f = [i32::MAX, i32::MIN];
-    let mut x = [u32::MAX, u32::MIN];
-    let mut y = [u32::MAX, u32::MIN];
-    for id in ids {
-        let range = RangeId::from(&id);
-        let shift = max_z - range.z();
-        let lo = |v: i64| v << shift;
-        let hi = |v: i64| ((v + 1) << shift) - 1;
-        f = [
-            f[0].min(lo(range.f()[0] as i64) as i32),
-            f[1].max(hi(range.f()[1] as i64) as i32),
-        ];
-        x = [
-            x[0].min(lo(range.x()[0] as i64) as u32),
-            x[1].max(hi(range.x()[1] as i64) as u32),
-        ];
-        y = [
-            y[0].min(lo(range.y()[0] as i64) as u32),
-            y[1].max(hi(range.y()[1] as i64) as u32),
-        ];
-    }
-    RangeId::new(max_z, f, x, y).ok()
 }
 
 /// 結合し終えた1件を [`RangeId`] に組み立てる。

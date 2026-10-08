@@ -42,11 +42,6 @@ where
     V: PartialEq + Clone,
     S: Summary<V>,
 {
-    /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
-    pub fn bounding_box(&self) -> Option<RangeId> {
-        coalesce::bounding_box(self.flex_ids())
-    }
-
     /// 空間に値を挿入します。既に値がある場所は上書きされます。
     pub fn insert<T: SpatialId>(&mut self, target: T, value: V) {
         self.inner.insert(target, value);
@@ -113,9 +108,11 @@ where
         self.inner.len()
     }
 
-    /// ツリーの最大ズームレベルを返します。
+    /// 保持している全ての[FlexId]のうち、最大のズームレベル値を返します。空なら [None]。
+    ///
+    /// キャッシュを持たず、全ての[FlexId]を走査する（O(n)）。
     pub fn max_zoomlevel(&self) -> Option<u8> {
-        coalesce::max_zoomlevel(self.flex_ids())
+        self.inner.max_zoomlevel()
     }
 
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
@@ -154,20 +151,6 @@ where
     pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
         coalesce::range_ids(self.inner.iter(), None)
             .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
-    }
-
-    /// コレクション内のすべての値をインプレースで更新します。
-    pub fn map_values_in_place<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut V),
-    {
-        self.inner = core::mem::take(&mut self.inner)
-            .into_iter()
-            .map(|(id, mut value)| {
-                f(&mut value);
-                (id, value)
-            })
-            .collect();
     }
 
     /// テーブルが空かどうかを返します

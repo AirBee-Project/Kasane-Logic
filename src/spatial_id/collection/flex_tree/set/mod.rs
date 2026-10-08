@@ -7,7 +7,6 @@ pub mod impls;
 #[cfg(feature = "json")]
 pub mod json;
 pub mod ops;
-pub mod shard;
 pub mod tests;
 
 /// 空間IDの集合を表す型。
@@ -19,20 +18,10 @@ pub mod tests;
 ///
 /// # 使い分け
 /// - 空間ごとに値を持たせたい場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct SpatialIdSet {
     pub(crate) inner: FlexTreeCore<(), NoSummary>,
-    /// 保持してよい領域。外側への挿入は無視し、はみ出しは切り詰める。
-    pub(crate) shard: Option<FlexId>,
 }
-
-impl PartialEq for SpatialIdSet {
-    fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
-    }
-}
-
-impl Eq for SpatialIdSet {}
 
 impl SpatialIdSet {
     /// 新しい集合を作成する。
@@ -47,20 +36,6 @@ impl SpatialIdSet {
     /// ```
     pub fn new() -> Self {
         SpatialIdSet::default()
-    }
-
-    /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
-    pub fn bounding_box(&self) -> Option<RangeId> {
-        coalesce::bounding_box(self.iter())
-    }
-
-    /// 限定的な領域に閉じた空の[SpatialIdSet]を作成する。
-    /// `region` の内側だけを保持し、`region` の外側への操作は無視される。
-    pub fn new_in_shard(region: FlexId) -> Self {
-        Self {
-            inner: FlexTreeCore::default(),
-            shard: Some(region),
-        }
     }
 
     /// 集合に対して空間IDを挿入する。[SpatialId] Traitが実装されていれば挿入ができる。
@@ -86,11 +61,7 @@ impl SpatialIdSet {
     /// set.insert(flex);
     /// ```
     pub fn insert<S: SpatialId>(&mut self, target: S) {
-        let shard = self.shard;
-        let clipped = target
-            .into_iter()
-            .filter_map(move |id| shard.map_or(Some(id), |region| id.intersection(&region)));
-        self.inner.insert(clipped, ());
+        self.inner.insert(target, ());
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して返す。
@@ -156,8 +127,10 @@ impl SpatialIdSet {
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
     /// 内部に空間IDが存在しない場合は[None]を返します。
+    ///
+    /// キャッシュを持たず、全ての[FlexId]を走査する（O(n)）。
     pub fn max_zoomlevel(&self) -> Option<u8> {
-        coalesce::max_zoomlevel(self.iter())
+        self.inner.max_zoomlevel()
     }
 
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
@@ -205,12 +178,18 @@ impl SpatialIdSet {
         &'a self,
         units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = SingleId> + use<'a> {
-        coalesce::flat_single_ids(self.inner.iter(), Some(units)).map(|(single_id, _)| single_id)
+        coalesce::flat_single_ids(
+            self.inner.iter(),
+            self.max_zoomlevel().unwrap_or(0),
+            Some(units),
+        )
+        .map(|(single_id, _)| single_id)
     }
 
     /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
     pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
-        coalesce::flat_single_ids(self.inner.iter(), None).map(|(single_id, _)| single_id)
+        coalesce::flat_single_ids(self.inner.iter(), self.max_zoomlevel().unwrap_or(0), None)
+            .map(|(single_id, _)| single_id)
     }
 
     /// [SpatialIdSet]の内部の空間IDを全て削除します。

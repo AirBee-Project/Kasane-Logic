@@ -92,9 +92,6 @@ pub enum SpatialIdError {
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
 
-    /// シャードのマージに渡された2つが、指定親領域の正当な兄弟（下半分/上半分）でないことを示す。
-    InvalidShardMerge,
-
     /// 祖先として渡された ID が、対象の ID を包含していないことを示す。
     NotAncestor,
 }
@@ -245,12 +242,6 @@ impl fmt::Display for SpatialIdError {
             }
             SpatialIdError::ParseSpatialIdFormat { kind, input } => {
                 write!(f, "{} '{}' has invalid display format", kind, input)
-            }
-            SpatialIdError::InvalidShardMerge => {
-                write!(
-                    f,
-                    "the two shards are not valid siblings of the parent region"
-                )
             }
             SpatialIdError::NotAncestor => {
                 write!(f, "the given ancestor does not contain the target ID")
