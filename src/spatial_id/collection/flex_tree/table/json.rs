@@ -1,7 +1,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::Summary;
+use crate::{AllowedIntervals, SpatialIdTable};
 
 use super::super::json::{deserialize_with_values, serialize_with_values};
 
@@ -11,7 +11,10 @@ where
     S: Summary<V>,
 {
     fn serialize<Ser: Serializer>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error> {
-        serialize_with_values(self.iter(), serializer)
+        serialize_with_values(
+            self.range_ids(Some(&AllowedIntervals::default())),
+            serializer,
+        )
     }
 }
 
@@ -80,7 +83,7 @@ mod tests {
 
         assert_eq!(restored.count(), table.count());
         for (flex_id, value) in table.iter() {
-            let (_, restored_value) = restored.get(&flex_id).next().unwrap();
+            let (_, restored_value) = restored.get(flex_id).next().unwrap();
             assert_eq!(restored_value, value);
         }
     }

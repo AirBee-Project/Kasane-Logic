@@ -9,7 +9,7 @@ use crate::{SingleId, Source, SpatialIdTable};
 /// z=20, f=0, y=0 に固定した行から `x -> value` の対応を取り出す。
 fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
     table
-        .flat_single_ids()
+        .flat_single_ids(None)
         .map(|(sid, v)| (sid.x(), *v))
         .collect()
 }

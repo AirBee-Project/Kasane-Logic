@@ -33,8 +33,16 @@ mod par_build {
 
         // 値クエリも一致する（ランク割り当ては違っても値は同じ）。
         for v in 0..13 {
-            let mut a: Vec<FlexId> = seq.value_get(&v).collect();
-            let mut b: Vec<FlexId> = par.value_get(&v).collect();
+            let mut a: Vec<FlexId> = seq
+                .filter_range(&v..=&v)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect();
+            let mut b: Vec<FlexId> = par
+                .filter_range(&v..=&v)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect();
             a.sort();
             b.sort();
             assert_eq!(a, b, "value_get({v}) mismatch");

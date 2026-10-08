@@ -19,7 +19,7 @@ fn bench_get(c: &mut Criterion) {
                 b.iter(|| {
                     let mut total = 0usize;
                     for id in ids {
-                        total += set.get(id).count();
+                        total += set.get(id.clone()).count();
                     }
                     black_box(total)
                 });

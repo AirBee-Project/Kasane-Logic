@@ -360,7 +360,7 @@ impl<V: SafeValue + 'static> Query<V> {
             if default_iter.is_none() {
                 for (id, value) in working_iter.by_ref() {
                     if id.intersects_range(&target_range) {
-                        uncovered.remove(&id);
+                        let _ = uncovered.remove(id);
                         return Some((id, value));
                     }
                 }
@@ -370,7 +370,7 @@ impl<V: SafeValue + 'static> Query<V> {
             default_iter
                 .as_mut()?
                 .next()
-                .map(|(id, _)| (id, default_value.clone()))
+                .map(|id| (id, default_value.clone()))
         }))
     }
 }

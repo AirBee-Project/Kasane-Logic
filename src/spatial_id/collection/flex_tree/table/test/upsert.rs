@@ -11,7 +11,7 @@ mod tests {
 
         table.upsert(target.clone(), 10);
 
-        let actual_values: Vec<_> = table.get(&target).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![10]);
     }
 
@@ -23,9 +23,16 @@ mod tests {
         table.insert(target.clone(), 10);
         table.upsert(target.clone(), 20);
 
-        let actual_values: Vec<_> = table.get(&target).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![10], "既存値が上書きされてはいけない");
-        assert!(table.value_get(&20).next().is_none());
+        assert!(
+            table
+                .filter_range(&20..=&20)
+                .into_iter()
+                .map(|(id, _)| id)
+                .next()
+                .is_none()
+        );
     }
 
     /// target が既存領域と空き領域の両方にまたがる場合、占有済みの部分は既存値のまま、
@@ -40,12 +47,18 @@ mod tests {
         table.upsert(both, 20);
 
         assert_eq!(
-            table.get(&occupied).map(|(_, v)| *v).collect::<Vec<_>>(),
+            table
+                .get(occupied.clone())
+                .map(|(_, v)| *v)
+                .collect::<Vec<_>>(),
             vec![10],
             "既存側は保たれる"
         );
         assert_eq!(
-            table.get(&empty).map(|(_, v)| *v).collect::<Vec<_>>(),
+            table
+                .get(empty.clone())
+                .map(|(_, v)| *v)
+                .collect::<Vec<_>>(),
             vec![20],
             "空き側には新値が入る"
         );
@@ -66,6 +79,13 @@ mod tests {
             with_noop_upsert, plain,
             "埋まっている場所への upsert でテーブルが変わった"
         );
-        assert!(with_noop_upsert.value_get(&20).next().is_none());
+        assert!(
+            with_noop_upsert
+                .filter_range(&20..=&20)
+                .into_iter()
+                .map(|(id, _)| id)
+                .next()
+                .is_none()
+        );
     }
 }

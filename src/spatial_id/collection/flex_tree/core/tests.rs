@@ -30,7 +30,7 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
                 dimension,
                 split_dimensions,
                 height,
-                leaf_count,
+                count,
                 summary,
                 lower,
                 upper,
@@ -54,10 +54,10 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
                     "{this:?}: height が不正: 実際 {height}, 期待 {expected_height}"
                 ));
             }
-            let expected_count = lower.leaf_count() + upper.leaf_count();
-            if *leaf_count != expected_count {
+            let expected_count = lower.count() + upper.count();
+            if *count != expected_count {
                 return Err(format!(
-                    "{this:?}: leaf_count が不正: 実際 {leaf_count}, 期待 {expected_count}"
+                    "{this:?}: count が不正: 実際 {count}, 期待 {expected_count}"
                 ));
             }
             let (Some(l), Some(u)) = (lower.summary(), upper.summary()) else {
@@ -370,31 +370,23 @@ fn set_operations_match_model() {
     }
 }
 
-/// FlexTreeCore 全体の value_range, min_value, max_value の基本動作テスト。
+/// FlexTreeCore 全体の value_range の基本動作テスト。
 #[test]
 fn value_range_basic() {
     let mut tree: FlexTreeCore<u64> = FlexTreeCore::default();
     assert_eq!(tree.value_range(), None);
-    assert_eq!(tree.min_value(), None);
-    assert_eq!(tree.max_value(), None);
 
     let id1 = FlexId::new(2, 0, 2, 0, 2, 0).unwrap();
     tree.insert(id1, 50);
     assert_eq!(tree.value_range(), Some((&50, &50)));
-    assert_eq!(tree.min_value(), Some(&50));
-    assert_eq!(tree.max_value(), Some(&50));
 
     let id2 = FlexId::new(2, 0, 2, 1, 2, 1).unwrap();
     tree.insert(id2, 20);
     assert_eq!(tree.value_range(), Some((&20, &50)));
-    assert_eq!(tree.min_value(), Some(&20));
-    assert_eq!(tree.max_value(), Some(&50));
 
     let id3 = FlexId::new(2, 0, 2, 2, 2, 2).unwrap();
     tree.insert(id3, 80);
     assert_eq!(tree.value_range(), Some((&20, &80)));
-    assert_eq!(tree.min_value(), Some(&20));
-    assert_eq!(tree.max_value(), Some(&80));
 }
 
 /// Branch の [min, max] を使った filter_range の枝刈りと参照モデル一致テスト。
@@ -592,15 +584,15 @@ fn value_set_operations() {
     assert_eq!(warm.bits(), 0b1001);
 }
 
-/// `len` は値を持つ領域の数と一致し、イテレーターの `size_hint` は残りの数を正確に返す。
+/// `count` は値を持つ領域の数と一致し、イテレーターの `size_hint` は残りの数を正確に返す。
 #[test]
-fn len_and_size_hint_match_iteration() {
+fn count_and_size_hint_match_iteration() {
     let mut next = rng(99);
     for max_zoom in [5, 20] {
         for _ in 0..50 {
             let (tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
             let total = tree.iter().count();
-            assert_eq!(tree.len(), total);
+            assert_eq!(tree.count(), total);
             assert_eq!(tree.is_empty(), total == 0);
 
             let mut iter = tree.iter();
@@ -685,7 +677,7 @@ fn no_summary_holds_unordered_values() {
     let mut tree: FlexTreeCore<f64, NoSummary> = FlexTreeCore::default();
     tree.insert(a_id, 0.5);
     tree.insert(b_id, 1.5);
-    assert_eq!(tree.len(), 2);
+    assert_eq!(tree.count(), 2);
     assert_eq!(tree.summary(), Some(NoSummary));
 
     let mut region: FlexTreeCore<u64> = FlexTreeCore::default();
@@ -785,7 +777,7 @@ fn get_matches_intersection() {
     }
 }
 
-/// `get_overlapping` と `get_overlapping_range` は、重なる FlexId をそのまま、1回ずつ、`iter` と同じ順で返す。
+/// `get_overlapping` は、重なる FlexId をそのまま、1回ずつ、`iter` と同じ順で返す。`RangeId` を渡しても同じ。
 #[test]
 fn get_overlapping_returns_whole_leaves_once() {
     let mut next = rng(14);
@@ -816,7 +808,7 @@ fn get_overlapping_returns_whole_leaves_once() {
                 .iter()
                 .filter(|(leaf, _)| leaf.intersects_range(&range))
                 .collect();
-            let got: Vec<_> = tree.get_overlapping_range(&range).collect();
+            let got: Vec<_> = tree.get_overlapping(range).collect();
             assert_eq!(got, expected);
         }
     }
@@ -884,7 +876,7 @@ fn neighbors_share_face_returns_face_neighbors_only() {
     }
 
     let mut values: Vec<u64> = tree
-        .neighbors_share_face(&center)
+        .neighbors_share_face(center.clone())
         .map(|(_, v)| *v)
         .collect();
     values.sort();
@@ -965,7 +957,7 @@ fn eq_skips_shared_subtrees() {
     assert!(
         compared <= height + 2,
         "値を {compared} 回比べた（高さ {height}、Leaf {}）",
-        tree.len()
+        tree.count()
     );
 }
 

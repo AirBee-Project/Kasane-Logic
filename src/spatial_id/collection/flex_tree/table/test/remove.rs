@@ -14,7 +14,7 @@ mod tests {
             TableEntry::Single(second.clone(), 20),
         ]);
 
-        let removed = table.remove(&first);
+        let removed: Vec<_> = table.remove(first.clone()).collect();
         assert_eq!(removed.len(), 1);
         let (flex_id, value) = &removed[0];
         assert_eq!(*value, 10);
@@ -24,9 +24,20 @@ mod tests {
         assert_eq!(flex_id.x_index(), 2);
         assert_eq!(flex_id.y_zoomlevel(), 4);
         assert_eq!(flex_id.y_index(), 1);
-        assert!(table.value_get(&10).next().is_none());
+        assert!(
+            table
+                .filter_range(&10..=&10)
+                .into_iter()
+                .map(|(id, _)| id)
+                .next()
+                .is_none()
+        );
         assert_eq!(
-            table.value_get(&20).collect::<Vec<_>>(),
+            table
+                .filter_range(&20..=&20)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect::<Vec<_>>(),
             second.into_iter().collect::<Vec<_>>()
         );
         assert_eq!(table.count(), table.iter().count());
@@ -42,7 +53,7 @@ mod tests {
             TableEntry::Single(second.clone(), 20),
         ]);
 
-        table.remove(&first);
-        assert_eq!(table.values().copied().collect::<Vec<_>>(), vec![20]);
+        table.remove(first.clone());
+        assert_eq!(table.iter().map(|(_, v)| *v).collect::<Vec<_>>(), vec![20]);
     }
 }

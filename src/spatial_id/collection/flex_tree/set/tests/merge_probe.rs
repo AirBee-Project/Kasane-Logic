@@ -477,7 +477,7 @@ fn verify_f_strip_coverage_preserved() {
     }
     // マージ後 count は減るが、最細Segmentへ展開すると元の 10 Segmentと一致するはず（被覆不変）。
     let mut got = std::collections::BTreeSet::new();
-    for (sid, _) in set.flat_single_ids().map(|s| (s, ())) {
+    for (sid, _) in set.flat_single_ids(None).map(|s| (s, ())) {
         assert_eq!(sid.z(), ZoomLevel::MAX.get());
         got.insert((sid.f(), sid.x(), sid.y()));
     }

@@ -17,7 +17,7 @@
 use crate::SpatialId;
 use alloc::vec::Vec;
 
-use crate::{AllowedIntervals, FlexId, RangeId, SingleId};
+use crate::{AllowedIntervals, FlexId, RangeId};
 
 /// 空間成分のみを `u128` へパックし、高速な一致判定を行う。
 #[inline(always)]
@@ -38,7 +38,7 @@ where
 {
     iter: I,
     pending: Option<(u128, FlexId, u64, u64, V)>,
-    units: Option<&'a AllowedIntervals>,
+    allowed_intervals: Option<&'a AllowedIntervals>,
 }
 
 impl<'a, I, V> Iterator for CoalesceTemporal<'a, I, V>
@@ -68,16 +68,28 @@ where
             }
 
             self.pending = Some((next_key, next_id, next_start, next_end, next_value));
-            return Some(finish(&first_flex, start, end, value, self.units));
+            return Some(finish(
+                &first_flex,
+                start,
+                end,
+                value,
+                self.allowed_intervals,
+            ));
         }
 
-        Some(finish(&first_flex, start, end, value, self.units))
+        Some(finish(
+            &first_flex,
+            start,
+            end,
+            value,
+            self.allowed_intervals,
+        ))
     }
 }
 
 /// 時間方向に隣接するSegmentを結合し、[`RangeId`] の列として返す。
 ///
-/// `units` に[`AllowedIntervals`]を渡すと、結合後の秒区間を**その候補のうち最も粗い単位**で
+/// `allowed_intervals` に[`AllowedIntervals`]を渡すと、結合後の秒区間を**その候補のうち最も粗い単位**で
 /// 表し直す（Segment数が候補の中で最小になる）。`None` の場合は「その区間を表せる最も粗い単位」
 /// （`gcd(開始秒, 幅)`）になり、Segment数は常に1になる。
 ///
@@ -88,7 +100,7 @@ where
 /// `O(n)`。入力はあらかじめ `(FlexId, 開始秒)` 順に並んでいる前提。
 pub(crate) fn coalesce_temporal<'a, I, V>(
     rows: I,
-    units: Option<&'a AllowedIntervals>,
+    allowed_intervals: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (RangeId, V)> + 'a
 where
     I: IntoIterator<Item = (FlexId, V)> + 'a,
@@ -97,17 +109,17 @@ where
     CoalesceTemporal {
         iter: rows.into_iter(),
         pending: None,
-        units,
+        allowed_intervals,
     }
 }
 
-/// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+/// `rows` を時間方向に結合した [`RangeId`] として読み出す。
 ///
 /// 木の走査順では、同じ空間の時間Segmentが連続するとは限らない。時間で分割された
 /// Segmentがあるときだけ `(空間, 開始秒)` 順に並べ直してから結合し、無ければ集めずに流す。
 pub(crate) fn range_ids<'a, V: PartialEq + 'a>(
     rows: impl Iterator<Item = (FlexId, V)> + Clone + 'a,
-    units: Option<&'a AllowedIntervals>,
+    allowed_intervals: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (RangeId, V)> + 'a {
     let temporal = rows.clone().any(|(id, _)| id.t_zoomlevel() > 0);
     let sorted = temporal.then(|| {
@@ -121,26 +133,8 @@ pub(crate) fn range_ids<'a, V: PartialEq + 'a>(
             .into_iter()
             .flatten()
             .chain(lazy.into_iter().flatten()),
-        units,
+        allowed_intervals,
     )
-}
-
-/// [`range_ids`] を、ズームレベル `max_z` に揃えた [`SingleId`] へ展開する。`max_z` は全Segmentのズーム以上であること。
-pub(crate) fn flat_single_ids<'a, V: PartialEq + Clone + 'a>(
-    rows: impl Iterator<Item = (FlexId, V)> + Clone + 'a,
-    max_z: u8,
-    units: Option<&'a AllowedIntervals>,
-) -> impl Iterator<Item = (SingleId, V)> + 'a {
-    range_ids(rows, units).flat_map(move |(range, value)| {
-        let range = if range.z() == max_z {
-            range
-        } else {
-            range
-                .spatial_children_at_zoom(max_z)
-                .expect("全体の最大ズームレベルは各Segmentのズーム以上")
-        };
-        range.single_ids().map(move |id| (id, value.clone()))
-    })
 }
 
 /// 結合し終えた1件を [`RangeId`] に組み立てる。
@@ -149,7 +143,7 @@ fn finish<V>(
     start: u64,
     end: u64,
     value: V,
-    units: Option<&AllowedIntervals>,
+    allowed_intervals: Option<&AllowedIntervals>,
 ) -> (RangeId, V) {
     let range = RangeId::from(key)
         .with_time_span(start, end)
@@ -157,11 +151,11 @@ fn finish<V>(
 
     // 候補集合が指定されていれば、その中で最も粗い（＝Segment数が最小の）単位へ表し直す。
     // `AllowedIntervals` は必ず全区間を表せる候補を含むので、この `relabel_time` は失敗しない。
-    let range = match units {
+    let range = match allowed_intervals {
         None => range,
-        Some(units) => range
+        Some(allowed_intervals) => range
             .clone()
-            .relabel_time(units.coarsest_dividing(start, end))
+            .relabel_time(allowed_intervals.coarsest_dividing(start, end))
             .expect("AllowedIntervals が選んだ単位は必ずこの区間を割り切る"),
     };
 
@@ -175,7 +169,7 @@ mod tests {
 
     fn coalesce_temporal_vec<V: Clone + PartialEq + Send>(
         items: impl IntoIterator<Item = (FlexId, V)>,
-        units: Option<&AllowedIntervals>,
+        allowed_intervals: Option<&AllowedIntervals>,
     ) -> Vec<(RangeId, V)> {
         let mut items: Vec<_> = items.into_iter().collect();
         items.sort_by(|a, b| {
@@ -185,7 +179,7 @@ mod tests {
                 .cmp(&key_b)
                 .then_with(|| a.0.seconds_range().0.cmp(&b.0.seconds_range().0))
         });
-        coalesce_temporal(items, units).collect()
+        coalesce_temporal(items, allowed_intervals).collect()
     }
 
     /// 時間成分を全時間へ落とした [`FlexId`]。元のテストの `sorted_reference` 用。

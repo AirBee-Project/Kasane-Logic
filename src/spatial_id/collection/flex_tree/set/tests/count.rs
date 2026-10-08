@@ -30,17 +30,17 @@ mod tests {
         set.insert(SingleId::new(2, 1, 0, 3).unwrap());
         assert_max_zoomlevel_consistent(&set);
 
-        set.remove(&RangeId::new(6, [1, 29], [8, 9], [5, 10]).unwrap());
+        let _ = set.remove(RangeId::new(6, [1, 29], [8, 9], [5, 10]).unwrap());
         assert_max_zoomlevel_consistent(&set);
     }
 
     fn remove_insert_pattern(set: &mut SpatialIdSet, insert: &RandomSetInsert) {
         match insert {
             RandomSetInsert::Single(single_id) => {
-                set.remove(single_id);
+                let _ = set.remove(single_id.clone());
             }
             RandomSetInsert::Range(range_id) => {
-                set.remove(range_id);
+                let _ = set.remove(range_id.clone());
             }
         }
     }
@@ -67,7 +67,7 @@ mod tests {
         set.insert(RangeId::new(3, [0, 1], [1, 2], [3, 3]).unwrap());
         assert_count_consistent(&set);
 
-        set.remove(&remove_target);
+        let _ = set.remove(remove_target.clone());
         assert_count_consistent(&set);
     }
 

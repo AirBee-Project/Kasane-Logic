@@ -19,7 +19,7 @@ impl<'a, V, S> Iter<'a, V, S> {
     pub(super) fn new(tree: &'a FlexTreeCore<V, S>) -> Self {
         Iter {
             stack: tree.new_stack(),
-            remaining: tree.len(),
+            remaining: tree.count(),
         }
     }
 }
@@ -136,7 +136,7 @@ impl<V: Clone, S> IntoIterator for FlexTreeCore<V, S> {
     type IntoIter = IntoIter<V, S>;
 
     fn into_iter(self) -> Self::IntoIter {
-        let remaining = self.len();
+        let remaining = self.count();
         let height = self.upper_root.height().max(self.lower_root.height());
         let mut stack = Vec::with_capacity(usize::from(height) + 2);
         // 後に積んだものから取り出すので、上側のルートを後に積む
@@ -161,5 +161,46 @@ impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTree
         let mut tree = FlexTreeCore::default();
         tree.extend(iter);
         tree
+    }
+}
+
+/// スレッドごとに部分木を組み、和集合で畳む（`feature = "rayon"`）。
+///
+/// 同じ場所へ異なる値が重なった場合にどちらが残るかは、チャンクの分かれ方で決まり、
+/// 逐次の [`FromIterator`] の後勝ちとは一致しない。
+#[cfg(feature = "rayon")]
+impl<V, S> rayon::iter::FromParallelIterator<(FlexId, V)> for FlexTreeCore<V, S>
+where
+    V: PartialEq + Clone + Send + Sync,
+    S: Summary<V> + Send + Sync,
+{
+    fn from_par_iter<I>(par_iter: I) -> Self
+    where
+        I: rayon::iter::IntoParallelIterator<Item = (FlexId, V)>,
+    {
+        use rayon::prelude::*;
+        par_iter
+            .into_par_iter()
+            .fold(FlexTreeCore::default, |mut tree, (id, value)| {
+                tree.insert(id, value);
+                tree
+            })
+            .reduce(FlexTreeCore::default, |a, b| a.union(&b))
+    }
+}
+
+/// 並列に組んだ木を和集合で重ねる（`feature = "rayon"`）。重なる場所は追加する側の値になる。
+#[cfg(feature = "rayon")]
+impl<V, S> rayon::iter::ParallelExtend<(FlexId, V)> for FlexTreeCore<V, S>
+where
+    V: PartialEq + Clone + Send + Sync,
+    S: Summary<V> + Send + Sync,
+{
+    fn par_extend<I>(&mut self, par_iter: I)
+    where
+        I: rayon::iter::IntoParallelIterator<Item = (FlexId, V)>,
+    {
+        use rayon::iter::FromParallelIterator;
+        *self = Self::from_par_iter(par_iter).union(self);
     }
 }

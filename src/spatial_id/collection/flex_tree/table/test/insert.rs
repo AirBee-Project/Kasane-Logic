@@ -13,11 +13,22 @@ mod tests {
         table.insert(target.clone(), 10);
         table.insert(target.clone(), 20);
 
-        let actual_values: Vec<_> = table.get(&target).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![20]);
-        assert!(table.value_get(&10).next().is_none());
+        assert!(
+            table
+                .filter_range(&10..=&10)
+                .into_iter()
+                .map(|(id, _)| id)
+                .next()
+                .is_none()
+        );
         assert_eq!(
-            table.value_get(&20).collect::<Vec<_>>(),
+            table
+                .filter_range(&20..=&20)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect::<Vec<_>>(),
             target.into_iter().collect::<Vec<_>>()
         );
     }
@@ -34,7 +45,11 @@ mod tests {
         ]);
 
         assert_eq!(
-            table.value_get(&10).collect::<Vec<_>>(),
+            table
+                .filter_range(&10..=&10)
+                .into_iter()
+                .map(|(id, _)| id)
+                .collect::<Vec<_>>(),
             first.into_iter().chain(second).collect::<Vec<_>>()
         );
     }
@@ -46,7 +61,7 @@ mod tests {
         let table = build_table(&[TableEntry::Range(range.clone(), 30)]);
 
         let actual: Vec<_> = table
-            .flat_single_ids()
+            .flat_single_ids(None)
             .map(|(single_id, value)| (single_id, *value))
             .collect();
         let expected: Vec<_> = range

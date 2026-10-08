@@ -1,7 +1,6 @@
-use crate::spatial_id::collection::flex_tree::coalesce;
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, IntoIter, NoSummary};
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
-use alloc::vec::Vec;
+use core::iter::Map;
 pub mod convert;
 pub mod impls;
 #[cfg(feature = "json")]
@@ -65,55 +64,49 @@ impl SpatialIdSet {
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して返す。
-    pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
-    where
-        S: SpatialId,
-    {
-        self.inner.get(target.clone()).map(|(flex_id, _)| flex_id)
+    pub fn get<'a, S: SpatialId<IntoIter: 'a>>(
+        &'a self,
+        target: S,
+    ) -> impl Iterator<Item = FlexId> + 'a {
+        self.inner.get(target).map(|(flex_id, _)| flex_id)
     }
 
-    /// 指定した範囲（RangeId）と重なる空間IDを、切り取らずにそのまま返す。
-    pub fn get_range<'a>(&'a self, target: &'a RangeId) -> impl Iterator<Item = FlexId> + 'a {
+    /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。削除した部分の空間IDを返す。
+    ///
+    /// 削除は呼び出した時点で済んでおり、返すイテレーターは集合を借用しない。
+    pub fn remove<S: SpatialId>(&mut self, target: S) -> impl Iterator<Item = FlexId> + use<S> {
         self.inner
-            .get_overlapping_range(target)
-            .map(|(flex_id, _)| flex_id)
-    }
-
-    /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
-    /// 削除した部分の空間IDを返す。
-    pub fn remove<S: SpatialId>(&mut self, target: &S) -> Vec<FlexId> {
-        self.inner
-            .remove(target.clone())
+            .remove(target)
             .into_iter()
             .map(|(flex_id, _)| flex_id)
-            .collect()
     }
 
     /// 指定した空間IDと接触していたすべての空間IDを返す。
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった [`FlexId`] をそのままの返す。
-    pub fn get_overlapping<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = FlexId> + 'a
-    where
-        S: SpatialId + 'a,
-    {
+    pub fn get_overlapping<S: SpatialId>(&self, target: S) -> impl Iterator<Item = FlexId> + '_ {
         self.inner
-            .get_overlapping(target.clone())
+            .get_overlapping(target)
             .map(|(flex_id, _)| flex_id)
     }
 
     /// 指定した空間IDと接触していたすべての空間IDを削除する。削除した空間IDを返す。
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった [`FlexId`] をそのまま返す。
-    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> Vec<FlexId> {
+    ///
+    /// 削除は呼び出した時点で済んでおり、返すイテレーターは集合を借用しない。
+    pub fn remove_overlapping<S: SpatialId>(
+        &mut self,
+        target: S,
+    ) -> impl Iterator<Item = FlexId> + use<S> {
         self.inner
-            .remove_overlapping(target.clone())
+            .remove_overlapping(target)
             .into_iter()
             .map(|(flex_id, _)| flex_id)
-            .collect()
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返す。入力された空間ID自身と重なる空間IDは除外する。
     pub fn neighbors_share_face<S: SpatialId>(
         &self,
-        target: &S,
+        target: S,
     ) -> impl Iterator<Item = FlexId> + '_ {
         self.inner
             .neighbors_share_face(target)
@@ -122,7 +115,7 @@ impl SpatialIdSet {
 
     /// 集合の内部にある[FlexId]の個数を返す。
     pub fn count(&self) -> usize {
-        self.inner.len()
+        self.inner.count()
     }
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
@@ -135,20 +128,12 @@ impl SpatialIdSet {
 
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
     ///
-    /// 単位は「その区間を表せる最も粗い秒数」（`gcd(開始秒, 幅)`）が選ばれ、
-    /// 各エントリのSegment数は必ず1になる。単位を選びたい場合は
-    /// [`range_ids_in`](Self::range_ids_in) を使う。
+    /// `allowed_intervals` が [`None`] なら、各区間はそれを表せる最も粗い単位（`gcd(開始秒, 幅)`）の1Segmentになる。
+    /// [`AllowedIntervals`] を渡すと、その候補のうち**区間を割り切る最も粗いもの**で表す
+    /// （＝候補の中でSegment数が最小）。[`AllowedIntervals`] は必ず全区間を表せる候補を含むので失敗しない。
     ///
     /// [`iter`](Self::iter) が返す生の [`FlexId`] は木の2分岐Segmentそのもの
     /// （`_8/182185424` のような断片）なので、人間が読む用途にはこちらを使う。
-    pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
-        coalesce::range_ids(self.inner.iter(), None).map(|(range_id, _)| range_id)
-    }
-
-    /// 時間の単位を [`AllowedIntervals`] の候補から選んで読み出す。
-    ///
-    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
-    /// [`AllowedIntervals`] は必ず全区間を表せる候補を含むので失敗しない。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
@@ -159,36 +144,29 @@ impl SpatialIdSet {
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 1).unwrap());
     ///
     /// // 既定（gcd）では 2 時間ぶんが「7200 秒 × 1 TimeSegment」になる。
-    /// assert_eq!(set.range_ids().next().unwrap().to_string(), "12/0/3638/1614_7200/0");
+    /// assert_eq!(set.range_ids(None).next().unwrap().to_string(), "12/0/3638/1614_7200/0");
     ///
     /// // 暦の単位に正規化すると「3600 秒 × 2 TimeSegment」になる。
-    /// let got = set.range_ids_in(AllowedIntervals::calendar()).next().unwrap();
+    /// let got = set.range_ids(Some(AllowedIntervals::calendar())).next().unwrap();
     /// assert_eq!(got.to_string(), "12/0/3638/1614_3600/0:1");
     /// # }
     /// ```
-    pub fn range_ids_in<'a>(
+    pub fn range_ids<'a>(
         &'a self,
-        units: &'a AllowedIntervals,
-    ) -> impl Iterator<Item = RangeId> + use<'a> {
-        coalesce::range_ids(self.inner.iter(), Some(units)).map(|(range_id, _)| range_id)
+        allowed_intervals: Option<&'a AllowedIntervals>,
+    ) -> impl Iterator<Item = RangeId> + 'a {
+        self.inner
+            .range_ids(allowed_intervals)
+            .map(|(range_id, _)| range_id)
     }
 
-    /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
-    pub fn flat_single_ids_in<'a>(
+    /// [`range_ids`](Self::range_ids) を、集合全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+    pub fn flat_single_ids<'a>(
         &'a self,
-        units: &'a AllowedIntervals,
-    ) -> impl Iterator<Item = SingleId> + use<'a> {
-        coalesce::flat_single_ids(
-            self.inner.iter(),
-            self.max_zoomlevel().unwrap_or(0),
-            Some(units),
-        )
-        .map(|(single_id, _)| single_id)
-    }
-
-    /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
-    pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
-        coalesce::flat_single_ids(self.inner.iter(), self.max_zoomlevel().unwrap_or(0), None)
+        allowed_intervals: Option<&'a AllowedIntervals>,
+    ) -> impl Iterator<Item = SingleId> + 'a {
+        self.inner
+            .flat_single_ids(allowed_intervals)
             .map(|(single_id, _)| single_id)
     }
 
@@ -208,10 +186,10 @@ impl SpatialIdSet {
 }
 
 impl IntoIterator for SpatialIdSet {
-    type Item = (FlexId, ());
-    type IntoIter = IntoIter<(), NoSummary>;
+    type Item = FlexId;
+    type IntoIter = Map<IntoIter<(), NoSummary>, fn((FlexId, ())) -> FlexId>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.inner.into_iter()
+        self.inner.into_iter().map(|(flex_id, ())| flex_id)
     }
 }

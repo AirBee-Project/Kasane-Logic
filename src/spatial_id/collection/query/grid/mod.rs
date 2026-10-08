@@ -195,7 +195,7 @@ impl<V: SafeValue> UniformGrid<V> {
         budget: u64,
         token: &CancellationToken,
     ) -> Option<Result<Self, Error>> {
-        if tree.flex_ids().any(|id| id.t_zoomlevel() > 0) {
+        if tree.iter().any(|(id, _)| id.t_zoomlevel() > 0) {
             return None;
         }
 

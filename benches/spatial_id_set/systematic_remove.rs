@@ -19,7 +19,7 @@ fn bench_remove(c: &mut Criterion) {
                     || build_set(ids),
                     |mut set| {
                         for id in ids {
-                            let _ = set.remove(id);
+                            let _ = set.remove(id.clone());
                         }
                         black_box(set.is_empty())
                     },

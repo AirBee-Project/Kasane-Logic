@@ -1,15 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::Summary;
-use crate::{FlexId, SingleId, SpatialIdSet, SpatialIdTable};
-
-impl SpatialIdSet {
-    pub fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
-        self.iter()
-    }
-
-    pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
-        self.iter().flat_map(FlexId::single_ids)
-    }
-}
+use crate::{SpatialIdSet, SpatialIdTable};
 
 impl<V, S> From<&SpatialIdTable<V, S>> for SpatialIdSet
 where
@@ -18,7 +8,7 @@ where
 {
     /// 値を捨て、占有空間だけを [`SpatialIdSet`] へ写し取る。元のテーブルは消費しない。
     fn from(table: &SpatialIdTable<V, S>) -> Self {
-        table.flex_ids().collect()
+        table.iter().map(|(flex_id, _)| flex_id).collect()
     }
 }
 
@@ -39,9 +29,9 @@ where
     /// table.insert(SingleId::new(20, 5, 0, 0).unwrap(), 9);
     ///
     /// let set = SpatialIdSet::from(table);
-    /// assert!(set.get(&SingleId::new(20, 0, 0, 0).unwrap()).next().is_some());
-    /// assert!(set.get(&SingleId::new(20, 5, 0, 0).unwrap()).next().is_some());
-    /// assert!(set.get(&SingleId::new(20, 9, 0, 0).unwrap()).next().is_none());
+    /// assert!(set.get(SingleId::new(20, 0, 0, 0).unwrap()).next().is_some());
+    /// assert!(set.get(SingleId::new(20, 5, 0, 0).unwrap()).next().is_some());
+    /// assert!(set.get(SingleId::new(20, 9, 0, 0).unwrap()).next().is_none());
     /// ```
     fn from(table: SpatialIdTable<V, S>) -> Self {
         Self::from(&table)

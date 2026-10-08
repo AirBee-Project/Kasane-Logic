@@ -148,8 +148,8 @@ proptest! {
         match (res_raw, res_run) {
             (Ok(raw), Ok(run)) => {
                 assert_eq!(
-                    raw.flat_single_ids().collect::<Vec<_>>(),
-                    run.flat_single_ids().collect::<Vec<_>>(),
+                    raw.flat_single_ids(None).collect::<Vec<_>>(),
+                    run.flat_single_ids(None).collect::<Vec<_>>(),
                     "raw_run and run produced different ID sets!"
                 );
             }

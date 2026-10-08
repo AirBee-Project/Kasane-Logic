@@ -9,8 +9,7 @@
 //! 出さない）は `#[derive(Serialize, Deserialize)]` だけでは表現できないため、`IdEntry` だけは
 //! `Serializer`/`Deserializer` を直接叩く手書き実装にしている。
 
-use crate::spatial_id::collection::flex_tree::coalesce::range_ids;
-use crate::{AllowedIntervals, FlexId, RangeId, SpatialId};
+use crate::{RangeId, SpatialId};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -249,8 +248,11 @@ struct PlainDataEntry {
 /// 値ありコレクション（Table）向けの JSON 書き出し。
 ///
 /// 値は出現順で重複排除して `value` に列挙し、各空間 ID は `ref` でその添字を参照する。
+///
+/// `iter` は時間方向に結合済みのもの（`range_ids`）を渡す。木は時間を2の冪秒のSegmentで持つため、
+/// 結合しないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
 pub(crate) fn serialize_with_values<'a, V, S>(
-    iter: impl Iterator<Item = (FlexId, &'a V)> + Clone,
+    iter: impl Iterator<Item = (RangeId, &'a V)>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -260,9 +262,7 @@ where
     let mut unique: Vec<&'a V> = Vec::new();
     let mut ids: Vec<IdEntry> = Vec::new();
 
-    // 時間方向に隣接する同値Segmentを結合してから書き出す。木は時間を2の冪秒のSegmentで持つため、
-    // これを通さないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
-    for (range_id, val) in range_ids(iter, Some(&AllowedIntervals::default())) {
+    for (range_id, val) in iter {
         let idx = match unique.iter().position(|&u| u == val) {
             Some(idx) => idx,
             None => {
@@ -292,22 +292,18 @@ where
 
 /// 値なしコレクション（Set）向けの JSON 書き出し。
 pub(crate) fn serialize_without_values<S>(
-    iter: impl Iterator<Item = FlexId> + Clone,
+    iter: impl Iterator<Item = RangeId>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    // 値ありの場合と同じく、時間方向に隣接するSegmentを結合してから書き出す。
-    let ids: Vec<IdEntry> = range_ids(
-        iter.map(|flex_id| (flex_id, ())),
-        Some(&AllowedIntervals::default()),
-    )
-    .map(|(range_id, ())| IdEntry {
-        range_id,
-        r#ref: None,
-    })
-    .collect();
+    let ids: Vec<IdEntry> = iter
+        .map(|range_id| IdEntry {
+            range_id,
+            r#ref: None,
+        })
+        .collect();
 
     let envelope = EnvelopeOut {
         schema: SCHEMA_URL,
@@ -423,7 +419,7 @@ mod tests {
 
         // 内容は完全に往復する（`{i}` のラベルが変わっても秒区間は同じ）。
         let restored: SpatialIdTable<i32> = serde_json::from_str(&json).unwrap();
-        let ids: Vec<_> = restored.flat_single_ids().collect();
+        let ids: Vec<_> = restored.flat_single_ids(None).collect();
         assert_eq!(ids.len(), 1);
         assert_eq!(ids[0].0, original);
         assert_eq!(*ids[0].1, 7);

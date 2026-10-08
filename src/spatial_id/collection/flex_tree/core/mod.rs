@@ -1,4 +1,5 @@
-use crate::{FlexId, RangeId, SpatialId};
+use crate::spatial_id::collection::flex_tree::coalesce;
+use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 use core::iter::from_fn;
 use core::ops::{Bound, RangeBounds};
@@ -31,7 +32,7 @@ mod view;
 ///
 /// assert_eq!(tree.value_range(), Some((&35, &80)));
 /// let hot = tree.filter_range(50..);
-/// assert_eq!(hot.len(), 1);
+/// assert_eq!(hot.count(), 1);
 /// ```
 ///
 /// ## Enum
@@ -57,7 +58,7 @@ mod view;
 ///
 /// assert!(tree.value_set().contains(Land::Water));
 /// let obstacles = tree.filter_values([Land::Building, Land::Water].into_iter().collect());
-/// assert_eq!(obstacles.len(), 1);
+/// assert_eq!(obstacles.count(), 1);
 /// ```
 ///
 /// ## 範囲と種類の両方で絞る
@@ -80,8 +81,8 @@ mod view;
 /// tree.insert(FlexId::new(20, 5, 20, 100, 20, 200).unwrap(), Risk::Low);
 /// tree.insert(FlexId::new(20, 5, 20, 101, 20, 200).unwrap(), Risk::High);
 ///
-/// assert_eq!(tree.filter_range(Risk::Mid..).len(), 1);
-/// assert_eq!(tree.filter_values(ValueSet::single(Risk::Low)).len(), 1);
+/// assert_eq!(tree.filter_range(Risk::Mid..).count(), 1);
+/// assert_eq!(tree.filter_values(ValueSet::single(Risk::Low)).count(), 1);
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct FlexTreeCore<V, S = MinMax<V>> {
@@ -109,8 +110,8 @@ impl<V, S> Default for FlexTreeCore<V, S> {
 
 impl<V, S> FlexTreeCore<V, S> {
     /// 値を持つ[FlexId]の数。
-    pub fn len(&self) -> usize {
-        self.upper_root.leaf_count() + self.lower_root.leaf_count()
+    pub fn count(&self) -> usize {
+        self.upper_root.count() + self.lower_root.count()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -157,19 +158,10 @@ impl<V, S> FlexTreeCore<V, S> {
         self.overlapping(move |region| targets.iter().any(|t| region.intersection(t).is_some()))
     }
 
-    /// 範囲 `target` と重なる領域と値を、切り取らずにそのまま返す。時間軸も含めて判定する。
-    pub fn get_overlapping_range<'a>(
-        &'a self,
-        target: &RangeId,
-    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        let target = target.clone();
-        self.overlapping(move |region| region.intersects_range(&target))
-    }
-
     /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
     pub fn neighbors_share_face<'a, T: SpatialId>(
         &'a self,
-        target: &T,
+        target: T,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         // 各方向に1つずらした領域が、面で接しうる候補
         let mut shifted: Vec<FlexId> = Vec::new();
@@ -187,7 +179,7 @@ impl<V, S> FlexTreeCore<V, S> {
             shifted.extend(x);
         }
 
-        let own: Vec<FlexId> = target.clone().into_iter().collect();
+        let own: Vec<FlexId> = target.into_iter().collect();
         self.get_overlapping(shifted).filter(move |(leaf, _)| {
             own.iter().all(|o| leaf.intersection(o).is_none())
                 && own.iter().any(|o| o.shares_face(leaf))
@@ -233,6 +225,41 @@ impl<V, S> FlexTreeCore<V, S> {
         } else {
             (&mut self.upper_root, FlexId::UPPER_MAX)
         }
+    }
+}
+
+impl<V: PartialEq, S> FlexTreeCore<V, S> {
+    /// 時間方向に隣接する同値のSegmentを結合した [`RangeId`] と値を返す。**空間解像度は変えない**。
+    ///
+    /// `allowed_intervals` が [`None`] なら、各区間はそれを表せる最も粗い単位（`gcd(開始秒, 幅)`）の1Segmentになる。
+    /// [`AllowedIntervals`] を渡すと、その候補のうち区間を割り切る最も粗い単位で表す。
+    ///
+    /// [`iter`](Self::iter) が返す [FlexId] は時間を2の冪秒のSegmentとして持つので、
+    /// `1800` 秒のような単位で入れた ID も、こちらなら元の表記で取り出せる。
+    pub fn range_ids<'a>(
+        &'a self,
+        allowed_intervals: Option<&'a AllowedIntervals>,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+        coalesce::range_ids(self.iter(), allowed_intervals)
+    }
+
+    /// [`range_ids`](Self::range_ids) を、全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+    pub fn flat_single_ids<'a>(
+        &'a self,
+        allowed_intervals: Option<&'a AllowedIntervals>,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+        let max_z = self.max_zoomlevel().unwrap_or(0);
+        self.range_ids(allowed_intervals)
+            .flat_map(move |(range, value)| {
+                let range = if range.z() == max_z {
+                    range
+                } else {
+                    range
+                        .spatial_children_at_zoom(max_z)
+                        .expect("全体の最大ズームレベルは各Segmentのズーム以上")
+                };
+                range.single_ids().map(move |id| (id, value))
+            })
     }
 }
 
@@ -386,16 +413,6 @@ impl<V: Ord + Clone, S: Summary<V> + AsRef<MinMax<V>>> FlexTreeCore<V, S> {
                 Some((u_min.min(l_min), u_max.max(l_max)))
             }
         }
-    }
-
-    /// 全体に存在する値の最小値を返す。値がまだなければ [`None`]。
-    pub fn min_value(&self) -> Option<&V> {
-        self.value_range().map(|(min, _)| min)
-    }
-
-    /// 全体に存在する値の最大値を返す。値がまだなければ [`None`]。
-    pub fn max_value(&self) -> Option<&V> {
-        self.value_range().map(|(_, max)| max)
     }
 
     /// 値が指定した範囲 `range` に含まれる領域だけを残した[FlexTreeCore]を作成する。
