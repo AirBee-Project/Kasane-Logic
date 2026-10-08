@@ -2,24 +2,20 @@ use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, RangeId};
+use crate::{Error, FlexId};
 use alloc::boxed::Box;
+
+pub type SourceIter<'a, V> = Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>;
 
 /// クエリを実行するためのTrait。読み取りさえできればよい。
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
+    fn read_flex_ids<'a>(
+        &'a self,
+        bounds: &'a [FlexId],
         token: &CancellationToken,
-    ) -> Result<WorkingTree<Self::Value>, Error>;
-
-    fn read_all(
-        self: Box<Self>,
-        token: &CancellationToken,
-    ) -> Result<WorkingTree<Self::Value>, Error>;
+    ) -> Result<SourceIter<'a, Self::Value>, Error>;
 
     fn query(self) -> Query<Self::Value>
     where
@@ -38,7 +34,9 @@ impl<V: SafeValue + 'static, S: Source<Value = V> + 'static> From<S> for Query<V
 
 #[cfg(test)]
 mod tests {
-    use crate::{CancellationToken, RangeId, SingleId, Source, SpatialIdTable};
+    use crate::{
+        CancellationToken, FlexId, RangeId, SingleId, Source, SpatialIdTable, WorkingTree,
+    };
     use alloc::vec::Vec;
 
     /// 重なり合う複数 bounds で読んでも、空間IDが重複せず正しい値で返ること。
@@ -46,18 +44,20 @@ mod tests {
     /// 粗いSegment（複数の細かい bounds と交差する）を含めることで、
     /// 同一Segmentが複数回読み出される状況を作っている。
     #[test]
-    fn read_range_ids_with_overlapping_bounds_has_no_duplicates() {
+    fn read_flex_ids_with_overlapping_bounds_has_no_duplicates() {
         let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
         // z=18 の粗いSegment1つ（z=20 では 4x4 の広がりを持つ）
         table.insert(SingleId::new(18, 0, 100, 100).unwrap(), 7);
 
         // 上記の粗いSegmentと交差する、細かく分かれた 3 つの領域
-        let bounds: Vec<RangeId> = (0..3)
-            .map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
+        let bounds: Vec<FlexId> = (0..3)
+            .flat_map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
             .collect();
 
-        let working = table
-            .read_range_ids(&bounds, &CancellationToken::new())
+        let working: WorkingTree<i32> = table
+            .read_flex_ids(&bounds, &CancellationToken::new())
+            .unwrap()
+            .collect::<Result<_, _>>()
             .unwrap();
 
         let time_segments: Vec<(crate::FlexId, i32)> = working.into_iter().collect();
@@ -77,20 +77,30 @@ mod tests {
             table.insert(SingleId::new(20, 0, x, 400).unwrap(), x as i32);
         }
 
-        let single = alloc::vec![RangeId::new(20, [0, 0], [400, 407], [400, 400]).unwrap()];
+        let single: Vec<FlexId> = RangeId::new(20, [0, 0], [400, 407], [400, 400])
+            .unwrap()
+            .into_iter()
+            .collect();
         // 端が重なる 2 つの領域で同じ範囲を覆う
-        let overlapping = alloc::vec![
+        let overlapping: Vec<FlexId> = [
             RangeId::new(20, [0, 0], [400, 404], [400, 400]).unwrap(),
             RangeId::new(20, [0, 0], [403, 407], [400, 400]).unwrap(),
-        ];
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
 
         let mut a: Vec<(crate::FlexId, i32)> = table
-            .read_range_ids(&single, &CancellationToken::new())
+            .read_flex_ids(&single, &CancellationToken::new())
+            .unwrap()
+            .collect::<Result<WorkingTree<_>, _>>()
             .unwrap()
             .into_iter()
             .collect();
         let mut b: Vec<(crate::FlexId, i32)> = table
-            .read_range_ids(&overlapping, &CancellationToken::new())
+            .read_flex_ids(&overlapping, &CancellationToken::new())
+            .unwrap()
+            .collect::<Result<WorkingTree<_>, _>>()
             .unwrap()
             .into_iter()
             .collect();

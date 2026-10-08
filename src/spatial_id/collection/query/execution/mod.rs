@@ -123,7 +123,11 @@ impl<V: SafeValue + 'static> Query<V> {
             token: &CancellationToken,
         ) -> Result<WorkingTree<V>, Error> {
             match query {
-                Query::Source(source) => source.read_all(token),
+                Query::Source(source) => read_source(
+                    &*source,
+                    &[crate::FlexId::LOWER_MAX, crate::FlexId::UPPER_MAX],
+                    token,
+                ),
                 Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                     run_unary_chain(&order, run_internal(*input, token)?, token)
@@ -201,6 +205,23 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
     Ok(working)
 }
 
+/// 入力源を`WorkingTree`として読み出す。
+fn read_source<V: SafeValue + 'static>(
+    source: &dyn Source<Value = V>,
+    bounds: &[crate::FlexId],
+    token: &CancellationToken,
+) -> Result<WorkingTree<V>, Error> {
+    let mut counter = 0u32;
+
+    source
+        .read_flex_ids(bounds, token)?
+        .map(|item| {
+            token.check_amortized(&mut counter)?;
+            item
+        })
+        .collect()
+}
+
 /// 平坦化を許す件数の上限。
 fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
     (working.count() as u64)
@@ -238,8 +259,11 @@ impl<V: SafeValue + 'static> Query<V> {
 
         match self {
             Query::Source(s) => {
+                let mut bounds: Vec<crate::FlexId> = bounds.into_iter().flatten().collect();
+                bounds.sort_unstable();
+                bounds.dedup();
                 trace_span!("kasane_logic.query.source_read", bound_count = bounds.len());
-                s.read_range_ids(&bounds, token)
+                read_source(&**s, &bounds, token)
             }
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                 trace_span!("kasane_logic.query.unary", op_count = ops.len());

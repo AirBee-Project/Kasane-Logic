@@ -122,6 +122,8 @@ pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
 pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
+pub use spatial_id::collection::query::source::SourceIter;
+#[doc(inline)]
 pub use spatial_id::collection::query::working::WorkingTree;
 
 #[doc(inline)]
