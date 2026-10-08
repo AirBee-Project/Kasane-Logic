@@ -13,7 +13,12 @@ fn lazy_get_shift_x_wrapped_coarsen_matches_run() {
     // z=2 の x=3（東西の折り返し境界寄り）にデータを置く。
     table.insert(FlexId::new(2, 0, 2, 3, 2, 0).unwrap(), 7);
 
-    let expected: SpatialIdTable<u32> = table.clone().query().shift_x(2, -1).raw_run().unwrap();
+    let expected: SpatialIdTable<u32> = table
+        .clone()
+        .query()
+        .shift_x(2, -1)
+        .raw_run::<crate::MinMax<_>>()
+        .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids().map(|(_, v)| *v).collect();
 
     // shift のズーム(2)より粗い z=1 の x 全域をターゲットにする。
@@ -43,7 +48,7 @@ fn lazy_get_chained_shift_x_wrapped_intermediate_bounds_matches_run() {
         .query()
         .shift_x(2, -3)
         .shift_x(2, -2)
-        .raw_run()
+        .raw_run::<crate::MinMax<_>>()
         .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids().map(|(_, v)| *v).collect();
 
@@ -73,7 +78,7 @@ fn lazy_view_get_matches_run() {
         .query()
         .shift_x(10, 1)
         .shift_y(10, 2)
-        .raw_run()
+        .raw_run::<crate::MinMax<_>>()
         .unwrap();
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();

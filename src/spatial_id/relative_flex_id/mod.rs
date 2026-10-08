@@ -8,10 +8,6 @@ use crate::{
 
 /// ある祖先の [FlexId] を起点とした相対的な位置を表す[FlexId]。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 pub struct RelativeFlexId(FlexId);
 
 impl FlexId {
@@ -207,6 +203,7 @@ mod tests {
     }
 
     /// 各次元で最も深く、インデックスが最大の相対 ID も符号化して戻せる。
+    #[cfg(feature = "temporal_id")]
     #[test]
     fn encode_round_trips_deepest() {
         let max = (1u32 << 30) - 1;

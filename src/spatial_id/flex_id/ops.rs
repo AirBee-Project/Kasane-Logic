@@ -171,9 +171,8 @@ impl FlexId {
 
     /// [`RangeId`](crate::RangeId) と交差するか判定する。**時間軸も含めて**判定する。
     ///
-    /// 木の走査（`RangeOverlapWalk`）は枝刈りで大半を落とすが、時間軸は
-    /// Segmentの2分割境界とターゲットの秒区間が一致するとは限らないため、はみ出した葉が
-    /// 残りうる。ここが最終フィルタである。
+    /// X は経度方向に周期的なので、`x[0] > x[1]` の範囲は末尾から先頭へ折り返した
+    /// 2区間として扱う（[`RangeId::set_x`](crate::RangeId::set_x) と同じ規約）。
     pub fn intersects_range(&self, range: &crate::RangeId) -> bool {
         // 時間軸だけは「共通ズームでの整数範囲」に落とせない（`RangeId` の `Interval` は
         // 2の冪とは限らない）ので、絶対秒区間の重なりで判定する。
@@ -187,25 +186,37 @@ impl FlexId {
             }
         }
 
-        overlaps_dimension(
-            self.f_zoomlevel(),
-            self.f_index() as i64,
-            range.z(),
-            range.f()[0] as i64,
-            range.f()[1] as i64,
-        ) && overlaps_dimension(
-            self.x_zoomlevel(),
-            self.x_index() as i64,
-            range.z(),
-            range.x()[0] as i64,
-            range.x()[1] as i64,
-        ) && overlaps_dimension(
-            self.y_zoomlevel(),
-            self.y_index() as i64,
-            range.z(),
-            range.y()[0] as i64,
-            range.y()[1] as i64,
-        )
+        let overlaps_x = |start: i64, end: i64| {
+            overlaps_dimension(
+                self.x_zoomlevel(),
+                self.x_index() as i64,
+                range.z(),
+                start,
+                end,
+            )
+        };
+        let [x_start, x_end] = range.x().map(i64::from);
+        let x_overlaps = if x_start <= x_end {
+            overlaps_x(x_start, x_end)
+        } else {
+            overlaps_x(x_start, (1i64 << range.z()) - 1) || overlaps_x(0, x_end)
+        };
+
+        x_overlaps
+            && overlaps_dimension(
+                self.f_zoomlevel(),
+                self.f_index() as i64,
+                range.z(),
+                range.f()[0] as i64,
+                range.f()[1] as i64,
+            )
+            && overlaps_dimension(
+                self.y_zoomlevel(),
+                self.y_index() as i64,
+                range.z(),
+                range.y()[0] as i64,
+                range.y()[1] as i64,
+            )
     }
 }
 

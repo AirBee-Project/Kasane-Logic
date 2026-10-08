@@ -1,8 +1,7 @@
 pub(crate) mod coalesce;
-pub(crate) mod core;
+pub mod core;
 #[cfg(feature = "json")]
 pub mod json;
-pub mod map;
 pub mod set;
 pub mod table;
 pub mod traits;

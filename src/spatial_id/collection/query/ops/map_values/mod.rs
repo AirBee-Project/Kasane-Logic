@@ -1,4 +1,3 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
 #[cfg(test)]
 mod test;
 
@@ -7,8 +6,9 @@ use alloc::boxed::Box;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::source::SourceIter;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
-use crate::{Error, RangeId};
+use crate::{Error, FlexId, RangeId};
 
 pub struct MapValues<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
@@ -39,30 +39,17 @@ where
 {
     type Value = U;
 
-    fn read_range_ids(
-        &self,
-        bounds: &[RangeId],
+    fn read_flex_ids<'a>(
+        &'a self,
+        bounds: &'a [FlexId],
         token: &CancellationToken,
-    ) -> Result<WorkingTree<U>, Error> {
-        Ok(self
-            .inner
-            .run_within(bounds.to_vec(), token)?
-            .into_iter()
-            .map(|(id, value)| (id, (self.f)(value)))
-            .collect())
-    }
-
-    fn read_all(self: Box<Self>, token: &CancellationToken) -> Result<WorkingTree<U>, Error> {
-        if token.is_cancelled() {
-            return Err(Error::Cancelled);
-        }
-        let this = *self;
-        Ok(this
-            .inner
-            .run_working_tree()?
-            .into_iter()
-            .map(|(id, value)| (id, (this.f)(value)))
-            .collect())
+    ) -> Result<SourceIter<'a, U>, Error> {
+        Ok(Box::new(
+            self.inner
+                .run_within(bounds.iter().map(RangeId::from).collect(), token)?
+                .into_iter()
+                .map(move |(id, value)| Ok((id, (self.f)(value)))),
+        ))
     }
 }
 

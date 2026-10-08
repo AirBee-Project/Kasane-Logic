@@ -1,74 +1,55 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::flex_tree::core::Summary;
 use crate::{FlexId, SingleId, SpatialIdTable};
 
-#[cfg(feature = "rayon")]
-use crate::FlexIdValue;
-
-impl<V> SpatialIdTable<V>
+impl<V, S> SpatialIdTable<V, S>
 where
-    V: SafeValue + Ord,
+    V: PartialEq + Clone,
+    S: Summary<V>,
 {
-    pub fn flex_ids(&self) -> impl Iterator<Item = FlexId> + '_ {
+    pub fn flex_ids(&self) -> impl Iterator<Item = FlexId> + Clone + '_ {
         self.inner.iter().map(|(flex_id, _)| flex_id)
     }
 
     pub fn single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
-        self.inner.single_ids()
+        self.flex_ids().flat_map(FlexId::single_ids)
     }
 }
 
 /// `(FlexId, V)` 列から [`SpatialIdTable`] を並列に構築する（`feature = "rayon"`）。
 ///
-/// テーブルは値をランク（`usize`）へ内部符号化してから空間ツリーへ格納する。並列構築では
-/// (1) 出現値を並列に集めて重複排除・ソートしランクを決定的に割り当て、(2) 各Segmentを
-/// ランクへ写し、(3) ランクの木を `FlexTreeCore::par_build_vec`(crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec)
-/// で並列構築する。
-///
-/// 同じ空間へ異なる値が重なった場合の勝者は `union` の左優先で決まり、逐次 `insert` の
-/// 後勝ちとは一致しない（値が衝突しない使い方なら結果は一意）。
+/// スレッドごとに部分テーブルを組み、和集合で畳む。同じ空間へ異なる値が重なった場合の勝者は
+/// `union` の左優先で決まり、逐次 `insert` の後勝ちとは一致しない（値が衝突しない使い方なら結果は一意）。
 #[cfg(feature = "rayon")]
-impl<V> rayon::iter::FromParallelIterator<(FlexId, V)> for SpatialIdTable<V>
+impl<V, S> rayon::iter::FromParallelIterator<(FlexId, V)> for SpatialIdTable<V, S>
 where
-    V: FlexIdValue,
+    V: PartialEq + Clone + Send + Sync,
+    S: Summary<V> + Send + Sync,
 {
     fn from_par_iter<I>(par_iter: I) -> Self
     where
         I: rayon::iter::IntoParallelIterator<Item = (FlexId, V)>,
     {
-        use alloc::vec::Vec;
         use rayon::prelude::*;
-
-        let items: Vec<(FlexId, V)> = par_iter.into_par_iter().collect();
-        if items.is_empty() {
-            return Self::new();
-        }
-
-        // 1. 出現値を並列に集め、ソート＋重複排除して決定的なランク順を得る。
-        let mut values: Vec<V> = items.par_iter().map(|(_, v)| v.clone()).collect();
-        values.par_sort_unstable();
-        values.dedup();
-
-        // 2. 各Segmentをランクへ写す（ソート済み values への二分探索で引く）。
-        let rank_items: Vec<(FlexId, usize)> = items
+        par_iter
             .into_par_iter()
-            .map(|(id, v)| (id, values.binary_search(&v).unwrap() + 1))
-            .collect();
-
-        // 3. ランクの木を並列構築し、辞書と組む。
-        Self::from_ranked_core(
-            crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec(rank_items),
-            values,
-        )
+            .fold(Self::default, |mut table, (id, value)| {
+                table.insert(id, value);
+                table
+            })
+            .reduce(Self::default, |a, b| Self {
+                inner: a.inner.union(&b.inner),
+            })
     }
 }
 
 /// 既存の [`SpatialIdTable`] へ `(FlexId, V)` 列を並列にマージする（`feature = "rayon"`）。
 ///
-/// 別テーブルを並列構築したのち、ランク空間が異なるため逐次に再挿入して統合する。
+/// 重なる場所は追加する側の値で上書きされる。
 #[cfg(feature = "rayon")]
-impl<V> rayon::iter::ParallelExtend<(FlexId, V)> for SpatialIdTable<V>
+impl<V, S> rayon::iter::ParallelExtend<(FlexId, V)> for SpatialIdTable<V, S>
 where
-    V: FlexIdValue,
+    V: PartialEq + Clone + Send + Sync,
+    S: Summary<V> + Send + Sync,
 {
     fn par_extend<I>(&mut self, par_iter: I)
     where
@@ -76,8 +57,6 @@ where
     {
         use rayon::iter::FromParallelIterator;
         let other = Self::from_par_iter(par_iter);
-        for (id, value) in other {
-            self.insert(id, value);
-        }
+        self.inner = other.inner.union(&self.inner);
     }
 }

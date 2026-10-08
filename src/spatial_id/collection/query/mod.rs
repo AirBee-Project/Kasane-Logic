@@ -16,9 +16,6 @@ pub mod merge_policy;
 /// クエリの実行用Trait
 pub mod source;
 
-/// クエリの作業表現（`WorkingTree`）
-pub mod working;
-
 /// クエリの表示の実装
 pub mod fmt;
 
@@ -26,4 +23,3 @@ pub mod fmt;
 pub mod grid;
 pub use execution::Query;
 pub use merge_policy::MergePolicy;
-pub use working::WorkingTree;

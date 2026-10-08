@@ -70,7 +70,7 @@ impl<V> AsRef<MinMax<V>> for MinMax<V> {
 /// バリアントの番号は定義順に `0, 1, 2, …` となり、判別値（`A = 5`）には左右されない。
 ///
 /// ```
-/// use kasane_logic::spatial_id::collection::flex_tree_2::BitMask;
+/// use kasane_logic::BitMask;
 ///
 /// #[derive(Debug, Clone, Copy, PartialEq, Eq, BitMask)]
 /// enum Color {

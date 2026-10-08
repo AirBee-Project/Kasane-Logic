@@ -1,8 +1,6 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{
-    Error,
-    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::BinaryOperator},
-};
+use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
+use crate::spatial_id::collection::query::traits::BinaryOperator;
+use crate::{Error, SpatialIdTable};
 
 pub struct Intersection<V> {
     _marker: core::marker::PhantomData<V>,
@@ -23,20 +21,12 @@ impl<V> Default for Intersection<V> {
 }
 
 impl<V: SafeValue> BinaryOperator<V> for Intersection<V> {
-    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error> {
-        if target_a.core().count() == 0 {
-            return Ok(());
-        }
-        if target_b.core().count() == 0 {
-            target_a.core_mut().clear();
-            return Ok(());
-        }
-
-        // A ∩ B = A - (A - B)
-        // これにより、Aの要素のValueを完全に維持しながら、AとBが重複する領域だけを残すことができます。
-        let not_b = target_a.core().difference(target_b.core());
-        let intersection = target_a.core().difference(&not_b);
-        *target_a = WorkingTree::from_core(intersection);
+    fn run(
+        &self,
+        target_a: &mut SpatialIdTable<V, NoSummary>,
+        target_b: &SpatialIdTable<V, NoSummary>,
+    ) -> Result<(), Error> {
+        target_a.inner = target_a.inner.intersection(&target_b.inner);
         Ok(())
     }
 

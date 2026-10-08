@@ -87,17 +87,9 @@ pub use spatial_id::single_id::SingleId;
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::traits::FlexIdValue;
 
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
-#[cfg(feature = "persist")]
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::archived::ArchivedSpatialIdMap;
-#[cfg(feature = "persist")]
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::arena::FORMAT_VERSION;
+pub use spatial_id::collection::flex_tree::core::{BitMask, MinMax, NoSummary, Summary, ValueSet};
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
@@ -129,7 +121,7 @@ pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
 pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
-pub use spatial_id::collection::query::working::WorkingTree;
+pub use spatial_id::collection::query::source::SourceIter;
 
 #[doc(inline)]
 pub use spatial_id::time::AllowedIntervals;

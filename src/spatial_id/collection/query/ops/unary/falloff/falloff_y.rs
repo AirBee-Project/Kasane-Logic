@@ -1,7 +1,8 @@
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::GridAxis;
-use crate::spatial_id::collection::query::working::WorkingTree;
 use core::convert::TryFrom;
 use core::fmt::Debug;
 use core::marker::PhantomData;
@@ -63,19 +64,24 @@ where
         (self.radius * 2 + 1) as f64
     }
 
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
+    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         if self.radius == 0 {
             return Ok(());
         }
         let z = self.z.get();
         let radius = self.radius;
 
-        // 反映先が非単射（近傍が互いに重なる）なので merge_with で合成する。
-        let rebuilt = target.core().map_rebuild_with(
-            |id, value| id.falloff_y(z, radius, self.direction, self.pattern, value),
-            |a: &V, b: &V| P::resolve(a.clone(), b.clone()),
-        )?;
-        *target = WorkingTree::from_core(rebuilt);
+        // 反映先が非単射（近傍が互いに重なる）なので、重なりは MergePolicy で合成する。
+        let resolve = |a: &V, b: &V| P::resolve(a.clone(), b.clone());
+        let mut rebuilt = SpatialIdTable::default();
+        for (id, value) in target.iter() {
+            for (spread, spread_value) in
+                id.falloff_y(z, radius, self.direction, self.pattern, value)?
+            {
+                rebuilt.inner.insert_with(spread, spread_value, resolve);
+            }
+        }
+        *target = rebuilt;
         Ok(())
     }
 

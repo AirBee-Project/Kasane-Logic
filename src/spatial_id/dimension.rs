@@ -2,10 +2,6 @@
 /// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木が次元を選ぶときの規約で、
 /// 他に意味は無い。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 #[repr(u8)]
 pub enum Dimension {
     F = 0,

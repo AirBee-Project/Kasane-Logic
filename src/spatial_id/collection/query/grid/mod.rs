@@ -24,7 +24,7 @@
 //! - falloff は、対象軸を最下位キーにして並べると**レーン（他 2 軸が同じものの列）ごとの
 //!   1 次元走査**になる。出力位置ごとに半径内の入力を集める gather 型にすれば、
 //!   2r+1 倍の中間データを作らずに出力そのものを整列済みで直接生成できる。
-//! - 最後に一度だけ `FlexTreeCore::from_uniform_single_ids` でボトムアップに木を組む。
+//! - 最後に一度だけ木へ戻す。
 //!
 //! # 適用条件
 //!
@@ -35,17 +35,110 @@
 use alloc::vec::Vec;
 use core::ops::RangeInclusive;
 
-use crate::spatial_id::collection::flex_tree::core::bulk::{
-    SingleEntry, expand_leaf, sort_and_dedup,
-};
 use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSendSync, MaybeSync};
-use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, SafeValue};
-use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
 use crate::spatial_id::helpers::Side;
-use crate::{CancellationToken, Error, SpatialIdError, ZoomLevel};
+use crate::{CancellationToken, Error, FlexId, SpatialIdError, SpatialIdTable, ZoomLevel};
 
+/// 平坦な配列を `par_sort` / `par_chunk_by` などで並列に扱いはじめる要素数。
 #[cfg(feature = "rayon")]
-use crate::spatial_id::collection::flex_tree::core::parallel::PAR_SLICE_CUTOFF;
+const PAR_SLICE_CUTOFF: usize = 4096;
+
+/// 一様ズームの [`SingleId`](crate::SingleId) と、それに紐づく値。`(f, x, y, 値)`。
+///
+/// ズームは列全体で共通なので個々には持たない。時間は全時間に固定。
+type SingleEntry<V> = (i32, u32, u32, V);
+
+/// 1 バイトのビットを 3 ビット間隔へ広げる表。Morton キーの組み立てに使う。
+const SPREAD: [u32; 256] = {
+    let mut table = [0u32; 256];
+    let mut b = 0usize;
+    while b < 256 {
+        let mut r = 0u32;
+        let mut i = 0;
+        while i < 8 {
+            r |= (((b as u32) >> i) & 1) << (3 * i);
+            i += 1;
+        }
+        table[b] = r;
+        b += 1;
+    }
+    table
+};
+
+/// 30 ビット以下の値のビットを 3 ビット間隔へ広げる。
+#[inline]
+fn spread3(v: u32) -> u128 {
+    (SPREAD[((v >> 24) & 0x3F) as usize] as u128) << 72
+        | (SPREAD[((v >> 16) & 0xFF) as usize] as u128) << 48
+        | (SPREAD[((v >> 8) & 0xFF) as usize] as u128) << 24
+        | (SPREAD[(v & 0xFF) as usize] as u128)
+}
+
+/// 上ルート（F ≧ 0）が先、その中は `F→X→Y` を 1 ビットずつ織り込んだ Morton 順の整列キー。
+///
+/// F は負値を取るが、2 の補数のビットをそのまま使っても上下ルートで符号が分かれるので、
+/// 各ルートの中では単調になる。
+#[inline]
+fn morton_key<V>(entry: &SingleEntry<V>) -> (bool, u128) {
+    let (f, x, y, _) = entry;
+    (
+        *f < 0,
+        (spread3(*f as u32) << 2) | (spread3(*x) << 1) | spread3(*y),
+    )
+}
+
+/// 葉 `id` をズーム `z` の一様な [`SingleEntry`] へ細分して `out` へ追記する。
+///
+/// 葉は軸ごとにズームが違いうる（異方圧縮）ので、各軸を `z` まで割った直方体になる。
+fn expand_leaf<V: Clone>(id: &FlexId, z: u8, value: &V, out: &mut Vec<SingleEntry<V>>) {
+    let nf = 1i32 << (z - id.f_zoomlevel());
+    let nx = 1u32 << (z - id.x_zoomlevel());
+    let ny = 1u32 << (z - id.y_zoomlevel());
+    let f0 = id.f_index() * nf;
+    let x0 = id.x_index() * nx;
+    let y0 = id.y_index() * ny;
+    for df in 0..nf {
+        for dx in 0..nx {
+            for dy in 0..ny {
+                out.push((f0 + df, x0 + dx, y0 + dy, value.clone()));
+            }
+        }
+    }
+}
+
+/// Morton 順へ整列し、同じ位置のものを `resolve` で畳んで一意にする。
+///
+/// `resolve` は整列後の並び（＝空間順）で左から畳み込まれる。畳み込み順に結果が
+/// 依存しない可換な [`MergePolicy`](crate::merge_policy::MergePolicy) でのみ使うこと。
+fn sort_and_dedup<V, R>(entries: &mut Vec<SingleEntry<V>>, resolve: &R)
+where
+    V: SafeValue,
+    R: Fn(&V, &V) -> V + MaybeSync + ?Sized,
+{
+    #[cfg(feature = "rayon")]
+    {
+        use rayon::prelude::*;
+        if entries.len() >= PAR_SLICE_CUTOFF {
+            entries.par_sort_unstable_by_key(morton_key);
+        } else {
+            entries.sort_unstable_by_key(morton_key);
+        }
+    }
+    #[cfg(not(feature = "rayon"))]
+    entries.sort_unstable_by_key(morton_key);
+
+    // `dedup_by` のクロージャには (後ろの要素, 残っている前の要素) の順で渡される。
+    // true を返すと後ろの要素が捨てられるので、値は前の要素へ畳み込む。
+    entries.dedup_by(|later, kept| {
+        if kept.0 == later.0 && kept.1 == later.1 && kept.2 == later.2 {
+            kept.3 = resolve(&kept.3, &later.3);
+            true
+        } else {
+            false
+        }
+    });
+}
 
 #[cfg(test)]
 mod test;
@@ -97,13 +190,12 @@ impl<V: SafeValue> UniformGrid<V> {
     ///
     /// この `None` と `Some(Err(_))` を混同してはいけない。前者は木経路へフォールバック してよいが、後者（キャンセルなど）でフォールバックすると打ち切りが無効になる。
     pub(crate) fn from_tree(
-        tree: &WorkingTree<V>,
+        tree: &SpatialIdTable<V, NoSummary>,
         z: ZoomLevel,
         budget: u64,
         token: &CancellationToken,
     ) -> Option<Result<Self, Error>> {
-        let core = tree.core();
-        if core.has_temporal_split() {
+        if tree.flex_ids().any(|id| id.t_zoomlevel() > 0) {
             return None;
         }
 
@@ -112,7 +204,7 @@ impl<V: SafeValue> UniformGrid<V> {
         let limit = budget.min(MAX_BYTES / core::mem::size_of::<SingleEntry<V>>() as u64);
         let mut total: u64 = 0;
         let mut ctr = 0u32;
-        for (id, _) in core.iter_ref() {
+        for (id, _) in tree.iter() {
             if let Err(e) = token.check_amortized(&mut ctr) {
                 return Some(Err(e));
             }
@@ -131,7 +223,7 @@ impl<V: SafeValue> UniformGrid<V> {
 
         let mut entries: Vec<SingleEntry<V>> = Vec::with_capacity(total as usize);
         let mut ctr = 0u32;
-        for (id, value) in core.iter_ref() {
+        for (id, value) in tree.iter() {
             if let Err(e) = token.check_amortized(&mut ctr) {
                 return Some(Err(e));
             }
@@ -146,12 +238,16 @@ impl<V: SafeValue> UniformGrid<V> {
     }
 
     /// 木を組み直す。
-    pub(crate) fn into_tree(mut self) -> WorkingTree<V> {
+    pub(crate) fn into_tree(mut self) -> SpatialIdTable<V, NoSummary> {
         self.sort_morton(&|a: &V, _b: &V| a.clone());
-        WorkingTree::from_core(FlexTreeCore::from_uniform_single_ids(
-            self.z.get(),
-            &self.entries,
-        ))
+        let z = self.z.get();
+        self.entries
+            .into_iter()
+            .map(|(f, x, y, value)| {
+                let id = FlexId::new(z, f, z, x, z, y).expect("グリッドの位置はズーム z の範囲内");
+                (id, value)
+            })
+            .collect()
     }
 
     /// 対象軸を最下位キーにした並びにする。すでにその順ならなにもしない。
@@ -199,7 +295,7 @@ impl<V: SafeValue> UniformGrid<V> {
     /// 軸方向の平行移動。
     ///
     /// F / Y で範囲外へ出るものがあれば、`FlexId::shift_f` / `shift_y` が `Err` を返して
-    /// `map_rebuild` がそれを伝播するのと同じく、演算全体をエラーにする。X は巡回する。
+    /// 木経路がそれを伝播するのと同じく、演算全体をエラーにする。X は巡回する。
     pub(crate) fn shift(
         &mut self,
         axis: GridAxis,
@@ -691,19 +787,19 @@ fn sort_by_lane<V: SafeValue>(entries: &mut [SingleEntry<V>], axis: GridAxis) {
 ///
 /// 木を平坦化できた場合だけ `Some` を返す。`None` なら呼び出し側は従来の木経路で実行する。
 pub(crate) fn try_run_grid<V: SafeValue + 'static>(
-    tree: &WorkingTree<V>,
+    tree: &SpatialIdTable<V, NoSummary>,
     ops: &[&dyn crate::spatial_id::collection::query::traits::UnaryOperator<V>],
     max_z: ZoomLevel,
     budget: u64,
     token: &CancellationToken,
-) -> Option<Result<WorkingTree<V>, Error>> {
+) -> Option<Result<SpatialIdTable<V, NoSummary>, Error>> {
     // 0 個の演算に「成功」を返すと、呼び出し側の走査が 1 つも進まなくなる。
     if ops.is_empty() {
         return None;
     }
 
     let z = core::iter::once(max_z.get())
-        .chain(tree.core().max_zoomlevel())
+        .chain(tree.max_zoomlevel())
         .max()?;
     let z = ZoomLevel::new(z).ok()?;
 

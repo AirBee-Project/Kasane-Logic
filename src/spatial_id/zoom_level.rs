@@ -4,10 +4,6 @@ use core::fmt;
 /// ズームレベルを表す型の土台。
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 pub struct Zoom<const LIMIT: u8>(u8);
 
 /// 空間のズームレベルを表す型。

@@ -52,7 +52,7 @@ fn bit_mask(input: &DeriveInput) -> syn::Result<TokenStream2> {
     });
 
     Ok(quote! {
-        impl #impl_generics ::kasane_logic::spatial_id::collection::flex_tree_2::BitMask for #name #type_generics #where_clause {
+        impl #impl_generics ::kasane_logic::BitMask for #name #type_generics #where_clause {
             const COUNT: u32 = #count;
 
             #[inline]

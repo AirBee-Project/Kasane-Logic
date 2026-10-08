@@ -2,12 +2,12 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::iter::FusedIterator;
 
-use super::FlexTreeCore2;
+use super::FlexTreeCore;
 use super::node::Node;
 use super::summary::Summary;
 use crate::{FlexId, Side, spatial_id::dimension::Dimension};
 
-/// [FlexTreeCore2]の値を持つ領域と値への参照を、Node を辿りながら1つずつ返すイテレーター。
+/// [FlexTreeCore]の値を持つ領域と値への参照を、Node を辿りながら1つずつ返すイテレーター。
 #[derive(Debug)]
 pub struct Iter<'a, V, S> {
     stack: Vec<(&'a Node<V, S>, FlexId)>,
@@ -16,7 +16,7 @@ pub struct Iter<'a, V, S> {
 }
 
 impl<'a, V, S> Iter<'a, V, S> {
-    pub(super) fn new(tree: &'a FlexTreeCore2<V, S>) -> Self {
+    pub(super) fn new(tree: &'a FlexTreeCore<V, S>) -> Self {
         Iter {
             stack: tree.new_stack(),
             remaining: tree.len(),
@@ -56,7 +56,7 @@ impl<V, S> ExactSizeIterator for Iter<'_, V, S> {}
 
 impl<V, S> FusedIterator for Iter<'_, V, S> {}
 
-/// [FlexTreeCore2]を消費して、値を持つ領域と値を1つずつ返すイテレーター。
+/// [FlexTreeCore]を消費して、値を持つ領域と値を1つずつ返すイテレーター。
 #[derive(Debug)]
 pub struct IntoIter<V, S> {
     stack: Vec<(Node<V, S>, FlexId)>,
@@ -122,7 +122,7 @@ impl<V: Clone, S> ExactSizeIterator for IntoIter<V, S> {}
 
 impl<V: Clone, S> FusedIterator for IntoIter<V, S> {}
 
-impl<'a, V, S> IntoIterator for &'a FlexTreeCore2<V, S> {
+impl<'a, V, S> IntoIterator for &'a FlexTreeCore<V, S> {
     type Item = (FlexId, &'a V);
     type IntoIter = Iter<'a, V, S>;
 
@@ -131,7 +131,7 @@ impl<'a, V, S> IntoIterator for &'a FlexTreeCore2<V, S> {
     }
 }
 
-impl<V: Clone, S> IntoIterator for FlexTreeCore2<V, S> {
+impl<V: Clone, S> IntoIterator for FlexTreeCore<V, S> {
     type Item = (FlexId, V);
     type IntoIter = IntoIter<V, S>;
 
@@ -146,8 +146,8 @@ impl<V: Clone, S> IntoIterator for FlexTreeCore2<V, S> {
     }
 }
 
-impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore2<V, S> {
-    /// 順に [`insert`](FlexTreeCore2::insert) する。重なる場所は後の値で上書きされる。
+impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore<V, S> {
+    /// 順に [`insert`](FlexTreeCore::insert) する。重なる場所は後の値で上書きされる。
     fn extend<I: IntoIterator<Item = (FlexId, V)>>(&mut self, iter: I) {
         for (id, value) in iter {
             self.insert(id, value);
@@ -155,10 +155,10 @@ impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore2<
     }
 }
 
-impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore2<V, S> {
-    /// 順に [`insert`](FlexTreeCore2::insert) して組み立てる。重なる場所は後の値で上書きされる。
+impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore<V, S> {
+    /// 順に [`insert`](FlexTreeCore::insert) して組み立てる。重なる場所は後の値で上書きされる。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
-        let mut tree = FlexTreeCore2::default();
+        let mut tree = FlexTreeCore::default();
         tree.extend(iter);
         tree
     }

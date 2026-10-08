@@ -19,10 +19,6 @@ use crate::{
 /// 拡張時空間IDを表現する型。
 /// 各次元がズームレベルとインデックス値を持つ。
 #[derive(Clone, Copy, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 pub struct FlexId {
     f_zoomlevel: ZoomLevel,
     f_index: i32,

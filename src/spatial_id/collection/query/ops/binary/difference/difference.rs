@@ -1,8 +1,6 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{
-    Error,
-    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::BinaryOperator},
-};
+use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
+use crate::spatial_id::collection::query::traits::BinaryOperator;
+use crate::{Error, SpatialIdTable};
 
 pub struct Difference<V> {
     _marker: core::marker::PhantomData<V>,
@@ -23,15 +21,12 @@ impl<V> Default for Difference<V> {
 }
 
 impl<V: SafeValue> BinaryOperator<V> for Difference<V> {
-    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error> {
-        if target_a.core().count() == 0 {
-            return Ok(());
-        }
-        if target_b.core().count() == 0 {
-            return Ok(());
-        }
-        let diff = target_a.core().difference(target_b.core());
-        *target_a = WorkingTree::from_core(diff);
+    fn run(
+        &self,
+        target_a: &mut SpatialIdTable<V, NoSummary>,
+        target_b: &SpatialIdTable<V, NoSummary>,
+    ) -> Result<(), Error> {
+        target_a.inner = target_a.inner.difference(&target_b.inner);
         Ok(())
     }
 

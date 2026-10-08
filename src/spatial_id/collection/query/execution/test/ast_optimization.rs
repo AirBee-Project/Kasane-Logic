@@ -42,7 +42,7 @@ proptest! {
             .falloff_x(25, falloff_x_rad, None, FalloffPattern::Linear, Max)
             .falloff_y(25, falloff_y_rad, None, FalloffPattern::Linear, Max)
             .falloff_f(25, falloff_f_rad, None, FalloffPattern::Linear, Max)
-            .raw_run()
+            .raw_run::<crate::MinMax<_>>()
             .unwrap();
 
         let optimized_result = bldg_risk
@@ -53,7 +53,7 @@ proptest! {
             .falloff_x(25, falloff_x_rad, None, FalloffPattern::Linear, Max)
             .falloff_y(25, falloff_y_rad, None, FalloffPattern::Linear, Max)
             .falloff_f(25, falloff_f_rad, None, FalloffPattern::Linear, Max)
-            .run()
+            .run::<crate::MinMax<_>>()
             .unwrap();
 
         assert_eq!(unoptimized_result, optimized_result, "AST optimization broke semantics!");

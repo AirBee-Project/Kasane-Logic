@@ -1,6 +1,6 @@
 //! グリッド経路が木経路と同じ結果を返すことの検証。
 //!
-//! 木経路は `UnaryOperator::run`（`map_rebuild` 系）そのものなので、両者を突き合わせれば
+//! 木経路は `UnaryOperator::run` そのものなので、両者を突き合わせれば
 //! 高速化で意味が変わっていないことを固定できる。
 
 use crate::CancellationToken;
@@ -13,8 +13,7 @@ use crate::spatial_id::collection::query::ops::unary::shift::{
     shift_f::ShiftF, shift_x::ShiftX, shift_y::ShiftY,
 };
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{FlexId, SingleId};
+use crate::{FlexId, NoSummary, SingleId, SpatialIdTable};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
@@ -22,13 +21,13 @@ use crate::merge_policy::{Max, Min, Sum};
 
 type Ops = Vec<Box<dyn UnaryOperator<u32>>>;
 
-fn tree_from(ids: &[(FlexId, u32)]) -> WorkingTree<u32> {
+fn tree_from(ids: &[(FlexId, u32)]) -> SpatialIdTable<u32, NoSummary> {
     ids.iter().cloned().collect()
 }
 
 /// 本番経路（[`run_unary_chain`] = グリッド＋フォールバック）が、木経路だけで
 /// 実行した結果と一致することを確かめる。これが常に成り立つべき不変条件。
-fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
+fn assert_same(tree: SpatialIdTable<u32, NoSummary>, ops: Ops) {
     let mut expected = tree.clone();
     let tree_result = (|| {
         for op in &ops {
@@ -61,7 +60,7 @@ fn assert_same(tree: WorkingTree<u32>, ops: Ops) {
 /// [`assert_same`] に加えて、実際にグリッド経路が使われたことも確かめる。
 ///
 /// フォールバックだけを検証して「一致した」と安心してしまわないための歯止め。
-fn assert_same_via_grid(tree: WorkingTree<u32>, ops: Ops) {
+fn assert_same_via_grid(tree: SpatialIdTable<u32, NoSummary>, ops: Ops) {
     let order: Vec<&dyn UnaryOperator<u32>> = ops.iter().map(|op| &**op).collect();
     let max_z = order.iter().filter_map(|op| op.grid_zoom()).max();
     if let Some(max_z) = max_z {
@@ -73,7 +72,7 @@ fn assert_same_via_grid(tree: WorkingTree<u32>, ops: Ops) {
     assert_same(tree, ops);
 }
 
-fn sample() -> WorkingTree<u32> {
+fn sample() -> SpatialIdTable<u32, NoSummary> {
     tree_from(&[
         (FlexId::new(8, 3, 8, 100, 8, 100).unwrap(), 40),
         (FlexId::new(8, 3, 8, 101, 8, 100).unwrap(), 80),
@@ -230,7 +229,7 @@ fn shift_after_wrapping_falloff_reorders_before_building() {
 
 #[test]
 fn empty_tree() {
-    let tree: WorkingTree<u32> = WorkingTree::new();
+    let tree: SpatialIdTable<u32, NoSummary> = SpatialIdTable::default();
     assert_same_via_grid(
         tree,
         alloc::vec![
@@ -243,7 +242,8 @@ fn empty_tree() {
 /// 予算を超える（粗すぎる葉を細かいズームの演算で扱う）ときは平坦化を諦める。
 #[test]
 fn refuses_when_over_budget() {
-    let tree: WorkingTree<u32> = tree_from(&[(FlexId::new(0, 0, 0, 0, 0, 0).unwrap(), 1)]);
+    let tree: SpatialIdTable<u32, NoSummary> =
+        tree_from(&[(FlexId::new(0, 0, 0, 0, 0, 0).unwrap(), 1)]);
     let op = ShiftX::new(24u8, 1).unwrap();
     let ops: Vec<&dyn UnaryOperator<u32>> = alloc::vec![&op as &dyn UnaryOperator<u32>];
     let max_z = <ShiftX as UnaryOperator<u32>>::grid_zoom(&op).unwrap();
@@ -320,7 +320,7 @@ mod property {
                     table.insert(id, v);
                 }
             }
-            let tree: WorkingTree<u32> = table.iter().map(|(id, v)| (id, *v)).collect();
+            let tree: SpatialIdTable<u32, NoSummary> = table.iter().map(|(id, v)| (id, *v)).collect();
             let built: Ops = ops.into_iter().map(|op| build(op, z)).collect();
             assert_same(tree, built);
         }

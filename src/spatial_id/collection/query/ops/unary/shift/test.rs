@@ -21,7 +21,11 @@ fn shift_x_moves_segment() {
     table.insert(time_segment(100, 9).0, 9);
     table.insert(time_segment(200, 3).0, 3);
 
-    let out = table.query().shift_x(20, 5).raw_run().unwrap();
+    let out = table
+        .query()
+        .shift_x(20, 5)
+        .raw_run::<crate::MinMax<_>>()
+        .unwrap();
     let r = row(&out);
 
     assert_eq!(r.len(), 2);

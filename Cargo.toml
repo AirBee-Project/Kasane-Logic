@@ -22,7 +22,6 @@ libm = "0.2.16"
 # featuresで切り替え可能なもの
 rand = { version = "0.10.2", optional = true }
 rayon = { version = "1.10", optional = true }
-rkyv = { version = "0.8.17", features = ["unaligned"], optional = true }
 serde = { version = "1", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
 tracing = { version = "0.1", default-features = false, features = ["std"], optional = true }
@@ -34,7 +33,6 @@ rayon = ["dep:rayon", "std"]
 random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]
-persist = ["dep:rkyv", "std"]
 json = ["dep:serde", "dep:serde_json"]
 
 # 実験的機能。予告なく変更・削除されうる。

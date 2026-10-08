@@ -69,7 +69,7 @@ impl RangeId {
                 #[allow(clippy::reversed_empty_ranges)]
                 (x[0]..=x[1]).chain(1..=0)
             } else {
-                (x[0]..=ZoomLevel::new(z).unwrap().xy_max()).chain(0..=x[1])
+                (x[0]..=self.z.xy_max()).chain(0..=x[1])
             };
 
             x_iter.flat_map(move |x| {
@@ -96,7 +96,7 @@ impl IntoIterator for RangeId {
         let x_list: Vec<_> = if self.x[0] <= self.x[1] {
             split_xy(z, self.x).collect()
         } else {
-            split_xy(z, [self.x[0], ZoomLevel::new(z).unwrap().xy_max()])
+            split_xy(z, [self.x[0], self.z.xy_max()])
                 .chain(split_xy(z, [0, self.x[1]]))
                 .collect()
         };

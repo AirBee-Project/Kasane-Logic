@@ -292,8 +292,8 @@ impl RangeId {
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
         let z = self.z.get();
         let mut value = value;
-        let f_min = ZoomLevel::new(z).unwrap().f_min();
-        let f_max = ZoomLevel::new(z).unwrap().f_max();
+        let f_min = self.z.f_min();
+        let f_max = self.z.f_max();
 
         for &f_value in &value {
             if f_value < f_min || f_value > f_max {
@@ -311,7 +311,7 @@ impl RangeId {
 
     pub fn set_x(&mut self, value: [u32; 2]) -> Result<(), Error> {
         let z = self.z.get();
-        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
+        let xy_max = self.z.xy_max();
 
         for &x_value in &value {
             if x_value > xy_max {
@@ -326,7 +326,7 @@ impl RangeId {
     pub fn set_y(&mut self, value: [u32; 2]) -> Result<(), Error> {
         let z = self.z.get();
         let mut value = value;
-        let xy_max = ZoomLevel::new(z).unwrap().xy_max();
+        let xy_max = self.z.xy_max();
 
         for &y_value in &value {
             if y_value > xy_max {

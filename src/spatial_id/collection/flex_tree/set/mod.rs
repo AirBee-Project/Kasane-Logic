@@ -1,4 +1,5 @@
-use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
+use crate::spatial_id::collection::flex_tree::coalesce;
+use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, IntoIter, NoSummary};
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
 pub mod convert;
@@ -17,12 +18,12 @@ pub mod tests;
 /// - 集合同士の演算や、集合に対する単項演算を提供する
 ///
 /// # 使い分け
-/// - 空間ごとに値を持たせたい場合は [`SpatialIdMap`](crate::SpatialIdMap) を使用する。
-/// - 値から空間を引きたい、または値の管理（重複排除など）が必要な場合は
-///   [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
+/// - 空間ごとに値を持たせたい場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
 #[derive(Default, Clone, Debug)]
 pub struct SpatialIdSet {
-    inner: FlexTreeCore<()>,
+    pub(crate) inner: FlexTreeCore<(), NoSummary>,
+    /// 保持してよい領域。外側への挿入は無視し、はみ出しは切り詰める。
+    pub(crate) shard: Option<FlexId>,
 }
 
 impl PartialEq for SpatialIdSet {
@@ -48,26 +49,17 @@ impl SpatialIdSet {
         SpatialIdSet::default()
     }
 
-    /// 内部 [`FlexTreeCore`] から集合を組む（クエリ実行の出口変換用）。
-    pub(crate) fn from_core(inner: FlexTreeCore<()>) -> Self {
-        Self { inner }
-    }
-
     /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
     pub fn bounding_box(&self) -> Option<RangeId> {
-        self.inner.bounding_box()
-    }
-
-    /// 所有権ごと内部 [`FlexTreeCore`] を取り出す（クエリ実行の入口変換用）。
-    pub(crate) fn into_core(self) -> FlexTreeCore<()> {
-        self.inner
+        coalesce::bounding_box(self.iter())
     }
 
     /// 限定的な領域に閉じた空の[SpatialIdSet]を作成する。
     /// `region` の内側だけを保持し、`region` の外側への操作は無視される。
     pub fn new_in_shard(region: FlexId) -> Self {
         Self {
-            inner: FlexTreeCore::new_in_shard(region),
+            inner: FlexTreeCore::default(),
+            shard: Some(region),
         }
     }
 
@@ -94,7 +86,11 @@ impl SpatialIdSet {
     /// set.insert(flex);
     /// ```
     pub fn insert<S: SpatialId>(&mut self, target: S) {
-        self.inner.insert(target, ());
+        let shard = self.shard;
+        let clipped = target
+            .into_iter()
+            .filter_map(move |id| shard.map_or(Some(id), |region| id.intersection(&region)));
+        self.inner.insert(clipped, ());
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して返す。
@@ -102,19 +98,14 @@ impl SpatialIdSet {
     where
         S: SpatialId,
     {
-        self.inner
-            .get(target.clone())
-            .map(move |(flex_id, _value)| flex_id)
+        self.inner.get(target.clone()).map(|(flex_id, _)| flex_id)
     }
 
-    /// 指定した範囲（RangeId）と重なる空間IDを切り出して返す。
-    pub fn get_range<'a>(
-        &'a self,
-        target: &'a crate::RangeId,
-    ) -> impl Iterator<Item = FlexId> + 'a {
+    /// 指定した範囲（RangeId）と重なる空間IDを、切り取らずにそのまま返す。
+    pub fn get_range<'a>(&'a self, target: &'a RangeId) -> impl Iterator<Item = FlexId> + 'a {
         self.inner
-            .range_overlap_ref(target)
-            .map(|(flex_id, _value)| flex_id)
+            .get_overlapping_range(target)
+            .map(|(flex_id, _)| flex_id)
     }
 
     /// 集合から指定した空間IDと重なる空間IDを切り出して削除する。
@@ -123,7 +114,7 @@ impl SpatialIdSet {
         self.inner
             .remove(target.clone())
             .into_iter()
-            .map(|(flex_id, _value)| flex_id)
+            .map(|(flex_id, _)| flex_id)
             .collect()
     }
 
@@ -135,7 +126,7 @@ impl SpatialIdSet {
     {
         self.inner
             .get_overlapping(target.clone())
-            .map(|(flex_id, _value)| flex_id)
+            .map(|(flex_id, _)| flex_id)
     }
 
     /// 指定した空間IDと接触していたすべての空間IDを削除する。削除した空間IDを返す。
@@ -144,7 +135,7 @@ impl SpatialIdSet {
         self.inner
             .remove_overlapping(target.clone())
             .into_iter()
-            .map(|(flex_id, _value)| flex_id)
+            .map(|(flex_id, _)| flex_id)
             .collect()
     }
 
@@ -154,19 +145,19 @@ impl SpatialIdSet {
         target: &S,
     ) -> impl Iterator<Item = FlexId> + '_ {
         self.inner
-            .neighbors_share_face_ref(target)
-            .map(|(flex_id, _value)| flex_id)
+            .neighbors_share_face(target)
+            .map(|(flex_id, _)| flex_id)
     }
 
     /// 集合の内部にある[FlexId]の個数を返す。
     pub fn count(&self) -> usize {
-        self.inner.count()
+        self.inner.len()
     }
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
     /// 内部に空間IDが存在しない場合は[None]を返します。
     pub fn max_zoomlevel(&self) -> Option<u8> {
-        self.inner.max_zoomlevel()
+        coalesce::max_zoomlevel(self.iter())
     }
 
     /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
@@ -178,7 +169,7 @@ impl SpatialIdSet {
     /// [`iter`](Self::iter) が返す生の [`FlexId`] は木の2分岐Segmentそのもの
     /// （`_8/182185424` のような断片）なので、人間が読む用途にはこちらを使う。
     pub fn range_ids(&self) -> impl Iterator<Item = RangeId> + '_ {
-        self.inner.range_ids_ref(None).map(|(range_id, _)| range_id)
+        coalesce::range_ids(self.inner.iter(), None).map(|(range_id, _)| range_id)
     }
 
     /// 時間の単位を [`AllowedIntervals`] の候補から選んで読み出す。
@@ -206,9 +197,7 @@ impl SpatialIdSet {
         &'a self,
         units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = RangeId> + use<'a> {
-        self.inner
-            .range_ids_ref(Some(units))
-            .map(|(range_id, _)| range_id)
+        coalesce::range_ids(self.inner.iter(), Some(units)).map(|(range_id, _)| range_id)
     }
 
     /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
@@ -216,16 +205,12 @@ impl SpatialIdSet {
         &'a self,
         units: &'a AllowedIntervals,
     ) -> impl Iterator<Item = SingleId> + use<'a> {
-        self.inner
-            .flat_single_ids_in_ref(Some(units))
-            .map(|(single_id, _)| single_id)
+        coalesce::flat_single_ids(self.inner.iter(), Some(units)).map(|(single_id, _)| single_id)
     }
 
     /// [SpatialIdSet]の最大のズームレベル値に揃えて、すべてを `SingleId` として返す。
-    pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> {
-        self.inner
-            .flat_single_ids_ref()
-            .map(|(single_id, _)| single_id)
+    pub fn flat_single_ids(&self) -> impl Iterator<Item = SingleId> + '_ {
+        coalesce::flat_single_ids(self.inner.iter(), None).map(|(single_id, _)| single_id)
     }
 
     /// [SpatialIdSet]の内部の空間IDを全て削除します。
@@ -233,40 +218,21 @@ impl SpatialIdSet {
         self.inner.clear();
     }
 
-    #[cfg(test)]
-    pub fn root_ptr_eq(&self, other: &Self) -> bool {
-        self.inner.root_ptr_eq(&other.inner)
-    }
-
     /// [SpatialIdSet]の内部が空かどうかを判定します。
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = FlexId> {
+    pub fn iter(&self) -> impl Iterator<Item = FlexId> + Clone + '_ {
         self.inner.iter().map(|(flex_id, _)| flex_id)
-    }
-}
-
-pub struct SpatialIdSetIntoIter {
-    inner: crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<()>,
-}
-
-impl Iterator for SpatialIdSetIntoIter {
-    type Item = (FlexId, ());
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(flex_id, _)| (flex_id, ()))
     }
 }
 
 impl IntoIterator for SpatialIdSet {
     type Item = (FlexId, ());
-    type IntoIter = SpatialIdSetIntoIter;
+    type IntoIter = IntoIter<(), NoSummary>;
 
     fn into_iter(self) -> Self::IntoIter {
-        SpatialIdSetIntoIter {
-            inner: self.inner.into_iter(),
-        }
+        self.inner.into_iter()
     }
 }

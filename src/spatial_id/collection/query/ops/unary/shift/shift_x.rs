@@ -1,7 +1,8 @@
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::GridAxis;
-use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
 
 /// 作業木全体を東西（X）方向へ、ズームレベル `z` のインデックス値 `x` 個分だけ平行移動する単項演算。
@@ -29,18 +30,18 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         self
     }
 
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
+    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.x;
         if index == 0 {
             return Ok(());
         }
 
-        let rebuilt = target.core().map_rebuild(|id, value| {
-            let value = value.clone();
-            Ok(id.shift_x(z, index)?.map(move |m| (m, value.clone())))
-        })?;
-        *target = WorkingTree::from_core(rebuilt);
+        let mut rebuilt = SpatialIdTable::default();
+        for (id, value) in target.iter() {
+            rebuilt.extend(id.shift_x(z, index)?.map(|moved| (moved, value.clone())));
+        }
+        *target = rebuilt;
         Ok(())
     }
 

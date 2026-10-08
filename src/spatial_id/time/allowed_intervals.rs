@@ -249,16 +249,14 @@ mod tests {
     }
 }
 
-/// 3コレクションから候補集合つきで読み出せることの疎通確認。
+/// 各コレクションから候補集合つきで読み出せることの疎通確認。
 ///
 /// 単位の選択ロジックそのものは上の `tests` が押さえているので、ここでは
-/// 「`SpatialIdSet` / `SpatialIdMap` / `SpatialIdTable` から同じ形で使えること」と
+/// 「`SpatialIdSet` / `SpatialIdTable` から同じ形で使えること」と
 /// 「暦の正規化が既定（`gcd`）と実際に違う結果になること」を固定する。
 #[cfg(all(test, feature = "temporal_id"))]
 mod collection_api {
-    use crate::{
-        AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdMap, SpatialIdSet, SpatialIdTable,
-    };
+    use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdSet, SpatialIdTable};
     use alloc::vec::Vec;
 
     /// 同じFlexIdの隣り合う2時間ぶん。値は同じなので結合される。
@@ -343,25 +341,17 @@ mod collection_api {
     }
 
     #[test]
-    fn map_and_table_read_back_with_calendar_units() {
-        let mut map: SpatialIdMap<u32> = SpatialIdMap::new();
+    fn table_reads_back_with_calendar_units() {
         let mut table: SpatialIdTable<u32> = SpatialIdTable::new();
         for id in two_hours() {
-            map.insert(id.clone(), 7);
             table.insert(id, 7);
         }
 
-        for got in [
-            map.range_ids_in(AllowedIntervals::calendar())
-                .map(|(r, v)| (r.to_string(), *v))
-                .collect::<Vec<_>>(),
-            table
-                .range_ids_in(AllowedIntervals::calendar())
-                .map(|(r, v)| (r.to_string(), *v))
-                .collect::<Vec<_>>(),
-        ] {
-            assert_eq!(got, [("12/0/3638/1614_3600/0:1".into(), 7u32)]);
-        }
+        let got: Vec<_> = table
+            .range_ids_in(AllowedIntervals::calendar())
+            .map(|(r, v)| (r.to_string(), *v))
+            .collect();
+        assert_eq!(got, [("12/0/3638/1614_3600/0:1".into(), 7u32)]);
     }
 
     /// `flat_single_ids` 側でも単位を選べる。暦にすると2Segmentなので2件へ展開される。

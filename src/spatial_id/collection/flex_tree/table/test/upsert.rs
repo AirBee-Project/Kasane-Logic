@@ -51,13 +51,9 @@ mod tests {
         );
     }
 
-    /// target が既に全て埋まっている upsert は、渡した値の rank を辞書へ登録してはいけない。
-    ///
-    /// 登録してしまうと、中身は同じでも rank 割当ての履歴が違うだけのテーブルが、
-    /// `PartialEq` の distinct-value 数ガード（`dictionary.len()` 比較）で
-    /// 「不一致」と誤判定されてしまう。
+    /// target が既に全て埋まっている upsert は何も書かず、テーブルは元と等しいままであること。
     #[test]
-    fn upsert_on_a_fully_occupied_target_does_not_register_an_orphan_rank() {
+    fn upsert_on_a_fully_occupied_target_changes_nothing() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
 
         let mut with_noop_upsert = SpatialIdTable::new();
@@ -68,7 +64,7 @@ mod tests {
 
         assert_eq!(
             with_noop_upsert, plain,
-            "中身が同じテーブルが rank 割当て履歴の違いだけで不一致になっている"
+            "埋まっている場所への upsert でテーブルが変わった"
         );
         assert!(with_noop_upsert.value_get(&20).next().is_none());
     }

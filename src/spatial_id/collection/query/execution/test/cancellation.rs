@@ -3,7 +3,7 @@ use alloc::vec;
 use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
 use crate::{
-    CancellationToken, Error, FlexId, RangeId, SingleId, Source, SpatialIdTable, WorkingTree,
+    CancellationToken, Error, FlexId, NoSummary, RangeId, SingleId, Source, SpatialIdTable,
     ZoomLevel,
 };
 
@@ -62,11 +62,13 @@ fn cancelling_after_one_side_still_stops_the_query() {
 fn run_unary_chain_checks_cancellation_between_ops() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
-    let working = table
-        .read_range_ids(
-            &[RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())],
+    let working: SpatialIdTable<i32, NoSummary> = table
+        .read_flex_ids(
+            &[FlexId::new(10, 0, 10, 100, 10, 100).unwrap()],
             &CancellationToken::new(),
         )
+        .unwrap()
+        .collect::<Result<_, _>>()
         .unwrap();
 
     let a = crate::spatial_id::collection::query::ops::unary::shift::shift_x::ShiftX::new(10, 1)
@@ -110,11 +112,13 @@ fn try_run_grid_stops_when_cancelled() {
 
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
-    let working = table
-        .read_range_ids(
-            &[RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())],
+    let working: SpatialIdTable<i32, NoSummary> = table
+        .read_flex_ids(
+            &[FlexId::new(10, 0, 10, 100, 10, 100).unwrap()],
             &CancellationToken::new(),
         )
+        .unwrap()
+        .collect::<Result<_, _>>()
         .unwrap();
 
     let op = ShiftX::new(10, 1).unwrap();
@@ -135,7 +139,7 @@ fn from_tree_checks_cancellation_during_estimation() {
     // check_amortized の間引き間隔(4096回)より多い葉数を用意し、from_tree 自身の
     // ループ内チェックが（try_run_grid の呼び出し前チェックに頼らず）機能することを確かめる。
     // 値を互い違いにして、隣接Segmentが同値統合されて葉数が縮まないようにする。
-    let tree: WorkingTree<i32> = (0..5000u32)
+    let tree: SpatialIdTable<i32, NoSummary> = (0..5000u32)
         .map(|i| {
             (
                 FlexId::new(12, 0, 12, i % 4000, 12, i / 4000).unwrap(),

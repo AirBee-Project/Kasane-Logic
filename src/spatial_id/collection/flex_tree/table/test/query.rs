@@ -54,23 +54,19 @@ mod tests {
         assert_eq!(via_wrapped_count, via_full_count);
     }
 
-    /// value_range() が値の範囲条件に一致する組だけを順序付きで返すことを検証する。
+    /// value_range() が値の範囲条件に一致する組だけを返すことを検証する。
     #[test]
-    fn value_range_returns_expected_pairs_in_order() {
+    fn value_range_returns_expected_pairs() {
         let table = build_table(&[
             TableEntry::Single(SingleId::new(4, 3, 2, 1).unwrap(), 10),
             TableEntry::Single(SingleId::new(4, 3, 2, 2).unwrap(), 20),
             TableEntry::Range(RangeId::new(3, [0, 1], [1, 1], [2, 2]).unwrap(), 30),
         ]);
 
-        let actual: Vec<_> = table
-            .value_range(10..=20)
-            .map(|(flex_id, value)| (flex_id, *value))
-            .collect();
+        let mut actual: Vec<i32> = table.value_range(10..=20).map(|(_, value)| value).collect();
+        actual.sort();
 
-        assert_eq!(actual.len(), 2);
-        assert_eq!(actual[0].1, 10);
-        assert_eq!(actual[1].1, 20);
+        assert_eq!(actual, vec![10, 20]);
     }
 
     /// values() が保持している値を重複なく昇順で返すことを検証する。

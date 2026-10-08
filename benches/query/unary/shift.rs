@@ -18,7 +18,12 @@ fn bench_shift(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("shift_x", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().shift_x(24, d).raw_run().unwrap(),
+                |t| {
+                    t.query()
+                        .shift_x(24, d)
+                        .raw_run::<kasane_logic::MinMax<_>>()
+                        .unwrap()
+                },
                 BatchSize::SmallInput,
             );
         });
@@ -29,7 +34,12 @@ fn bench_shift(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("shift_y", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().shift_y(24, d).raw_run().unwrap(),
+                |t| {
+                    t.query()
+                        .shift_y(24, d)
+                        .raw_run::<kasane_logic::MinMax<_>>()
+                        .unwrap()
+                },
                 BatchSize::SmallInput,
             );
         });
@@ -40,7 +50,12 @@ fn bench_shift(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("shift_f", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().shift_f(24, d).raw_run().unwrap(),
+                |t| {
+                    t.query()
+                        .shift_f(24, d)
+                        .raw_run::<kasane_logic::MinMax<_>>()
+                        .unwrap()
+                },
                 BatchSize::SmallInput,
             );
         });
@@ -56,7 +71,7 @@ fn bench_shift(c: &mut Criterion) {
                         .shift_x(24, d)
                         .shift_y(24, -d)
                         .shift_f(24, d)
-                        .raw_run()
+                        .raw_run::<kasane_logic::MinMax<_>>()
                         .unwrap()
                 },
                 BatchSize::SmallInput,

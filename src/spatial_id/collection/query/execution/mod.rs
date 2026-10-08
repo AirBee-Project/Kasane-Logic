@@ -1,12 +1,12 @@
 use super::traits::{BinaryOperator, UnaryOperator};
 use crate::Error;
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::try_run_grid;
 use crate::spatial_id::collection::query::source::Source;
-use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::trace::trace_span;
 use alloc::boxed::Box;
 use alloc::vec;
@@ -110,20 +110,24 @@ impl<V: SafeValue + 'static> Query<V> {
 
 // Queryの全体実行
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証・AST最適化を適用して実行し、[WorkingTree]のまま返す。
-    pub fn run_working_tree(self) -> Result<WorkingTree<V>, Error> {
+    /// 検証・AST最適化を適用して実行し、内部表現の [`SpatialIdTable<V, NoSummary>`] のまま返す。
+    pub fn run_table(self) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         self.validate()?;
-        self.optimize().raw_run_working_tree()
+        self.optimize().raw_run_table()
     }
 
-    /// 検証も最適化もせず [`Query`] を実行し、[WorkingTree]のまま返す。
-    pub fn raw_run_working_tree(self) -> Result<WorkingTree<V>, Error> {
+    /// 検証も最適化もせず [`Query`] を実行し、内部表現の [`SpatialIdTable<V, NoSummary>`] のまま返す。
+    pub fn raw_run_table(self) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         fn run_internal<V: SafeValue + 'static>(
             query: Query<V>,
             token: &CancellationToken,
-        ) -> Result<WorkingTree<V>, Error> {
+        ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
             match query {
-                Query::Source(source) => source.read_all(token),
+                Query::Source(source) => read_source(
+                    &*source,
+                    &[crate::FlexId::LOWER_MAX, crate::FlexId::UPPER_MAX],
+                    token,
+                ),
                 Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                     run_unary_chain(&order, run_internal(*input, token)?, token)
@@ -148,12 +152,12 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
-/// 単項演算の並びを作業木へ適用する。
+/// 単項演算の並びを順に適用する。
 pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
     mut ops: &[&dyn UnaryOperator<V>],
-    mut working: WorkingTree<V>,
+    mut working: SpatialIdTable<V, NoSummary>,
     token: &CancellationToken,
-) -> Result<WorkingTree<V>, Error> {
+) -> Result<SpatialIdTable<V, NoSummary>, Error> {
     while let Some(head) = ops.first() {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
@@ -201,8 +205,25 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
     Ok(working)
 }
 
+/// 入力源を読み出して木に組む。
+fn read_source<V: SafeValue + 'static>(
+    source: &dyn Source<Value = V>,
+    bounds: &[crate::FlexId],
+    token: &CancellationToken,
+) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+    let mut counter = 0u32;
+
+    source
+        .read_flex_ids(bounds, token)?
+        .map(|item| {
+            token.check_amortized(&mut counter)?;
+            item
+        })
+        .collect()
+}
+
 /// 平坦化を許す件数の上限。
-fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
+fn grid_budget<V: SafeValue>(working: &SpatialIdTable<V, NoSummary>) -> u64 {
     (working.count() as u64)
         .saturating_mul(64)
         .saturating_add(1 << 20)
@@ -217,7 +238,7 @@ impl<V: SafeValue + 'static> Query<V> {
         &self,
         bounds: Vec<crate::RangeId>,
         token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
+    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         trace_span!(
             "kasane_logic.query.run_within",
             target_regions = bounds.len()
@@ -231,15 +252,18 @@ impl<V: SafeValue + 'static> Query<V> {
         &self,
         bounds: Vec<crate::RangeId>,
         token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
+    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
 
         match self {
             Query::Source(s) => {
+                let mut bounds: Vec<crate::FlexId> = bounds.into_iter().flatten().collect();
+                bounds.sort_unstable();
+                bounds.dedup();
                 trace_span!("kasane_logic.query.source_read", bound_count = bounds.len());
-                s.read_range_ids(&bounds, token)
+                read_source(&**s, &bounds, token)
             }
             Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
                 trace_span!("kasane_logic.query.unary", op_count = ops.len());
