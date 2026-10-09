@@ -1,7 +1,9 @@
 use crate::spatial_id::collection::flex_tree::coalesce;
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use alloc::vec::Vec;
+use core::cell::RefCell;
 use core::iter::from_fn;
+use core::mem;
 use core::ops::{Bound, RangeBounds};
 pub use iter::{IntoIter, Iter};
 pub use kasane_logic_derive::BitMask;
@@ -296,11 +298,36 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     }
 
     /// `target` の領域を空にし、取り除いた部分を FlexTreeCore として返す。
+    ///
+    /// 1回の降下で、`target` に覆われた Node をその領域ごと抜き取り、あとで取り除いた部分に組み直す。
     pub fn remove(&mut self, target: impl IntoIterator<Item = FlexId>) -> Self {
-        let mut region = FlexTreeCore::<(), NoSummary>::default();
-        region.insert(target, ());
-        let removed = self.intersection(&region);
-        self.merge(&region, &Node::difference_rule);
+        let cut = RefCell::new(Vec::new());
+        let whole = Node::<(), NoSummary>::Leaf(());
+        let rule = |this: &FlexId, a: &mut Node<V, S>, b: View<'_, (), NoSummary>| {
+            if b.leaf().is_some() {
+                if !a.is_empty() {
+                    cut.borrow_mut().push((*this, mem::take(a)));
+                }
+                return true;
+            }
+            a.is_empty() || b.is_empty()
+        };
+        for id in target {
+            let (root, root_id) = self.root_for(&id);
+            Node::merge(&root_id, root, View::skip(&root_id, id, &whole), &rule);
+        }
+
+        // 抜き取った部分は互いに重ならないので、和で順に植え直すだけでよい
+        let mut removed = Self::default();
+        for (region, node) in cut.into_inner() {
+            let (root, root_id) = removed.root_for(&region);
+            Node::merge(
+                &root_id,
+                root,
+                View::skip(&root_id, region, &node),
+                &Node::union_rule,
+            );
+        }
         removed
     }
 

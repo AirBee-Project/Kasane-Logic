@@ -85,7 +85,14 @@ impl<'a, V, S> View<'a, V, S> {
     }
 
     /// `dimension` で割った `[下, 上]`。`dimension` で割っていなければ、両側に自身を返す。
-    pub(super) fn split(&self, this: &FlexId, dimension: Dimension) -> [Self; 2] {
+    ///
+    /// `halves` は `this` を `dimension` で割った `[下, 上]` の領域。
+    pub(super) fn split(
+        &self,
+        this: &FlexId,
+        dimension: Dimension,
+        halves: &[FlexId; 2],
+    ) -> [Self; 2] {
         let (region, child) = match *self {
             View::Node(Node::Branch(branch)) if branch.dimension == dimension => {
                 return [View::from(&branch.lower), View::from(&branch.upper)];
@@ -100,20 +107,16 @@ impl<'a, V, S> View<'a, V, S> {
             },
         };
         if region.finer_dimensions_than(this) & dimension.bit() != 0 {
-            let next = this.split_toward(dimension, &region).unwrap();
-            let rest = View::skip(&next, region, child);
-            return if next == this.split_on(dimension, Side::Upper).unwrap() {
-                [View::Empty, rest]
-            } else {
-                [rest, View::Empty]
+            let side = this.side_toward(dimension, &region);
+            let rest = View::skip(&halves[side as usize], region, child);
+            return match side {
+                Side::Lower => [rest, View::Empty],
+                Side::Upper => [View::Empty, rest],
             };
         }
         // その次元では中身が変わらないので、下も上も同じ中身になる。
         // 行き先は絶対位置なので、それぞれの半分に切り詰める
-        [Side::Lower, Side::Upper].map(|side| {
-            let half = this.split_on(dimension, side).unwrap();
-            View::skip(&half, region.intersection(&half).unwrap(), child)
-        })
+        halves.map(|half| View::skip(&half, region.intersection(&half).unwrap(), child))
     }
 }
 

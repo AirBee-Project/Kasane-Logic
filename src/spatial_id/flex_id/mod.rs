@@ -645,6 +645,44 @@ impl FlexId {
         }
     }
 
+    /// `dimension` 方向のインデックスを返す。次元ごとに幅が違うので `i64` に揃える。
+    pub(crate) fn index_on(&self, dimension: Dimension) -> i64 {
+        match dimension {
+            Dimension::F => i64::from(self.f_index()),
+            Dimension::X => i64::from(self.x_index()),
+            Dimension::Y => i64::from(self.y_index()),
+            Dimension::T => self.t() as i64,
+        }
+    }
+
+    /// 次元ごとのズームレベル `zoom`（[`Dimension::ALL`] の順）での自身の祖先を返す。
+    /// `zoom` の各値は自身のその次元のズーム以下であること。
+    pub(crate) fn ancestor_at(&self, zoom: [u8; 4]) -> FlexId {
+        let [f, x, y, t] = zoom;
+        debug_assert!(
+            Dimension::ALL
+                .iter()
+                .all(|&d| zoom[d as usize] <= self.zoomlevel_on(d))
+        );
+        #[cfg(not(feature = "temporal_id"))]
+        let _ = t;
+        // SAFETY: 祖先のズームは自身のズーム以下なので、どれも有効なズームレベル
+        unsafe {
+            FlexId {
+                f_zoomlevel: ZoomLevel::new_unchecked(f),
+                f_index: self.f_index >> (self.f_zoomlevel() - f),
+                x_zoomlevel: ZoomLevel::new_unchecked(x),
+                x_index: self.x_index >> (self.x_zoomlevel() - x),
+                y_zoomlevel: ZoomLevel::new_unchecked(y),
+                y_index: self.y_index >> (self.y_zoomlevel() - y),
+                #[cfg(feature = "temporal_id")]
+                t_zoomlevel: TZoomLevel::new_unchecked(t),
+                #[cfg(feature = "temporal_id")]
+                t_index: self.t_index >> (self.t_zoomlevel() - t),
+            }
+        }
+    }
+
     /// `dimension` 方向で二つに切り分けた `side` 側を返す。その軸が最大ズームなら [`None`]。軸を値で選ぶ必要があるFlexTreeの実装用。
     pub fn split_on(&self, dimension: Dimension, side: Side) -> Option<FlexId> {
         match dimension {
@@ -662,6 +700,17 @@ impl FlexId {
             Some(upper)
         } else {
             self.split_on(dimension, Side::Lower)
+        }
+    }
+
+    /// `dimension` 方向で二つに切り分けた側のうち、`target` を含む側。
+    /// `target` は自身に含まれ、その次元で自身より細かいこと。
+    pub(crate) fn side_toward(&self, dimension: Dimension, target: &FlexId) -> Side {
+        let shift = target.zoomlevel_on(dimension) - self.zoomlevel_on(dimension) - 1;
+        if (target.index_on(dimension) >> shift) & 1 == 1 {
+            Side::Upper
+        } else {
+            Side::Lower
         }
     }
 

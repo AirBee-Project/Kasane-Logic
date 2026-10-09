@@ -243,17 +243,18 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
     /// 領域 `this` のこの Node を `dimension` で割った `[下, 上]`（`join` の逆）。
     ///
     /// `dimension` で割っていなければ、両側にこの Node を返す。
-    fn split(self, this: &FlexId, dimension: Dimension) -> [Self; 2] {
+    ///
+    /// `halves` は `this` を `dimension` で割った `[下, 上]` の領域。
+    fn split(self, this: &FlexId, dimension: Dimension, halves: &[FlexId; 2]) -> [Self; 2] {
         if let Node::Skip(skip) = &self
             && skip.path.depth_on(dimension) > 0
         {
             let region = skip.path.to_absolute(this).unwrap();
-            let next = this.split_toward(dimension, &region).unwrap();
-            let rest = Node::rebase(self, this, &next);
-            return if next == this.split_on(dimension, Side::Upper).unwrap() {
-                [Node::Empty, rest]
-            } else {
-                [rest, Node::Empty]
+            let side = this.side_toward(dimension, &region);
+            let rest = Node::rebase(self, this, &halves[side as usize]);
+            return match side {
+                Side::Lower => [rest, Node::Empty],
+                Side::Upper => [Node::Empty, rest],
             };
         }
         // その次元では中身が変わらないので、下も上も同じ中身になる
@@ -307,7 +308,8 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
             .expect("Leaf どうしは rule が答えを決める");
         let lower_id = this.split_on(dimension, Side::Lower).unwrap();
         let upper_id = this.split_on(dimension, Side::Upper).unwrap();
-        let [b_lower, b_upper] = b.split(this, dimension);
+        let halves = [lower_id, upper_id];
+        let [b_lower, b_upper] = b.split(this, dimension, &halves);
 
         if let Node::Branch(branch) = a
             && branch.dimension == dimension
@@ -324,7 +326,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
             }
             return;
         }
-        let [mut lower, mut upper] = mem::take(a).split(this, dimension);
+        let [mut lower, mut upper] = mem::take(a).split(this, dimension, &halves);
         Node::merge(&lower_id, &mut lower, b_lower, rule);
         Node::merge(&upper_id, &mut upper, b_upper, rule);
         *a = Node::join(this, dimension, lower, upper);
@@ -398,26 +400,40 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
 
 /// 行き先 `region`・その先の Node がそれぞれ `a`・`b` の 2 つの Skip が、領域 `this` から
 /// 途中で割らずに一緒に降りられる一番狭い領域。
+///
+/// 1段ずつ FlexId を作って比べると Skip の長さぶんの計算が積み重なるので、
+/// 降りた先の各次元のズームだけを整数で追い、最後に一度だけ FlexId にする。
 fn common_descent<V, S, W, T>(
     this: &FlexId,
     (region_a, child_a): (&FlexId, &Node<V, S>),
     (region_b, child_b): (&FlexId, &Node<W, T>),
 ) -> FlexId {
-    // Skip の行き先が `region`、その先で割っている次元が `child_split` のとき、領域 `at` で最初に割る次元
-    let head = |at: &FlexId, region: &FlexId, child_split: u8| {
-        let finer = region.finer_dimensions_than(at);
-        (finer != 0).then(|| at.coarsest_dimension_in(finer | child_split))?
+    let mut zoom = Dimension::ALL.map(|d| this.zoomlevel_on(d));
+    // Skip の行き先が `region`、その先で割っている次元が `child_split` のとき、今の領域で最初に割る次元
+    let head = |zoom: &[u8; 4], region: &FlexId, child_split: u8| {
+        let finer = Dimension::mask(|d| region.zoomlevel_on(d) > zoom[d as usize]);
+        (finer != 0).then_some(())?;
+        Dimension::ALL
+            .into_iter()
+            .filter(|&d| (finer | child_split) & d.bit() != 0)
+            .min_by_key(|&d| (zoom[d as usize], d as u8))
     };
     let (split_a, split_b) = (child_a.split_dimensions(), child_b.split_dimensions());
-    let mut at = *this;
-    while let (Some(da), Some(db)) = (head(&at, region_a, split_a), head(&at, region_b, split_b))
-        && da == db
+    while let (Some(d), Some(db)) = (
+        head(&zoom, region_a, split_a),
+        head(&zoom, region_b, split_b),
+    ) && d == db
     {
-        let next = at.split_toward(da, region_a).unwrap();
-        if !next.contains(region_b) {
+        let next = zoom[d as usize] + 1;
+        let (za, zb) = (region_a.zoomlevel_on(d), region_b.zoomlevel_on(d));
+        // `a` の行き先へ向かう側の半分に、`b` の行き先も入っているときだけ降りる
+        if za < next
+            || zb < next
+            || region_a.index_on(d) >> (za - next) != region_b.index_on(d) >> (zb - next)
+        {
             break;
         }
-        at = next;
+        zoom[d as usize] = next;
     }
-    at
+    region_a.ancestor_at(zoom)
 }
