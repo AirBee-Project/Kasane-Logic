@@ -4,7 +4,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use super::node::{Branch, Node, Skip};
+use super::node::{Branch, Node, Skip, common_descent};
 use super::{BitMask, FlexTreeCore, MinMax, NoSummary, Summary, ValueSet};
 use crate::{FlexId, RangeId, Side, SingleId, spatial_id::dimension::Dimension};
 
@@ -985,6 +985,94 @@ fn writes_do_not_change_clones() {
             assert_eq!(
                 snapshot.iter().map(|(id, v)| (id, *v)).collect::<Vec<_>>(),
                 before
+            );
+        }
+    }
+}
+
+/// `common_descent` を1段ずつ降りて求める素朴な版。行き先 `a` の外へは降りない。
+fn common_descent_stepwise(this: &FlexId, a: (&FlexId, u8), b: (&FlexId, u8)) -> FlexId {
+    let mut zoom = Dimension::ALL.map(|d| this.zoomlevel_on(d));
+    let head = |zoom: &[u8; 4], region: &FlexId, child_split: u8| {
+        let finer = Dimension::mask(|d| region.zoomlevel_on(d) > zoom[d as usize]);
+        (finer != 0).then_some(())?;
+        Dimension::ALL
+            .into_iter()
+            .filter(|&d| (finer | child_split) & d.bit() != 0)
+            .min_by_key(|&d| (zoom[d as usize], d as u8))
+    };
+    while let (Some(d), Some(db)) = (head(&zoom, a.0, a.1), head(&zoom, b.0, b.1))
+        && d == db
+    {
+        let next = zoom[d as usize] + 1;
+        let (za, zb) = (a.0.zoomlevel_on(d), b.0.zoomlevel_on(d));
+        if za < next
+            || zb < next
+            || a.0.index_on(d) >> (za - next) != b.0.index_on(d) >> (zb - next)
+        {
+            break;
+        }
+        zoom[d as usize] = next;
+    }
+    a.0.ancestor_at(zoom)
+}
+
+/// 子孫が `split` の次元で割っているだけの Node（`common_descent` は割っている次元しか見ない）。
+fn node_splitting(split: u8) -> Node<(), NoSummary> {
+    if split == 0 {
+        return Node::Leaf(());
+    }
+    Node::Branch(Arc::new(Branch {
+        dimension: Dimension::F,
+        split_dimensions: split,
+        height: 1,
+        count: 2,
+        summary: NoSummary,
+        lower: Node::Leaf(()),
+        upper: Node::Leaf(()),
+    }))
+}
+
+/// `common_descent` は、1段ずつ降りた場合と同じ領域で止まる。
+#[test]
+fn common_descent_matches_stepwise_descent() {
+    let mut next = rng(31);
+    let coarser = |next: &mut dyn FnMut(u64) -> u64, point: &FlexId, this: &FlexId| {
+        let zoom = Dimension::ALL.map(|d| {
+            let (lo, hi) = (this.zoomlevel_on(d), point.zoomlevel_on(d));
+            lo + next(u64::from(hi - lo) + 1) as u8
+        });
+        point.ancestor_at(zoom)
+    };
+    for max_zoom in [3, 8, 20] {
+        for _ in 0..20_000 {
+            let this = random_id(&mut next, max_zoom);
+            let pa = random_point_in(&mut next, &this);
+            // 近い2点を作り、行き先が深いところまで重なる場合も十分に出す
+            let near = Dimension::ALL.map(|d| {
+                let up = next(4) as u8;
+                this.zoomlevel_on(d)
+                    .max(pa.zoomlevel_on(d).saturating_sub(up))
+            });
+            let around = if next(2) == 0 {
+                pa.ancestor_at(near)
+            } else {
+                this
+            };
+            let pb = random_point_in(&mut next, &around);
+            let region_a = coarser(&mut next, &pa, &this);
+            let region_b = coarser(&mut next, &pb, &this);
+            let (split_a, split_b) = (next(16) as u8, next(16) as u8);
+            let expected =
+                common_descent_stepwise(&this, (&region_a, split_a), (&region_b, split_b));
+            let got = common_descent(
+                &this,
+                (&region_a, &node_splitting(split_a)),
+                (&region_b, &node_splitting(split_b)),
+            );
+            assert_eq!(
+                got, expected,
+                "this={this} a={region_a}/{split_a:04b} b={region_b}/{split_b:04b}"
             );
         }
     }
