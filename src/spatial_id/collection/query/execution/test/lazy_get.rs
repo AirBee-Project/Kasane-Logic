@@ -14,7 +14,7 @@ fn lazy_get_shift_x_wrapped_coarsen_matches_run() {
     table.insert(FlexId::new(2, 0, 2, 3, 2, 0).unwrap(), 7);
 
     let expected: SpatialIdTable<u32> = table.clone().query().shift_x(2, -1).raw_run().unwrap();
-    let expected_values: Vec<u32> = expected.flat_single_ids().map(|(_, v)| *v).collect();
+    let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
     // shift のズーム(2)より粗い z=1 の x 全域をターゲットにする。
     let target = crate::RangeId::new(1, [-2, 1], [0, 1], [0, 1]).unwrap();
@@ -45,7 +45,7 @@ fn lazy_get_chained_shift_x_wrapped_intermediate_bounds_matches_run() {
         .shift_x(2, -2)
         .raw_run()
         .unwrap();
-    let expected_values: Vec<u32> = expected.flat_single_ids().map(|(_, v)| *v).collect();
+    let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
     // ターゲットは shift と同じズーム(2)の x 全域。中間 bounds が折り返し表現になる。
     let target = crate::RangeId::new(2, 0, [0, 3], 0).unwrap();
@@ -78,7 +78,7 @@ fn lazy_view_get_matches_run() {
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();
 
-    let expected_val = expected_result.get(&target).next().map(|(_, v)| *v);
+    let expected_val = expected_result.get(target).next().map(|(_, v)| *v);
 
     // LazyView get
     let query = table.query().shift_x(10, 1).shift_y(10, 2);

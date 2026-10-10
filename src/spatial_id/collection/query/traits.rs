@@ -1,8 +1,8 @@
 use super::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{Error, RangeId};
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
+use crate::{Error, RangeId, SpatialIdTable};
 
 /// 二項演算子の定義。
 pub trait BinaryOperator<V: SafeValue>: MaybeSendSync {
@@ -11,8 +11,12 @@ pub trait BinaryOperator<V: SafeValue>: MaybeSendSync {
         Ok(())
     }
 
-    /// 作業木 `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
-    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error>;
+    /// `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
+    fn run(
+        &self,
+        target_a: &mut SpatialIdTable<V, NoSummary>,
+        target_b: &SpatialIdTable<V, NoSummary>,
+    ) -> Result<(), Error>;
 
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
     fn inverse_bounds(&self, output_bounds: RangeId) -> (Option<RangeId>, Option<RangeId>);
@@ -29,7 +33,7 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
     fn validate(&self) -> Result<(), Error>;
 
     /// 実行する
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error>;
+    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error>;
 
     /// この演算子の可換性情報
     fn commutativity_info(&self) -> CommutativityInfo;

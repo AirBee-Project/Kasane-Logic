@@ -1,27 +1,30 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::Summary;
+use crate::{AllowedIntervals, SpatialIdTable};
 
 use super::super::json::{deserialize_with_values, serialize_with_values};
 
-impl<V> Serialize for SpatialIdTable<V>
+impl<V, S> Serialize for SpatialIdTable<V, S>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord + Serialize + PartialEq,
+    V: PartialEq + Clone + Serialize,
+    S: Summary<V>,
 {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serialize_with_values(self.iter(), self.inner.has_temporal_split(), serializer)
+    fn serialize<Ser: Serializer>(&self, serializer: Ser) -> Result<Ser::Ok, Ser::Error> {
+        serialize_with_values(
+            self.reconstructed_time_ranges(Some(&AllowedIntervals::default())),
+            serializer,
+        )
     }
 }
 
-impl<'de, V> Deserialize<'de> for SpatialIdTable<V>
+impl<'de, V, S> Deserialize<'de> for SpatialIdTable<V, S>
 where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue
-        + Ord
-        + Deserialize<'de>
-        + Clone,
+    V: PartialEq + Clone + Deserialize<'de>,
+    S: Summary<V>,
 {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let mut table = Self::new();
+        let mut table = Self::default();
         for (range_id, value) in deserialize_with_values(deserializer)? {
             table.insert(range_id, value);
         }
@@ -80,7 +83,7 @@ mod tests {
 
         assert_eq!(restored.count(), table.count());
         for (flex_id, value) in table.iter() {
-            let (_, restored_value) = restored.get(&flex_id).next().unwrap();
+            let (_, restored_value) = restored.get(flex_id).next().unwrap();
             assert_eq!(restored_value, value);
         }
     }

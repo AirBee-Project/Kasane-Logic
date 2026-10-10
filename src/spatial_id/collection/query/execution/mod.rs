@@ -1,12 +1,13 @@
 use super::traits::{BinaryOperator, UnaryOperator};
 use crate::Error;
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::try_run_grid;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
-use crate::spatial_id::collection::query::working::WorkingTree;
 use crate::trace::trace_span;
 use alloc::boxed::Box;
 use alloc::vec;
@@ -110,18 +111,22 @@ impl<V: SafeValue + 'static> Query<V> {
 
 // Queryの全体実行
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証・AST最適化を適用して実行し、[WorkingTree]のまま返す。
-    pub fn run_working_tree(self) -> Result<WorkingTree<V>, Error> {
+    /// 検証・AST最適化を適用して実行し、[`SpatialIdTable`] として返す。
+    ///
+    /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
+    pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
         self.validate()?;
-        self.optimize().raw_run_working_tree()
+        self.optimize().raw_run()
     }
 
-    /// 検証も最適化もせず [`Query`] を実行し、[WorkingTree]のまま返す。
-    pub fn raw_run_working_tree(self) -> Result<WorkingTree<V>, Error> {
+    /// 検証も最適化もせず [`Query`] を実行し、[`SpatialIdTable`] として返す。
+    ///
+    /// AST を組み替えず書かれた順序のまま実行する。最適化の有無を比べるための口で、通常は [`run`](Self::run) を使う。
+    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
         fn run_internal<V: SafeValue + 'static>(
             query: Query<V>,
             token: &CancellationToken,
-        ) -> Result<WorkingTree<V>, Error> {
+        ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
             match query {
                 Query::Source(source) => read_source(
                     &*source,
@@ -152,12 +157,12 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
-/// 単項演算の並びを作業木へ適用する。
+/// 単項演算の並びを順に適用する。
 pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
     mut ops: &[&dyn UnaryOperator<V>],
-    mut working: WorkingTree<V>,
+    mut working: SpatialIdTable<V, NoSummary>,
     token: &CancellationToken,
-) -> Result<WorkingTree<V>, Error> {
+) -> Result<SpatialIdTable<V, NoSummary>, Error> {
     while let Some(head) = ops.first() {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
@@ -205,12 +210,12 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
     Ok(working)
 }
 
-/// 入力源を`WorkingTree`として読み出す。
+/// 入力源を読み出して木に組む。
 fn read_source<V: SafeValue + 'static>(
     source: &dyn Source<Value = V>,
     bounds: &[crate::FlexId],
     token: &CancellationToken,
-) -> Result<WorkingTree<V>, Error> {
+) -> Result<SpatialIdTable<V, NoSummary>, Error> {
     let mut counter = 0u32;
 
     source
@@ -223,7 +228,7 @@ fn read_source<V: SafeValue + 'static>(
 }
 
 /// 平坦化を許す件数の上限。
-fn grid_budget<V: SafeValue>(working: &WorkingTree<V>) -> u64 {
+fn grid_budget<V: SafeValue>(working: &SpatialIdTable<V, NoSummary>) -> u64 {
     (working.count() as u64)
         .saturating_mul(64)
         .saturating_add(1 << 20)
@@ -238,7 +243,7 @@ impl<V: SafeValue + 'static> Query<V> {
         &self,
         bounds: Vec<crate::RangeId>,
         token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
+    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         trace_span!(
             "kasane_logic.query.run_within",
             target_regions = bounds.len()
@@ -252,7 +257,7 @@ impl<V: SafeValue + 'static> Query<V> {
         &self,
         bounds: Vec<crate::RangeId>,
         token: &CancellationToken,
-    ) -> Result<WorkingTree<V>, Error> {
+    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
@@ -360,7 +365,7 @@ impl<V: SafeValue + 'static> Query<V> {
             if default_iter.is_none() {
                 for (id, value) in working_iter.by_ref() {
                     if id.intersects_range(&target_range) {
-                        uncovered.remove(&id);
+                        let _ = uncovered.remove(id);
                         return Some((id, value));
                     }
                 }
@@ -370,7 +375,7 @@ impl<V: SafeValue + 'static> Query<V> {
             default_iter
                 .as_mut()?
                 .next()
-                .map(|(id, _)| (id, default_value.clone()))
+                .map(|id| (id, default_value.clone()))
         }))
     }
 }

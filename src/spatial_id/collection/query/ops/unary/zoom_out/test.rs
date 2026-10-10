@@ -33,7 +33,7 @@ fn zoom_out_average_8_children() {
         .unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
-    let result = out.get(&parent).next().unwrap().1;
+    let result = out.get(parent.clone()).next().unwrap().1;
 
     // (10+20+30+40+50+60+70+80) / 8 = 360 / 8 = 45
     assert_eq!(*result, 45);
@@ -56,7 +56,7 @@ fn zoom_out_max_partial_children() {
     let out = table.query().zoom_out(19, Max).raw_run().unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
-    let result = out.get(&parent).next().unwrap().1;
+    let result = out.get(parent.clone()).next().unwrap().1;
 
     // Max of {10, 99, 5} is 99
     assert_eq!(*result, 99);

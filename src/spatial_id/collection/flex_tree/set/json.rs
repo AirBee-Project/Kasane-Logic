@@ -1,12 +1,15 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::SpatialIdSet;
+use crate::{AllowedIntervals, SpatialIdSet};
 
 use super::super::json::{deserialize_without_values, serialize_without_values};
 
 impl Serialize for SpatialIdSet {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serialize_without_values(self.iter(), self.inner.has_temporal_split(), serializer)
+        serialize_without_values(
+            self.reconstructed_time_ranges(Some(&AllowedIntervals::default())),
+            serializer,
+        )
     }
 }
 
@@ -75,7 +78,7 @@ mod tests {
 
         assert_eq!(restored.count(), set.count());
         for flex_id in set.iter() {
-            assert!(restored.get(&flex_id).next().is_some());
+            assert!(restored.get(flex_id).next().is_some());
         }
     }
 

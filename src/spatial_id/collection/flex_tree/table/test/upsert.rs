@@ -11,7 +11,7 @@ mod tests {
 
         table.upsert(target.clone(), 10);
 
-        let actual_values: Vec<_> = table.get(&target).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![10]);
     }
 
@@ -23,9 +23,16 @@ mod tests {
         table.insert(target.clone(), 10);
         table.upsert(target.clone(), 20);
 
-        let actual_values: Vec<_> = table.get(&target).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![10], "既存値が上書きされてはいけない");
-        assert!(table.value_get(&20).next().is_none());
+        assert!(
+            table
+                .filter_range(&20..=&20)
+                .into_iter()
+                .map(|(id, _)| id)
+                .next()
+                .is_none()
+        );
     }
 
     /// target が既存領域と空き領域の両方にまたがる場合、占有済みの部分は既存値のまま、
@@ -40,24 +47,26 @@ mod tests {
         table.upsert(both, 20);
 
         assert_eq!(
-            table.get(&occupied).map(|(_, v)| *v).collect::<Vec<_>>(),
+            table
+                .get(occupied.clone())
+                .map(|(_, v)| *v)
+                .collect::<Vec<_>>(),
             vec![10],
             "既存側は保たれる"
         );
         assert_eq!(
-            table.get(&empty).map(|(_, v)| *v).collect::<Vec<_>>(),
+            table
+                .get(empty.clone())
+                .map(|(_, v)| *v)
+                .collect::<Vec<_>>(),
             vec![20],
             "空き側には新値が入る"
         );
     }
 
-    /// target が既に全て埋まっている upsert は、渡した値の rank を辞書へ登録してはいけない。
-    ///
-    /// 登録してしまうと、中身は同じでも rank 割当ての履歴が違うだけのテーブルが、
-    /// `PartialEq` の distinct-value 数ガード（`dictionary.len()` 比較）で
-    /// 「不一致」と誤判定されてしまう。
+    /// target が既に全て埋まっている upsert は何も書かず、テーブルは元と等しいままであること。
     #[test]
-    fn upsert_on_a_fully_occupied_target_does_not_register_an_orphan_rank() {
+    fn upsert_on_a_fully_occupied_target_changes_nothing() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
 
         let mut with_noop_upsert = SpatialIdTable::new();
@@ -68,8 +77,15 @@ mod tests {
 
         assert_eq!(
             with_noop_upsert, plain,
-            "中身が同じテーブルが rank 割当て履歴の違いだけで不一致になっている"
+            "埋まっている場所への upsert でテーブルが変わった"
         );
-        assert!(with_noop_upsert.value_get(&20).next().is_none());
+        assert!(
+            with_noop_upsert
+                .filter_range(&20..=&20)
+                .into_iter()
+                .map(|(id, _)| id)
+                .next()
+                .is_none()
+        );
     }
 }

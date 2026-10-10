@@ -14,10 +14,10 @@ use alloc::vec::Vec;
 /// # {
 /// # use kasane_logic::{Interval, AllowedIntervals};
 /// // 明示していなくても WHOLE と SECOND は入っている。
-/// let units = AllowedIntervals::new([Interval::HOUR]);
-/// assert!(units.contains(Interval::WHOLE));
-/// assert!(units.contains(Interval::SECOND));
-/// assert!(units.contains(Interval::HOUR));
+/// let intervals = AllowedIntervals::new([Interval::HOUR]);
+/// assert!(intervals.contains(Interval::WHOLE));
+/// assert!(intervals.contains(Interval::SECOND));
+/// assert!(intervals.contains(Interval::HOUR));
 /// # }
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -27,7 +27,7 @@ pub struct AllowedIntervals {
     /// [`Vec`]ではなく[`Cow`]なのは、[`calendar`](Self::calendar)を`static`として
     /// 用意して`&'static`で貸し出すためである。所有版（[`new`](Self::new)）は
     /// [`Cow::Owned`]、組み込みの候補集合は[`Cow::Borrowed`]になる。
-    units: Cow<'static, [Interval]>,
+    intervals: Cow<'static, [Interval]>,
 }
 
 /// [`AllowedIntervals::calendar`] の実体。
@@ -36,7 +36,7 @@ pub struct AllowedIntervals {
 /// （`calendar_is_sorted_descending_without_duplicates` が固定している）。
 #[cfg(feature = "temporal_id")]
 static CALENDAR: AllowedIntervals = AllowedIntervals {
-    units: Cow::Borrowed(&[
+    intervals: Cow::Borrowed(&[
         Interval::WHOLE,
         Interval::DAY,
         Interval::HOUR,
@@ -53,24 +53,24 @@ impl AllowedIntervals {
     /// # {
     /// # use kasane_logic::{Interval, AllowedIntervals};
     /// // 30分・1時間で読みたい、という指定。
-    /// let units = AllowedIntervals::new([Interval::new(1800).unwrap(), Interval::HOUR]);
-    /// assert_eq!(units.coarsest_dividing(0, 7200), Interval::HOUR);
-    /// assert_eq!(units.coarsest_dividing(0, 1800).seconds(), 1800);
+    /// let intervals = AllowedIntervals::new([Interval::new(1800).unwrap(), Interval::HOUR]);
+    /// assert_eq!(intervals.coarsest_dividing(0, 7200), Interval::HOUR);
+    /// assert_eq!(intervals.coarsest_dividing(0, 1800).seconds(), 1800);
     /// # }
     /// ```
-    pub fn new(units: impl IntoIterator<Item = Interval>) -> Self {
-        let mut units: Vec<Interval> = units.into_iter().collect();
+    pub fn new(intervals: impl IntoIterator<Item = Interval>) -> Self {
+        let mut intervals: Vec<Interval> = intervals.into_iter().collect();
 
-        units.push(Interval::WHOLE);
+        intervals.push(Interval::WHOLE);
         #[cfg(feature = "temporal_id")]
-        units.push(Interval::SECOND);
+        intervals.push(Interval::SECOND);
 
         // 降順に並べておけば、探索は「先頭から最初に割り切れたもの」で済む。
-        units.sort_unstable_by_key(|u| core::cmp::Reverse(u.seconds()));
-        units.dedup();
+        intervals.sort_unstable_by_key(|u| core::cmp::Reverse(u.seconds()));
+        intervals.dedup();
 
         AllowedIntervals {
-            units: Cow::Owned(units),
+            intervals: Cow::Owned(intervals),
         }
     }
 
@@ -86,11 +86,11 @@ impl AllowedIntervals {
     ///
     /// # なぜ `&'static` を返すのか
     ///
-    /// 読み出し API（[`range_ids_in`](crate::SpatialIdSet::range_ids_in) など）へ
+    /// 読み出し API（[`crate::SpatialIdSet::reconstructed_time_ranges`] など）へ
     /// **一時値のまま直接渡せる**ようにするためである。所有値を返していた頃は
     ///
     /// ```text
-    /// let ids = set.range_ids_in(&AllowedIntervals::calendar());  // 一時値が文末で死ぬ
+    /// let ids = set.reconstructed_time_ranges(Some(&AllowedIntervals::calendar()));  // 一時値が文末で死ぬ
     /// ```
     ///
     /// が書けず、コレクションごとに `range_ids_calendar()` のような別名を生やして
@@ -100,11 +100,11 @@ impl AllowedIntervals {
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::{Interval, AllowedIntervals};
-    /// let units = AllowedIntervals::calendar();
+    /// let intervals = AllowedIntervals::calendar();
     /// // 2時間ぶんは「1時間 × 2Segment」として表される（`gcd` なら `7200秒 × 1Segment`）。
-    /// assert_eq!(units.coarsest_dividing(0, 7200), Interval::HOUR);
+    /// assert_eq!(intervals.coarsest_dividing(0, 7200), Interval::HOUR);
     /// // 暦で割り切れない区間は秒まで落ちる。
-    /// assert_eq!(units.coarsest_dividing(30, 90), Interval::SECOND);
+    /// assert_eq!(intervals.coarsest_dividing(30, 90), Interval::SECOND);
     /// # }
     /// ```
     #[cfg(feature = "temporal_id")]
@@ -114,12 +114,12 @@ impl AllowedIntervals {
 
     /// 候補に含まれるか。
     pub fn contains(&self, unit: Interval) -> bool {
-        self.units.contains(&unit)
+        self.intervals.contains(&unit)
     }
 
     /// 候補を秒数の降順で列挙する。
     pub fn iter(&self) -> impl Iterator<Item = Interval> + '_ {
-        self.units.iter().copied()
+        self.intervals.iter().copied()
     }
 
     /// 絶対秒区間 `[start, end)` を表せる候補のうち、**最も粗いもの**を返す。
@@ -131,7 +131,7 @@ impl AllowedIntervals {
     /// `Interval::SECOND` が必ず候補にあるため、**この関数は必ず値を返す**
     /// （`temporal_id` feature 無効時は全時間しか存在せず、`WHOLE` が返る）。
     pub fn coarsest_dividing(&self, start: u64, end: u64) -> Interval {
-        for unit in self.units.iter().copied() {
+        for unit in self.intervals.iter().copied() {
             let seconds = unit.seconds();
             if start.is_multiple_of(seconds) && end.is_multiple_of(seconds) {
                 return unit;
@@ -168,20 +168,20 @@ mod tests {
 
     #[test]
     fn whole_and_second_are_always_present() {
-        for units in [
+        for intervals in [
             &AllowedIntervals::new([]),
             &AllowedIntervals::new([Interval::HOUR]),
             AllowedIntervals::calendar(),
         ] {
-            assert!(units.contains(Interval::WHOLE));
-            assert!(units.contains(Interval::SECOND));
+            assert!(intervals.contains(Interval::WHOLE));
+            assert!(intervals.contains(Interval::SECOND));
         }
     }
 
     #[test]
     fn candidates_are_sorted_descending_without_duplicates() {
-        let units = AllowedIntervals::new([Interval::HOUR, Interval::MINUTE, Interval::HOUR]);
-        let seconds: Vec<u64> = units.iter().map(|u| u.seconds()).collect();
+        let intervals = AllowedIntervals::new([Interval::HOUR, Interval::MINUTE, Interval::HOUR]);
+        let seconds: Vec<u64> = intervals.iter().map(|u| u.seconds()).collect();
         assert_eq!(seconds, [Interval::MAX_SECONDS, 3600, 60, 1]);
     }
 
@@ -209,9 +209,9 @@ mod tests {
     /// 時間なしの ID が `_1/0:34359738367`（343億Segment）になってしまう。
     #[test]
     fn whole_time_stays_a_single_segment() {
-        let units = AllowedIntervals::calendar();
+        let intervals = AllowedIntervals::calendar();
         assert_eq!(
-            units.coarsest_dividing(0, Interval::MAX_SECONDS),
+            intervals.coarsest_dividing(0, Interval::MAX_SECONDS),
             Interval::WHOLE
         );
 
@@ -227,38 +227,36 @@ mod tests {
 
     #[test]
     fn picks_the_coarsest_candidate() {
-        let units = AllowedIntervals::calendar();
+        let intervals = AllowedIntervals::calendar();
         // ちょうど1日
-        assert_eq!(units.coarsest_dividing(86_400, 172_800), Interval::DAY);
+        assert_eq!(intervals.coarsest_dividing(86_400, 172_800), Interval::DAY);
         // 2時間ぶん（`gcd` なら 7200 秒だが、候補にないので 1 時間 × 2 TimeSegment）
-        assert_eq!(units.coarsest_dividing(0, 7_200), Interval::HOUR);
+        assert_eq!(intervals.coarsest_dividing(0, 7_200), Interval::HOUR);
         // 30分ぶん
-        assert_eq!(units.coarsest_dividing(0, 1_800), Interval::MINUTE);
+        assert_eq!(intervals.coarsest_dividing(0, 1_800), Interval::MINUTE);
         // 暦で表せない端数は秒まで落ちる
-        assert_eq!(units.coarsest_dividing(30, 90), Interval::SECOND);
+        assert_eq!(intervals.coarsest_dividing(30, 90), Interval::SECOND);
     }
 
     /// 候補を足せば、その単位が選ばれる。
     #[test]
     fn custom_candidates_are_honoured() {
         let half_hour = Interval::new(1_800).unwrap();
-        let units = AllowedIntervals::new([half_hour]);
-        assert_eq!(units.coarsest_dividing(1_800, 3_600), half_hour);
+        let intervals = AllowedIntervals::new([half_hour]);
+        assert_eq!(intervals.coarsest_dividing(1_800, 3_600), half_hour);
         // 候補に無い 3600 は選ばれず、1800 × 2 Segmentになる。
-        assert_eq!(units.coarsest_dividing(0, 3_600), half_hour);
+        assert_eq!(intervals.coarsest_dividing(0, 3_600), half_hour);
     }
 }
 
-/// 3コレクションから候補集合つきで読み出せることの疎通確認。
+/// 各コレクションから候補集合つきで読み出せることの疎通確認。
 ///
 /// 単位の選択ロジックそのものは上の `tests` が押さえているので、ここでは
-/// 「`SpatialIdSet` / `SpatialIdMap` / `SpatialIdTable` から同じ形で使えること」と
+/// 「`SpatialIdSet` / `SpatialIdTable` から同じ形で使えること」と
 /// 「暦の正規化が既定（`gcd`）と実際に違う結果になること」を固定する。
 #[cfg(all(test, feature = "temporal_id"))]
 mod collection_api {
-    use crate::{
-        AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdMap, SpatialIdSet, SpatialIdTable,
-    };
+    use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdSet, SpatialIdTable};
     use alloc::vec::Vec;
 
     /// 同じFlexIdの隣り合う2時間ぶん。値は同じなので結合される。
@@ -278,20 +276,26 @@ mod collection_api {
         }
 
         // 既定は gcd なので「7200 秒 × 1 TimeSegment」。
-        let natural: Vec<_> = set.range_ids().map(|r| r.to_string()).collect();
+        let natural: Vec<_> = set
+            .reconstructed_time_ranges(None)
+            .map(|r| r.to_string())
+            .collect();
         assert_eq!(natural, ["12/0/3638/1614_7200/0"]);
 
         // 暦に正規化すると「3600 秒 × 2 TimeSegment」。
         let calendar: Vec<_> = set
-            .range_ids_in(AllowedIntervals::calendar())
+            .reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
             .map(|r| r.to_string())
             .collect();
         assert_eq!(calendar, ["12/0/3638/1614_3600/0:1"]);
 
         // 秒区間はどの表現でも変わらない。
         assert_eq!(
-            set.range_ids().next().unwrap().seconds_range(),
-            set.range_ids_in(AllowedIntervals::calendar())
+            set.reconstructed_time_ranges(None)
+                .next()
+                .unwrap()
+                .seconds_range(),
+            set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
                 .next()
                 .unwrap()
                 .seconds_range()
@@ -307,13 +311,13 @@ mod collection_api {
             set.insert(id);
         }
 
-        let iter = set.range_ids_in(AllowedIntervals::calendar());
+        let iter = set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()));
         let got: Vec<_> = iter.map(|r| r.to_string()).collect();
         assert_eq!(got, ["12/0/3638/1614_3600/0:1"]);
 
-        // 一時値の候補集合でも同じ（`units` は `&self` とライフタイムを共有しない）。
-        let units = AllowedIntervals::new([Interval::MINUTE]);
-        let iter = set.range_ids_in(&units);
+        // 一時値の候補集合でも同じ（`intervals` は `&self` とライフタイムを共有しない）。
+        let intervals = AllowedIntervals::new([Interval::MINUTE]);
+        let iter = set.reconstructed_time_ranges(Some(&intervals));
         assert_eq!(iter.count(), 1);
     }
 
@@ -332,10 +336,11 @@ mod collection_api {
         assert_eq!(set.count(), 32);
 
         for hint in [
-            set.range_ids().size_hint(),
-            set.range_ids_in(AllowedIntervals::calendar()).size_hint(),
-            set.flat_single_ids().size_hint(),
-            set.flat_single_ids_in(AllowedIntervals::calendar())
+            set.reconstructed_time_ranges(None).size_hint(),
+            set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
+                .size_hint(),
+            set.flat_single_ids(None).size_hint(),
+            set.flat_single_ids(Some(AllowedIntervals::calendar()))
                 .size_hint(),
         ] {
             assert_eq!(hint, (0, None), "先行して全件を積んでいる");
@@ -343,25 +348,17 @@ mod collection_api {
     }
 
     #[test]
-    fn map_and_table_read_back_with_calendar_units() {
-        let mut map: SpatialIdMap<u32> = SpatialIdMap::new();
+    fn table_reads_back_with_calendar_units() {
         let mut table: SpatialIdTable<u32> = SpatialIdTable::new();
         for id in two_hours() {
-            map.insert(id.clone(), 7);
             table.insert(id, 7);
         }
 
-        for got in [
-            map.range_ids_in(AllowedIntervals::calendar())
-                .map(|(r, v)| (r.to_string(), *v))
-                .collect::<Vec<_>>(),
-            table
-                .range_ids_in(AllowedIntervals::calendar())
-                .map(|(r, v)| (r.to_string(), *v))
-                .collect::<Vec<_>>(),
-        ] {
-            assert_eq!(got, [("12/0/3638/1614_3600/0:1".into(), 7u32)]);
-        }
+        let got: Vec<_> = table
+            .reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
+            .map(|(r, v)| (r.to_string(), *v))
+            .collect();
+        assert_eq!(got, [("12/0/3638/1614_3600/0:1".into(), 7u32)]);
     }
 
     /// `flat_single_ids` 側でも単位を選べる。暦にすると2Segmentなので2件へ展開される。
@@ -373,11 +370,11 @@ mod collection_api {
         }
 
         // 既定（gcd, 7200秒 × 1Segment）は1件。
-        assert_eq!(set.flat_single_ids().count(), 1);
+        assert_eq!(set.flat_single_ids(None).count(), 1);
 
         // 暦（3600秒 × 2Segment）は2件へ展開される。
         let calendar: Vec<_> = set
-            .flat_single_ids_in(AllowedIntervals::calendar())
+            .flat_single_ids(Some(AllowedIntervals::calendar()))
             .map(|s| s.to_string())
             .collect();
         assert_eq!(calendar, ["12/0/3638/1614_3600/0", "12/0/3638/1614_3600/1"]);
@@ -393,8 +390,8 @@ mod collection_api {
         set.insert(SingleId::new(12, 0, 3638, 1614).unwrap());
 
         for got in [
-            set.range_ids().next().unwrap(),
-            set.range_ids_in(AllowedIntervals::calendar())
+            set.reconstructed_time_ranges(None).next().unwrap(),
+            set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
                 .next()
                 .unwrap(),
         ] {
@@ -415,12 +412,15 @@ mod collection_api {
         set.insert(original.clone());
 
         assert_eq!(
-            set.range_ids().next().unwrap().to_string(),
+            set.reconstructed_time_ranges(None)
+                .next()
+                .unwrap()
+                .to_string(),
             "12/0/3638/1614_1800/809712"
         );
         // 1800 は暦の候補に無いので、割り切れる最も粗い候補＝分になる。
         let calendar = set
-            .range_ids_in(AllowedIntervals::calendar())
+            .reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
             .next()
             .unwrap();
         assert_eq!(calendar.time_interval(), Interval::MINUTE);

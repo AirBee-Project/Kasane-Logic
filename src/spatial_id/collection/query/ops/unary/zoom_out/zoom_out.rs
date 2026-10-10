@@ -1,6 +1,7 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -36,7 +37,7 @@ where
         self
     }
 
-    fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
+    fn run(&self, core: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         let target_z = self.target_z.get();
         let old_tree = core::mem::take(core);
         let mut leaves: Vec<(FlexId, Option<V>)> =

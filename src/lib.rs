@@ -8,6 +8,9 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
+// derive マクロが生成する `::kasane_logic::…` を、このクレートの中でも解決できるようにする。
+extern crate self as kasane_logic;
+
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
@@ -76,27 +79,23 @@ pub use spatial_id::flex_id::FlexId;
 #[doc(inline)]
 pub use spatial_id::range_id::RangeId;
 #[doc(inline)]
+pub use spatial_id::relative_flex_id::RelativeFlexId;
+#[doc(inline)]
 pub use spatial_id::single_id::SingleId;
 
 // spatial_id: collection types
 
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::traits::FlexIdValue;
 
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
-#[cfg(feature = "persist")]
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::archived::ArchivedSpatialIdMap;
-#[cfg(feature = "persist")]
-#[doc(inline)]
-pub use spatial_id::collection::flex_tree::map::arena::FORMAT_VERSION;
+pub use spatial_id::collection::flex_tree::core::{BitMask, MinMax, NoSummary, Summary, ValueSet};
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
 
 // spatial_id: traits
+#[doc(inline)]
+pub use spatial_id::dimension::Dimension;
 #[doc(inline)]
 pub use spatial_id::helpers::Side;
 #[doc(inline)]
@@ -110,8 +109,6 @@ pub use spatial_id::zoom_level::ZoomLevel;
 
 // spatial_id: query & merge policies
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::core::SafeValue;
-#[doc(inline)]
 pub use spatial_id::collection::query::cancellation::CancellationToken;
 #[doc(inline)]
 pub use spatial_id::collection::query::execution::Query;
@@ -120,11 +117,11 @@ pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
+pub use spatial_id::collection::query::send_sync::SafeValue;
+#[doc(inline)]
 pub use spatial_id::collection::query::source::Source;
 #[doc(inline)]
 pub use spatial_id::collection::query::source::SourceIter;
-#[doc(inline)]
-pub use spatial_id::collection::query::working::WorkingTree;
 
 #[doc(inline)]
 pub use spatial_id::time::AllowedIntervals;

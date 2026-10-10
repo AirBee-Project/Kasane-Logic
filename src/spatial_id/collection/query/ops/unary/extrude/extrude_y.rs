@@ -1,6 +1,7 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
     spatial_id::{
@@ -43,12 +44,12 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut WorkingTree<V>) -> Result<(), Error> {
-        let expected_cap = libm::ceil(core.core().count() as f64 * self.expansion_ratio()) as usize;
+    fn run(&self, core: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+        let expected_cap = libm::ceil(core.count() as f64 * self.expansion_ratio()) as usize;
         let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(expected_cap);
 
         // 元のツリーから全Segmentを取り出し、それぞれを引き延ばす
-        for (id, v) in core.core().iter_ref() {
+        for (id, v) in core.iter() {
             if let Ok(iter) = id.extrude_y(self.target_z.get(), self.start_y, self.end_y) {
                 for new_id in iter {
                     extruded.push((new_id, v.clone()));

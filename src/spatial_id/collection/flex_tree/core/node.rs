@@ -1,836 +1,487 @@
-use super::ptr::{SafeValue, SharedNode};
-use crate::SpatialId;
-use crate::{FlexId, Side};
+use super::summary::{BitMask, Summary, ValueSet};
+use super::view::View;
+use crate::{
+    FlexId, Side,
+    spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
+};
+use alloc::borrow::Cow;
+use alloc::sync::Arc;
+use core::{mem, ptr};
 
-/// FlexTreeが分割する軸。F/X/Yは空間3軸（各最大ズーム30）、Tは時間軸の生の2分岐Segment
-/// （最大ズーム`TZoomLevel::MAX`=35）。並び順（F→X→Y→T）は木のレベルとの対応付けに使う
-/// だけの規約で、他に意味は無い。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Axis {
-    F,
-    X,
-    Y,
-    T,
+/// Node は自分の領域を持たず、親から渡される領域 `this`との相対的な位置で意味を持つ。辿る関数が`this`を持つことで様々な操作を行う。
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) enum Node<V, S> {
+    #[default]
+    Empty,
+    Leaf(V),
+    Branch(Arc<Branch<V, S>>),
+    Skip(Arc<Skip<V, S>>),
 }
 
-/// 木が同時に分割する軸の数。
-///
-/// `temporal_id` feature が有効なら F/X/Y/T の4軸、無効なら F/X/Y の3軸。
-/// 時間を使わないビルドで4軸のまま回すと、[`Node::insert_mut`] の軸スキップ歩行が
-/// 空振りするTの番のぶんだけ余計にレベルを進み、挿入が素直に 4/3 倍遅くなる。
-#[cfg(feature = "temporal_id")]
-pub(crate) const NUM_AXES: u8 = 4;
-#[cfg(not(feature = "temporal_id"))]
-pub(crate) const NUM_AXES: u8 = 3;
-
-/// 葉ノードの仮想ツリーレベル。木を降りる操作で「葉に達した」ことを表す
-/// 番兵として使う。実在の Branch はこれ未満のレベルしか持たない。
-///
-/// 経験則 `NUM_AXES * (最深軸の最大ズーム + 1)` に従う。4軸版はTが最深（最大ズーム
-/// [`Interval::MAX_POW`](crate::Interval::MAX_POW) = 35）かつサイクル内で最後
-/// （位置3）なので `4*(35+1) = 144`、3軸版は `3*(30+1) = 93`。
-#[cfg(feature = "temporal_id")]
-pub(crate) const LEAF_LEVEL: u8 = 144;
-#[cfg(not(feature = "temporal_id"))]
-pub(crate) const LEAF_LEVEL: u8 = 93;
-
-/// [`covers_all_axes`](Node::covers_all_axes) は `level + (NUM_AXES - 1)` を計算するため、
-/// レベル番号が `u8` に収まりきることをコンパイル時に確かめておく。
-/// 軸を1本増やすと 4軸版で 255 に達し、静かにオーバーフローする。
-const _: () = assert!(
-    (LEAF_LEVEL as u16) + (NUM_AXES as u16) - 1 <= u8::MAX as u16,
-    "LEAF_LEVEL + NUM_AXES - 1 が u8 を超える。軸を増やすならレベル型を広げること"
-);
-
-/// Branch の両子（下・上）への参照ペア。
-type ChildRefs<'a, V> = (&'a SharedNode<Node<V>>, &'a SharedNode<Node<V>>);
-
-#[derive(Debug, PartialEq, Clone, Eq)]
-pub enum Node<V>
-where
-    V: SafeValue,
-{
-    Branch {
-        level: u8,
-        leaf_count: u32,
-        max_zoom: u8,
-        /// この部分木が分割している軸の集合（F=0b001 / X=0b010 / Y=0b100 の OR）。
-        /// `leaf_count` / `max_zoom` と同じく子から畳み上げてキャッシュする。
-        /// `collapse_equal_children` の畳み込みガード
-        /// （「この軸をそれ以深で分割していないか」）を O(1) で判定するために持つ。
-        split_mask: u8,
-        lower_child: SharedNode<Node<V>>,
-        upper_child: SharedNode<Node<V>>,
-    },
-    Leaf {
-        value: Option<V>,
-    },
-}
-
-/// ある Branch を降りるとき、target と交差しうる子。
-///
-/// [`Node::overlapping_children`] が返す。反対側の子は交差しえないので、
-/// [`Only`](Self::Only) なら部分木を丸ごと枝刈りできる。
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum OverlappingChildren {
-    /// target がこの軸を丸ごと覆うため、両方の子が交差しうる。
-    Both,
-    /// この側の子だけが交差する。
-    Only(Side),
-}
-
-impl<V> Node<V>
-where
-    V: SafeValue,
-{
-    /// 各ノード以下の (値が Some の) Leaf の合計数を返す。O(1)で取得可能。
-    pub fn leaf_count(&self) -> usize {
+// derive では `S: Clone` まで要求されるが、Arc の複製に `S` の複製は要らない
+impl<V: Clone, S> Clone for Node<V, S> {
+    fn clone(&self) -> Self {
         match self {
-            Node::Branch { leaf_count, .. } => *leaf_count as usize,
-            Node::Leaf { value: Some(_) } => 1,
-            Node::Leaf { value: None } => 0,
+            Node::Empty => Node::Empty,
+            Node::Leaf(value) => Node::Leaf(value.clone()),
+            Node::Branch(branch) => Node::Branch(branch.clone()),
+            Node::Skip(skip) => Node::Skip(skip.clone()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Branch<V, S> {
+    pub(super) dimension: Dimension,
+    /// 自身と子孫が割っている次元のビットマスク。自身の `dimension` とlowerとupperの集合を合わせたもの。
+    pub(super) split_dimensions: u8,
+    /// 自身と子孫で Branch が縦に何段続くかの最大。Node を辿るスタックの大きさに使う。
+    pub(super) height: u8,
+    /// 子孫に含まれる、値を持つ[FlexId]の数。
+    pub(super) count: usize,
+    pub(super) summary: S,
+    pub(super) lower: Node<V, S>,
+    pub(super) upper: Node<V, S>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Skip<V, S> {
+    pub(super) path: RelativeFlexId,
+    /// 自身と子孫が割っている次元のビットマスク。行き先が狭い次元（`path` の深くなっている次元）と `child` の集合を合わせたもの。
+    pub(super) split_dimensions: u8,
+    pub(super) child: Node<V, S>,
+}
+
+/// [`Node::filter`] で、Branch の領域と Summary から子孫をまとめて判断した結果。
+pub(super) enum Decision {
+    /// 子孫をすべて残す。
+    KeepAll,
+    /// 子孫をすべて捨てる。
+    DropAll,
+    /// 子へ降りて判断する。
+    Descend,
+}
+
+impl<V, S> Node<V, S> {
+    pub(super) fn is_empty(&self) -> bool {
+        matches!(self, Node::Empty)
+    }
+
+    /// 子孫に含まれる、値を持つ[FlexId]の数。
+    pub(super) fn count(&self) -> usize {
+        match self {
+            Node::Empty => 0,
+            Node::Leaf(_) => 1,
+            Node::Branch(branch) => branch.count,
+            Node::Skip(skip) => skip.child.count(),
         }
     }
 
-    /// 配下の値付き Leaf の空間（F/X/Y）ズームレベルの最大値を返す。Branch はキャッシュ済みの
-    /// 値を返すため O(1)。
-    ///
-    /// Leaf 自身は 0 を返す。「その Leaf がどれだけ細かいか」はレベル番号からは求まらないため、
-    /// **実際に分割された空間軸の深さ**を Branch 側で畳み上げる（[`fold_max_zoom`](Self::fold_max_zoom)）。
-    ///
-    /// レベル番号から `ceil(L / NUM_AXES)` として推定してはならない。木は「対象がその軸を
-    /// 覆っている」レベルを実体化せず読み飛ばすため、レベル番号は分割の深さと一致しない。
-    /// 特に T 軸は最大ズームが 35 で空間の 30 より深いので、時間だけが深いSegmentで
-    /// 空間ズームを過大報告してしまう。
-    pub(crate) fn max_zoom(&self) -> u8 {
+    /// 自身と子孫で Branch が縦に何段続くかの最大。Leaf なら 0。
+    pub(super) fn height(&self) -> u8 {
         match self {
-            Node::Branch { max_zoom, .. } => *max_zoom,
-            Node::Leaf { .. } => 0,
+            Node::Empty | Node::Leaf(_) => 0,
+            Node::Branch(branch) => branch.height,
+            Node::Skip(skip) => skip.child.height(),
         }
     }
 
-    /// レベル `level` の Branch を構築・更新する際の `max_zoom` を、両子の部分木から畳み上げる。
-    ///
-    /// この Branch が実在する＝`axis(level)` を `depth(level)` の位置で実際に分割したという
-    /// ことなので、配下の Leaf はその軸について少なくとも `depth(level) + 1` の解像度を持つ。
-    /// 時間軸（T）の分割は空間解像度に寄与しないため 0 として扱う。
-    pub(crate) fn fold_max_zoom(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
-        let own = match Self::axis(level) {
-            Axis::F | Axis::X | Axis::Y => Self::depth(level) + 1,
-            Axis::T => 0,
+    /// 自身と子孫が割っている次元の集合のビットマスク。ビットマスクは[`Dimension::bit`]のOR。
+    pub(super) fn split_dimensions(&self) -> u8 {
+        match self {
+            Node::Empty | Node::Leaf(_) => 0,
+            Node::Branch(branch) => branch.split_dimensions,
+            Node::Skip(skip) => skip.split_dimensions,
+        }
+    }
+
+    /// この Node を最初に割る次元の候補（[`Dimension::bit`] の OR）。このうち一番粗い次元で最初に割る。
+    /// Leaf や空なら 0。
+    pub(super) fn head_dimensions(&self) -> u8 {
+        match self {
+            Node::Empty | Node::Leaf(_) => 0,
+            Node::Branch(branch) => branch.dimension.bit(),
+            Node::Skip(skip) => skip.split_dimensions,
+        }
+    }
+
+    /// 領域 `this` のこの Node の子とその領域を、下側から順に返す。Leaf や空なら何も返さない。
+    pub(super) fn children(
+        &self,
+        this: FlexId,
+    ) -> impl DoubleEndedIterator<Item = (&Self, FlexId)> {
+        let children = match self {
+            Node::Empty | Node::Leaf(_) => [None, None],
+            Node::Branch(branch) => {
+                let half = |side| this.split_on(branch.dimension, side).unwrap();
+                [
+                    Some((&branch.lower, half(Side::Lower))),
+                    Some((&branch.upper, half(Side::Upper))),
+                ]
+            }
+            Node::Skip(skip) => [
+                Some((&skip.child, skip.path.to_absolute(&this).unwrap())),
+                None,
+            ],
         };
-        own.max(lower.max_zoom()).max(upper.max_zoom())
+        children.into_iter().flatten()
     }
 
-    /// 軸に対応する `split_mask` の1ビット（F=0b0001 / X=0b0010 / Y=0b0100 / T=0b1000）。
-    pub(crate) fn axis_bit(axis: Axis) -> u8 {
-        match axis {
-            Axis::F => 0b0001,
-            Axis::X => 0b0010,
-            Axis::Y => 0b0100,
-            Axis::T => 0b1000,
+    /// 同じ Branch・Skip の Arc を指しているなら true。値の型が違う Node とも比べられる。
+    pub(super) fn ptr_eq<W, T>(&self, other: &Node<W, T>) -> bool {
+        match (self, other) {
+            (Node::Branch(a), Node::Branch(b)) => ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b)),
+            (Node::Skip(a), Node::Skip(b)) => ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b)),
+            _ => false,
         }
     }
+}
 
-    /// このノード配下が分割している軸の集合。Branch はキャッシュ済みで O(1)、Leaf は 0。
-    pub(crate) fn split_mask(&self) -> u8 {
+impl<V: Ord, S: Summary<V>> Node<V, S> {
+    /// この Node と子孫の値の範囲 `(最小, 最大)`。空なら [`None`]。
+    ///
+    /// Summary が範囲を持っていればそれを使い、持っていなければ子孫を辿って求める。
+    pub(super) fn value_range(&self) -> Option<(&V, &V)> {
         match self {
-            Node::Branch { split_mask, .. } => *split_mask,
-            Node::Leaf { .. } => 0,
+            Node::Empty => None,
+            Node::Leaf(value) => Some((value, value)),
+            Node::Branch(branch) => branch
+                .summary
+                .value_range()
+                .or_else(|| wider_range(branch.lower.value_range(), branch.upper.value_range())),
+            Node::Skip(skip) => skip.child.value_range(),
         }
     }
+}
 
-    /// このノードのツリーレベル。葉は仮想的に [`LEAF_LEVEL`] を返す（降下の番兵）。
-    pub(crate) fn node_level(&self) -> u8 {
+impl<V: BitMask, S: Summary<V>> Node<V, S> {
+    /// この Node と子孫に現れる値の集合。
+    ///
+    /// Summary が集合を持っていればそれを使い、持っていなければ子孫を辿って求める。
+    pub(super) fn value_set(&self) -> ValueSet<V> {
         match self {
-            Node::Branch { level, .. } => *level,
-            Node::Leaf { .. } => LEAF_LEVEL,
+            Node::Empty => ValueSet::EMPTY,
+            Node::Leaf(value) => ValueSet::single(*value),
+            Node::Branch(branch) => branch
+                .summary
+                .value_set()
+                .unwrap_or_else(|| branch.lower.value_set().union(&branch.upper.value_set())),
+            Node::Skip(skip) => skip.child.value_set(),
         }
     }
+}
 
-    /// Branch なら両子（下・上）への参照を返す。葉なら `None`。
-    pub(crate) fn children(&self) -> Option<ChildRefs<'_, V>> {
+impl<V: Clone, S> Node<V, S> {
+    /// 形はそのままに、Branch の Summary を `T` で作り直した Node。
+    pub(super) fn with_summary<T: Summary<V>>(&self) -> Node<V, T> {
         match self {
-            Node::Branch {
-                lower_child,
-                upper_child,
-                ..
-            } => Some((lower_child, upper_child)),
-            Node::Leaf { .. } => None,
-        }
-    }
-
-    /// レベル `level` の Branch を構築・更新する際の `split_mask` を、両子から畳み上げる。
-    /// 自身が分割する軸 `axis(level)` に、両子の分割軸を OR する。
-    pub(crate) fn fold_split_mask(level: u8, lower: &Node<V>, upper: &Node<V>) -> u8 {
-        Self::axis_bit(Self::axis(level)) | lower.split_mask() | upper.split_mask()
-    }
-
-    /// Branch を構築する唯一の入口（smart constructor）。
-    ///
-    /// 常に正規形（FXY-正規形）を構成的に保証する。
-    /// - N1: 両子が等価で、かつ畳む軸をそれ以深で分割していなければ、片方の子へ畳む。
-    /// - N2: 両子が空（`Leaf{None}`）なら `empty_leaf` シングルトンへ畳む（上記に含まれる）。
-    /// - キャッシュ（`leaf_count` / `max_zoom` / `split_mask`）を畳み上げて格納する。
-    ///
-    /// 木を構築・更新するすべての経路（挿入・集合演算・削除・値変換・シャード）は、
-    /// 巻き戻しでこの関数を通すことで正規形を保つ。
-    pub(crate) fn mk(
-        level: u8,
-        lower: SharedNode<Node<V>>,
-        upper: SharedNode<Node<V>>,
-        empty_leaf: &SharedNode<Node<V>>,
-    ) -> SharedNode<Node<V>> {
-        if let Some(rep) = Self::collapse_equal_children(&lower, &upper, level, empty_leaf) {
-            return rep;
-        }
-        SharedNode::new(Node::Branch {
-            level,
-            leaf_count: (lower.leaf_count() + upper.leaf_count()) as u32,
-            max_zoom: Self::fold_max_zoom(level, &lower, &upper),
-            split_mask: Self::fold_split_mask(level, &lower, &upper),
-            lower_child: lower,
-            upper_child: upper,
-        })
-    }
-
-    /// level から対象とする軸(F, X, Y, T) を返す
-    pub(crate) fn axis(level: u8) -> Axis {
-        match level % NUM_AXES {
-            0 => Axis::F,
-            1 => Axis::X,
-            2 => Axis::Y,
-            3 => Axis::T,
-            _ => unreachable!(),
-        }
-    }
-
-    /// level から各軸の深度を返す
-    pub fn depth(level: u8) -> u8 {
-        level / NUM_AXES
-    }
-
-    /// FlexId の指定次元に対するズームレベルを返す
-    fn target_zoom(axis: Axis, target: &FlexId) -> u8 {
-        match axis {
-            Axis::F => target.f_zoomlevel(),
-            Axis::X => target.x_zoomlevel(),
-            Axis::Y => target.y_zoomlevel(),
-            Axis::T => target.t_zoomlevel(),
-        }
-    }
-
-    /// レベル `level` の Branch を降りるとき、target と交差しうる子を返す。
-    ///
-    /// 木を降りる操作（挿入・走査・削除）は、どれもこの判断を起点にする。
-    /// 交差判定を [`FlexId::intersection`] に委ねると、真偽値が欲しいだけの場所で
-    /// FlexId を構築してしまう。ここは [`covers`](Self::covers) /
-    /// [`forking`](Self::forking) のビット演算だけで同じ結論を出す。
-    pub(crate) fn overlapping_children(target: &FlexId, level: u8) -> OverlappingChildren {
-        if Self::covers(target, level) {
-            OverlappingChildren::Both
-        } else {
-            OverlappingChildren::Only(Self::forking(target, level))
-        }
-    }
-
-    /// 範囲 `target` に対して、レベル `level` の Branch を降りるとき交差しうる子を返す。
-    ///
-    /// `current_id` はこの Branch 自身が占める領域。時間軸の判定にだけ使う
-    /// （F/X/Y はターゲットの整数範囲とレベルから直接決まるが、時間は `Interval` が
-    /// 2の冪とは限らないので「共通ズームでの整数範囲」に落とせず、絶対秒区間で比較する）。
-    pub(crate) fn overlapping_children_range(
-        target: &crate::RangeId,
-        level: u8,
-        current_id: &FlexId,
-    ) -> OverlappingChildren {
-        let axis = Self::axis(level);
-
-        if matches!(axis, Axis::T) {
-            return Self::overlapping_children_time(target, current_id);
-        }
-
-        let depth = Self::depth(level);
-        let target_z = target.z();
-
-        if depth >= target_z {
-            return OverlappingChildren::Both;
-        }
-
-        let shift = target_z - 1 - depth;
-
-        // X軸は経度方向の周期境界を持ち、`x[0] > x[1]` が折り返し
-        // （[`RangeId::set_x`](crate::RangeId::set_x)と同じ規約）を表す。分解ロジックは
-        // `RangeId::split_wrapped_range` を共有する（x軸丸め込みと同じ規約を二重に持たない）。
-        // F/Yはこの規約を持たない（常に昇順）ので、そのまま単一区間として扱える。
-        if axis == Axis::X {
-            let x = target.x();
-            let xy_max = (1i64 << target_z) - 1;
-            if let Some([(a_min, a_max), (b_min, b_max)]) =
-                crate::RangeId::split_wrapped_range(x[0] as i64, x[1] as i64, xy_max)
-            {
-                let left = Self::which_child(a_min as u32, a_max as u32, shift);
-                let right = Self::which_child(b_min as u32, b_max as u32, shift);
-                return Self::union_overlapping_children(left, right);
+            Node::Empty => Node::Empty,
+            Node::Leaf(value) => Node::Leaf(value.clone()),
+            Node::Branch(branch) => Node::Branch(Arc::new(Branch::new(
+                branch.dimension,
+                branch.lower.with_summary(),
+                branch.upper.with_summary(),
+            ))),
+            Node::Skip(skip) => {
+                Node::Skip(Arc::new(Skip::new(skip.path, skip.child.with_summary())))
             }
         }
+    }
+}
 
-        let (min_idx, max_idx) = match axis {
-            Axis::F => (target.f()[0] as u32, target.f()[1] as u32),
-            Axis::X => (target.x()[0], target.x()[1]),
-            Axis::Y => (target.y()[0], target.y()[1]),
-            Axis::T => unreachable!("Tは上でBothを返し済み"),
+/// 2つの値の範囲を合わせた範囲。
+pub(super) fn wider_range<'a, V: Ord>(
+    a: Option<(&'a V, &'a V)>,
+    b: Option<(&'a V, &'a V)>,
+) -> Option<(&'a V, &'a V)> {
+    match (a, b) {
+        (Some((a_min, a_max)), Some((b_min, b_max))) => Some((a_min.min(b_min), a_max.max(b_max))),
+        (range, None) | (None, range) => range,
+    }
+}
+
+impl<V, S: Summary<V>> Branch<V, S> {
+    fn new(dimension: Dimension, lower: Node<V, S>, upper: Node<V, S>) -> Self {
+        let (Some(lower_summary), Some(upper_summary)) = (lower.summary(), upper.summary()) else {
+            unreachable!("Branch の子は空にならない")
         };
+        Branch {
+            dimension,
+            split_dimensions: dimension.bit() | lower.split_dimensions() | upper.split_dimensions(),
+            height: 1 + lower.height().max(upper.height()),
+            count: lower.count() + upper.count(),
+            summary: lower_summary.merge(&upper_summary),
+            lower,
+            upper,
+        }
+    }
+}
 
-        Self::which_child(min_idx, max_idx, shift)
+impl<V, S> Skip<V, S> {
+    fn new(path: RelativeFlexId, child: Node<V, S>) -> Self {
+        Skip {
+            split_dimensions: path.deeper_dimensions() | child.split_dimensions(),
+            path,
+            child,
+        }
+    }
+}
+
+impl<V, S: Summary<V>> Node<V, S> {
+    /// この Node と子孫の値の Summary。空なら [`None`]。
+    pub(super) fn summary(&self) -> Option<Cow<'_, S>> {
+        match self {
+            Node::Empty => None,
+            Node::Leaf(value) => Some(Cow::Owned(S::new(value))),
+            Node::Branch(branch) => Some(Cow::Borrowed(&branch.summary)),
+            Node::Skip(skip) => skip.child.summary(),
+        }
+    }
+}
+
+impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
+    /// `join` が Branch を作るなら true。
+    fn forms_branch(dimension: Dimension, lower: &Self, upper: &Self) -> bool {
+        // Node は領域との相対位置で意味を持つので、子孫が `dimension` で割っている Node を
+        // 広い領域へ持ち上げると意味が変わる。左右が同じでも、そのときは割ったままにする。
+        let same = lower.split_dimensions() & dimension.bit() == 0
+            && (lower.ptr_eq(upper) || lower == upper);
+        !lower.is_empty() && !upper.is_empty() && !same
     }
 
-    /// `[min_idx, max_idx]`（折り返しなし）が、レベルを1段降りたときにどちらの子と
-    /// 交差しうるかを返す。
-    fn which_child(min_idx: u32, max_idx: u32, shift: u8) -> OverlappingChildren {
-        let min_path = min_idx >> shift;
-        let max_path = max_idx >> shift;
+    /// 領域 `this` を `dimension` で割った左右 `lower`,`upper` を、カノニカル形の1つの[Node]に合わせる。
+    fn join(this: &FlexId, dimension: Dimension, lower: Self, upper: Self) -> Self {
+        // Branch はここと `merge` でしか作らない。これでどの操作の結果もカノニカル形になる。
+        if Node::forms_branch(dimension, &lower, &upper) {
+            return Node::Branch(Arc::new(Branch::new(dimension, lower, upper)));
+        }
+        // カノニカル形では Branch の子は空にならない
+        if lower.is_empty() {
+            let upper_id = this.split_on(dimension, Side::Upper).unwrap();
+            return Node::rebase(upper, &upper_id, this);
+        }
+        if upper.is_empty() {
+            let lower_id = this.split_on(dimension, Side::Lower).unwrap();
+            return Node::rebase(lower, &lower_id, this);
+        }
+        lower
+    }
 
-        if min_path == max_path {
-            if (min_path & 1) == 0 {
-                OverlappingChildren::Only(Side::Lower)
-            } else {
-                OverlappingChildren::Only(Side::Upper)
+    /// 領域 `from` から見た `node` を、領域 `to` から見た Node にする。`node` の中身は `to` に収まっていること。
+    ///
+    /// 他と共有していない Skip は、確保し直さずに行き先だけを付け替える。
+    pub(super) fn rebase(node: Self, from: &FlexId, to: &FlexId) -> Self {
+        match node {
+            _ if from == to => node,
+            Node::Empty => Node::Empty,
+            // Skip の先へさらに Skip しないよう、Skip の行き先から直接張り直す
+            Node::Skip(mut skip) => {
+                let region = skip.path.to_absolute(from).unwrap();
+                if region == *to {
+                    return Arc::unwrap_or_clone(skip).child;
+                }
+                let skip_mut = Arc::make_mut(&mut skip);
+                let child = mem::take(&mut skip_mut.child);
+                *skip_mut = Skip::new(region.relative_to(to).unwrap(), child);
+                Node::Skip(skip)
             }
-        } else {
-            OverlappingChildren::Both
+            node => Node::Skip(Arc::new(Skip::new(from.relative_to(to).unwrap(), node))),
         }
     }
 
-    /// 折り返した範囲を2つの非折り返し区間に分けて判定した結果を合成する。
-    /// どちらかが `Both` を返す、または互いに異なる側を指す場合は、
-    /// 全体としても両方の子と交差しうる。
-    fn union_overlapping_children(
-        a: OverlappingChildren,
-        b: OverlappingChildren,
-    ) -> OverlappingChildren {
-        match (a, b) {
-            (OverlappingChildren::Only(sa), OverlappingChildren::Only(sb)) if sa == sb => {
-                OverlappingChildren::Only(sa)
-            }
-            _ => OverlappingChildren::Both,
-        }
-    }
-
-    /// 時間軸について、`current_id` が占める時間Segmentを2分したときに `target` と交差しうる
-    /// 子を返す。
+    /// 領域 `this` のこの Node を `dimension` で割った `[下, 上]`（`join` の逆）。
     ///
-    /// Segmentの秒区間 `[start, end)` を中点で割り、それぞれがターゲットの秒区間と重なるかを見る。
-    /// `Interval` が2の冪でなくても絶対秒で比較するので正しく判定できる。
-    fn overlapping_children_time(
-        target: &crate::RangeId,
-        current_id: &FlexId,
-    ) -> OverlappingChildren {
-        let (target_start, target_end) = target.seconds_range();
-        let (start, end) = current_id.seconds_range();
-        let mid = start + (end - start) / 2;
-
-        let hits = |s: u64, e: u64| s < target_end && target_start < e;
-
-        match (hits(start, mid), hits(mid, end)) {
-            (true, true) => OverlappingChildren::Both,
-            (false, true) => OverlappingChildren::Only(Side::Upper),
-            // どちらとも交差しない場合（走査開始点がそもそも交差していないとき）も
-            // 片側を返すしかないが、葉に着いたあと `FlexId::intersects_range` で落ちる。
-            _ => OverlappingChildren::Only(Side::Lower),
-        }
-    }
-
-    /// target が、この `level` が担当する**1軸**について現在の空間境界を完全に覆うか判定する。
-    /// 全軸をまとめて見るのは [`covers_all_axes`](Self::covers_all_axes)。
+    /// `dimension` で割っていなければ、両側にこの Node を返す。
     ///
-    /// `shard.rs`がシャード領域から次に分割すべき軸・レベルを再構成する際にも使うため
-    /// `pub(crate)`にしている。
-    pub(crate) fn covers(target: &FlexId, level: u8) -> bool {
-        let axis = Self::axis(level);
-        let depth = Self::depth(level);
-        Self::target_zoom(axis, target) <= depth
-    }
-
-    /// レベル `level` に居るとき、サイクル内の位置 `p` の軸を何回分割し終えているか。
-    ///
-    /// `passed(level, p) = (level + (NUM_AXES - 1 - p)) / NUM_AXES`。
-    /// 軸数から導出するので、`temporal_id` の有無（4軸／3軸）どちらでも成り立つ。
-    const fn passed(level: u8, position: u8) -> u8 {
-        (level + (NUM_AXES - 1 - position)) / NUM_AXES
-    }
-
-    /// target が現在の空間境界を**全軸**で完全に覆うか判定する。
-    /// 1軸だけ見るのは [`covers`](Self::covers)。
-    pub(crate) fn covers_all_axes(target: &FlexId, level: u8) -> bool {
-        let spatial = target.f_zoomlevel() <= Self::passed(level, 0)
-            && target.x_zoomlevel() <= Self::passed(level, 1)
-            && target.y_zoomlevel() <= Self::passed(level, 2);
-
-        #[cfg(feature = "temporal_id")]
+    /// `halves` は `this` を `dimension` で割った `[下, 上]` の領域。
+    fn split(self, this: &FlexId, dimension: Dimension, halves: &[FlexId; 2]) -> [Self; 2] {
+        if let Node::Skip(skip) = &self
+            && skip.path.depth_on(dimension) > 0
         {
-            spatial && target.t_zoomlevel() <= Self::passed(level, 3)
+            let region = skip.path.to_absolute(this).unwrap();
+            let side = this.side_toward(dimension, &region);
+            let rest = Node::rebase(self, this, &halves[side as usize]);
+            return match side {
+                Side::Lower => [rest, Node::Empty],
+                Side::Upper => [Node::Empty, rest],
+            };
         }
-
-        // 3軸版にはTの番が無く、時間は常に全時間（ズーム0）なので判定不要。
-        #[cfg(not(feature = "temporal_id"))]
-        {
-            spatial
-        }
+        // その次元では中身が変わらないので、下も上も同じ中身になる
+        [self.clone(), self]
     }
 
-    /// 持続的データ構造に挿入します。
-    /// 参照カウントが1の場合は `SharedNode::make_mut` を使用してインプレースで更新します (Copy-on-Write最適化)。
-    pub fn insert_mut(
-        node: &mut SharedNode<Self>,
-        target: &FlexId,
-        value: &V,
-        level: u8,
-        empty_leaf: &SharedNode<Node<V>>,
+    /// 領域 `this` の `a` に `b` を `rule` に従って重ね合わせる。
+    ///
+    /// `rule` は、`a` と `b` から結果がすぐ決まるなら `a` を書き換えて true を返す。決まらなければ両方を割って子へ降りる。
+    /// 他と共有していない Branch・Skip は作り直さずに書き換え、共有しているものは複製してから書き換える。
+    pub(super) fn merge<W, T>(
+        this: &FlexId,
+        a: &mut Self,
+        b: View<'_, W, T>,
+        rule: &impl Fn(&FlexId, &mut Self, View<'_, W, T>) -> bool,
     ) {
-        // 現在のノードがすでに Leaf であり、値が同一ならそのまま終了(Result Reuse)
-        if let Node::Leaf {
-            value: Some(ref existing),
-        } = **node
-            && existing == value
+        if rule(this, a, b) {
+            return;
+        }
+        // Skip どうしは、行き先が分かれるところまで1段ずつ割らずに一気に降りる
+        if let Node::Skip(skip) = a
+            && let Some((region_b, child_b)) = b.as_skip(this)
         {
-            return;
-        }
-
-        // 完全にターゲットが現在の空間全体を覆う場合、O(1)でLeafに置換する
-        if Self::covers_all_axes(target, level) {
-            *node = SharedNode::new(Node::Leaf {
-                value: Some(value.clone()),
-            });
-            return;
-        }
-
-        let node_level = node.node_level();
-
-        let mut current_level = level;
-
-        // 無関係な次元をスキップ
-        while current_level < node_level && Self::covers(target, current_level) {
-            current_level += 1;
-        }
-
-        // 完全に target に覆い尽くされた場合、全体を塗りつぶす
-        if current_level >= LEAF_LEVEL {
-            *node = SharedNode::new(Node::Leaf {
-                value: Some(value.clone()),
-            });
-            return;
-        }
-
-        // 既存のツリーに欠けている階層 (Prepend missing level) を補うために Branch を作成する
-        if current_level < node_level {
-            let side = Self::forking(target, current_level);
-
-            let (new_lower, new_upper) = match side {
-                Side::Lower => {
-                    let mut lo = node.clone();
-                    Self::insert_mut(&mut lo, target, value, current_level + 1, empty_leaf);
-                    (lo, node.clone())
-                }
-                Side::Upper => {
-                    let mut hi = node.clone();
-                    Self::insert_mut(&mut hi, target, value, current_level + 1, empty_leaf);
-                    (node.clone(), hi)
-                }
-            };
-
-            *node = Self::mk(current_level, new_lower, new_upper, empty_leaf);
-            return;
-        }
-
-        // current_level == node_level の場合
-        // ここが Copy-on-Write のコア。可能なら node の中身を mutable に取得する。
-        let replacement = {
-            let mut_node = SharedNode::make_mut(node);
-
-            if let Node::Branch {
-                level: l,
-                lower_child,
-                upper_child,
-                leaf_count,
-                max_zoom,
-                split_mask,
-            } = mut_node
-            {
-                match Self::overlapping_children(target, *l) {
-                    OverlappingChildren::Both => {
-                        Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf);
-                        Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf);
+            let region_a = skip.path.to_absolute(this).unwrap();
+            let at = common_descent(this, (&region_a, &skip.child), (&region_b, child_b));
+            let b = View::skip(&at, region_b, child_b);
+            if at == region_a {
+                // 変わるのは行き先の中だけなので、Skip を作り直さずに先の Node を書き換える
+                let skip = Arc::make_mut(skip);
+                Node::merge(&at, &mut skip.child, b, rule);
+                match mem::take(&mut skip.child) {
+                    child @ (Node::Leaf(_) | Node::Branch(_)) => {
+                        *skip = Skip::new(skip.path, child)
                     }
-                    OverlappingChildren::Only(Side::Lower) => {
-                        Self::insert_mut(lower_child, target, value, *l + 1, empty_leaf)
-                    }
-                    OverlappingChildren::Only(Side::Upper) => {
-                        Self::insert_mut(upper_child, target, value, *l + 1, empty_leaf)
-                    }
+                    child => *a = Node::rebase(child, &at, this),
                 }
+                return;
+            }
+            if at != *this {
+                let mut inner = Node::rebase(mem::take(a), this, &at);
+                Node::merge(&at, &mut inner, b, rule);
+                *a = Node::rebase(inner, &at, this);
+                return;
+            }
+        }
+        // 結果もカノニカル形（粗い次元から割る）になるよう、両方の最初の次元のうち粗い方で割る
+        let dimension = this
+            .coarsest_dimension_in(a.head_dimensions() | b.head_dimensions(this))
+            .expect("Leaf どうしは rule が答えを決める");
+        let lower_id = this.split_on(dimension, Side::Lower).unwrap();
+        let upper_id = this.split_on(dimension, Side::Upper).unwrap();
+        let halves = [lower_id, upper_id];
+        let [b_lower, b_upper] = b.split(this, dimension, &halves);
 
-                *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
-                *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
-                *split_mask = Self::fold_split_mask(*l, lower_child, upper_child);
-
-                Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
+        if let Node::Branch(branch) = a
+            && branch.dimension == dimension
+        {
+            let branch = Arc::make_mut(branch);
+            Node::merge(&lower_id, &mut branch.lower, b_lower, rule);
+            Node::merge(&upper_id, &mut branch.upper, b_upper, rule);
+            let lower = mem::take(&mut branch.lower);
+            let upper = mem::take(&mut branch.upper);
+            if Node::forms_branch(dimension, &lower, &upper) {
+                *branch = Branch::new(dimension, lower, upper);
             } else {
-                unreachable!()
+                *a = Node::join(this, dimension, lower, upper);
             }
-        };
-
-        if let Some(rep) = replacement {
-            *node = rep;
+            return;
         }
+        let [mut lower, mut upper] = mem::take(a).split(this, dimension, &halves);
+        Node::merge(&lower_id, &mut lower, b_lower, rule);
+        Node::merge(&upper_id, &mut upper, b_upper, rule);
+        *a = Node::join(this, dimension, lower, upper);
     }
 
-    /// 持続的データ構造にポリシー付きで挿入します。
-    /// 重なりが生じた場合は、指定された resolve ポリシーで値を解決します。
-    pub fn insert_mut_with<R>(
-        node: &mut SharedNode<Self>,
-        target: &FlexId,
-        value: &V,
-        level: u8,
-        empty_leaf: &SharedNode<Node<V>>,
-        resolve: &R,
-    ) where
-        R: Fn(&V, &V) -> V,
-    {
-        // 完全にターゲットが現在の空間全体を覆う場合
-        if Self::covers_all_axes(target, level) {
-            Self::fill_or_merge_mut(node, value, empty_leaf, resolve);
-            return;
+    /// 和。`a` に値がある場所は `a`、無い場所は `b`。
+    pub(super) fn union_rule(this: &FlexId, a: &mut Self, b: View<'_, V, S>) -> bool {
+        if a.is_empty() {
+            *a = b.to_node(this);
+            return true;
         }
+        matches!(a, Node::Leaf(_)) || b.is_empty() || b.ptr_eq(a)
+    }
 
-        let node_level = node.node_level();
-        let mut current_level = level;
-
-        // 無関係な次元をスキップ
-        while current_level < node_level && Self::covers(target, current_level) {
-            current_level += 1;
+    /// 積。`b` に値がある場所だけ `a` を残す。
+    pub(super) fn intersection_rule<W, T>(_: &FlexId, a: &mut Self, b: View<'_, W, T>) -> bool {
+        if b.is_empty() {
+            *a = Node::Empty;
+            return true;
         }
+        a.is_empty() || b.leaf().is_some() || b.ptr_eq(a)
+    }
 
-        // 完全に target に覆い尽くされた場合、全体を塗りつぶす/マージする
-        if current_level >= LEAF_LEVEL {
-            Self::fill_or_merge_mut(node, value, empty_leaf, resolve);
-            return;
+    /// 差。`b` に値がある場所の `a` を消す。
+    pub(super) fn difference_rule<W, T>(_: &FlexId, a: &mut Self, b: View<'_, W, T>) -> bool {
+        if b.leaf().is_some() || b.ptr_eq(a) {
+            *a = Node::Empty;
+            return true;
         }
+        a.is_empty() || b.is_empty()
+    }
 
-        // 既存のツリーに欠けている階層を補うために Branch を作成する
-        if current_level < node_level {
-            let side = Self::forking(target, current_level);
-
-            let (new_lower, new_upper) = match side {
-                Side::Lower => {
-                    let mut lo = node.clone();
-                    Self::insert_mut_with(
-                        &mut lo,
-                        target,
-                        value,
-                        current_level + 1,
-                        empty_leaf,
-                        resolve,
-                    );
-                    (lo, node.clone())
-                }
-                Side::Upper => {
-                    let mut hi = node.clone();
-                    Self::insert_mut_with(
-                        &mut hi,
-                        target,
-                        value,
-                        current_level + 1,
-                        empty_leaf,
-                        resolve,
-                    );
-                    (node.clone(), hi)
-                }
-            };
-
-            *node = Self::mk(current_level, new_lower, new_upper, empty_leaf);
-            return;
-        }
-
-        // current_level == node_level の場合 (Copy-on-Write)
-        let replacement = {
-            let mut_node = SharedNode::make_mut(node);
-
-            if let Node::Branch {
-                level: l,
-                lower_child,
-                upper_child,
-                leaf_count,
-                max_zoom,
-                split_mask,
-            } = mut_node
-            {
-                match Self::overlapping_children(target, *l) {
-                    OverlappingChildren::Both => {
-                        Self::insert_mut_with(
-                            lower_child,
-                            target,
-                            value,
-                            *l + 1,
-                            empty_leaf,
-                            resolve,
-                        );
-                        Self::insert_mut_with(
-                            upper_child,
-                            target,
-                            value,
-                            *l + 1,
-                            empty_leaf,
-                            resolve,
-                        );
+    /// 領域 `this` のこの Node から、条件を満たす Leaf だけを残した Node を返す。何も捨てなければ [`None`]。
+    ///
+    /// Branch は領域と Summary を `classify` で判断し、子孫をまとめて残すか捨てられるならそれ以上降りない。
+    /// Leaf は領域と値を `keep` で判断する。
+    pub(super) fn filter(
+        &self,
+        this: &FlexId,
+        classify: &impl Fn(&FlexId, &S) -> Decision,
+        keep: &impl Fn(&FlexId, &V) -> bool,
+    ) -> Option<Self> {
+        match self {
+            Node::Empty => None,
+            Node::Leaf(value) => (!keep(this, value)).then_some(Node::Empty),
+            Node::Branch(branch) => match classify(this, &branch.summary) {
+                Decision::KeepAll => None,
+                Decision::DropAll => Some(Node::Empty),
+                Decision::Descend => {
+                    let dimension = branch.dimension;
+                    let lower_id = this.split_on(dimension, Side::Lower).unwrap();
+                    let upper_id = this.split_on(dimension, Side::Upper).unwrap();
+                    let lower = branch.lower.filter(&lower_id, classify, keep);
+                    let upper = branch.upper.filter(&upper_id, classify, keep);
+                    if lower.is_none() && upper.is_none() {
+                        return None;
                     }
-                    OverlappingChildren::Only(Side::Lower) => Self::insert_mut_with(
-                        lower_child,
-                        target,
-                        value,
-                        *l + 1,
-                        empty_leaf,
-                        resolve,
-                    ),
-                    OverlappingChildren::Only(Side::Upper) => Self::insert_mut_with(
-                        upper_child,
-                        target,
-                        value,
-                        *l + 1,
-                        empty_leaf,
-                        resolve,
-                    ),
+                    let lower = lower.unwrap_or_else(|| branch.lower.clone());
+                    let upper = upper.unwrap_or_else(|| branch.upper.clone());
+                    Some(Node::join(this, dimension, lower, upper))
                 }
-
-                *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
-                *max_zoom = Self::fold_max_zoom(*l, lower_child, upper_child);
-                *split_mask = Self::fold_split_mask(*l, lower_child, upper_child);
-
-                Self::collapse_equal_children(lower_child, upper_child, *l, empty_leaf)
-            } else {
-                unreachable!()
+            },
+            Node::Skip(skip) => {
+                let region = skip.path.to_absolute(this).unwrap();
+                let child = skip.child.filter(&region, classify, keep)?;
+                Some(Node::rebase(child, &region, this))
             }
-        };
-
-        if let Some(rep) = replacement {
-            *node = rep;
-        }
-    }
-
-    /// node 配下のすべての Leaf について、値があれば resolve(v, value) を適用し、
-    /// 空 (None) であれば value で埋める。
-    fn fill_or_merge_mut<R>(
-        node: &mut SharedNode<Self>,
-        value: &V,
-        empty_leaf: &SharedNode<Node<V>>,
-        resolve: &R,
-    ) where
-        R: Fn(&V, &V) -> V,
-    {
-        let replacement = {
-            let mut_node = SharedNode::make_mut(node);
-            match mut_node {
-                Node::Branch {
-                    level,
-                    lower_child,
-                    upper_child,
-                    leaf_count,
-                    max_zoom,
-                    split_mask,
-                } => {
-                    Self::fill_or_merge_mut(lower_child, value, empty_leaf, resolve);
-                    Self::fill_or_merge_mut(upper_child, value, empty_leaf, resolve);
-                    *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
-                    *max_zoom = Self::fold_max_zoom(*level, lower_child, upper_child);
-                    *split_mask = Self::fold_split_mask(*level, lower_child, upper_child);
-                    Self::collapse_equal_children(lower_child, upper_child, *level, empty_leaf)
-                }
-                Node::Leaf { value: existing } => {
-                    if let Some(v) = existing {
-                        *v = resolve(v, value);
-                    } else {
-                        *existing = Some(value.clone());
-                    }
-                    None
-                }
-            }
-        };
-        if let Some(rep) = replacement {
-            *node = rep;
-        }
-    }
-
-    /// 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳む置換ノードを返す。
-    ///
-    /// 葉同士（同値）の uniform-fill だけでなく、**等価な非葉サブツリー**（＝その軸が
-    /// 効かない＝1段粗くできる異方Segment）も畳む。Node の derived `PartialEq` は
-    /// `level`/`leaf_count`/`max_zoom`（O(1) キャッシュ）を先に比較して短絡するため、
-    /// 等価でない大半の枝は深い比較に入らず弾かれる。
-    pub(crate) fn collapse_equal_children(
-        lower_child: &SharedNode<Node<V>>,
-        upper_child: &SharedNode<Node<V>>,
-        level: u8,
-        empty_leaf: &SharedNode<Node<V>>,
-    ) -> Option<SharedNode<Node<V>>> {
-        // 2つの子が値として等価なら、この軸の分割は冗長なので片方へ畳める。
-        // 葉同士（uniform-fill）だけでなく、等価な非葉サブツリー（＝その軸が効かない
-        // 1段粗い異方Segment）も畳む＝FlexId の異方圧縮を効かせる。
-        //
-        // ただし畳めるのは「畳む軸 axis(level) を子側がこれ以上分割しない」＝この分割が
-        // その軸の最深分割のときに限る。さもないと軸の分割深さに途中ギャップができ、
-        // 階層細分として表現不能になって座標再構成（[`LeavesIter`] / [`split_child_id`]）が
-        // 壊れる（接頭辞のみ＝接尾辞トリムだけが許される不変条件）。
-        //
-        // 「畳む軸を子がそれ以深で分割しているか」はキャッシュ済み `split_mask` の
-        // ビットテストで O(1) に判定する（旧 subtree_splits_axis の O(部分木) 走査を排除）。
-        // 子が等価なら両子の split_mask は一致するため、lower 側だけ見れば足りる。
-        // ここを先に弾くことで、非等価な大半の枝は深い比較（O(部分木)）に入らない。
-        let axis_bit = Self::axis_bit(Self::axis(level));
-        if (lower_child.split_mask() & axis_bit) != 0 {
-            return None;
-        }
-
-        // ptr_eq なら値も必ず等価なので、深い等価比較（O(部分木)）を省く。
-        // union 後など構造共有された左右の子で効く。
-        if SharedNode::ptr_eq(lower_child, upper_child) || **lower_child == **upper_child {
-            Some(if matches!(&**lower_child, Node::Leaf { value: None }) {
-                empty_leaf.clone()
-            } else {
-                lower_child.clone()
-            })
-        } else {
-            None
-        }
-    }
-
-    /// target の次元ごとのインデックスビットを取得し、Lower / Upper を判定する。
-    ///
-    /// Tのインデックスは`u64`（他軸は`u32`以下）のため、比較は`u64`へ揃えて行う
-    /// （F/Xは既存と同じビットパターンでゼロ拡張されるだけで意味は変わらない）。
-    fn forking(target: &FlexId, level: u8) -> Side {
-        let axis = Self::axis(level);
-        let depth = Self::depth(level);
-
-        let (target_z, index): (u8, u64) = match axis {
-            Axis::F => (target.f_zoomlevel(), (target.f_index() as u32) as u64),
-            Axis::X => (target.x_zoomlevel(), target.x_index() as u64),
-            Axis::Y => (target.y_zoomlevel(), target.y_index() as u64),
-            Axis::T => (target.t_zoomlevel(), target.t()),
-        };
-
-        if depth >= target_z {
-            return Side::Lower;
-        }
-
-        let shift = target_z - 1 - depth;
-        let bit = (index >> shift) & 1;
-
-        if bit == 0 { Side::Lower } else { Side::Upper }
-    }
-
-    /// ノード以下すべての値をインプレースで更新します。
-    ///
-    /// 値の書き換えで隣接領域が同値になった場合は巻き戻しで畳み込む（[`mk`](Self::mk) と
-    /// 同じ規則）ため、変換後も正規形を保つ。子が畳み込みで縮むと `leaf_count` /
-    /// `max_zoom` も変わりうるため、全キャッシュを再計算する。
-    #[cfg(test)]
-    pub(crate) fn map_values_mut<F>(
-        node: &mut SharedNode<Node<V>>,
-        f: &mut F,
-        empty_leaf: &SharedNode<Node<V>>,
-    ) where
-        F: FnMut(&mut V),
-    {
-        let replacement = {
-            let mut_node = SharedNode::make_mut(node);
-            match mut_node {
-                Node::Branch {
-                    level,
-                    lower_child,
-                    upper_child,
-                    leaf_count,
-                    max_zoom,
-                    split_mask,
-                } => {
-                    Self::map_values_mut(lower_child, f, empty_leaf);
-                    Self::map_values_mut(upper_child, f, empty_leaf);
-                    *leaf_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
-                    *max_zoom = Self::fold_max_zoom(*level, lower_child, upper_child);
-                    *split_mask = Self::fold_split_mask(*level, lower_child, upper_child);
-                    Self::collapse_equal_children(lower_child, upper_child, *level, empty_leaf)
-                }
-                Node::Leaf { value: Some(v) } => {
-                    f(v);
-                    None
-                }
-                Node::Leaf { value: None } => None,
-            }
-        };
-        if let Some(rep) = replacement {
-            *node = rep;
         }
     }
 }
 
-#[cfg(test)]
-impl<V> Node<V>
-where
-    V: SafeValue,
-{
-    /// FXY-正規形（N1〜N4）をこのノード配下について再帰検査する。違反時は理由を返す。
-    ///
-    /// - N1: 畳める Branch（両子が等価かつその軸をそれ以深で分割しない）が存在しない。
-    /// - N2: `leaf_count == 0` の Branch が存在しない（空は葉で表現される）。
-    /// - N4: 子も正規形。
-    /// - あわせてキャッシュ（`leaf_count` / `max_zoom` / `split_mask`）の整合も検査する。
-    pub(crate) fn check_canonical(&self) -> Result<(), alloc::string::String> {
-        let Node::Branch {
-            level,
-            leaf_count,
-            max_zoom,
-            split_mask,
-            lower_child,
-            upper_child,
-        } = self
-        else {
-            return Ok(());
-        };
-
-        lower_child.check_canonical()?;
-        upper_child.check_canonical()?;
-
-        let expected_count = (lower_child.leaf_count() + upper_child.leaf_count()) as u32;
-        if *leaf_count != expected_count {
-            return Err(alloc::format!(
-                "level {level}: stale leaf_count {leaf_count} != {expected_count}"
-            ));
-        }
-        let expected_zoom = Self::fold_max_zoom(*level, lower_child, upper_child);
-        if *max_zoom != expected_zoom {
-            return Err(alloc::format!(
-                "level {level}: stale max_zoom {max_zoom} != {expected_zoom}"
-            ));
-        }
-        let expected_mask = Self::fold_split_mask(*level, lower_child, upper_child);
-        if *split_mask != expected_mask {
-            return Err(alloc::format!(
-                "level {level}: stale split_mask {split_mask:#05b} != {expected_mask:#05b}"
-            ));
-        }
-
-        // N2: 空の Branch は存在してはならない。
-        if *leaf_count == 0 {
-            return Err(alloc::format!("level {level}: empty branch violates N2"));
-        }
-
-        // N1: 畳めるのに畳んでいない Branch は存在してはならない。
-        let axis_bit = Self::axis_bit(Self::axis(*level));
-        if (lower_child.split_mask() & axis_bit) == 0 && **lower_child == **upper_child {
-            return Err(alloc::format!(
-                "level {level}: collapsible branch violates N1"
-            ));
-        }
-
-        Ok(())
+/// 行き先 `region`・その先の Node がそれぞれ `a`・`b` の 2 つの Skip が、領域 `this` から
+/// 途中で割らずに一緒に降りられる一番狭い領域。
+///
+/// 1段ずつ降りると、各次元をズームの浅い順（同じなら F→X→Y→T）に1段ずつ深くしていく。
+/// 次元ごとに「両方の行き先が同じ側にいられる一番深いズーム」で止まり、そこで降りられなくなる
+/// 次元のうち一番先に順番が来るもので全体が止まる。止まる位置は次元ごとに直接求まるので、
+/// Skip の長さぶん1段ずつ辿らない。
+pub(super) fn common_descent<V, S, W, T>(
+    this: &FlexId,
+    (region_a, child_a): (&FlexId, &Node<V, S>),
+    (region_b, child_b): (&FlexId, &Node<W, T>),
+) -> FlexId {
+    let splits = child_a.split_dimensions() | child_b.split_dimensions();
+    let mut bound = [0u8; 4];
+    let mut blocks = [false; 4];
+    for d in Dimension::ALL {
+        let (za, zb) = (region_a.zoomlevel_on(d), region_b.zoomlevel_on(d));
+        let deepest = za.min(zb);
+        let diff =
+            (region_a.index_on(d) >> (za - deepest)) ^ (region_b.index_on(d) >> (zb - deepest));
+        // 一番上の食い違うビットより上だけが一致している
+        let agree = deepest - (u64::BITS - (diff as u64).leading_zeros()) as u8;
+        bound[d as usize] = agree;
+        // ここまで降りても、どちらかがまだこの次元で深いか、先の Node がこの次元で割っているなら止まる
+        blocks[d as usize] = za > agree || zb > agree || splits & d.bit() != 0;
     }
+    let stop = Dimension::ALL
+        .into_iter()
+        .filter(|&d| blocks[d as usize])
+        .min_by_key(|&d| (bound[d as usize], d));
+    let zoom = Dimension::ALL.map(|d| {
+        let reach = match stop {
+            None => bound[d as usize],
+            // 止まる次元より前の次元は、同じ深さの番を1段ぶん先に済ませている
+            Some(s) => bound[d as usize].min(bound[s as usize] + u8::from(d < s)),
+        };
+        this.zoomlevel_on(d).max(reach)
+    });
+    region_a.ancestor_at(zoom)
 }

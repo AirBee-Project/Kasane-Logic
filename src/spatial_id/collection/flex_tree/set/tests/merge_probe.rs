@@ -1,7 +1,7 @@
 //! マージ（圧縮）正当性の回帰テスト。
 //!
 //! 「merge できる FlexId が merge されない」漏れが無いことを、(1) 内部不変条件
-//! （`Branch{Leaf(v), Leaf(v)}` が残らない）、(2) 正規形（iter→再挿入で count 不変）、
+//! （挿入し直した木と一致する）、(2) 正規形（iter→再挿入で count 不変）、
 //! (3) 再帰 collapse のカスケード、の3観点で insert / union / intersection /
 //! difference にわたり検査する。
 #![cfg(test)]
@@ -9,7 +9,6 @@
 #[cfg(test)]
 use alloc::vec::Vec;
 
-use crate::spatial_id::collection::flex_tree::core::node::Node;
 use crate::spatial_id::collection::flex_tree::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
@@ -55,35 +54,6 @@ proptest! {
         prop_assert_eq!(sorted_single_ids(&(&sa - &sb), z), exp_diff,
             "difference: a={} b={}", a.debug_summary(), b.debug_summary());
     }
-}
-
-/// Branch の「両子が値として等しい」ノード数を数える（＝冗長な軸分割＝スキップで畳める）。
-fn count_equal_child_branches(node: &Node<()>) -> usize {
-    match node {
-        Node::Leaf { .. } => 0,
-        Node::Branch {
-            lower_child,
-            upper_child,
-            ..
-        } => {
-            let here = if **lower_child == **upper_child { 1 } else { 0 };
-            here + count_equal_child_branches(lower_child) + count_equal_child_branches(upper_child)
-        }
-    }
-}
-
-/// ガード付き collapse 適用後、X ストリップの木に「両子が等しい Branch」（＝最深軸の
-/// 冗長分割）が 1 つも残らない（異方圧縮が効いている）こと。
-#[test]
-fn x_strip_has_no_redundant_branch() {
-    let z = 4u8;
-    let mut x_strip = SpatialIdSet::new();
-    x_strip.insert(SingleId::new(z, 0, 0, 0).unwrap());
-    x_strip.insert(SingleId::new(z, 0, 1, 0).unwrap());
-
-    let redundant = count_equal_child_branches(&x_strip.inner.lower_root)
-        + count_equal_child_branches(&x_strip.inner.upper_root);
-    assert_eq!(redundant, 0, "no redundant equal-child branch must remain");
 }
 
 /// 道路（平面ストリップ）の X/Y 方向マージ対称性。
@@ -183,30 +153,10 @@ fn table_full_cube_same_value_collapses() {
     assert!(t.count() > 1, "mixed values must not fully collapse");
 }
 
-/// 「両子が等しい値の Leaf」な Branch が存在しないこと（未適用マージ＝バグ）を再帰検査する。
-/// 戻り値 false = 未適用マージを発見。
-fn no_unmerged_leaf_branch(node: &Node<()>) -> bool {
-    match node {
-        Node::Leaf { .. } => true,
-        Node::Branch {
-            lower_child,
-            upper_child,
-            ..
-        } => {
-            if let (Node::Leaf { value: v1 }, Node::Leaf { value: v2 }) =
-                (&**lower_child, &**upper_child)
-                && v1 == v2
-            {
-                return false; // Leaf(v)+Leaf(v) が collapse されずに残っている
-            }
-            no_unmerged_leaf_branch(lower_child) && no_unmerged_leaf_branch(upper_child)
-        }
-    }
-}
-
-/// Set の上下ルートをともに検査する。
+/// 未適用のマージが残っていないこと。木は正規形で一意に定まるので、
+/// 全Segmentを挿入し直した木と構造が一致するかで判定する。
 fn set_is_fully_merged(set: &SpatialIdSet) -> bool {
-    no_unmerged_leaf_branch(&set.inner.lower_root) && no_unmerged_leaf_branch(&set.inner.upper_root)
+    rebuilt(set) == *set
 }
 
 /// union(F下半分, F上半分) は完全立方体 → 1 葉へ collapse（演算をまたぐマージ）。
@@ -527,7 +477,7 @@ fn verify_f_strip_coverage_preserved() {
     }
     // マージ後 count は減るが、最細Segmentへ展開すると元の 10 Segmentと一致するはず（被覆不変）。
     let mut got = std::collections::BTreeSet::new();
-    for (sid, _) in set.flat_single_ids().map(|s| (s, ())) {
+    for (sid, _) in set.flat_single_ids(None).map(|s| (s, ())) {
         assert_eq!(sid.z(), ZoomLevel::MAX.get());
         got.insert((sid.f(), sid.x(), sid.y()));
     }

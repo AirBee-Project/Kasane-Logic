@@ -16,20 +16,12 @@ use crate::{SpatialIdError, error::Error};
 /// | [`SECOND`](Self::SECOND) | 1 |
 #[cfg(feature = "temporal_id")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 #[repr(transparent)]
 pub struct Interval(u64);
 
 /// `temporal_id` feature 無効時の [`Interval`]。常に全時間を表すサイズ0のスタブ。
 #[cfg(not(feature = "temporal_id"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "persist",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
 pub struct Interval;
 
 impl Interval {

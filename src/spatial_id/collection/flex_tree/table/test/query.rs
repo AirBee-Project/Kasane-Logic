@@ -15,7 +15,7 @@ mod tests {
         ]);
 
         let actual: Vec<_> = table
-            .get(&first)
+            .get(first.clone())
             .map(|(flex_id, value)| (flex_id, *value))
             .collect();
         assert_eq!(actual.len(), 1);
@@ -47,46 +47,30 @@ mod tests {
         assert_eq!(wrapped.x(), [1, 0]);
 
         let full = RangeId::new(2, 0, [0, 3], 0).unwrap();
-        let via_wrapped_count = table.get_range(&wrapped).count();
-        let via_full_count = table.get_range(&full).count();
+        let via_wrapped_count = table.get_overlapping(wrapped.clone()).count();
+        let via_full_count = table.get_overlapping(full.clone()).count();
 
         assert_eq!(via_wrapped_count, 1, "折り返し範囲でも1件ヒットするはず");
         assert_eq!(via_wrapped_count, via_full_count);
     }
 
-    /// value_range() が値の範囲条件に一致する組だけを順序付きで返すことを検証する。
+    /// value_range() が値の範囲条件に一致する組だけを返すことを検証する。
     #[test]
-    fn value_range_returns_expected_pairs_in_order() {
+    fn value_range_returns_expected_pairs() {
         let table = build_table(&[
             TableEntry::Single(SingleId::new(4, 3, 2, 1).unwrap(), 10),
             TableEntry::Single(SingleId::new(4, 3, 2, 2).unwrap(), 20),
             TableEntry::Range(RangeId::new(3, [0, 1], [1, 1], [2, 2]).unwrap(), 30),
         ]);
 
-        let actual: Vec<_> = table
-            .value_range(10..=20)
-            .map(|(flex_id, value)| (flex_id, *value))
+        let mut actual: Vec<i32> = table
+            .filter_range(10..=20)
+            .into_iter()
+            .map(|(_, value)| value)
             .collect();
+        actual.sort();
 
-        assert_eq!(actual.len(), 2);
-        assert_eq!(actual[0].1, 10);
-        assert_eq!(actual[1].1, 20);
-    }
-
-    /// values() が保持している値を重複なく昇順で返すことを検証する。
-    #[test]
-    fn values_returns_unique_sorted_values() {
-        let table = build_table(&[
-            TableEntry::Single(SingleId::new(4, 3, 2, 1).unwrap(), 20),
-            TableEntry::Single(SingleId::new(4, 3, 2, 2).unwrap(), 10),
-            TableEntry::Range(RangeId::new(3, [0, 1], [1, 1], [2, 2]).unwrap(), 30),
-            TableEntry::Single(SingleId::new(4, 3, 2, 3).unwrap(), 20),
-        ]);
-
-        assert_eq!(
-            table.values().copied().collect::<Vec<_>>(),
-            vec![10, 20, 30]
-        );
+        assert_eq!(actual, vec![10, 20]);
     }
 
     /// iter() がテーブル中の全ての ID と値の組を返すことを検証する。

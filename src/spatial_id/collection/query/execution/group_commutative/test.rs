@@ -1,9 +1,9 @@
 use crate::{
     Source, SpatialIdTable,
-    spatial_id::collection::flex_tree::core::SafeValue,
     spatial_id::collection::query::execution::Query,
     spatial_id::collection::query::merge_policy::{Max, Sum},
     spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
+    spatial_id::collection::query::send_sync::SafeValue,
 };
 
 /// AST中に `Query::CommutativeGroup` ノードが1つでも存在するか（再帰探索）。

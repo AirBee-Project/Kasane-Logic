@@ -1,17 +1,15 @@
-use crate::{FlexId, SpatialIdSet};
+use crate::{SpatialId, SpatialIdSet};
 
-impl FromIterator<FlexId> for SpatialIdSet {
-    fn from_iter<T: IntoIterator<Item = FlexId>>(iter: T) -> Self {
+impl<S: SpatialId> FromIterator<S> for SpatialIdSet {
+    fn from_iter<T: IntoIterator<Item = S>>(iter: T) -> Self {
         let mut set = SpatialIdSet::new();
-        for item in iter {
-            set.insert(item);
-        }
+        set.extend(iter);
         set
     }
 }
 
-impl Extend<FlexId> for SpatialIdSet {
-    fn extend<T: IntoIterator<Item = FlexId>>(&mut self, iter: T) {
+impl<S: SpatialId> Extend<S> for SpatialIdSet {
+    fn extend<T: IntoIterator<Item = S>>(&mut self, iter: T) {
         for item in iter {
             self.insert(item);
         }
@@ -20,10 +18,9 @@ impl Extend<FlexId> for SpatialIdSet {
 
 /// 空間 ID 列から [`SpatialIdSet`] を並列に構築する（`feature = "rayon"`）。
 ///
-/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`] のいずれの
-/// [`SpatialId`](crate::SpatialId) 型でも受け取れる。各要素を [`FlexId`] へ展開してから
-/// `FlexTreeCore::par_build_vec`(crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec) で並列構築する。
-/// 集合なので結果は挿入順・チャンク境界に依らず一意（正規形）に定まる。
+/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`](crate::FlexId) のいずれの
+/// [`SpatialId`] 型でも受け取れる。集合なので結果は挿入順・チャンク境界に依らず
+/// 一意（正規形）に定まる。
 ///
 /// ```
 /// use kasane_logic::{SingleId, SpatialIdSet};
@@ -46,14 +43,11 @@ where
         I: rayon::iter::IntoParallelIterator<Item = S>,
     {
         use rayon::prelude::*;
-        let items: alloc::vec::Vec<(FlexId, ())> = par_iter
-            .into_par_iter()
-            .flat_map_iter(|s| s.into_iter().map(|f| (f, ())))
-            .collect();
         Self {
-            inner: crate::spatial_id::collection::flex_tree::core::FlexTreeCore::par_build_vec(
-                items,
-            ),
+            inner: par_iter
+                .into_par_iter()
+                .flat_map_iter(|id| id.into_iter().map(|flex_id| (flex_id, ())))
+                .collect(),
         }
     }
 }
@@ -68,8 +62,11 @@ where
     where
         I: rayon::iter::IntoParallelIterator<Item = S>,
     {
-        use rayon::iter::FromParallelIterator;
-        let other = Self::from_par_iter(par_iter);
-        self.inner = self.inner.union(&other.inner);
+        use rayon::prelude::*;
+        self.inner.par_extend(
+            par_iter
+                .into_par_iter()
+                .flat_map_iter(|id| id.into_iter().map(|flex_id| (flex_id, ()))),
+        );
     }
 }

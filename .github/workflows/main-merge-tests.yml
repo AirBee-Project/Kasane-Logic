@@ -60,7 +60,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo test --locked --lib --bins --tests --no-default-features --features "$feature"
           done
@@ -69,7 +69,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,persist")
+          features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo test --locked --lib --bins --tests --no-default-features --features "$feature" -- --ignored
           done
@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,persist")
+          features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo test --locked --doc --no-default-features --features "$feature"
           done
@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
           done
@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,persist" "std,rayon,random,temporal_id,persist")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
           done

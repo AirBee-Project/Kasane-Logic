@@ -1,3 +1,6 @@
+/// 値や演算子に課す `Send + Sync` の制約
+pub mod send_sync;
+
 /// クエリ実行を途中で打ち切るための協調的キャンセル
 pub mod cancellation;
 
@@ -16,9 +19,6 @@ pub mod merge_policy;
 /// クエリの実行用Trait
 pub mod source;
 
-/// クエリの作業表現（`WorkingTree`）
-pub mod working;
-
 /// クエリの表示の実装
 pub mod fmt;
 
@@ -26,4 +26,3 @@ pub mod fmt;
 pub mod grid;
 pub use execution::Query;
 pub use merge_policy::MergePolicy;
-pub use working::WorkingTree;

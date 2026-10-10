@@ -25,36 +25,6 @@ pub enum Error {
     /// ディスク/ネットワーク越しの入力源が、自身の I/O 失敗をクエリ実行器へ伝えるために使う。
     SourceRead(String),
 
-    /// 永続化（直列化・復元）の失敗。
-    ///
-    /// 直列化ライブラリの都合を呼び出し側へ漏らさないため、文字列へ畳んで返す。
-    Persist(String),
-
-    /// 永続化バイト列の形式バージョンがこのビルドで扱えない。
-    ///
-    /// スキーマ（`MapArena` / `ArenaNode` の構造）を変更したら `FORMAT_VERSION` を上げる。
-    /// feature の有無による差異は [`UnsupportedFormatLayout`](Self::UnsupportedFormatLayout)
-    /// が別に検証するので、こちらはスキーマそのものが変わったときだけ上がる。
-    /// 古いバイト列を「誤って読む」代わりに、この明示的なエラーで停止する。
-    UnsupportedFormatVersion {
-        /// このビルドが期待するバージョン。
-        expected: u16,
-        /// バイト列に書かれていたバージョン。
-        found: u16,
-    },
-
-    /// 永続化バイト列のレイアウトフラグ（feature 構成）がこのビルドと一致しない。
-    ///
-    /// バージョンが同じでもスキーマの中身が feature で変わる場合（例: `temporal_id` の
-    /// 有無で `FlexId` のフィールド構成が変わる）があるため、バージョンとは独立に検証する。
-    /// 古いバイト列を「誤って読む」代わりに、この明示的なエラーで停止する。
-    UnsupportedFormatLayout {
-        /// このビルドが期待するレイアウトフラグ。
-        expected: u8,
-        /// バイト列に書かれていたレイアウトフラグ。
-        found: u8,
-    },
-
     /// [`CancellationToken`](crate::CancellationToken) によりキャンセルされた。
     Cancelled,
 }
@@ -122,8 +92,8 @@ pub enum SpatialIdError {
     /// 文字列表現を空間 ID として解釈できないことを示す。
     ParseSpatialIdFormat { kind: &'static str, input: String },
 
-    /// シャードのマージに渡された2つが、指定親領域の正当な兄弟（下半分/上半分）でないことを示す。
-    InvalidShardMerge,
+    /// 祖先として渡された ID が、対象の ID を包含していないことを示す。
+    NotAncestor,
 }
 
 impl From<GeometryError> for Error {
@@ -156,15 +126,6 @@ impl fmt::Display for Error {
             Error::Unsupported(what) => write!(f, "unsupported operation: {what}"),
             Error::InvalidQueryParameter(what) => write!(f, "invalid query parameter: {what}"),
             Error::SourceRead(msg) => write!(f, "source read failed: {msg}"),
-            Error::Persist(msg) => write!(f, "persistence failed: {msg}"),
-            Error::UnsupportedFormatVersion { expected, found } => write!(
-                f,
-                "unsupported persisted format version: expected {expected}, found {found}"
-            ),
-            Error::UnsupportedFormatLayout { expected, found } => write!(
-                f,
-                "unsupported persisted format layout: expected {expected:#010b}, found {found:#010b}"
-            ),
             Error::Cancelled => write!(f, "query execution was cancelled"),
         }
     }
@@ -282,11 +243,8 @@ impl fmt::Display for SpatialIdError {
             SpatialIdError::ParseSpatialIdFormat { kind, input } => {
                 write!(f, "{} '{}' has invalid display format", kind, input)
             }
-            SpatialIdError::InvalidShardMerge => {
-                write!(
-                    f,
-                    "the two shards are not valid siblings of the parent region"
-                )
+            SpatialIdError::NotAncestor => {
+                write!(f, "the given ancestor does not contain the target ID")
             }
         }
     }

@@ -1,4 +1,5 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
+use crate::SpatialIdTable;
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 pub mod query;
 #[cfg(test)]
 mod test;
@@ -6,7 +7,7 @@ mod test;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error,
-    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::UnaryOperator},
+    spatial_id::collection::query::{send_sync::SafeValue, traits::UnaryOperator},
 };
 
 use core::ops::Bound;
@@ -94,13 +95,11 @@ where
         self
     }
 
-    fn run(&self, target: &mut WorkingTree<V>) -> Result<(), Error> {
-        // この演算子はSegmentを取り除くだけで空間的な形を変えないので、木を平坦化して
-        // 組み直す必要はない。`retain_values` は変化した経路だけを copy-on-write で
-        // 作り直すため、条件を満たす部分木は `Arc` ごと保たれる。
-        target
-            .core_mut()
-            .retain_values(|value| self.predicate.matches(value));
+    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+        *target = core::mem::take(target)
+            .into_iter()
+            .filter(|(_, value)| self.predicate.matches(value))
+            .collect();
         Ok(())
     }
 

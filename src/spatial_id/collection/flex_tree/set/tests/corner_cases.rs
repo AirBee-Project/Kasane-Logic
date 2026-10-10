@@ -48,26 +48,20 @@ mod tests {
         assert!(set.count() > 0);
     }
 
-    /// 3. 自己演算による Result Reuse のポインタ同一性確認
+    /// 3. 自己演算の結果が元の集合と一致すること
     #[test]
-    fn same_rc_pointer_reuse() {
+    fn self_operations_return_the_same_set() {
         let mut set_a = SpatialIdSet::new();
         set_a.insert(SingleId::new(5, 5, 5, 5).unwrap());
         set_a.insert(SingleId::new(10, 10, 10, 10).unwrap());
 
         // Union (A | A)
         let union_set = &set_a | &set_a;
-        assert!(
-            union_set.root_ptr_eq(&set_a),
-            "Union failed to reuse root Rc pointer"
-        );
+        assert_eq!(union_set, set_a);
 
         // Intersection (A & A)
         let intersection_set = &set_a & &set_a;
-        assert!(
-            intersection_set.root_ptr_eq(&set_a),
-            "Intersection failed to reuse root Rc pointer"
-        );
+        assert_eq!(intersection_set, set_a);
 
         // Difference (A - A) -> Empty
         let diff_set = &set_a - &set_a;

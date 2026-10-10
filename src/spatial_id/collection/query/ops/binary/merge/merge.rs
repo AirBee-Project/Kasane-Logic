@@ -1,11 +1,7 @@
-use crate::spatial_id::collection::query::working::WorkingTree;
-use crate::{
-    Error,
-    spatial_id::collection::{
-        flex_tree::core::SafeValue,
-        query::{merge_policy::MergePolicy, traits::BinaryOperator},
-    },
-};
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
+use crate::spatial_id::collection::query::{merge_policy::MergePolicy, traits::BinaryOperator};
+use crate::{Error, SpatialIdTable};
 
 /// `MergePolicy` で重ね合わせる二項演算子。
 pub struct Merge<V, P> {
@@ -26,16 +22,30 @@ impl<V: SafeValue, P> BinaryOperator<V> for Merge<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn run(&self, target_a: &mut WorkingTree<V>, target_b: &WorkingTree<V>) -> Result<(), Error> {
-        if target_a.core().count() == 0 && target_b.core().count() == 0 {
-            return Ok(());
+    /// 両側に値がある場所は `resolve(a, b)`、片側だけの場所は欠けた側を `default` として解決する。
+    fn run(
+        &self,
+        target_a: &mut SpatialIdTable<V, NoSummary>,
+        target_b: &SpatialIdTable<V, NoSummary>,
+    ) -> Result<(), Error> {
+        let (a, b) = (&target_a.inner, &target_b.inner);
+        let resolve = |x: &V, y: &V| P::resolve(x.clone(), y.clone());
+
+        let mut merged = a.intersection(b);
+        for (id, value) in b.intersection(a) {
+            merged.insert_with(id, value, resolve);
         }
-        let merged = target_a
-            .core()
-            .merge_with_default(target_b.core(), &self.default, |a, b| {
-                P::resolve(a.clone(), b.clone())
-            });
-        *target_a = WorkingTree::from_core(merged);
+        merged.extend(
+            a.difference(b)
+                .into_iter()
+                .map(|(id, value)| (id, resolve(&value, &self.default))),
+        );
+        merged.extend(
+            b.difference(a)
+                .into_iter()
+                .map(|(id, value)| (id, resolve(&self.default, &value))),
+        );
+        target_a.inner = merged;
         Ok(())
     }
 

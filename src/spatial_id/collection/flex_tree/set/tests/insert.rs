@@ -13,7 +13,7 @@ mod tests {
         set.insert(single_id.clone());
 
         //SetからSingleIdを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());
@@ -32,7 +32,7 @@ mod tests {
         set.insert(range_id.clone());
 
         //SetからSingleIdを取り出す
-        let mut single_ids: Vec<SingleId> = set.single_ids().collect();
+        let mut single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //正解
         let mut answer: Vec<SingleId> = range_id.single_ids().collect();
@@ -55,7 +55,7 @@ mod tests {
         set.insert(single_id.clone());
 
         //SetからSingleIdを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());
@@ -75,7 +75,7 @@ mod tests {
         set.insert(range_id.clone());
 
         //SetからRangeIdを取り出す
-        let mut single_ids: Vec<SingleId> = set.single_ids().collect();
+        let mut single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(2, single_ids.len());
@@ -101,7 +101,7 @@ mod tests {
         set.insert(single_id.clone());
 
         //SetからSingleIdを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());
@@ -121,7 +121,7 @@ mod tests {
         set.insert(single_id.clone());
 
         //SetからRangeIdを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());
@@ -147,7 +147,7 @@ mod tests {
         set.insert(single_id.clone());
 
         //SetからRangeIdを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());
@@ -172,7 +172,7 @@ mod tests {
         set.insert(single_id_b.clone());
 
         //SetからSingleIdを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());
@@ -196,7 +196,7 @@ mod tests {
         set.insert(single_id_b.clone());
 
         //SetからRangeIdを取り出す
-        let flex_ids: Vec<FlexId> = set.flex_ids().collect();
+        let flex_ids: Vec<FlexId> = set.iter().collect();
 
         //長さは1になるはず
         assert_eq!(1, flex_ids.len());
@@ -225,7 +225,7 @@ mod tests {
         set.insert(single_id_b.clone());
 
         //SetからRangeIdを取り出す
-        let mut single_ids: Vec<SingleId> = set.single_ids().collect();
+        let mut single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは2になるはず
         assert_eq!(2, single_ids.len());
@@ -258,7 +258,7 @@ mod tests {
         set.insert(range_id.clone());
 
         //SetからSingleidを取り出す
-        let single_ids: Vec<SingleId> = set.single_ids().collect();
+        let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
 
         //長さは1になるはず
         assert_eq!(1, single_ids.len());

@@ -1,244 +1,108 @@
-use crate::spatial_id::collection::flex_tree::core::FlexTreeCore;
-use alloc::vec::Vec;
-
-use alloc::collections::{BTreeMap, BTreeSet};
+use crate::spatial_id::collection::flex_tree::core::{
+    BitMask, FlexTreeCore, IntoIter, NoSummary, Summary, ValueSet,
+};
 use core::ops::RangeBounds;
-pub mod convert;
 #[cfg(feature = "json")]
 pub mod json;
+#[cfg(feature = "rayon")]
+pub mod par;
 pub mod test;
 
-use crate::{AllowedIntervals, FlexId, FlexIdValue, RangeId, SingleId, SpatialId, SpatialIdSet};
+use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 
-/// 値(V)と空間(FlexId)を相互に高速検索・管理するためのテーブル構造。
-#[derive(Clone, Debug)]
-pub struct SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    // メインの空間ツリー (空間 -> Rank)
-    inner: FlexTreeCore<usize>,
-
-    // 辞書 (値 -> Rank)
-    dictionary: BTreeMap<V, usize>,
-
-    // 逆引き辞書 (Rank -> 値)
-    reverse_dictionary: BTreeMap<usize, V>,
-
-    // 逆引きインデックス (Rank -> その値が存在する空間の集合)
-    //
-    // 値クエリは未構築なら `inner` 走査で答える。明示的に [`rebuild_index`](Self::rebuild_index)を呼んだときだけ構築され、`value_index_built` が true になる。
-    value_index: BTreeMap<usize, SpatialIdSet>,
-
-    // `value_index` が `inner` と整合しているか（= 値クエリで使ってよいか）。
-    value_index_built: bool,
-
-    // 次に発行する一意なID（Rank）
-    current_rank: usize,
+/// 空間(FlexId)ごとに値(V)を持たせるためのテーブル構造。
+///
+/// 全ての操作は `S` を指定せずに使える。`S` は木の Branch が子孫の値についてキャッシュする
+/// [Summary] で、値で絞り込む操作だけを速くする。値の範囲で絞り込む
+/// [`filter_range`](Self::filter_range) を多用するなら [`MinMax`](crate::MinMax) を、
+/// enum を種類で絞り込む [`filter_values`](Self::filter_values) を多用するなら [`ValueSet`] を指定する。
+///
+/// ```
+/// use kasane_logic::{MinMax, SingleId, SpatialIdTable};
+///
+/// let mut table = SpatialIdTable::new();
+/// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 3.5_f64);
+///
+/// let mut indexed: SpatialIdTable<u32, MinMax<u32>> = SpatialIdTable::default();
+/// indexed.insert(SingleId::new(20, 0, 0, 0).unwrap(), 80);
+/// assert_eq!(indexed.filter_range(50..).count(), 1);
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpatialIdTable<V, S = NoSummary> {
+    pub(crate) inner: FlexTreeCore<V, S>,
 }
 
-impl<V> SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    /// 空の[SpatialIdTable]を作成します。
-    pub fn new() -> Self {
+impl<V, S> Default for SpatialIdTable<V, S> {
+    fn default() -> Self {
         Self {
             inner: FlexTreeCore::default(),
-            dictionary: BTreeMap::default(),
-            reverse_dictionary: BTreeMap::default(),
-            value_index: BTreeMap::default(),
-            value_index_built: true,
-            current_rank: 0,
         }
     }
+}
 
-    /// この集合が値を持つ全Segmentを包む最小の[RangeId]を返します。
-    pub fn bounding_box(&self) -> Option<RangeId> {
-        self.inner.bounding_box()
-    }
-
-    /// ランクのツリーと、ランク順（1 始まり）に並んだ実体値からテーブルを組む。
+impl<V: PartialEq + Clone> SpatialIdTable<V> {
+    /// 空の[SpatialIdTable]を作成します。
     ///
-    /// `ranks` の各葉は `values` のインデックス + 1 でなければならない。値インデックスは
-    /// 未構築（`insert` 直後と同じ状態）で、必要になったときに
-    /// [`rebuild_index`](Self::rebuild_index) が組む。
-    pub(crate) fn from_ranked_core(ranks: FlexTreeCore<usize>, values: Vec<V>) -> Self {
-        let mut dictionary = BTreeMap::new();
-        let mut reverse_dictionary = BTreeMap::new();
-        for (i, v) in values.into_iter().enumerate() {
-            dictionary.insert(v.clone(), i + 1);
-            reverse_dictionary.insert(i + 1, v);
-        }
-        let current_rank = dictionary.len();
-
-        Self {
-            inner: ranks,
-            dictionary,
-            reverse_dictionary,
-            value_index: BTreeMap::default(),
-            value_index_built: false,
-            current_rank,
-        }
+    /// [Summary] を指定するときは [`Default::default`] か [`with_summary`](Self::with_summary) を使います。
+    pub fn new() -> Self {
+        Self::default()
     }
+}
 
-    /// `value` に対応する rank を返す。無ければ新規発行して辞書へ登録する。
-    fn rank_for(&mut self, value: V) -> usize {
-        match self.dictionary.get(&value) {
-            Some(v) => *v,
-            None => {
-                self.current_rank += 1;
-                self.reverse_dictionary
-                    .insert(self.current_rank, value.clone());
-                self.dictionary.insert(value, self.current_rank);
-                self.current_rank
-            }
-        }
-    }
-
-    /// 空間に値を挿入します。
-    pub fn insert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
-        let rank = self.rank_for(value);
-        self.inner.insert(target, rank);
-        self.value_index_built = false;
+impl<V, S> SpatialIdTable<V, S>
+where
+    V: PartialEq + Clone,
+    S: Summary<V>,
+{
+    /// 空間に値を挿入します。既に値がある場所は上書きされます。
+    pub fn insert<T: SpatialId>(&mut self, target: T, value: V) {
+        self.inner.insert(target, value);
     }
 
     /// まだ値の無い場所にだけ挿入します（Upsert）。既に値がある場所はそのまま保ちます。
-    ///
-    /// **書く場所が無ければ `value` の rank も登録しない。** 先に登録してしまうと、
-    /// target が既に全て埋まっていた場合に誰も使わない rank が辞書に残り、
-    /// [`values`](Self::values) が幽霊値を返すことになる。
-    pub fn upsert<S: SpatialId + Clone>(&mut self, target: S, value: V) {
-        let occupied: SpatialIdSet = self.get_overlapping(&target).map(|(f, _)| f).collect();
-        let mut target_set = SpatialIdSet::new();
-        target_set.insert(target);
-        let empty = &target_set - &occupied;
-
-        if empty.is_empty() {
-            return;
-        }
-
-        let rank = self.rank_for(value);
-        for f in empty.flex_ids() {
-            self.inner.insert(f, rank);
-        }
-        self.value_index_built = false;
+    pub fn upsert<T: SpatialId>(&mut self, target: T, value: V) {
+        self.inner
+            .insert_with(target, value, |existing, _| existing.clone());
     }
 
-    pub fn get<'a, S>(&'a self, target: &'a S) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
-    where
-        S: SpatialId,
-    {
-        self.inner.get(target.clone()).map(|(flex_id, rank)| {
-            let value = self.reverse_dictionary.get(&rank).unwrap();
-            (flex_id, value)
-        })
-    }
-
-    /// 特定の範囲（RangeId）と交差するすべての領域と、その値への参照を返します。
-    pub fn get_range<'a>(
+    /// 指定した空間と重なる領域を、指定した空間との共通部分に切り取って値への参照と返します。
+    pub fn get<'a, T: SpatialId<IntoIter: 'a>>(
         &'a self,
-        target: &'a crate::RangeId,
+        target: T,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        self.inner.range_overlap_ref(target).map(move |(id, rank)| {
-            (
-                id,
-                self.reverse_dictionary
-                    .get(rank)
-                    .expect("Dictionary mismatch"),
-            )
-        })
-    }
-
-    /// 指定した [`FlexId`] と重なる領域と値を返す。
-    pub(crate) fn overlap(&self, target: FlexId) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.inner.overlap_ref(target).map(move |(id, rank)| {
-            (
-                id,
-                self.reverse_dictionary
-                    .get(rank)
-                    .expect("Dictionary mismatch"),
-            )
-        })
+        self.inner.get(target)
     }
 
     /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
-    pub fn remove<S: SpatialId + Clone>(&mut self, target: &S) -> Vec<(FlexId, V)> {
-        let removed_items = self.inner.remove(target.clone());
-        let mut results = Vec::new();
-
-        for (flex_id, rank) in removed_items {
-            let value = self.reverse_dictionary.get(&rank).unwrap().clone();
-            results.push((flex_id, value));
-        }
-
-        if !results.is_empty() {
-            self.value_index_built = false;
-        }
-        results
-    }
-    /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`]と値をそのままの返します。
-    pub fn get_overlapping<'a, S>(
-        &'a self,
-        target: &'a S,
-    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a
-    where
-        S: SpatialId,
-    {
-        self.inner
-            .get_overlapping_ref(target.clone())
-            .map(|(flex_id, rank)| {
-                let value = self
-                    .reverse_dictionary
-                    .get(rank)
-                    .expect("Dictionary mismatch");
-                (flex_id, value)
-            })
+    ///
+    /// 削除は呼び出した時点で済んでおり、返すイテレーターはテーブルを借用しない。
+    pub fn remove<T: SpatialId>(&mut self, target: T) -> IntoIter<V, S> {
+        self.inner.remove(target).into_iter()
     }
 
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
     /// [`FlexId`]と値をそのままの返します。
-    pub fn remove_overlapping<S: SpatialId>(&mut self, target: &S) -> Vec<(FlexId, V)> {
-        let removed_items = self.inner.remove_overlapping(target.clone());
-        let mut results = Vec::new();
+    pub fn get_overlapping<T: SpatialId>(
+        &self,
+        target: T,
+    ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+        self.inner.get_overlapping(target)
+    }
 
-        for (flex_id, rank) in removed_items {
-            let value = self
-                .reverse_dictionary
-                .get(&rank)
-                .expect("Dictionary mismatch")
-                .clone();
-
-            if let Some(set) = self.value_index.get_mut(&rank) {
-                let _ = set.remove(&flex_id);
-
-                if set.is_empty() {
-                    self.value_index.remove(&rank);
-                    self.reverse_dictionary.remove(&rank);
-                    self.dictionary.remove(&value);
-                }
-            }
-            results.push((flex_id, value));
-        }
-
-        results
+    /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった
+    /// [`FlexId`]と値をそのまま取り除いて返します。
+    ///
+    /// 削除は呼び出した時点で済んでおり、返すイテレーターはテーブルを借用しない。
+    pub fn remove_overlapping<T: SpatialId>(&mut self, target: T) -> IntoIter<V, S> {
+        self.inner.remove_overlapping(target).into_iter()
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
-    pub fn neighbors_share_face<'a, S: SpatialId>(
-        &'a self,
-        target: &S,
-    ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        self.inner
-            .neighbors_share_face_ref(target)
-            .map(|(flex_id, rank)| {
-                let value = self
-                    .reverse_dictionary
-                    .get(rank)
-                    .expect("Dictionary mismatch");
-                (flex_id, value)
-            })
+    pub fn neighbors_share_face<T: SpatialId>(
+        &self,
+        target: T,
+    ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
+        self.inner.neighbors_share_face(target)
     }
 
     /// 保持している[FlexId]の総数を返します。
@@ -246,161 +110,30 @@ where
         self.inner.count()
     }
 
-    /// ツリーの最大ズームレベルを返します。
+    /// 保持している全ての[FlexId]のうち、最大のズームレベル値を返します。空なら [None]。
+    ///
+    /// キャッシュを持たず、全ての[FlexId]を走査する（O(n)）。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
     }
 
-    /// 時間方向に結合した [`RangeId`] として読み出す。**空間解像度は変えない**。
+    /// 時間方向に隣接する同値のSegmentを結合した [`RangeId`] と値を返す。**空間解像度は変えない**。
     ///
-    /// 単位は「その区間を表せる最も粗い秒数」（`gcd(開始秒, 幅)`）。
-    /// 単位を選びたい場合は [`range_ids_in`](Self::range_ids_in) を使う。
-    pub fn range_ids(&self) -> impl Iterator<Item = (RangeId, &V)> + '_ {
-        self.coalesced_range_ids(None)
-    }
-
-    /// 時間の単位を [`AllowedIntervals`] の候補から選んで読み出す。
-    ///
-    /// 候補のうち**その区間を割り切る最も粗いもの**が選ばれる（＝候補の中でSegment数が最小）。
-    /// 暦の単位へ正規化したいだけなら `AllowedIntervals::calendar()`
-    /// （`temporal_id` feature 有効時のみ）を直接渡せる。
-    pub fn range_ids_in<'a>(
+    /// `allowed_intervals` が [`None`] なら、各区間はそれを表せる最も粗い単位（`gcd(開始秒, 幅)`）の1Segmentになる。
+    /// [`AllowedIntervals`] を渡すと、その候補のうち区間を割り切る最も粗い単位で表す。
+    pub fn reconstructed_time_ranges<'a>(
         &'a self,
-        units: &'a AllowedIntervals,
-    ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
-        self.coalesced_range_ids(Some(units))
+        allowed_intervals: Option<&'a AllowedIntervals>,
+    ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
+        self.inner.reconstructed_time_ranges(allowed_intervals)
     }
 
-    /// [`flat_single_ids`](Self::flat_single_ids) の、時間単位を指定できる版。
-    pub fn flat_single_ids_in<'a>(
+    /// [`reconstructed_time_ranges`](Self::reconstructed_time_ranges) を、テーブル全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+    pub fn flat_single_ids<'a>(
         &'a self,
-        units: &'a AllowedIntervals,
-    ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
-        self.expand_range_ids(Some(units))
-    }
-
-    /// 内部の rank を値へ引き直しつつ、時間方向に結合した [`RangeId`] を返す。
-    ///
-    /// 木が持つのは値そのものではなく rank（`usize`）なので、結合は rank のまま行い
-    /// （同じ値なら同じ rank なので結合条件は変わらない）、最後に辞書で引き直す。
-    fn coalesced_range_ids<'a>(
-        &'a self,
-        units: Option<&'a AllowedIntervals>,
-    ) -> impl Iterator<Item = (RangeId, &'a V)> + use<'a, V> {
-        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-            self.inner
-                .iter_ref()
-                .map(|(flex_id, rank)| (flex_id, *rank)),
-            units,
-        )
-        .map(move |(range, rank)| {
-            let value = self
-                .reverse_dictionary
-                .get(&rank)
-                .expect("Dictionary mismatch");
-            (range, value)
-        })
-    }
-
-    /// [`coalesced_range_ids`](Self::coalesced_range_ids) を単一Segmentの [`SingleId`] へ展開する。
-    fn expand_range_ids<'a>(
-        &'a self,
-        units: Option<&'a AllowedIntervals>,
-    ) -> impl Iterator<Item = (SingleId, &'a V)> + use<'a, V> {
-        self.coalesced_range_ids(units)
-            .flat_map(|(range, value)| range.single_ids().map(move |id| (id, value)))
-    }
-
-    /// 最下層の[SingleId]レベルまで展開したイテレータを参照付きで返します。
-    ///
-    /// 展開の前に、時間方向に隣接する同値のSegmentを結合する。木は時間を2の冪秒のSegmentとして
-    /// 持つため、これを行わないと `1800` 秒のような単位で入れた ID が断片のまま出てくる。
-    /// 同値かどうかは Rank（値の同一性そのもの）で判定できるので、値の比較は不要。
-    pub fn flat_single_ids(&self) -> impl Iterator<Item = (SingleId, &V)> + '_ {
-        let merged = crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-            self.inner
-                .iter_ref()
-                .map(|(flex_id, rank)| (flex_id, *rank)),
-            None,
-        );
-
-        merged.flat_map(move |(range, rank)| {
-            let value = self
-                .reverse_dictionary
-                .get(&rank)
-                .expect("Dictionary mismatch");
-            range.single_ids().map(move |single_id| (single_id, value))
-        })
-    }
-
-    /// コレクション内のすべての値をインプレースで更新します。
-    pub fn map_values_in_place<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut V),
-    {
-        let mut new_dict = BTreeMap::new();
-        for (&rank, val) in self.reverse_dictionary.iter_mut() {
-            f(val);
-            new_dict.insert(val.clone(), rank);
-        }
-        self.dictionary = new_dict;
-        self.value_index_built = false;
-    }
-
-    /// `value_index` を `inner` から構築し、上書き等で消えたランクを辞書から取り除く。
-    pub fn rebuild_index(&mut self) {
-        self.value_index.clear();
-        for (flex_id, rank) in self.inner.iter() {
-            self.value_index.entry(rank).or_default().insert(flex_id);
-        }
-        let live: BTreeSet<usize> = self.value_index.keys().copied().collect();
-        self.reverse_dictionary
-            .retain(|rank, _| live.contains(rank));
-        self.dictionary.retain(|_, rank| live.contains(rank));
-        self.value_index_built = true;
-    }
-
-    /// 特定の値に対応するすべての[FlexId]を返す。
-    pub fn value_get(&self, value: &V) -> impl Iterator<Item = FlexId> + '_ {
-        let mut out = Vec::new();
-        if let Some(&rank) = self.dictionary.get(value) {
-            if self.value_index_built {
-                if let Some(set) = self.value_index.get(&rank) {
-                    out.extend(set.iter());
-                }
-            } else {
-                for (flex_id, r) in self.inner.iter() {
-                    if r == rank {
-                        out.push(flex_id);
-                    }
-                }
-            }
-        }
-        out.into_iter()
-    }
-
-    /// 範囲条件に一致する全ての値の[FlexId]と値への参照を返す。
-    pub fn value_range<R: RangeBounds<V>>(
-        &self,
-        range: R,
-    ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        let wanted: Vec<(&V, usize)> = self.dictionary.range(range).map(|(v, r)| (v, *r)).collect();
-        let mut out: Vec<(FlexId, &V)> = Vec::new();
-        if self.value_index_built {
-            for (val, rank) in &wanted {
-                if let Some(set) = self.value_index.get(rank) {
-                    out.extend(set.iter().map(|flex_id| (flex_id, *val)));
-                }
-            }
-        } else {
-            let lookup: BTreeMap<usize, &V> = wanted.iter().map(|(v, r)| (*r, *v)).collect();
-            for (flex_id, rank) in self.inner.iter() {
-                if let Some(val) = lookup.get(&rank) {
-                    out.push((flex_id, *val));
-                }
-            }
-        }
-        out.into_iter()
+        allowed_intervals: Option<&'a AllowedIntervals>,
+    ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
+        self.inner.flat_single_ids(allowed_intervals)
     }
 
     /// テーブルが空かどうかを返します
@@ -408,109 +141,87 @@ where
         self.inner.is_empty()
     }
 
-    /// テーブルに保持されている全ての空間と値への参照のペアを返します。
-    pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.inner.iter_ref().map(move |(flex_id, rank)| {
-            let value = self
-                .reverse_dictionary
-                .get(rank)
-                .expect("Dictionary mismatch");
-            (flex_id, value)
-        })
-    }
-
-    /// テーブルに保持されている値への参照を返す。
-    pub fn values(&self) -> impl Iterator<Item = &V> + '_ {
-        let mut out: Vec<&V> = Vec::new();
-        if self.value_index_built {
-            out.extend(self.dictionary.keys());
-        } else {
-            let mut live: BTreeSet<usize> = BTreeSet::new();
-            for (_, rank) in self.inner.iter() {
-                live.insert(rank);
-            }
-            out = live
-                .iter()
-                .filter_map(|rank| self.reverse_dictionary.get(rank))
-                .collect();
-            out.sort();
-            out.dedup();
+    /// 中身はそのままに、[Summary] を `T` に付け替えたテーブルを作ります。
+    pub fn with_summary<T: Summary<V>>(&self) -> SpatialIdTable<V, T> {
+        SpatialIdTable {
+            inner: self.inner.with_summary(),
         }
-        out.into_iter()
+    }
+
+    /// テーブルの全ての値を削除します。
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+
+    /// テーブルに保持されている全ての空間と値への参照のペアを返します。
+    pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + Clone + '_ {
+        self.inner.iter()
     }
 }
 
-pub struct SpatialIdTableIntoIter<V: FlexIdValue> {
-    inner: crate::spatial_id::collection::flex_tree::core::LeavesIntoIter<usize>,
-    reverse_dictionary: alloc::collections::BTreeMap<usize, V>,
-}
+impl<V, S> SpatialIdTable<V, S>
+where
+    V: Ord + Clone,
+    S: Summary<V>,
+{
+    /// テーブル全体に存在する値の範囲 `(最小, 最大)`。空なら [`None`]。
+    ///
+    /// [`MinMax`](crate::MinMax) を持つテーブルなら O(1)、そうでなければ全ての値を走査する。
+    pub fn value_range(&self) -> Option<(&V, &V)> {
+        self.inner.value_range()
+    }
 
-impl<V: FlexIdValue> Iterator for SpatialIdTableIntoIter<V> {
-    type Item = (FlexId, V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.next().map(|(flex_id, rank)| {
-            let value = self
-                .reverse_dictionary
-                .get(&rank)
-                .expect("Dictionary mismatch")
-                .clone();
-            (flex_id, value)
-        })
+    /// 値が `range` に含まれる領域だけを残したテーブルを作る。
+    ///
+    /// [`MinMax`](crate::MinMax) を持つテーブルなら、値がすべて `range` の内側・外側にある部分は辿らない。
+    pub fn filter_range<R: RangeBounds<V>>(&self, range: R) -> Self {
+        Self {
+            inner: self.inner.filter_range(range),
+        }
     }
 }
 
-impl<V: FlexIdValue> IntoIterator for SpatialIdTable<V> {
+impl<V, S> SpatialIdTable<V, S>
+where
+    V: BitMask + PartialEq + Clone,
+    S: Summary<V>,
+{
+    /// テーブル全体に現れる値の集合。
+    ///
+    /// [`ValueSet`] を持つテーブルなら O(1)、そうでなければ全ての値を走査する。
+    pub fn value_set(&self) -> ValueSet<V> {
+        self.inner.value_set()
+    }
+
+    /// 値が `values` に含まれる領域だけを残したテーブルを作る。
+    ///
+    /// [`ValueSet`] を持つテーブルなら、値がすべて `values` の内側・外側にある部分は辿らない。
+    pub fn filter_values(&self, values: ValueSet<V>) -> Self {
+        Self {
+            inner: self.inner.filter_values(values),
+        }
+    }
+}
+
+impl<V: Clone, S> IntoIterator for SpatialIdTable<V, S> {
     type Item = (FlexId, V);
-    type IntoIter = SpatialIdTableIntoIter<V>;
+    type IntoIter = IntoIter<V, S>;
 
     fn into_iter(self) -> Self::IntoIter {
-        SpatialIdTableIntoIter {
-            inner: self.inner.into_iter(),
-            reverse_dictionary: self.reverse_dictionary,
-        }
+        self.inner.into_iter()
     }
 }
 
-impl<V: FlexIdValue> FromIterator<(FlexId, V)> for SpatialIdTable<V> {
+impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for SpatialIdTable<V, S> {
     fn from_iter<T: IntoIterator<Item = (FlexId, V)>>(iter: T) -> Self {
-        let mut table = SpatialIdTable::new();
-        for (id, val) in iter {
-            table.insert(id, val);
+        Self {
+            inner: iter.into_iter().collect(),
         }
-        table
     }
 }
 
-impl<V: FlexIdValue> Extend<(FlexId, V)> for SpatialIdTable<V> {
+impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for SpatialIdTable<V, S> {
     fn extend<T: IntoIterator<Item = (FlexId, V)>>(&mut self, iter: T) {
-        for (id, val) in iter {
-            self.insert(id, val);
-        }
+        self.inner.extend(iter);
     }
-}
-
-impl<V: FlexIdValue> Default for SpatialIdTable<V> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<V> PartialEq for SpatialIdTable<V>
-where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord,
-{
-    fn eq(&self, other: &Self) -> bool {
-        // 論理的に等しいテーブルは使われている値の種類数（distinct value数）も一致するはず
-        // なので、木を辿る前にO(1)で弾ける安価なガードとして先に見る。
-        if self.count() != other.count() || self.dictionary.len() != other.dictionary.len() {
-            return false;
-        }
-        self.iter().eq(other.iter())
-    }
-}
-
-impl<V> Eq for SpatialIdTable<V> where
-    V: crate::spatial_id::collection::flex_tree::core::ptr::SafeValue + Ord
-{
 }

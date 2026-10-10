@@ -78,16 +78,12 @@ fn main() {
         "std,random,temporal_id",
         "std,rayon,random,temporal_id",
         "std,rayon,random,temporal_id,json",
-        "std,persist",
-        "std,rayon,random,temporal_id,persist",
-        "std,rayon,random,temporal_id,persist,json",
     ];
     let std_features_subset = vec![
         "std",
         "std,json",
         "std,rayon,random,temporal_id",
         "std,rayon,random,temporal_id,json",
-        "std,rayon,random,temporal_id,persist",
     ];
     let no_std_features = vec!["", "temporal_id", "json", "temporal_id,json"];
 

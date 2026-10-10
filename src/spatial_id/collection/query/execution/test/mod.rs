@@ -41,8 +41,10 @@ fn run_matches_raw_run() {
         .unwrap();
 
     assert_eq!(
-        optimized.flat_single_ids().collect::<alloc::vec::Vec<_>>(),
-        raw.flat_single_ids().collect::<alloc::vec::Vec<_>>(),
+        optimized
+            .flat_single_ids(None)
+            .collect::<alloc::vec::Vec<_>>(),
+        raw.flat_single_ids(None).collect::<alloc::vec::Vec<_>>(),
     );
 }
 
@@ -74,7 +76,7 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
         .raw_run()
         .unwrap();
 
-    for (_, v) in out.flat_single_ids() {
+    for (_, v) in out.flat_single_ids(None) {
         assert_eq!(*v, 20, "Max(10,20)は全出力Segmentで20になるはず");
     }
 }
@@ -139,8 +141,8 @@ fn extrude_result_is_deterministic_across_runs() {
         let a = run(subset.clone());
         let b = run(subset.clone());
         assert_eq!(
-            a.flat_single_ids().collect::<alloc::vec::Vec<_>>(),
-            b.flat_single_ids().collect::<alloc::vec::Vec<_>>(),
+            a.flat_single_ids(None).collect::<alloc::vec::Vec<_>>(),
+            b.flat_single_ids(None).collect::<alloc::vec::Vec<_>>(),
             "{label}: 同一入力なのに結果が毎回変わる（非決定性あり）",
         );
     }

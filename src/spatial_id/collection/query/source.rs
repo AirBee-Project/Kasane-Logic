@@ -1,7 +1,7 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
+use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{Error, FlexId};
 use alloc::boxed::Box;
 
@@ -34,9 +34,7 @@ impl<V: SafeValue + 'static, S: Source<Value = V> + 'static> From<S> for Query<V
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        CancellationToken, FlexId, RangeId, SingleId, Source, SpatialIdTable, WorkingTree,
-    };
+    use crate::{CancellationToken, FlexId, NoSummary, RangeId, SingleId, Source, SpatialIdTable};
     use alloc::vec::Vec;
 
     /// 重なり合う複数 bounds で読んでも、空間IDが重複せず正しい値で返ること。
@@ -54,7 +52,7 @@ mod tests {
             .flat_map(|i| RangeId::new(20, [0, 0], [400 + i, 400 + i], [400, 400]).unwrap())
             .collect();
 
-        let working: WorkingTree<i32> = table
+        let working: SpatialIdTable<i32, NoSummary> = table
             .read_flex_ids(&bounds, &CancellationToken::new())
             .unwrap()
             .collect::<Result<_, _>>()
@@ -93,14 +91,14 @@ mod tests {
         let mut a: Vec<(crate::FlexId, i32)> = table
             .read_flex_ids(&single, &CancellationToken::new())
             .unwrap()
-            .collect::<Result<WorkingTree<_>, _>>()
+            .collect::<Result<SpatialIdTable<_, NoSummary>, _>>()
             .unwrap()
             .into_iter()
             .collect();
         let mut b: Vec<(crate::FlexId, i32)> = table
             .read_flex_ids(&overlapping, &CancellationToken::new())
             .unwrap()
-            .collect::<Result<WorkingTree<_>, _>>()
+            .collect::<Result<SpatialIdTable<_, NoSummary>, _>>()
             .unwrap()
             .into_iter()
             .collect();

@@ -115,7 +115,7 @@ FlexTree は時間を「2の冪秒のSegment」として持つ。`{i}` の秒数
 
 さらに、`RangeId` / `SingleId` を書き出す経路（`flat_single_ids` と JSON 直列化）では、
 書き出す前に**FlexIdと値が同じで時間が隣接するSegmentを結合**する
-（`flex_tree::coalesce::coalesce_temporal`）。これにより、分解された5個のSegmentが元の
+（`flex_tree::time_reconstruct::reconstruct_temporal`）。これにより、分解された5個のSegmentが元の
 `[start, end)` に戻り、上記2の `gcd` によって `1800/809712` がそのまま復元される。
 
 ```text
@@ -132,36 +132,14 @@ JSON  : { "z":12, "f":[0], "x":[3638], "y":[1614], "i":1800, "t":[809712] }
 ### 無効時
 
 - `Interval` はサイズ0のスタブになり、全時間以外を構築できない。
-- 木の分割軸は F/X/Y の3軸に戻る（`NUM_AXES = 3`、`LEAF_LEVEL = 93`）。
-  レベル番号の割り当ても時間軸の導入前と同一。
+- 全Segmentが全時間なので、`FlexTreeCore` は F/X/Y の3次元でしか割らない。
 - `with_time()` は全時間以外を受け付けない。
 
 ### 有効時
 
 - `with_time()` / `with_time_at()` / `with_time_seconds()` で任意の時間区間を扱える。
 - `intersection` / `difference` が時間も考慮する。
-- 木は時間軸を第4の分割軸（`Axis::T`、`NUM_AXES = 4`、`LEAF_LEVEL = 144`）として保持する。
-
-### 永続化形式への影響
-
-`persist` の保存形式は feature に依存するので、`FORMAT_VERSION` も分かれている。
-
-| 構成 | `FORMAT_VERSION` |
-| :--- | :--- |
-| 時間軸の導入前 | `1` |
-| `temporal_id` 有効（4軸） | `2` |
-| `temporal_id` 無効（3軸） | `3` |
-
-理由は2つある。
-
-1. ノードが持つ `level` から軸を求める式が `level % 3` か `level % 4` かで変わる。
-   `level` はバイト列にそのまま入っているので、取り違えると軸の対応がずれ、
-   エラーにならないまま別の空間 ID として読めてしまう。
-2. `shard` として保存される `FlexId` のフィールド構成が `1` とは異なる
-   （時間軸を4番目の軸としてインラインに持つようになったため、feature の有無に関わらず
-   `t_zoomlevel` / `t_index` が並ぶ）。
-
-構成の違うファイルは読み込み時に `Error::UnsupportedFormatVersion` で弾かれる。
+- `FlexTreeCore` は時間も `Dimension::T` として割る。
 
 ## 6. 文字列表現
 

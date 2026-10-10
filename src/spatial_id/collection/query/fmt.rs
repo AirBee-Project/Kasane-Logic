@@ -1,5 +1,5 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::Query;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 
 impl<V: SafeValue + 'static> core::fmt::Display for Query<V> {
     /// [`Query`] の木構造を人間が読める形式で出力する。

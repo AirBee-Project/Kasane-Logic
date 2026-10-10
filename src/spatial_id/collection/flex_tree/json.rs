@@ -9,16 +9,14 @@
 //! 出さない）は `#[derive(Serialize, Deserialize)]` だけでは表現できないため、`IdEntry` だけは
 //! `Serializer`/`Deserializer` を直接叩く手書き実装にしている。
 
+use crate::{RangeId, SpatialId};
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
-
 use serde::de::{self, MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-use crate::{AllowedIntervals, FlexId, RangeId, SpatialId};
 
 const SCHEMA_URL: &str = "https://airbee-project.github.io/schemas/json/v1.0.json";
 
@@ -247,12 +245,14 @@ struct PlainDataEntry {
     ids: Vec<IdEntry>,
 }
 
-/// 値ありコレクション（Table/Map）向けの JSON 書き出し。
+/// 値ありコレクション（Table）向けの JSON 書き出し。
 ///
 /// 値は出現順で重複排除して `value` に列挙し、各空間 ID は `ref` でその添字を参照する。
+///
+/// `iter` は時間方向に結合済みのもの（`range_ids`）を渡す。木は時間を2の冪秒のSegmentで持つため、
+/// 結合しないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
 pub(crate) fn serialize_with_values<'a, V, S>(
-    iter: impl Iterator<Item = (FlexId, &'a V)>,
-    has_temporal_split: bool,
+    iter: impl Iterator<Item = (RangeId, &'a V)>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -262,10 +262,7 @@ where
     let mut unique: Vec<&'a V> = Vec::new();
     let mut ids: Vec<IdEntry> = Vec::new();
 
-    // 時間方向に隣接する同値Segmentを結合してから書き出す。木は時間を2の冪秒のSegmentで持つため、
-    // これを通さないと `i: 1800` のような単位が断片化した `i: 1` の羅列になってしまう。
-    // 木にT軸の分割が無ければ結合対象は存在しないので、ソートごと省く。
-    for (range_id, val) in coalesce_if_temporal(iter, has_temporal_split) {
+    for (range_id, val) in iter {
         let idx = match unique.iter().position(|&u| u == val) {
             Some(idx) => idx,
             None => {
@@ -293,62 +290,20 @@ where
     envelope.serialize(serializer)
 }
 
-/// 木にT軸の分割があるときだけ時間方向の結合を通し、無ければ素通しする。
-///
-/// 結合は入力を集めてソートするため、時間を持たない木で無条件に通すと純粋な固定費になる。
-///
-/// # `{i}` は既定の候補集合（暦の単位）へ正規化する
-///
-/// JSON は外部へ渡る表現なので、`gcd` が選ぶ「その区間を表せる最も粗い秒数」ではなく
-/// [`AllowedIntervals::default`] の `{WHOLE, DAY, HOUR, MINUTE, SECOND}`（`temporal_id` 有効時。
-/// [`AllowedIntervals::calendar`] と同じ）に揃える。`gcd` だと隣り合う1時間×2が
-/// `"i":7200`（2時間という単位）になってしまい、受け取り側が解釈しづらいためである。
-///
-/// `calendar()` ではなく `default()` を呼ぶのは、`temporal_id` 無効時にも
-/// `coalesce_if_temporal` 自体はコンパイルできる必要があるため（`calendar()` は
-/// 無効時に存在しない）。もっとも無効時は `has_temporal_split` が常に `false` なので、
-/// この分岐へ実際に入ることはない。
-///
-/// 代償として、暦に無い単位で入れた ID は `{i}` がそのままでは戻らない
-/// （例: 仕様書の `1800/809712` は `"i":60,"t":[24291360,24291389]` になる）。
-/// 表す秒区間は同じなので読み込み時の内容は一致するが、`{i}` というラベルは保存されない。
-fn coalesce_if_temporal<V>(
-    iter: impl Iterator<Item = (FlexId, V)>,
-    has_temporal_split: bool,
-) -> Vec<(RangeId, V)>
-where
-    V: Clone + PartialEq,
-{
-    if has_temporal_split {
-        crate::spatial_id::collection::flex_tree::coalesce::coalesce_temporal(
-            iter,
-            Some(&AllowedIntervals::default()),
-        )
-        .collect()
-    } else {
-        iter.map(|(flex_id, value)| (RangeId::from(&flex_id), value))
-            .collect()
-    }
-}
-
 /// 値なしコレクション（Set）向けの JSON 書き出し。
 pub(crate) fn serialize_without_values<S>(
-    iter: impl Iterator<Item = FlexId>,
-    has_temporal_split: bool,
+    iter: impl Iterator<Item = RangeId>,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    // 値ありの場合と同じく、時間方向に隣接するSegmentを結合してから書き出す。
-    let ids: Vec<IdEntry> =
-        coalesce_if_temporal(iter.map(|flex_id| (flex_id, ())), has_temporal_split)
-            .into_iter()
-            .map(|(range_id, ())| IdEntry {
-                range_id,
-                r#ref: None,
-            })
-            .collect();
+    let ids: Vec<IdEntry> = iter
+        .map(|range_id| IdEntry {
+            range_id,
+            r#ref: None,
+        })
+        .collect();
 
     let envelope = EnvelopeOut {
         schema: SCHEMA_URL,
@@ -464,7 +419,7 @@ mod tests {
 
         // 内容は完全に往復する（`{i}` のラベルが変わっても秒区間は同じ）。
         let restored: SpatialIdTable<i32> = serde_json::from_str(&json).unwrap();
-        let ids: Vec<_> = restored.flat_single_ids().collect();
+        let ids: Vec<_> = restored.flat_single_ids(None).collect();
         assert_eq!(ids.len(), 1);
         assert_eq!(ids[0].0, original);
         assert_eq!(*ids[0].1, 7);

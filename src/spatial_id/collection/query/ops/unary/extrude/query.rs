@@ -1,5 +1,5 @@
 use super::{extrude_f::ExtrudeF, extrude_x::ExtrudeX, extrude_y::ExtrudeY};
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     ZoomLevel,
     spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
