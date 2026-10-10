@@ -90,7 +90,7 @@ impl AllowedIntervals {
     /// **一時値のまま直接渡せる**ようにするためである。所有値を返していた頃は
     ///
     /// ```text
-    /// let ids = set.range_ids(Some(&AllowedIntervals::calendar()));  // 一時値が文末で死ぬ
+    /// let ids = set.reconstructed_time_ranges(Some(&AllowedIntervals::calendar()));  // 一時値が文末で死ぬ
     /// ```
     ///
     /// が書けず、コレクションごとに `range_ids_calendar()` のような別名を生やして
@@ -276,20 +276,20 @@ mod collection_api {
         }
 
         // 既定は gcd なので「7200 秒 × 1 TimeSegment」。
-        let natural: Vec<_> = set.range_ids(None).map(|r| r.to_string()).collect();
+        let natural: Vec<_> = set.reconstructed_time_ranges(None).map(|r| r.to_string()).collect();
         assert_eq!(natural, ["12/0/3638/1614_7200/0"]);
 
         // 暦に正規化すると「3600 秒 × 2 TimeSegment」。
         let calendar: Vec<_> = set
-            .range_ids(Some(AllowedIntervals::calendar()))
+            .reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
             .map(|r| r.to_string())
             .collect();
         assert_eq!(calendar, ["12/0/3638/1614_3600/0:1"]);
 
         // 秒区間はどの表現でも変わらない。
         assert_eq!(
-            set.range_ids(None).next().unwrap().seconds_range(),
-            set.range_ids(Some(AllowedIntervals::calendar()))
+            set.reconstructed_time_ranges(None).next().unwrap().seconds_range(),
+            set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
                 .next()
                 .unwrap()
                 .seconds_range()
@@ -305,13 +305,13 @@ mod collection_api {
             set.insert(id);
         }
 
-        let iter = set.range_ids(Some(AllowedIntervals::calendar()));
+        let iter = set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()));
         let got: Vec<_> = iter.map(|r| r.to_string()).collect();
         assert_eq!(got, ["12/0/3638/1614_3600/0:1"]);
 
         // 一時値の候補集合でも同じ（`intervals` は `&self` とライフタイムを共有しない）。
         let intervals = AllowedIntervals::new([Interval::MINUTE]);
-        let iter = set.range_ids(Some(&intervals));
+        let iter = set.reconstructed_time_ranges(Some(&intervals));
         assert_eq!(iter.count(), 1);
     }
 
@@ -330,8 +330,8 @@ mod collection_api {
         assert_eq!(set.count(), 32);
 
         for hint in [
-            set.range_ids(None).size_hint(),
-            set.range_ids(Some(AllowedIntervals::calendar()))
+            set.reconstructed_time_ranges(None).size_hint(),
+            set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
                 .size_hint(),
             set.flat_single_ids(None).size_hint(),
             set.flat_single_ids(Some(AllowedIntervals::calendar()))
@@ -349,7 +349,7 @@ mod collection_api {
         }
 
         let got: Vec<_> = table
-            .range_ids(Some(AllowedIntervals::calendar()))
+            .reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
             .map(|(r, v)| (r.to_string(), *v))
             .collect();
         assert_eq!(got, [("12/0/3638/1614_3600/0:1".into(), 7u32)]);
@@ -384,8 +384,8 @@ mod collection_api {
         set.insert(SingleId::new(12, 0, 3638, 1614).unwrap());
 
         for got in [
-            set.range_ids(None).next().unwrap(),
-            set.range_ids(Some(AllowedIntervals::calendar()))
+            set.reconstructed_time_ranges(None).next().unwrap(),
+            set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
                 .next()
                 .unwrap(),
         ] {
@@ -406,12 +406,12 @@ mod collection_api {
         set.insert(original.clone());
 
         assert_eq!(
-            set.range_ids(None).next().unwrap().to_string(),
+            set.reconstructed_time_ranges(None).next().unwrap().to_string(),
             "12/0/3638/1614_1800/809712"
         );
         // 1800 は暦の候補に無いので、割り切れる最も粗い候補＝分になる。
         let calendar = set
-            .range_ids(Some(AllowedIntervals::calendar()))
+            .reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
             .next()
             .unwrap();
         assert_eq!(calendar.time_interval(), Interval::MINUTE);

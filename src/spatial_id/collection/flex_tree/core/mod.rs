@@ -1,4 +1,4 @@
-use crate::spatial_id::collection::flex_tree::coalesce;
+use crate::spatial_id::collection::flex_tree::time_reconstruct;
 use crate::{AllowedIntervals, FlexId, RangeId, Side, SingleId, SpatialId};
 use alloc::vec::Vec;
 use core::cell::RefCell;
@@ -264,11 +264,14 @@ impl<V: PartialEq, S> FlexTreeCore<V, S> {
     ///
     /// [`iter`](Self::iter) が返す [FlexId] は時間を2の冪秒のSegmentとして持つので、
     /// `1800` 秒のような単位で入れた ID も、こちらなら元の表記で取り出せる。
-    pub fn range_ids<'a>(
+    pub fn reconstructed_time_ranges<'a>(
         &'a self,
         allowed_intervals: Option<&'a AllowedIntervals>,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
-        coalesce::range_ids(self.iter(), allowed_intervals)
+        let has_temporal_split = (self.upper_root.split_dimensions() | self.lower_root.split_dimensions())
+            & crate::Dimension::T.bit()
+            != 0;
+        time_reconstruct::reconstruct(self.iter(), has_temporal_split, allowed_intervals)
     }
 
     /// [`range_ids`](Self::range_ids) を、全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
@@ -277,7 +280,7 @@ impl<V: PartialEq, S> FlexTreeCore<V, S> {
         allowed_intervals: Option<&'a AllowedIntervals>,
     ) -> impl Iterator<Item = (SingleId, &'a V)> + 'a {
         let max_z = self.max_zoomlevel().unwrap_or(0);
-        self.range_ids(allowed_intervals)
+        self.reconstructed_time_ranges(allowed_intervals)
             .flat_map(move |(range, value)| {
                 let range = if range.z() == max_z {
                     range

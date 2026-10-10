@@ -1,23 +1,6 @@
-//! 木から読み出したSegment列を、時間方向に結合してから書き出すための層。
-//!
-//! FlexTree は時間軸を「2の冪秒の2分岐Segment」として持つため、`Interval` が2の冪でない時間 ID
-//! （仕様が認める `1800` 秒など）は挿入時に複数Segmentへ分解される。読み出しでSegmentを1つずつ
-//! そのまま返すと、`12/0/3638/1614_1800/809712` が5つの断片になってしまい、
-//! 仕様書の `{i}/{t}` 表記が失われる。
-//!
-//! ここでは「FlexIdと値が同じで、時間が隣接している」Segmentどうしを結合してから
-//! `RangeId::with_time_span` に渡す。結合後の秒区間は元の区間に戻るので、
-//! `gcd` ベースの復元によって `1800/809712` がそのまま取り出せる。
-//!
-//! 結合は [`FlexId`] では表現できない（[`FlexId`] は2分岐Segment1個しか持てない）ため、
-//! 出力は [`RangeId`] である。したがってこの層は「[`RangeId`] / [`SingleId`] を書き出す経路」
-//! （`flat_single_ids` と JSON 直列化）専用で、`get` / `iter` のような [`FlexId`] を返す
-//! 経路は従来どおり生のSegmentを返す。
-
 use crate::SpatialId;
-use alloc::vec::Vec;
-
 use crate::{AllowedIntervals, FlexId, RangeId};
+use alloc::vec::Vec;
 
 /// 空間成分のみを `u128` へパックし、高速な一致判定を行う。
 #[inline(always)]
@@ -31,7 +14,7 @@ fn spatial_key_u128(id: &FlexId) -> u128 {
 }
 
 /// 時間方向に隣接するSegmentを遅延評価で結合するイテレータ。
-pub struct CoalesceTemporal<'a, I, V>
+pub struct TimeReconstructor<'a, I, V>
 where
     I: Iterator<Item = (FlexId, V)>,
     V: PartialEq,
@@ -41,7 +24,7 @@ where
     allowed_intervals: Option<&'a AllowedIntervals>,
 }
 
-impl<'a, I, V> Iterator for CoalesceTemporal<'a, I, V>
+impl<'a, I, V> Iterator for TimeReconstructor<'a, I, V>
 where
     I: Iterator<Item = (FlexId, V)>,
     V: PartialEq,
@@ -98,7 +81,7 @@ where
 /// # 計算量
 ///
 /// `O(n)`。入力はあらかじめ `(FlexId, 開始秒)` 順に並んでいる前提。
-pub(crate) fn coalesce_temporal<'a, I, V>(
+pub(crate) fn reconstruct_temporal<'a, I, V>(
     rows: I,
     allowed_intervals: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (RangeId, V)> + 'a
@@ -106,7 +89,7 @@ where
     I: IntoIterator<Item = (FlexId, V)> + 'a,
     V: PartialEq + 'a,
 {
-    CoalesceTemporal {
+    TimeReconstructor {
         iter: rows.into_iter(),
         pending: None,
         allowed_intervals,
@@ -117,18 +100,23 @@ where
 ///
 /// 木の走査順では、同じ空間の時間Segmentが連続するとは限らない。時間で分割された
 /// Segmentがあるときだけ `(空間, 開始秒)` 順に並べ直してから結合し、無ければ集めずに流す。
-pub(crate) fn range_ids<'a, V: PartialEq + 'a>(
-    rows: impl Iterator<Item = (FlexId, V)> + Clone + 'a,
+pub(crate) fn reconstruct<'a, V: PartialEq + 'a>(
+    rows: impl Iterator<Item = (FlexId, V)> + 'a,
+    has_temporal_split: bool,
     allowed_intervals: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (RangeId, V)> + 'a {
-    let temporal = rows.clone().any(|(id, _)| id.t_zoomlevel() > 0);
-    let sorted = temporal.then(|| {
-        let mut sorted: Vec<(FlexId, V)> = rows.clone().collect();
+    // WHY: 木の走査順では空間領域で先に分割された場合、時間Segmentの走査が交差して連続しない。
+    // 連続した時間ブロックへ結合するためには、(空間, 開始秒) の順にソートする必要がある。
+    // そのため、時間方向の分割がある場合のみ O(N) のメモリを確保して全要素を Vec に集め、ソートしてから結合する。
+    let (sorted, lazy) = if has_temporal_split {
+        let mut sorted: Vec<(FlexId, V)> = rows.collect();
         sorted.sort_by_cached_key(|(id, _)| (spatial_key_u128(id), id.seconds_range().0));
-        sorted
-    });
-    let lazy = (!temporal).then_some(rows);
-    coalesce_temporal(
+        (Some(sorted), None)
+    } else {
+        (None, Some(rows))
+    };
+
+    reconstruct_temporal(
         sorted
             .into_iter()
             .flatten()
@@ -167,7 +155,7 @@ mod tests {
     use super::*;
     use crate::{Interval, SingleId, SpatialId};
 
-    fn coalesce_temporal_vec<V: Clone + PartialEq + Send>(
+    fn reconstruct_temporal_vec<V: Clone + PartialEq + Send>(
         items: impl IntoIterator<Item = (FlexId, V)>,
         allowed_intervals: Option<&AllowedIntervals>,
     ) -> Vec<(RangeId, V)> {
@@ -179,7 +167,7 @@ mod tests {
                 .cmp(&key_b)
                 .then_with(|| a.0.seconds_range().0.cmp(&b.0.seconds_range().0))
         });
-        coalesce_temporal(items, allowed_intervals).collect()
+        reconstruct_temporal(items, allowed_intervals).collect()
     }
 
     /// 時間成分を全時間へ落とした [`FlexId`]。元のテストの `sorted_reference` 用。
@@ -202,7 +190,7 @@ mod tests {
             "1800秒は複数の2分岐Segmentへ分解されるはず"
         );
 
-        let merged = coalesce_temporal_vec(time_segments, None);
+        let merged = reconstruct_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 1, "結合されて1件になるはず");
         assert_eq!(merged[0].0.to_string(), "12/0/3638/1614_1800/809712");
     }
@@ -218,7 +206,7 @@ mod tests {
         time_segments.extend(a.into_iter().map(|id| (id, 1u8)));
         time_segments.extend(b.into_iter().map(|id| (id, 2u8)));
 
-        let merged = coalesce_temporal_vec(time_segments, None);
+        let merged = reconstruct_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 2);
         assert_eq!(merged[0].0.seconds_range(), (0, 3600));
         assert_eq!(merged[1].0.seconds_range(), (3600, 7200));
@@ -235,7 +223,7 @@ mod tests {
         time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
         time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(time_segments, None);
+        let merged = reconstruct_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].0.seconds_range(), (0, 7200));
         // gcd(0, 7200) = 7200 なので「2時間」という単位で1Segmentになる。
@@ -256,7 +244,7 @@ mod tests {
         time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
         time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        let merged = coalesce_temporal_vec(time_segments, Some(AllowedIntervals::calendar()));
+        let merged = reconstruct_temporal_vec(time_segments, Some(AllowedIntervals::calendar()));
         assert_eq!(merged.len(), 1);
         assert_eq!(
             (merged[0].0.time_interval().seconds(), merged[0].0.t()),
@@ -277,7 +265,7 @@ mod tests {
                 .map(|id| (id, 7u8)),
         );
         let merged =
-            coalesce_temporal_vec(time_segments, Some(&AllowedIntervals::new([Interval::DAY])));
+            reconstruct_temporal_vec(time_segments, Some(&AllowedIntervals::new([Interval::DAY])));
         assert_eq!(
             (merged[0].0.time_interval().seconds(), merged[0].0.t()),
             (1, [0, 3599])
@@ -302,7 +290,7 @@ mod tests {
         time_segments.extend(a.into_iter().map(|id| (id, 7u8)));
         time_segments.extend(b.into_iter().map(|id| (id, 7u8)));
 
-        assert_eq!(coalesce_temporal_vec(time_segments, None).len(), 2);
+        assert_eq!(reconstruct_temporal_vec(time_segments, None).len(), 2);
     }
 
     /// 時間を使っていない場合は入力と1対1で対応する（全時間Segmentはそのまま）。
@@ -312,7 +300,7 @@ mod tests {
             .map(|x| (FlexId::new(3, 0, 3, x, 3, 0).unwrap(), 1u8))
             .collect();
 
-        let merged = coalesce_temporal_vec(time_segments, None);
+        let merged = reconstruct_temporal_vec(time_segments, None);
         assert_eq!(merged.len(), 4);
         assert!(merged.iter().all(|(id, _)| id.is_whole_time()));
     }

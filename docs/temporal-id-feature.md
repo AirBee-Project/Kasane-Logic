@@ -115,7 +115,7 @@ FlexTree は時間を「2の冪秒のSegment」として持つ。`{i}` の秒数
 
 さらに、`RangeId` / `SingleId` を書き出す経路（`flat_single_ids` と JSON 直列化）では、
 書き出す前に**FlexIdと値が同じで時間が隣接するSegmentを結合**する
-（`flex_tree::coalesce::coalesce_temporal`）。これにより、分解された5個のSegmentが元の
+（`flex_tree::time_reconstruct::reconstruct_temporal`）。これにより、分解された5個のSegmentが元の
 `[start, end)` に戻り、上記2の `gcd` によって `1800/809712` がそのまま復元される。
 
 ```text
