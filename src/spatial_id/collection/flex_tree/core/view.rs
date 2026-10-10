@@ -73,14 +73,14 @@ impl<'a, V, S> View<'a, V, S> {
         }
     }
 
-    /// 最初にどの次元で割るか。Leaf や空なら [`None`]。
-    pub(super) fn head_dimension(&self, this: &FlexId) -> Option<Dimension> {
+    /// 最初に割る次元の候補（[`Dimension::bit`] の OR）。Leaf や空なら 0。
+    pub(super) fn head_dimensions(&self, this: &FlexId) -> u8 {
         match self {
-            View::Empty => None,
-            View::Node(node) => node.head_dimension(this),
-            View::Skip { region, child } => this.coarsest_dimension_in(
-                region.finer_dimensions_than(this) | child.split_dimensions(),
-            ),
+            View::Empty => 0,
+            View::Node(node) => node.head_dimensions(),
+            View::Skip { region, child } => {
+                region.finer_dimensions_than(this) | child.split_dimensions()
+            }
         }
     }
 

@@ -95,12 +95,13 @@ impl<V, S> Node<V, S> {
         }
     }
 
-    /// この Node を「最初にどの次元で割るか」。Leaf なら [`None`]。
-    pub(super) fn head_dimension(&self, this: &FlexId) -> Option<Dimension> {
+    /// この Node を最初に割る次元の候補（[`Dimension::bit`] の OR）。このうち一番粗い次元で最初に割る。
+    /// Leaf や空なら 0。
+    pub(super) fn head_dimensions(&self) -> u8 {
         match self {
-            Node::Empty | Node::Leaf(_) => None,
-            Node::Branch(branch) => Some(branch.dimension),
-            Node::Skip(skip) => this.coarsest_dimension_in(skip.split_dimensions),
+            Node::Empty | Node::Leaf(_) => 0,
+            Node::Branch(branch) => branch.dimension.bit(),
+            Node::Skip(skip) => skip.split_dimensions,
         }
     }
 
@@ -301,10 +302,8 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
             }
         }
         // 結果もカノニカル形（粗い次元から割る）になるよう、両方の最初の次元のうち粗い方で割る
-        let heads = a.head_dimension(this).map_or(0, |d| d.bit())
-            | b.head_dimension(this).map_or(0, |d| d.bit());
         let dimension = this
-            .coarsest_dimension_in(heads)
+            .coarsest_dimension_in(a.head_dimensions() | b.head_dimensions(this))
             .expect("Leaf どうしは rule が答えを決める");
         let lower_id = this.split_on(dimension, Side::Lower).unwrap();
         let upper_id = this.split_on(dimension, Side::Upper).unwrap();
