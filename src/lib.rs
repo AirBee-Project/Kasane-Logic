@@ -14,9 +14,6 @@ extern crate self as kasane_logic;
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
-/// `tracing` feature 用の実装
-mod trace;
-
 /// 空間ID以外の地理空間情報。
 pub mod geometry;
 /// 空間IDに関する型を定義。

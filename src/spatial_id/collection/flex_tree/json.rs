@@ -361,6 +361,7 @@ where
 #[cfg(test)]
 mod tests {
     use alloc::format;
+    use alloc::string::ToString;
 
     /// [`super::IdEntry`] 単体での `i`/`t` の直列化・復元。
     #[cfg(feature = "temporal_id")]
