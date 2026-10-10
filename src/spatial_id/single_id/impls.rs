@@ -27,22 +27,6 @@ impl fmt::Display for SingleId {
 }
 
 impl SpatialId for SingleId {
-    fn f_min(&self) -> i32 {
-        self.z.f_min()
-    }
-
-    fn f_max(&self) -> i32 {
-        self.z.f_max()
-    }
-
-    fn x_max(&self) -> u32 {
-        self.z.xy_max()
-    }
-
-    fn y_max(&self) -> u32 {
-        self.z.xy_max()
-    }
-
     /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かします。
     ///
     /// # パラメータ
@@ -79,13 +63,7 @@ impl SpatialId for SingleId {
             })
         })?;
 
-        if new < self.f_min() || new > self.f_max() {
-            return Err(SpatialIdError::FOutOfRange {
-                f: new,
-                z: self.z.get(),
-            }
-            .into());
-        }
+        self.z.check_f(new)?;
 
         self.f = new;
 
@@ -119,7 +97,7 @@ impl SpatialId for SingleId {
     /// assert_eq!(id.x(), 13);
     /// ```
     fn move_x(&mut self, by: i32) {
-        let max_len = self.x_max() as i64 + 1;
+        let max_len = self.z.xy_max() as i64 + 1;
         let new = (self.x as i64 + by as i64).rem_euclid(max_len);
         self.x = new as u32;
     }
@@ -164,18 +142,12 @@ impl SpatialId for SingleId {
             self.y
                 .checked_sub(by.unsigned_abs())
                 .ok_or(SpatialIdError::YOutOfRange {
-                    y: self.y_min(),
+                    y: 0,
                     z: self.z.get(),
                 })?
         };
 
-        if new > self.y_max() {
-            return Err(SpatialIdError::YOutOfRange {
-                y: new,
-                z: self.z.get(),
-            }
-            .into());
-        }
+        self.z.check_y(new)?;
 
         self.y = new;
 
