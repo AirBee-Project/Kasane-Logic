@@ -37,10 +37,9 @@ impl CoverSingleIds for Sphere {
                         center_ecef.x() + radius * sx,
                         center_ecef.y() + radius * sy,
                         center_ecef.z() + radius * sz,
-                    );
-                    if let Ok(id) = e.single_id(z) {
-                        corners.push(id);
-                    }
+                    )?;
+
+                    corners.push(e.single_id(z).unwrap());
                 }
             }
         }

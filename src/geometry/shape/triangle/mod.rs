@@ -44,9 +44,9 @@ impl Triangle {
 
     pub fn divide(&self, steps: u32) -> Result<impl Iterator<Item = Triangle>, Error> {
         let steps_f = steps as f64;
-        let p0: Ecef = self.points[0].into();
-        let p1: Ecef = self.points[1].into();
-        let p2: Ecef = self.points[2].into();
+        let p0: Vec3Ecef = self.points[0].into();
+        let p1: Vec3Ecef = self.points[1].into();
+        let p2: Vec3Ecef = self.points[2].into();
 
         // [最適化1] 最初の頂点を1度だけ変換しておく
         let initial_pt: Coordinate = p0
@@ -58,9 +58,7 @@ impl Triangle {
         let current_row_buf = Vec::with_capacity((steps + 1) as usize);
 
         // [最適化3] 行内で一定となるステップ値（P2 - P1）/ steps を事前計算
-        let step_x = (p2.x() - p1.x()) / steps_f;
-        let step_y = (p2.y() - p1.y()) / steps_f;
-        let step_z = (p2.z() - p1.z()) / steps_f;
+        let step = (p2 - p1).scale(1.0 / steps_f);
 
         let iter = (1..=steps)
             .scan(
@@ -74,20 +72,14 @@ impl Triangle {
                     // [最適化3] 行の始点 (j = 0 のときの座標) を計算
                     let w0 = 1.0 - (i_f / steps_f);
                     let w1_base = i_f / steps_f;
-                    let start_x = p0.x() * w0 + p1.x() * w1_base;
-                    let start_y = p0.y() * w0 + p1.y() * w1_base;
-                    let start_z = p0.z() * w0 + p1.z() * w1_base;
+                    let start = p0.scale(w0) + p1.scale(w1_base);
 
                     // [最適化1] 頂点の「生成時」にのみ1回だけ型変換を行う
                     for j in 0..=i {
                         let j_f = j as f64;
-                        let ecef = Ecef::new(
-                            start_x + step_x * j_f,
-                            start_y + step_y * j_f,
-                            start_z + step_z * j_f,
-                        );
+                        let v = start + step.scale(j_f);
 
-                        let pt: Coordinate = ecef.try_into().ok()?;
+                        let pt: Coordinate = v.try_into().expect("範囲外です");
                         current_row.push(pt);
                     }
 
@@ -118,7 +110,7 @@ impl Triangle {
     }
 
     ///[SingleId]の集合へ変換を行います。
-    pub fn single_ids_limited(
+    pub(crate) fn single_ids_limited(
         self,
         z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = SingleId>, Error> {

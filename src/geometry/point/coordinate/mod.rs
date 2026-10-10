@@ -247,7 +247,7 @@ impl Coordinate {
         ) as i64)
             .clamp(0, xy_max) as u32;
 
-        Ok(SingleId::new(z, f, x, y).unwrap())
+        Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
     }
 
     /// この座標を、指定されたズームレベルに対応する [FractionalId] に変換する。

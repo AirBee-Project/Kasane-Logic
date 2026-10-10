@@ -1,6 +1,8 @@
 use alloc::vec::Vec;
 
-use crate::{Coordinate, Ecef, Error, Line, Shape, SingleId, geometry::traits::CoverSingleIds};
+use crate::{
+    Coordinate, Error, Line, Shape, SingleId, Vec3, Vec3Ecef, geometry::traits::CoverSingleIds,
+};
 
 impl Shape for Line {
     fn center(&self) -> Coordinate {
@@ -23,12 +25,10 @@ impl CoverSingleIds for Line {
         let a = self.points[0];
         let b = self.points[1];
 
-        let ecef_a: Ecef = a.into();
-        let ecef_b: Ecef = b.into();
-        let dx = ecef_a.x() - ecef_b.x();
-        let dy = ecef_a.y() - ecef_b.y();
-        let dz = ecef_a.z() - ecef_b.z();
-        let distance = libm::sqrt(dx * dx + dy * dy + dz * dz);
+        let vec_a: Vec3Ecef = a.into();
+        let vec_b: Vec3Ecef = b.into();
+        let vec_ba = vec_a - vec_b;
+        let distance = vec_ba.norm();
         let (v1, v2) = (a.single_id(z)?, b.single_id(z)?);
         let diff = ((v1.f() - v2.f()).abs()
             + (v1.x() as i32 - v2.x() as i32).abs()
@@ -37,10 +37,8 @@ impl CoverSingleIds for Line {
         let mut coordinates = Vec::with_capacity(devide_num as usize + 1);
         for i in 0..=devide_num {
             let t = i as f64 / devide_num as f64;
-            let x = ecef_a.x() * (1.0 - t) + ecef_b.x() * t;
-            let y = ecef_a.y() * (1.0 - t) + ecef_b.y() * t;
-            let z_pos = ecef_a.z() * (1.0 - t) + ecef_b.z() * t;
-            let coo: Coordinate = Ecef::new(x, y, z_pos).try_into()?;
+            let v = vec_a.scale(1.0 - t) + vec_b.scale(t);
+            let coo: Coordinate = v.try_into()?;
             coordinates.push(coo);
         }
         let estimated_capacity = (diff as usize) + 10;

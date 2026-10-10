@@ -22,8 +22,7 @@ fn test_fractional_id_to_coordinate() {
 fn test_fractional_id_to_ecef() {
     let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     let ecef: Ecef = fid.into();
-    let origin = Ecef::new(0.0, 0.0, 0.0);
-    let r = ecef.distance(&origin);
+    let r = ecef.norm_squared();
     assert!(r >= 0.0);
 }
 

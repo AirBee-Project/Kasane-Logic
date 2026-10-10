@@ -38,7 +38,7 @@ impl From<Coordinate> for Ecef {
         let y = (n + h) * cos_lat * sin_lon;
         let z = (n * (1.0 - WGS84_E2) + h) * sin_lat;
 
-        Ecef::new(x, y, z)
+        unsafe { Ecef::new_unchecked(x, y, z) }
     }
 }
 

@@ -1,99 +1,78 @@
-triangle関数のデバッグ
-traingle.rsのimplにこれを書く
+# Triangle 被覆のデバッグ手順
+
+`Triangle::cover_single_ids` の結果を、三角形の内部を細かくサンプリングして求めた参照結果と比べ、取りこぼしや余分な ID がないか、どれだけ速いかを確認するための手順。
+
+## 1. 参照実装を一時的に追加する
+
+`src/geometry/shape/triangle/mod.rs` の `impl Triangle` に、次の関数を一時的に追加する（確認が終わったら削除する）。
+
+三角形を ECEF 上で細かい格子点に分割し、各点が属する `SingleId` を重複なく列挙する。格子の間隔は、3頂点のうち最も赤道に近い緯度でのボクセル幅の 1/4 とする。
 
 ```rs
-pub fn single_ids_sumpling(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
-    if z > MAX_ZOOM_LEVEL as u8 {
-        return Err(Error::ZOutOfRange { z });
-    }
+// 追加で必要な import:
+// use core::f64::consts::PI;
+// use crate::{WGS84_A, ZoomLevel};
 
-    let ecef_a: Ecef = self.points[0].into();
-    let ecef_b: Ecef = self.points[1].into();
-    let ecef_c: Ecef = self.points[2].into();
+/// サンプリングによる参照実装（デバッグ用）。
+pub fn single_ids_sampling(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
+    let z = ZoomLevel::new(z)?.get();
 
-    let min_lat_rad = self.points[0]
-        .latitude()
-        .abs()
-        .min(self.points[1].latitude().abs())
-        .min(self.points[2].latitude().abs())
+    let a: Vec3Ecef = self.points[0].into();
+    let b: Vec3Ecef = self.points[1].into();
+    let c: Vec3Ecef = self.points[2].into();
+
+    let min_lat_rad = libm::fabs(self.points[0].latitude())
+        .min(libm::fabs(self.points[1].latitude()))
+        .min(libm::fabs(self.points[2].latitude()))
         .to_radians();
 
-    let d = PI * WGS84_A * min_lat_rad.cos() * 2f64.powi(-2 - z as i32);
+    // サンプリング間隔 [m]
+    let d = PI * WGS84_A * libm::cos(min_lat_rad) * libm::pow(2.0, (-2 - z as i32) as f64);
 
-    let l1 = ((ecef_c.as_x() - ecef_b.as_x()).powi(2)
-        + (ecef_c.as_y() - ecef_b.as_y()).powi(2)
-        + (ecef_c.as_z() - ecef_b.as_z()).powi(2))
-    .sqrt();
-    let l2 = ((ecef_a.as_x() - ecef_c.as_x()).powi(2)
-        + (ecef_a.as_y() - ecef_c.as_y()).powi(2)
-        + (ecef_a.as_z() - ecef_c.as_z()).powi(2))
-    .sqrt();
-    let l3 = ((ecef_a.as_x() - ecef_b.as_x()).powi(2)
-        + (ecef_a.as_y() - ecef_b.as_y()).powi(2)
-        + (ecef_a.as_z() - ecef_b.as_z()).powi(2))
-    .sqrt();
+    let l1 = (c - b).norm();
+    let l2 = (a - c).norm();
+    let l3 = (a - b).norm();
+    let steps = libm::ceil(l1.max(l2).max(l3) / d) as usize;
 
-    let steps = (l1.max(l2).max(l3) / d).ceil() as usize;
+    let mut seen = HashSet::new();
+    let iter = (0..=steps)
+        .flat_map(move |i| {
+            let t = i as f64 / steps as f64;
+            let line1 = a.scale(1.0 - t) + b.scale(t);
+            let line2 = a.scale(1.0 - t) + c.scale(t);
 
-    let seen = Rc::new(RefCell::new(HashSet::new()));
-
-    let iter = (0..=steps).flat_map(move |i| {
-        let t = i as f64 / steps as f64;
-
-        let line1 = (
-            ecef_a.as_x() * (1.0 - t) + ecef_b.as_x() * t,
-            ecef_a.as_y() * (1.0 - t) + ecef_b.as_y() * t,
-            ecef_a.as_z() * (1.0 - t) + ecef_b.as_z() * t,
-        );
-        let line2 = (
-            ecef_a.as_x() * (1.0 - t) + ecef_c.as_x() * t,
-            ecef_a.as_y() * (1.0 - t) + ecef_c.as_y() * t,
-            ecef_a.as_z() * (1.0 - t) + ecef_c.as_z() * t,
-        );
-
-        let seen = seen.clone();
-
-        (0..=i).filter_map(move |j| {
-            let (x, y, z_pos) = if i == 0 {
-                (ecef_a.as_x(), ecef_a.as_y(), ecef_a.as_z())
-            } else {
-                let s = j as f64 / i as f64;
-                (
-                    line1.0 * (1.0 - s) + line2.0 * s,
-                    line1.1 * (1.0 - s) + line2.1 * s,
-                    line1.2 * (1.0 - s) + line2.2 * s,
-                )
-            };
-
-            if let Ok(voxel_id) = Ecef::new(x, y, z_pos).to_single_id(z) {
-                let mut borrowed = seen.borrow_mut();
-                if borrowed.insert(voxel_id.clone()) {
-                    Some(voxel_id)
+            (0..=i).filter_map(move |j| {
+                let p = if i == 0 {
+                    a
                 } else {
-                    None
-                }
-            } else {
-                None
-            }
+                    let s = j as f64 / i as f64;
+                    line1.scale(1.0 - s) + line2.scale(s)
+                };
+                // 範囲外の点は飛ばす
+                Coordinate::try_from(p).ok()?.single_id(z).ok()
+            })
         })
-    });
+        .filter(move |id| seen.insert(id.clone()));
 
     Ok(iter)
 }
 ```
 
+## 2. 比較用のプログラムを実行する
+
+次の内容を `examples/triangle_debug.rs` として保存し、`cargo run --release --example triangle_debug` で実行する。乱数生成には dev-dependencies の `rand` / `rand_chacha` を使うので、feature の指定は不要。
+
+固定の三角形（東京・池袋・品川）と、ランダムに生成した小さな三角形について、両者の結果の差分と速度比を表示し、`triangle_debug.csv` に追記する。
+
 ```rs
-use kasane_logic::SingleId;
-use kasane_logic::geometry::{point::coordinate::Coordinate, shapes::triangle};
-use kasane_logic::triangle::Triangle;
 use std::collections::HashSet;
-#[cfg(feature = "random")]
-use std::fmt::Error;
-use std::time::Instant;
-//use rand::prelude::*;
-use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::time::Instant;
+
+use kasane_logic::{Coordinate, CoverSingleIds, SingleId, Triangle};
+use rand::RngExt;
+use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};
 
 const MIN_LAT: f64 = 20.0;
 const MAX_LAT: f64 = 22.0;
@@ -101,118 +80,80 @@ const MIN_LON: f64 = 137.0;
 const MAX_LON: f64 = 139.0;
 const MIN_ALT: f64 = 0.0;
 const MAX_ALT: f64 = 1000.0;
-#[cfg(feature = "random")]
-pub fn generate_random_point() -> Result<Coordinate, kasane_logic::Error> {
-    use rand::Rng; // 0.9系でもトレイトのインポートが必要
 
-    let mut rng = rand::rng();
-    Ok(Coordinate::new(
-        rng.random_range(MIN_LAT..MAX_LAT),
-        rng.random_range(MIN_LON..MAX_LON),
-        rng.random_range(MIN_ALT..MAX_ALT),
-    )?)
+/// 中心点の周囲 ±`spread_deg` 度の範囲に頂点を持つ三角形を生成する。
+fn random_triangle(rng: &mut ChaCha8Rng, spread_deg: f64) -> Result<Triangle, kasane_logic::Error> {
+    let lat0 = rng.random_range(MIN_LAT..MAX_LAT);
+    let lon0 = rng.random_range(MIN_LON..MAX_LON);
+    let mut vertex = || {
+        Coordinate::new(
+            lat0 + rng.random_range(-spread_deg..spread_deg),
+            lon0 + rng.random_range(-spread_deg..spread_deg),
+            rng.random_range(MIN_ALT..MAX_ALT),
+        )
+    };
+    Ok(Triangle::new([vertex()?, vertex()?, vertex()?]))
 }
 
-fn save_results_to_csv(
+fn save_result_to_csv(
     area: f64,
-    step: u32,
     z: u8,
-    time: f64,
-    old: usize,
-    new: usize,
+    speedup: f64,
+    only_sampling: usize,
+    only_cover: usize,
     file_path: &str,
 ) -> std::io::Result<()> {
-    // 1. 追記モードでファイルを開く（なければ作成）
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(file_path)?;
-
-    // 2. ファイルが新規（サイズ0）ならヘッダーを書き込む
+    let mut file = OpenOptions::new().create(true).append(true).open(file_path)?;
     if file.metadata()?.len() == 0 {
-        writeln!(file, "area,step,z,time,old,new")?;
+        writeln!(file, "area,z,speedup,only_sampling,only_cover")?;
     }
+    writeln!(file, "{area},{z},{speedup},{only_sampling},{only_cover}")?;
+    file.flush()
+}
 
-    // 3. データをカンマ区切りで一行書き込む
-    // 引数の l も含めて記録すると後で分析しやすくなります
-    writeln!(file, "{},{},{},{},{},{}", area, step, z, time, old, new)?;
+/// 1つの三角形について、cover_single_ids と参照実装を比較する。
+fn compare(z: u8, tri: Triangle) -> Result<(), Box<dyn std::error::Error>> {
+    let start = Instant::now();
+    let reference: HashSet<SingleId> = tri.single_ids_sampling(z)?.collect();
+    let t_reference = start.elapsed();
 
-    // 4. フラッシュ（強制書き込み）
-    file.flush()?;
+    let start = Instant::now();
+    let covered: HashSet<SingleId> = tri.cover_single_ids(z)?.collect();
+    let t_cover = start.elapsed();
 
+    let common = covered.intersection(&reference).count();
+    // 参照実装にはあるが cover_single_ids にない ID（取りこぼし）
+    let only_sampling = reference.difference(&covered).count();
+    // cover_single_ids にだけある ID（余分。境界付近では多少出てよい）
+    let only_cover = covered.difference(&reference).count();
+    let speedup = t_reference.as_secs_f64() / t_cover.as_secs_f64();
+
+    println!(
+        "面積 {:.1} m², 共通 {common}, 取りこぼし {only_sampling}, 余分 {only_cover}, \
+         参照 {t_reference:?} / cover {t_cover:?}（{speedup:.1} 倍）",
+        tri.area()
+    );
+    save_result_to_csv(tri.area(), z, speedup, only_sampling, only_cover, "triangle_debug.csv")?;
     Ok(())
 }
 
-fn resaerch(z: u8, steps: Vec<u32>, tri: Triangle) -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = File::create("output.txt")?;
-    let tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0)?;
-    let nagoya = Coordinate::new(35.1706431, 136.8816945, 100.0)?;
-    let yokohama = Coordinate::new(35.4660694, 139.6226196, 100.0)?;
-    let ikebukuro = Coordinate::new(35.728926, 139.71038, 100.0)?;
-    let shinagawa = Coordinate::new(35.630152, 139.74044000000004, 800.0)?;
-    let area = tri.area();
-    let start_old = Instant::now();
-    let set_old: HashSet<SingleId> = tri.cover_single_ids(z)?.collect();
-    let duration_old = start_old.elapsed();
-    println!("従来関数実行時間: {:?}", duration_old);
-    for i in steps {
-        let start = Instant::now();
-        let set: HashSet<SingleId> = tri.single_ids_neo(z, i)?.collect();
-        let duration = start.elapsed();
-        println!("新関数実行時間: {:?}", duration);
-        let c1 = set.intersection(&set_old).count();
-        let c2 = set_old.difference(&set).count();
-        let c3 = set.difference(&set_old).count();
-        println!("重複要素{},旧来のみ{},新のみ{}", c1, c2, c3,);
-        let speed = duration_old.as_secs_f64() / duration.as_secs_f64();
-        println!("{}倍の高速化に成功", speed);
-        save_results_to_csv(area, i, z, speed, c2, c3, "analyzer.csv");
-        println!("{}", i)
-    }
-    Ok(())
-}
-
-fn print_ave_areas() -> Result<(), Box<dyn std::error::Error>> {
-    let mut areas = 0.0;
-    for i in 0..100 {
-        let tri = Triangle::new([
-            generate_random_point()?,
-            generate_random_point()?,
-            generate_random_point()?,
-        ]);
-        areas += tri.area()
-    }
-    print!("{}", areas);
-    Ok(())
-}
-
-fn generate_area_tris(
-    max_area: f64,
-    min_area: f64,
-    n: usize,
-) -> Result<Vec<Triangle>, Box<dyn std::error::Error>> {
-    let mut tris: Vec<Triangle> = Vec::new();
-    while tris.len() <= n {
-        let tri = Triangle::new([
-            generate_random_point()?,
-            generate_random_point()?,
-            generate_random_point()?,
-        ]);
-        if tri.area() >= max_area && tri.area() <= min_area {
-            tris.push(tri);
-        }
-    }
-    Ok((tris))
-}
-
-fn main() {
-    let max_steps = 100;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let z = 22;
-    let tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0).unwrap();
-    let ikebukuro = Coordinate::new(35.728926, 139.71038, 100.0).unwrap();
-    let shinagawa = Coordinate::new(35.630152, 139.74044000000004, 50.0).unwrap();
-    let tri = Triangle::new([tokyo, ikebukuro, shinagawa]);
-    let steps: Vec<u32> = (1..=max_steps).map(|k| k).collect();
-    resaerch(z, steps, tri);
+
+    // 固定の三角形
+    let tokyo = Coordinate::new(35.681382, 139.766084, 0.0)?;
+    let ikebukuro = Coordinate::new(35.728926, 139.71038, 100.0)?;
+    let shinagawa = Coordinate::new(35.630152, 139.74044, 50.0)?;
+    compare(z, Triangle::new([tokyo, ikebukuro, shinagawa]))?;
+
+    // ランダムな三角形（シード固定で再現可能）
+    let mut rng = ChaCha8Rng::seed_from_u64(42);
+    for _ in 0..10 {
+        // 一辺が最大 2 km 程度の三角形（z = 22 では参照実装の計算に数秒かかることがある）
+        compare(z, random_triangle(&mut rng, 0.01)?)?;
+    }
+    Ok(())
 }
 ```
+
+`取りこぼし` が 0 でない場合は、`cover_single_ids` が三角形の内部にあるボクセルを見落としている可能性がある。

@@ -1,6 +1,9 @@
 use core::ops::{Add, Sub};
 
-use crate::geometry::vec3::traits::Vec3;
+use crate::{
+    Coordinate, Ecef, Error, geometry::point::ecef::impls::ecef_to_geodetic,
+    geometry::vec3::traits::Vec3,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 地心直交座標(Ecef)をベクトルとして扱ったもの。
@@ -59,9 +62,10 @@ impl From<crate::Ecef> for Vec3Ecef {
     }
 }
 
-impl From<Vec3Ecef> for crate::Ecef {
-    fn from(vec: Vec3Ecef) -> Self {
-        crate::Ecef::new(vec.a, vec.b, vec.c)
+impl TryFrom<Vec3Ecef> for Ecef {
+    type Error = Error;
+    fn try_from(vec: Vec3Ecef) -> Result<Self, Error> {
+        Ecef::new(vec.a, vec.b, vec.c)
     }
 }
 
@@ -69,5 +73,14 @@ impl From<crate::Coordinate> for Vec3Ecef {
     fn from(coord: crate::Coordinate) -> Self {
         let ecef: crate::Ecef = coord.into();
         ecef.into()
+    }
+}
+
+impl TryFrom<Vec3Ecef> for Coordinate {
+    type Error = crate::Error;
+    /// 地心直交座標系（ECEF）から地理座標（緯度・経度・高度）への変換。
+    fn try_from(value: Vec3Ecef) -> Result<Self, Error> {
+        let (lat, lon, h) = ecef_to_geodetic(value.a(), value.b(), value.c());
+        Coordinate::new(lat, lon, h)
     }
 }
