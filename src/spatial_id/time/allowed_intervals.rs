@@ -257,6 +257,7 @@ mod tests {
 #[cfg(all(test, feature = "temporal_id"))]
 mod collection_api {
     use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdSet, SpatialIdTable};
+    use alloc::string::ToString;
     use alloc::vec::Vec;
 
     /// 同じFlexIdの隣り合う2時間ぶん。値は同じなので結合される。

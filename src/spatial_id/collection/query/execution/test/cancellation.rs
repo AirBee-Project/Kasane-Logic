@@ -4,7 +4,6 @@ use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
 use crate::{
     CancellationToken, Error, FlexId, NoSummary, RangeId, SingleId, Source, SpatialIdTable,
-    ZoomLevel,
 };
 
 #[test]
