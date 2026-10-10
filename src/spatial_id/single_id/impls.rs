@@ -63,13 +63,7 @@ impl SpatialId for SingleId {
             })
         })?;
 
-        if new < self.z.f_min() || new > self.z.f_max() {
-            return Err(SpatialIdError::FOutOfRange {
-                f: new,
-                z: self.z.get(),
-            }
-            .into());
-        }
+        self.z.check_f(new)?;
 
         self.f = new;
 
@@ -153,13 +147,7 @@ impl SpatialId for SingleId {
                 })?
         };
 
-        if new > self.z.xy_max() {
-            return Err(SpatialIdError::YOutOfRange {
-                y: new,
-                z: self.z.get(),
-            }
-            .into());
-        }
+        self.z.check_y(new)?;
 
         self.y = new;
 

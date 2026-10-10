@@ -51,13 +51,7 @@ impl SpatialId for FlexId {
             })
         })?;
 
-        if new < self.f_zoomlevel.f_min() || new > self.f_zoomlevel.f_max() {
-            return Err(SpatialIdError::FOutOfRange {
-                f: new,
-                z: self.f_zoomlevel.get(),
-            }
-            .into());
-        }
+        self.f_zoomlevel.check_f(new)?;
 
         self.f_index = new;
         Ok(())
@@ -86,13 +80,7 @@ impl SpatialId for FlexId {
                 })?
         };
 
-        if new > self.y_zoomlevel.xy_max() {
-            return Err(SpatialIdError::YOutOfRange {
-                y: new,
-                z: self.y_zoomlevel.get(),
-            }
-            .into());
-        }
+        self.y_zoomlevel.check_y(new)?;
 
         self.y_index = new;
 

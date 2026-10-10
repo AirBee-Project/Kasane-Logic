@@ -53,8 +53,6 @@ impl fmt::Display for RangeId {
 
 impl SpatialId for RangeId {
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let min = self.z.f_min();
-        let max = self.z.f_max();
         let z = self.z.get();
 
         let ns = self.f[0]
@@ -64,12 +62,8 @@ impl SpatialId for RangeId {
             .checked_add(by)
             .ok_or(SpatialIdError::FOutOfRange { f: i32::MAX, z })?;
 
-        if ns < min || ns > max {
-            return Err(SpatialIdError::FOutOfRange { f: ns, z }.into());
-        }
-        if ne < min || ne > max {
-            return Err(SpatialIdError::FOutOfRange { f: ne, z }.into());
-        }
+        self.z.check_f(ns)?;
+        self.z.check_f(ne)?;
 
         self.f = [ns, ne];
         Ok(())
@@ -84,7 +78,6 @@ impl SpatialId for RangeId {
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
             let byu = by as u32;
-            let max = self.z.xy_max();
             let z = self.z.get();
 
             let ns = self.y[0]
@@ -94,19 +87,14 @@ impl SpatialId for RangeId {
                 .checked_add(byu)
                 .ok_or(SpatialIdError::YOutOfRange { y: u32::MAX, z })?;
 
-            if ns > max {
-                return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
-            }
-            if ne > max {
-                return Err(SpatialIdError::YOutOfRange { y: ne, z }.into());
-            }
+            self.z.check_y(ns)?;
+            self.z.check_y(ne)?;
 
             self.y = [ns, ne];
             Ok(())
         } else {
             // south
             let byu = by.unsigned_abs();
-            let max = self.z.xy_max();
             let z = self.z.get();
 
             let ns = self.y[0]
@@ -116,12 +104,8 @@ impl SpatialId for RangeId {
                 .checked_sub(byu)
                 .ok_or(SpatialIdError::YOutOfRange { y: 0, z })?;
 
-            if ns > max {
-                return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
-            }
-            if ne > max {
-                return Err(SpatialIdError::YOutOfRange { y: ne, z }.into());
-            }
+            self.z.check_y(ns)?;
+            self.z.check_y(ne)?;
 
             self.y = [ns, ne];
             Ok(())
