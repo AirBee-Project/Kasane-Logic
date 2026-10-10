@@ -7,7 +7,7 @@ mod test;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error,
-    spatial_id::collection::{flex_tree::core::SafeValue, query::traits::UnaryOperator},
+    spatial_id::collection::query::{send_sync::SafeValue, traits::UnaryOperator},
 };
 
 use core::ops::Bound;

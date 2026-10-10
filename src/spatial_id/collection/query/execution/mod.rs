@@ -1,11 +1,12 @@
 use super::traits::{BinaryOperator, UnaryOperator};
 use crate::Error;
 use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::grid::try_run_grid;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
 use crate::trace::trace_span;
 use alloc::boxed::Box;

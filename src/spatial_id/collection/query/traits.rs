@@ -1,7 +1,7 @@
 use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{Error, RangeId, SpatialIdTable};
 
 /// 二項演算子の定義。

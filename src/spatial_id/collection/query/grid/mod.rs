@@ -35,8 +35,9 @@
 use alloc::vec::Vec;
 use core::ops::RangeInclusive;
 
-use crate::spatial_id::collection::flex_tree::core::ptr::{MaybeSendSync, MaybeSync};
-use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::helpers::Side;
 use crate::{CancellationToken, Error, FlexId, SpatialIdError, SpatialIdTable, ZoomLevel};
 
@@ -114,7 +115,7 @@ fn expand_leaf<V: Clone>(id: &FlexId, z: u8, value: &V, out: &mut Vec<SingleEntr
 fn sort_and_dedup<V, R>(entries: &mut Vec<SingleEntry<V>>, resolve: &R)
 where
     V: SafeValue,
-    R: Fn(&V, &V) -> V + MaybeSync + ?Sized,
+    R: Fn(&V, &V) -> V + MaybeSendSync + ?Sized,
 {
     #[cfg(feature = "rayon")]
     {
@@ -262,7 +263,7 @@ impl<V: SafeValue> UniformGrid<V> {
     /// 木の降下順にし、同じ位置を `resolve` で畳む。すでにその順ならなにもしない。
     fn sort_morton<R>(&mut self, resolve: &R)
     where
-        R: Fn(&V, &V) -> V + MaybeSync + ?Sized,
+        R: Fn(&V, &V) -> V + MaybeSendSync + ?Sized,
     {
         if self.order == Some(Order::Morton) {
             return;

@@ -1,5 +1,5 @@
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
 use alloc::boxed::Box;
 use alloc::vec::Vec;

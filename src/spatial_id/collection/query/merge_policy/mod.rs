@@ -15,7 +15,7 @@ pub use min::Min;
 pub use overwrite::Overwrite;
 pub use sum::Sum;
 
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 
 /// 同一の空間に複数の値が集まったときに、それらを1つの値に集約する規則
 pub trait MergePolicy<V>: MaybeSendSync + 'static {

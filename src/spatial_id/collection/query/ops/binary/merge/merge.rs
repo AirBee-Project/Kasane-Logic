@@ -1,4 +1,5 @@
-use crate::spatial_id::collection::flex_tree::core::{NoSummary, SafeValue};
+use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{merge_policy::MergePolicy, traits::BinaryOperator};
 use crate::{Error, SpatialIdTable};
 

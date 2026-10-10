@@ -1,5 +1,5 @@
 use super::{FalloffPattern, falloff_f::FalloffF, falloff_x::FalloffX, falloff_y::FalloffY};
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy};
 use crate::spatial_id::helpers::Side;
 use core::convert::TryFrom;

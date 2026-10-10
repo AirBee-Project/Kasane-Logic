@@ -1,3 +1,6 @@
+/// 値や演算子に課す `Send + Sync` の制約
+pub mod send_sync;
+
 /// クエリ実行を途中で打ち切るための協調的キャンセル
 pub mod cancellation;
 

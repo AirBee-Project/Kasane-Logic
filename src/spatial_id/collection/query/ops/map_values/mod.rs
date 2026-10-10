@@ -3,9 +3,9 @@ mod test;
 
 use alloc::boxed::Box;
 
-use crate::spatial_id::collection::flex_tree::core::SafeValue;
-use crate::spatial_id::collection::flex_tree::core::ptr::MaybeSendSync;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::SourceIter;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
 use crate::{Error, FlexId, RangeId};

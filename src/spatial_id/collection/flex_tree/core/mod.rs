@@ -8,13 +8,11 @@ use core::ops::{Bound, RangeBounds};
 pub use iter::{IntoIter, Iter};
 pub use kasane_logic_derive::BitMask;
 use node::{Decision, Node};
-pub use ptr::SafeValue;
 pub use summary::{BitMask, MinMax, NoSummary, Summary, ValueSet};
 use view::View;
 
 mod iter;
 mod node;
-pub mod ptr;
 mod summary;
 #[cfg(test)]
 mod tests;
