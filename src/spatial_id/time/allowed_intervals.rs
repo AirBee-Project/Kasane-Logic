@@ -276,7 +276,10 @@ mod collection_api {
         }
 
         // 既定は gcd なので「7200 秒 × 1 TimeSegment」。
-        let natural: Vec<_> = set.reconstructed_time_ranges(None).map(|r| r.to_string()).collect();
+        let natural: Vec<_> = set
+            .reconstructed_time_ranges(None)
+            .map(|r| r.to_string())
+            .collect();
         assert_eq!(natural, ["12/0/3638/1614_7200/0"]);
 
         // 暦に正規化すると「3600 秒 × 2 TimeSegment」。
@@ -288,7 +291,10 @@ mod collection_api {
 
         // 秒区間はどの表現でも変わらない。
         assert_eq!(
-            set.reconstructed_time_ranges(None).next().unwrap().seconds_range(),
+            set.reconstructed_time_ranges(None)
+                .next()
+                .unwrap()
+                .seconds_range(),
             set.reconstructed_time_ranges(Some(AllowedIntervals::calendar()))
                 .next()
                 .unwrap()
@@ -406,7 +412,10 @@ mod collection_api {
         set.insert(original.clone());
 
         assert_eq!(
-            set.reconstructed_time_ranges(None).next().unwrap().to_string(),
+            set.reconstructed_time_ranges(None)
+                .next()
+                .unwrap()
+                .to_string(),
             "12/0/3638/1614_1800/809712"
         );
         // 1800 は暦の候補に無いので、割り切れる最も粗い候補＝分になる。

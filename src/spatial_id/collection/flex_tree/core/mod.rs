@@ -268,7 +268,8 @@ impl<V: PartialEq, S> FlexTreeCore<V, S> {
         &'a self,
         allowed_intervals: Option<&'a AllowedIntervals>,
     ) -> impl Iterator<Item = (RangeId, &'a V)> + 'a {
-        let has_temporal_split = (self.upper_root.split_dimensions() | self.lower_root.split_dimensions())
+        let has_temporal_split = (self.upper_root.split_dimensions()
+            | self.lower_root.split_dimensions())
             & crate::Dimension::T.bit()
             != 0;
         time_reconstruct::reconstruct(self.iter(), has_temporal_split, allowed_intervals)
