@@ -1077,3 +1077,21 @@ fn common_descent_matches_stepwise_descent() {
         }
     }
 }
+
+/// 1つの `target` への `get` は、全ての FlexId を `iter` の順に切り取ったものと一致する。
+#[test]
+fn get_single_target_matches_clipped_iteration() {
+    let mut next = rng(41);
+    for max_zoom in [3, 5, 20] {
+        for _ in 0..300 {
+            let (tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
+            let target = random_id(&mut next, max_zoom);
+            let expected: Vec<_> = tree
+                .iter()
+                .filter_map(|(id, v)| Some((id.intersection(&target)?, v)))
+                .collect();
+            let got: Vec<_> = tree.get(target).collect();
+            assert_eq!(got, expected, "target {target}");
+        }
+    }
+}

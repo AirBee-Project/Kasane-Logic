@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::coalesce;
-use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
+use crate::{AllowedIntervals, FlexId, RangeId, Side, SingleId, SpatialId};
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::iter::from_fn;
@@ -146,8 +146,35 @@ impl<V, S> FlexTreeCore<V, S> {
         target: impl IntoIterator<Item = FlexId, IntoIter: 'a>,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         target.into_iter().flat_map(move |t| {
-            self.overlapping(move |region| region.intersection(&t).is_some())
-                .filter_map(move |(leaf, value)| Some((leaf.intersection(&t)?, value)))
+            // 積むのは `t` と重なる Node だけ。Branch では `t` がどちらの半分にあるかが割った次元だけで決まるので、
+            // 両方の子の領域を作って確かめずに済む
+            let mut stack = self.new_stack();
+            stack.retain(|(_, root)| root.intersects(&t));
+            from_fn(move || {
+                while let Some((node, this)) = stack.pop() {
+                    match node {
+                        Node::Empty => {}
+                        Node::Leaf(value) => return Some((this.intersection(&t)?, value)),
+                        Node::Branch(branch)
+                            if t.zoomlevel_on(branch.dimension)
+                                > this.zoomlevel_on(branch.dimension) =>
+                        {
+                            let side = this.side_toward(branch.dimension, &t);
+                            let child = match side {
+                                Side::Lower => &branch.lower,
+                                Side::Upper => &branch.upper,
+                            };
+                            stack.push((child, this.split_on(branch.dimension, side).unwrap()));
+                        }
+                        node => stack.extend(
+                            node.children(this)
+                                .filter(|(_, region)| region.intersects(&t))
+                                .rev(),
+                        ),
+                    }
+                }
+                None
+            })
         })
     }
 
@@ -157,7 +184,7 @@ impl<V, S> FlexTreeCore<V, S> {
         target: impl IntoIterator<Item = FlexId>,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         let targets: Vec<FlexId> = target.into_iter().collect();
-        self.overlapping(move |region| targets.iter().any(|t| region.intersection(t).is_some()))
+        self.overlapping(move |region| targets.iter().any(|t| region.intersects(t)))
     }
 
     /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
@@ -183,8 +210,7 @@ impl<V, S> FlexTreeCore<V, S> {
 
         let own: Vec<FlexId> = target.into_iter().collect();
         self.get_overlapping(shifted).filter(move |(leaf, _)| {
-            own.iter().all(|o| leaf.intersection(o).is_none())
-                && own.iter().any(|o| o.shares_face(leaf))
+            own.iter().all(|o| !leaf.intersects(o)) && own.iter().any(|o| o.shares_face(leaf))
         })
     }
 
@@ -334,7 +360,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     /// `target` と重なる領域を、切り取らずに丸ごと取り除き、取り除いた部分を FlexTreeCore として返す。
     pub fn remove_overlapping(&mut self, target: impl IntoIterator<Item = FlexId>) -> Self {
         let targets: Vec<FlexId> = target.into_iter().collect();
-        let overlaps = |region: &FlexId| targets.iter().any(|t| region.intersection(t).is_some());
+        let overlaps = |region: &FlexId| targets.iter().any(|t| region.intersects(t));
         let removed_part = |region: &FlexId, _: &S| {
             if !overlaps(region) {
                 Decision::DropAll

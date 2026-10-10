@@ -64,6 +64,50 @@ impl FlexId {
         results.into_iter()
     }
 
+    /// 2つの [`FlexId`] が重なっているかを判定します。
+    ///
+    /// [`intersection`](Self::intersection) と違い、重なっている領域の [`FlexId`] は作りません。
+    ///
+    /// ```
+    /// # use kasane_logic::FlexId;
+    /// let parent = FlexId::new(2, 0, 2, 0, 2, 0).unwrap();
+    /// let child = FlexId::new(3, 1, 3, 0, 3, 1).unwrap();
+    /// let other = FlexId::new(2, 1, 2, 0, 2, 0).unwrap();
+    /// assert!(parent.intersects(&child));
+    /// assert!(!parent.intersects(&other));
+    /// ```
+    pub fn intersects(&self, other: &FlexId) -> bool {
+        let nested = |z1: u8, i1: i64, z2: u8, i2: i64| nested_dimension(z1, i1, z2, i2).is_some();
+
+        // 時間軸は `temporal_id` 無効時には存在しない（双方とも全時間で必ず入れ子）
+        #[cfg(feature = "temporal_id")]
+        let time = nested(
+            self.t_zoomlevel(),
+            self.t() as i64,
+            other.t_zoomlevel(),
+            other.t() as i64,
+        );
+        #[cfg(not(feature = "temporal_id"))]
+        let time = true;
+
+        nested(
+            self.f_zoomlevel(),
+            self.f_index() as i64,
+            other.f_zoomlevel(),
+            other.f_index() as i64,
+        ) && nested(
+            self.x_zoomlevel(),
+            self.x_index() as i64,
+            other.x_zoomlevel(),
+            other.x_index() as i64,
+        ) && nested(
+            self.y_zoomlevel(),
+            self.y_index() as i64,
+            other.y_zoomlevel(),
+            other.y_index() as i64,
+        ) && time
+    }
+
     /// 2つの [`FlexId`] の重なっている領域（Intersection）を計算して返します。
     /// 重なりがない場合は [`None`] を返します。
     ///
@@ -100,17 +144,20 @@ impl FlexId {
             other.t() as i64,
         )?;
 
-        Some(FlexId {
-            f_zoomlevel: ZoomLevel::new(f_z).unwrap(),
-            f_index: f_i as i32,
-            x_zoomlevel: ZoomLevel::new(x_z).unwrap(),
-            x_index: x_i as u32,
-            y_zoomlevel: ZoomLevel::new(y_z).unwrap(),
-            y_index: y_i as u32,
-            #[cfg(feature = "temporal_id")]
-            t_zoomlevel: TZoomLevel::new(t_z).unwrap(),
-            #[cfg(feature = "temporal_id")]
-            t_index: t_i as u64,
+        // SAFETY: 各次元のズームとインデックスは、どちらかの入力のものをそのまま使っている
+        Some(unsafe {
+            FlexId {
+                f_zoomlevel: ZoomLevel::new_unchecked(f_z),
+                f_index: f_i as i32,
+                x_zoomlevel: ZoomLevel::new_unchecked(x_z),
+                x_index: x_i as u32,
+                y_zoomlevel: ZoomLevel::new_unchecked(y_z),
+                y_index: y_i as u32,
+                #[cfg(feature = "temporal_id")]
+                t_zoomlevel: TZoomLevel::new_unchecked(t_z),
+                #[cfg(feature = "temporal_id")]
+                t_index: t_i as u64,
+            }
         })
     }
 
