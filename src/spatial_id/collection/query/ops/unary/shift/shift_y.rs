@@ -60,6 +60,4 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "shift_y(z={}, y={})", self.z.get(), self.y)
     }
-
-
 }
