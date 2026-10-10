@@ -86,7 +86,7 @@ impl AllowedIntervals {
     ///
     /// # なぜ `&'static` を返すのか
     ///
-    /// 読み出し API（[`range_ids_in`](crate::SpatialIdSet::range_ids_in) など）へ
+    /// 読み出し API（[`crate::SpatialIdSet::reconstructed_time_ranges`] など）へ
     /// **一時値のまま直接渡せる**ようにするためである。所有値を返していた頃は
     ///
     /// ```text

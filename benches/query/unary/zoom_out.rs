@@ -21,10 +21,7 @@ fn bench_zoom_out(c: &mut Criterion) {
                 || table.clone(),
                 |t| {
                     let target_level = ZoomLevel::new(lvl).unwrap();
-                    t.query()
-                        .zoom_out(target_level, Average)
-                        .raw_run::<kasane_logic::MinMax<_>>()
-                        .unwrap()
+                    t.query().zoom_out(target_level, Average).raw_run().unwrap()
                 },
                 BatchSize::SmallInput,
             );

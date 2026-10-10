@@ -20,7 +20,7 @@ fn run_matches_raw_run() {
         .shift_y(10, 4)
         .shift_f(10, 1)
         .falloff_x(10, 2, None, FalloffPattern::Linear, Sum)
-        .run::<crate::MinMax<_>>()
+        .run()
         .unwrap();
 
     let mut raw_table = SpatialIdTable::new();
@@ -37,7 +37,7 @@ fn run_matches_raw_run() {
             FalloffPattern::Linear,
             crate::spatial_id::collection::query::merge_policy::Sum,
         )
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
 
     assert_eq!(
@@ -54,7 +54,7 @@ fn run_matches_raw_run() {
 fn run_surfaces_validation_error() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
     // zoom 100 は範囲外なので shift_x の構築時点で Query::Error になる。
-    let result = table.query().shift_x(100, 3).run::<crate::MinMax<_>>();
+    let result = table.query().shift_x(100, 3).run();
     assert!(result.is_err());
 }
 
@@ -73,7 +73,7 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
             1,
             crate::spatial_id::collection::query::merge_policy::Max,
         )
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
 
     for (_, v) in out.flat_single_ids(None) {
@@ -104,7 +104,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 3,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run::<crate::MinMax<_>>()
+            .raw_run()
             .unwrap()
     };
     let run_x = |t: SpatialIdTable<u32>| {
@@ -115,7 +115,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 7450100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run::<crate::MinMax<_>>()
+            .raw_run()
             .unwrap()
     };
     let run_y = |t: SpatialIdTable<u32>| {
@@ -126,7 +126,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 3301100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run::<crate::MinMax<_>>()
+            .raw_run()
             .unwrap()
     };
 

@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::{
-    BitMask, FlexTreeCore, IntoIter, MinMax, Summary, ValueSet,
+    BitMask, FlexTreeCore, IntoIter, NoSummary, Summary, ValueSet,
 };
 use core::ops::RangeBounds;
 #[cfg(feature = "json")]
@@ -12,12 +12,23 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 
 /// 空間(FlexId)ごとに値(V)を持たせるためのテーブル構造。
 ///
-/// `S` は木の Branch が子孫の値についてキャッシュする [Summary]。既定の [MinMax] は値の範囲で
-/// 枝刈りする [`filter_range`](Self::filter_range) を使えるようにする。値で絞り込まないなら
-/// [`NoSummary`](crate::NoSummary)、enum を種類で絞り込む [`filter_values`](Self::filter_values) を
-/// 使うなら [`ValueSet`](crate::ValueSet) を選ぶ。
+/// 全ての操作は `S` を指定せずに使える。`S` は木の Branch が子孫の値についてキャッシュする
+/// [Summary] で、値で絞り込む操作だけを速くする。値の範囲で絞り込む
+/// [`filter_range`](Self::filter_range) を多用するなら [`MinMax`](crate::MinMax) を、
+/// enum を種類で絞り込む [`filter_values`](Self::filter_values) を多用するなら [`ValueSet`] を指定する。
+///
+/// ```
+/// use kasane_logic::{MinMax, SingleId, SpatialIdTable};
+///
+/// let mut table = SpatialIdTable::new();
+/// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 3.5_f64);
+///
+/// let mut indexed: SpatialIdTable<u32, MinMax<u32>> = SpatialIdTable::default();
+/// indexed.insert(SingleId::new(20, 0, 0, 0).unwrap(), 80);
+/// assert_eq!(indexed.filter_range(50..).count(), 1);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SpatialIdTable<V, S = MinMax<V>> {
+pub struct SpatialIdTable<V, S = NoSummary> {
     pub(crate) inner: FlexTreeCore<V, S>,
 }
 
@@ -29,10 +40,10 @@ impl<V, S> Default for SpatialIdTable<V, S> {
     }
 }
 
-impl<V: Ord + Clone> SpatialIdTable<V> {
-    /// 既定の Summary（[MinMax]）を持つ空の[SpatialIdTable]を作成します。
+impl<V: PartialEq + Clone> SpatialIdTable<V> {
+    /// 空の[SpatialIdTable]を作成します。
     ///
-    /// ほかの Summary を選ぶときは [`Default::default`] を使います。
+    /// [Summary] を指定するときは [`Default::default`] か [`with_summary`](Self::with_summary) を使います。
     pub fn new() -> Self {
         Self::default()
     }
@@ -117,7 +128,7 @@ where
         self.inner.reconstructed_time_ranges(allowed_intervals)
     }
 
-    /// [`range_ids`](Self::range_ids) を、テーブル全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+    /// [`reconstructed_time_ranges`](Self::reconstructed_time_ranges) を、テーブル全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
     pub fn flat_single_ids<'a>(
         &'a self,
         allowed_intervals: Option<&'a AllowedIntervals>,
@@ -128,6 +139,13 @@ where
     /// テーブルが空かどうかを返します
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// 中身はそのままに、[Summary] を `T` に付け替えたテーブルを作ります。
+    pub fn with_summary<T: Summary<V>>(&self) -> SpatialIdTable<V, T> {
+        SpatialIdTable {
+            inner: self.inner.with_summary(),
+        }
     }
 
     /// テーブルの全ての値を削除します。
@@ -144,14 +162,18 @@ where
 impl<V, S> SpatialIdTable<V, S>
 where
     V: Ord + Clone,
-    S: Summary<V> + AsRef<MinMax<V>>,
+    S: Summary<V>,
 {
     /// テーブル全体に存在する値の範囲 `(最小, 最大)`。空なら [`None`]。
+    ///
+    /// [`MinMax`](crate::MinMax) を持つテーブルなら O(1)、そうでなければ全ての値を走査する。
     pub fn value_range(&self) -> Option<(&V, &V)> {
         self.inner.value_range()
     }
 
-    /// 値が `range` に含まれる領域だけを残したテーブルを作る。値の範囲が `range` から外れる子孫は辿らない。
+    /// 値が `range` に含まれる領域だけを残したテーブルを作る。
+    ///
+    /// [`MinMax`](crate::MinMax) を持つテーブルなら、値がすべて `range` の内側・外側にある部分は辿らない。
     pub fn filter_range<R: RangeBounds<V>>(&self, range: R) -> Self {
         Self {
             inner: self.inner.filter_range(range),
@@ -162,14 +184,18 @@ where
 impl<V, S> SpatialIdTable<V, S>
 where
     V: BitMask + PartialEq + Clone,
-    S: Summary<V> + AsRef<ValueSet<V>>,
+    S: Summary<V>,
 {
     /// テーブル全体に現れる値の集合。
+    ///
+    /// [`ValueSet`] を持つテーブルなら O(1)、そうでなければ全ての値を走査する。
     pub fn value_set(&self) -> ValueSet<V> {
         self.inner.value_set()
     }
 
-    /// 値が `values` に含まれる領域だけを残したテーブルを作る。`values` と共通の値を持たない子孫は辿らない。
+    /// 値が `values` に含まれる領域だけを残したテーブルを作る。
+    ///
+    /// [`ValueSet`] を持つテーブルなら、値がすべて `values` の内側・外側にある部分は辿らない。
     pub fn filter_values(&self, values: ValueSet<V>) -> Self {
         Self {
             inner: self.inner.filter_values(values),

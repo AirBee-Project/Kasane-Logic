@@ -29,7 +29,7 @@ fn zoom_out_average_8_children() {
     let out = table
         .query()
         .zoom_out(ZoomLevel::new(19).unwrap(), Average)
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
@@ -53,11 +53,7 @@ fn zoom_out_max_partial_children() {
     table.insert(id_111, 5);
 
     // ZoomOut to Z=19 using Max policy
-    let out = table
-        .query()
-        .zoom_out(19, Max)
-        .raw_run::<crate::MinMax<_>>()
-        .unwrap();
+    let out = table.query().zoom_out(19, Max).raw_run().unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
     let result = out.get(parent.clone()).next().unwrap().1;

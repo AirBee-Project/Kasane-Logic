@@ -110,14 +110,18 @@ impl<V: SafeValue + 'static> Query<V> {
 
 // Queryの全体実行
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証・AST最適化を適用して実行し、内部表現の [`SpatialIdTable<V, NoSummary>`] のまま返す。
-    pub fn run_table(self) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+    /// 検証・AST最適化を適用して実行し、[`SpatialIdTable`] として返す。
+    ///
+    /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
+    pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
         self.validate()?;
-        self.optimize().raw_run_table()
+        self.optimize().raw_run()
     }
 
-    /// 検証も最適化もせず [`Query`] を実行し、内部表現の [`SpatialIdTable<V, NoSummary>`] のまま返す。
-    pub fn raw_run_table(self) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+    /// 検証も最適化もせず [`Query`] を実行し、[`SpatialIdTable`] として返す。
+    ///
+    /// AST を組み替えず書かれた順序のまま実行する。最適化の有無を比べるための口で、通常は [`run`](Self::run) を使う。
+    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
         fn run_internal<V: SafeValue + 'static>(
             query: Query<V>,
             token: &CancellationToken,

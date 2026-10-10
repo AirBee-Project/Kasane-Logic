@@ -28,7 +28,7 @@ fn falloff_x_single_segment() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 
@@ -50,7 +50,7 @@ fn falloff_x_overlap_sum() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 
@@ -76,7 +76,7 @@ fn falloff_x_overlap_max() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Max)
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 
@@ -110,7 +110,7 @@ fn falloff_x_radius_zero_is_noop() {
     let out = table
         .query()
         .falloff_x(20, 0, None, FalloffPattern::Linear, Sum)
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
     let r = row(&out);
 

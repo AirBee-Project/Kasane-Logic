@@ -765,7 +765,7 @@ fn get_matches_intersection() {
             let (tree, _) = random_tree::<u64, MinMax<u64>>(&mut next, max_zoom, |n| n(3));
             let targets = random_targets(&mut next, max_zoom);
 
-            let got: FlexTreeCore<u64> = tree
+            let got: FlexTreeCore<u64, MinMax<u64>> = tree
                 .get(targets.iter().copied())
                 .map(|(id, v)| (id, *v))
                 .collect();
@@ -1092,6 +1092,48 @@ fn get_single_target_matches_clipped_iteration() {
                 .collect();
             let got: Vec<_> = tree.get(target).collect();
             assert_eq!(got, expected, "target {target}");
+        }
+    }
+}
+
+/// 値での絞り込みは、Summary の有無や種類によらず同じ結果になる。Summary は速さだけを変える。
+#[test]
+fn value_filters_agree_across_summaries() {
+    type Both = (MinMax<Color>, ValueSet<Color>);
+    let mut next = rng(51);
+    for max_zoom in [5, 20] {
+        for _ in 0..100 {
+            let (plain, _) = random_tree::<u64, NoSummary>(&mut next, max_zoom, |n| n(10));
+            let ranged: FlexTreeCore<u64, MinMax<u64>> = plain.with_summary();
+            // 付け替えても、挿入して組んだ木と同じになる
+            assert_eq!(ranged, plain.iter().map(|(id, v)| (id, *v)).collect());
+            assert_canonical(&ranged);
+            assert_eq!(plain.value_range(), ranged.value_range());
+            let low = next(10);
+            let high = low + next(5);
+            assert_eq!(
+                plain.filter_range(low..high).with_summary::<MinMax<u64>>(),
+                ranged.filter_range(low..high)
+            );
+
+            let (colors, _) =
+                random_tree::<Color, NoSummary>(&mut next, max_zoom, |n| COLORS[n(4) as usize]);
+            let sets: FlexTreeCore<Color, ValueSet<Color>> = colors.with_summary();
+            let both: FlexTreeCore<Color, Both> = colors.with_summary();
+            assert_eq!(colors.value_set(), sets.value_set());
+            assert_eq!(colors.value_set(), both.value_set());
+            assert_eq!(colors.value_range(), both.value_range());
+            let wanted: ValueSet<Color> = COLORS.into_iter().filter(|_| next(2) == 0).collect();
+            let expected = colors.filter_values(wanted);
+            assert_eq!(
+                expected.with_summary::<ValueSet<Color>>(),
+                sets.filter_values(wanted)
+            );
+            assert_eq!(expected.with_summary::<Both>(), both.filter_values(wanted));
+            assert_eq!(
+                colors.filter_range(Color::Green..).with_summary::<Both>(),
+                both.filter_range(Color::Green..)
+            );
         }
     }
 }

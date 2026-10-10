@@ -29,44 +29,28 @@ fn int_table() -> SpatialIdTable<i32> {
 
 #[test]
 fn filter_eq_keeps_only_that_value() {
-    let out = int_table()
-        .query()
-        .filter_eq(10)
-        .raw_run::<crate::MinMax<_>>()
-        .unwrap();
+    let out = int_table().query().filter_eq(10).raw_run().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(12, 10)]);
 }
 
 #[test]
 fn filter_in_is_inclusive() {
-    let out: SpatialIdTable<i32> = int_table()
-        .query()
-        .filter_in(5..=10)
-        .raw_run::<crate::MinMax<_>>()
-        .unwrap();
+    let out: SpatialIdTable<i32> = int_table().query().filter_in(5..=10).raw_run().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(11, 5), (12, 10)]);
 }
 
 #[test]
 fn filter_in_open_bound() {
-    let out: SpatialIdTable<i32> = int_table()
-        .query()
-        .filter_in(10..)
-        .raw_run::<crate::MinMax<_>>()
-        .unwrap();
+    let out: SpatialIdTable<i32> = int_table().query().filter_in(10..).raw_run().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(12, 10), (13, 20)]);
 }
 
 #[test]
 fn filter_not_in_keeps_the_outside() {
-    let out: SpatialIdTable<i32> = int_table()
-        .query()
-        .filter_not_in(5..=10)
-        .raw_run::<crate::MinMax<_>>()
-        .unwrap();
+    let out: SpatialIdTable<i32> = int_table().query().filter_not_in(5..=10).raw_run().unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(10, 1), (13, 20)]);
 }
@@ -82,7 +66,7 @@ fn filter_values_works_for_text() {
     let out: SpatialIdTable<String> = t
         .query()
         .filter_in("b".to_string()..="bz".to_string())
-        .raw_run::<crate::MinMax<_>>()
+        .raw_run()
         .unwrap();
 
     assert_eq!(rows(&out), alloc::vec![(11, "banana".to_string())]);
@@ -97,7 +81,7 @@ fn invalid_range_is_rejected_by_validate() {
             core::ops::Bound::Included(100),
             core::ops::Bound::Included(1),
         ))
-        .run::<crate::MinMax<_>>();
+        .run();
 
     assert!(matches!(
         result,

@@ -18,8 +18,8 @@ impl<S: SpatialId> Extend<S> for SpatialIdSet {
 
 /// 空間 ID 列から [`SpatialIdSet`] を並列に構築する（`feature = "rayon"`）。
 ///
-/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`] のいずれの
-/// [`SpatialId`](crate::SpatialId) 型でも受け取れる。集合なので結果は挿入順・チャンク境界に依らず
+/// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`](crate::FlexId) のいずれの
+/// [`SpatialId`] 型でも受け取れる。集合なので結果は挿入順・チャンク境界に依らず
 /// 一意（正規形）に定まる。
 ///
 /// ```

@@ -25,10 +25,7 @@ fn bench_filter_values(c: &mut Criterion) {
                     |t| {
                         let predicate =
                             ValuePredicate::InRange(Bound::Included(t_val), Bound::Unbounded);
-                        t.query()
-                            .filter_values(predicate)
-                            .raw_run::<kasane_logic::MinMax<_>>()
-                            .unwrap()
+                        t.query().filter_values(predicate).raw_run().unwrap()
                     },
                     BatchSize::SmallInput,
                 );

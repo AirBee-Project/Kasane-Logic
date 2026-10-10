@@ -2,12 +2,28 @@ use core::fmt;
 use core::marker::PhantomData;
 
 /// `Branch` が子孫の値についてキャッシュする情報。
+///
+/// 値の範囲や種類での絞り込みはどの [Summary] でも使える。その情報を持つ [Summary] なら、
+/// 子孫をまとめて残す・捨てると判断できる部分を辿らずに済むので速くなる。
 pub trait Summary<V>: Clone + PartialEq {
     /// 値1つだけの[Summary]を作成する。
     fn new(value: &V) -> Self;
 
     /// 2つの[Summary]を合わせ、両方の値を満たす[Summary]を作成する。
     fn merge(&self, other: &Self) -> Self;
+
+    /// 子孫の値の `(最小, 最大)`。持っていなければ [`None`]。
+    fn value_range(&self) -> Option<(&V, &V)> {
+        None
+    }
+
+    /// 子孫に現れる値の集合。持っていなければ [`None`]。
+    fn value_set(&self) -> Option<ValueSet<V>>
+    where
+        V: BitMask,
+    {
+        None
+    }
 }
 
 /// [Summary]に何もキャッシュしない場合の型。
@@ -56,11 +72,9 @@ impl<V: Ord + Clone> Summary<V> for MinMax<V> {
             max: (&self.max).max(&other.max).clone(),
         }
     }
-}
 
-impl<V> AsRef<MinMax<V>> for MinMax<V> {
-    fn as_ref(&self) -> &MinMax<V> {
-        self
+    fn value_range(&self) -> Option<(&V, &V)> {
+        Some((&self.min, &self.max))
     }
 }
 
@@ -183,11 +197,9 @@ impl<V: BitMask + PartialEq> Summary<V> for ValueSet<V> {
     fn merge(&self, other: &Self) -> Self {
         self.union(other)
     }
-}
 
-impl<V> AsRef<ValueSet<V>> for ValueSet<V> {
-    fn as_ref(&self) -> &ValueSet<V> {
-        self
+    fn value_set(&self) -> Option<ValueSet<V>> {
+        Some(*self)
     }
 }
 
@@ -205,16 +217,15 @@ impl<V, A: Summary<V>, B: Summary<V>> Summary<V> for (A, B) {
     fn merge(&self, other: &Self) -> Self {
         (self.0.merge(&other.0), self.1.merge(&other.1))
     }
-}
 
-impl<V, B> AsRef<MinMax<V>> for (MinMax<V>, B) {
-    fn as_ref(&self) -> &MinMax<V> {
-        &self.0
+    fn value_range(&self) -> Option<(&V, &V)> {
+        self.0.value_range().or_else(|| self.1.value_range())
     }
-}
 
-impl<V, A> AsRef<ValueSet<V>> for (A, ValueSet<V>) {
-    fn as_ref(&self) -> &ValueSet<V> {
-        &self.1
+    fn value_set(&self) -> Option<ValueSet<V>>
+    where
+        V: BitMask,
+    {
+        self.0.value_set().or_else(|| self.1.value_set())
     }
 }

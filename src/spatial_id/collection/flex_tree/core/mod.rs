@@ -22,13 +22,18 @@ mod view;
 
 /// [FlexId]に対して割り当てられている値`V`を管理するためのインデックス構造。
 ///
+/// `S` は Branch が子孫の値についてキャッシュする [Summary]。どの [Summary] でも全ての操作が使え、
+/// 値の範囲や種類で絞り込む操作だけが、その情報を持つ [Summary] で速くなる。
+///
 /// ## 数値
 ///
-/// ```
-/// use kasane_logic::FlexId;
-/// use kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore;
+/// [MinMax] を指定すると、値の範囲での絞り込みが速くなる。
 ///
-/// let mut tree = FlexTreeCore::<u32>::default();
+/// ```
+/// use kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore;
+/// use kasane_logic::{FlexId, MinMax};
+///
+/// let mut tree = FlexTreeCore::<u32, MinMax<u32>>::default();
 /// tree.insert(FlexId::new(20, 5, 20, 100, 20, 200).unwrap(), 35u32);
 /// tree.insert(FlexId::new(18, 1, 18, 26, 18, 50).unwrap(), 80u32);
 ///
@@ -87,7 +92,7 @@ mod view;
 /// assert_eq!(tree.filter_values(ValueSet::single(Risk::Low)).count(), 1);
 /// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct FlexTreeCore<V, S = MinMax<V>> {
+pub struct FlexTreeCore<V, S = NoSummary> {
     upper_root: Node<V, S>,
     lower_root: Node<V, S>,
 }
@@ -131,6 +136,19 @@ impl<V, S> FlexTreeCore<V, S> {
         self.iter()
             .map(|(id, _)| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
             .max()
+    }
+
+    /// 形と値はそのままに、Summary を `T` に付け替えた[FlexTreeCore]を作成する。
+    ///
+    /// 挿入し直さず、Branch の Summary だけを下から計算し直す（Node の数に比例）。
+    pub fn with_summary<T: Summary<V>>(&self) -> FlexTreeCore<V, T>
+    where
+        V: Clone,
+    {
+        FlexTreeCore {
+            upper_root: self.upper_root.with_summary(),
+            lower_root: self.lower_root.with_summary(),
+        }
     }
 
     /// 全ての値を消す。
@@ -275,7 +293,7 @@ impl<V: PartialEq, S> FlexTreeCore<V, S> {
         time_reconstruct::reconstruct(self.iter(), has_temporal_split, allowed_intervals)
     }
 
-    /// [`range_ids`](Self::range_ids) を、全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+    /// [`reconstructed_time_ranges`](Self::reconstructed_time_ranges) を、全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
     pub fn flat_single_ids<'a>(
         &'a self,
         allowed_intervals: Option<&'a AllowedIntervals>,
@@ -298,7 +316,7 @@ impl<V: PartialEq, S> FlexTreeCore<V, S> {
 impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     /// `target` の領域に `value` を書き込む。既に値がある場所は上書きされる。
     ///
-    /// `target` には [FlexId] のほか、[SingleId](crate::SingleId) や [RangeId] をそのまま渡せる。
+    /// `target` には [FlexId] のほか、[SingleId] や [RangeId] をそのまま渡せる。
     pub fn insert(&mut self, target: impl IntoIterator<Item = FlexId>, value: V) {
         self.insert_by_rule(target, value, &|this, existing, written| {
             if written.leaf().is_some() || existing.is_empty() {
@@ -459,53 +477,47 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     }
 }
 
-impl<V: Ord + Clone, S: Summary<V> + AsRef<MinMax<V>>> FlexTreeCore<V, S> {
-    /// [FlexTreeCore]全体に存在する値の範囲 `[min, max]` を返す。[FlexTreeCore]が空なら [`None`]。
+impl<V: Ord + Clone, S: Summary<V>> FlexTreeCore<V, S> {
+    /// [FlexTreeCore]全体に存在する値の範囲 `(最小, 最大)` を返す。[FlexTreeCore]が空なら [`None`]。
+    ///
+    /// 値の範囲を持つ Summary（[MinMax]）なら O(1)、そうでなければ全ての値を走査する。
     pub fn value_range(&self) -> Option<(&V, &V)> {
-        match (self.upper_root.value_range(), self.lower_root.value_range()) {
-            (None, None) => None,
-            (Some(u), None) => Some(u),
-            (None, Some(l)) => Some(l),
-            (Some((u_min, u_max)), Some((l_min, l_max))) => {
-                Some((u_min.min(l_min), u_max.max(l_max)))
-            }
-        }
+        node::wider_range(self.upper_root.value_range(), self.lower_root.value_range())
     }
 
     /// 値が指定した範囲 `range` に含まれる領域だけを残した[FlexTreeCore]を作成する。
+    ///
+    /// 値の範囲を持つ Summary（[MinMax]）なら、子孫がすべて範囲の内側・外側にある部分は辿らない。
     pub fn filter_range<R: RangeBounds<V>>(&self, range: R) -> Self {
-        let classify = |_: &FlexId, summary: &S| {
-            let (min, max) = (summary.as_ref().min(), summary.as_ref().max());
-            if is_disjoint(min, max, range.start_bound(), range.end_bound()) {
+        let classify = |_: &FlexId, summary: &S| match summary.value_range() {
+            Some((min, max)) if is_disjoint(min, max, range.start_bound(), range.end_bound()) => {
                 Decision::DropAll
-            } else if range.contains(min) && range.contains(max) {
-                Decision::KeepAll
-            } else {
-                Decision::Descend
             }
+            Some((min, max)) if range.contains(min) && range.contains(max) => Decision::KeepAll,
+            _ => Decision::Descend,
         };
         self.filter(&classify, &|_, value| range.contains(value))
     }
 }
 
-impl<V: BitMask + PartialEq, S: Summary<V> + AsRef<ValueSet<V>>> FlexTreeCore<V, S> {
+impl<V: BitMask + PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     /// FlexTreeCore 全体に現れる値の集合。空なら [`ValueSet::EMPTY`]。
+    ///
+    /// 値の集合を持つ Summary（[ValueSet]）なら O(1)、そうでなければ全ての値を走査する。
     pub fn value_set(&self) -> ValueSet<V> {
-        self.summary()
-            .map_or(ValueSet::EMPTY, |summary| *summary.as_ref())
+        self.upper_root
+            .value_set()
+            .union(&self.lower_root.value_set())
     }
 
     /// 値が `values` に含まれる領域だけを残した[FlexTreeCore]を作成する。
+    ///
+    /// 値の集合を持つ Summary（[ValueSet]）なら、子孫がすべて `values` の内側・外側にある部分は辿らない。
     pub fn filter_values(&self, values: ValueSet<V>) -> Self {
-        let classify = |_: &FlexId, summary: &S| {
-            let present = summary.as_ref();
-            if present.is_disjoint(&values) {
-                Decision::DropAll
-            } else if present.is_subset(&values) {
-                Decision::KeepAll
-            } else {
-                Decision::Descend
-            }
+        let classify = |_: &FlexId, summary: &S| match summary.value_set() {
+            Some(present) if present.is_disjoint(&values) => Decision::DropAll,
+            Some(present) if present.is_subset(&values) => Decision::KeepAll,
+            _ => Decision::Descend,
         };
         self.filter(&classify, &|_, value| values.contains(*value))
     }

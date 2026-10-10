@@ -1,4 +1,4 @@
-use super::summary::{MinMax, Summary};
+use super::summary::{BitMask, Summary, ValueSet};
 use super::view::View;
 use crate::{
     FlexId, Side,
@@ -137,18 +137,66 @@ impl<V, S> Node<V, S> {
     }
 }
 
-impl<V, S: AsRef<MinMax<V>>> Node<V, S> {
-    /// この Node と子孫の値の範囲 `[min, max]` を返す。空なら [`None`]。
+impl<V: Ord, S: Summary<V>> Node<V, S> {
+    /// この Node と子孫の値の範囲 `(最小, 最大)`。空なら [`None`]。
+    ///
+    /// Summary が範囲を持っていればそれを使い、持っていなければ子孫を辿って求める。
     pub(super) fn value_range(&self) -> Option<(&V, &V)> {
         match self {
             Node::Empty => None,
-            Node::Leaf(v) => Some((v, v)),
-            Node::Branch(branch) => {
-                let range = branch.summary.as_ref();
-                Some((range.min(), range.max()))
-            }
+            Node::Leaf(value) => Some((value, value)),
+            Node::Branch(branch) => branch
+                .summary
+                .value_range()
+                .or_else(|| wider_range(branch.lower.value_range(), branch.upper.value_range())),
             Node::Skip(skip) => skip.child.value_range(),
         }
+    }
+}
+
+impl<V: BitMask, S: Summary<V>> Node<V, S> {
+    /// この Node と子孫に現れる値の集合。
+    ///
+    /// Summary が集合を持っていればそれを使い、持っていなければ子孫を辿って求める。
+    pub(super) fn value_set(&self) -> ValueSet<V> {
+        match self {
+            Node::Empty => ValueSet::EMPTY,
+            Node::Leaf(value) => ValueSet::single(*value),
+            Node::Branch(branch) => branch
+                .summary
+                .value_set()
+                .unwrap_or_else(|| branch.lower.value_set().union(&branch.upper.value_set())),
+            Node::Skip(skip) => skip.child.value_set(),
+        }
+    }
+}
+
+impl<V: Clone, S> Node<V, S> {
+    /// 形はそのままに、Branch の Summary を `T` で作り直した Node。
+    pub(super) fn with_summary<T: Summary<V>>(&self) -> Node<V, T> {
+        match self {
+            Node::Empty => Node::Empty,
+            Node::Leaf(value) => Node::Leaf(value.clone()),
+            Node::Branch(branch) => Node::Branch(Arc::new(Branch::new(
+                branch.dimension,
+                branch.lower.with_summary(),
+                branch.upper.with_summary(),
+            ))),
+            Node::Skip(skip) => {
+                Node::Skip(Arc::new(Skip::new(skip.path, skip.child.with_summary())))
+            }
+        }
+    }
+}
+
+/// 2つの値の範囲を合わせた範囲。
+pub(super) fn wider_range<'a, V: Ord>(
+    a: Option<(&'a V, &'a V)>,
+    b: Option<(&'a V, &'a V)>,
+) -> Option<(&'a V, &'a V)> {
+    match (a, b) {
+        (Some((a_min, a_max)), Some((b_min, b_max))) => Some((a_min.min(b_min), a_max.max(b_max))),
+        (range, None) | (None, range) => range,
     }
 }
 

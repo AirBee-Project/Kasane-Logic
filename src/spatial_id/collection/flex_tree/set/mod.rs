@@ -160,7 +160,7 @@ impl SpatialIdSet {
             .map(|(range_id, _)| range_id)
     }
 
-    /// [`range_ids`](Self::range_ids) を、集合全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
+    /// [`reconstructed_time_ranges`](Self::reconstructed_time_ranges) を、集合全体の最大ズームレベルに揃えた [`SingleId`] へ展開する。
     pub fn flat_single_ids<'a>(
         &'a self,
         allowed_intervals: Option<&'a AllowedIntervals>,
