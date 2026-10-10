@@ -5,7 +5,7 @@ use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
 use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::query::grid::try_run_grid;
+
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
 use crate::trace::trace_span;
@@ -169,35 +169,7 @@ pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
         }
 
         // グリッドで実行できる演算の最長区間を取る。
-        let mut grid_len = 0;
-        let mut max_z = None;
-        for op in ops.iter() {
-            if let Some(z) = op.grid_zoom() {
-                grid_len += 1;
-                max_z = Some(max_z.map_or(z, |m: crate::ZoomLevel| m.max(z)));
-            } else {
-                break;
-            }
-        }
 
-        if grid_len > 0 {
-            let grid_ops = &ops[..grid_len];
-            let grid_result = {
-                trace_span!("kasane_logic.query.unary.grid", op_count = grid_len);
-                try_run_grid(
-                    &working,
-                    grid_ops,
-                    max_z.unwrap(),
-                    grid_budget(&working),
-                    token,
-                )
-            };
-            if let Some(result) = grid_result {
-                working = result?;
-                ops = &ops[grid_len..];
-                continue;
-            }
-        }
         {
             trace_span!(
                 "kasane_logic.query.unary.op",
@@ -227,14 +199,8 @@ fn read_source<V: SafeValue + 'static>(
         .collect()
 }
 
-/// 平坦化を許す件数の上限。
-fn grid_budget<V: SafeValue>(working: &SpatialIdTable<V, NoSummary>) -> u64 {
-    (working.count() as u64)
-        .saturating_mul(64)
-        .saturating_add(1 << 20)
-}
-
 // Queryの遅延実行
+
 impl<V: SafeValue + 'static> Query<V> {
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
     ///

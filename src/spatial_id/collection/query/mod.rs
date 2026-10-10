@@ -23,6 +23,6 @@ pub mod source;
 pub mod fmt;
 
 #[doc(hidden)]
-pub mod grid;
+
 pub use execution::Query;
 pub use merge_policy::MergePolicy;
