@@ -104,4 +104,3 @@ fn check_amortized_only_checks_periodically() {
     }
     assert_eq!(token.check_amortized(&mut ctr), Err(Error::Cancelled));
 }
-
