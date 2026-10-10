@@ -55,19 +55,5 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
         write!(f, "?")
     }
 
-    #[doc(hidden)]
-    #[allow(private_interfaces)]
-    fn grid_zoom(&self) -> Option<crate::ZoomLevel> {
-        None
-    }
 
-    #[doc(hidden)]
-    #[allow(private_interfaces)]
-    fn apply_to_grid(
-        &self,
-        _grid: &mut crate::spatial_id::collection::query::grid::UniformGrid<V>,
-        _token: &crate::CancellationToken,
-    ) -> Result<crate::spatial_id::collection::query::grid::Applied, Error> {
-        Ok(crate::spatial_id::collection::query::grid::Applied::Unsupported)
-    }
 }

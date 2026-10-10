@@ -1,4 +1,3 @@
-use crate::spatial_id::zoom_level::ZoomLevel;
 use alloc::string::ToString;
 
 use core::fmt;
@@ -44,22 +43,6 @@ impl fmt::Display for FlexId {
 }
 
 impl SpatialId for FlexId {
-    fn f_min(&self) -> i32 {
-        ZoomLevel::new(self.f_zoomlevel.get()).unwrap().f_min()
-    }
-
-    fn f_max(&self) -> i32 {
-        ZoomLevel::new(self.f_zoomlevel.get()).unwrap().f_max()
-    }
-
-    fn x_max(&self) -> u32 {
-        ZoomLevel::new(self.x_zoomlevel.get()).unwrap().xy_max()
-    }
-
-    fn y_max(&self) -> u32 {
-        ZoomLevel::new(self.y_zoomlevel.get()).unwrap().xy_max()
-    }
-
     fn move_f(&mut self, by: i32) -> Result<(), crate::Error> {
         let new = self.f_index.checked_add(by).ok_or_else(|| {
             Error::from(SpatialIdError::FOutOfRange {
@@ -68,7 +51,7 @@ impl SpatialId for FlexId {
             })
         })?;
 
-        if new < self.f_min() || new > self.f_max() {
+        if new < self.f_zoomlevel.f_min() || new > self.f_zoomlevel.f_max() {
             return Err(SpatialIdError::FOutOfRange {
                 f: new,
                 z: self.f_zoomlevel.get(),
@@ -81,7 +64,7 @@ impl SpatialId for FlexId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = self.x_max() as i64 + 1;
+        let max_len = self.x_zoomlevel.xy_max() as i64 + 1;
         let new = (self.x_index as i64 + by as i64).rem_euclid(max_len);
         self.x_index = new as u32;
     }
@@ -98,12 +81,12 @@ impl SpatialId for FlexId {
             self.y_index
                 .checked_sub(by.unsigned_abs())
                 .ok_or(SpatialIdError::YOutOfRange {
-                    y: self.y_min(),
+                    y: 0,
                     z: self.y_zoomlevel.get(),
                 })?
         };
 
-        if new > self.y_max() {
+        if new > self.y_zoomlevel.xy_max() {
             return Err(SpatialIdError::YOutOfRange {
                 y: new,
                 z: self.y_zoomlevel.get(),

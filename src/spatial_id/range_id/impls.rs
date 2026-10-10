@@ -52,25 +52,9 @@ impl fmt::Display for RangeId {
 }
 
 impl SpatialId for RangeId {
-    fn f_min(&self) -> i32 {
-        self.z.f_min()
-    }
-
-    fn f_max(&self) -> i32 {
-        self.z.f_max()
-    }
-
-    fn x_max(&self) -> u32 {
-        self.z.xy_max()
-    }
-
-    fn y_max(&self) -> u32 {
-        self.z.xy_max()
-    }
-
     fn move_f(&mut self, by: i32) -> Result<(), Error> {
-        let min = self.f_min();
-        let max = self.f_max();
+        let min = self.z.f_min();
+        let max = self.z.f_max();
         let z = self.z.get();
 
         let ns = self.f[0]
@@ -92,7 +76,7 @@ impl SpatialId for RangeId {
     }
 
     fn move_x(&mut self, by: i32) {
-        let max_len = self.x_max() as i64 + 1;
+        let max_len = self.z.xy_max() as i64 + 1;
         self.x[0] = ((self.x[0] as i64 + by as i64).rem_euclid(max_len)) as u32;
         self.x[1] = ((self.x[1] as i64 + by as i64).rem_euclid(max_len)) as u32;
     }
@@ -100,7 +84,7 @@ impl SpatialId for RangeId {
     fn move_y(&mut self, by: i32) -> Result<(), Error> {
         if by >= 0 {
             let byu = by as u32;
-            let max = self.y_max();
+            let max = self.z.xy_max();
             let z = self.z.get();
 
             let ns = self.y[0]
@@ -122,15 +106,15 @@ impl SpatialId for RangeId {
         } else {
             // south
             let byu = by.unsigned_abs();
-            let max = self.y_max();
+            let max = self.z.xy_max();
             let z = self.z.get();
 
             let ns = self.y[0]
                 .checked_sub(byu)
-                .ok_or(SpatialIdError::YOutOfRange { y: self.y_min(), z })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: 0, z })?;
             let ne = self.y[1]
                 .checked_sub(byu)
-                .ok_or(SpatialIdError::YOutOfRange { y: self.y_min(), z })?;
+                .ok_or(SpatialIdError::YOutOfRange { y: 0, z })?;
 
             if ns > max {
                 return Err(SpatialIdError::YOutOfRange { y: ns, z }.into());
