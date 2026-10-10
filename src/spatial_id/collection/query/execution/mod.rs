@@ -192,6 +192,7 @@ fn read_source<V: SafeValue + 'static>(
 }
 
 // Queryの遅延実行
+
 impl<V: SafeValue + 'static> Query<V> {
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
     ///
