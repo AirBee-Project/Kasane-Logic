@@ -1,6 +1,5 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
@@ -33,10 +32,6 @@ impl<V: SafeValue + 'static, P> UnaryOperator<V> for ZoomOut<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
     fn run(&self, core: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         let target_z = self.target_z.get();
         let old_tree = core::mem::take(core);
@@ -134,10 +129,6 @@ where
         } else {
             Some(bounds)
         }
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::None
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

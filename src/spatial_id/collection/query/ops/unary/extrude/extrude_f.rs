@@ -1,6 +1,5 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
@@ -29,6 +28,10 @@ impl<P> ExtrudeF<P> {
             end_f,
             _marker: core::marker::PhantomData,
         }
+    }
+
+    fn expansion_ratio(&self) -> f64 {
+        self.start_f.abs_diff(self.end_f) as f64 + 1.0
     }
 }
 
@@ -79,20 +82,6 @@ where
         Ok(())
     }
 
-    fn commutativity_info(&self) -> CommutativityInfo {
-        if !P::IS_COMMUTATIVE {
-            return CommutativityInfo::None;
-        }
-        CommutativityInfo::AbsoluteTarget {
-            axis: crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::F,
-            policy: Some(core::any::TypeId::of::<P>()),
-        }
-    }
-
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
     fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
         let target_z = self.target_z.get();
         let bounds_z = bounds.z();
@@ -116,10 +105,6 @@ where
             .set_f([max_z_obj.f_min(), max_z_obj.f_max()])
             .unwrap();
         Some(bounds)
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        self.start_f.abs_diff(self.end_f) as f64 + 1.0
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

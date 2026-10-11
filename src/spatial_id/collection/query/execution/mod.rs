@@ -3,8 +3,6 @@ use crate::Error;
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
@@ -12,8 +10,6 @@ use crate::spatial_id::collection::query::source::Source;
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
-
-pub mod group_commutative;
 
 #[cfg(test)]
 mod test;
@@ -25,13 +21,6 @@ pub enum Query<V: SafeValue + 'static> {
 
     /// 連続した単項演算子
     Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
-
-    /// 互いに可換な単項演算子のグループ
-    CommutativeGroup(
-        CommutativityInfo,
-        Vec<Box<dyn UnaryOperator<V>>>,
-        Box<Query<V>>,
-    ),
 
     // 二項演算
     Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
@@ -60,13 +49,13 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
-//Queryの検証と最適化
+// Queryの検証
 impl<V: SafeValue + 'static> Query<V> {
     /// 実行までに全てのQueryのパラメーターが正常値の範囲内か検証する。
     pub fn validate(&self) -> Result<(), Error> {
         match self {
             Query::Source(_) => Ok(()),
-            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+            Query::Unary(ops, input) => {
                 input.validate()?;
                 for op in ops {
                     op.validate()?;
@@ -81,48 +70,16 @@ impl<V: SafeValue + 'static> Query<V> {
             Query::Error(e) => Err(e.clone()),
         }
     }
-
-    /// AST最適化を適用する（実行は行わない）。
-    pub fn optimize(self) -> Self {
-        self.group_commutative_ops().sort_commutative_ops()
-    }
-
-    /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
-    pub fn sort_commutative_ops(self) -> Self {
-        match self {
-            Query::CommutativeGroup(info, mut ops, input) => {
-                ops.sort_by(|a, b| {
-                    a.expansion_ratio()
-                        .partial_cmp(&b.expansion_ratio())
-                        .unwrap_or(core::cmp::Ordering::Equal)
-                });
-                Query::CommutativeGroup(info, ops, Box::new(input.sort_commutative_ops()))
-            }
-            Query::Unary(ops, input) => Query::Unary(ops, Box::new(input.sort_commutative_ops())),
-            Query::Binary(op, lhs, rhs) => Query::Binary(
-                op,
-                Box::new(lhs.sort_commutative_ops()),
-                Box::new(rhs.sort_commutative_ops()),
-            ),
-            other => other,
-        }
-    }
 }
 
 // Queryの全体実行
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証・AST最適化を適用して実行し、[`SpatialIdTable`] として返す。
+    /// 検証を行って実行し、[`SpatialIdTable`] として返す。
     ///
     /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
     pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
         self.validate()?;
-        self.optimize().raw_run()
-    }
 
-    /// 検証も最適化もせず [`Query`] を実行し、[`SpatialIdTable`] として返す。
-    ///
-    /// AST を組み替えず書かれた順序のまま実行する。最適化の有無を比べるための口で、通常は [`run`](Self::run) を使う。
-    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
         fn run_internal<V: SafeValue + 'static>(
             query: Query<V>,
             token: &CancellationToken,
@@ -133,7 +90,7 @@ impl<V: SafeValue + 'static> Query<V> {
                     &[crate::FlexId::LOWER_MAX, crate::FlexId::UPPER_MAX],
                     token,
                 ),
-                Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+                Query::Unary(ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                     run_unary_chain(&order, run_internal(*input, token)?, token)
                 }
@@ -224,9 +181,7 @@ impl<V: SafeValue + 'static> Query<V> {
 
                 read_source(&**s, &bounds, token)
             }
-            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
-                // 逆算は AST に書かれた順（実行の逆順）で辿る。並べ替えは可換な区間の
-                // 中でしか起きず、可換な演算子同士は必要入力領域も入れ替わらない。
+            Query::Unary(ops, input) => {
                 let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
@@ -240,7 +195,8 @@ impl<V: SafeValue + 'static> Query<V> {
                     req = next;
                 }
                 let input_working = input.run_within_unchecked(req, token)?;
-                run_unary_chain(&ops.optimized_order(), input_working, token)
+                let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
+                run_unary_chain(&order, input_working, token)
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();

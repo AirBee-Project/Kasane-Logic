@@ -4,7 +4,6 @@ pub mod query;
 #[cfg(test)]
 mod test;
 
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error,
     spatial_id::collection::query::{send_sync::SafeValue, traits::UnaryOperator},
@@ -91,10 +90,6 @@ where
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
     fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         *target = core::mem::take(target)
             .into_iter()
@@ -105,14 +100,6 @@ where
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         Some(bounds)
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::None
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        1.0 // フィルタリングでは増えないが、削除分を予測するのは難しいので 1.0
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

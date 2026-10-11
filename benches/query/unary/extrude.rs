@@ -19,7 +19,7 @@ fn bench_extrude(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("extrude_x", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().extrude_x(24, 0, d as u32, Max).raw_run().unwrap(),
+                |t| t.query().extrude_x(24, 0, d as u32, Max).run().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -30,7 +30,7 @@ fn bench_extrude(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("extrude_y", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().extrude_y(24, 0, d as u32, Max).raw_run().unwrap(),
+                |t| t.query().extrude_y(24, 0, d as u32, Max).run().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -41,7 +41,7 @@ fn bench_extrude(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("extrude_f", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().extrude_f(24, 0, d, Max).raw_run().unwrap(),
+                |t| t.query().extrude_f(24, 0, d, Max).run().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -57,7 +57,7 @@ fn bench_extrude(c: &mut Criterion) {
                         .extrude_x(24, 0, d as u32, Max)
                         .extrude_y(24, 0, d as u32, Max)
                         .extrude_f(24, 0, d, Max)
-                        .raw_run()
+                        .run()
                         .unwrap()
                 },
                 BatchSize::SmallInput,

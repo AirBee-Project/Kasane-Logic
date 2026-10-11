@@ -1,6 +1,5 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
@@ -26,10 +25,6 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
     fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         let z = self.z.get();
         let index = self.y;
@@ -51,10 +46,6 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
         let delta = (self.y as i64) * (1i64 << (target_z - z));
 
         bounds.y_edges_shift(target_z, -delta, -delta).unwrap()
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::Separable { policy: None }
     }
 
     fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

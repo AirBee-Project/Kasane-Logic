@@ -1,6 +1,5 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use core::convert::TryFrom;
@@ -48,23 +47,6 @@ where
     <V as TryFrom<u32>>::Error: Debug,
     P: MergePolicy<V> + Send + Sync + 'static,
 {
-    fn commutativity_info(&self) -> CommutativityInfo {
-        if !P::IS_COMMUTATIVE {
-            return CommutativityInfo::None;
-        }
-        CommutativityInfo::Separable {
-            policy: Some(core::any::TypeId::of::<P>()),
-        }
-    }
-
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        (self.radius * 2 + 1) as f64
-    }
-
     fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
         if self.radius == 0 {
             return Ok(());

@@ -4,24 +4,12 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 impl<V: SafeValue + 'static> core::fmt::Display for Query<V> {
     /// [`Query`] の木構造を人間が読める形式で出力する。
     ///
-    /// # 出力例（最適化前）
+    /// # 出力例
     /// ```text
     /// Source
     /// → extrude_f(z=25, f=[0, 5], Max)
     /// → falloff_x(z=25, r=3, dir=Both, pat=Linear, Max)
     /// → falloff_y(z=25, r=3, dir=Both, pat=Linear, Max)
-    /// → falloff_y(25, 1, dir=Both, pat=Linear, Max)
-    /// → extrude_f(25, 0, 0, Max)
-    /// ```
-    ///
-    /// # 出力例（[`Query::optimize`] 後）
-    /// ```text
-    /// Source
-    /// → extrude_f(z=25, f=[0, 5], Max)
-    /// → [Group]
-    ///     falloff_f(z=25, r=2, dir=Both, pat=Linear, Max)
-    ///     falloff_x(z=25, r=3, dir=Both, pat=Linear, Max)
-    ///     falloff_y(z=25, r=3, dir=Both, pat=Linear, Max)
     /// ```
     ///
     /// # 出力例（Binary あり）
@@ -54,16 +42,6 @@ fn fmt_query<V: SafeValue + 'static>(
             fmt_query(input, f, indent)?;
             for op in ops {
                 write!(f, "\n{indent}→ ")?;
-                op.fmt_op(f)?;
-            }
-            Ok(())
-        }
-
-        Query::CommutativeGroup(_, ops, input) => {
-            fmt_query(input, f, indent)?;
-            write!(f, "\n{indent}→ [Group]")?;
-            for op in ops {
-                write!(f, "\n{indent}    ")?;
                 op.fmt_op(f)?;
             }
             Ok(())

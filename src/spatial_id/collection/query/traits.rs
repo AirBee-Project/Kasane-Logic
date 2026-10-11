@@ -1,4 +1,3 @@
-use super::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
@@ -28,23 +27,12 @@ pub trait BinaryOperator<V: SafeValue>: MaybeSendSync {
 }
 
 /// 単項演算子の定義。
-pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
+pub trait UnaryOperator<V: SafeValue>: MaybeSendSync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error>;
 
     /// 実行する
     fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error>;
-
-    /// この演算子の可換性情報
-    fn commutativity_info(&self) -> CommutativityInfo;
-
-    /// ダウンキャスト用
-    fn as_any(&self) -> &dyn core::any::Any;
-
-    /// 演算子を適用した際のデータサイズの推定拡大倍率
-    fn expansion_ratio(&self) -> f64 {
-        1.0
-    }
 
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
     /// 遅延ビュー（Lazy View）が部分木を構築するために使用する。
