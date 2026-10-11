@@ -104,15 +104,4 @@ where
         bounds.set_y([0, xy_max]).unwrap();
         Some(bounds)
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "extrude_y(z={}, y=[{}, {}], {})",
-            self.target_z.get(),
-            self.start_y,
-            self.end_y,
-            P::NAME
-        )
-    }
 }

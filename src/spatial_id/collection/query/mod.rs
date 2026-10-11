@@ -19,8 +19,6 @@ pub mod merge_policy;
 /// クエリの実行用Trait
 pub mod source;
 
-/// クエリの表示の実装
-pub mod fmt;
 
 #[doc(hidden)]
 pub use execution::Query;

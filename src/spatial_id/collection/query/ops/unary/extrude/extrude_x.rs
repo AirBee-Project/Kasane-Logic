@@ -120,15 +120,4 @@ where
         bounds.set_x([0, xy_max]).unwrap();
         Some(bounds)
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "extrude_x(z={}, x=[{}, {}], {})",
-            self.target_z.get(),
-            self.start_x,
-            self.end_x,
-            P::NAME
-        )
-    }
 }

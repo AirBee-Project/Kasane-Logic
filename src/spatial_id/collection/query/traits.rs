@@ -19,11 +19,6 @@ pub trait BinaryOperator<V: SafeValue>: MaybeSendSync {
 
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
     fn inverse_bounds(&self, output_bounds: RangeId) -> (Option<RangeId>, Option<RangeId>);
-
-    /// `Display` 出力用の演算子表現
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "?")
-    }
 }
 
 /// 単項演算子の定義。
@@ -37,9 +32,4 @@ pub trait UnaryOperator<V: SafeValue>: MaybeSendSync {
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
     /// 遅延ビュー（Lazy View）が部分木を構築するために使用する。
     fn inverse_bounds(&self, output_bounds: RangeId) -> Option<RangeId>;
-
-    /// `Display` 出力用の演算子表現
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "?")
-    }
 }

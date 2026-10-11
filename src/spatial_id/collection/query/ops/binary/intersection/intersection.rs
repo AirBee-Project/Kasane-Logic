@@ -37,8 +37,4 @@ impl<V: SafeValue> BinaryOperator<V> for Intersection<V> {
     ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
         (Some(output_bounds.clone()), Some(output_bounds))
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "intersection")
-    }
 }

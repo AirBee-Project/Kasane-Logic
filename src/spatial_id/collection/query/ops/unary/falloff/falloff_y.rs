@@ -91,21 +91,4 @@ where
     fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let dir_str = match self.direction {
-            None => "Both",
-            Some(crate::spatial_id::helpers::Side::Upper) => "Upper",
-            Some(crate::spatial_id::helpers::Side::Lower) => "Lower",
-        };
-        write!(
-            f,
-            "falloff_y(z={}, r={}, dir={}, pat={:?}, {})",
-            self.z.get(),
-            self.radius,
-            dir_str,
-            self.pattern,
-            P::NAME
-        )
-    }
 }

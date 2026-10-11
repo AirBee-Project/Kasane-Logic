@@ -47,8 +47,4 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftY {
 
         bounds.y_edges_shift(target_z, -delta, -delta).unwrap()
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "shift_y(z={}, y={})", self.z.get(), self.y)
-    }
 }

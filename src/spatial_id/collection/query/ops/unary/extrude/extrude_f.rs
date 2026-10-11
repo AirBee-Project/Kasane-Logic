@@ -106,15 +106,4 @@ where
             .unwrap();
         Some(bounds)
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "extrude_f(z={}, f=[{}, {}], {})",
-            self.target_z.get(),
-            self.start_f,
-            self.end_f,
-            P::NAME
-        )
-    }
 }

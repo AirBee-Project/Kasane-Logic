@@ -101,12 +101,4 @@ where
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         Some(bounds)
     }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match &self.predicate {
-            ValuePredicate::Equals(_) => write!(f, "filter_values(== v)"),
-            ValuePredicate::InRange(_, _) => write!(f, "filter_values(in range)"),
-            ValuePredicate::NotInRange(_, _) => write!(f, "filter_values(not in range)"),
-        }
-    }
 }
