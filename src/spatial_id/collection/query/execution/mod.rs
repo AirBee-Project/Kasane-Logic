@@ -1,4 +1,4 @@
-use super::traits::{BinaryOperator, UnaryOperator};
+use super::traits::{BinaryOperator, QueryIter, UnaryOperator};
 use crate::Error;
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
@@ -92,7 +92,11 @@ impl<V: SafeValue + 'static> Query<V> {
                 ),
                 Query::Unary(ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                    run_unary_chain(&order, run_internal(*input, token)?, token)
+                    let input_working = run_internal(*input, token)?;
+                    let input_stream: QueryIter<'_, V> =
+                        Box::new(input_working.into_iter().map(Ok));
+                    let out_stream = run_unary_chain(&order, input_stream, token)?;
+                    out_stream.collect()
                 }
                 Query::Binary(op, lhs, rhs) => {
                     #[cfg(feature = "rayon")]
@@ -102,10 +106,12 @@ impl<V: SafeValue + 'static> Query<V> {
                     #[cfg(not(feature = "rayon"))]
                     let (lhs_res, rhs_res) = (run_internal(*lhs, token), run_internal(*rhs, token));
 
-                    let mut lhs_res = lhs_res?;
+                    let lhs_res = lhs_res?;
                     let rhs_res = rhs_res?;
-                    op.run(&mut lhs_res, &rhs_res)?;
-                    Ok(lhs_res)
+                    let lhs_stream: QueryIter<'_, V> = Box::new(lhs_res.into_iter().map(Ok));
+                    let rhs_stream: QueryIter<'_, V> = Box::new(rhs_res.into_iter().map(Ok));
+                    let out_stream = op.run(lhs_stream, rhs_stream)?;
+                    out_stream.collect()
                 }
                 Query::Error(e) => Err(e),
             }
@@ -115,20 +121,20 @@ impl<V: SafeValue + 'static> Query<V> {
 }
 
 /// 単項演算の並びを順に適用する。
-pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
+pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
     mut ops: &[&dyn UnaryOperator<V>],
-    mut working: SpatialIdTable<V, NoSummary>,
+    mut stream: QueryIter<'a, V>,
     token: &CancellationToken,
-) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+) -> Result<QueryIter<'a, V>, Error> {
     while let Some(head) = ops.first() {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
 
-        head.run(&mut working)?;
+        stream = head.run(stream)?;
         ops = &ops[1..];
     }
-    Ok(working)
+    Ok(stream)
 }
 
 /// 入力源を読み出して木に組む。
@@ -196,7 +202,9 @@ impl<V: SafeValue + 'static> Query<V> {
                 }
                 let input_working = input.run_within_unchecked(req, token)?;
                 let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                run_unary_chain(&order, input_working, token)
+                let input_stream: QueryIter<'_, V> = Box::new(input_working.into_iter().map(Ok));
+                let out_stream = run_unary_chain(&order, input_stream, token)?;
+                out_stream.collect()
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();
@@ -214,12 +222,12 @@ impl<V: SafeValue + 'static> Query<V> {
                 lhs_bounds.dedup();
                 rhs_bounds.sort_unstable();
                 rhs_bounds.dedup();
-                let mut lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
+                let lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
                 let rhs_working = rhs.run_within_unchecked(rhs_bounds, token)?;
-                {
-                    op.run(&mut lhs_working, &rhs_working)?;
-                }
-                Ok(lhs_working)
+                let lhs_stream: QueryIter<'_, V> = Box::new(lhs_working.into_iter().map(Ok));
+                let rhs_stream: QueryIter<'_, V> = Box::new(rhs_working.into_iter().map(Ok));
+                let out_stream = op.run(lhs_stream, rhs_stream)?;
+                out_stream.collect()
             }
             Query::Error(e) => Err(e.clone()),
         }

@@ -19,7 +19,6 @@ pub mod merge_policy;
 /// クエリの実行用Trait
 pub mod source;
 
-
 #[doc(hidden)]
 pub use execution::Query;
 pub use merge_policy::MergePolicy;

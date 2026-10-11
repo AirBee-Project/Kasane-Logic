@@ -1,3 +1,4 @@
+pub use super::traits::QueryIter;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
@@ -5,7 +6,7 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{Error, FlexId};
 use alloc::boxed::Box;
 
-pub type SourceIter<'a, V> = Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>;
+pub type SourceIter<'a, V> = QueryIter<'a, V>;
 
 /// クエリを実行するためのTrait。読み取りさえできればよい。
 pub trait Source: MaybeSendSync {

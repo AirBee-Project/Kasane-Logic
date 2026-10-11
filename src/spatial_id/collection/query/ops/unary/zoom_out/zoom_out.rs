@@ -4,10 +4,14 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
     spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
+        collection::query::{
+            merge_policy::MergePolicy,
+            traits::{QueryIter, UnaryOperator},
+        },
         zoom_level::ZoomLevel,
     },
 };
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 #[cfg(feature = "rayon")]
@@ -32,14 +36,14 @@ impl<V: SafeValue + 'static, P> UnaryOperator<V> for ZoomOut<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn run(&self, core: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        let core: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
         let target_z = self.target_z.get();
-        let old_tree = core::mem::take(core);
         let mut leaves: Vec<(FlexId, Option<V>)> =
-            old_tree.into_iter().map(|(id, v)| (id, Some(v))).collect();
+            core.into_iter().map(|(id, v)| (id, Some(v))).collect();
 
         if leaves.is_empty() {
-            return Ok(());
+            return Ok(Box::new(core::iter::empty()));
         }
 
         #[cfg(feature = "rayon")]
@@ -56,8 +60,8 @@ where
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.par_sort_unstable_by_key(|a| a.0);
-                *core = new_items.into_iter().collect();
-                return Ok(());
+                let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
+                return Ok(Box::new(table.into_iter().map(Ok)));
             }
 
             leaves.par_iter_mut().for_each(|(id, _)| {
@@ -80,8 +84,8 @@ where
 
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.sort_unstable_by_key(|a| a.0);
-                *core = new_items.into_iter().collect();
-                return Ok(());
+                let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
+                return Ok(Box::new(table.into_iter().map(Ok)));
             }
 
             for (id, _) in leaves.iter_mut() {
@@ -114,9 +118,9 @@ where
                 .collect()
         };
 
-        *core = new_items.into_iter().collect();
+        let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
 
-        Ok(())
+        Ok(Box::new(table.into_iter().map(Ok)))
     }
 
     fn validate(&self) -> Result<(), crate::Error> {

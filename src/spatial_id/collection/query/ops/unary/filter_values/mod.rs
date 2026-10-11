@@ -1,12 +1,16 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use alloc::boxed::Box;
 pub mod query;
 #[cfg(test)]
 mod test;
 
 use crate::{
     Error,
-    spatial_id::collection::query::{send_sync::SafeValue, traits::UnaryOperator},
+    spatial_id::collection::query::{
+        send_sync::SafeValue,
+        traits::{QueryIter, UnaryOperator},
+    },
 };
 
 use core::ops::Bound;
@@ -90,12 +94,13 @@ where
         Ok(())
     }
 
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
-        *target = core::mem::take(target)
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        let target: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
+        let filtered: SpatialIdTable<V, NoSummary> = target
             .into_iter()
             .filter(|(_, value)| self.predicate.matches(value))
             .collect();
-        Ok(())
+        Ok(Box::new(filtered.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {

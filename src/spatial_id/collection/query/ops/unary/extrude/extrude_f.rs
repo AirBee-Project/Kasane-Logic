@@ -4,10 +4,14 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
     spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
+        collection::query::{
+            merge_policy::MergePolicy,
+            traits::{QueryIter, UnaryOperator},
+        },
         zoom_level::ZoomLevel,
     },
 };
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -35,7 +39,7 @@ impl<P> ExtrudeF<P> {
     }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for ExtrudeF<P>
+impl<V: SafeValue + 'static, P> UnaryOperator<V> for ExtrudeF<P>
 where
     P: MergePolicy<V>,
 {
@@ -47,7 +51,8 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        let core: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
         let expected_cap = libm::ceil(core.count() as f64 * self.expansion_ratio()) as usize;
         let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(expected_cap);
 
@@ -77,9 +82,9 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = new_items.into_iter().collect();
+        let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
 
-        Ok(())
+        Ok(Box::new(table.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {

@@ -1,8 +1,12 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use alloc::boxed::Box;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
+use crate::{
+    Error, ZoomLevel,
+    spatial_id::collection::query::traits::{QueryIter, UnaryOperator},
+};
 
 /// 作業木全体を高さ（F）方向へ、ズームレベル `z` のインデックス値 `f` 個分だけ平行移動する単項演算。
 pub struct ShiftF {
@@ -25,19 +29,19 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
         Ok(())
     }
 
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         let z = self.z.get();
         let index = self.f;
         if index == 0 {
-            return Ok(());
+            return Ok(input);
         }
 
-        let mut rebuilt = SpatialIdTable::default();
+        let target: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
+        let mut rebuilt = SpatialIdTable::<V, NoSummary>::default();
         for (id, value) in target.iter() {
             rebuilt.extend(id.shift_f(z, index)?.map(|moved| (moved, value.clone())));
         }
-        *target = rebuilt;
-        Ok(())
+        Ok(Box::new(rebuilt.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
