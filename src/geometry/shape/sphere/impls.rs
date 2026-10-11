@@ -39,7 +39,7 @@ impl CoverSingleIds for Sphere {
                         center_ecef.z() + radius * sz,
                     )?;
 
-                    corners.push(e.single_id(z).unwrap());
+                    corners.push(e.single_id(z)?);
                 }
             }
         }
