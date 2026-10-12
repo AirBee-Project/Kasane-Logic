@@ -1,7 +1,3 @@
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use alloc::boxed::Box;
-
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, ZoomLevel,
@@ -36,12 +32,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
             return Ok(input);
         }
 
-        let target: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
-        let mut rebuilt = SpatialIdTable::<V, NoSummary>::default();
-        for (id, value) in target.iter() {
-            rebuilt.extend(id.shift_f(z, index)?.map(|moved| (moved, value.clone())));
-        }
-        Ok(Box::new(rebuilt.into_iter().map(Ok)))
+        Ok(super::shift_stream(input, move |id| id.shift_f(z, index)))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {

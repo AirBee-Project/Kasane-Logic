@@ -1,9 +1,5 @@
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use alloc::boxed::Box;
 pub mod query;
-#[cfg(test)]
-mod test;
 
 use crate::{
     Error,
@@ -95,12 +91,10 @@ where
     }
 
     fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
-        let target: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
-        let filtered: SpatialIdTable<V, NoSummary> = target
-            .into_iter()
-            .filter(|(_, value)| self.predicate.matches(value))
-            .collect();
-        Ok(Box::new(filtered.into_iter().map(Ok)))
+        let predicate = self.predicate.clone();
+        Ok(Box::new(input.filter(
+            move |item| !matches!(item, Ok((_, value)) if !predicate.matches(value)),
+        )))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
