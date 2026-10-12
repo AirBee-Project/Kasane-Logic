@@ -1,4 +1,4 @@
-use crate::Coordinate;
+use crate::{Coordinate, Point, RangeId, SingleId, ZoomLevel};
 
 #[cfg(not(feature = "temporal_id"))]
 mod single_id {
@@ -70,5 +70,76 @@ mod round_trip {
         let coord = Coordinate::new(85.051_1 - f64::EPSILON, 45.0, 123.0).unwrap();
         let ecef: crate::Ecef = coord.into();
         insta::assert_debug_snapshot!(ecef);
+    }
+}
+
+mod point_ids {
+    use super::*;
+
+    #[test]
+    fn single_id_matches_known_value() {
+        let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
+        assert_eq!(
+            coord.single_id(24).unwrap(),
+            SingleId::new(24, 10, 14715409, 6646263).unwrap()
+        );
+    }
+
+    #[test]
+    fn single_id_rejects_invalid_zoom() {
+        let coord = Coordinate::new(35.0, 139.0, 10.0).unwrap();
+        assert!(coord.single_id(31).is_err());
+        assert!(coord.range_id(31).is_err());
+    }
+
+    /// 経度・高度が範囲の上端ちょうどでも、最後のインデックス値に丸められる。
+    #[test]
+    fn single_id_clamps_to_last_index() {
+        for z in [0u8, 5, 25, 30] {
+            let zoom = ZoomLevel::new(z).unwrap();
+
+            let top = Coordinate::new(0.0, 180.0, 33_554_432.0)
+                .unwrap()
+                .single_id(z)
+                .unwrap();
+            assert_eq!(top.x(), zoom.xy_max(), "z={z}");
+            assert_eq!(top.f(), zoom.f_max(), "z={z}");
+
+            let bottom = Coordinate::new(0.0, -180.0, -33_554_432.0)
+                .unwrap()
+                .single_id(z)
+                .unwrap();
+            assert_eq!(bottom.x(), 0, "z={z}");
+            assert_eq!(bottom.f(), zoom.f_min(), "z={z}");
+        }
+    }
+
+    /// 緯度の境界でも、有効な `SingleId` が得られる。
+    #[test]
+    fn single_id_is_valid_at_latitude_limits() {
+        for z in [0u8, 5, 25, 30] {
+            for lat in [85.0511, -85.0511] {
+                let id = Coordinate::new(lat, 0.0, 0.0)
+                    .unwrap()
+                    .single_id(z)
+                    .unwrap();
+                assert!(
+                    SingleId::new(id.z(), id.f(), id.x(), id.y()).is_ok(),
+                    "lat={lat}, z={z}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn range_id_is_the_range_of_single_id() {
+        let coord = Coordinate::new(35.681382, 139.766084, 10.3).unwrap();
+        for z in [0u8, 10, 20, 25] {
+            assert_eq!(
+                coord.range_id(z).unwrap(),
+                RangeId::from(coord.single_id(z).unwrap()),
+                "z={z}"
+            );
+        }
     }
 }
