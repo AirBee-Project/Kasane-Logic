@@ -2,9 +2,7 @@ use alloc::vec;
 
 use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::{
-    CancellationToken, Error, FlexId, NoSummary, RangeId, SingleId, Source, SpatialIdTable,
-};
+use crate::{CancellationToken, Error, FlexId, RangeId, SingleId, Source, SpatialIdTable};
 
 #[test]
 fn run_within_stops_immediately_when_already_cancelled() {
@@ -61,13 +59,9 @@ fn cancelling_after_one_side_still_stops_the_query() {
 fn run_unary_chain_checks_cancellation_between_ops() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
-    let working: SpatialIdTable<i32, NoSummary> = table
-        .read_flex_ids(
-            &[FlexId::new(10, 0, 10, 100, 10, 100).unwrap()],
-            &CancellationToken::new(),
-        )
-        .unwrap()
-        .collect::<Result<_, _>>()
+    let bounds = [FlexId::new(10, 0, 10, 100, 10, 100).unwrap()];
+    let stream = table
+        .read_flex_ids(&bounds, &CancellationToken::new())
         .unwrap();
 
     let a = crate::spatial_id::collection::query::ops::unary::shift::shift_x::ShiftX::new(10, 1)
@@ -79,10 +73,8 @@ fn run_unary_chain_checks_cancellation_between_ops() {
     let token = CancellationToken::new();
     token.cancel();
 
-    assert_eq!(
-        run_unary_chain(&ops, working, &token),
-        Err(Error::Cancelled)
-    );
+    let res = run_unary_chain(&ops, stream, &token);
+    assert_eq!(res.err(), Some(Error::Cancelled));
 }
 
 #[test]

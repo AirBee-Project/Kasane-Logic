@@ -1,10 +1,8 @@
-use super::traits::{BinaryOperator, UnaryOperator};
+use super::traits::{BinaryOperator, QueryIter, UnaryOperator};
 use crate::Error;
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
@@ -12,8 +10,6 @@ use crate::spatial_id::collection::query::source::Source;
 use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
-
-pub mod group_commutative;
 
 #[cfg(test)]
 mod test;
@@ -25,13 +21,6 @@ pub enum Query<V: SafeValue + 'static> {
 
     /// 連続した単項演算子
     Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
-
-    /// 互いに可換な単項演算子のグループ
-    CommutativeGroup(
-        CommutativityInfo,
-        Vec<Box<dyn UnaryOperator<V>>>,
-        Box<Query<V>>,
-    ),
 
     // 二項演算
     Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
@@ -60,13 +49,13 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
-//Queryの検証と最適化
+// Queryの検証
 impl<V: SafeValue + 'static> Query<V> {
     /// 実行までに全てのQueryのパラメーターが正常値の範囲内か検証する。
     pub fn validate(&self) -> Result<(), Error> {
         match self {
             Query::Source(_) => Ok(()),
-            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+            Query::Unary(ops, input) => {
                 input.validate()?;
                 for op in ops {
                     op.validate()?;
@@ -81,48 +70,16 @@ impl<V: SafeValue + 'static> Query<V> {
             Query::Error(e) => Err(e.clone()),
         }
     }
-
-    /// AST最適化を適用する（実行は行わない）。
-    pub fn optimize(self) -> Self {
-        self.group_commutative_ops().sort_commutative_ops()
-    }
-
-    /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
-    pub fn sort_commutative_ops(self) -> Self {
-        match self {
-            Query::CommutativeGroup(info, mut ops, input) => {
-                ops.sort_by(|a, b| {
-                    a.expansion_ratio()
-                        .partial_cmp(&b.expansion_ratio())
-                        .unwrap_or(core::cmp::Ordering::Equal)
-                });
-                Query::CommutativeGroup(info, ops, Box::new(input.sort_commutative_ops()))
-            }
-            Query::Unary(ops, input) => Query::Unary(ops, Box::new(input.sort_commutative_ops())),
-            Query::Binary(op, lhs, rhs) => Query::Binary(
-                op,
-                Box::new(lhs.sort_commutative_ops()),
-                Box::new(rhs.sort_commutative_ops()),
-            ),
-            other => other,
-        }
-    }
 }
 
 // Queryの全体実行
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証・AST最適化を適用して実行し、[`SpatialIdTable`] として返す。
+    /// 検証を行って実行し、[`SpatialIdTable`] として返す。
     ///
     /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
     pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
         self.validate()?;
-        self.optimize().raw_run()
-    }
 
-    /// 検証も最適化もせず [`Query`] を実行し、[`SpatialIdTable`] として返す。
-    ///
-    /// AST を組み替えず書かれた順序のまま実行する。最適化の有無を比べるための口で、通常は [`run`](Self::run) を使う。
-    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
         fn run_internal<V: SafeValue + 'static>(
             query: Query<V>,
             token: &CancellationToken,
@@ -133,9 +90,13 @@ impl<V: SafeValue + 'static> Query<V> {
                     &[crate::FlexId::LOWER_MAX, crate::FlexId::UPPER_MAX],
                     token,
                 ),
-                Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+                Query::Unary(ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                    run_unary_chain(&order, run_internal(*input, token)?, token)
+                    let input_working = run_internal(*input, token)?;
+                    let input_stream: QueryIter<'_, V> =
+                        Box::new(input_working.into_iter().map(Ok));
+                    let out_stream = run_unary_chain(&order, input_stream, token)?;
+                    out_stream.collect()
                 }
                 Query::Binary(op, lhs, rhs) => {
                     #[cfg(feature = "rayon")]
@@ -145,10 +106,12 @@ impl<V: SafeValue + 'static> Query<V> {
                     #[cfg(not(feature = "rayon"))]
                     let (lhs_res, rhs_res) = (run_internal(*lhs, token), run_internal(*rhs, token));
 
-                    let mut lhs_res = lhs_res?;
+                    let lhs_res = lhs_res?;
                     let rhs_res = rhs_res?;
-                    op.run(&mut lhs_res, &rhs_res)?;
-                    Ok(lhs_res)
+                    let lhs_stream: QueryIter<'_, V> = Box::new(lhs_res.into_iter().map(Ok));
+                    let rhs_stream: QueryIter<'_, V> = Box::new(rhs_res.into_iter().map(Ok));
+                    let out_stream = op.run(lhs_stream, rhs_stream)?;
+                    out_stream.collect()
                 }
                 Query::Error(e) => Err(e),
             }
@@ -158,20 +121,20 @@ impl<V: SafeValue + 'static> Query<V> {
 }
 
 /// 単項演算の並びを順に適用する。
-pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
+pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
     mut ops: &[&dyn UnaryOperator<V>],
-    mut working: SpatialIdTable<V, NoSummary>,
+    mut stream: QueryIter<'a, V>,
     token: &CancellationToken,
-) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+) -> Result<QueryIter<'a, V>, Error> {
     while let Some(head) = ops.first() {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
 
-        head.run(&mut working)?;
+        stream = head.run(stream)?;
         ops = &ops[1..];
     }
-    Ok(working)
+    Ok(stream)
 }
 
 /// 入力源を読み出して木に組む。
@@ -192,6 +155,7 @@ fn read_source<V: SafeValue + 'static>(
 }
 
 // Queryの遅延実行
+
 impl<V: SafeValue + 'static> Query<V> {
     /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
     ///
@@ -223,9 +187,7 @@ impl<V: SafeValue + 'static> Query<V> {
 
                 read_source(&**s, &bounds, token)
             }
-            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
-                // 逆算は AST に書かれた順（実行の逆順）で辿る。並べ替えは可換な区間の
-                // 中でしか起きず、可換な演算子同士は必要入力領域も入れ替わらない。
+            Query::Unary(ops, input) => {
                 let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
@@ -239,7 +201,10 @@ impl<V: SafeValue + 'static> Query<V> {
                     req = next;
                 }
                 let input_working = input.run_within_unchecked(req, token)?;
-                run_unary_chain(&ops.optimized_order(), input_working, token)
+                let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
+                let input_stream: QueryIter<'_, V> = Box::new(input_working.into_iter().map(Ok));
+                let out_stream = run_unary_chain(&order, input_stream, token)?;
+                out_stream.collect()
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();
@@ -257,12 +222,12 @@ impl<V: SafeValue + 'static> Query<V> {
                 lhs_bounds.dedup();
                 rhs_bounds.sort_unstable();
                 rhs_bounds.dedup();
-                let mut lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
+                let lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
                 let rhs_working = rhs.run_within_unchecked(rhs_bounds, token)?;
-                {
-                    op.run(&mut lhs_working, &rhs_working)?;
-                }
-                Ok(lhs_working)
+                let lhs_stream: QueryIter<'_, V> = Box::new(lhs_working.into_iter().map(Ok));
+                let rhs_stream: QueryIter<'_, V> = Box::new(rhs_working.into_iter().map(Ok));
+                let out_stream = op.run(lhs_stream, rhs_stream)?;
+                out_stream.collect()
             }
             Query::Error(e) => Err(e.clone()),
         }

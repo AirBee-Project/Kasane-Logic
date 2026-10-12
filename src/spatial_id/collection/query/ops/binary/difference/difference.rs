@@ -1,7 +1,8 @@
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::traits::BinaryOperator;
+use crate::spatial_id::collection::query::traits::{BinaryOperator, QueryIter};
 use crate::{Error, SpatialIdTable};
+use alloc::boxed::Box;
 
 pub struct Difference<V> {
     _marker: core::marker::PhantomData<V>,
@@ -21,14 +22,16 @@ impl<V> Default for Difference<V> {
     }
 }
 
-impl<V: SafeValue> BinaryOperator<V> for Difference<V> {
-    fn run(
+impl<V: SafeValue + 'static> BinaryOperator<V> for Difference<V> {
+    fn run<'a>(
         &self,
-        target_a: &mut SpatialIdTable<V, NoSummary>,
-        target_b: &SpatialIdTable<V, NoSummary>,
-    ) -> Result<(), Error> {
+        lhs: QueryIter<'a, V>,
+        rhs: QueryIter<'a, V>,
+    ) -> Result<QueryIter<'a, V>, Error> {
+        let mut target_a: SpatialIdTable<V, NoSummary> = lhs.collect::<Result<_, _>>()?;
+        let target_b: SpatialIdTable<V, NoSummary> = rhs.collect::<Result<_, _>>()?;
         target_a.inner = target_a.inner.difference(&target_b.inner);
-        Ok(())
+        Ok(Box::new(target_a.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(
@@ -36,9 +39,5 @@ impl<V: SafeValue> BinaryOperator<V> for Difference<V> {
         output_bounds: crate::RangeId,
     ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
         (Some(output_bounds.clone()), Some(output_bounds))
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "difference")
     }
 }

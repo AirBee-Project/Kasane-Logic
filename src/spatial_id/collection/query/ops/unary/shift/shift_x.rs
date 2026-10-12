@@ -1,9 +1,8 @@
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::{Error, ZoomLevel, spatial_id::collection::query::traits::UnaryOperator};
+use crate::{
+    Error, ZoomLevel,
+    spatial_id::collection::query::traits::{QueryIter, UnaryOperator},
+};
 
 /// 作業木全体を東西（X）方向へ、ズームレベル `z` のインデックス値 `x` 個分だけ平行移動する単項演算。
 pub struct ShiftX {
@@ -26,23 +25,14 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         let z = self.z.get();
         let index = self.x;
         if index == 0 {
-            return Ok(());
+            return Ok(input);
         }
 
-        let mut rebuilt = SpatialIdTable::default();
-        for (id, value) in target.iter() {
-            rebuilt.extend(id.shift_x(z, index)?.map(|moved| (moved, value.clone())));
-        }
-        *target = rebuilt;
-        Ok(())
+        Ok(super::shift_stream(input, move |id| id.shift_x(z, index)))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
@@ -51,13 +41,5 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftX {
         let delta = (self.x as i64) * (1i64 << (target_z - z));
 
         bounds.x_edges_shift(target_z, -delta, -delta).unwrap()
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::Separable { policy: None }
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "shift_x(z={}, x={})", self.z.get(), self.x)
     }
 }

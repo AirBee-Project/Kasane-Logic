@@ -1,14 +1,17 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
     spatial_id::{
-        collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
+        collection::query::{
+            merge_policy::MergePolicy,
+            traits::{QueryIter, UnaryOperator},
+        },
         zoom_level::ZoomLevel,
     },
 };
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -30,9 +33,13 @@ impl<P> ExtrudeX<P> {
             _marker: core::marker::PhantomData,
         }
     }
+
+    fn expansion_ratio(&self) -> f64 {
+        self.start_x.abs_diff(self.end_x) as f64 + 1.0
+    }
 }
 
-impl<V: SafeValue, P> UnaryOperator<V> for ExtrudeX<P>
+impl<V: SafeValue + 'static, P> UnaryOperator<V> for ExtrudeX<P>
 where
     P: MergePolicy<V>,
 {
@@ -44,7 +51,8 @@ where
         Ok(())
     }
 
-    fn run(&self, core: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        let core: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
         let expected_cap = libm::ceil(core.count() as f64 * self.expansion_ratio()) as usize;
         let mut extruded: Vec<(FlexId, V)> = Vec::with_capacity(expected_cap);
 
@@ -74,23 +82,9 @@ where
         }
 
         // 重複のない (FlexId, V) のリストからツリーを再構築
-        *core = new_items.into_iter().collect();
+        let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
 
-        Ok(())
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        if !P::IS_COMMUTATIVE {
-            return CommutativityInfo::None;
-        }
-        CommutativityInfo::AbsoluteTarget {
-            axis: crate::spatial_id::collection::query::execution::group_commutative::types::TargetAxis::X,
-            policy: Some(core::any::TypeId::of::<P>()),
-        }
-    }
-
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
+        Ok(Box::new(table.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
@@ -130,20 +124,5 @@ where
         let xy_max = crate::ZoomLevel::new(bounds_z).unwrap().xy_max();
         bounds.set_x([0, xy_max]).unwrap();
         Some(bounds)
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        self.start_x.abs_diff(self.end_x) as f64 + 1.0
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "extrude_x(z={}, x=[{}, {}], {})",
-            self.target_z.get(),
-            self.start_x,
-            self.end_x,
-            P::NAME
-        )
     }
 }

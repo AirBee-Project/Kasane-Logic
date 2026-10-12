@@ -1,7 +1,11 @@
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::{merge_policy::MergePolicy, traits::BinaryOperator};
+use crate::spatial_id::collection::query::{
+    merge_policy::MergePolicy,
+    traits::{BinaryOperator, QueryIter},
+};
 use crate::{Error, SpatialIdTable};
+use alloc::boxed::Box;
 
 /// `MergePolicy` で重ね合わせる二項演算子。
 pub struct Merge<V, P> {
@@ -18,16 +22,18 @@ impl<V, P> Merge<V, P> {
     }
 }
 
-impl<V: SafeValue, P> BinaryOperator<V> for Merge<V, P>
+impl<V: SafeValue + 'static, P> BinaryOperator<V> for Merge<V, P>
 where
     P: MergePolicy<V>,
 {
     /// 両側に値がある場所は `resolve(a, b)`、片側だけの場所は欠けた側を `default` として解決する。
-    fn run(
+    fn run<'a>(
         &self,
-        target_a: &mut SpatialIdTable<V, NoSummary>,
-        target_b: &SpatialIdTable<V, NoSummary>,
-    ) -> Result<(), Error> {
+        lhs: QueryIter<'a, V>,
+        rhs: QueryIter<'a, V>,
+    ) -> Result<QueryIter<'a, V>, Error> {
+        let mut target_a: SpatialIdTable<V, NoSummary> = lhs.collect::<Result<_, _>>()?;
+        let target_b: SpatialIdTable<V, NoSummary> = rhs.collect::<Result<_, _>>()?;
         let (a, b) = (&target_a.inner, &target_b.inner);
         let resolve = |x: &V, y: &V| P::resolve(x.clone(), y.clone());
 
@@ -46,7 +52,7 @@ where
                 .map(|(id, value)| (id, resolve(&self.default, &value))),
         );
         target_a.inner = merged;
-        Ok(())
+        Ok(Box::new(target_a.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(
@@ -54,9 +60,5 @@ where
         output_bounds: crate::RangeId,
     ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
         (Some(output_bounds.clone()), Some(output_bounds))
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "merge({})", P::NAME)
     }
 }

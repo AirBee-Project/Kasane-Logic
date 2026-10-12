@@ -1,6 +1,6 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
+use alloc::boxed::Box;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use core::convert::TryFrom;
@@ -10,7 +10,10 @@ use core::ops::{Div, Mul, Sub};
 
 use crate::{
     Error, ZoomLevel,
-    spatial_id::collection::query::{merge_policy::MergePolicy, traits::UnaryOperator},
+    spatial_id::collection::query::{
+        merge_policy::MergePolicy,
+        traits::{QueryIter, UnaryOperator},
+    },
 };
 
 use super::FalloffPattern;
@@ -48,32 +51,17 @@ where
     <V as TryFrom<u32>>::Error: Debug,
     P: MergePolicy<V> + Send + Sync + 'static,
 {
-    fn commutativity_info(&self) -> CommutativityInfo {
-        if !P::IS_COMMUTATIVE {
-            return CommutativityInfo::None;
-        }
-        CommutativityInfo::Separable {
-            policy: Some(core::any::TypeId::of::<P>()),
-        }
-    }
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        (self.radius * 2 + 1) as f64
-    }
-
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         if self.radius == 0 {
-            return Ok(());
+            return Ok(input);
         }
+        let target: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
         let z = self.z.get();
         let radius = self.radius;
 
         // 反映先が非単射（近傍が互いに重なる）なので、重なりは MergePolicy で合成する。
         let resolve = |a: &V, b: &V| P::resolve(a.clone(), b.clone());
-        let mut rebuilt = SpatialIdTable::default();
+        let mut rebuilt = SpatialIdTable::<V, NoSummary>::default();
         for (id, value) in target.iter() {
             for (spread, spread_value) in
                 id.falloff_x(z, radius, self.direction, self.pattern, value)?
@@ -81,8 +69,7 @@ where
                 rebuilt.inner.insert_with(spread, spread_value, resolve);
             }
         }
-        *target = rebuilt;
-        Ok(())
+        Ok(Box::new(rebuilt.into_iter().map(Ok)))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
@@ -107,22 +94,5 @@ where
 
     fn validate(&self) -> Result<(), crate::Error> {
         Ok(())
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let dir_str = match self.direction {
-            None => "Both",
-            Some(crate::spatial_id::helpers::Side::Upper) => "Upper",
-            Some(crate::spatial_id::helpers::Side::Lower) => "Lower",
-        };
-        write!(
-            f,
-            "falloff_x(z={}, r={}, dir={}, pat={:?}, {})",
-            self.z.get(),
-            self.radius,
-            dir_str,
-            self.pattern,
-            P::NAME
-        )
     }
 }

@@ -32,7 +32,7 @@
 - **命名規則**:
   - コードベース全体（関数名・変数名・定数名・型名・ドキュメント）において、空間・時間の次元を表す用語は **`dimension`**（複数形: **`dimensions`**）に統一します。
   - 過去に使われていた **`axis` / `axes`** は、次元を表す用途としては廃止・統一対象です。
-  - ※なお、2次元グリッドに対する方向別1次元畳み込み（Separable convolution）など、ドメイン概念としての次元（F/X/Y/T）とは異なるアルゴリズム上の走査軸を指す場合に限り、例外的に `GridAxis` などの用語が用いられます。
+
 - **コード例**: `Dimension` 列挙型、`FlexId::dimensions()`、`Node::covers_all_dimensions()` など
 
 ## 6. FlexTreeCore

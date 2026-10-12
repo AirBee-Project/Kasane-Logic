@@ -6,14 +6,14 @@ use crate::{FlexId, Source, SpatialIdTable};
 /// `shift_x` の逆算が、shift のズームより粗いズームへ周期境界（経度方向の折り返し）を
 /// 丸め込む際、以前は丸め込み後に隙間が消えているかどうかの判定を誤り、必要な入力領域を
 /// 取りこぼすことがあった（x軸の半分しか入力として要求しない）。その結果、`lazy_get` が
-/// `raw_run` と食い違う値を返していた。
+/// `run` と食い違う値を返していた。
 #[test]
 fn lazy_get_shift_x_wrapped_coarsen_matches_run() {
     let mut table = SpatialIdTable::<u32>::new();
     // z=2 の x=3（東西の折り返し境界寄り）にデータを置く。
     table.insert(FlexId::new(2, 0, 2, 3, 2, 0).unwrap(), 7);
 
-    let expected: SpatialIdTable<u32> = table.clone().query().shift_x(2, -1).raw_run().unwrap();
+    let expected: SpatialIdTable<u32> = table.clone().query().shift_x(2, -1).run().unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
     // shift のズーム(2)より粗い z=1 の x 全域をターゲットにする。
@@ -32,7 +32,7 @@ fn lazy_get_shift_x_wrapped_coarsen_matches_run() {
 /// x系演算子を2つ連鎖すると、1つ目の演算子の`inverse_bounds`が返す中間`bounds`が
 /// 折り返し状態（`x[0] > x[1]`）になることがある。木の枝刈り
 /// （`Node::overlapping_children_range`）がこの規約を考慮していなかったため、
-/// `lazy_get`が`raw_run`と食い違う（データを取りこぼす）ことがあった。
+/// `lazy_get`が`run`と食い違う（データを取りこぼす）ことがあった。
 #[test]
 fn lazy_get_chained_shift_x_wrapped_intermediate_bounds_matches_run() {
     let mut table = SpatialIdTable::<u32>::new();
@@ -43,7 +43,7 @@ fn lazy_get_chained_shift_x_wrapped_intermediate_bounds_matches_run() {
         .query()
         .shift_x(2, -3)
         .shift_x(2, -2)
-        .raw_run()
+        .run()
         .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
@@ -73,7 +73,7 @@ fn lazy_view_get_matches_run() {
         .query()
         .shift_x(10, 1)
         .shift_y(10, 2)
-        .raw_run()
+        .run()
         .unwrap();
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();

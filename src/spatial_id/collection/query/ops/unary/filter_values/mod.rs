@@ -1,13 +1,12 @@
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use alloc::boxed::Box;
 pub mod query;
-#[cfg(test)]
-mod test;
 
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error,
-    spatial_id::collection::query::{send_sync::SafeValue, traits::UnaryOperator},
+    spatial_id::collection::query::{
+        send_sync::SafeValue,
+        traits::{QueryIter, UnaryOperator},
+    },
 };
 
 use core::ops::Bound;
@@ -91,35 +90,14 @@ where
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
-        *target = core::mem::take(target)
-            .into_iter()
-            .filter(|(_, value)| self.predicate.matches(value))
-            .collect();
-        Ok(())
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        let predicate = self.predicate.clone();
+        Ok(Box::new(input.filter(
+            move |item| !matches!(item, Ok((_, value)) if !predicate.matches(value)),
+        )))
     }
 
     fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         Some(bounds)
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::None
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        1.0 // フィルタリングでは増えないが、削除分を予測するのは難しいので 1.0
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match &self.predicate {
-            ValuePredicate::Equals(_) => write!(f, "filter_values(== v)"),
-            ValuePredicate::InRange(_, _) => write!(f, "filter_values(in range)"),
-            ValuePredicate::NotInRange(_, _) => write!(f, "filter_values(not in range)"),
-        }
     }
 }
