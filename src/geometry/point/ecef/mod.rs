@@ -1,8 +1,9 @@
 pub mod impls;
 
 use crate::{
-    RangeId, SingleId, Vec3, Vec3Ecef, error::Error, geometry::constants::WGS84_B,
-    geometry::point::coordinate::Coordinate,
+    Vec3, Vec3Ecef,
+    error::Error,
+    geometry::{constants::WGS84_B, point::coordinate::Coordinate},
 };
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
@@ -200,18 +201,6 @@ impl Ecef {
             self.z = z;
             Ok(())
         }
-    }
-
-    /// この ECEF 座標を、指定されたズームレベルの [`SingleId`] に変換する。
-    pub fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
-        let coordinate: Coordinate = (*self).into();
-        coordinate.single_id(z)
-    }
-
-    /// この ECEF 座標を、指定されたズームレベルの [`RangeId`] に変換する。
-    pub fn range_id(&self, z: impl Into<u8>) -> Result<RangeId, Error> {
-        let coordinate: Coordinate = (*self).into();
-        Ok(RangeId::from(coordinate.single_id(z)?))
     }
 
     /// 他の [`Ecef`] 座標との距離をメートル単位で返す。

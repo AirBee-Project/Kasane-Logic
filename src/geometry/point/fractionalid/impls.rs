@@ -1,7 +1,8 @@
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, FractionalId, Point, geometry::traits::CoverSingleIds, spatial_id::helpers,
+    Coordinate, Ecef, Error, FractionalId, Point, SingleId, geometry::traits::CoverSingleIds,
+    spatial_id::helpers,
 };
 
 impl fmt::Debug for FractionalId {
@@ -34,7 +35,11 @@ impl From<FractionalId> for Ecef {
     }
 }
 
-impl Point for FractionalId {}
+impl Point for FractionalId {
+    fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
+        Ok(self.into_another_zoomlevel(z)?.round_to_single_id())
+    }
+}
 
 impl CoverSingleIds for FractionalId {
     fn cover_single_ids_with<V>(
@@ -42,9 +47,6 @@ impl CoverSingleIds for FractionalId {
         z: impl Into<u8>,
         value: V,
     ) -> Result<impl Iterator<Item = (crate::SingleId, V)>, crate::Error> {
-        let z = z.into();
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
-        let coord: Coordinate = (*self).into();
-        Ok(core::iter::once((coord.single_id(zoom.get())?, value)))
+        Ok(core::iter::once((self.single_id(z)?, value)))
     }
 }

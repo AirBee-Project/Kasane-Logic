@@ -3,7 +3,7 @@ use crate::{Coordinate, Ecef, FractionalId, geometry::traits::CoverSingleIds};
 #[test]
 fn test_fractional_id_to_single_id() {
     let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
-    let sid = fid.single_id();
+    let sid = fid.round_to_single_id();
     assert_eq!(sid.z(), 4);
     assert_eq!(sid.f(), 5);
     assert_eq!(sid.x(), 6);

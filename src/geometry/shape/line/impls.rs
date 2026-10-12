@@ -1,7 +1,8 @@
 use alloc::vec::Vec;
 
 use crate::{
-    Coordinate, Error, Line, Shape, SingleId, Vec3, Vec3Ecef, geometry::traits::CoverSingleIds,
+    Coordinate, Error, Line, Point, Shape, SingleId, Vec3, Vec3Ecef,
+    geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Line {
@@ -20,11 +21,8 @@ impl CoverSingleIds for Line {
         V: Clone + 'static,
     {
         let z = z.into();
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
-        let z = zoom.get();
         let a = self.points[0];
         let b = self.points[1];
-
         let vec_a: Vec3Ecef = a.into();
         let vec_b: Vec3Ecef = b.into();
         let vec_ba = vec_a - vec_b;

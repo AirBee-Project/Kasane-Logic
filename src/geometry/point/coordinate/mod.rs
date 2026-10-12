@@ -7,7 +7,7 @@ mod tests;
 use core::borrow::Borrow;
 
 use crate::{
-    Ecef, FractionalId, SingleId,
+    Ecef, FractionalId,
     error::{Error, GeometryError},
 };
 
@@ -197,57 +197,6 @@ impl Coordinate {
         }
         self.altitude = altitude;
         Ok(())
-    }
-
-    /// この座標を、指定されたズームレベルに対応する [SingleId] に変換する。
-    ///
-    /// # 引数
-    /// * `z` - 空間 ID のズームレベル
-    ///
-    /// # 戻り値
-    /// * 指定されたズームレベルに対応する [SingleId]
-    ///
-    /// # Example
-    /// ```
-    /// # use kasane_logic::{Coordinate,SingleId};
-    /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
-    /// assert_eq!(
-    ///     &coord.single_id(24),
-    ///     &SingleId::new(24, 10, 14715409, 6646263)
-    /// )
-    /// ```
-    pub fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
-        let zoom = ZoomLevel::new(z.into())?;
-        let z = zoom.get();
-
-        let lat = self.latitude;
-        let lon = self.longitude;
-        let alt = self.altitude;
-
-        let f_min = zoom.f_min() as i64;
-        let f_max = zoom.f_max() as i64;
-        let xy_max = zoom.xy_max() as i64;
-
-        //Z=25のとき高さはちょうど1m
-        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
-
-        // インデックス値は半開区間 [lo, hi) のため、許容範囲の閉じた上端は floor で「最後のインデックス値」を指す。経度を max_x に折り返すのと同様、f/x/y すべてを有効インデックス値へクランプする。
-
-        let f = (libm::floor(factor * alt) as i64).clamp(f_min, f_max) as i32;
-
-        let n = 2u64.pow(z as u32) as f64;
-        let x = (libm::floor((lon + 180.0) / 360.0 * n) as i64).clamp(0, xy_max) as u32;
-
-        let lat_rad = lat.to_radians();
-        let y = (libm::floor(
-            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad))
-                / core::f64::consts::PI)
-                / 2.0
-                * n,
-        ) as i64)
-            .clamp(0, xy_max) as u32;
-
-        Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
     }
 
     /// この座標を、指定されたズームレベルに対応する [FractionalId] に変換する。

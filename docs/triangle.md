@@ -11,7 +11,7 @@
 ```rs
 // 追加で必要な import:
 // use core::f64::consts::PI;
-// use crate::{WGS84_A, ZoomLevel};
+// use crate::{Point, WGS84_A, ZoomLevel};
 
 /// サンプリングによる参照実装（デバッグ用）。
 pub fn single_ids_sampling(&self, z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {

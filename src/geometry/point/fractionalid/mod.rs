@@ -208,20 +208,51 @@ impl FractionalId {
     /// # use kasane_logic::{FractionalId, SingleId};
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
-    /// let sid = fid.single_id();
+    /// let sid = fid.round_to_single_id();
     /// assert_eq!(sid.z(), 4);
     /// assert_eq!(sid.f(), 5);
     /// assert_eq!(sid.x(), 6);
     /// assert_eq!(sid.y(), 7);
     /// ```
-    pub fn single_id(&self) -> SingleId {
-        SingleId::new(
-            self.z.get(),
-            libm::floor(self.f) as i32,
-            libm::floor(self.x) as u32,
-            libm::floor(self.y) as u32,
-        )
-        .unwrap()
+    pub fn round_to_single_id(&self) -> SingleId {
+        unsafe {
+            SingleId::new_unchecked(
+                self.z.get(),
+                (libm::floor(self.f) as i32).min(self.z.f_max()),
+                (libm::floor(self.x) as u32).min(self.z.xy_max()),
+                (libm::floor(self.y) as u32).min(self.z.xy_max()),
+            )
+        }
+    }
+
+    pub fn change_zoomlevel(&mut self, z: impl Into<u8>) -> Result<(), Error> {
+        let z = z.into();
+        let dz = z as i32 - self.z.get() as i32;
+        self.z = ZoomLevel::new(z)?;
+        let scale = libm::ldexp(1.0, dz); // 2^dz
+        self.f *= scale;
+        self.x *= scale;
+        self.y *= scale;
+        Ok(())
+    }
+
+    pub fn into_another_zoomlevel(self, z: impl Into<u8>) -> Result<FractionalId, Error> {
+        let z = z.into();
+        let zoom = ZoomLevel::new(z)?;
+        let dz = z as i32 - self.z.get() as i32;
+        if dz == 0 {
+            return Ok(self);
+        }
+        let scale = libm::ldexp(1.0, dz); // 2^dz
+        let new_f = self.f * scale;
+        let new_x = self.x * scale;
+        let new_y = self.y * scale;
+        Ok(FractionalId {
+            z: zoom,
+            f: new_f,
+            x: new_x,
+            y: new_y,
+        })
     }
 
     /// 値の妥当性検証を行わずに [`FractionalId`] を生成する。

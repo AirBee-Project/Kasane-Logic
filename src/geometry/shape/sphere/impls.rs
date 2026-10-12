@@ -1,7 +1,8 @@
 use alloc::vec::Vec;
 
 use crate::{
-    Coordinate, Ecef, Shape, SingleId, SpatialId, Sphere, WGS84_A, geometry::traits::CoverSingleIds,
+    Coordinate, Ecef, Point, Shape, SingleId, SpatialId, Sphere, WGS84_A,
+    geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Sphere {

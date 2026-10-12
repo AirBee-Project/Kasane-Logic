@@ -1,7 +1,8 @@
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, Point, WGS84_A, WGS84_E2, WGS84_F, geometry::traits::CoverSingleIds,
+    Coordinate, Ecef, Error, Point, SingleId, WGS84_A, WGS84_E2, WGS84_F,
+    geometry::traits::CoverSingleIds,
 };
 
 impl fmt::Debug for Ecef {
@@ -83,7 +84,11 @@ fn snap_to_bound(value: f64, bound: f64, tolerance: f64) -> f64 {
     }
 }
 
-impl Point for Ecef {}
+impl Point for Ecef {
+    fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
+        Coordinate::from(*self).single_id(z)
+    }
+}
 
 impl CoverSingleIds for Ecef {
     fn cover_single_ids_with<V>(
@@ -94,7 +99,6 @@ impl CoverSingleIds for Ecef {
     where
         V: Clone + 'static,
     {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
-        Ok(core::iter::once((self.single_id(zoom.get())?, value)))
+        Ok(core::iter::once((self.single_id(z)?, value)))
     }
 }
