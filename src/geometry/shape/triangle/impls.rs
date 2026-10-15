@@ -1,7 +1,7 @@
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, Shape, SingleId, Triangle, Vec3, Vec3FractionalId,
+    Coordinate, Error, ExpandCoordinates, Point, Shape, SingleId, Triangle, Vec3, Vec3FractionalId,
     geometry::traits::CoverSingleIds,
 };
 

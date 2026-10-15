@@ -1,5 +1,5 @@
 use crate::{
-    Coordinate, Ecef, Error, Point, SingleId, WGS84_A, WGS84_E2, ZoomLevel,
+    Coordinate, Ecef, Error, FractionalId, Point, WGS84_A, WGS84_E2, ZoomLevel,
     geometry::traits::CoverSingleIds,
 };
 use core::fmt;
@@ -57,55 +57,49 @@ impl Default for Coordinate {
 }
 
 impl Point for Coordinate {
-    /// この座標を、指定されたズームレベルに対応する [SingleId] に変換する。
+    /// この座標を、指定されたズームレベルに対応する [`FractionalId`] に変換する。
+    ///
+    /// 各インデックスは切り捨てずに実数のまま保持する。範囲の上端ちょうどの座標は、
+    /// 最後のインデックス値の上面（`2^z`）に対応する。
     ///
     /// # 引数
     /// * `z` - 空間 ID のズームレベル
     ///
     /// # 戻り値
-    /// * 指定されたズームレベルに対応する [SingleId]
+    /// * 指定されたズームレベルに対応する [`FractionalId`]
+    /// * ズームレベルが範囲外の場合は [`Error`]
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::{Coordinate, Point, SingleId};
-    /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
+    /// # use kasane_logic::{Coordinate, FractionalId, Point};
+    /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     /// assert_eq!(
-    ///     &coord.single_id(24),
-    ///     &SingleId::new(24, 10, 14715409, 6646263)
+    ///     coord.fractional_id(24).unwrap(),
+    ///     FractionalId::new(24, 10.0, 14715409.371845974, 6646263.059889234).unwrap()
     /// )
     /// ```
-    fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
-        let z = z.into();
-        let zoom = ZoomLevel::new(z)?;
+    fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
+        let zoom = ZoomLevel::new(z.into())?;
+        let z = zoom.get();
 
         let lat = self.latitude;
         let lon = self.longitude;
         let alt = self.altitude;
 
-        let f_min = zoom.f_min() as i64;
-        let f_max = zoom.f_max() as i64;
-        let xy_max = zoom.xy_max() as i64;
-
         //Z=25のとき高さはちょうど1m
         let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
-
-        // インデックス値は半開区間 [lo, hi) のため、許容範囲の閉じた上端は floor で「最後のインデックス値」を指す。経度を max_x に折り返すのと同様、f/x/y すべてを有効インデックス値へクランプする。
-
-        let f = (libm::floor(factor * alt) as i64).clamp(f_min, f_max) as i32;
+        let f = factor * alt;
 
         let n = 2u64.pow(z as u32) as f64;
-        let x = (libm::floor((lon + 180.0) / 360.0 * n) as i64).clamp(0, xy_max) as u32;
+        let x = (lon + 180.0) / 360.0 * n;
 
         let lat_rad = lat.to_radians();
-        let y = (libm::floor(
-            (1.0 - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad))
-                / core::f64::consts::PI)
-                / 2.0
-                * n,
-        ) as i64)
-            .clamp(0, xy_max) as u32;
+        let y = (1.0
+            - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / core::f64::consts::PI)
+            / 2.0
+            * n;
 
-        Ok(unsafe { SingleId::new_unchecked(z, f, x, y) })
+        FractionalId::new(z, f, x, y)
     }
 }
 

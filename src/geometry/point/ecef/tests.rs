@@ -277,3 +277,42 @@ mod validation {
         assert!(ecef.range_id(31).is_err());
     }
 }
+
+mod point_fractional_id {
+    use crate::{Coordinate, Ecef, Point};
+
+    fn sample_ecefs() -> [Ecef; 4] {
+        [
+            Coordinate::new(35.681382, 139.766084, 10.3).unwrap().into(),
+            Coordinate::new(0.0, 0.0, 0.0).unwrap().into(),
+            Coordinate::new(-12.5, 90.0, -1234.5).unwrap().into(),
+            Ecef::new(6_378_137.0, 0.0, 0.0).unwrap(),
+        ]
+    }
+
+    /// `Ecef` の `fractional_id` / `single_id` は、`Coordinate` に変換してから求めた値と一致する。
+    #[test]
+    fn matches_coordinate() {
+        for ecef in sample_ecefs() {
+            let coord = Coordinate::from(ecef);
+            for z in [0u8, 5, 20, 25, 30] {
+                assert_eq!(
+                    Point::fractional_id(&ecef, z).unwrap(),
+                    Point::fractional_id(&coord, z).unwrap(),
+                    "{ecef:?}, z={z}"
+                );
+                assert_eq!(
+                    ecef.single_id(z).unwrap(),
+                    coord.single_id(z).unwrap(),
+                    "{ecef:?}, z={z}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_zoom() {
+        let ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
+        assert!(Point::fractional_id(&ecef, 31).is_err());
+    }
+}

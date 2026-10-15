@@ -190,3 +190,48 @@ mod point_single_id {
         }
     }
 }
+
+mod point_fractional_id {
+    use super::*;
+
+    /// 同じズームレベルを指定すると、元の値がそのまま返る。
+    #[test]
+    fn same_zoom_is_identity() {
+        let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
+        assert_eq!(Point::fractional_id(&fid, 4).unwrap(), fid);
+    }
+
+    /// 別のズームレベルを指定すると、`into_another_zoomlevel` と同じ結果になり、元の値は変わらない。
+    #[test]
+    fn matches_into_another_zoomlevel() {
+        let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
+        let original = fid;
+        for z in [0u8, 2, 6, 30] {
+            assert_eq!(
+                Point::fractional_id(&fid, z).unwrap(),
+                fid.into_another_zoomlevel(z).unwrap(),
+                "z={z}"
+            );
+        }
+        assert_eq!(fid, original);
+    }
+
+    #[test]
+    fn rejects_invalid_zoom() {
+        let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
+        assert!(Point::fractional_id(&fid, 31).is_err());
+    }
+
+    /// `single_id` は `fractional_id` を丸めた結果と一致する。
+    #[test]
+    fn single_id_is_rounded_fractional_id() {
+        let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
+        for z in [0u8, 2, 4, 6, 30] {
+            assert_eq!(
+                fid.single_id(z).unwrap(),
+                Point::fractional_id(&fid, z).unwrap().round_to_single_id(),
+                "z={z}"
+            );
+        }
+    }
+}

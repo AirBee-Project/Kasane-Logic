@@ -1,4 +1,3 @@
-use crate::spatial_id::zoom_level::ZoomLevel;
 pub mod impls;
 
 #[cfg(test)]
@@ -7,7 +6,7 @@ mod tests;
 use core::borrow::Borrow;
 
 use crate::{
-    Ecef, FractionalId,
+    Ecef,
     error::{Error, GeometryError},
 };
 
@@ -197,47 +196,6 @@ impl Coordinate {
         }
         self.altitude = altitude;
         Ok(())
-    }
-
-    /// この座標を、指定されたズームレベルに対応する [FractionalId] に変換する。
-    ///
-    /// # 引数
-    /// * `z` - 空間 ID のズームレベル
-    ///
-    /// # 戻り値
-    /// * 指定されたズームレベルに対応する [FractionalId]
-    ///
-    /// # Example
-    /// ```
-    /// # use kasane_logic::{Coordinate,FractionalId};
-    /// let mut coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
-    /// assert_eq!(
-    ///     coord.fractional_id(24).unwrap(),
-    ///     FractionalId::new(24, 10.0, 14715409.371845974, 6646263.059889234).unwrap()
-    /// )
-    /// ```
-    pub fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
-        let zoom = ZoomLevel::new(z.into())?;
-        let z = zoom.get();
-
-        let lat = self.latitude;
-        let lon = self.longitude;
-        let alt = self.altitude;
-
-        //Z=25のとき高さはちょうど1m
-        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
-        let f = factor * alt;
-
-        let n = 2u64.pow(z as u32) as f64;
-        let x = (lon + 180.0) / 360.0 * n;
-
-        let lat_rad = lat.to_radians();
-        let y = (1.0
-            - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / core::f64::consts::PI)
-            / 2.0
-            * n;
-        let id = FractionalId::new(z, f, x, y)?;
-        Ok(id)
     }
 
     /// 他の [`Coordinate`] との距離をメートル単位で返す。

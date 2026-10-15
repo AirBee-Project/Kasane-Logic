@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use hashbrown::HashSet;
 
-use crate::{Coordinate, Ecef, Error, SingleId, Vec3, Vec3Ecef, Vec3FractionalId};
+use crate::{Coordinate, Ecef, Error, Point, SingleId, Vec3, Vec3Ecef, Vec3FractionalId};
 pub mod geometry_relation;
 pub mod impls;
 #[cfg(test)]

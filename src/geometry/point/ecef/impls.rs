@@ -1,7 +1,7 @@
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, Error, Point, SingleId, WGS84_A, WGS84_E2, WGS84_F,
+    Coordinate, Ecef, Error, FractionalId, Point, WGS84_A, WGS84_E2, WGS84_F,
     geometry::traits::CoverSingleIds,
 };
 
@@ -85,8 +85,8 @@ fn snap_to_bound(value: f64, bound: f64, tolerance: f64) -> f64 {
 }
 
 impl Point for Ecef {
-    fn single_id(&self, z: impl Into<u8>) -> Result<SingleId, Error> {
-        Coordinate::from(*self).single_id(z)
+    fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
+        Coordinate::from(*self).fractional_id(z)
     }
 }
 
