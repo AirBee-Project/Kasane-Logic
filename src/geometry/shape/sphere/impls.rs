@@ -1,7 +1,8 @@
 use alloc::vec::Vec;
 
 use crate::{
-    Coordinate, Ecef, Shape, SingleId, SpatialId, Sphere, WGS84_A, geometry::traits::CoverSingleIds,
+    Coordinate, Ecef, Point, Shape, SingleId, SpatialId, Sphere, WGS84_A,
+    geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Sphere {
@@ -37,10 +38,9 @@ impl CoverSingleIds for Sphere {
                         center_ecef.x() + radius * sx,
                         center_ecef.y() + radius * sy,
                         center_ecef.z() + radius * sz,
-                    );
-                    if let Ok(id) = e.single_id(z) {
-                        corners.push(id);
-                    }
+                    )?;
+
+                    corners.push(e.single_id(z)?);
                 }
             }
         }

@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use kasane_logic::{Coordinate, Ecef};
+use kasane_logic::{Coordinate, Ecef, Point};
 use rand::RngExt;
 use std::hint::black_box;
 
@@ -31,7 +31,7 @@ fn bench_point_conversions(c: &mut Criterion) {
     group.bench_function("Ecef_to_Coordinate", |b| {
         b.iter(|| {
             for &ecef in &ecefs {
-                let coord: Coordinate = ecef.try_into().unwrap();
+                let coord: Coordinate = ecef.into();
                 black_box(coord);
             }
         });

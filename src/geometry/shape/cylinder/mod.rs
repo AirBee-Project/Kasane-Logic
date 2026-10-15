@@ -5,7 +5,7 @@ pub mod impls;
 mod tests;
 use core::f64::consts::PI;
 
-use crate::{Coordinate, Ecef, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef, ZoomLevel};
+use crate::{Coordinate, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef, ZoomLevel};
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -51,7 +51,7 @@ impl Cylinder {
             })
             .collect();
 
-        let to_coord = |v: Vec3Ecef| Coordinate::try_from(Ecef::from(v)).unwrap();
+        let to_coord = |v: Vec3Ecef| Coordinate::try_from(v).unwrap();
 
         // 側面の頂点リスト（イテレータ）を作成
         let side_surfaces = (0..divide_num).map(|i| {
@@ -105,7 +105,7 @@ impl Cylinder {
             })
             .collect();
 
-        let to_coord = |v: Vec3Ecef| Coordinate::try_from(Ecef::from(v)).unwrap();
+        let to_coord = |v: Vec3Ecef| Coordinate::try_from(v).unwrap();
 
         // 側面の頂点リスト（イテレータ）を作成
         let side_surfaces = (0..divide_num).map(|i| {

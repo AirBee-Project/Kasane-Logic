@@ -39,7 +39,7 @@ end
 
 %% 点の定義
 Coordinate --> Ecef
-Ecef -.-> Coordinate
+Ecef --> Coordinate
 
 %% 点以外の型定義
 Line -->|"Line → Coordinate×2"| Coordinate
@@ -105,4 +105,6 @@ Cylinder ==>|"N角形として近似"| Solid
 
 ## Type `Ecef`
 
-制約のない地心直交座標系を表す。`Coordinate` への変換は常に保証されない。
+空間IDが定義される範囲内の点を、地心直交座標系（X/Y/Z、単位はメートル）で表す。`Coordinate` へは必ず変換できる。
+
+`Ecef::new` や `set_x` / `set_y` / `set_z` は、変換後の緯度・高度が範囲外（緯度 ±85.0511°、高度 ±33,554,432 m）になる値を受け付けず、エラーを返す。範囲の検証を行わない任意の XYZ ベクトルを扱う場合は `Vec3Ecef` を用い、`Coordinate` や `Ecef` へは `TryFrom` で変換する。

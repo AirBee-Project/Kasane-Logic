@@ -1,4 +1,7 @@
-use crate::{Coordinate, Ecef, Point, WGS84_A, WGS84_E2, geometry::traits::CoverSingleIds};
+use crate::{
+    Coordinate, Ecef, Error, FractionalId, Point, WGS84_A, WGS84_E2, ZoomLevel,
+    geometry::traits::CoverSingleIds,
+};
 use core::fmt;
 
 impl fmt::Debug for Coordinate {
@@ -38,7 +41,7 @@ impl From<Coordinate> for Ecef {
         let y = (n + h) * cos_lat * sin_lon;
         let z = (n * (1.0 - WGS84_E2) + h) * sin_lat;
 
-        Ecef::new(x, y, z)
+        unsafe { Ecef::new_unchecked(x, y, z) }
     }
 }
 
@@ -53,7 +56,52 @@ impl Default for Coordinate {
     }
 }
 
-impl Point for Coordinate {}
+impl Point for Coordinate {
+    /// この座標を、指定されたズームレベルに対応する [`FractionalId`] に変換する。
+    ///
+    /// 各インデックスは切り捨てずに実数のまま保持する。範囲の上端ちょうどの座標は、
+    /// 最後のインデックス値の上面（`2^z`）に対応する。
+    ///
+    /// # 引数
+    /// * `z` - 空間 ID のズームレベル
+    ///
+    /// # 戻り値
+    /// * 指定されたズームレベルに対応する [`FractionalId`]
+    /// * ズームレベルが範囲外の場合は [`Error`]
+    ///
+    /// # Example
+    /// ```
+    /// # use kasane_logic::{Coordinate, FractionalId, Point};
+    /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
+    /// assert_eq!(
+    ///     coord.fractional_id(24).unwrap(),
+    ///     FractionalId::new(24, 10.0, 14715409.371845974, 6646263.059889234).unwrap()
+    /// )
+    /// ```
+    fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
+        let zoom = ZoomLevel::new(z.into())?;
+        let z = zoom.get();
+
+        let lat = self.latitude;
+        let lon = self.longitude;
+        let alt = self.altitude;
+
+        //Z=25のとき高さはちょうど1m
+        let factor = libm::pow(2_f64, (z as i32 - 25) as f64);
+        let f = factor * alt;
+
+        let n = 2u64.pow(z as u32) as f64;
+        let x = (lon + 180.0) / 360.0 * n;
+
+        let lat_rad = lat.to_radians();
+        let y = (1.0
+            - libm::log(libm::tan(lat_rad) + 1.0 / libm::cos(lat_rad)) / core::f64::consts::PI)
+            / 2.0
+            * n;
+
+        FractionalId::new(z, f, x, y)
+    }
+}
 
 impl CoverSingleIds for Coordinate {
     fn cover_single_ids_with<V>(
@@ -64,7 +112,6 @@ impl CoverSingleIds for Coordinate {
     where
         V: Clone + 'static,
     {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
-        Ok(core::iter::once((self.single_id(zoom.get())?, value)))
+        Ok(core::iter::once((self.single_id(z)?, value)))
     }
 }

@@ -202,26 +202,108 @@ impl FractionalId {
     ///
     /// 内部的には各実数値インデックス（F, X, Y）の床関数（`floor`）を取ることで
     /// 対応する [`SingleId`] を計算します。
+    /// 上端ちょうどの値（`x = 2^z` など）は、最後のインデックス値に丸められます。
     ///
     /// # Examples
     /// ```
     /// # use kasane_logic::{FractionalId, SingleId};
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
-    /// let sid = fid.single_id();
+    /// let sid = fid.round_to_single_id();
     /// assert_eq!(sid.z(), 4);
     /// assert_eq!(sid.f(), 5);
     /// assert_eq!(sid.x(), 6);
     /// assert_eq!(sid.y(), 7);
+    ///
+    /// // 上端ちょうどの値は最後のインデックス値になる
+    /// let top = FractionalId::new(4, 16.0, 16.0, 16.0).unwrap();
+    /// let sid = top.round_to_single_id();
+    /// assert_eq!(sid.f(), 15);
+    /// assert_eq!(sid.x(), 15);
+    /// assert_eq!(sid.y(), 15);
     /// ```
-    pub fn single_id(&self) -> SingleId {
-        SingleId::new(
-            self.z.get(),
-            libm::floor(self.f) as i32,
-            libm::floor(self.x) as u32,
-            libm::floor(self.y) as u32,
-        )
-        .unwrap()
+    pub fn round_to_single_id(&self) -> SingleId {
+        unsafe {
+            SingleId::new_unchecked(
+                self.z.get(),
+                (libm::floor(self.f) as i32).min(self.z.f_max()),
+                (libm::floor(self.x) as u32).min(self.z.xy_max()),
+                (libm::floor(self.y) as u32).min(self.z.xy_max()),
+            )
+        }
+    }
+
+    /// ズームレベルを `z` に変更し、F, X, Y を同じ位置を指す値に変換する。
+    ///
+    /// ズームレベルが 1 深くなるごとに各インデックスは 2 倍になり、浅くなるごとに半分になる。
+    /// `z` が範囲外の場合は [`Error`] を返し、値は変更されない。
+    ///
+    /// # Examples
+    /// ```
+    /// # use kasane_logic::FractionalId;
+    ///
+    /// let mut fid = FractionalId::new(4, 5.5, 6.25, 7.75).unwrap();
+    /// fid.change_zoomlevel(6).unwrap();
+    /// assert_eq!(fid.z(), 6);
+    /// assert_eq!(fid.f(), 22.0);
+    /// assert_eq!(fid.x(), 25.0);
+    /// assert_eq!(fid.y(), 31.0);
+    ///
+    /// // 範囲外のズームレベルはエラーになり、値は変わらない
+    /// assert!(fid.change_zoomlevel(31).is_err());
+    /// assert_eq!(fid.z(), 6);
+    /// assert_eq!(fid.x(), 25.0);
+    /// ```
+    pub fn change_zoomlevel(&mut self, z: impl Into<u8>) -> Result<(), Error> {
+        let z = z.into();
+        let dz = z as i32 - self.z.get() as i32;
+        self.z = ZoomLevel::new(z)?;
+        let scale = libm::ldexp(1.0, dz); // 2^dz
+        self.f *= scale;
+        self.x *= scale;
+        self.y *= scale;
+        Ok(())
+    }
+
+    /// ズームレベルを `z` に変更した [`FractionalId`] を、同じ位置を指す値として返す。
+    ///
+    /// [`FractionalId::change_zoomlevel`] の、元の値を変更しない版。
+    /// `z` が範囲外の場合は [`Error`] を返す。
+    ///
+    /// # Examples
+    /// ```
+    /// # use kasane_logic::FractionalId;
+    ///
+    /// let fid = FractionalId::new(4, 5.5, 6.25, 7.75).unwrap();
+    ///
+    /// let deeper = fid.into_another_zoomlevel(6).unwrap();
+    /// assert_eq!(deeper.z(), 6);
+    /// assert_eq!(deeper.f(), 22.0);
+    /// assert_eq!(deeper.x(), 25.0);
+    /// assert_eq!(deeper.y(), 31.0);
+    ///
+    /// // 元のズームレベルに戻すと元の値になる
+    /// assert_eq!(deeper.into_another_zoomlevel(4).unwrap(), fid);
+    ///
+    /// assert!(fid.into_another_zoomlevel(31).is_err());
+    /// ```
+    pub fn into_another_zoomlevel(self, z: impl Into<u8>) -> Result<FractionalId, Error> {
+        let z = z.into();
+        let zoom = ZoomLevel::new(z)?;
+        let dz = z as i32 - self.z.get() as i32;
+        if dz == 0 {
+            return Ok(self);
+        }
+        let scale = libm::ldexp(1.0, dz); // 2^dz
+        let new_f = self.f * scale;
+        let new_x = self.x * scale;
+        let new_y = self.y * scale;
+        Ok(FractionalId {
+            z: zoom,
+            f: new_f,
+            x: new_x,
+            y: new_y,
+        })
     }
 
     /// 値の妥当性検証を行わずに [`FractionalId`] を生成する。
