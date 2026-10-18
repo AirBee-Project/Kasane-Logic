@@ -10,12 +10,12 @@ impl Source for SpatialIdSet {
 
     fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [FlexId],
+        targets: &[FlexId],
         _token: &CancellationToken,
     ) -> Result<QueryIter<'a, ()>, Error> {
         Ok(QueryIter::from_ordered(
             self.inner
-                .get_overlapping(bounds.iter().copied())
+                .get_overlapping(targets.to_vec())
                 .map(|(id, ())| Ok((id, ()))),
         ))
     }
@@ -30,12 +30,12 @@ where
 
     fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [FlexId],
+        targets: &[FlexId],
         _token: &CancellationToken,
     ) -> Result<QueryIter<'a, V>, Error> {
         Ok(QueryIter::from_ordered(
             self.inner
-                .get_overlapping(bounds.iter().copied())
+                .get_overlapping(targets.to_vec())
                 .map(|(id, value)| Ok((id, value.clone()))),
         ))
     }

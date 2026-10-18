@@ -41,15 +41,17 @@ where
 
     fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [FlexId],
+        targets: &[FlexId],
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, U>, Error> {
-        Ok(QueryIter::from_ordered(
-            self.inner
-                .run_within(bounds.iter().map(RangeId::from).collect(), token)?
-                .into_iter()
-                .map(move |(id, value)| Ok((id, (self.f)(value)))),
-        ))
+        // `Query::validate` は入力源の中まで辿らないので、内側のクエリはここで検証する
+        self.inner.validate()?;
+        let inner = self
+            .inner
+            .stream_within(targets.iter().map(RangeId::from).collect(), token)?;
+        Ok(QueryIter::from_ordered(inner.map(move |item| {
+            item.map(|(id, value)| (id, (self.f)(value)))
+        })))
     }
 }
 

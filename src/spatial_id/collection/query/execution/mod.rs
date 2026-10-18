@@ -85,7 +85,9 @@ impl<V: SafeValue + 'static> Query<V> {
             token: &CancellationToken,
         ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
             match query {
-                Query::Source(source) => read_source(&*source, &crate::FlexId::ROOTS, token),
+                Query::Source(source) => {
+                    read_source(&*source, &crate::FlexId::ROOTS, token)?.collect()
+                }
                 Query::Unary(ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                     let input_working = run_internal(*input, token)?;
@@ -132,21 +134,20 @@ pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
     Ok(stream)
 }
 
-/// 入力源を読み出して木に組む。
-fn read_source<V: SafeValue + 'static>(
-    source: &dyn Source<Value = V>,
+/// 入力源から `bounds` と重なる要素を読み出し、読みながら `token` のキャンセルを確かめる列を返す。
+fn read_source<'a, V: SafeValue + 'static>(
+    source: &'a dyn Source<Value = V>,
     bounds: &[crate::FlexId],
     token: &CancellationToken,
-) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+) -> Result<QueryIter<'a, V>, Error> {
+    let token = token.clone();
     let mut counter = 0u32;
-
-    source
-        .read_flex_ids(bounds, token)?
-        .map(|item| {
+    Ok(QueryIter::from_ordered(
+        source.read_flex_ids(bounds, &token)?.map(move |item| {
             token.check_amortized(&mut counter)?;
             item
-        })
-        .collect()
+        }),
+    ))
 }
 
 // Queryの遅延実行
@@ -161,15 +162,17 @@ impl<V: SafeValue + 'static> Query<V> {
         token: &CancellationToken,
     ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         self.validate()?;
-        self.run_within_unchecked(bounds, token)
+        self.stream_within(bounds, token)?.collect()
     }
 
-    /// [`run_within`](Self::run_within) の本体（再帰部分）。
-    fn run_within_unchecked(
-        &self,
+    /// 検証を行わずに、出力領域 `bounds` を得るのに必要な部分だけを評価した列を返す。
+    ///
+    /// `token` がキャンセルされると、AST を辿る途中か列を読む途中で [`Error::Cancelled`] を返す。
+    pub(crate) fn stream_within<'a>(
+        &'a self,
         bounds: Vec<crate::RangeId>,
         token: &CancellationToken,
-    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+    ) -> Result<QueryIter<'a, V>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
@@ -197,11 +200,9 @@ impl<V: SafeValue + 'static> Query<V> {
                     next.dedup();
                     req = next;
                 }
-                let input_working = input.run_within_unchecked(req, token)?;
+                let input_stream = input.stream_within(req, token)?;
                 let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                let input_stream: QueryIter<'_, V> = input_working.into();
-                let out_stream = run_unary_chain(&order, input_stream, token)?;
-                out_stream.collect()
+                run_unary_chain(&order, input_stream, token)
             }
             Query::Binary(op, lhs, rhs) => {
                 let mut lhs_bounds = Vec::new();
@@ -219,12 +220,10 @@ impl<V: SafeValue + 'static> Query<V> {
                 lhs_bounds.dedup();
                 rhs_bounds.sort_unstable();
                 rhs_bounds.dedup();
-                let lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
-                let rhs_working = rhs.run_within_unchecked(rhs_bounds, token)?;
-                let lhs_stream: QueryIter<'_, V> = lhs_working.into();
-                let rhs_stream: QueryIter<'_, V> = rhs_working.into();
-                let out_stream = op.run(lhs_stream, rhs_stream)?;
-                out_stream.collect()
+                op.run(
+                    lhs.stream_within(lhs_bounds, token)?,
+                    rhs.stream_within(rhs_bounds, token)?,
+                )
             }
             Query::Error(e) => Err(e.clone()),
         }

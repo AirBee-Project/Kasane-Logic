@@ -26,7 +26,7 @@ pub trait Source: MaybeSendSync {
     /// 返す要素は `targets` の外にはみ出していてもよい。
     fn read_flex_ids<'a>(
         &'a self,
-        targets: &'a [FlexId],
+        targets: &[FlexId],
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, Self::Value>, Error>;
 
