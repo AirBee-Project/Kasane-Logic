@@ -72,7 +72,7 @@ where
         Ok(Box::new(rebuilt.into_iter().map(Ok)))
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         let z = self.z.get();
         let target_z = z.max(bounds.z());
 

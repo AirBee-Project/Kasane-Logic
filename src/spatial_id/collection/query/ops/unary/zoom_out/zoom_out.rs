@@ -127,7 +127,7 @@ where
         Ok(())
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         if bounds.z() > self.target_z.get() {
             Some(bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap())
         } else {

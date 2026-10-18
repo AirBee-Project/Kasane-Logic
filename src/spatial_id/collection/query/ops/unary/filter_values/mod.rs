@@ -97,7 +97,7 @@ where
         )))
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         Some(bounds)
     }
 }

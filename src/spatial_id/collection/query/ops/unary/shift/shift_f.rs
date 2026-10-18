@@ -35,7 +35,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
         Ok(super::shift_stream(input, move |id| id.shift_f(z, index)))
     }
 
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
         let z = self.z.get();
         let target_z = z.max(bounds.z());
         let delta = (self.f as i64) * (1i64 << (target_z - z));

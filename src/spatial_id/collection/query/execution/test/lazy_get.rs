@@ -29,7 +29,7 @@ fn lazy_get_shift_x_wrapped_coarsen_matches_run() {
     assert_eq!(lazy_values, expected_values);
 }
 
-/// x系演算子を2つ連鎖すると、1つ目の演算子の`inverse_bounds`が返す中間`bounds`が
+/// x系演算子を2つ連鎖すると、1つ目の演算子の`reverse_target`が返す中間`bounds`が
 /// 折り返し状態（`x[0] > x[1]`）になることがある。木の枝刈り
 /// （`Node::overlapping_children_range`）がこの規約を考慮していなかったため、
 /// `lazy_get`が`run`と食い違う（データを取りこぼす）ことがあった。

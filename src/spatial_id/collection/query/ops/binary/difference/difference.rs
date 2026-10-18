@@ -34,10 +34,10 @@ impl<V: SafeValue + 'static> BinaryOperator<V> for Difference<V> {
         Ok(Box::new(target_a.into_iter().map(Ok)))
     }
 
-    fn inverse_bounds(
+    fn reverse_target(
         &self,
-        output_bounds: crate::RangeId,
+        output_target: crate::RangeId,
     ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
-        (Some(output_bounds.clone()), Some(output_bounds))
+        (Some(output_target.clone()), Some(output_target))
     }
 }

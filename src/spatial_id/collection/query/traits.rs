@@ -20,7 +20,7 @@ pub trait BinaryOperator<V: SafeValue + 'static>: MaybeSendSync {
     ) -> Result<QueryIter<'a, V>, Error>;
 
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
-    fn inverse_bounds(&self, output_bounds: RangeId) -> (Option<RangeId>, Option<RangeId>);
+    fn reverse_target(&self, output_target: RangeId) -> (Option<RangeId>, Option<RangeId>);
 }
 
 /// 単項演算子の定義。
@@ -33,5 +33,5 @@ pub trait UnaryOperator<V: SafeValue + 'static>: MaybeSendSync {
 
     /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
     /// 遅延ビュー（Lazy View）が部分木を構築するために使用する。
-    fn inverse_bounds(&self, output_bounds: RangeId) -> Option<RangeId>;
+    fn reverse_target(&self, output_target: RangeId) -> Option<RangeId>;
 }

@@ -92,11 +92,11 @@ fn falloff_x_overlap_max() {
 /// z=2 のfine x では{0,1}に相当し、falloff(半径1)で寄与しうる入力 s∈{3,0,1,2}（全域）が
 /// 必要になる。
 #[test]
-fn falloff_x_inverse_bounds_wrapped_coarsen_covers_needed_range() {
+fn falloff_x_reverse_target_wrapped_coarsen_covers_needed_range() {
     let op = FalloffX::<Sum>::new(2, 1, None, FalloffPattern::Linear).unwrap();
 
     let bounds = crate::RangeId::new(1, [-2, 1], 0, [0, 1]).unwrap();
-    let inv = <FalloffX<Sum> as UnaryOperator<u32>>::inverse_bounds(&op, bounds).unwrap();
+    let inv = <FalloffX<Sum> as UnaryOperator<u32>>::reverse_target(&op, bounds).unwrap();
 
     assert_eq!(inv.x(), [0, 1]);
 }

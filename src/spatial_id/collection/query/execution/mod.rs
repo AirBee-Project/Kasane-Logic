@@ -192,7 +192,7 @@ impl<V: SafeValue + 'static> Query<V> {
                 for op in ops.iter().rev() {
                     let mut next = Vec::new();
                     for r in req {
-                        if let Some(inv) = op.inverse_bounds(r) {
+                        if let Some(inv) = op.reverse_target(r) {
                             next.push(inv);
                         }
                     }
@@ -210,7 +210,7 @@ impl<V: SafeValue + 'static> Query<V> {
                 let mut lhs_bounds = Vec::new();
                 let mut rhs_bounds = Vec::new();
                 for b in bounds {
-                    let (l, r) = op.inverse_bounds(b.clone());
+                    let (l, r) = op.reverse_target(b.clone());
                     if let Some(lb) = l {
                         lhs_bounds.push(lb);
                     }

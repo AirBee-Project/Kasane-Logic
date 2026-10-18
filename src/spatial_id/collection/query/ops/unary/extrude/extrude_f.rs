@@ -87,7 +87,7 @@ where
         Ok(Box::new(table.into_iter().map(Ok)))
     }
 
-    fn inverse_bounds(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn reverse_target(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {
         let target_z = self.target_z.get();
         let bounds_z = bounds.z();
         let max_z = target_z.max(bounds_z);
