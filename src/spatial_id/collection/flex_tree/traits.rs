@@ -1,5 +1,3 @@
-use alloc::boxed::Box;
-
 use crate::spatial_id::collection::flex_tree::core::Summary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
@@ -15,7 +13,7 @@ impl Source for SpatialIdSet {
         bounds: &'a [FlexId],
         _token: &CancellationToken,
     ) -> Result<QueryIter<'a, ()>, Error> {
-        Ok(Box::new(
+        Ok(QueryIter::from_ordered(
             self.inner
                 .get_overlapping(bounds.iter().copied())
                 .map(|(id, ())| Ok((id, ()))),
@@ -35,7 +33,7 @@ where
         bounds: &'a [FlexId],
         _token: &CancellationToken,
     ) -> Result<QueryIter<'a, V>, Error> {
-        Ok(Box::new(
+        Ok(QueryIter::from_ordered(
             self.inner
                 .get_overlapping(bounds.iter().copied())
                 .map(|(id, value)| Ok((id, value.clone()))),

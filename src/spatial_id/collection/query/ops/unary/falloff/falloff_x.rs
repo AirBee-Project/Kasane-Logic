@@ -1,6 +1,5 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use alloc::boxed::Box;
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use core::convert::TryFrom;
@@ -69,7 +68,7 @@ where
                 rebuilt.inner.insert_with(spread, spread_value, resolve);
             }
         }
-        Ok(Box::new(rebuilt.into_iter().map(Ok)))
+        Ok(rebuilt.into())
     }
 
     fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {

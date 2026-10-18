@@ -44,7 +44,7 @@ where
         bounds: &'a [FlexId],
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, U>, Error> {
-        Ok(Box::new(
+        Ok(QueryIter::from_ordered(
             self.inner
                 .run_within(bounds.iter().map(RangeId::from).collect(), token)?
                 .into_iter()

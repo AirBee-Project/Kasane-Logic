@@ -6,13 +6,27 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{Error, FlexId};
 use alloc::boxed::Box;
 
-/// クエリを実行するためのTrait。読み取りさえできればよい。
+/// クエリのデータを提供するTrait。[`SpatialIdTable`](crate::SpatialIdTable) やリモートのデータベースなどに実装する。
+///
+/// # 実装の仕方
+///
+/// [`read_flex_ids`](Self::read_flex_ids) は [`QueryIter`] の制約を満たす列を返す。
+///
+/// - 木の走査順で読み出せるなら、[`QueryIter::from_ordered`] で包んで逐次に流す。
+///   [`FlexId::canonical_key`] の昇順で保存したデータベースを、その順に一度だけ走査し、
+///   `targets` のどれかと [`intersects`](FlexId::intersects) する要素を返す場合がこれにあたる。
+///   `targets` ごとに分けて読むと、複数の `targets` と重なる要素が重複し、順序も崩れうるので、
+///   全ての `targets` をまとめて一度に読む。
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
 
+    /// `targets` のどれかと重なる要素を、それぞれ1回ずつ、[`QueryIter`] の制約を満たす列で返す。
+    ///
+    /// `targets` は互いに重なっていてもよく、順序も問わない。
+    /// 返す要素は `targets` の外にはみ出していてもよい。
     fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [FlexId],
+        targets: &'a [FlexId],
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, Self::Value>, Error>;
 

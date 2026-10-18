@@ -21,8 +21,6 @@ pub enum Error {
     InvalidQueryParameter(&'static str),
 
     /// [`Source`](crate::Source) 実装側で発生した読み取りエラー。
-    ///
-    /// ディスク/ネットワーク越しの入力源が、自身の I/O 失敗をクエリ実行器へ伝えるために使う。
     SourceRead(String),
 
     /// [`CancellationToken`](crate::CancellationToken) によりキャンセルされた。

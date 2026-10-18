@@ -1,5 +1,5 @@
-use crate::{Error, FlexId, spatial_id::collection::query::traits::QueryIter};
-use alloc::boxed::Box;
+use crate::spatial_id::collection::query::send_sync::SafeValue;
+use crate::{Error, FlexId, SpatialIdTable, spatial_id::collection::query::traits::QueryIter};
 
 /// X方向への移動演算子
 pub mod shift_x;
@@ -16,22 +16,22 @@ pub mod primitive;
 /// Query型への実装
 pub mod query;
 
-/// `input` の各 [`FlexId`] を `shift` で移した先へ、値を付けたまま逐次に流す。
+/// `input` の各 [`FlexId`] を `shift` で移した先へ値を付けたまま移し、走査順に並べ直して返す。
 ///
-/// `shift` が失敗した要素は、その位置で `Err` として流す。
-fn shift_stream<'a, V, I>(
+/// `shift` が失敗した要素があれば、そのエラーを返す。
+fn shift_all<'a, V, I>(
     input: QueryIter<'a, V>,
-    shift: impl Fn(&FlexId) -> Result<I, Error> + 'a,
-) -> QueryIter<'a, V>
+    shift: impl Fn(&FlexId) -> Result<I, Error>,
+) -> Result<QueryIter<'a, V>, Error>
 where
-    V: Clone + 'a,
-    I: Iterator<Item = FlexId> + 'a,
+    V: SafeValue + 'a,
+    I: Iterator<Item = FlexId>,
 {
-    Box::new(input.flat_map(move |item| {
-        let (moved, err) = match item.and_then(|(id, value)| Ok((shift(&id)?, value))) {
-            Ok((ids, value)) => (Some(ids.map(move |id| Ok((id, value.clone())))), None),
-            Err(e) => (None, Some(Err(e))),
-        };
-        moved.into_iter().flatten().chain(err)
-    }))
+    // 移動の桁上がりで上位のビットが変わった要素は走査順の遠くへ跳ぶので、木に集めて並べ直す
+    let mut moved = SpatialIdTable::new();
+    for item in input {
+        let (id, value) = item?;
+        moved.extend(shift(&id)?.map(|id| (id, value.clone())));
+    }
+    Ok(moved.into())
 }

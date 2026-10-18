@@ -1,8 +1,8 @@
 use super::traits::{BinaryOperator, QueryIter, UnaryOperator};
 use crate::Error;
-use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::{SpatialIdSet, SpatialIdTable};
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
@@ -85,16 +85,11 @@ impl<V: SafeValue + 'static> Query<V> {
             token: &CancellationToken,
         ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
             match query {
-                Query::Source(source) => read_source(
-                    &*source,
-                    &[crate::FlexId::LOWER_MAX, crate::FlexId::UPPER_MAX],
-                    token,
-                ),
+                Query::Source(source) => read_source(&*source, &crate::FlexId::ROOTS, token),
                 Query::Unary(ops, input) => {
                     let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                     let input_working = run_internal(*input, token)?;
-                    let input_stream: QueryIter<'_, V> =
-                        Box::new(input_working.into_iter().map(Ok));
+                    let input_stream: QueryIter<'_, V> = input_working.into();
                     let out_stream = run_unary_chain(&order, input_stream, token)?;
                     out_stream.collect()
                 }
@@ -108,8 +103,8 @@ impl<V: SafeValue + 'static> Query<V> {
 
                     let lhs_res = lhs_res?;
                     let rhs_res = rhs_res?;
-                    let lhs_stream: QueryIter<'_, V> = Box::new(lhs_res.into_iter().map(Ok));
-                    let rhs_stream: QueryIter<'_, V> = Box::new(rhs_res.into_iter().map(Ok));
+                    let lhs_stream: QueryIter<'_, V> = lhs_res.into();
+                    let rhs_stream: QueryIter<'_, V> = rhs_res.into();
                     let out_stream = op.run(lhs_stream, rhs_stream)?;
                     out_stream.collect()
                 }
@@ -181,10 +176,12 @@ impl<V: SafeValue + 'static> Query<V> {
 
         match self {
             Query::Source(s) => {
-                let mut bounds: Vec<crate::FlexId> = bounds.into_iter().flatten().collect();
-                bounds.sort_unstable();
-                bounds.dedup();
-
+                // 重なりや隣接をまとめ、入力源へのリクエストを小さくする
+                let bounds: Vec<crate::FlexId> = bounds
+                    .into_iter()
+                    .collect::<SpatialIdSet>()
+                    .into_iter()
+                    .collect();
                 read_source(&**s, &bounds, token)
             }
             Query::Unary(ops, input) => {
@@ -202,7 +199,7 @@ impl<V: SafeValue + 'static> Query<V> {
                 }
                 let input_working = input.run_within_unchecked(req, token)?;
                 let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                let input_stream: QueryIter<'_, V> = Box::new(input_working.into_iter().map(Ok));
+                let input_stream: QueryIter<'_, V> = input_working.into();
                 let out_stream = run_unary_chain(&order, input_stream, token)?;
                 out_stream.collect()
             }
@@ -224,8 +221,8 @@ impl<V: SafeValue + 'static> Query<V> {
                 rhs_bounds.dedup();
                 let lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
                 let rhs_working = rhs.run_within_unchecked(rhs_bounds, token)?;
-                let lhs_stream: QueryIter<'_, V> = Box::new(lhs_working.into_iter().map(Ok));
-                let rhs_stream: QueryIter<'_, V> = Box::new(rhs_working.into_iter().map(Ok));
+                let lhs_stream: QueryIter<'_, V> = lhs_working.into();
+                let rhs_stream: QueryIter<'_, V> = rhs_working.into();
                 let out_stream = op.run(lhs_stream, rhs_stream)?;
                 out_stream.collect()
             }

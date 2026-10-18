@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 pub mod query;
 
 use crate::{
@@ -92,7 +91,7 @@ where
 
     fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         let predicate = self.predicate.clone();
-        Ok(Box::new(input.filter(
+        Ok(QueryIter::from_ordered(input.filter(
             move |item| !matches!(item, Ok((_, value)) if !predicate.matches(value)),
         )))
     }

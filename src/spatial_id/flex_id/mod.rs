@@ -719,6 +719,45 @@ impl FlexId {
         Dimension::mask(|d| self.zoomlevel_on(d) > other.zoomlevel_on(d))
     }
 
+    /// 木の走査順での各位置について、自身がどちら側にあるかを、走査で先に割る位置から順に返す。
+    ///
+    /// 位置はルート（F の符号）、続いてズーム 1, 2, … の各ズームで F→X→Y→T の順。
+    /// 自身がその位置で割られていなければ [`None`]、割られていれば上側なら `true`。
+    fn canonical_sides(&self) -> impl Iterator<Item = Option<bool>> + '_ {
+        let levels = (1..=TZoomLevel::MAX.get()).flat_map(move |level| {
+            Dimension::ALL
+                .into_iter()
+                .filter(move |&d| d == Dimension::T || level <= ZoomLevel::MAX.get())
+                .map(move |d| {
+                    let z = self.zoomlevel_on(d);
+                    (level <= z).then(|| (self.index_on(d) >> (z - level)) & 1 == 1)
+                })
+        });
+        core::iter::once(Some(self.root_index() == 1)).chain(levels)
+    }
+
+    /// 木の走査順に並べ替えるためのキーを返す。
+    ///
+    /// 走査で先に割る位置を上位ビットとし、各位置の側（上側なら 1、割られていなければ 0）を並べた値。
+    /// [`QueryIter`](crate::spatial_id::collection::query::traits::QueryIter) の制約を満たす列は、
+    /// このキーの狭義の昇順に並ぶ。
+    pub fn canonical_key(&self) -> u128 {
+        self.canonical_sides()
+            .fold(0, |key, side| key << 1 | u128::from(side == Some(true)))
+    }
+
+    /// 木の走査順で `self` と `other` を比べる。
+    ///
+    /// 最初に食い違う位置で両方が割られていれば、その位置の側で順序を返す。
+    /// 重なっている場合と、片方だけが割られた位置で先に食い違う場合は [`None`]。
+    pub fn canonical_cmp(&self, other: &FlexId) -> Option<core::cmp::Ordering> {
+        let (a, b) = self
+            .canonical_sides()
+            .zip(other.canonical_sides())
+            .find(|(a, b)| a != b)?;
+        Some(a?.cmp(&b?))
+    }
+
     /// 次元の集合 `dimensions`（[`Dimension::bit`] の OR）のうち、自身のズームが一番粗い次元を返す。
     /// 同じズームなら F→X→Y→T の順。空なら [`None`]。
     pub fn coarsest_dimension_in(&self, dimensions: u8) -> Option<Dimension> {

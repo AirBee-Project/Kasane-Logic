@@ -11,7 +11,6 @@ use crate::{
         zoom_level::ZoomLevel,
     },
 };
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 #[cfg(feature = "rayon")]
@@ -43,7 +42,7 @@ where
             core.into_iter().map(|(id, v)| (id, Some(v))).collect();
 
         if leaves.is_empty() {
-            return Ok(Box::new(core::iter::empty()));
+            return Ok(QueryIter::from_ordered(core::iter::empty()));
         }
 
         #[cfg(feature = "rayon")]
@@ -61,7 +60,7 @@ where
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.par_sort_unstable_by_key(|a| a.0);
                 let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
-                return Ok(Box::new(table.into_iter().map(Ok)));
+                return Ok(table.into());
             }
 
             leaves.par_iter_mut().for_each(|(id, _)| {
@@ -85,7 +84,7 @@ where
                 let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
                 new_items.sort_unstable_by_key(|a| a.0);
                 let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
-                return Ok(Box::new(table.into_iter().map(Ok)));
+                return Ok(table.into());
             }
 
             for (id, _) in leaves.iter_mut() {
@@ -120,7 +119,7 @@ where
 
         let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
 
-        Ok(Box::new(table.into_iter().map(Ok)))
+        Ok(table.into())
     }
 
     fn validate(&self) -> Result<(), crate::Error> {

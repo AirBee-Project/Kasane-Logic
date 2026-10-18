@@ -11,7 +11,6 @@ use crate::{
         zoom_level::ZoomLevel,
     },
 };
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
@@ -84,7 +83,7 @@ where
         // 重複のない (FlexId, V) のリストからツリーを再構築
         let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
 
-        Ok(Box::new(table.into_iter().map(Ok)))
+        Ok(table.into())
     }
 
     fn reverse_target(&self, mut bounds: crate::RangeId) -> Option<crate::RangeId> {

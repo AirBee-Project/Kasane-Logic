@@ -32,7 +32,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftF {
             return Ok(input);
         }
 
-        Ok(super::shift_stream(input, move |id| id.shift_f(z, index)))
+        super::shift_all(input, move |id| id.shift_f(z, index))
     }
 
     fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {

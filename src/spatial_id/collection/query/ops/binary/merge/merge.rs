@@ -5,7 +5,6 @@ use crate::spatial_id::collection::query::{
     traits::{BinaryOperator, QueryIter},
 };
 use crate::{Error, SpatialIdTable};
-use alloc::boxed::Box;
 
 /// `MergePolicy` で重ね合わせる二項演算子。
 pub struct Merge<V, P> {
@@ -52,7 +51,7 @@ where
                 .map(|(id, value)| (id, resolve(&self.default, &value))),
         );
         target_a.inner = merged;
-        Ok(Box::new(target_a.into_iter().map(Ok)))
+        Ok(target_a.into())
     }
 
     fn reverse_target(
