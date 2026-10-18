@@ -1,6 +1,3 @@
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::ops::unary::sort_by_flex_id;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
@@ -13,6 +10,7 @@ use crate::{
     },
 };
 use alloc::vec::Vec;
+use core::mem::replace;
 
 /// 指定されたズームレベルまで情報を落とす演算子。
 pub struct ZoomOut<V, P> {
@@ -36,46 +34,76 @@ where
     fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         let target_z = self.target_z.get();
 
+        // 入力列の深さ優先走査順（カノニカル順）により、同一親へ縮約される要素群は必ず
+        // 連続して出現し、親間の順序も保存されるため、ソート不要で逐次集約できる。
         if P::IS_COMMUTATIVE {
-            let mut map = hashbrown::HashMap::new();
-            for item in input {
-                let (id, val) = item?;
-                let parent = id.spatial_parent_at_zoom(target_z).unwrap();
-                map.entry(parent)
-                    .and_modify(|e: &mut V| *e = P::resolve(e.clone(), val.clone()))
-                    .or_insert(val);
+            let mut current: Option<(FlexId, V)> = None;
+            let mut input = input.fuse();
+
+            let iter = core::iter::from_fn(move || loop {
+                match input.next() {
+                    Some(Ok((id, val))) => {
+                        let parent = match id.spatial_parent_at_zoom(target_z) {
+                            Ok(p) => p,
+                            Err(e) => return Some(Err(e)),
+                        };
+                        if let Some((cur_id, cur_val)) = &mut current {
+                            if *cur_id == parent {
+                                *cur_val = P::resolve(cur_val.clone(), val);
+                                continue;
+                            }
+                            let prev = (replace(cur_id, parent), replace(cur_val, val));
+                            return Some(Ok(prev));
+                        } else {
+                            current = Some((parent, val));
+                            continue;
+                        }
+                    }
+                    Some(Err(e)) => return Some(Err(e)),
+                    None => return current.take().map(Ok),
+                }
+            });
+
+            return Ok(QueryIter::from_ordered(iter));
+        }
+
+        let mut current_id: Option<FlexId> = None;
+        let mut chunk: Vec<V> = Vec::new();
+        let mut input = input.fuse();
+
+        let iter = core::iter::from_fn(move || loop {
+            match input.next() {
+                Some(Ok((id, val))) => {
+                    let parent = match id.spatial_parent_at_zoom(target_z) {
+                        Ok(p) => p,
+                        Err(e) => return Some(Err(e)),
+                    };
+                    if let Some(cur_id) = current_id {
+                        if cur_id == parent {
+                            chunk.push(val);
+                            continue;
+                        }
+                        current_id = Some(parent);
+                        let merged = P::resolve_many(chunk.drain(..));
+                        chunk.push(val);
+                        if let Some(merged) = merged {
+                            return Some(Ok((cur_id, merged)));
+                        }
+                    } else {
+                        current_id = Some(parent);
+                        chunk.push(val);
+                    }
+                }
+                Some(Err(e)) => return Some(Err(e)),
+                None => {
+                    let id = current_id.take()?;
+                    let merged = P::resolve_many(chunk.drain(..))?;
+                    return Some(Ok((id, merged)));
+                }
             }
-            if map.is_empty() {
-                return Ok(QueryIter::from_ordered(core::iter::empty()));
-            }
-            let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
-            sort_by_flex_id(&mut new_items);
-            let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
-            return Ok(table.into());
-        }
+        });
 
-        let mut leaves: Vec<(FlexId, Option<V>)> = Vec::new();
-        for item in input {
-            let (id, v) = item?;
-            leaves.push((id.spatial_parent_at_zoom(target_z).unwrap(), Some(v)));
-        }
-
-        if leaves.is_empty() {
-            return Ok(QueryIter::from_ordered(core::iter::empty()));
-        }
-
-        sort_by_flex_id(&mut leaves);
-
-        let table: SpatialIdTable<V, NoSummary> = leaves
-            .chunk_by_mut(|a, b| a.0 == b.0)
-            .filter_map(|chunk| {
-                let parent_id = chunk[0].0;
-                let merged = P::resolve_many(chunk.iter_mut().map(|(_, v)| v.take().unwrap()))?;
-                Some((parent_id, merged))
-            })
-            .collect();
-
-        Ok(table.into())
+        Ok(QueryIter::from_ordered(iter))
     }
 
     fn validate(&self) -> Result<(), crate::Error> {

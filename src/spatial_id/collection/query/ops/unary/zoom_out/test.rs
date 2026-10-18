@@ -1,3 +1,5 @@
+use alloc::vec;
+use alloc::vec::Vec;
 use crate::spatial_id::collection::query::merge_policy::{Average, Max};
 use crate::{SingleId, Source, SpatialIdTable, ZoomLevel};
 
@@ -60,4 +62,96 @@ fn zoom_out_max_partial_children() {
 
     // Max of {10, 99, 5} is 99
     assert_eq!(*result, 99);
+}
+
+#[test]
+fn zoom_out_multiple_parents_commutative_and_non_commutative() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::query::merge_policy::Sum;
+
+    let mut table = SpatialIdTable::<i32>::new();
+    // 親1: (z: 1, f: 0, x: 0, y: 0) に属する子
+    table.insert(FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 10);
+    table.insert(FlexId::new(2, 0, 2, 1, 2, 0).unwrap(), 20);
+
+    // 親2: (z: 1, f: 0, x: 1, y: 1) に属する子
+    table.insert(FlexId::new(2, 0, 2, 2, 2, 2).unwrap(), 30);
+    table.insert(FlexId::new(2, 0, 2, 3, 2, 3).unwrap(), 40);
+
+    let sum_out: Vec<_> = table
+        .clone()
+        .query()
+        .zoom_out(1, Sum)
+        .run()
+        .unwrap()
+        .iter()
+        .map(|(id, v)| (id, *v))
+        .collect();
+
+    let avg_out: Vec<_> = table
+        .query()
+        .zoom_out(1, Average)
+        .run()
+        .unwrap()
+        .iter()
+        .map(|(id, v)| (id, *v))
+        .collect();
+
+    let p1 = FlexId::new(1, 0, 1, 0, 1, 0).unwrap();
+    let p2 = FlexId::new(1, 0, 1, 1, 1, 1).unwrap();
+
+    assert_eq!(sum_out, vec![(p1, 30), (p2, 70)]);
+    assert_eq!(avg_out, vec![(p1, 15), (p2, 35)]);
+}
+
+#[test]
+fn zoom_out_lazily_short_circuits() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::query::ops::unary::zoom_out::ZoomOut;
+    use crate::spatial_id::collection::query::traits::{QueryIter, UnaryOperator};
+
+    struct PanicAfterFirst {
+        count: usize,
+    }
+
+    impl Iterator for PanicAfterFirst {
+        type Item = Result<(FlexId, i32), crate::Error>;
+        fn next(&mut self) -> Option<Self::Item> {
+            self.count += 1;
+            match self.count {
+                1 => Some(Ok((FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 10))),
+                2 => Some(Ok((FlexId::new(2, 0, 2, 2, 2, 0).unwrap(), 20))),
+                _ => panic!("lazy evaluation short-circuit failed"),
+            }
+        }
+    }
+
+    let op = ZoomOut::<i32, Max>::new(ZoomLevel::new(1).unwrap());
+    let iter = QueryIter::from_ordered(PanicAfterFirst { count: 0 });
+    let mut out = op.run(iter).unwrap();
+
+    let first = out.next().unwrap().unwrap();
+    assert_eq!(first.0, FlexId::new(1, 0, 1, 0, 1, 0).unwrap());
+    assert_eq!(first.1, 10);
+    // 最初の親を取得した段階でイテレータを drop
+    drop(out);
+}
+
+#[test]
+fn zoom_out_propagates_stream_error() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::query::ops::unary::zoom_out::ZoomOut;
+    use crate::spatial_id::collection::query::traits::{QueryIter, UnaryOperator};
+
+    let items = [
+        Ok((FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 1)),
+        Err(crate::Error::SourceRead("stream error".into())),
+    ];
+    let iter = QueryIter::from_ordered(items.into_iter());
+    let op = ZoomOut::<i32, Max>::new(ZoomLevel::new(1).unwrap());
+    let mut out = op.run(iter).unwrap();
+
+    let first = out.next().unwrap();
+    // 最初の親の完了前にエラーが来た場合はエラーが直ちに返る
+    assert!(first.is_err());
 }
