@@ -15,7 +15,7 @@ impl Source for SpatialIdSet {
     ) -> Result<QueryIter<'a, ()>, Error> {
         Ok(QueryIter::from_ordered(
             self.inner
-                .get_overlapping(targets.iter().cloned().flatten())
+                .get_overlapping(targets.iter().cloned())
                 .map(|(id, ())| Ok((id, ()))),
         ))
     }
@@ -35,7 +35,7 @@ where
     ) -> Result<QueryIter<'a, V>, Error> {
         Ok(QueryIter::from_ordered(
             self.inner
-                .get_overlapping(targets.iter().cloned().flatten())
+                .get_overlapping(targets.iter().cloned())
                 .map(|(id, value)| Ok((id, value.clone()))),
         ))
     }

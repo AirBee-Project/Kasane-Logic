@@ -8,7 +8,6 @@ pub struct Difference;
 
 impl<V: Sub<Output = V> + PartialOrd + Default> MergePolicy<V> for Difference {
     const IS_COMMUTATIVE: bool = false;
-    const NAME: &'static str = "Difference";
 
     fn resolve(a: V, b: V) -> V {
         if a >= b { a - b } else { V::default() }

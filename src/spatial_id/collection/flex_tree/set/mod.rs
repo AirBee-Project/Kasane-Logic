@@ -85,7 +85,7 @@ impl SpatialIdSet {
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった [`FlexId`] をそのままの返す。
     pub fn get_overlapping<S: SpatialId>(&self, target: S) -> impl Iterator<Item = FlexId> + '_ {
         self.inner
-            .get_overlapping(target)
+            .get_overlapping([target])
             .map(|(flex_id, _)| flex_id)
     }
 

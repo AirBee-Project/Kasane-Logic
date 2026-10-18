@@ -23,7 +23,7 @@ impl<V> Default for Intersection<V> {
 
 impl<V: SafeValue + 'static> BinaryOperator<V> for Intersection<V> {
     fn run<'a>(
-        &self,
+        &'a self,
         lhs: QueryIter<'a, V>,
         rhs: QueryIter<'a, V>,
     ) -> Result<QueryIter<'a, V>, Error> {

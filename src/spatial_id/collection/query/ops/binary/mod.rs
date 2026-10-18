@@ -11,14 +11,8 @@ pub(crate) fn collect_both<V: SafeValue + 'static>(
     rhs: QueryIter<'_, V>,
 ) -> Result<(SpatialIdTable<V>, SpatialIdTable<V>), Error> {
     #[cfg(feature = "rayon")]
-    let (a, b) = rayon::join(
-        || lhs.collect::<Result<_, Error>>(),
-        || rhs.collect::<Result<_, Error>>(),
-    );
+    let (a, b) = rayon::join(|| lhs.into_table(), || rhs.into_table());
     #[cfg(not(feature = "rayon"))]
-    let (a, b) = (
-        lhs.collect::<Result<_, Error>>(),
-        rhs.collect::<Result<_, Error>>(),
-    );
+    let (a, b) = (lhs.into_table(), rhs.into_table());
     Ok((a?, b?))
 }

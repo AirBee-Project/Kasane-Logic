@@ -114,9 +114,9 @@ impl<V: SafeValue + 'static, P> UnaryOperator<V> for Falloff<P>
 where
     V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32>,
     <V as TryFrom<u32>>::Error: Debug,
-    P: MergePolicy<V> + Send + Sync + 'static,
+    P: MergePolicy<V>,
 {
-    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+    fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         if self.radius == 0 {
             return Ok(input);
         }

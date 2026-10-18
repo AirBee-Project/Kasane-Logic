@@ -82,6 +82,7 @@ fn map_values_via_lazy_view() {
     let got: alloc::vec::Vec<bool> = query
         .lazy_get(time_segment(11))
         .unwrap()
+        .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
     assert_eq!(got, alloc::vec![true]);
@@ -89,6 +90,7 @@ fn map_values_via_lazy_view() {
     let got: alloc::vec::Vec<bool> = query
         .lazy_get(time_segment(10))
         .unwrap()
+        .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
     assert_eq!(got, alloc::vec![false]);

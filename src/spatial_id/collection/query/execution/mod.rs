@@ -84,17 +84,16 @@ impl<V: SafeValue + 'static> Query<V> {
 
 /// 単項演算の並びを順に適用する。
 pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
-    mut ops: &[&dyn UnaryOperator<V>],
+    ops: &'a [impl core::borrow::Borrow<dyn UnaryOperator<V>>],
     mut stream: QueryIter<'a, V>,
     token: &CancellationToken,
 ) -> Result<QueryIter<'a, V>, Error> {
-    while let Some(head) = ops.first() {
+    for op in ops {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
 
-        stream = head.run(stream)?;
-        ops = &ops[1..];
+        stream = op.borrow().run(stream)?;
     }
     Ok(stream)
 }
@@ -127,7 +126,7 @@ impl<V: SafeValue + 'static> Query<V> {
         token: &CancellationToken,
     ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         self.validate()?;
-        self.stream_within(bounds, token)?.collect()
+        self.stream_within(bounds, token)?.into_table()
     }
 
     /// 検証を行わずに、出力領域 `bounds` を得るのに必要な部分だけを評価した列を返す。
@@ -162,8 +161,7 @@ impl<V: SafeValue + 'static> Query<V> {
                     }
                 }
                 let input_stream = input.stream_within(req, token)?;
-                let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                run_unary_chain(&order, input_stream, token)
+                run_unary_chain(ops, input_stream, token)
             }
             Query::Binary(op, lhs, rhs) => {
                 let lhs_bounds = bounds.clone();
@@ -184,41 +182,59 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 
     /// 対象領域(`target`)と交差する部分だけを評価して返す。
+    ///
+    /// 読み出しや演算に失敗すると、その位置で `Err` を返す。
     /// キャンセル不可。打ち切りたい場合は [`run_within`](Self::run_within) を使う。
     pub fn lazy_get<T: crate::SpatialId>(
         &self,
         target: T,
-    ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_within(vec![target.clone().into()], &CancellationToken::never())?;
+    ) -> Result<impl Iterator<Item = Result<(crate::FlexId, V), Error>>, Error> {
+        self.validate()?;
         let target_range: crate::RangeId = target.into();
+        let stream = self.stream_within(vec![target_range.clone()], &CancellationToken::never())?;
 
-        Ok(working
-            .into_iter()
-            .filter(move |(id, _)| id.intersects_range(&target_range)))
+        Ok(stream.filter(
+            move |item| !matches!(item, Ok((id, _)) if !id.intersects_range(&target_range)),
+        ))
     }
 
     /// 対象領域(`target`)のうち、データが存在しない空間を `default_value` で埋めてから値を返す。
+    ///
+    /// 読み出しや演算に失敗すると、その位置で `Err` を返し、それ以降は何も返さない。
     /// キャンセル不可。打ち切りたい場合は [`run_within`](Self::run_within) を使う。
     pub fn lazy_get_with_default<T: crate::SpatialId>(
         &self,
         target: T,
         default_value: V,
-    ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_within(vec![target.clone().into()], &CancellationToken::never())?;
+    ) -> Result<impl Iterator<Item = Result<(crate::FlexId, V), Error>>, Error> {
+        self.validate()?;
         let target_range: crate::RangeId = target.clone().into();
+        let mut working_iter =
+            self.stream_within(vec![target_range.clone()], &CancellationToken::never())?;
 
         let mut uncovered = crate::SpatialIdSet::new();
         uncovered.insert(target.into());
 
-        let mut working_iter = working.into_iter();
         let mut default_iter = None;
+        let mut failed = false;
 
         Ok(core::iter::from_fn(move || {
+            if failed {
+                return None;
+            }
             if default_iter.is_none() {
-                for (id, value) in working_iter.by_ref() {
-                    if id.intersects_range(&target_range) {
-                        let _ = uncovered.remove(id);
-                        return Some((id, value));
+                for item in working_iter.by_ref() {
+                    match item {
+                        Ok((id, value)) if id.intersects_range(&target_range) => {
+                            let _ = uncovered.remove(id);
+                            return Some(Ok((id, value)));
+                        }
+                        Ok(_) => {}
+                        // 失敗した場所を既定値で埋めないよう、ここで打ち切る
+                        Err(e) => {
+                            failed = true;
+                            return Some(Err(e));
+                        }
                     }
                 }
                 default_iter = Some(core::mem::take(&mut uncovered).into_iter());
@@ -227,7 +243,7 @@ impl<V: SafeValue + 'static> Query<V> {
             default_iter
                 .as_mut()?
                 .next()
-                .map(|id| (id, default_value.clone()))
+                .map(|id| Ok((id, default_value.clone())))
         }))
     }
 }

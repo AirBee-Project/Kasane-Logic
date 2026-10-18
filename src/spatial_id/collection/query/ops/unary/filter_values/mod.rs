@@ -89,10 +89,9 @@ where
         Ok(())
     }
 
-    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
-        let predicate = self.predicate.clone();
+    fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         Ok(QueryIter::from_ordered(input.filter(
-            move |item| !matches!(item, Ok((_, value)) if !predicate.matches(value)),
+            move |item| !matches!(item, Ok((_, value)) if !self.predicate.matches(value)),
         )))
     }
 

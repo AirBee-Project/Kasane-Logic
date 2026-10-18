@@ -22,15 +22,12 @@ pub trait MergePolicy<V>: MaybeSendSync + 'static {
     /// この集約規則が可換（`resolve(a, b) == resolve(b, a)`）であるかどうか
     const IS_COMMUTATIVE: bool;
 
-    /// このポリシーの名前を示す文字列定数。
-    const NAME: &'static str;
-
     /// 衝突した2つの値を合成して返す
     fn resolve(a: V, b: V) -> V;
 
     /// 衝突した複数の値を一括で合成して返す
     /// 必要であればオーバーロードして平均や最頻値などを実装できる
-    fn resolve_many(mut iter: impl ExactSizeIterator<Item = V>) -> Option<V> {
+    fn resolve_many(mut iter: impl Iterator<Item = V>) -> Option<V> {
         let first = iter.next()?;
         Some(iter.fold(first, Self::resolve))
     }

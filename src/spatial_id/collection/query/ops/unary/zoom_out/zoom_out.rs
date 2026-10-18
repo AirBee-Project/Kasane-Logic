@@ -33,7 +33,7 @@ impl<V: SafeValue + 'static, P> UnaryOperator<V> for ZoomOut<V, P>
 where
     P: MergePolicy<V>,
 {
-    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+    fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         let target_z = self.target_z.get();
 
         if P::IS_COMMUTATIVE {

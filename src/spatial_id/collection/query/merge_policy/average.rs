@@ -7,20 +7,21 @@ pub struct Average;
 
 impl<V> MergePolicy<V> for Average
 where
-    V: Add + Div<V, Output = V> + From<u16> + Send + Sync + 'static,
+    V: Add + Div<V, Output = V> + From<u16>,
 {
     const IS_COMMUTATIVE: bool = false;
-    const NAME: &'static str = "Average";
 
     fn resolve(a: V, b: V) -> V {
         a.saturating_add(b) / V::from(2u16)
     }
 
-    fn resolve_many(mut iter: impl ExactSizeIterator<Item = V>) -> Option<V> {
-        let count = iter.len();
+    fn resolve_many(mut iter: impl Iterator<Item = V>) -> Option<V> {
         let first = iter.next()?;
-        let sum = iter.fold(first, Add::saturating_add);
-        let count_v = V::from(count as u16);
-        Some(sum / count_v)
+        let mut count = 1u16;
+        let sum = iter.fold(first, |acc, x| {
+            count = count.saturating_add(1);
+            acc.saturating_add(x)
+        });
+        Some(sum / V::from(count))
     }
 }

@@ -197,10 +197,10 @@ impl<V, S> FlexTreeCore<V, S> {
     /// `target` と重なる領域と値を、切り取らずにそのまま返す。各領域は1回だけ返す。
     pub fn get_overlapping<'a>(
         &'a self,
-        target: impl IntoIterator<Item = FlexId>,
+        target: impl IntoIterator<Item = impl Into<RangeId>>,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        let targets: Vec<FlexId> = target.into_iter().collect();
-        self.overlapping(move |region| targets.iter().any(|t| region.intersects(t)))
+        let targets: Vec<RangeId> = target.into_iter().map(Into::into).collect();
+        self.overlapping(move |region| targets.iter().any(|t| region.intersects_range(t)))
     }
 
     /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
@@ -209,19 +209,19 @@ impl<V, S> FlexTreeCore<V, S> {
         target: T,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         // 各方向に1つずらした領域が、面で接しうる候補
-        let mut shifted: Vec<FlexId> = Vec::new();
+        let mut shifted: Vec<RangeId> = Vec::with_capacity(6);
         for delta in [-1, 1] {
             let mut f = target.clone();
             if f.move_f(delta).is_ok() {
-                shifted.extend(f);
+                shifted.push(f.into());
             }
             let mut y = target.clone();
             if y.move_y(delta).is_ok() {
-                shifted.extend(y);
+                shifted.push(y.into());
             }
             let mut x = target.clone();
             x.move_x(delta);
-            shifted.extend(x);
+            shifted.push(x.into());
         }
 
         let own: Vec<FlexId> = target.into_iter().collect();

@@ -23,6 +23,7 @@ fn lazy_get_shift_x_wrapped_coarsen_matches_run() {
         .shift_x(2, -1)
         .lazy_get(target)
         .unwrap()
+        .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
 
@@ -55,6 +56,7 @@ fn lazy_get_chained_shift_x_wrapped_intermediate_bounds_matches_run() {
         .shift_x(2, -2)
         .lazy_get(target)
         .unwrap()
+        .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
 
@@ -83,7 +85,7 @@ fn lazy_view_get_matches_run() {
     // LazyView get
     let query = table.query().shift_x(10, 1).shift_y(10, 2);
 
-    let mut lazy_iter = query.lazy_get(target).unwrap();
+    let mut lazy_iter = query.lazy_get(target).unwrap().map(Result::unwrap);
     let lazy_val = lazy_iter.next().map(|(_, v)| v);
     assert_eq!(lazy_iter.next(), None);
     assert_eq!(expected_val, lazy_val);
@@ -102,7 +104,11 @@ fn lazy_view_get_with_default() {
     let target = crate::RangeId::new(10, [10, 10], [10, 11], [10, 10]).unwrap();
 
     // get の場合 (値がある場所しか返らない)
-    let results: Vec<_> = query.lazy_get(target.clone()).unwrap().collect();
+    let results: Vec<_> = query
+        .lazy_get(target.clone())
+        .unwrap()
+        .map(Result::unwrap)
+        .collect();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].1, 100);
 
@@ -110,6 +116,7 @@ fn lazy_view_get_with_default() {
     let results_with_default: Vec<_> = query
         .lazy_get_with_default(target.clone(), 0)
         .unwrap()
+        .map(Result::unwrap)
         .collect();
     assert_eq!(results_with_default.len(), 2);
 
@@ -155,6 +162,7 @@ fn lazy_get_filters_by_time() {
             .query()
             .lazy_get(target)
             .unwrap()
+            .map(Result::unwrap)
             .map(|(_, v)| v)
             .collect();
         assert_eq!(
@@ -187,7 +195,11 @@ fn lazy_get_directional_falloff_matches_run() {
             .unwrap();
         let target_f = FlexId::new(4, 3, 4, 2, 4, 2).unwrap();
         assert_eq!(
-            q_f.lazy_get(target_f).unwrap().next().map(|(_, v)| v),
+            q_f.lazy_get(target_f)
+                .unwrap()
+                .map(Result::unwrap)
+                .next()
+                .map(|(_, v)| v),
             expected_f.get(target_f).next().map(|(_, v)| *v),
         );
 
@@ -203,7 +215,11 @@ fn lazy_get_directional_falloff_matches_run() {
             .unwrap();
         let target_x = FlexId::new(4, 2, 4, 3, 4, 2).unwrap();
         assert_eq!(
-            q_x.lazy_get(target_x).unwrap().next().map(|(_, v)| v),
+            q_x.lazy_get(target_x)
+                .unwrap()
+                .map(Result::unwrap)
+                .next()
+                .map(|(_, v)| v),
             expected_x.get(target_x).next().map(|(_, v)| *v),
         );
 
@@ -219,7 +235,11 @@ fn lazy_get_directional_falloff_matches_run() {
             .unwrap();
         let target_y = FlexId::new(4, 2, 4, 2, 4, 1).unwrap();
         assert_eq!(
-            q_y.lazy_get(target_y).unwrap().next().map(|(_, v)| v),
+            q_y.lazy_get(target_y)
+                .unwrap()
+                .map(Result::unwrap)
+                .next()
+                .map(|(_, v)| v),
             expected_y.get(target_y).next().map(|(_, v)| *v),
         );
     }
@@ -244,7 +264,57 @@ fn lazy_get_zoom_out_wrapped_target_matches_run() {
         .zoom_out(2, Sum)
         .lazy_get(target)
         .unwrap()
+        .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
     assert_eq!(lazy_vals, expected_vals);
+}
+
+/// 1つ値を返したあと、読み出しに失敗する入力源。
+struct FailingSource;
+
+impl crate::Source for FailingSource {
+    type Value = u32;
+
+    fn read_flex_ids<'a>(
+        &'a self,
+        _targets: &[crate::RangeId],
+        _token: &crate::CancellationToken,
+    ) -> Result<crate::spatial_id::collection::query::traits::QueryIter<'a, u32>, crate::Error>
+    {
+        let items = [
+            Ok((FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 1)),
+            Err(crate::Error::SourceRead("broken".into())),
+        ];
+        Ok(
+            crate::spatial_id::collection::query::traits::QueryIter::from_ordered(
+                items.into_iter(),
+            ),
+        )
+    }
+}
+
+#[test]
+fn lazy_get_yields_source_errors() {
+    let target = crate::RangeId::new(1, [-2, 1], [0, 1], [0, 1]).unwrap();
+    let items: Vec<_> = FailingSource.query().lazy_get(target).unwrap().collect();
+    assert!(matches!(
+        items.as_slice(),
+        [Ok(_), Err(crate::Error::SourceRead(_))]
+    ));
+}
+
+#[test]
+fn lazy_get_with_default_stops_at_error() {
+    let target = crate::RangeId::new(1, [-2, 1], [0, 1], [0, 1]).unwrap();
+    let items: Vec<_> = FailingSource
+        .query()
+        .lazy_get_with_default(target, 0)
+        .unwrap()
+        .collect();
+    // 失敗した場所を既定値で埋めず、エラーで打ち切る
+    assert!(matches!(
+        items.as_slice(),
+        [Ok(_), Err(crate::Error::SourceRead(_))]
+    ));
 }

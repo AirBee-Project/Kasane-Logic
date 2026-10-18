@@ -86,7 +86,7 @@ where
         &self,
         target: T,
     ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.inner.get_overlapping(target)
+        self.inner.get_overlapping([target])
     }
 
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった

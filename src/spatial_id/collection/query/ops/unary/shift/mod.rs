@@ -47,7 +47,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftFXY {
         Ok(())
     }
 
-    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+    fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         if (self.f, self.x, self.y) == (0, 0, 0) {
             return Ok(input);
         }
