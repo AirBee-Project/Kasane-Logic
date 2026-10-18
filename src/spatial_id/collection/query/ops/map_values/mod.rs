@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::source::SourceIter;
+use crate::spatial_id::collection::query::traits::QueryIter;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
 use crate::{Error, FlexId, RangeId};
 
@@ -43,7 +43,7 @@ where
         &'a self,
         bounds: &'a [FlexId],
         token: &CancellationToken,
-    ) -> Result<SourceIter<'a, U>, Error> {
+    ) -> Result<QueryIter<'a, U>, Error> {
         Ok(Box::new(
             self.inner
                 .run_within(bounds.iter().map(RangeId::from).collect(), token)?

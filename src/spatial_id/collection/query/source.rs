@@ -6,8 +6,6 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{Error, FlexId};
 use alloc::boxed::Box;
 
-pub type SourceIter<'a, V> = QueryIter<'a, V>;
-
 /// クエリを実行するためのTrait。読み取りさえできればよい。
 pub trait Source: MaybeSendSync {
     type Value: SafeValue;
@@ -16,7 +14,7 @@ pub trait Source: MaybeSendSync {
         &'a self,
         bounds: &'a [FlexId],
         token: &CancellationToken,
-    ) -> Result<SourceIter<'a, Self::Value>, Error>;
+    ) -> Result<QueryIter<'a, Self::Value>, Error>;
 
     fn query(self) -> Query<Self::Value>
     where

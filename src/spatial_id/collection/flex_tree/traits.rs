@@ -4,7 +4,7 @@ use crate::spatial_id::collection::flex_tree::core::Summary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::source::{Source, SourceIter};
+use crate::spatial_id::collection::query::source::{QueryIter, Source};
 use crate::{Error, FlexId, SpatialIdSet, SpatialIdTable};
 
 impl Source for SpatialIdSet {
@@ -14,7 +14,7 @@ impl Source for SpatialIdSet {
         &'a self,
         bounds: &'a [FlexId],
         _token: &CancellationToken,
-    ) -> Result<SourceIter<'a, ()>, Error> {
+    ) -> Result<QueryIter<'a, ()>, Error> {
         Ok(Box::new(
             self.inner
                 .get_overlapping(bounds.iter().copied())
@@ -34,7 +34,7 @@ where
         &'a self,
         bounds: &'a [FlexId],
         _token: &CancellationToken,
-    ) -> Result<SourceIter<'a, V>, Error> {
+    ) -> Result<QueryIter<'a, V>, Error> {
         Ok(Box::new(
             self.inner
                 .get_overlapping(bounds.iter().copied())
