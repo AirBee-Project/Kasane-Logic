@@ -1,14 +1,6 @@
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::{Error, FlexId, SpatialIdTable, spatial_id::collection::query::traits::QueryIter};
-
-/// X方向への移動演算子
-pub mod shift_x;
-
-/// Y方向への移動演算子
-pub mod shift_y;
-
-/// F方向への移動演算子
-pub mod shift_f;
+use crate::spatial_id::collection::query::traits::{QueryIter, UnaryOperator};
+use crate::{Error, FlexId, RangeId, SpatialIdTable, ZoomLevel};
 
 /// FlexId単体に対する実装
 pub mod primitive;
@@ -16,22 +8,97 @@ pub mod primitive;
 /// Query型への実装
 pub mod query;
 
-/// `input` の各 [`FlexId`] を `shift` で移した先へ値を付けたまま移し、走査順に並べ直して返す。
-///
-/// `shift` が失敗した要素があれば、そのエラーを返す。
-fn shift_all<'a, V, I>(
-    input: QueryIter<'a, V>,
-    shift: impl Fn(&FlexId) -> Result<I, Error>,
-) -> Result<QueryIter<'a, V>, Error>
-where
-    V: SafeValue + 'a,
-    I: Iterator<Item = FlexId>,
-{
-    // 移動の桁上がりで上位のビットが変わった要素は走査順の遠くへ跳ぶので、木に集めて並べ直す
-    let mut moved = SpatialIdTable::new();
-    for item in input {
-        let (id, value) = item?;
-        moved.extend(shift(&id)?.map(|id| (id, value.clone())));
+#[cfg(test)]
+mod test;
+
+/// 作業木全体を、ズームレベル `z` のインデックス値で F・X・Y 方向へそれぞれ `f`・`x`・`y` 個分だけ平行移動する単項演算。
+pub struct ShiftFXY {
+    z: ZoomLevel,
+    f: i32,
+    x: i32,
+    y: i32,
+}
+
+impl ShiftFXY {
+    /// ズーム `z` のインデックス値で F・X・Y 方向へ `f`・`x`・`y` 個分移す演算子を作る。
+    pub fn new<T: Into<u8>>(z: T, f: i32, x: i32, y: i32) -> Result<Self, Error> {
+        let z = ZoomLevel::new(z.into())?;
+        Ok(Self { z, f, x, y })
     }
-    Ok(moved.into())
+
+    /// `id` を移した先を、互いに素な [`FlexId`] で返す。移せなければエラーを返す。
+    fn shift(&self, id: &FlexId) -> Result<impl Iterator<Item = FlexId> + use<>, Error> {
+        let (z, x, y) = (self.z.get(), self.x, self.y);
+        // 移せるかは各次元の成分だけで決まるので、元の `id` で確かめておけば、割れた片では失敗しない
+        id.shift_x(z, x).map(drop)?;
+        id.shift_y(z, y).map(drop)?;
+        Ok(id
+            .shift_f(z, self.f)?
+            .flat_map(move |id| id.shift_x(z, x).into_iter().flatten())
+            .flat_map(move |id| id.shift_y(z, y).into_iter().flatten()))
+    }
+}
+
+impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftFXY {
+    fn validate(&self) -> Result<(), Error> {
+        self.z.check_f(self.f)?;
+        self.z.check_x(self.x.unsigned_abs())?;
+        self.z.check_y(self.y.unsigned_abs())?;
+        Ok(())
+    }
+
+    fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        if (self.f, self.x, self.y) == (0, 0, 0) {
+            return Ok(input);
+        }
+
+        // 移動の桁上がりで上位のビットが変わった要素は走査順の遠くへ跳ぶので、木に集めて並べ直す
+        let move_into = |mut table: SpatialIdTable<V>, (id, value): &(FlexId, V)| {
+            table.extend(self.shift(id)?.map(|moved| (moved, value.clone())));
+            Ok::<_, Error>(table)
+        };
+
+        #[cfg(not(feature = "rayon"))]
+        let moved = {
+            let mut input = input;
+            input.try_fold(SpatialIdTable::new(), |table, item| {
+                move_into(table, &item?)
+            })?
+        };
+
+        #[cfg(feature = "rayon")]
+        let moved = {
+            use rayon::prelude::*;
+            // 入力を区切って読むので、一度に持つ入力はこの数までに収まる
+            const CHUNK: usize = 1 << 16;
+            let union = |a: SpatialIdTable<V>, b: SpatialIdTable<V>| SpatialIdTable {
+                inner: a.inner.union(&b.inner),
+            };
+            let mut input = input.peekable();
+            let mut moved = SpatialIdTable::new();
+            while input.peek().is_some() {
+                let chunk: Vec<(FlexId, V)> =
+                    input.by_ref().take(CHUNK).collect::<Result<_, _>>()?;
+                let part = chunk
+                    .par_iter()
+                    .try_fold(SpatialIdTable::new, move_into)
+                    .try_reduce(SpatialIdTable::new, |a, b| Ok(union(a, b)))?;
+                moved = union(moved, part);
+            }
+            moved
+        };
+
+        Ok(moved.into())
+    }
+
+    fn reverse_target(&self, bounds: RangeId) -> Option<RangeId> {
+        let z = self.z.get();
+        let target_z = z.max(bounds.z());
+        let delta = |index: i32| -(index as i64) * (1i64 << (target_z - z));
+        let (f, x, y) = (delta(self.f), delta(self.x), delta(self.y));
+
+        let bounds = bounds.f_edges_shift(target_z, f, f).unwrap()?;
+        let bounds = bounds.x_edges_shift(target_z, x, x).unwrap()?;
+        bounds.y_edges_shift(target_z, y, y).unwrap()
+    }
 }
