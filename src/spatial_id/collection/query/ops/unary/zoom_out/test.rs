@@ -1,7 +1,7 @@
-use alloc::vec;
-use alloc::vec::Vec;
 use crate::spatial_id::collection::query::merge_policy::{Average, Max};
 use crate::{SingleId, Source, SpatialIdTable, ZoomLevel};
+use alloc::vec;
+use alloc::vec::Vec;
 
 #[test]
 fn zoom_out_average_8_children() {

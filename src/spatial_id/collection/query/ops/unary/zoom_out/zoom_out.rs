@@ -40,27 +40,29 @@ where
             let mut current: Option<(FlexId, V)> = None;
             let mut input = input.fuse();
 
-            let iter = core::iter::from_fn(move || loop {
-                match input.next() {
-                    Some(Ok((id, val))) => {
-                        let parent = match id.spatial_parent_at_zoom(target_z) {
-                            Ok(p) => p,
-                            Err(e) => return Some(Err(e)),
-                        };
-                        if let Some((cur_id, cur_val)) = &mut current {
-                            if *cur_id == parent {
-                                *cur_val = P::resolve(cur_val.clone(), val);
+            let iter = core::iter::from_fn(move || {
+                loop {
+                    match input.next() {
+                        Some(Ok((id, val))) => {
+                            let parent = match id.spatial_parent_at_zoom(target_z) {
+                                Ok(p) => p,
+                                Err(e) => return Some(Err(e)),
+                            };
+                            if let Some((cur_id, cur_val)) = &mut current {
+                                if *cur_id == parent {
+                                    *cur_val = P::resolve(cur_val.clone(), val);
+                                    continue;
+                                }
+                                let prev = (replace(cur_id, parent), replace(cur_val, val));
+                                return Some(Ok(prev));
+                            } else {
+                                current = Some((parent, val));
                                 continue;
                             }
-                            let prev = (replace(cur_id, parent), replace(cur_val, val));
-                            return Some(Ok(prev));
-                        } else {
-                            current = Some((parent, val));
-                            continue;
                         }
+                        Some(Err(e)) => return Some(Err(e)),
+                        None => return current.take().map(Ok),
                     }
-                    Some(Err(e)) => return Some(Err(e)),
-                    None => return current.take().map(Ok),
                 }
             });
 
@@ -71,34 +73,36 @@ where
         let mut chunk: Vec<V> = Vec::new();
         let mut input = input.fuse();
 
-        let iter = core::iter::from_fn(move || loop {
-            match input.next() {
-                Some(Ok((id, val))) => {
-                    let parent = match id.spatial_parent_at_zoom(target_z) {
-                        Ok(p) => p,
-                        Err(e) => return Some(Err(e)),
-                    };
-                    if let Some(cur_id) = current_id {
-                        if cur_id == parent {
+        let iter = core::iter::from_fn(move || {
+            loop {
+                match input.next() {
+                    Some(Ok((id, val))) => {
+                        let parent = match id.spatial_parent_at_zoom(target_z) {
+                            Ok(p) => p,
+                            Err(e) => return Some(Err(e)),
+                        };
+                        if let Some(cur_id) = current_id {
+                            if cur_id == parent {
+                                chunk.push(val);
+                                continue;
+                            }
+                            current_id = Some(parent);
+                            let merged = P::resolve_many(chunk.drain(..));
                             chunk.push(val);
-                            continue;
+                            if let Some(merged) = merged {
+                                return Some(Ok((cur_id, merged)));
+                            }
+                        } else {
+                            current_id = Some(parent);
+                            chunk.push(val);
                         }
-                        current_id = Some(parent);
-                        let merged = P::resolve_many(chunk.drain(..));
-                        chunk.push(val);
-                        if let Some(merged) = merged {
-                            return Some(Ok((cur_id, merged)));
-                        }
-                    } else {
-                        current_id = Some(parent);
-                        chunk.push(val);
                     }
-                }
-                Some(Err(e)) => return Some(Err(e)),
-                None => {
-                    let id = current_id.take()?;
-                    let merged = P::resolve_many(chunk.drain(..))?;
-                    return Some(Ok((id, merged)));
+                    Some(Err(e)) => return Some(Err(e)),
+                    None => {
+                        let id = current_id.take()?;
+                        let merged = P::resolve_many(chunk.drain(..))?;
+                        return Some(Ok((id, merged)));
+                    }
                 }
             }
         });
