@@ -1,22 +1,13 @@
-use crate::spatial_id::collection::flex_tree::core::{IntoIter, NoSummary};
 use crate::spatial_id::collection::query::send_sync::{MaybeSend, MaybeSendSync, SafeValue};
 use crate::{Error, FlexId, RangeId, SpatialIdTable};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-#[cfg(not(feature = "rayon"))]
-type BoxedIter<'a, V> = Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>;
-#[cfg(feature = "rayon")]
-type BoxedIter<'a, V> = Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>;
-
-enum QueryIterInner<'a, V> {
-    Table(SpatialIdTable<V>),
-    TableIter(IntoIter<V, NoSummary>),
-    Stream(BoxedIter<'a, V>),
-}
-
 /// 演算子の間を流れる `(FlexId, V)` の列。カノニカル性を満たす。
-pub struct QueryIter<'a, V>(QueryIterInner<'a, V>);
+pub struct QueryIter<'a, V>(
+    #[cfg(not(feature = "rayon"))] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>,
+    #[cfg(feature = "rayon")] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>,
+);
 
 impl<'a, V> QueryIter<'a, V> {
     /// 制約を満たす `iter` を包む。制約を守るのは呼び出し側の責任。
@@ -38,53 +29,27 @@ impl<'a, V> QueryIter<'a, V> {
                 }
             })
         };
-        Self(QueryIterInner::Stream(Box::new(iter)))
-    }
-
-    /// 内部が未消費のテーブルであればそのまま取り出し、ストリームであれば収集してテーブルにする。
-    pub(crate) fn into_table(self) -> Result<SpatialIdTable<V>, Error>
-    where
-        V: SafeValue,
-    {
-        match self.0 {
-            QueryIterInner::Table(table) => Ok(table),
-            QueryIterInner::TableIter(iter) => Ok(iter.collect()),
-            QueryIterInner::Stream(iter) => iter.collect(),
-        }
+        Self(Box::new(iter))
     }
 }
 
-impl<V: Clone> Iterator for QueryIter<'_, V> {
+impl<V> Iterator for QueryIter<'_, V> {
     type Item = Result<(FlexId, V), Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match &mut self.0 {
-            QueryIterInner::Table(table) => {
-                let mut iter = core::mem::take(&mut table.inner).into_iter();
-                let first = iter.next().map(Ok);
-                self.0 = QueryIterInner::TableIter(iter);
-                first
-            }
-            QueryIterInner::TableIter(iter) => iter.next().map(Ok),
-            QueryIterInner::Stream(iter) => iter.next(),
-        }
+        self.0.next()
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match &self.0 {
-            QueryIterInner::Table(table) => {
-                let n = table.inner.count();
-                (n, Some(n))
-            }
-            QueryIterInner::TableIter(iter) => iter.size_hint(),
-            QueryIterInner::Stream(iter) => iter.size_hint(),
-        }
+        self.0.size_hint()
     }
 }
 
-impl<'a, V> From<SpatialIdTable<V>> for QueryIter<'a, V> {
-    fn from(table: SpatialIdTable<V>) -> Self {
-        Self(QueryIterInner::Table(table))
+impl<'a, V: SafeValue + 'static, S: MaybeSendSync + 'static> From<SpatialIdTable<V, S>>
+    for QueryIter<'a, V>
+{
+    fn from(table: SpatialIdTable<V, S>) -> Self {
+        Self::from_ordered(table.into_iter().map(Ok))
     }
 }
 
@@ -112,8 +77,5 @@ pub trait UnaryOperator<V: SafeValue + 'static>: MaybeSendSync {
     fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error>;
 
     /// 与えられた出力領域を計算するために必要な入力領域を `out` へ追加する。
-    ///
-    /// `dyn UnaryOperator<V>` として動的ディスパッチするため `impl Iterator` は返せず、
-    /// 呼び出しごとのヒープ確保を避けるため出力先ベクタを受け取る。
     fn reverse_target(&self, output_target: RangeId, out: &mut Vec<RangeId>);
 }

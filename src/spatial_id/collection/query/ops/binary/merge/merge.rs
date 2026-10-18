@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::spatial_id::collection::query::ops::binary::collect_both;
+use crate::spatial_id::collection::query::ops::binary::run_binary;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{
     merge_policy::MergePolicy,
@@ -31,12 +31,13 @@ where
         lhs: QueryIter<'a, V>,
         rhs: QueryIter<'a, V>,
     ) -> Result<QueryIter<'a, V>, Error> {
-        let (mut target_a, target_b) = collect_both(lhs, rhs)?;
-        target_a
-            .inner
-            .merge_with_default(&target_b.inner, &self.default, |x, y| {
-                P::resolve(x.clone(), y.clone())
-            });
-        Ok(target_a.into())
+        let default = &self.default;
+        run_binary(
+            lhs,
+            rhs,
+            Some(move |a| P::resolve(a, default.clone())),
+            Some(move |b| P::resolve(default.clone(), b)),
+            Some(P::resolve),
+        )
     }
 }

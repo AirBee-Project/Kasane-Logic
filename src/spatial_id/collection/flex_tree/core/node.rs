@@ -250,7 +250,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
     }
 
     /// 領域 `this` を `dimension` で割った左右 `lower`,`upper` を、カノニカル形の1つの[Node]に合わせる。
-    fn join(this: &FlexId, dimension: Dimension, lower: Self, upper: Self) -> Self {
+    pub(super) fn join(this: &FlexId, dimension: Dimension, lower: Self, upper: Self) -> Self {
         // Branch はここと `merge` でしか作らない。これでどの操作の結果もカノニカル形になる。
         if Node::forms_branch(dimension, &lower, &upper) {
             return Node::Branch(Arc::new(Branch::new(dimension, lower, upper)));
@@ -439,35 +439,6 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
             Node::Skip(skip) => {
                 let region = skip.path.to_absolute(this).unwrap();
                 let child = skip.child.filter(&region, classify, keep)?;
-                Some(Node::rebase(child, &region, this))
-            }
-        }
-    }
-
-    /// 領域 `this` のこの Node の各 Leaf の値を `f` で変換した Node を返す。どの値も変わらなければ [`None`]。
-    pub(super) fn map(&self, this: &FlexId, f: &impl Fn(&V) -> V) -> Option<Self> {
-        match self {
-            Node::Empty => None,
-            Node::Leaf(value) => {
-                let next = f(value);
-                (next != *value).then_some(Node::Leaf(next))
-            }
-            Node::Branch(branch) => {
-                let dimension = branch.dimension;
-                let lower_id = this.split_on(dimension, Side::Lower).unwrap();
-                let upper_id = this.split_on(dimension, Side::Upper).unwrap();
-                let lower = branch.lower.map(&lower_id, f);
-                let upper = branch.upper.map(&upper_id, f);
-                if lower.is_none() && upper.is_none() {
-                    return None;
-                }
-                let lower = lower.unwrap_or_else(|| branch.lower.clone());
-                let upper = upper.unwrap_or_else(|| branch.upper.clone());
-                Some(Node::join(this, dimension, lower, upper))
-            }
-            Node::Skip(skip) => {
-                let region = skip.path.to_absolute(this).unwrap();
-                let child = skip.child.map(&region, f)?;
                 Some(Node::rebase(child, &region, this))
             }
         }

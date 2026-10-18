@@ -1,5 +1,5 @@
 use crate::Error;
-use crate::spatial_id::collection::query::ops::binary::collect_both;
+use crate::spatial_id::collection::query::ops::binary::run_binary;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::traits::{BinaryOperator, QueryIter};
 
@@ -27,8 +27,12 @@ impl<V: SafeValue + 'static> BinaryOperator<V> for Difference<V> {
         lhs: QueryIter<'a, V>,
         rhs: QueryIter<'a, V>,
     ) -> Result<QueryIter<'a, V>, Error> {
-        let (mut target_a, target_b) = collect_both(lhs, rhs)?;
-        target_a.inner = target_a.inner.difference(&target_b.inner);
-        Ok(target_a.into())
+        run_binary(
+            lhs,
+            rhs,
+            Some(core::convert::identity),
+            None::<fn(V) -> V>,
+            None::<fn(V, V) -> V>,
+        )
     }
 }

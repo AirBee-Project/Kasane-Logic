@@ -155,12 +155,113 @@ impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore<V
     }
 }
 
+/// カノニカル順（`prev.canonical_cmp(&next) == Some(Less)`）の列から、1つのルート配下の Node を下から O(n) で組む。
+struct OrderedRootBuilder<V, S> {
+    root_id: FlexId,
+    prev_id: FlexId,
+    cur_region: FlexId,
+    cur_node: Node<V, S>,
+    stack: Vec<(FlexId, Dimension, u8, Node<V, S>)>,
+}
+
+impl<V: PartialEq + Clone, S: Summary<V>> OrderedRootBuilder<V, S> {
+    fn new(root_id: FlexId, id: FlexId, value: V) -> Self {
+        Self {
+            root_id,
+            prev_id: id,
+            cur_region: id,
+            cur_node: Node::Leaf(value),
+            stack: Vec::new(),
+        }
+    }
+
+    fn try_push(&mut self, id: FlexId, value: V) -> Result<(), (FlexId, V)> {
+        let Some((fork, split_dim, agree)) = self.prev_id.canonical_fork(&id) else {
+            return Err((id, value));
+        };
+        while let Some(&(top_fork, top_dim, top_agree, _)) = self.stack.last() {
+            if (top_agree, top_dim) <= (agree, split_dim) {
+                break;
+            }
+            let (_, _, _, lower) = self.stack.pop().unwrap();
+            let upper_id = top_fork.split_on(top_dim, Side::Upper).unwrap();
+            let upper = Node::rebase(
+                core::mem::take(&mut self.cur_node),
+                &self.cur_region,
+                &upper_id,
+            );
+            self.cur_node = Node::join(&top_fork, top_dim, lower, upper);
+            self.cur_region = top_fork;
+        }
+        let lower_id = fork.split_on(split_dim, Side::Lower).unwrap();
+        let lower = Node::rebase(
+            core::mem::take(&mut self.cur_node),
+            &self.cur_region,
+            &lower_id,
+        );
+        self.stack.push((fork, split_dim, agree, lower));
+        self.prev_id = id;
+        self.cur_region = id;
+        self.cur_node = Node::Leaf(value);
+        Ok(())
+    }
+
+    fn finish(mut self) -> Node<V, S> {
+        while let Some((top_fork, top_dim, _, lower)) = self.stack.pop() {
+            let upper_id = top_fork.split_on(top_dim, Side::Upper).unwrap();
+            let upper = Node::rebase(self.cur_node, &self.cur_region, &upper_id);
+            self.cur_node = Node::join(&top_fork, top_dim, lower, upper);
+            self.cur_region = top_fork;
+        }
+        Node::rebase(self.cur_node, &self.cur_region, &self.root_id)
+    }
+}
+
+fn finish_builders<V: PartialEq + Clone, S: Summary<V>>(
+    upper: Option<OrderedRootBuilder<V, S>>,
+    lower: Option<OrderedRootBuilder<V, S>>,
+) -> FlexTreeCore<V, S> {
+    FlexTreeCore {
+        upper_root: upper.map_or(Node::Empty, OrderedRootBuilder::finish),
+        lower_root: lower.map_or(Node::Empty, OrderedRootBuilder::finish),
+    }
+}
+
 impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore<V, S> {
-    /// 順に [`insert`](FlexTreeCore::insert) して組み立てる。重なる場所は後の値で上書きされる。
+    /// カノニカル順の列なら下から O(n) で組み立て、途中で順序が崩れていれば [`insert`](FlexTreeCore::insert) に切り替える。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
-        let mut tree = FlexTreeCore::default();
-        tree.extend(iter);
-        tree
+        let mut iter = iter.into_iter();
+        let mut upper: Option<OrderedRootBuilder<V, S>> = None;
+        let mut lower: Option<OrderedRootBuilder<V, S>> = None;
+
+        for (id, value) in iter.by_ref() {
+            let root_idx = id.root_index();
+            let slot = if root_idx == 0 {
+                if lower.is_some() {
+                    let mut tree = finish_builders(upper, lower);
+                    tree.insert(id, value);
+                    tree.extend(iter);
+                    return tree;
+                }
+                &mut upper
+            } else {
+                &mut lower
+            };
+
+            match slot {
+                None => *slot = Some(OrderedRootBuilder::new(FlexId::ROOTS[root_idx], id, value)),
+                Some(builder) => {
+                    if let Err((id, value)) = builder.try_push(id, value) {
+                        let mut tree = finish_builders(upper, lower);
+                        tree.insert(id, value);
+                        tree.extend(iter);
+                        return tree;
+                    }
+                }
+            }
+        }
+
+        finish_builders(upper, lower)
     }
 }
 

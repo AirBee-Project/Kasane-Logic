@@ -16,6 +16,26 @@ use crate::{
     },
 };
 
+/// 木の走査順（ルート、続いてズーム 1, 2, … の各深さで F→X→Y→T の順）における 2 つの [`FlexId`] の関係。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CanonicalRel {
+    /// 最初に食い違う走査位置で両方が割られており、左辺が下側（手前）、右辺が上側（奥）にある。互いに重ならない。
+    Less,
+    /// 2 つの [`FlexId`] が完全に一致している。
+    Equal,
+    /// 最初に食い違う走査位置で両方が割られており、左辺が上側（奥）、右辺が下側（手前）にある。互いに重ならない。
+    Greater,
+    /// 最初に食い違う走査位置で片方だけが割られている（包含関係にあるか、異方性により走査順が定まらない）。
+    Overlap {
+        /// 最初に食い違う走査位置の直前まで一致している共通の祖先領域。両方の [`FlexId`] を含む。
+        enclosing: FlexId,
+        /// `enclosing` の直後の走査位置で、片方だけが割っている次元。
+        split_dim: Dimension,
+        /// `split_dim` でまだ割られていない（粗い）側が左辺（`self`）なら `true`、右辺（`other`）なら `false`。
+        a_is_unsplit: bool,
+    },
+}
+
 /// 拡張時空間IDを表現する型。
 /// 各次元がズームレベルとインデックス値を持つ。
 #[derive(Clone, Copy, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
@@ -751,11 +771,90 @@ impl FlexId {
     /// 最初に食い違う位置で両方が割られていれば、その位置の側で順序を返す。
     /// 重なっている場合と、片方だけが割られた位置で先に食い違う場合は [`None`]。
     pub fn canonical_cmp(&self, other: &FlexId) -> Option<core::cmp::Ordering> {
-        let (a, b) = self
-            .canonical_sides()
-            .zip(other.canonical_sides())
-            .find(|(a, b)| a != b)?;
-        Some(a?.cmp(&b?))
+        match self.canonical_rel(other) {
+            CanonicalRel::Less => Some(core::cmp::Ordering::Less),
+            CanonicalRel::Greater => Some(core::cmp::Ordering::Greater),
+            CanonicalRel::Equal | CanonicalRel::Overlap { .. } => None,
+        }
+    }
+
+    /// 木の走査順における `self` と `other` の関係を求める。
+    ///
+    /// 両方が割られた位置で先に食い違えば [`CanonicalRel::Less`] または [`CanonicalRel::Greater`]、
+    /// 完全一致なら [`CanonicalRel::Equal`]、片方だけが割られた位置で先に食い違えば
+    /// 揃えるために割るべき共通祖先領域と次元を持つ [`CanonicalRel::Overlap`] を返す。
+    pub(crate) fn canonical_rel(&self, other: &FlexId) -> CanonicalRel {
+        match self.root_index().cmp(&other.root_index()) {
+            core::cmp::Ordering::Less => return CanonicalRel::Less,
+            core::cmp::Ordering::Greater => return CanonicalRel::Greater,
+            core::cmp::Ordering::Equal => {}
+        }
+
+        let Some((agree, split_dim)) = self.first_canonical_diff(other) else {
+            return CanonicalRel::Equal;
+        };
+
+        let (za, zb) = (self.zoomlevel_on(split_dim), other.zoomlevel_on(split_dim));
+        if agree < za.min(zb) {
+            if (self.index_on(split_dim) >> (za - 1 - agree)) & 1 == 0 {
+                CanonicalRel::Less
+            } else {
+                CanonicalRel::Greater
+            }
+        } else {
+            CanonicalRel::Overlap {
+                enclosing: self.common_canonical_ancestor(other, agree, split_dim),
+                split_dim,
+                a_is_unsplit: za < zb,
+            }
+        }
+    }
+
+    /// 同じルート内で `self` が木の走査順で `other` より前にあるなら、
+    /// 分岐する共通の祖先領域・割る次元・その次元でのズーム深さを返す。
+    pub(crate) fn canonical_fork(&self, other: &FlexId) -> Option<(FlexId, Dimension, u8)> {
+        if self.root_index() != other.root_index() {
+            return None;
+        }
+        let (agree, split_dim) = self.first_canonical_diff(other)?;
+        let (za, zb) = (self.zoomlevel_on(split_dim), other.zoomlevel_on(split_dim));
+        if agree >= za.min(zb) || (self.index_on(split_dim) >> (za - 1 - agree)) & 1 != 0 {
+            return None;
+        }
+        Some((
+            self.common_canonical_ancestor(other, agree, split_dim),
+            split_dim,
+            agree,
+        ))
+    }
+
+    /// 同じルート内で、木の走査順において `self` と `other` が最初に食い違う `(一致ズーム深さ, 次元)` を返す。
+    /// `self == other` なら [`None`]。
+    fn first_canonical_diff(&self, other: &FlexId) -> Option<(u8, Dimension)> {
+        let mut best: Option<(u8, Dimension)> = None;
+        for d in Dimension::ALL {
+            let (za, zb) = (self.zoomlevel_on(d), other.zoomlevel_on(d));
+            let deepest = za.min(zb);
+            let diff = (self.index_on(d) >> (za - deepest)) ^ (other.index_on(d) >> (zb - deepest));
+            if diff == 0 && za == zb {
+                continue;
+            }
+            let agree = deepest - (u64::BITS - (diff as u64).leading_zeros()) as u8;
+            if best.is_none_or(|(best_agree, _)| agree < best_agree) {
+                best = Some((agree, d));
+            }
+        }
+        best
+    }
+
+    /// 最初に食い違う `(agree, split_dim)` の直前まで一致している共通の祖先領域を返す。
+    fn common_canonical_ancestor(&self, other: &FlexId, agree: u8, split_dim: Dimension) -> FlexId {
+        let zoom = Dimension::ALL.map(|d| {
+            self.zoomlevel_on(d)
+                .min(other.zoomlevel_on(d))
+                .min(agree + u8::from(d < split_dim))
+        });
+        self.ancestor_at(zoom)
     }
 
     /// 次元の集合 `dimensions`（[`Dimension::bit`] の OR）のうち、自身のズームが一番粗い次元を返す。

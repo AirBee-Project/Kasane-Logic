@@ -126,7 +126,7 @@ impl<V: SafeValue + 'static> Query<V> {
         token: &CancellationToken,
     ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         self.validate()?;
-        self.stream_within(bounds, token)?.into_table()
+        self.stream_within(bounds, token)?.collect()
     }
 
     /// 検証を行わずに、出力領域 `bounds` を得るのに必要な部分だけを評価した列を返す。
