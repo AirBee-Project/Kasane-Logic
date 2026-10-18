@@ -1,6 +1,6 @@
 use alloc::collections::BTreeMap;
 
-use super::falloff_x::FalloffX;
+use super::{Falloff, FalloffAxis};
 use crate::spatial_id::collection::query::merge_policy::{Max, Sum};
 use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
@@ -86,19 +86,17 @@ fn falloff_x_overlap_max() {
     assert_eq!(r.get(&102), Some(&4));
 }
 
-/// `falloff_x` の逆算が、falloff のズームより粗いズームへ周期境界（経度方向の折り返し）を
-/// 丸め込む際、以前は丸め込み後に隙間が消えているかどうかの判定を誤り、必要な入力領域の
-/// 半分しか要求しないことがあった。z=1 の x=0 の1コマだけをターゲットにすると、
-/// z=2 のfine x では{0,1}に相当し、falloff(半径1)で寄与しうる入力 s∈{3,0,1,2}（全域）が
-/// 必要になる。
 #[test]
-fn falloff_x_reverse_target_wrapped_coarsen_covers_needed_range() {
-    let op = FalloffX::<Sum>::new(2, 1, None, FalloffPattern::Linear).unwrap();
+fn falloff_x_reverse_target_wrapped_covers_needed_range() {
+    let op = Falloff::<Sum>::new(FalloffAxis::X, 2, 1, None, FalloffPattern::Linear).unwrap();
 
     let bounds = crate::RangeId::new(1, [-2, 1], 0, [0, 1]).unwrap();
-    let inv = <FalloffX<Sum> as UnaryOperator<u32>>::reverse_target(&op, bounds).unwrap();
+    let mut out = alloc::vec::Vec::new();
+    <Falloff<Sum> as UnaryOperator<u32>>::reverse_target(&op, bounds, &mut out);
 
-    assert_eq!(inv.x(), [0, 1]);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].z(), 2);
+    assert_eq!(out[0].x(), [0, 3]);
 }
 
 /// 半径0の falloff は恒等（no-op）。

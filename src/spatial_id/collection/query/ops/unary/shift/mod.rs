@@ -91,14 +91,8 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftFXY {
         Ok(moved.into())
     }
 
-    fn reverse_target(&self, bounds: RangeId) -> Option<RangeId> {
-        let z = self.z.get();
-        let target_z = z.max(bounds.z());
-        let delta = |index: i32| -(index as i64) * (1i64 << (target_z - z));
-        let (f, x, y) = (delta(self.f), delta(self.x), delta(self.y));
-
-        let bounds = bounds.f_edges_shift(target_z, f, f).unwrap()?;
-        let bounds = bounds.x_edges_shift(target_z, x, x).unwrap()?;
-        bounds.y_edges_shift(target_z, y, y).unwrap()
+    fn reverse_target(&self, bounds: RangeId, out: &mut alloc::vec::Vec<RangeId>) {
+        let (f, x, y) = (-(self.f as i64), -(self.x as i64), -(self.y as i64));
+        bounds.shift_range(self.z.get(), [f, f], [x, x], [y, y], out);
     }
 }

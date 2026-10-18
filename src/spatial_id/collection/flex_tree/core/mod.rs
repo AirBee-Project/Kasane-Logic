@@ -423,6 +423,33 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
         result
     }
 
+    /// 両方に値がある場所は `resolve(self, other)`、片方だけの場所は欠けた側を `default` として重ね合わせる。
+    pub(crate) fn merge_with_default(
+        &mut self,
+        other: &Self,
+        default: &V,
+        resolve: impl Fn(&V, &V) -> V,
+    ) {
+        self.merge(other, &|this, a, b| match (&*a, b.leaf()) {
+            (Node::Empty, _) if b.is_empty() => true,
+            (Node::Empty, _) => {
+                *a = b.to_mapped_node(this, &|bv| resolve(default, bv));
+                true
+            }
+            (_, _) if b.is_empty() => {
+                if let Some(mapped) = a.map(this, &|av| resolve(av, default)) {
+                    *a = mapped;
+                }
+                true
+            }
+            (Node::Leaf(av), Some(bv)) => {
+                *a = Node::Leaf(resolve(av, bv));
+                true
+            }
+            _ => false,
+        });
+    }
+
     /// FlexTreeCore 全体の Summary。空なら [`None`]。
     pub fn summary(&self) -> Option<S> {
         match (self.upper_root.summary(), self.lower_root.summary()) {

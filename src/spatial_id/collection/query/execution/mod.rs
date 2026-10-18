@@ -2,7 +2,7 @@ use super::traits::{BinaryOperator, QueryIter, UnaryOperator};
 use crate::Error;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::{SpatialIdSet, SpatialIdTable};
+use crate::{RangeId, SpatialIdTable};
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::Source;
@@ -78,42 +78,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
     pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
-        self.validate()?;
-
-        fn run_internal<V: SafeValue + 'static>(
-            query: Query<V>,
-            token: &CancellationToken,
-        ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
-            match query {
-                Query::Source(source) => {
-                    read_source(&*source, &crate::FlexId::ROOTS, token)?.collect()
-                }
-                Query::Unary(ops, input) => {
-                    let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                    let input_working = run_internal(*input, token)?;
-                    let input_stream: QueryIter<'_, V> = input_working.into();
-                    let out_stream = run_unary_chain(&order, input_stream, token)?;
-                    out_stream.collect()
-                }
-                Query::Binary(op, lhs, rhs) => {
-                    #[cfg(feature = "rayon")]
-                    let (lhs_res, rhs_res) =
-                        rayon::join(|| run_internal(*lhs, token), || run_internal(*rhs, token));
-
-                    #[cfg(not(feature = "rayon"))]
-                    let (lhs_res, rhs_res) = (run_internal(*lhs, token), run_internal(*rhs, token));
-
-                    let lhs_res = lhs_res?;
-                    let rhs_res = rhs_res?;
-                    let lhs_stream: QueryIter<'_, V> = lhs_res.into();
-                    let rhs_stream: QueryIter<'_, V> = rhs_res.into();
-                    let out_stream = op.run(lhs_stream, rhs_stream)?;
-                    out_stream.collect()
-                }
-                Query::Error(e) => Err(e),
-            }
-        }
-        run_internal(self, &CancellationToken::never())
+        self.run_within(vec![RangeId::WHOLE], &CancellationToken::never())
     }
 }
 
@@ -137,7 +102,7 @@ pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
 /// 入力源から `bounds` と重なる要素を読み出し、読みながら `token` のキャンセルを確かめる列を返す。
 fn read_source<'a, V: SafeValue + 'static>(
     source: &'a dyn Source<Value = V>,
-    bounds: &[crate::FlexId],
+    bounds: &[RangeId],
     token: &CancellationToken,
 ) -> Result<QueryIter<'a, V>, Error> {
     let token = token.clone();
@@ -158,7 +123,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// `token` がキャンセルされると、AST を辿る途中で気づき次第 [`Error::Cancelled`] を返す。
     pub fn run_within(
         &self,
-        bounds: Vec<crate::RangeId>,
+        bounds: Vec<RangeId>,
         token: &CancellationToken,
     ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
         self.validate()?;
@@ -170,60 +135,49 @@ impl<V: SafeValue + 'static> Query<V> {
     /// `token` がキャンセルされると、AST を辿る途中か列を読む途中で [`Error::Cancelled`] を返す。
     pub(crate) fn stream_within<'a>(
         &'a self,
-        bounds: Vec<crate::RangeId>,
+        bounds: Vec<RangeId>,
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, V>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
+        if bounds.is_empty() {
+            return Ok(QueryIter::from_ordered(core::iter::empty()));
+        }
 
         match self {
-            Query::Source(s) => {
-                // 重なりや隣接をまとめ、入力源へのリクエストを小さくする
-                let bounds: Vec<crate::FlexId> = bounds
-                    .into_iter()
-                    .collect::<SpatialIdSet>()
-                    .into_iter()
-                    .collect();
-                read_source(&**s, &bounds, token)
-            }
+            Query::Source(s) => read_source(&**s, &bounds, token),
             Query::Unary(ops, input) => {
                 let mut req = bounds;
                 for op in ops.iter().rev() {
-                    let mut next = Vec::new();
+                    let mut next = Vec::with_capacity(req.len());
                     for r in req {
-                        if let Some(inv) = op.reverse_target(r) {
-                            next.push(inv);
-                        }
+                        op.reverse_target(r, &mut next);
                     }
                     next.sort_unstable();
                     next.dedup();
                     req = next;
+                    if req.is_empty() {
+                        return Ok(QueryIter::from_ordered(core::iter::empty()));
+                    }
                 }
                 let input_stream = input.stream_within(req, token)?;
                 let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
                 run_unary_chain(&order, input_stream, token)
             }
             Query::Binary(op, lhs, rhs) => {
-                let mut lhs_bounds = Vec::new();
-                let mut rhs_bounds = Vec::new();
-                for b in bounds {
-                    let (l, r) = op.reverse_target(b.clone());
-                    if let Some(lb) = l {
-                        lhs_bounds.push(lb);
-                    }
-                    if let Some(rb) = r {
-                        rhs_bounds.push(rb);
-                    }
-                }
-                lhs_bounds.sort_unstable();
-                lhs_bounds.dedup();
-                rhs_bounds.sort_unstable();
-                rhs_bounds.dedup();
-                op.run(
-                    lhs.stream_within(lhs_bounds, token)?,
-                    rhs.stream_within(rhs_bounds, token)?,
-                )
+                let lhs_bounds = bounds.clone();
+                #[cfg(feature = "rayon")]
+                let (l, r) = rayon::join(
+                    || lhs.stream_within(lhs_bounds, token),
+                    || rhs.stream_within(bounds, token),
+                );
+                #[cfg(not(feature = "rayon"))]
+                let (l, r) = (
+                    lhs.stream_within(lhs_bounds, token),
+                    rhs.stream_within(bounds, token),
+                );
+                op.run(l?, r?)
             }
             Query::Error(e) => Err(e.clone()),
         }

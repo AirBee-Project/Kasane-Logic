@@ -8,7 +8,7 @@ use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::traits::QueryIter;
 use crate::spatial_id::collection::query::{execution::Query, source::Source};
-use crate::{Error, FlexId, RangeId};
+use crate::{Error, RangeId};
 
 pub struct MapValues<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
@@ -41,14 +41,12 @@ where
 
     fn read_flex_ids<'a>(
         &'a self,
-        targets: &[FlexId],
+        targets: &[RangeId],
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, U>, Error> {
         // `Query::validate` は入力源の中まで辿らないので、内側のクエリはここで検証する
         self.inner.validate()?;
-        let inner = self
-            .inner
-            .stream_within(targets.iter().map(RangeId::from).collect(), token)?;
+        let inner = self.inner.stream_within(targets.to_vec(), token)?;
         Ok(QueryIter::from_ordered(inner.map(move |item| {
             item.map(|(id, value)| (id, (self.f)(value)))
         })))

@@ -11,6 +11,7 @@ use crate::{
     error::Error,
     spatial_id::{helpers, time::span, zoom_level::ZoomLevel},
 };
+use alloc::vec::Vec;
 
 /// RangeIdは空間IDの範囲表現を表す型です。
 ///
@@ -40,6 +41,17 @@ pub struct RangeId {
 }
 
 impl RangeId {
+    /// 全時空間を覆う [`RangeId`]。
+    pub const WHOLE: RangeId = RangeId {
+        z: ZoomLevel::MIN,
+        f: [-1, 0],
+        x: [0, 0],
+        y: [0, 0],
+        i: Interval::WHOLE,
+        #[cfg(feature = "temporal_id")]
+        t: [0, 0],
+    };
+
     /// この `RangeId` が保持しているズームレベル `z` を返します。
     ///
     /// ```
@@ -342,329 +354,61 @@ impl RangeId {
         Ok(())
     }
 
-    /// x 軸範囲を、より細かいズームレベル `target_z` における生のインデックス範囲へ変換します。
-    ///
-    /// `self.x()` が折り返し（`x[0] > x[1]`）の場合、この関数はそれを解決せず、
-    /// 両端をそれぞれ独立に拡大した `(min, max)`（`min > max` のまま）を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(4, 0, [1, 2], 0).unwrap();
-    /// assert_eq!(id.x_fine_range(6), (4, 11));
-    /// ```
-    pub fn x_fine_range(&self, target_z: impl Into<u8>) -> (u32, u32) {
-        let (min, max) = Self::fine_range_raw(
-            self.x[0] as i64,
-            self.x[1] as i64,
-            self.z.get(),
-            target_z.into(),
-        );
-        (min as u32, max as u32)
-    }
-
-    /// y 軸範囲を、より細かいズームレベル `target_z` における生のインデックス範囲へ変換します。
-    ///
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(4, 0, 0, [1, 2]).unwrap();
-    /// assert_eq!(id.y_fine_range(6), (4, 11));
-    /// ```
-    pub fn y_fine_range(&self, target_z: impl Into<u8>) -> (u32, u32) {
-        let (min, max) = Self::fine_range_raw(
-            self.y[0] as i64,
-            self.y[1] as i64,
-            self.z.get(),
-            target_z.into(),
-        );
-        (min as u32, max as u32)
-    }
-
-    /// f 軸範囲を、より細かいズームレベル `target_z` における生のインデックス範囲へ変換します。
-    ///
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(4, [1, 2], 0, 0).unwrap();
-    /// assert_eq!(id.f_fine_range(6), (4, 11));
-    /// ```
-    pub fn f_fine_range(&self, target_z: impl Into<u8>) -> (i32, i32) {
-        let (min, max) = Self::fine_range_raw(
-            self.f[0] as i64,
-            self.f[1] as i64,
-            self.z.get(),
-            target_z.into(),
-        );
-        (min as i32, max as i32)
-    }
-
-    /// x/y/f_fine_range が共有する拡大計算の本体。
-    fn fine_range_raw(lo: i64, hi: i64, z: u8, fine_z: u8) -> (i64, i64) {
-        debug_assert!(fine_z >= z);
-        let scale = 1i64 << (fine_z - z);
-        (lo * scale, (hi + 1) * scale - 1)
-    }
-
-    /// x 軸の区間の両端に、ズーム `target_z` において `shift_min`/`shift_max` だけずらした `RangeId` を返します。`target_z` が `self.z()` 未満の場合はエラーになります。
-    /// x軸は周期境界を持つため、結果を1本の `RangeId` で正確に表現できなくても安全側にフォールバックし、常に範囲を返します。
-    ///
-    /// 平行移動（両端に同じ量を加算）:
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(5, 0, [10, 12], 0).unwrap();
-    /// let result = id.x_edges_shift(5, -2, -2).unwrap().unwrap();
-    /// assert_eq!(result.x(), [8, 10]);
-    /// ```
-    ///
-    /// 拡張（両端に異なる量を加算）:
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(5, 0, [10, 10], 0).unwrap();
-    /// let result = id.x_edges_shift(5, -1, 1).unwrap().unwrap();
-    /// assert_eq!(result.x(), [9, 11]);
-    /// ```
-    pub fn x_edges_shift(
+    /// 各軸の区間の両端を、ズーム `z` のインデックス単位で `f`・`x`・`y`（`[min, max]`）だけずらした範囲を `out` へ追加する。
+    pub(crate) fn shift_range(
         &self,
-        target_z: impl Into<u8>,
-        shift_min: i64,
-        shift_max: i64,
-    ) -> Result<Option<RangeId>, Error> {
-        let target_z = target_z.into();
-        let current_z = self.z.get();
-        if target_z < current_z {
-            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z,
-                target_z,
-            }
-            .into());
-        }
-        if ZoomLevel::new(target_z).is_err() {
-            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
-        }
-
-        let (x_min, x_max) = self.x_fine_range(target_z);
-        let x_min = x_min as i64;
-        let mut x_max = x_max as i64;
-        if self.x[0] > self.x[1] {
-            // self.x 自体が折り返している場合、x_fine_range は末尾側をそのまま返すため
-            // min > max のままになる。もう1周したぶんを補って正しい大きさを保つ。
-            x_max += 1i64 << target_z;
-        }
-
-        let mut result = self.clone();
-        result.set_x_wrapped_coarsened(x_min + shift_min, x_max + shift_max, target_z);
-        Ok(Some(result))
-    }
-
-    /// [`x_edges_shift`](Self::x_edges_shift)の押し閉じ部分。
-    /// `raw_min`/`raw_max`（ズーム `max_z` での生の範囲）を折り返した上で `self.z()` へ
-    /// 丸め込む。折り返しを1本の `RangeId` で正確に表現できなければ、取りこぼす（過小評価する）
-    /// くらいなら安全側に倒して全域にする。呼び出し元が `max_z >= self.z()` を保証すること。
-    pub(crate) fn set_x_wrapped_coarsened(&mut self, raw_min: i64, raw_max: i64, max_z: u8) {
-        let current_z = self.z.get();
-        debug_assert!(current_z <= max_z);
-
-        let scale_t = max_z - current_z;
-        let max_len = 1i64 << max_z;
-
-        // 折り返し前の時点で既に全周以上を覆っている場合は全域になる。
-        if raw_max - raw_min >= max_len {
-            self.x = [0, self.z.xy_max()];
-            return;
-        }
-
-        let wrapped_min = raw_min.rem_euclid(max_len);
-        let wrapped_max = raw_max.rem_euclid(max_len);
-
-        let Some([(a_min, a_max), (b_min, b_max)]) =
-            Self::split_wrapped_range(wrapped_min, wrapped_max, max_len - 1)
-        else {
-            // 折り返しなし: 独立に丸め込んでも常に正確。
-            self.x = [
-                (wrapped_min >> scale_t) as u32,
-                (wrapped_max >> scale_t) as u32,
-            ];
+        z: u8,
+        f: [i64; 2],
+        x: [i64; 2],
+        y: [i64; 2],
+        out: &mut Vec<RangeId>,
+    ) {
+        let target_z = z.max(self.z.get());
+        let Ok(mut b) = self.spatial_children_at_zoom(target_z) else {
             return;
         };
+        let scale = 1i64 << (target_z - z);
 
-        // 折り返しあり: [a_min, a_max]（=[wrapped_min, max_len-1]）と
-        // [b_min, b_max]（=[0, wrapped_max]）それぞれを丸め込んだ上で、その和集合を取る。
-        let a_min = (a_min >> scale_t) as u32;
-        let a_max = (a_max >> scale_t) as u32;
-        let b_min = (b_min >> scale_t) as u32;
-        let b_max = (b_max >> scale_t) as u32;
+        let f_min = (b.f[0] as i64 + f[0] * scale).max(b.z.f_min() as i64);
+        let f_max = (b.f[1] as i64 + f[1] * scale).min(b.z.f_max() as i64);
+        if f_min > f_max {
+            return;
+        }
+        b.f = [f_min as i32, f_max as i32];
 
-        if a_min > b_max {
-            // 丸め込み後も隙間が残るので、1本の折り返し RangeId として正確に表現できる。
-            self.x = [a_min, b_max];
+        let xy_max = b.z.xy_max();
+        let y_min = (b.y[0] as i64 + y[0] * scale).max(0);
+        let y_max = (b.y[1] as i64 + y[1] * scale).min(xy_max as i64);
+        if y_min > y_max {
+            return;
+        }
+        b.y = [y_min as u32, y_max as u32];
+
+        let len = 1i64 << target_z;
+        let cur_span = (b.x[1] as i64 - b.x[0] as i64).rem_euclid(len);
+        let new_span = cur_span + (x[1] - x[0]) * scale;
+        if new_span < 0 {
+            return;
+        }
+        if new_span >= len - 1 {
+            b.x = [0, xy_max];
+            out.push(b);
+            return;
+        }
+
+        let x_min = (b.x[0] as i64 + x[0] * scale).rem_euclid(len) as u32;
+        let x_max = (b.x[1] as i64 + x[1] * scale).rem_euclid(len) as u32;
+        // 折り返し区間を昇順の2区間に分割しておくことで、後続の逆算や木探索の単調性を保つ
+        if x_min <= x_max {
+            b.x = [x_min, x_max];
+            out.push(b);
         } else {
-            // 丸め込みで隙間が消えた（＝実質全域）ので、安全側に倒して全域にする。
-            self.x = [b_min, a_max];
-        }
-    }
+            let mut r1 = b.clone();
+            r1.x = [x_min, xy_max];
+            out.push(r1);
 
-    /// `min > max`（[`set_x`](Self::set_x)の折り返し規約）を、2つの非折り返し区間
-    /// `[min, bound]`と`[0, max]`に分解する。折り返していなければ `None`。
-    pub(crate) fn split_wrapped_range(min: i64, max: i64, bound: i64) -> Option<[(i64, i64); 2]> {
-        (min > max).then_some([(min, bound), (0, max)])
-    }
-
-    /// y 軸の区間の両端に、ズーム `target_z` において `shift_min`/`shift_max` だけずらした`RangeId` を返します。`target_z` が `self.z()` 未満の場合はエラーになります。
-    /// y軸は境界を持つため、押し閉じで範囲が押し潰れてなくなった場合は `Ok(None)` を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(5, 0, 0, [10, 10]).unwrap();
-    /// let result = id.y_edges_shift(5, -1, 1).unwrap().unwrap();
-    /// assert_eq!(result.y(), [9, 11]);
-    /// ```
-    ///
-    /// 範囲が押し潰れてなくなる場合（`shift_min` 側と `shift_max` 側が逆転してしまう場合）は `Ok(None)`:
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(1, 0, 0, 0).unwrap();
-    /// assert_eq!(id.y_edges_shift(1, 5, -5).unwrap(), None);
-    /// ```
-    pub fn y_edges_shift(
-        &self,
-        target_z: impl Into<u8>,
-        shift_min: i64,
-        shift_max: i64,
-    ) -> Result<Option<RangeId>, Error> {
-        let target_z = target_z.into();
-        let current_z = self.z.get();
-        if target_z < current_z {
-            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z,
-                target_z,
-            }
-            .into());
-        }
-        if ZoomLevel::new(target_z).is_err() {
-            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
-        }
-
-        let (y_min, y_max) = self.y_fine_range(target_z);
-        let mut result = self.clone();
-        Ok(result
-            .set_y_coarsened_clamped(y_min as i64 + shift_min, y_max as i64 + shift_max, target_z)
-            .then_some(result))
-    }
-
-    /// [`y_edges_shift`](Self::y_edges_shift)の押し閉じ部分。
-    /// `raw_min`/`raw_max`を`[0, max_len - 1]`にクランプしてから丸め込む。
-    /// 呼び出し元が `max_z >= self.z()` を保証すること。
-    pub(crate) fn set_y_coarsened_clamped(
-        &mut self,
-        raw_min: i64,
-        raw_max: i64,
-        max_z: u8,
-    ) -> bool {
-        let current_z = self.z.get();
-        debug_assert!(current_z <= max_z);
-        let scale_t = max_z - current_z;
-        let max_len = 1i64 << max_z;
-
-        match Self::coarsened_clamped_raw(raw_min, raw_max, 0, max_len - 1, scale_t) {
-            Some((min, max)) => {
-                self.y = [min as u32, max as u32];
-                true
-            }
-            None => false,
-        }
-    }
-
-    /// f 軸の区間の両端に、ズーム `target_z` において `shift_min`/`shift_max` だけずらした`RangeId` を返します。`target_z` が `self.z()` 未満の場合はエラーになります。
-    /// f軸も境界を持つため、押し閉じで範囲が押し潰れてなくなった場合は `Ok(None)` を返します。
-    ///
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(5, [10, 10], 0, 0).unwrap();
-    /// let result = id.f_edges_shift(5, -1, 1).unwrap().unwrap();
-    /// assert_eq!(result.f(), [9, 11]);
-    /// ```
-    ///
-    /// 範囲が押し潰れてなくなる場合（`shift_min` 側と `shift_max` 側が逆転してしまう場合）は `Ok(None)`:
-    /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
-    /// let id = RangeId::new(1, 0, 0, 0).unwrap();
-    /// assert_eq!(id.f_edges_shift(1, 10, -10).unwrap(), None);
-    /// ```
-    pub fn f_edges_shift(
-        &self,
-        target_z: impl Into<u8>,
-        shift_min: i64,
-        shift_max: i64,
-    ) -> Result<Option<RangeId>, Error> {
-        let target_z = target_z.into();
-        let current_z = self.z.get();
-        if target_z < current_z {
-            return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
-                current_z,
-                target_z,
-            }
-            .into());
-        }
-        if ZoomLevel::new(target_z).is_err() {
-            return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
-        }
-
-        let (f_min, f_max) = self.f_fine_range(target_z);
-        let mut result = self.clone();
-        Ok(result
-            .set_f_coarsened_clamped(f_min as i64 + shift_min, f_max as i64 + shift_max, target_z)
-            .then_some(result))
-    }
-
-    /// [`f_edges_shift`](Self::f_edges_shift)の押し閉じ部分。
-    /// `raw_min`/`raw_max`を`[f_min, f_max]`にクランプしてから丸め込む。
-    /// 呼び出し元が `max_z >= self.z()` を保証すること。
-    pub(crate) fn set_f_coarsened_clamped(
-        &mut self,
-        raw_min: i64,
-        raw_max: i64,
-        max_z: u8,
-    ) -> bool {
-        let current_z = self.z.get();
-        debug_assert!(current_z <= max_z);
-        let scale_t = max_z - current_z;
-        let max_z_obj = ZoomLevel::new(max_z).unwrap();
-        let min_f = max_z_obj.f_min() as i64;
-        let max_f = max_z_obj.f_max() as i64;
-
-        match Self::coarsened_clamped_raw(raw_min, raw_max, min_f, max_f, scale_t) {
-            Some((min, max)) => {
-                self.f = [min as i32, max as i32];
-                true
-            }
-            None => false,
-        }
-    }
-
-    /// [`set_y_coarsened_clamped`](Self::set_y_coarsened_clamped)/
-    /// [`set_f_coarsened_clamped`](Self::set_f_coarsened_clamped) が共有する
-    /// クランプ＋丸め込みの本体。範囲が `[min_bound, max_bound]` の外に完全に出た場合は `None`。
-    fn coarsened_clamped_raw(
-        raw_min: i64,
-        raw_max: i64,
-        min_bound: i64,
-        max_bound: i64,
-        scale_t: u8,
-    ) -> Option<(i64, i64)> {
-        let clamped_min = raw_min.clamp(min_bound, max_bound);
-        let clamped_max = raw_max.clamp(min_bound, max_bound);
-
-        if clamped_min > clamped_max {
-            None
-        } else {
-            Some((clamped_min >> scale_t, clamped_max >> scale_t))
+            b.x = [0, x_max];
+            out.push(b);
         }
     }
 
@@ -786,30 +530,25 @@ impl RangeId {
             .into());
         }
 
-        if ZoomLevel::new(target_z).is_err() {
+        let Ok(target_zoom) = ZoomLevel::new(target_z) else {
             return Err(SpatialIdError::ZOutOfRange { z: target_z }.into());
-        }
+        };
 
         let shift = (z - target_z) as u32;
 
-        let f = [
-            if self.f[0] == -1 {
-                -1
-            } else {
-                self.f[0] >> shift
-            },
-            if self.f[1] == -1 {
-                -1
-            } else {
-                self.f[1] >> shift
-            },
-        ];
-
-        let x = [self.x[0] >> shift, self.x[1] >> shift];
+        let f = [self.f[0] >> shift, self.f[1] >> shift];
+        let x0 = self.x[0] >> shift;
+        let x1 = self.x[1] >> shift;
+        let x = if self.x[0] > self.x[1] && x0 <= x1 {
+            // 折り返し区間を浅いズームへ丸めた結果、両端が重なって隙間が消えた場合は全周を覆う
+            [0, target_zoom.xy_max()]
+        } else {
+            [x0, x1]
+        };
         let y = [self.y[0] >> shift, self.y[1] >> shift];
 
         Ok(RangeId {
-            z: ZoomLevel::new(target_z).unwrap(),
+            z: target_zoom,
             f,
             x,
             y,

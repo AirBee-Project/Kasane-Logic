@@ -96,7 +96,7 @@ where
         )))
     }
 
-    fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
-        Some(bounds)
+    fn reverse_target(&self, bounds: crate::RangeId, out: &mut alloc::vec::Vec<crate::RangeId>) {
+        out.push(bounds);
     }
 }

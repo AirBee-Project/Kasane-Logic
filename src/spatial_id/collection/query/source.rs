@@ -3,7 +3,7 @@ use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::execution::Query;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::{Error, FlexId};
+use crate::{Error, RangeId};
 use alloc::boxed::Box;
 
 /// クエリのデータを提供するTrait。[`SpatialIdTable`](crate::SpatialIdTable) やリモートのデータベースなどに実装する。
@@ -13,8 +13,8 @@ use alloc::boxed::Box;
 /// [`read_flex_ids`](Self::read_flex_ids) は [`QueryIter`] の制約を満たす列を返す。
 ///
 /// - 木の走査順で読み出せるなら、[`QueryIter::from_ordered`] で包んで逐次に流す。
-///   [`FlexId::canonical_key`] の昇順で保存したデータベースを、その順に一度だけ走査し、
-///   `targets` のどれかと [`intersects`](FlexId::intersects) する要素を返す場合がこれにあたる。
+///   [`FlexId::canonical_key`](crate::FlexId::canonical_key) の昇順で保存したデータベースを、その順に一度だけ走査し、
+///   `targets` のどれかと [`intersects_range`](crate::FlexId::intersects_range) する要素を返す場合がこれにあたる。
 ///   `targets` ごとに分けて読むと、複数の `targets` と重なる要素が重複し、順序も崩れうるので、
 ///   全ての `targets` をまとめて一度に読む。
 pub trait Source: MaybeSendSync {
@@ -26,7 +26,7 @@ pub trait Source: MaybeSendSync {
     /// 返す要素は `targets` の外にはみ出していてもよい。
     fn read_flex_ids<'a>(
         &'a self,
-        targets: &[FlexId],
+        targets: &[RangeId],
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, Self::Value>, Error>;
 

@@ -129,4 +129,16 @@ impl<V: PartialEq + Clone, S: Summary<V>> View<'_, V, S> {
             View::Skip { region, child } => Node::rebase(child.clone(), &region, this),
         }
     }
+
+    /// 各 Leaf の値を `f` で変換し、領域 `this` の Node として取り出す。
+    pub(super) fn to_mapped_node(self, this: &FlexId, f: &impl Fn(&V) -> V) -> Node<V, S> {
+        match self {
+            View::Empty => Node::Empty,
+            View::Node(node) => node.map(this, f).unwrap_or_else(|| node.clone()),
+            View::Skip { region, child } => {
+                let child = child.map(&region, f).unwrap_or_else(|| child.clone());
+                Node::rebase(child, &region, this)
+            }
+        }
+    }
 }

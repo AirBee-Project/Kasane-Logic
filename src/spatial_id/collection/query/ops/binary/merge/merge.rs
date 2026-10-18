@@ -1,10 +1,10 @@
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use crate::Error;
+use crate::spatial_id::collection::query::ops::binary::collect_both;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{
     merge_policy::MergePolicy,
     traits::{BinaryOperator, QueryIter},
 };
-use crate::{Error, SpatialIdTable};
 
 /// `MergePolicy` で重ね合わせる二項演算子。
 pub struct Merge<V, P> {
@@ -31,33 +31,12 @@ where
         lhs: QueryIter<'a, V>,
         rhs: QueryIter<'a, V>,
     ) -> Result<QueryIter<'a, V>, Error> {
-        let mut target_a: SpatialIdTable<V, NoSummary> = lhs.collect::<Result<_, _>>()?;
-        let target_b: SpatialIdTable<V, NoSummary> = rhs.collect::<Result<_, _>>()?;
-        let (a, b) = (&target_a.inner, &target_b.inner);
-        let resolve = |x: &V, y: &V| P::resolve(x.clone(), y.clone());
-
-        let mut merged = a.intersection(b);
-        for (id, value) in b.intersection(a) {
-            merged.insert_with(id, value, resolve);
-        }
-        merged.extend(
-            a.difference(b)
-                .into_iter()
-                .map(|(id, value)| (id, resolve(&value, &self.default))),
-        );
-        merged.extend(
-            b.difference(a)
-                .into_iter()
-                .map(|(id, value)| (id, resolve(&self.default, &value))),
-        );
-        target_a.inner = merged;
+        let (mut target_a, target_b) = collect_both(lhs, rhs)?;
+        target_a
+            .inner
+            .merge_with_default(&target_b.inner, &self.default, |x, y| {
+                P::resolve(x.clone(), y.clone())
+            });
         Ok(target_a.into())
-    }
-
-    fn reverse_target(
-        &self,
-        output_target: crate::RangeId,
-    ) -> (Option<crate::RangeId>, Option<crate::RangeId>) {
-        (Some(output_target.clone()), Some(output_target))
     }
 }

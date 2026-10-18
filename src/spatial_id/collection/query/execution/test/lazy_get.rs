@@ -164,3 +164,87 @@ fn lazy_get_filters_by_time() {
         );
     }
 }
+
+#[test]
+fn lazy_get_directional_falloff_matches_run() {
+    use crate::Side;
+    use crate::spatial_id::collection::query::merge_policy::Sum;
+    use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
+
+    let mut table = SpatialIdTable::<u32>::new();
+    table.insert(FlexId::new(4, 2, 4, 2, 4, 2).unwrap(), 10);
+
+    for side in [Some(Side::Upper), Some(Side::Lower), None] {
+        let q_f = table
+            .clone()
+            .query()
+            .falloff_f(4, 2, side, FalloffPattern::Linear, Sum);
+        let expected_f = table
+            .clone()
+            .query()
+            .falloff_f(4, 2, side, FalloffPattern::Linear, Sum)
+            .run()
+            .unwrap();
+        let target_f = FlexId::new(4, 3, 4, 2, 4, 2).unwrap();
+        assert_eq!(
+            q_f.lazy_get(target_f).unwrap().next().map(|(_, v)| v),
+            expected_f.get(target_f).next().map(|(_, v)| *v),
+        );
+
+        let q_x = table
+            .clone()
+            .query()
+            .falloff_x(4, 2, side, FalloffPattern::Linear, Sum);
+        let expected_x = table
+            .clone()
+            .query()
+            .falloff_x(4, 2, side, FalloffPattern::Linear, Sum)
+            .run()
+            .unwrap();
+        let target_x = FlexId::new(4, 2, 4, 3, 4, 2).unwrap();
+        assert_eq!(
+            q_x.lazy_get(target_x).unwrap().next().map(|(_, v)| v),
+            expected_x.get(target_x).next().map(|(_, v)| *v),
+        );
+
+        let q_y = table
+            .clone()
+            .query()
+            .falloff_y(4, 2, side, FalloffPattern::Linear, Sum);
+        let expected_y = table
+            .clone()
+            .query()
+            .falloff_y(4, 2, side, FalloffPattern::Linear, Sum)
+            .run()
+            .unwrap();
+        let target_y = FlexId::new(4, 2, 4, 2, 4, 1).unwrap();
+        assert_eq!(
+            q_y.lazy_get(target_y).unwrap().next().map(|(_, v)| v),
+            expected_y.get(target_y).next().map(|(_, v)| *v),
+        );
+    }
+}
+
+#[test]
+fn lazy_get_zoom_out_wrapped_target_matches_run() {
+    use crate::spatial_id::collection::query::merge_policy::Sum;
+
+    let mut table = SpatialIdTable::<u32>::new();
+    table.insert(FlexId::new(3, 0, 3, 0, 3, 0).unwrap(), 11);
+    table.insert(FlexId::new(3, 0, 3, 7, 3, 0).unwrap(), 13);
+
+    let expected = table.clone().query().zoom_out(2, Sum).run().unwrap();
+    let expected_vals: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
+
+    let mut target = crate::RangeId::new(3, 0, 0, 0).unwrap();
+    target.set_x([3, 2]).unwrap();
+
+    let lazy_vals: Vec<u32> = table
+        .query()
+        .zoom_out(2, Sum)
+        .lazy_get(target)
+        .unwrap()
+        .map(|(_, v)| v)
+        .collect();
+    assert_eq!(lazy_vals, expected_vals);
+}

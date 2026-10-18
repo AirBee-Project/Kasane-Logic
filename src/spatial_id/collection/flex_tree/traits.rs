@@ -3,19 +3,19 @@ use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::source::{QueryIter, Source};
-use crate::{Error, FlexId, SpatialIdSet, SpatialIdTable};
+use crate::{Error, RangeId, SpatialIdSet, SpatialIdTable};
 
 impl Source for SpatialIdSet {
     type Value = ();
 
     fn read_flex_ids<'a>(
         &'a self,
-        targets: &[FlexId],
+        targets: &[RangeId],
         _token: &CancellationToken,
     ) -> Result<QueryIter<'a, ()>, Error> {
         Ok(QueryIter::from_ordered(
             self.inner
-                .get_overlapping(targets.to_vec())
+                .get_overlapping(targets.iter().cloned().flatten())
                 .map(|(id, ())| Ok((id, ()))),
         ))
     }
@@ -30,12 +30,12 @@ where
 
     fn read_flex_ids<'a>(
         &'a self,
-        targets: &[FlexId],
+        targets: &[RangeId],
         _token: &CancellationToken,
     ) -> Result<QueryIter<'a, V>, Error> {
         Ok(QueryIter::from_ordered(
             self.inner
-                .get_overlapping(targets.to_vec())
+                .get_overlapping(targets.iter().cloned().flatten())
                 .map(|(id, value)| Ok((id, value.clone()))),
         ))
     }

@@ -1,5 +1,6 @@
 use crate::SpatialIdTable;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use crate::spatial_id::collection::query::ops::unary::sort_by_flex_id;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId,
@@ -12,9 +13,6 @@ use crate::{
     },
 };
 use alloc::vec::Vec;
-
-#[cfg(feature = "rayon")]
-use rayon::prelude::*;
 
 /// 指定されたズームレベルまで情報を落とす演算子。
 pub struct ZoomOut<V, P> {
@@ -36,88 +34,46 @@ where
     P: MergePolicy<V>,
 {
     fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
-        let core: SpatialIdTable<V, NoSummary> = input.collect::<Result<_, _>>()?;
         let target_z = self.target_z.get();
-        let mut leaves: Vec<(FlexId, Option<V>)> =
-            core.into_iter().map(|(id, v)| (id, Some(v))).collect();
+
+        if P::IS_COMMUTATIVE {
+            let mut map = hashbrown::HashMap::new();
+            for item in input {
+                let (id, val) = item?;
+                let parent = id.spatial_parent_at_zoom(target_z).unwrap();
+                map.entry(parent)
+                    .and_modify(|e: &mut V| *e = P::resolve(e.clone(), val.clone()))
+                    .or_insert(val);
+            }
+            if map.is_empty() {
+                return Ok(QueryIter::from_ordered(core::iter::empty()));
+            }
+            let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
+            sort_by_flex_id(&mut new_items);
+            let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
+            return Ok(table.into());
+        }
+
+        let mut leaves: Vec<(FlexId, Option<V>)> = Vec::new();
+        for item in input {
+            let (id, v) = item?;
+            leaves.push((id.spatial_parent_at_zoom(target_z).unwrap(), Some(v)));
+        }
 
         if leaves.is_empty() {
             return Ok(QueryIter::from_ordered(core::iter::empty()));
         }
 
-        #[cfg(feature = "rayon")]
-        {
-            if P::IS_COMMUTATIVE {
-                let mut map = hashbrown::HashMap::with_capacity(leaves.len());
-                for (id, v) in leaves {
-                    let parent = id.spatial_parent_at_zoom(target_z).unwrap();
-                    let val = v.unwrap();
-                    map.entry(parent)
-                        .and_modify(|e: &mut V| *e = P::resolve(e.clone(), val.clone()))
-                        .or_insert(val);
-                }
+        sort_by_flex_id(&mut leaves);
 
-                let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
-                new_items.par_sort_unstable_by_key(|a| a.0);
-                let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
-                return Ok(table.into());
-            }
-
-            leaves.par_iter_mut().for_each(|(id, _)| {
-                *id = id.spatial_parent_at_zoom(target_z).unwrap();
-            });
-            leaves.par_sort_unstable_by_key(|a| a.0);
-        }
-
-        #[cfg(not(feature = "rayon"))]
-        {
-            if P::IS_COMMUTATIVE {
-                let mut map = hashbrown::HashMap::with_capacity(leaves.len());
-                for (id, v) in leaves {
-                    let parent = id.spatial_parent_at_zoom(target_z).unwrap();
-                    let val = v.unwrap();
-                    map.entry(parent)
-                        .and_modify(|e: &mut V| *e = P::resolve(e.clone(), val.clone()))
-                        .or_insert(val);
-                }
-
-                let mut new_items: Vec<(FlexId, V)> = map.into_iter().collect();
-                new_items.sort_unstable_by_key(|a| a.0);
-                let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
-                return Ok(table.into());
-            }
-
-            for (id, _) in leaves.iter_mut() {
-                *id = id.spatial_parent_at_zoom(target_z).unwrap();
-            }
-            leaves.sort_unstable_by_key(|a| a.0);
-        }
-
-        #[cfg(feature = "rayon")]
-        let new_items: Vec<(FlexId, V)> = {
-            leaves
-                .par_chunk_by_mut(|a, b| a.0 == b.0)
-                .filter_map(|chunk| {
-                    let parent_id = chunk[0].0;
-                    let merged = P::resolve_many(chunk.iter_mut().map(|(_, v)| v.take().unwrap()))?;
-                    Some((parent_id, merged))
-                })
-                .collect()
-        };
-
-        #[cfg(not(feature = "rayon"))]
-        let new_items: Vec<(FlexId, V)> = {
-            leaves
-                .chunk_by_mut(|a, b| a.0 == b.0)
-                .filter_map(|chunk| {
-                    let parent_id = chunk[0].0;
-                    let merged = P::resolve_many(chunk.iter_mut().map(|(_, v)| v.take().unwrap()))?;
-                    Some((parent_id, merged))
-                })
-                .collect()
-        };
-
-        let table: SpatialIdTable<V, NoSummary> = new_items.into_iter().collect();
+        let table: SpatialIdTable<V, NoSummary> = leaves
+            .chunk_by_mut(|a, b| a.0 == b.0)
+            .filter_map(|chunk| {
+                let parent_id = chunk[0].0;
+                let merged = P::resolve_many(chunk.iter_mut().map(|(_, v)| v.take().unwrap()))?;
+                Some((parent_id, merged))
+            })
+            .collect();
 
         Ok(table.into())
     }
@@ -126,11 +82,11 @@ where
         Ok(())
     }
 
-    fn reverse_target(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
+    fn reverse_target(&self, bounds: crate::RangeId, out: &mut Vec<crate::RangeId>) {
         if bounds.z() > self.target_z.get() {
-            Some(bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap())
+            out.push(bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap());
         } else {
-            Some(bounds)
+            out.push(bounds);
         }
     }
 }

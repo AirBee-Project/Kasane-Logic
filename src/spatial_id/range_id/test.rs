@@ -1,91 +1,82 @@
-use crate::{Error, RangeId, SpatialIdError};
+use alloc::vec::Vec;
+
+use crate::RangeId;
 
 #[test]
-fn set_x_wrapped_coarsened_no_wrap() {
-    let mut id = RangeId::new(4, 0, 0, 0).unwrap();
-    id.set_x_wrapped_coarsened(8, 11, 5);
-    assert_eq!(id.x(), [4, 5]);
-}
-
-/// 折り返しがズーム差分を挟んでも1本の `RangeId` で正確に表現できる場合。
-#[test]
-fn set_x_wrapped_coarsened_wrap_representable() {
-    let mut id = RangeId::new(3, 0, 0, 0).unwrap();
-    id.set_x_wrapped_coarsened(-1, 1, 3);
-    assert_eq!(id.x(), [7, 1]);
-}
-
-/// 丸め込みによって折り返し表現が破綻するため、安全側に倒して全域になる場合。
-#[test]
-fn set_x_wrapped_coarsened_wrap_collapses_to_full_domain() {
-    let mut id = RangeId::new(1, 0, 0, 0).unwrap();
-    id.set_x_wrapped_coarsened(1, 4, 2);
-    assert_eq!(id.x(), [0, 1]);
+fn shift_range_x_no_wrap() {
+    let id = RangeId::new(4, 0, [2, 2], 0).unwrap();
+    let mut out = Vec::new();
+    id.shift_range(5, [0, 0], [4, 5], [0, 0], &mut out);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].z(), 5);
+    assert_eq!(out[0].x(), [8, 10]);
 }
 
 #[test]
-fn set_y_coarsened_clamped_basic() {
-    let mut id = RangeId::new(4, 0, 0, 0).unwrap();
-    assert!(id.set_y_coarsened_clamped(8, 11, 5));
-    assert_eq!(id.y(), [4, 5]);
-}
-
-/// 範囲の一部が有効範囲をはみ出す場合は切り詰められる。
-#[test]
-fn set_y_coarsened_clamped_clamps_out_of_range_part() {
-    let mut id = RangeId::new(4, 0, 0, 0).unwrap();
-    assert!(id.set_y_coarsened_clamped(-3, 11, 5));
-    assert_eq!(id.y(), [0, 5]);
+fn shift_range_x_splits_wrapped_into_ascending_ranges() {
+    let id = RangeId::new(3, 0, [0, 0], 0).unwrap();
+    let mut out = Vec::new();
+    id.shift_range(3, [0, 0], [-1, 1], [0, 0], &mut out);
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0].x(), [7, 7]);
+    assert_eq!(out[1].x(), [0, 1]);
 }
 
 #[test]
-fn set_f_coarsened_clamped_basic() {
-    let mut id = RangeId::new(4, 0, 0, 0).unwrap();
-    assert!(id.set_f_coarsened_clamped(8, 11, 5));
-    assert_eq!(id.f(), [4, 5]);
-}
-
-#[test]
-fn x_edges_shift_handles_self_already_wrapped_full_domain() {
+fn shift_range_x_handles_self_already_wrapped_full_domain() {
     let mut id = RangeId::new(2, 0, 0, 0).unwrap();
     id.set_x([2, 1]).unwrap();
-    assert_eq!(id.x(), [2, 1]);
-
-    let result = id.x_edges_shift(2, -1, 1).unwrap().unwrap();
-    assert_eq!(result.x(), [0, 3]);
+    let mut out = Vec::new();
+    id.shift_range(2, [0, 0], [-1, 1], [0, 0], &mut out);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].x(), [0, 3]);
 }
 
 #[test]
-fn x_edges_shift_handles_self_already_wrapped_partial() {
+fn shift_range_x_handles_self_already_wrapped_partial() {
     let mut id = RangeId::new(3, 0, 0, 0).unwrap();
     id.set_x([6, 1]).unwrap();
-    assert_eq!(id.x(), [6, 1]);
-
-    let result = id.x_edges_shift(3, -1, 1).unwrap().unwrap();
-    assert_eq!(result.x(), [5, 2]);
+    let mut out = Vec::new();
+    id.shift_range(3, [0, 0], [-1, 1], [0, 0], &mut out);
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0].x(), [5, 7]);
+    assert_eq!(out[1].x(), [0, 2]);
 }
 
-/// `target_z` が `ZoomLevel::MAX` を超える場合はエラーになる（シフト量オーバーフローで
-/// パニックしたり、リリースビルドで黙って誤った結果を返したりしてはいけない）。
 #[test]
-fn x_edges_shift_rejects_target_z_beyond_zoom_level_max() {
-    let id = RangeId::new(2, 0, 0, 0).unwrap();
-    let too_large = crate::ZoomLevel::MAX.get() + 1;
-
-    let result = id.x_edges_shift(too_large, 0, 0);
-    assert_eq!(
-        result,
-        Err(Error::SpatialId(SpatialIdError::ZOutOfRange {
-            z: too_large
-        }))
-    );
+fn shift_range_f_and_y_clamps_and_promotes_zoom() {
+    let id = RangeId::new(4, [2, 2], 0, [0, 1]).unwrap();
+    let mut out = Vec::new();
+    id.shift_range(5, [4, 5], [0, 0], [-3, 1], &mut out);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].z(), 5);
+    assert_eq!(out[0].f(), [8, 10]);
+    assert_eq!(out[0].y(), [0, 4]);
 }
 
-/// `target_z == ZoomLevel::MAX` はちょうど境界なので、エラーにならない。
 #[test]
-fn x_edges_shift_accepts_target_z_at_zoom_level_max() {
-    let id = RangeId::new(2, 0, 0, 0).unwrap();
-    let max = crate::ZoomLevel::MAX.get();
+fn shift_range_completely_out_of_bounds_is_empty() {
+    let id = RangeId::new(3, [0, 1], 0, [0, 1]).unwrap();
+    let mut out = Vec::new();
+    id.shift_range(3, [-20, -20], [0, 0], [0, 0], &mut out);
+    assert!(out.is_empty());
 
-    assert!(id.x_edges_shift(max, 0, 0).is_ok());
+    id.shift_range(3, [0, 0], [0, 0], [-5, -5], &mut out);
+    assert!(out.is_empty());
+}
+
+#[test]
+fn spatial_parent_at_zoom_wrapped_x_collapses_to_full_domain() {
+    let mut id = RangeId::new(3, 0, 0, 0).unwrap();
+    id.set_x([3, 2]).unwrap();
+    let parent = id.spatial_parent_at_zoom(2).unwrap();
+    assert_eq!(parent.x(), [0, 3]);
+}
+
+#[test]
+fn spatial_parent_at_zoom_wrapped_x_preserves_gap() {
+    let mut id = RangeId::new(3, 0, 0, 0).unwrap();
+    id.set_x([6, 1]).unwrap();
+    let parent = id.spatial_parent_at_zoom(2).unwrap();
+    assert_eq!(parent.x(), [3, 0]);
 }

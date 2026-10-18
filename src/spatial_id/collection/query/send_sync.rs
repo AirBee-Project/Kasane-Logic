@@ -22,3 +22,13 @@ impl<T: ?Sized> MaybeSendSync for T {}
 pub trait MaybeSendSync: Send + Sync {}
 #[cfg(feature = "rayon")]
 impl<T: ?Sized + Send + Sync> MaybeSendSync for T {}
+
+#[cfg(not(feature = "rayon"))]
+pub trait MaybeSend {}
+#[cfg(not(feature = "rayon"))]
+impl<T: ?Sized> MaybeSend for T {}
+
+#[cfg(feature = "rayon")]
+pub trait MaybeSend: Send {}
+#[cfg(feature = "rayon")]
+impl<T: ?Sized + Send> MaybeSend for T {}

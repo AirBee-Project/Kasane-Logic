@@ -1,14 +1,20 @@
-use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
-use crate::spatial_id::collection::query::send_sync::SafeValue;
+use crate::spatial_id::collection::query::send_sync::{MaybeSend, MaybeSendSync, SafeValue};
 use crate::{Error, FlexId, RangeId, SpatialIdTable};
 use alloc::boxed::Box;
+use alloc::vec::Vec;
 
 /// 演算子の間を流れる `(FlexId, V)` の列。カノニカル性を満たす。
+#[cfg(not(feature = "rayon"))]
 pub struct QueryIter<'a, V>(Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>);
+/// 演算子の間を流れる `(FlexId, V)` の列。カノニカル性を満たす。
+#[cfg(feature = "rayon")]
+pub struct QueryIter<'a, V>(Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>);
 
 impl<'a, V> QueryIter<'a, V> {
     /// 制約を満たす `iter` を包む。制約を守るのは呼び出し側の責任。
-    pub fn from_ordered(iter: impl Iterator<Item = Result<(FlexId, V), Error>> + 'a) -> Self {
+    pub fn from_ordered(
+        iter: impl Iterator<Item = Result<(FlexId, V), Error>> + MaybeSend + 'a,
+    ) -> Self {
         #[cfg(debug_assertions)]
         let iter = {
             let mut prev: Option<FlexId> = None;
@@ -40,7 +46,7 @@ impl<V> Iterator for QueryIter<'_, V> {
     }
 }
 
-impl<'a, V: Clone + 'a, S: 'a> From<SpatialIdTable<V, S>> for QueryIter<'a, V> {
+impl<'a, V: SafeValue + 'a, S: MaybeSendSync + 'a> From<SpatialIdTable<V, S>> for QueryIter<'a, V> {
     /// `table` を走査順に流す。
     fn from(table: SpatialIdTable<V, S>) -> Self {
         Self::from_ordered(table.into_iter().map(Ok))
@@ -60,9 +66,6 @@ pub trait BinaryOperator<V: SafeValue + 'static>: MaybeSendSync {
         lhs: QueryIter<'a, V>,
         rhs: QueryIter<'a, V>,
     ) -> Result<QueryIter<'a, V>, Error>;
-
-    /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
-    fn reverse_target(&self, output_target: RangeId) -> (Option<RangeId>, Option<RangeId>);
 }
 
 /// 単項演算子の定義。
@@ -73,6 +76,9 @@ pub trait UnaryOperator<V: SafeValue + 'static>: MaybeSendSync {
     /// [`QueryIter`] の制約を満たす `input` を受け取り、単項演算した結果を同じ制約を満たす列で返す。
     fn run<'a>(&self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error>;
 
-    /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
-    fn reverse_target(&self, output_target: RangeId) -> Option<RangeId>;
+    /// 与えられた出力領域を計算するために必要な入力領域を `out` へ追加する。
+    ///
+    /// `dyn UnaryOperator<V>` として動的ディスパッチするため `impl Iterator` は返せず、
+    /// 呼び出しごとのヒープ確保を避けるため出力先ベクタを受け取る。
+    fn reverse_target(&self, output_target: RangeId, out: &mut Vec<RangeId>);
 }
