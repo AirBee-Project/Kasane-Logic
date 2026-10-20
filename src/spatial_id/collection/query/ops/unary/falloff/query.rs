@@ -3,8 +3,7 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy};
 use crate::spatial_id::helpers::Side;
 use core::convert::TryFrom;
-use core::fmt::Debug;
-use core::ops::{Div, Mul, Sub};
+use core::ops::{Add, Div, Mul, Rem, Sub};
 
 impl<V: SafeValue + 'static> Query<V> {
     fn falloff<Z: Into<u8>, P>(
@@ -17,8 +16,15 @@ impl<V: SafeValue + 'static> Query<V> {
     ) -> Self
     where
         P: MergePolicy<V> + Send + Sync,
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone
+            + Send
+            + Sync,
     {
         if matches!(self, Query::Error(_)) {
             return self;
@@ -41,8 +47,15 @@ impl<V: SafeValue + 'static> Query<V> {
     ) -> Self
     where
         P: MergePolicy<V> + Send + Sync,
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone
+            + Send
+            + Sync,
     {
         self.falloff::<Z, P>(FalloffAxis::F, z, radius, direction, pattern)
     }
@@ -59,8 +72,15 @@ impl<V: SafeValue + 'static> Query<V> {
     ) -> Self
     where
         P: MergePolicy<V> + Send + Sync,
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone
+            + Send
+            + Sync,
     {
         self.falloff::<Z, P>(FalloffAxis::X, z, radius, direction, pattern)
     }
@@ -77,8 +97,15 @@ impl<V: SafeValue + 'static> Query<V> {
     ) -> Self
     where
         P: MergePolicy<V> + Send + Sync,
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone + Send + Sync,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone
+            + Send
+            + Sync,
     {
         self.falloff::<Z, P>(FalloffAxis::Y, z, radius, direction, pattern)
     }

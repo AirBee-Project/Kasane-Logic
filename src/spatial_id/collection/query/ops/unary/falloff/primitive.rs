@@ -2,8 +2,7 @@ use super::FalloffAxis;
 use crate::{Error, FlexId, ZoomLevel};
 use alloc::vec::Vec;
 use core::convert::TryFrom;
-use core::fmt::Debug;
-use core::ops::{Div, Mul, Sub};
+use core::ops::{Add, Div, Mul, Rem, Sub};
 
 impl FlexId {
     pub(crate) fn falloff<Z: Into<u8>, V>(
@@ -16,10 +15,18 @@ impl FlexId {
         value: &V,
     ) -> Result<alloc::vec::IntoIter<(FlexId, V)>, Error>
     where
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone,
     {
-        let z = ZoomLevel::new(z.into())?.get();
+        let zoom = ZoomLevel::new(z.into())?;
+        axis.check_radius(zoom, radius)?;
+        let attenuator = super::Attenuator::new(radius, pattern)?;
+        let z = zoom.get();
         let rad = radius as i32;
 
         let mut out = Vec::with_capacity((rad * 2 + 1) as usize);
@@ -38,7 +45,6 @@ impl FlexId {
         } else {
             rad
         };
-        let attenuator = super::Attenuator::new(radius, pattern);
         for d in min_d..=max_d {
             let attenuated = attenuator.attenuate(value, d.unsigned_abs());
             let mut push = |moved: FlexId| out.push((moved, attenuated.clone()));
@@ -74,8 +80,13 @@ impl FlexId {
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone,
     {
         self.falloff(FalloffAxis::F, z, radius, direction, pattern, value)
     }
@@ -90,8 +101,13 @@ impl FlexId {
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone,
     {
         self.falloff(FalloffAxis::X, z, radius, direction, pattern, value)
     }
@@ -106,8 +122,13 @@ impl FlexId {
         value: &V,
     ) -> Result<impl Iterator<Item = (FlexId, V)> + use<Z, V>, Error>
     where
-        V: Mul<Output = V> + Div<Output = V> + Sub<Output = V> + TryFrom<u32> + Clone,
-        <V as TryFrom<u32>>::Error: Debug,
+        V: Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>
+            + Clone,
     {
         self.falloff(FalloffAxis::Y, z, radius, direction, pattern, value)
     }
