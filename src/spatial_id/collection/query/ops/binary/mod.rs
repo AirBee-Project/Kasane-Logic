@@ -1,7 +1,7 @@
 use crate::spatial_id::collection::query::send_sync::{MaybeSend, SafeValue};
 use crate::spatial_id::collection::query::traits::QueryIter;
 use crate::spatial_id::dimension::Dimension;
-use crate::spatial_id::flex_id::CanonicalRel;
+use crate::spatial_id::flex_id::ZOrderRel;
 use crate::{Error, FlexId, Side};
 use alloc::vec::Vec;
 use core::iter::Fuse;
@@ -40,7 +40,7 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
         self.stack.pop().expect("peek 済みの要素が存在する")
     }
 
-    /// `enclosing` に含まれる先頭要素群を `dim` で 2 分割し、カノニカル順を保って `stack` に戻す。
+    /// `enclosing` に含まれる先頭要素群を `dim` で 2 分割し、Z-ordered sequence を保って `stack` に戻す。
     ///
     /// 先頭要素が `enclosing` そのものであれば 1 要素を 2 分割するだけで済むが、`first_id != enclosing`
     /// （異方性により粗い `dim` を飛ばして後続の次元で先に割られている場合）は、`dim` の下側・上側の順に
@@ -58,7 +58,7 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
             return Ok(());
         }
 
-        // 先頭が dim を飛ばして後続の走査位置で先に割られている場合、QueryIter の順序制約から
+        // 先頭が dim を飛ばして flex Z-order の後続の位置で先に割られている場合、QueryIter の順序制約から
         // enclosing 内の後続要素もすべて dim では未分割であることが保証される。
         let mut items = alloc::vec![(first_id, first_val)];
         while let Some((id, _)) = self.peek()? {
@@ -80,7 +80,7 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
     }
 }
 
-/// 2 つの [`QueryIter`] をカノニカル順に突き合わせて二項演算を行う。
+/// 2 つの [`QueryIter`] を flex Z-order で突き合わせて二項演算を行う。
 ///
 /// - `on_left`: 左辺のみに存在する領域の値を変換する関数。`None` なら出力せず、右辺枯渇時に即終了する。
 /// - `on_right`: 右辺のみに存在する領域の値を変換する関数。`None` なら出力せず、左辺枯渇時に右辺をポーリングせず即終了する。
@@ -140,27 +140,27 @@ pub(crate) fn run_binary<'a, V: SafeValue + 'static>(
                     let f = on_right.as_ref().unwrap();
                     return Some(Ok((id, f(val))));
                 }
-                (Some(a_id), Some(b_id)) => match a_id.canonical_rel(&b_id) {
-                    CanonicalRel::Less => {
+                (Some(a_id), Some(b_id)) => match a_id.zorder_rel(&b_id) {
+                    ZOrderRel::Less => {
                         let (id, val) = cur_a.pop();
                         if let Some(ref f) = on_left {
                             return Some(Ok((id, f(val))));
                         }
                     }
-                    CanonicalRel::Greater => {
+                    ZOrderRel::Greater => {
                         let (id, val) = cur_b.pop();
                         if let Some(ref f) = on_right {
                             return Some(Ok((id, f(val))));
                         }
                     }
-                    CanonicalRel::Equal => {
+                    ZOrderRel::Equal => {
                         let (id, val_a) = cur_a.pop();
                         let (_, val_b) = cur_b.pop();
                         if let Some(ref f) = on_both {
                             return Some(Ok((id, f(val_a, val_b))));
                         }
                     }
-                    CanonicalRel::Overlap {
+                    ZOrderRel::Overlap {
                         enclosing,
                         split_dim,
                         a_is_unsplit,

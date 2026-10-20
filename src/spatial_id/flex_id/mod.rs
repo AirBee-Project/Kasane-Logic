@@ -16,20 +16,20 @@ use crate::{
     },
 };
 
-/// 木の走査順（ルート、続いてズーム 1, 2, … の各深さで F→X→Y→T の順）における 2 つの [`FlexId`] の関係。
+/// flex Z-order（位置はルート、続いてズーム 1, 2, … の各深さで F→X→Y→T の順）における 2 つの [`FlexId`] の関係。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CanonicalRel {
-    /// 最初に食い違う走査位置で両方が割られており、左辺が下側（手前）、右辺が上側（奥）にある。互いに重ならない。
+pub(crate) enum ZOrderRel {
+    /// 最初に食い違う位置で両方が割られており、左辺が下側（手前）、右辺が上側（奥）にある。互いに重ならない。
     Less,
     /// 2 つの [`FlexId`] が完全に一致している。
     Equal,
-    /// 最初に食い違う走査位置で両方が割られており、左辺が上側（奥）、右辺が下側（手前）にある。互いに重ならない。
+    /// 最初に食い違う位置で両方が割られており、左辺が上側（奥）、右辺が下側（手前）にある。互いに重ならない。
     Greater,
-    /// 最初に食い違う走査位置で片方だけが割られている（包含関係にあるか、異方性により走査順が定まらない）。
+    /// 最初に食い違う位置で片方だけが割られている（包含関係にあるか、異方性により flex Z-order で比較できない）。
     Overlap {
-        /// 最初に食い違う走査位置の直前まで一致している共通の祖先領域。両方の [`FlexId`] を含む。
+        /// 最初に食い違う位置の直前まで一致している共通の祖先領域。両方の [`FlexId`] を含む。
         enclosing: FlexId,
-        /// `enclosing` の直後の走査位置で、片方だけが割っている次元。
+        /// `enclosing` の直後の位置で、片方だけが割っている次元。
         split_dim: Dimension,
         /// `split_dim` でまだ割られていない（粗い）側が左辺（`self`）なら `true`、右辺（`other`）なら `false`。
         a_is_unsplit: bool,
@@ -739,11 +739,11 @@ impl FlexId {
         Dimension::mask(|d| self.zoomlevel_on(d) > other.zoomlevel_on(d))
     }
 
-    /// 木の走査順での各位置について、自身がどちら側にあるかを、走査で先に割る位置から順に返す。
+    /// flex Z-order の各位置について、自身がどちら側にあるかを、先に割る位置から順に返す。
     ///
     /// 位置はルート（F の符号）、続いてズーム 1, 2, … の各ズームで F→X→Y→T の順。
     /// 自身がその位置で割られていなければ [`None`]、割られていれば上側なら `true`。
-    fn canonical_sides(&self) -> impl Iterator<Item = Option<bool>> + '_ {
+    fn zorder_sides(&self) -> impl Iterator<Item = Option<bool>> + '_ {
         let levels = (1..=TZoomLevel::MAX.get()).flat_map(move |level| {
             Dimension::ALL
                 .into_iter()
@@ -756,81 +756,81 @@ impl FlexId {
         core::iter::once(Some(self.root_index() == 1)).chain(levels)
     }
 
-    /// 木の走査順に並べ替えるためのキーを返す。
+    /// flex Z-order に並べ替えるためのキーを返す。
     ///
-    /// 走査で先に割る位置を上位ビットとし、各位置の側（上側なら 1、割られていなければ 0）を並べた値。
-    /// [`QueryIter`](crate::spatial_id::collection::query::traits::QueryIter) の制約を満たす列は、
+    /// 先に割る位置を上位ビットとし、各位置の側（上側なら 1、割られていなければ 0）を並べた値。
+    /// Z-ordered sequence（[`QueryIter`](crate::spatial_id::collection::query::traits::QueryIter) が満たす列）は、
     /// このキーの狭義の昇順に並ぶ。
-    pub fn canonical_key(&self) -> u128 {
-        self.canonical_sides()
+    pub fn zorder_key(&self) -> u128 {
+        self.zorder_sides()
             .fold(0, |key, side| key << 1 | u128::from(side == Some(true)))
     }
 
-    /// 木の走査順で `self` と `other` を比べる。
+    /// flex Z-order で `self` と `other` を比べる。
     ///
     /// 最初に食い違う位置で両方が割られていれば、その位置の側で順序を返す。
     /// 重なっている場合と、片方だけが割られた位置で先に食い違う場合は [`None`]。
-    pub fn canonical_cmp(&self, other: &FlexId) -> Option<core::cmp::Ordering> {
-        match self.canonical_rel(other) {
-            CanonicalRel::Less => Some(core::cmp::Ordering::Less),
-            CanonicalRel::Greater => Some(core::cmp::Ordering::Greater),
-            CanonicalRel::Equal | CanonicalRel::Overlap { .. } => None,
+    pub fn zorder_cmp(&self, other: &FlexId) -> Option<core::cmp::Ordering> {
+        match self.zorder_rel(other) {
+            ZOrderRel::Less => Some(core::cmp::Ordering::Less),
+            ZOrderRel::Greater => Some(core::cmp::Ordering::Greater),
+            ZOrderRel::Equal | ZOrderRel::Overlap { .. } => None,
         }
     }
 
-    /// 木の走査順における `self` と `other` の関係を求める。
+    /// flex Z-order における `self` と `other` の関係を求める。
     ///
-    /// 両方が割られた位置で先に食い違えば [`CanonicalRel::Less`] または [`CanonicalRel::Greater`]、
-    /// 完全一致なら [`CanonicalRel::Equal`]、片方だけが割られた位置で先に食い違えば
-    /// 揃えるために割るべき共通祖先領域と次元を持つ [`CanonicalRel::Overlap`] を返す。
-    pub(crate) fn canonical_rel(&self, other: &FlexId) -> CanonicalRel {
+    /// 両方が割られた位置で先に食い違えば [`ZOrderRel::Less`] または [`ZOrderRel::Greater`]、
+    /// 完全一致なら [`ZOrderRel::Equal`]、片方だけが割られた位置で先に食い違えば
+    /// 揃えるために割るべき共通祖先領域と次元を持つ [`ZOrderRel::Overlap`] を返す。
+    pub(crate) fn zorder_rel(&self, other: &FlexId) -> ZOrderRel {
         match self.root_index().cmp(&other.root_index()) {
-            core::cmp::Ordering::Less => return CanonicalRel::Less,
-            core::cmp::Ordering::Greater => return CanonicalRel::Greater,
+            core::cmp::Ordering::Less => return ZOrderRel::Less,
+            core::cmp::Ordering::Greater => return ZOrderRel::Greater,
             core::cmp::Ordering::Equal => {}
         }
 
-        let Some((agree, split_dim)) = self.first_canonical_diff(other) else {
-            return CanonicalRel::Equal;
+        let Some((agree, split_dim)) = self.first_zorder_diff(other) else {
+            return ZOrderRel::Equal;
         };
 
         let (za, zb) = (self.zoomlevel_on(split_dim), other.zoomlevel_on(split_dim));
         if agree < za.min(zb) {
             if (self.index_on(split_dim) >> (za - 1 - agree)) & 1 == 0 {
-                CanonicalRel::Less
+                ZOrderRel::Less
             } else {
-                CanonicalRel::Greater
+                ZOrderRel::Greater
             }
         } else {
-            CanonicalRel::Overlap {
-                enclosing: self.common_canonical_ancestor(other, agree, split_dim),
+            ZOrderRel::Overlap {
+                enclosing: self.common_zorder_ancestor(other, agree, split_dim),
                 split_dim,
                 a_is_unsplit: za < zb,
             }
         }
     }
 
-    /// 同じルート内で `self` が木の走査順で `other` より前にあるなら、
+    /// 同じルート内で `self` が flex Z-order で `other` より前にあるなら、
     /// 分岐する共通の祖先領域・割る次元・その次元でのズーム深さを返す。
-    pub(crate) fn canonical_fork(&self, other: &FlexId) -> Option<(FlexId, Dimension, u8)> {
+    pub(crate) fn zorder_fork(&self, other: &FlexId) -> Option<(FlexId, Dimension, u8)> {
         if self.root_index() != other.root_index() {
             return None;
         }
-        let (agree, split_dim) = self.first_canonical_diff(other)?;
+        let (agree, split_dim) = self.first_zorder_diff(other)?;
         let (za, zb) = (self.zoomlevel_on(split_dim), other.zoomlevel_on(split_dim));
         if agree >= za.min(zb) || (self.index_on(split_dim) >> (za - 1 - agree)) & 1 != 0 {
             return None;
         }
         Some((
-            self.common_canonical_ancestor(other, agree, split_dim),
+            self.common_zorder_ancestor(other, agree, split_dim),
             split_dim,
             agree,
         ))
     }
 
-    /// 同じルート内で、木の走査順において `self` と `other` が最初に食い違う `(一致ズーム深さ, 次元)` を返す。
+    /// 同じルート内で、flex Z-order において `self` と `other` が最初に食い違う `(一致ズーム深さ, 次元)` を返す。
     /// `self == other` なら [`None`]。
-    fn first_canonical_diff(&self, other: &FlexId) -> Option<(u8, Dimension)> {
+    fn first_zorder_diff(&self, other: &FlexId) -> Option<(u8, Dimension)> {
         let mut best: Option<(u8, Dimension)> = None;
         for d in Dimension::ALL {
             let (za, zb) = (self.zoomlevel_on(d), other.zoomlevel_on(d));
@@ -848,7 +848,7 @@ impl FlexId {
     }
 
     /// 最初に食い違う `(agree, split_dim)` の直前まで一致している共通の祖先領域を返す。
-    fn common_canonical_ancestor(&self, other: &FlexId, agree: u8, split_dim: Dimension) -> FlexId {
+    fn common_zorder_ancestor(&self, other: &FlexId, agree: u8, split_dim: Dimension) -> FlexId {
         let zoom = Dimension::ALL.map(|d| {
             self.zoomlevel_on(d)
                 .min(other.zoomlevel_on(d))

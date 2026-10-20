@@ -18,7 +18,7 @@ fn node_count<V, S>(node: &Node<V, S>) -> usize {
     }
 }
 
-/// 領域 `this` の Node がカノニカル形の規則を守っているか検査する。
+/// 領域 `this` の Node が canonical form の規則を守っているか検査する。
 fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
     node: &Node<V, S>,
     this: FlexId,
@@ -283,7 +283,7 @@ fn remove_restores_empty_tree() {
     assert_eq!(tree, FlexTreeCore::default());
 }
 
-/// 乱数で上書き挿入と削除を繰り返し、参照モデルと値が一致し、常にカノニカル形であることを確かめる。
+/// 乱数で上書き挿入と削除を繰り返し、参照モデルと値が一致し、常に canonical form であることを確かめる。
 /// さらに、別の分け方の FlexId（各 FlexId を半分に割ったもの・自分の FlexId を逆順）から組み直しても同じ形になることを確かめる。
 /// 粗い ID が重なり合う場合と、細かい ID が疎に散る場合（段飛ばしが多い）の両方を試す。
 #[test]
@@ -335,7 +335,7 @@ fn random_updates_match_model_and_stay_canonical() {
     }
 }
 
-/// 集合演算が参照モデルと一致し、結果もカノニカル形であることを確かめる。
+/// 集合演算が参照モデルと一致し、結果も canonical form であることを確かめる。
 #[test]
 fn set_operations_match_model() {
     let mut next = rng(7);

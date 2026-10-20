@@ -249,13 +249,13 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
         !lower.is_empty() && !upper.is_empty() && !same
     }
 
-    /// 領域 `this` を `dimension` で割った左右 `lower`,`upper` を、カノニカル形の1つの[Node]に合わせる。
+    /// 領域 `this` を `dimension` で割った左右 `lower`,`upper` を、canonical form の1つの[Node]に合わせる。
     pub(super) fn join(this: &FlexId, dimension: Dimension, lower: Self, upper: Self) -> Self {
-        // Branch はここと `merge` でしか作らない。これでどの操作の結果もカノニカル形になる。
+        // Branch はここと `merge` でしか作らない。これでどの操作の結果も canonical form になる。
         if Node::forms_branch(dimension, &lower, &upper) {
             return Node::Branch(Arc::new(Branch::new(dimension, lower, upper)));
         }
-        // カノニカル形では Branch の子は空にならない
+        // canonical form では Branch の子は空にならない
         if lower.is_empty() {
             let upper_id = this.split_on(dimension, Side::Upper).unwrap();
             return Node::rebase(upper, &upper_id, this);
@@ -349,7 +349,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
                 return;
             }
         }
-        // 結果もカノニカル形（粗い次元から割る）になるよう、両方の最初の次元のうち粗い方で割る
+        // 結果も canonical form（粗い次元から割る）になるよう、両方の最初の次元のうち粗い方で割る
         let dimension = this
             .coarsest_dimension_in(a.head_dimensions() | b.head_dimensions(this))
             .expect("Leaf どうしは rule が答えを決める");

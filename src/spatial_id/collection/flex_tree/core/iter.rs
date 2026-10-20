@@ -155,7 +155,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore<V
     }
 }
 
-/// カノニカル順（`prev.canonical_cmp(&next) == Some(Less)`）の列から、1つのルート配下の Node を下から O(n) で組む。
+/// Z-ordered sequence（`prev.zorder_cmp(&next) == Some(Less)`）から、1つのルート配下の Node を下から O(n) で組む。
 struct OrderedRootBuilder<V, S> {
     root_id: FlexId,
     prev_id: FlexId,
@@ -176,7 +176,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> OrderedRootBuilder<V, S> {
     }
 
     fn try_push(&mut self, id: FlexId, value: V) -> Result<(), (FlexId, V)> {
-        let Some((fork, split_dim, agree)) = self.prev_id.canonical_fork(&id) else {
+        let Some((fork, split_dim, agree)) = self.prev_id.zorder_fork(&id) else {
             return Err((id, value));
         };
         while let Some(&(top_fork, top_dim, top_agree, _)) = self.stack.last() {
@@ -228,7 +228,7 @@ fn finish_builders<V: PartialEq + Clone, S: Summary<V>>(
 }
 
 impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore<V, S> {
-    /// カノニカル順の列なら下から O(n) で組み立て、途中で順序が崩れていれば [`insert`](FlexTreeCore::insert) に切り替える。
+    /// Z-ordered sequence なら下から O(n) で組み立て、途中で順序が崩れていれば [`insert`](FlexTreeCore::insert) に切り替える。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
         let mut iter = iter.into_iter();
         let mut upper: Option<OrderedRootBuilder<V, S>> = None;

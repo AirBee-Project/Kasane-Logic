@@ -34,7 +34,7 @@ where
     fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
         let target_z = self.target_z.get();
 
-        // 入力列の深さ優先走査順（カノニカル順）により、同一親へ縮約される要素群は必ず
+        // 入力列が Z-ordered sequence なので、同一親へ縮約される要素群は必ず
         // 連続して出現し、親間の順序も保存されるため、ソート不要で逐次集約できる。
         if P::IS_COMMUTATIVE {
             let mut current: Option<(FlexId, V)> = None;

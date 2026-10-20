@@ -3,7 +3,7 @@ use crate::{Error, FlexId, RangeId, SpatialIdTable};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-/// 演算子の間を流れる `(FlexId, V)` の列。カノニカル性を満たす。
+/// 演算子の間を流れる `(FlexId, V)` の列。Z-ordered sequence である。
 pub struct QueryIter<'a, V>(
     #[cfg(not(feature = "rayon"))] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>,
     #[cfg(feature = "rayon")] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>,
@@ -22,7 +22,7 @@ impl<'a, V> QueryIter<'a, V> {
                     && let Some(prev) = prev.replace(*id)
                 {
                     assert_eq!(
-                        prev.canonical_cmp(id),
+                        prev.zorder_cmp(id),
                         Some(core::cmp::Ordering::Less),
                         "QueryIter の制約違反: {prev:?} の次に {id:?} が来た"
                     );

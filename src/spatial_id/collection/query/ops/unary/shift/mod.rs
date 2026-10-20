@@ -52,7 +52,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftFXY {
             return Ok(input);
         }
 
-        // 移動の桁上がりで上位のビットが変わった要素は走査順の遠くへ跳ぶので、木に集めて並べ直す
+        // 移動の桁上がりで上位のビットが変わった要素は flex Z-order で遠くへ跳ぶので、木に集めて並べ直す
         let move_into = |mut table: SpatialIdTable<V>, (id, value): &(FlexId, V)| {
             table.extend(self.shift(id)?.map(|moved| (moved, value.clone())));
             Ok::<_, Error>(table)

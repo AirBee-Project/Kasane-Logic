@@ -1,7 +1,7 @@
 //! マージ（圧縮）正当性の回帰テスト。
 //!
 //! 「merge できる FlexId が merge されない」漏れが無いことを、(1) 内部不変条件
-//! （挿入し直した木と一致する）、(2) 正規形（iter→再挿入で count 不変）、
+//! （挿入し直した木と一致する）、(2) canonical form（iter→再挿入で count 不変）、
 //! (3) 再帰 collapse のカスケード、の3観点で insert / union / intersection /
 //! difference にわたり検査する。
 #![cfg(test)]
@@ -153,7 +153,7 @@ fn table_full_cube_same_value_collapses() {
     assert!(t.count() > 1, "mixed values must not fully collapse");
 }
 
-/// 未適用のマージが残っていないこと。木は正規形で一意に定まるので、
+/// 未適用のマージが残っていないこと。木は canonical form で一意に定まるので、
 /// 全Segmentを挿入し直した木と構造が一致するかで判定する。
 fn set_is_fully_merged(set: &SpatialIdSet) -> bool {
     rebuilt(set) == *set
@@ -297,7 +297,7 @@ fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
 }
 
 proptest! {
-    /// マージが正規形（canonical）なら、iter()→再挿入で count は不変のはず。
+    /// マージが canonical form なら、iter()→再挿入で count は不変のはず。
     /// 変わるなら「構築経路依存のマージ漏れ」。
     #[ignore]
     #[test]
@@ -307,7 +307,7 @@ proptest! {
         prop_assert_eq!(set.count(), again.count(), "{}", case.debug_summary());
     }
 
-    /// union 結果も正規形か（演算後に再挿入して count 不変か）。
+    /// union 結果も canonical form か（演算後に再挿入して count 不変か）。
     #[ignore]
     #[test]
     fn union_result_is_canonical(a in arb_random_set_case(), b in arb_random_set_case()) {
@@ -319,7 +319,7 @@ proptest! {
             "union not canonical: a={} b={}", a.debug_summary(), b.debug_summary());
     }
 
-    /// difference 結果も正規形か。
+    /// difference 結果も canonical form か。
     #[ignore]
     #[test]
     fn difference_result_is_canonical(a in arb_random_set_case(), b in arb_random_set_case()) {
@@ -331,7 +331,7 @@ proptest! {
             "difference not canonical: a={} b={}", a.debug_summary(), b.debug_summary());
     }
 
-    /// intersection 結果も正規形か。
+    /// intersection 結果も canonical form か。
     #[ignore]
     #[test]
     fn intersection_result_is_canonical(a in arb_random_set_case(), b in arb_random_set_case()) {
