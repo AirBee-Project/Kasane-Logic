@@ -47,9 +47,7 @@ where
         // `Query::validate` は入力源の中まで辿らないので、内側のクエリはここで検証する
         self.inner.validate()?;
         let inner = self.inner.stream_within(targets.to_vec(), token)?;
-        Ok(QueryIter::from_ordered(inner.map(move |item| {
-            item.map(|(id, value)| (id, (self.f)(value)))
-        })))
+        Ok(inner.filter_map_ordered(move |value| Some((self.f)(value))))
     }
 }
 

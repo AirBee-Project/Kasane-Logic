@@ -75,17 +75,19 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftFXY {
                 inner: a.inner.union(&b.inner),
             };
             let mut input = input.peekable();
-            let mut moved = SpatialIdTable::new();
+            // 塊ごとに蓄積した木へ union すると、木全体の複製が塊の数だけ走るので、最後に二分木状にまとめる
+            let mut parts = Vec::new();
             while input.peek().is_some() {
                 let chunk: Vec<(FlexId, V)> =
                     input.by_ref().take(CHUNK).collect::<Result<_, _>>()?;
-                let part = chunk
-                    .par_iter()
-                    .try_fold(SpatialIdTable::new, move_into)
-                    .try_reduce(SpatialIdTable::new, |a, b| Ok(union(a, b)))?;
-                moved = union(moved, part);
+                parts.push(
+                    chunk
+                        .par_iter()
+                        .try_fold(SpatialIdTable::new, move_into)
+                        .try_reduce(SpatialIdTable::new, |a, b| Ok(union(a, b)))?,
+                );
             }
-            moved
+            parts.into_par_iter().reduce(SpatialIdTable::new, union)
         };
 
         Ok(moved.into())

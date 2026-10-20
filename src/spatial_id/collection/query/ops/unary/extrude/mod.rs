@@ -102,14 +102,28 @@ where
         sort_by_flex_id(&mut projected);
 
         let z = self.target_z.get();
+        // 射影が一致しなくても、粗い列と細かい列は引き延ばした先で重なるので、重なりも MergePolicy で合成する
+        let resolve = |a: &V, b: &V| P::resolve(a.clone(), b.clone());
         let mut table = SpatialIdTable::<V, NoSummary>::default();
         for chunk in projected.chunk_by(|a, b| a.0 == b.0) {
             let id = chunk[0].0;
             if let Some(merged) = P::resolve_many(chunk.iter().map(|(_, v)| v.clone())) {
                 match self.axis {
-                    ExtrudeAxis::F(s, e) => table.inner.insert(id.extrude_f(z, s, e)?, merged),
-                    ExtrudeAxis::X(s, e) => table.inner.insert(id.extrude_x(z, s, e)?, merged),
-                    ExtrudeAxis::Y(s, e) => table.inner.insert(id.extrude_y(z, s, e)?, merged),
+                    ExtrudeAxis::F(s, e) => {
+                        table
+                            .inner
+                            .insert_with(id.extrude_f(z, s, e)?, merged, resolve)
+                    }
+                    ExtrudeAxis::X(s, e) => {
+                        table
+                            .inner
+                            .insert_with(id.extrude_x(z, s, e)?, merged, resolve)
+                    }
+                    ExtrudeAxis::Y(s, e) => {
+                        table
+                            .inner
+                            .insert_with(id.extrude_y(z, s, e)?, merged, resolve)
+                    }
                 }
             }
         }
