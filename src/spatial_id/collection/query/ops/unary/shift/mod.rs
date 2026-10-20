@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::traits::{QueryIter, UnaryOperator};
+use crate::spatial_id::collection::query::{query_iter::QueryIter, traits::UnaryOperator};
 use crate::{Error, FlexId, RangeId, SpatialIdTable, ZoomLevel};
 
 /// FlexId単体に対する実装
@@ -11,15 +11,15 @@ pub mod query;
 #[cfg(test)]
 mod test;
 
-/// 作業木全体を、ズームレベル `z` のインデックス値で F・X・Y 方向へそれぞれ `f`・`x`・`y` 個分だけ平行移動する単項演算。
-pub struct ShiftFXY {
+/// 入力の各 FlexId を、ズームレベル `z` のインデックス値で F・X・Y 方向へそれぞれ `f`・`x`・`y` 個分だけ平行移動する単項演算。
+pub struct Shift {
     z: ZoomLevel,
     f: i32,
     x: i32,
     y: i32,
 }
 
-impl ShiftFXY {
+impl Shift {
     /// ズーム `z` のインデックス値で F・X・Y 方向へ `f`・`x`・`y` 個分移す演算子を作る。
     pub fn new<T: Into<u8>>(z: T, f: i32, x: i32, y: i32) -> Result<Self, Error> {
         let z = ZoomLevel::new(z.into())?;
@@ -39,7 +39,7 @@ impl ShiftFXY {
     }
 }
 
-impl<V: SafeValue + 'static> UnaryOperator<V> for ShiftFXY {
+impl<V: SafeValue + 'static> UnaryOperator<V> for Shift {
     fn validate(&self) -> Result<(), Error> {
         self.z.check_f(self.f)?;
         self.z.check_x(self.x.unsigned_abs())?;

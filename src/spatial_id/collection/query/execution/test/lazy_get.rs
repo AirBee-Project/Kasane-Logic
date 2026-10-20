@@ -280,14 +280,14 @@ impl crate::Source for FailingSource {
         &'a self,
         _targets: &[crate::RangeId],
         _token: &crate::CancellationToken,
-    ) -> Result<crate::spatial_id::collection::query::traits::QueryIter<'a, u32>, crate::Error>
+    ) -> Result<crate::spatial_id::collection::query::query_iter::QueryIter<'a, u32>, crate::Error>
     {
         let items = [
             Ok((FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 1)),
             Err(crate::Error::SourceRead("broken".into())),
         ];
         Ok(
-            crate::spatial_id::collection::query::traits::QueryIter::from_ordered(
+            crate::spatial_id::collection::query::query_iter::QueryIter::from_ordered(
                 items.into_iter(),
             ),
         )

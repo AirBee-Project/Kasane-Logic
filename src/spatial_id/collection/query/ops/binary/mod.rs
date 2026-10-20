@@ -1,5 +1,5 @@
+use crate::spatial_id::collection::query::query_iter::QueryIter;
 use crate::spatial_id::collection::query::send_sync::{MaybeSend, SafeValue};
-use crate::spatial_id::collection::query::traits::QueryIter;
 use crate::spatial_id::dimension::Dimension;
 use crate::spatial_id::flex_id::ZOrderRel;
 use crate::{Error, FlexId, Side};
@@ -184,7 +184,7 @@ pub(crate) fn run_binary<'a, V: SafeValue + 'static>(
 #[cfg(test)]
 mod test {
     use crate::spatial_id::collection::query::merge_policy::Sum;
-    use crate::spatial_id::collection::query::traits::QueryIter;
+    use crate::spatial_id::collection::query::query_iter::QueryIter;
     use crate::{CancellationToken, Error, FlexId, RangeId, Source, SpatialIdTable};
 
     fn rng(mut seed: u64) -> impl FnMut(u64) -> u64 {

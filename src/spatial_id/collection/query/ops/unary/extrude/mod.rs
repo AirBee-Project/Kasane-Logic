@@ -11,8 +11,7 @@ use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId, RangeId, ZoomLevel,
     spatial_id::collection::query::{
-        merge_policy::MergePolicy,
-        traits::{QueryIter, UnaryOperator},
+        merge_policy::MergePolicy, query_iter::QueryIter, traits::UnaryOperator,
     },
 };
 use alloc::vec::Vec;
@@ -24,7 +23,7 @@ pub enum ExtrudeAxis {
     Y(u32, u32),
 }
 
-/// 任意のSegmentの対象軸の座標を無視し、指定範囲に引き延ばす演算子。
+/// 各 FlexId の対象軸の座標を無視し、指定範囲に引き延ばす演算子。
 pub struct Extrude<P> {
     pub target_z: ZoomLevel,
     pub axis: ExtrudeAxis,

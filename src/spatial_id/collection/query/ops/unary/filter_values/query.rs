@@ -1,5 +1,5 @@
 use super::{FilterValues, ValuePredicate};
-use crate::spatial_id::collection::query::execution::Query;
+use crate::spatial_id::collection::query::Query;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 
 impl<V: SafeValue + Ord + 'static> Query<V> {

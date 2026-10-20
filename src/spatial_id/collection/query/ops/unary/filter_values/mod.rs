@@ -3,8 +3,7 @@ pub mod query;
 use crate::{
     Error,
     spatial_id::collection::query::{
-        send_sync::SafeValue,
-        traits::{QueryIter, UnaryOperator},
+        query_iter::QueryIter, send_sync::SafeValue, traits::UnaryOperator,
     },
 };
 
@@ -15,11 +14,11 @@ use core::ops::Bound;
 /// 比較に必要なのは `Ord` だけなので、数値だけでなく文字列・真偽値でも使える。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValuePredicate<V> {
-    /// この値を持つSegmentだけを残す。
+    /// この値を持つ FlexId だけを残す。
     Equals(V),
-    /// 範囲に入る値のSegmentだけを残す。
+    /// 範囲に入る値の FlexId だけを残す。
     InRange(Bound<V>, Bound<V>),
-    /// 範囲に入る値のSegmentを取り除く（範囲外だけを残す）。
+    /// 範囲に入る値の FlexId を取り除く（範囲外だけを残す）。
     NotInRange(Bound<V>, Bound<V>),
 }
 
@@ -39,7 +38,7 @@ impl<V: Ord> ValuePredicate<V> {
         after_start && before_end
     }
 
-    /// この値のSegmentを残すか。
+    /// この値の FlexId を残すか。
     pub fn matches(&self, value: &V) -> bool {
         match self {
             ValuePredicate::Equals(target) => value == target,
@@ -49,7 +48,7 @@ impl<V: Ord> ValuePredicate<V> {
     }
 }
 
-/// 値の条件に一致するSegmentだけを残す単項演算子。
+/// 値の条件に一致する FlexId だけを残す単項演算子。
 ///
 /// 空間的な形は変えず、条件から外れた空間IDを取り除くだけ。
 pub struct FilterValues<V> {

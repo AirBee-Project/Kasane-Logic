@@ -4,12 +4,13 @@ mod test;
 use alloc::boxed::Box;
 
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::query_iter::QueryIter;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::traits::QueryIter;
-use crate::spatial_id::collection::query::{execution::Query, source::Source};
+use crate::spatial_id::collection::query::{Query, traits::Source};
 use crate::{Error, RangeId};
 
+/// `inner` の各値を `f` で変換する。`UnaryOperator<V>` は値の型を変えられないので、`Source` として実装する。
 pub struct MapValues<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
     f: F,

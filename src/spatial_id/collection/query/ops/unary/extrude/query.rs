@@ -2,7 +2,7 @@ use super::{Extrude, ExtrudeAxis};
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     ZoomLevel,
-    spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
+    spatial_id::collection::query::{Query, merge_policy::MergePolicy},
 };
 
 impl<V: SafeValue + 'static> Query<V> {

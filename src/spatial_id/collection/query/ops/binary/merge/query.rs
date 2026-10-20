@@ -1,5 +1,5 @@
 use super::Merge;
-use crate::spatial_id::collection::query::execution::Query;
+use crate::spatial_id::collection::query::Query;
 use crate::spatial_id::collection::query::merge_policy::MergePolicy;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use alloc::boxed::Box;

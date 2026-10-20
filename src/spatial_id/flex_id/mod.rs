@@ -759,7 +759,7 @@ impl FlexId {
     /// flex Z-order に並べ替えるためのキーを返す。
     ///
     /// 先に割る位置を上位ビットとし、各位置の側（上側なら 1、割られていなければ 0）を並べた値。
-    /// Z-ordered sequence（[`QueryIter`](crate::spatial_id::collection::query::traits::QueryIter) が満たす列）は、
+    /// Z-ordered sequence（[`QueryIter`](crate::spatial_id::collection::query::query_iter::QueryIter) が満たす列）は、
     /// このキーの狭義の昇順に並ぶ。
     pub fn zorder_key(&self) -> u128 {
         self.zorder_sides()

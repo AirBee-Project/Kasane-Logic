@@ -1,5 +1,5 @@
-use super::ShiftFXY;
-use crate::spatial_id::collection::query::execution::Query;
+use super::Shift;
+use crate::spatial_id::collection::query::Query;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 
 impl<V: SafeValue + 'static> Query<V> {
@@ -8,7 +8,7 @@ impl<V: SafeValue + 'static> Query<V> {
         if matches!(self, Query::Error(_)) {
             return self;
         }
-        match ShiftFXY::new(z, f, x, y) {
+        match Shift::new(z, f, x, y) {
             Ok(op) => self.wrap_unary(op),
             Err(e) => Query::Error(e),
         }

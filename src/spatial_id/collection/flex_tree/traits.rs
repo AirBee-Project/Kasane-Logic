@@ -2,7 +2,7 @@ use crate::spatial_id::collection::flex_tree::core::Summary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::source::{QueryIter, Source};
+use crate::spatial_id::collection::query::{query_iter::QueryIter, traits::Source};
 use crate::{Error, RangeId, SpatialIdSet, SpatialIdTable};
 
 impl Source for SpatialIdSet {

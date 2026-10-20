@@ -1,53 +1,18 @@
-use super::traits::{BinaryOperator, QueryIter, UnaryOperator};
+use super::Query;
+use super::query_iter::QueryIter;
+use super::traits::{Source, UnaryOperator};
 use crate::Error;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::{RangeId, SpatialIdTable};
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::source::Source;
 
-use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
 #[cfg(test)]
 mod test;
-
-/// Query全体を表現する型。
-pub enum Query<V: SafeValue + 'static> {
-    /// 演算の起点
-    Source(Box<dyn Source<Value = V>>),
-
-    /// 連続した単項演算子
-    Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
-
-    // 二項演算
-    Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
-
-    /// エラー状態を保持
-    Error(Error),
-}
-
-// Queryの構築
-impl<V: SafeValue + 'static> Query<V> {
-    /// `self` を単項演算子で包む。
-    pub(crate) fn wrap_unary<O>(self, op: O) -> Self
-    where
-        O: UnaryOperator<V> + 'static,
-    {
-        match self {
-            Query::Unary(mut ops, input) => {
-                ops.push(Box::new(op));
-                Query::Unary(ops, input)
-            }
-            other => Query::Unary(
-                vec![Box::new(op) as Box<dyn UnaryOperator<V>>],
-                Box::new(other),
-            ),
-        }
-    }
-}
 
 // Queryの検証
 impl<V: SafeValue + 'static> Query<V> {

@@ -106,9 +106,9 @@ pub use spatial_id::zoom_level::ZoomLevel;
 
 // spatial_id: query & merge policies
 #[doc(inline)]
-pub use spatial_id::collection::query::cancellation::CancellationToken;
+pub use spatial_id::collection::query::Query;
 #[doc(inline)]
-pub use spatial_id::collection::query::execution::Query;
+pub use spatial_id::collection::query::cancellation::CancellationToken;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
@@ -116,7 +116,7 @@ pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
 pub use spatial_id::collection::query::send_sync::SafeValue;
 #[doc(inline)]
-pub use spatial_id::collection::query::source::Source;
+pub use spatial_id::collection::query::traits::Source;
 
 #[doc(inline)]
 pub use spatial_id::time::AllowedIntervals;

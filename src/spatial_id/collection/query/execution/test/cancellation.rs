@@ -64,10 +64,10 @@ fn run_unary_chain_checks_cancellation_between_ops() {
         .read_flex_ids(&bounds, &CancellationToken::new())
         .unwrap();
 
-    let a = crate::spatial_id::collection::query::ops::unary::shift::ShiftFXY::new(10, 0, 1, 0)
-        .unwrap();
-    let b = crate::spatial_id::collection::query::ops::unary::shift::ShiftFXY::new(10, 0, 2, 0)
-        .unwrap();
+    let a =
+        crate::spatial_id::collection::query::ops::unary::shift::Shift::new(10, 0, 1, 0).unwrap();
+    let b =
+        crate::spatial_id::collection::query::ops::unary::shift::Shift::new(10, 0, 2, 0).unwrap();
     let ops: [&dyn UnaryOperator<i32>; 2] = [&a, &b];
 
     let token = CancellationToken::new();

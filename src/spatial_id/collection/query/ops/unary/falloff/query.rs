@@ -1,6 +1,6 @@
 use super::{Falloff, FalloffAxis, FalloffPattern};
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy};
+use crate::spatial_id::collection::query::{Query, merge_policy::MergePolicy};
 use crate::spatial_id::helpers::Side;
 use core::convert::TryFrom;
 use core::ops::{Add, Div, Mul, Rem, Sub};

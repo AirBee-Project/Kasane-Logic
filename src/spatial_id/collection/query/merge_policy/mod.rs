@@ -1,18 +1,18 @@
 pub mod average;
-pub mod difference;
 pub mod keep_existing;
 pub mod max;
 pub mod min;
 pub mod overwrite;
 pub mod saturating_add;
+pub mod saturating_sub;
 pub mod sum;
 
 pub use average::Average;
-pub use difference::Difference;
 pub use keep_existing::KeepExisting;
 pub use max::Max;
 pub use min::Min;
 pub use overwrite::Overwrite;
+pub use saturating_sub::SaturatingSub;
 pub use sum::Sum;
 
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;

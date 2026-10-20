@@ -6,10 +6,8 @@ mod test;
 
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, NoSummary};
 use crate::spatial_id::collection::query::{
-    merge_policy::MergePolicy,
-    ops::unary::sort_by_flex_id,
-    send_sync::SafeValue,
-    traits::{QueryIter, UnaryOperator},
+    merge_policy::MergePolicy, ops::unary::sort_by_flex_id, query_iter::QueryIter,
+    send_sync::SafeValue, traits::UnaryOperator,
 };
 use crate::spatial_id::helpers::Side;
 use crate::{Error, RangeId, SpatialIdTable, ZoomLevel};
