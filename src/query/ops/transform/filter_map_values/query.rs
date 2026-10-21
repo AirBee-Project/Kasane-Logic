@@ -1,6 +1,6 @@
 use super::FilterMapValues;
 use crate::query::Query;
-use crate::query::send_sync::{MaybeSendSync, SafeValue};
+use crate::query::SafeValue;
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
@@ -24,7 +24,7 @@ impl<V: SafeValue + 'static> Query<V> {
     pub fn filter_map_values<U, F>(self, f: F) -> Query<U>
     where
         U: SafeValue + 'static,
-        F: Fn(V) -> Option<U> + MaybeSendSync + 'static,
+        F: Fn(V) -> Option<U> + Send + Sync + 'static,
     {
         Query::Source(Box::new(FilterMapValues {
             inner: self,
@@ -37,7 +37,7 @@ impl<V: SafeValue + 'static> Query<V> {
     pub fn map_values<U, F>(self, f: F) -> Query<U>
     where
         U: SafeValue + 'static,
-        F: Fn(V) -> U + MaybeSendSync + 'static,
+        F: Fn(V) -> U + Send + Sync + 'static,
     {
         self.filter_map_values(move |value| Some(f(value)))
     }
@@ -45,7 +45,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// 各値を `f` に渡し、`true` を返した要素だけを残す。
     pub fn filter_values<F>(self, f: F) -> Self
     where
-        F: Fn(&V) -> bool + MaybeSendSync + 'static,
+        F: Fn(&V) -> bool + Send + Sync + 'static,
     {
         self.filter_map_values(move |value| f(&value).then_some(value))
     }

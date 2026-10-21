@@ -1,7 +1,7 @@
 use super::FilterMap;
 use crate::FlexId;
 use crate::query::Query;
-use crate::query::send_sync::{MaybeSendSync, SafeValue};
+use crate::query::SafeValue;
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
@@ -14,7 +14,7 @@ impl<V: SafeValue + 'static> Query<V> {
     pub fn filter_map<U, F>(self, f: F) -> Query<U>
     where
         U: SafeValue + 'static,
-        F: Fn(FlexId, V) -> Option<U> + MaybeSendSync + 'static,
+        F: Fn(FlexId, V) -> Option<U> + Send + Sync + 'static,
     {
         Query::Source(Box::new(FilterMap {
             inner: self,
@@ -27,7 +27,7 @@ impl<V: SafeValue + 'static> Query<V> {
     pub fn map<U, F>(self, f: F) -> Query<U>
     where
         U: SafeValue + 'static,
-        F: Fn(FlexId, V) -> U + MaybeSendSync + 'static,
+        F: Fn(FlexId, V) -> U + Send + Sync + 'static,
     {
         self.filter_map(move |id, value| Some(f(id, value)))
     }
@@ -36,7 +36,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`FlexId`] の扱いは [`filter_map`](Self::filter_map) と同じ。
     pub fn filter<F>(self, f: F) -> Self
     where
-        F: Fn(FlexId, &V) -> bool + MaybeSendSync + 'static,
+        F: Fn(FlexId, &V) -> bool + Send + Sync + 'static,
     {
         self.filter_map(move |id, value| f(id, &value).then_some(value))
     }

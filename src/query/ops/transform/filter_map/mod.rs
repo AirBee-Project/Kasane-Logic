@@ -3,10 +3,9 @@ pub(crate) mod query;
 #[cfg(test)]
 mod test;
 
+use crate::query::SafeValue;
 use crate::query::cancellation::CancellationToken;
 use crate::query::query_iter::QueryIter;
-use crate::query::send_sync::MaybeSendSync;
-use crate::query::send_sync::SafeValue;
 use crate::query::{Query, traits::Source};
 use crate::{Error, FlexId, RangeId};
 
@@ -21,7 +20,7 @@ impl<V, U, F> Source for FilterMap<V, U, F>
 where
     V: SafeValue + 'static,
     U: SafeValue + 'static,
-    F: Fn(FlexId, V) -> Option<U> + MaybeSendSync + 'static,
+    F: Fn(FlexId, V) -> Option<U> + Send + Sync + 'static,
 {
     type Value = U;
 

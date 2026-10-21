@@ -1,19 +1,16 @@
-use crate::query::send_sync::{MaybeSend, MaybeSendSync, SafeValue};
+use crate::query::SafeValue;
 use crate::{Error, FlexId, SpatialIdMap};
 use alloc::boxed::Box;
 #[cfg(feature = "rayon")]
 use alloc::vec::Vec;
 
 /// 演算子の間を流れる `(FlexId, V)` の列。FlexId の Z-order 列である。
-pub struct QueryIter<'a, V>(
-    #[cfg(not(feature = "rayon"))] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>,
-    #[cfg(feature = "rayon")] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>,
-);
+pub struct QueryIter<'a, V>(Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>);
 
 impl<'a, V> QueryIter<'a, V> {
     /// 制約を満たす `iter` を包む。制約を守るのは呼び出し側の責任。
     pub fn from_ordered(
-        iter: impl Iterator<Item = Result<(FlexId, V), Error>> + MaybeSend + 'a,
+        iter: impl Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a,
     ) -> Self {
         #[cfg(debug_assertions)]
         let iter = {
@@ -34,12 +31,12 @@ impl<'a, V> QueryIter<'a, V> {
 
     /// 要素ごとに独立な変換 `f` を、順序を保ったまま適用する。`None` を返した要素は取り除く。
     #[cfg(not(feature = "rayon"))]
-    pub(crate) fn filter_map_ordered<U: MaybeSend + 'a>(
+    pub(crate) fn filter_map_ordered<U: Send + 'a>(
         self,
-        f: impl Fn(FlexId, V) -> Option<U> + MaybeSendSync + 'a,
+        f: impl Fn(FlexId, V) -> Option<U> + Send + Sync + 'a,
     ) -> QueryIter<'a, U>
     where
-        V: MaybeSend + 'a,
+        V: Send + 'a,
     {
         QueryIter::from_ordered(self.filter_map(move |item| match item {
             Ok((id, value)) => f(id, value).map(|value| Ok((id, value))),
@@ -53,12 +50,12 @@ impl<'a, V> QueryIter<'a, V> {
     /// 変換に見込む時間がスレッドを起こす費用を十分に上回る塊だけを並列で処理する。
     /// 逐次の塊は 1 件ずつ遅延で流し、バッファを持たない。
     #[cfg(feature = "rayon")]
-    pub(crate) fn filter_map_ordered<U: MaybeSend + 'a>(
+    pub(crate) fn filter_map_ordered<U: Send + 'a>(
         self,
-        f: impl Fn(FlexId, V) -> Option<U> + MaybeSendSync + 'a,
+        f: impl Fn(FlexId, V) -> Option<U> + Send + Sync + 'a,
     ) -> QueryIter<'a, U>
     where
-        V: MaybeSend + 'a,
+        V: Send + 'a,
     {
         use core::time::Duration;
         use rayon::prelude::*;
@@ -161,7 +158,7 @@ impl<V> Iterator for QueryIter<'_, V> {
     }
 }
 
-impl<'a, V: SafeValue + 'static, S: MaybeSendSync + 'static> From<SpatialIdMap<V, S>>
+impl<'a, V: SafeValue + 'static, S: Send + Sync + 'static> From<SpatialIdMap<V, S>>
     for QueryIter<'a, V>
 {
     fn from(table: SpatialIdMap<V, S>) -> Self {

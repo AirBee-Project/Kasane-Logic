@@ -2,7 +2,7 @@ pub(crate) mod query;
 
 use crate::{
     Error, QueryError,
-    query::{query_iter::QueryIter, send_sync::SafeValue, traits::UnaryOperator},
+    query::{SafeValue, query_iter::QueryIter, traits::UnaryOperator},
 };
 
 use core::ops::Bound;
