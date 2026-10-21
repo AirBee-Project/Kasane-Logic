@@ -21,8 +21,8 @@ pub(crate) enum TableEntry {
 impl TableEntry {
     fn insert_into(&self, table: &mut SpatialIdMap<i32>) {
         match self {
-            TableEntry::Single(single_id, value) => table.insert(single_id.clone(), *value),
-            TableEntry::Range(range_id, value) => table.insert(range_id.clone(), *value),
+            TableEntry::Single(single_id, value) => table.insert(*single_id, *value),
+            TableEntry::Range(range_id, value) => table.insert(*range_id, *value),
         }
     }
 }

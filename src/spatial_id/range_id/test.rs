@@ -95,5 +95,5 @@ fn scale_to_zoom_and_spatial_id_methods() {
     let _ = id.spatial_center();
     let _ = id.spatial_vertices();
 
-    assert_eq!(id.clone().single_ids().count(), 6 * 2 * 2);
+    assert_eq!(id.single_ids().count(), 6 * 2 * 2);
 }

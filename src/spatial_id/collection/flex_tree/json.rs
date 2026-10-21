@@ -375,7 +375,7 @@ mod tests {
             .with_time(Interval::HOUR, [5, 5])
             .unwrap();
         let entry = IdEntry {
-            range_id: range_id.clone(),
+            range_id,
             r#ref: None,
         };
 
@@ -407,7 +407,7 @@ mod tests {
             .unwrap();
 
         let mut table: SpatialIdMap<i32> = SpatialIdMap::new();
-        table.insert(original.clone(), 7);
+        table.insert(original, 7);
         assert!(table.count() > 1, "1800秒は複数Segmentへ分解されるはず");
 
         let json = serde_json::to_string(&table).unwrap();
@@ -436,7 +436,7 @@ mod tests {
 
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         let mut set = SpatialIdSet::new();
-        set.insert(base.clone().with_time(Interval::HOUR, 0).unwrap());
+        set.insert(base.with_time(Interval::HOUR, 0).unwrap());
         set.insert(base.with_time(Interval::HOUR, 1).unwrap());
 
         let json = serde_json::to_string(&set).unwrap();

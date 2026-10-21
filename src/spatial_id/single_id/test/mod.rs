@@ -200,7 +200,7 @@ mod tests {
         assert_eq!(root.spatial_parent(), None);
 
         let child = SingleId::new(1, 0, 0, 0).unwrap();
-        assert_eq!(child.spatial_parent(), Some(root.clone()));
+        assert_eq!(child.spatial_parent(), Some(root));
 
         let children: Vec<_> = root.spatial_children().unwrap().collect();
         assert_eq!(children.len(), 8);
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(id.x(), 7);
         assert_eq!(id.y(), 13);
 
-        let single_list: Vec<_> = id.clone().single_ids().collect();
-        assert_eq!(single_list, vec![id.clone()]);
+        let single_list: Vec<_> = id.single_ids().collect();
+        assert_eq!(single_list, vec![id]);
     }
 }

@@ -134,7 +134,7 @@ pub fn checkerboard(z: u8, count: usize) -> Vec<SingleId> {
 pub fn build_set(ids: &[SingleId]) -> SpatialIdSet {
     let mut set = SpatialIdSet::new();
     for id in ids {
-        set.insert(id.clone());
+        set.insert(*id);
     }
     set
 }

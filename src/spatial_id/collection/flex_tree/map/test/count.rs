@@ -29,7 +29,7 @@ mod tests {
         ]);
 
         let remove_target = SingleId::new(4, 3, 2, 2).unwrap();
-        table.remove(remove_target.clone());
+        table.remove(remove_target);
 
         assert_count_consistent(&table);
     }

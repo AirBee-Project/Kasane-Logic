@@ -37,7 +37,7 @@ impl CoverSingleIds for Triangle {
         let voxels = self
             .divide(steps)?
             .flat_map(move |tri| tri.single_ids_limited(z).ok().into_iter().flatten())
-            .filter(move |voxel| seen.insert(voxel.clone()));
+            .filter(move |voxel| seen.insert(*voxel));
         Ok(voxels.map(move |id| (id, value.clone())))
     }
 }

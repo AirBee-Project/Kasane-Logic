@@ -10,10 +10,10 @@ mod tests {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
         let mut table = SpatialIdMap::new();
 
-        table.insert(target.clone(), 10);
-        table.insert(target.clone(), 20);
+        table.insert(target, 10);
+        table.insert(target, 20);
 
-        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![20]);
         assert!(
             table
@@ -40,8 +40,8 @@ mod tests {
         let second = SingleId::new(4, 3, 2, 2).unwrap();
 
         let table = build_table(&[
-            TableEntry::Single(first.clone(), 10),
-            TableEntry::Single(second.clone(), 10),
+            TableEntry::Single(first, 10),
+            TableEntry::Single(second, 10),
         ]);
 
         assert_eq!(
@@ -58,7 +58,7 @@ mod tests {
     #[test]
     fn insert_range_is_reflected_in_flat_single_ids() {
         let range = RangeId::new(3, [0, 1], [1, 1], [2, 2]).unwrap();
-        let table = build_table(&[TableEntry::Range(range.clone(), 30)]);
+        let table = build_table(&[TableEntry::Range(range, 30)]);
 
         let actual: Vec<_> = table
             .flat_single_ids(None)

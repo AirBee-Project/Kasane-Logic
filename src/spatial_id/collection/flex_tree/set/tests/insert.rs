@@ -10,7 +10,7 @@ mod tests {
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(3, 3, 3, 3).unwrap();
-        set.insert(single_id.clone());
+        set.insert(single_id);
 
         //SetからSingleIdを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -29,7 +29,7 @@ mod tests {
 
         //RangeIdの作成と挿入
         let range_id = RangeId::new(4, [-4, 5], [2, 10], [3, 3]).unwrap();
-        set.insert(range_id.clone());
+        set.insert(range_id);
 
         //SetからSingleIdを取り出す
         let mut single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -52,7 +52,7 @@ mod tests {
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(0, 0, 0, 0).unwrap();
-        set.insert(single_id.clone());
+        set.insert(single_id);
 
         //SetからSingleIdを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -72,7 +72,7 @@ mod tests {
 
         //RangeIdの作成と挿入
         let range_id = RangeId::new(0, [-1, 0], [0, 0], [0, 0]).unwrap();
-        set.insert(range_id.clone());
+        set.insert(range_id);
 
         //SetからRangeIdを取り出す
         let mut single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -98,7 +98,7 @@ mod tests {
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(ZoomLevel::MAX, 10, 10, 10).unwrap();
-        set.insert(single_id.clone());
+        set.insert(single_id);
 
         //SetからSingleIdを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -118,7 +118,7 @@ mod tests {
 
         //SingleIdの作成と挿入
         let single_id = SingleId::new(ZoomLevel::MAX.get(), ZoomLevel::MAX.f_min(), 0, 0).unwrap();
-        set.insert(single_id.clone());
+        set.insert(single_id);
 
         //SetからRangeIdを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -144,7 +144,7 @@ mod tests {
             ZoomLevel::MAX.xy_max(),
         )
         .unwrap();
-        set.insert(single_id.clone());
+        set.insert(single_id);
 
         //SetからRangeIdを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -168,8 +168,8 @@ mod tests {
         let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
         let single_id_b = SingleId::new(3, 1, 1, 0).unwrap();
 
-        set.insert(single_id_a.clone());
-        set.insert(single_id_b.clone());
+        set.insert(single_id_a);
+        set.insert(single_id_b);
 
         //SetからSingleIdを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -192,8 +192,8 @@ mod tests {
         let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
         let single_id_b = SingleId::new(4, 3, 2, 0).unwrap();
 
-        set.insert(single_id_a.clone());
-        set.insert(single_id_b.clone());
+        set.insert(single_id_a);
+        set.insert(single_id_b);
 
         //SetからRangeIdを取り出す
         let flex_ids: Vec<FlexId> = set.iter().collect();
@@ -221,8 +221,8 @@ mod tests {
         let single_id_a = SingleId::new(4, 3, 2, 1).unwrap();
         let single_id_b = SingleId::new(4, 3, 2, 2).unwrap();
 
-        set.insert(single_id_a.clone());
-        set.insert(single_id_b.clone());
+        set.insert(single_id_a);
+        set.insert(single_id_b);
 
         //SetからRangeIdを取り出す
         let mut single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();
@@ -255,7 +255,7 @@ mod tests {
         )
         .unwrap();
 
-        set.insert(range_id.clone());
+        set.insert(range_id);
 
         //SetからSingleidを取り出す
         let single_ids: Vec<SingleId> = set.iter().flat_map(FlexId::single_ids).collect();

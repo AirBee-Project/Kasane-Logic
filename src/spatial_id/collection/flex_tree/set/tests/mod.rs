@@ -54,8 +54,8 @@ pub(crate) enum RandomSetInsert {
 impl RandomSetInsert {
     fn insert_into(&self, set: &mut SpatialIdSet) {
         match self {
-            RandomSetInsert::Single(single_id) => set.insert(single_id.clone()),
-            RandomSetInsert::Range(range_id) => set.insert(range_id.clone()),
+            RandomSetInsert::Single(single_id) => set.insert(*single_id),
+            RandomSetInsert::Range(range_id) => set.insert(*range_id),
         }
     }
 
