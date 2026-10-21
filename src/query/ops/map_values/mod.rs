@@ -3,10 +3,9 @@ mod test;
 
 use alloc::boxed::Box;
 
+use crate::query::SafeValue;
 use crate::query::cancellation::CancellationToken;
 use crate::query::query_iter::QueryIter;
-use crate::query::send_sync::MaybeSendSync;
-use crate::query::send_sync::SafeValue;
 use crate::query::{Query, traits::Source};
 use crate::{Error, RangeId};
 
@@ -36,7 +35,7 @@ impl<V, U, F> Source for MapValues<V, U, F>
 where
     V: SafeValue + 'static,
     U: SafeValue + 'static,
-    F: Fn(V) -> U + MaybeSendSync + 'static,
+    F: Fn(V) -> U + Send + Sync + 'static,
 {
     type Value = U;
 
@@ -62,7 +61,7 @@ impl<V: SafeValue + 'static> Query<V> {
     pub fn map_values<U, F>(self, f: F) -> Query<U>
     where
         U: SafeValue + 'static,
-        F: Fn(V) -> U + MaybeSendSync + 'static,
+        F: Fn(V) -> U + Send + Sync + 'static,
     {
         Query::Source(Box::new(MapValues::new(self, f)))
     }

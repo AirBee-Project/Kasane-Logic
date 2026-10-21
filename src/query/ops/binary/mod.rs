@@ -1,7 +1,7 @@
 use crate::id::dimension::Dimension;
 use crate::id::flex_id::ZOrderRel;
+use crate::query::SafeValue;
 use crate::query::query_iter::QueryIter;
-use crate::query::send_sync::{MaybeSend, SafeValue};
 use crate::{Error, FlexId, Side};
 use alloc::vec::Vec;
 use core::iter::Fuse;
@@ -88,9 +88,9 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
 pub(crate) fn run_binary<'a, V: SafeValue + 'static>(
     lhs: QueryIter<'a, V>,
     rhs: QueryIter<'a, V>,
-    on_left: Option<impl Fn(V) -> V + MaybeSend + 'a>,
-    on_right: Option<impl Fn(V) -> V + MaybeSend + 'a>,
-    on_both: Option<impl Fn(V, V) -> V + MaybeSend + 'a>,
+    on_left: Option<impl Fn(V) -> V + Send + 'a>,
+    on_right: Option<impl Fn(V) -> V + Send + 'a>,
+    on_both: Option<impl Fn(V, V) -> V + Send + 'a>,
 ) -> Result<QueryIter<'a, V>, Error> {
     let mut cur_a = StreamCursor::new(lhs);
     let mut cur_b = StreamCursor::new(rhs);

@@ -1,4 +1,4 @@
-use crate::query::send_sync::SafeValue;
+use crate::query::SafeValue;
 use crate::query::{query_iter::QueryIter, traits::UnaryOperator};
 use crate::{Error, FlexId, RangeId, SpatialIdMap, ZoomLevel};
 

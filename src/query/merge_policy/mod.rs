@@ -18,10 +18,8 @@ pub use saturating_add::SaturatingAdd;
 pub use saturating_sub::SaturatingSub;
 pub use sum::Sum;
 
-use crate::query::send_sync::MaybeSendSync;
-
 /// 同一の空間に複数の値が集まったときに、それらを1つの値に集約する規則。
-pub trait MergePolicy<V>: MaybeSendSync + 'static {
+pub trait MergePolicy<V>: Send + Sync + 'static {
     /// この集約規則が可換（`resolve(a, b) == resolve(b, a)`）であるかどうか
     const IS_COMMUTATIVE: bool;
 

@@ -4,8 +4,8 @@ pub(crate) mod query;
 mod test;
 
 use crate::Error;
+use crate::query::SafeValue;
 use crate::query::ops::binary::run_binary;
-use crate::query::send_sync::SafeValue;
 use crate::query::{merge_policy::MergePolicy, query_iter::QueryIter, traits::BinaryOperator};
 
 /// `MergePolicy` で重ね合わせる二項演算子。
