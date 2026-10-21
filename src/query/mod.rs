@@ -12,7 +12,6 @@ pub use crate::error::QueryError;
 pub use cancellation::CancellationToken;
 pub use execution::{IntoTargets, QueryOutput};
 pub use ops::unary::falloff::FalloffPattern;
-pub use ops::unary::filter_values::ValuePredicate;
 pub use query_iter::QueryIter;
 pub use send_sync::{MaybeSend, MaybeSendSync, SafeValue};
 pub use traits::{BinaryOperator, Source, UnaryOperator};

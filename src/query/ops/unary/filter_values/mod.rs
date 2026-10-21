@@ -7,11 +7,9 @@ use crate::{
 
 use core::ops::Bound;
 
-/// 値に対する絞り込み条件。
-///
-/// 比較に必要なのは `Ord` だけなので、数値だけでなく文字列・真偽値でも使える。
+/// 値に対する宣言的な絞り込み条件。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ValuePredicate<V> {
+pub(crate) enum ValuePredicate<V> {
     /// この値を持つ FlexId だけを残す。
     Equals(V),
     /// 範囲に入る値の FlexId だけを残す。
@@ -37,7 +35,7 @@ impl<V: Ord> ValuePredicate<V> {
     }
 
     /// この値の FlexId を残すか。
-    pub fn matches(&self, value: &V) -> bool {
+    fn matches(&self, value: &V) -> bool {
         match self {
             ValuePredicate::Equals(target) => value == target,
             ValuePredicate::InRange(start, end) => Self::in_range(value, start, end),
@@ -49,12 +47,12 @@ impl<V: Ord> ValuePredicate<V> {
 /// 値の条件に一致する FlexId だけを残す単項演算子。
 ///
 /// 空間的な形は変えず、条件から外れた空間IDを取り除くだけ。
-pub struct FilterValues<V> {
+pub(crate) struct FilterValues<V> {
     predicate: ValuePredicate<V>,
 }
 
 impl<V> FilterValues<V> {
-    pub fn new(predicate: ValuePredicate<V>) -> Self {
+    pub(crate) fn new(predicate: ValuePredicate<V>) -> Self {
         Self { predicate }
     }
 }

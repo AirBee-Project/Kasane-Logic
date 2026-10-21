@@ -5,7 +5,7 @@ use crate::query::send_sync::SafeValue;
 impl<V: SafeValue + Ord + 'static> Query<V> {
     /// 指定した値を持つ空間IDだけを残す。
     pub fn filter_eq(self, value: V) -> Self {
-        self.filter_values(ValuePredicate::Equals(value))
+        self.filter_by(ValuePredicate::Equals(value))
     }
 
     /// 範囲に入る空間IDだけを残す。
@@ -14,7 +14,7 @@ impl<V: SafeValue + Ord + 'static> Query<V> {
         R: core::ops::RangeBounds<V>,
         V: Clone,
     {
-        self.filter_values(ValuePredicate::InRange(
+        self.filter_by(ValuePredicate::InRange(
             range.start_bound().cloned(),
             range.end_bound().cloned(),
         ))
@@ -26,14 +26,13 @@ impl<V: SafeValue + Ord + 'static> Query<V> {
         R: core::ops::RangeBounds<V>,
         V: Clone,
     {
-        self.filter_values(ValuePredicate::NotInRange(
+        self.filter_by(ValuePredicate::NotInRange(
             range.start_bound().cloned(),
             range.end_bound().cloned(),
         ))
     }
 
-    /// 値の条件で空間IDを絞り込む。
-    pub fn filter_values(self, predicate: ValuePredicate<V>) -> Self {
+    fn filter_by(self, predicate: ValuePredicate<V>) -> Self {
         if matches!(self, Query::Error(_)) {
             return self;
         }

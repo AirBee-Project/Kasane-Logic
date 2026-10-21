@@ -36,13 +36,13 @@ impl<'a, V> QueryIter<'a, V> {
     #[cfg(not(feature = "rayon"))]
     pub(crate) fn filter_map_ordered<U: MaybeSend + 'a>(
         self,
-        f: impl Fn(V) -> Option<U> + MaybeSendSync + 'a,
+        f: impl Fn(FlexId, V) -> Option<U> + MaybeSendSync + 'a,
     ) -> QueryIter<'a, U>
     where
         V: MaybeSend + 'a,
     {
         QueryIter::from_ordered(self.filter_map(move |item| match item {
-            Ok((id, value)) => f(value).map(|value| Ok((id, value))),
+            Ok((id, value)) => f(id, value).map(|value| Ok((id, value))),
             Err(e) => Some(Err(e)),
         }))
     }
@@ -55,7 +55,7 @@ impl<'a, V> QueryIter<'a, V> {
     #[cfg(feature = "rayon")]
     pub(crate) fn filter_map_ordered<U: MaybeSend + 'a>(
         self,
-        f: impl Fn(V) -> Option<U> + MaybeSendSync + 'a,
+        f: impl Fn(FlexId, V) -> Option<U> + MaybeSendSync + 'a,
     ) -> QueryIter<'a, U>
     where
         V: MaybeSend + 'a,
@@ -88,7 +88,7 @@ impl<'a, V> QueryIter<'a, V> {
         }
 
         let apply = move |item: Result<(FlexId, V), Error>| match item {
-            Ok((id, value)) => f(value).map(|value| Ok((id, value))),
+            Ok((id, value)) => f(id, value).map(|value| Ok((id, value))),
             Err(e) => Some(Err(e)),
         };
 
