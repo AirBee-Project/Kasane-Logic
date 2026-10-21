@@ -1,6 +1,6 @@
 use alloc::format;
 use alloc::string::String;
-use alloc::sync::Arc;
+use triomphe::Arc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 

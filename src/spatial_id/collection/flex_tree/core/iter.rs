@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use triomphe::Arc;
 use alloc::vec::Vec;
 use core::iter::FusedIterator;
 
