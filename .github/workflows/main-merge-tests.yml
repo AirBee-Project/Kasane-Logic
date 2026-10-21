@@ -5,10 +5,14 @@ on:
     branches:
       - main
     types: [opened, synchronize, reopened, ready_for_review]
+  # PR から復元できるキャッシュは自 PR と main で保存したものだけなので、main でも実行して保存しておく
+  push:
+    branches:
+      - main
 
 jobs:
   fmt:
-    if: github.event.pull_request.draft == false
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     name: cargo fmt
     runs-on: ubuntu-24.04
     steps:
@@ -30,7 +34,7 @@ jobs:
         run: cargo fmt --all -- --check
 
   verify:
-    if: github.event.pull_request.draft == false
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: fmt
@@ -47,6 +51,9 @@ jobs:
         with:
           components: clippy
 
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
       - name: Setup mold
         if: matrix.os == 'ubuntu-24.04'
         uses: rui314/setup-mold@v1
@@ -62,7 +69,7 @@ jobs:
           set -euo pipefail
           features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
-            cargo test --locked --lib --bins --tests --no-default-features --features "$feature"
+            cargo nextest run --locked --lib --bins --tests --no-default-features --features "$feature"
           done
 
       - name: Test ignored
@@ -71,7 +78,7 @@ jobs:
           set -euo pipefail
           features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
-            cargo test --locked --lib --bins --tests --no-default-features --features "$feature" -- --ignored
+            cargo nextest run --locked --lib --bins --tests --no-default-features --features "$feature" --run-ignored ignored-only
           done
 
       - name: Doctest
