@@ -1,6 +1,6 @@
 use super::FilterMapValues;
-use crate::query::Query;
 use crate::query::SafeValue;
+use crate::query::{Node, Query};
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
@@ -26,11 +26,11 @@ impl<V: SafeValue + 'static> Query<V> {
         U: SafeValue + 'static,
         F: Fn(V) -> Option<U> + Send + Sync + 'static,
     {
-        Query::Source(Box::new(FilterMapValues {
+        Query(Node::Source(Box::new(FilterMapValues {
             inner: self,
             f,
             _marker: core::marker::PhantomData,
-        }))
+        })))
     }
 
     /// 各値を `f` で写す。値は別の型へ写せる。

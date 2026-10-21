@@ -1,6 +1,7 @@
 use super::Query;
 use super::query_iter::QueryIter;
 use super::traits::{Source, UnaryOperator};
+use crate::query::Node;
 use crate::query::SafeValue;
 use crate::query::cancellation::CancellationToken;
 use crate::{Error, QueryError, RangeId};
@@ -18,21 +19,21 @@ pub use targets::IntoTargets;
 impl<V: SafeValue + 'static> Query<V> {
     /// 実行までに全てのQueryのパラメーターが正常値の範囲内か検証する。
     pub fn validate(&self) -> Result<(), Error> {
-        match self {
-            Query::Source(_) => Ok(()),
-            Query::Unary(ops, input) => {
+        match &self.0 {
+            Node::Source(_) => Ok(()),
+            Node::Unary(ops, input) => {
                 input.validate()?;
                 for op in ops {
                     op.validate()?;
                 }
                 Ok(())
             }
-            Query::Binary(op, lhs, rhs) => {
+            Node::Binary(op, lhs, rhs) => {
                 lhs.validate()?;
                 rhs.validate()?;
                 op.validate()
             }
-            Query::Error(e) => Err(e.clone()),
+            Node::Error(e) => Err(e.clone()),
         }
     }
 }
@@ -349,9 +350,9 @@ impl<V: SafeValue + 'static> Query<V> {
             return Ok(QueryIter::from_ordered(core::iter::empty()));
         }
 
-        match self {
-            Query::Source(s) => read_source(&**s, &bounds, token),
-            Query::Unary(ops, input) => {
+        match &self.0 {
+            Node::Source(s) => read_source(&**s, &bounds, token),
+            Node::Unary(ops, input) => {
                 let mut req = bounds;
                 for op in ops.iter().rev() {
                     let mut next = Vec::with_capacity(req.len());
@@ -368,7 +369,7 @@ impl<V: SafeValue + 'static> Query<V> {
                 let input_stream = input.stream_within(req, token)?;
                 run_unary_chain(ops, input_stream, token)
             }
-            Query::Binary(op, lhs, rhs) => {
+            Node::Binary(op, lhs, rhs) => {
                 let lhs_bounds = bounds.clone();
                 #[cfg(feature = "rayon")]
                 let (l, r) = rayon::join(
@@ -382,7 +383,7 @@ impl<V: SafeValue + 'static> Query<V> {
                 );
                 op.run(l?, r?)
             }
-            Query::Error(e) => Err(e.clone()),
+            Node::Error(e) => Err(e.clone()),
         }
     }
 }

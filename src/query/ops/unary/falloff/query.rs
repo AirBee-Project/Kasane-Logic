@@ -1,5 +1,6 @@
 use super::{Falloff, FalloffAxis, FalloffPattern};
 use crate::id::helpers::Side;
+use crate::query::Node;
 use crate::query::SafeValue;
 use crate::query::{Query, merge_policy::MergePolicy};
 use core::convert::TryFrom;
@@ -26,12 +27,12 @@ impl<V: SafeValue + 'static> Query<V> {
             + Send
             + Sync,
     {
-        if matches!(self, Query::Error(_)) {
+        if matches!(self.0, Node::Error(_)) {
             return self;
         }
         match Falloff::<P>::new(axis, z, radius, direction, pattern) {
             Ok(op) => self.wrap_unary(op),
-            Err(e) => Query::Error(e),
+            Err(e) => Query(Node::Error(e)),
         }
     }
 

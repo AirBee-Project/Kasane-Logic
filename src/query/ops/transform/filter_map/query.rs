@@ -1,7 +1,7 @@
 use super::FilterMap;
 use crate::FlexId;
-use crate::query::Query;
 use crate::query::SafeValue;
+use crate::query::{Node, Query};
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
@@ -16,11 +16,11 @@ impl<V: SafeValue + 'static> Query<V> {
         U: SafeValue + 'static,
         F: Fn(FlexId, V) -> Option<U> + Send + Sync + 'static,
     {
-        Query::Source(Box::new(FilterMap {
+        Query(Node::Source(Box::new(FilterMap {
             inner: self,
             f,
             _marker: core::marker::PhantomData,
-        }))
+        })))
     }
 
     /// 各要素の [`FlexId`] と値を `f` で写す。[`FlexId`] の扱いは [`filter_map`](Self::filter_map) と同じ。
