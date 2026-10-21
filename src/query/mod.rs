@@ -5,7 +5,6 @@ mod execution;
 pub mod merge_policy;
 pub(crate) mod ops;
 mod query_iter;
-pub(crate) mod send_sync;
 mod traits;
 
 pub use crate::error::QueryError;
@@ -14,8 +13,7 @@ pub use execution::{IntoTargets, QueryOutput};
 pub use ops::unary::falloff::FalloffPattern;
 pub use ops::unary::filter_values::ValuePredicate;
 pub use query_iter::QueryIter;
-pub use send_sync::{MaybeSend, MaybeSendSync, SafeValue};
-pub use traits::{BinaryOperator, Source, UnaryOperator};
+pub use traits::{BinaryOperator, SafeValue, Source, UnaryOperator};
 
 use crate::Error;
 use alloc::boxed::Box;

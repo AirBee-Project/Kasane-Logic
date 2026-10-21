@@ -1,8 +1,8 @@
 use super::Query;
 use super::query_iter::QueryIter;
 use super::traits::{Source, UnaryOperator};
+use crate::query::SafeValue;
 use crate::query::cancellation::CancellationToken;
-use crate::query::send_sync::SafeValue;
 use crate::{Error, QueryError, RangeId};
 use alloc::vec::Vec;
 

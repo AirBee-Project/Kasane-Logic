@@ -1,6 +1,6 @@
 use super::{FilterValues, ValuePredicate};
 use crate::query::Query;
-use crate::query::send_sync::SafeValue;
+use crate::query::SafeValue;
 
 impl<V: SafeValue + Ord + 'static> Query<V> {
     /// 指定した値を持つ空間IDだけを残す。

@@ -1,8 +1,8 @@
 use crate::collection::core::{FlexTreeCore, NoSummary};
 use crate::query::Query;
+use crate::query::SafeValue;
 use crate::query::cancellation::CancellationToken;
 use crate::query::query_iter::QueryIter;
-use crate::query::send_sync::SafeValue;
 use crate::{Error, FlexId, RangeId, SpatialIdMap, SpatialIdSet};
 use alloc::vec::Vec;
 

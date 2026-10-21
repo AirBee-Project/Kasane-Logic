@@ -1,8 +1,8 @@
 pub(crate) mod query;
 
 use crate::Error;
+use crate::query::SafeValue;
 use crate::query::ops::binary::run_binary;
-use crate::query::send_sync::SafeValue;
 use crate::query::{query_iter::QueryIter, traits::BinaryOperator};
 
 pub struct Difference<V> {

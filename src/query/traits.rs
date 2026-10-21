@@ -1,10 +1,14 @@
 use crate::query::Query;
 use crate::query::cancellation::CancellationToken;
 use crate::query::query_iter::QueryIter;
-use crate::query::send_sync::{MaybeSendSync, SafeValue};
 use crate::{Error, RangeId};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+
+/// [`Query`] が扱える値。条件を満たす型には自動で実装される。
+pub trait SafeValue: PartialEq + Clone + Send + Sync {}
+
+impl<T: PartialEq + Clone + Send + Sync> SafeValue for T {}
 
 /// クエリのデータを提供するTrait。[`SpatialIdMap`](crate::SpatialIdMap) やリモートのデータベースなどに実装する。
 ///
@@ -17,7 +21,7 @@ use alloc::vec::Vec;
 ///   `targets` のどれかと [`intersects_range`](crate::FlexId::intersects_range) する要素を返す場合がこれにあたる。
 ///   `targets` ごとに分けて読むと、複数の `targets` と重なる要素が重複し、順序も崩れうるので、
 ///   全ての `targets` をまとめて一度に読む。
-pub trait Source: MaybeSendSync {
+pub trait Source: Send + Sync {
     type Value: SafeValue;
 
     /// `targets` のどれかと重なる要素を、それぞれ1回ずつ、[`QueryIter`] の制約を満たす列で返す。
@@ -39,7 +43,7 @@ pub trait Source: MaybeSendSync {
 }
 
 /// 二項演算子の定義。
-pub trait BinaryOperator<V: SafeValue + 'static>: MaybeSendSync {
+pub trait BinaryOperator<V: SafeValue + 'static>: Send + Sync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error> {
         Ok(())
@@ -54,7 +58,7 @@ pub trait BinaryOperator<V: SafeValue + 'static>: MaybeSendSync {
 }
 
 /// 単項演算子の定義。
-pub trait UnaryOperator<V: SafeValue + 'static>: MaybeSendSync {
+pub trait UnaryOperator<V: SafeValue + 'static>: Send + Sync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error>;
 

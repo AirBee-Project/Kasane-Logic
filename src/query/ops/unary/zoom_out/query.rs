@@ -1,8 +1,8 @@
 use super::ZoomOut;
 use crate::ZoomLevel;
 use crate::query::Query;
+use crate::query::SafeValue;
 use crate::query::merge_policy::MergePolicy;
-use crate::query::send_sync::SafeValue;
 
 impl<V: SafeValue + 'static> Query<V> {
     /// 指定されたズームレベルまで情報を落とし、複数の子 FlexId を `MergePolicy::resolve_many` で一括マージする単項演算子。

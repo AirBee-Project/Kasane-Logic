@@ -1,6 +1,6 @@
 use super::Shift;
 use crate::query::Query;
-use crate::query::send_sync::SafeValue;
+use crate::query::SafeValue;
 
 impl<V: SafeValue + 'static> Query<V> {
     /// ズームレベル `z` のインデックス値で、F・X・Y 方向へそれぞれ `f`・`x`・`y` 個分だけ平行移動する。

@@ -1,5 +1,5 @@
 use super::{Extrude, ExtrudeAxis};
-use crate::query::send_sync::SafeValue;
+use crate::query::SafeValue;
 use crate::{
     ZoomLevel,
     query::{Query, merge_policy::MergePolicy},

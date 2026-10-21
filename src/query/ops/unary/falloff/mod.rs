@@ -7,10 +7,7 @@ mod test;
 use crate::collection::core::{FlexTreeCore, NoSummary};
 use crate::id::helpers::Side;
 use crate::query::{
-    merge_policy::MergePolicy,
-    query_iter::QueryIter,
-    send_sync::{MaybeSendSync, SafeValue},
-    traits::UnaryOperator,
+    SafeValue, merge_policy::MergePolicy, query_iter::QueryIter, traits::UnaryOperator,
 };
 use crate::{Error, FlexId, QueryError, RangeId, SpatialIdMap, ZoomLevel};
 use alloc::vec;
@@ -161,8 +158,8 @@ impl<P> Falloff<P> {
         &self,
         input: QueryIter<'_, V>,
         attenuator: &Attenuator<V>,
-        wrap: impl Fn(V) -> A + MaybeSendSync,
-        resolve: impl Fn(&A, &A) -> A + MaybeSendSync,
+        wrap: impl Fn(V) -> A + Send + Sync,
+        resolve: impl Fn(&A, &A) -> A + Send + Sync,
     ) -> Result<FlexTreeCore<A, NoSummary>, Error>
     where
         V: SafeValue

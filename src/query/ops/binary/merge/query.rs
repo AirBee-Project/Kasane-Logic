@@ -1,7 +1,7 @@
 use super::Merge;
 use crate::query::Query;
+use crate::query::SafeValue;
 use crate::query::merge_policy::MergePolicy;
-use crate::query::send_sync::SafeValue;
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {

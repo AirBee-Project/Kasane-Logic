@@ -6,8 +6,8 @@ mod test;
 
 use crate::SpatialIdMap;
 use crate::collection::core::NoSummary;
+use crate::query::SafeValue;
 use crate::query::ops::unary::sort_by_flex_id;
-use crate::query::send_sync::SafeValue;
 use crate::{
     Error, FlexId, RangeId, ZoomLevel,
     query::{merge_policy::MergePolicy, query_iter::QueryIter, traits::UnaryOperator},

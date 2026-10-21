@@ -1,6 +1,6 @@
 use super::Intersection;
 use crate::query::Query;
-use crate::query::send_sync::SafeValue;
+use crate::query::SafeValue;
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {

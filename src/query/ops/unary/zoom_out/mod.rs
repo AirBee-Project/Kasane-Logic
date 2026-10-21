@@ -4,9 +4,9 @@ pub(crate) mod query;
 mod test;
 
 use crate::collection::core::{FlexTreeCore, NoSummary};
+use crate::query::SafeValue;
 use crate::query::merge_policy::MergePolicy;
 use crate::query::ops::unary::sort_by_flex_id;
-use crate::query::send_sync::SafeValue;
 use crate::query::{QueryIter, UnaryOperator};
 use crate::{Error, FlexId, ZoomLevel};
 use alloc::vec::Vec;
