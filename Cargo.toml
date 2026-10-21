@@ -35,6 +35,7 @@ random = [ "rand" ]
 temporal_id = []
 rand = ["dep:rand"]
 json = ["dep:serde", "dep:serde_json"]
+unstable = []
 
 
 

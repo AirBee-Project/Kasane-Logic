@@ -6,6 +6,10 @@ on:
       - main
     types: [opened, synchronize, reopened, converted_to_draft]
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   fmt_and_doc:
     if: github.event.pull_request.draft == true
@@ -160,3 +164,88 @@ jobs:
               cargo clippy --locked --lib --no-default-features -- -D warnings
             fi
           done
+
+  semver_check:
+    if: github.event.pull_request.draft == true
+    name: cargo semver-checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-semver-checks
+        uses: taiki-e/install-action@cargo-semver-checks
+
+      - name: Check semver compliance
+        id: semver
+        shell: bash
+        run: |
+          set +e
+          cargo semver-checks check-release --package kasane-logic > semver_output.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          cat semver_output.txt
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "SEMVER_STATUS=success" >> "$GITHUB_ENV"
+          else
+            echo "SEMVER_STATUS=warning" >> "$GITHUB_ENV"
+          fi
+
+      - name: Post or update PR comment
+        if: always() && steps.semver.outcome != 'skipped'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issue_number = context.payload.pull_request.number;
+            const marker = '<!-- cargo-semver-checks-comment -->';
+            const status = process.env.SEMVER_STATUS;
+
+            if (!status) {
+              return;
+            }
+
+            let log = '';
+            if (fs.existsSync('semver_output.txt')) {
+              log = fs.readFileSync('semver_output.txt', 'utf8').trim();
+            }
+
+            let body = `${marker}\n### Cargo SemVer Checks レポート\n\n`;
+            if (status === 'success') {
+              body += '✅ **SemVer チェック通過**: stable API において破壊的変更は検知されませんでした。\n';
+            } else {
+              body += '⚠️ **SemVer 破壊的変更の検知（警告）**:\nstable API において互換性の変更が検知されました。メジャーバージョン更新を予定している場合は問題ありませんが、マイナー／パッチ更新の場合はご確認ください。\n';
+            }
+
+            if (log) {
+              const maxLen = 60000;
+              const trimmedLog = log.length > maxLen ? log.slice(0, maxLen) + '\n... (truncated)' : log;
+              body += `\n<details><summary>詳細ログ</summary>\n\n\`\`\`text\n${trimmedLog}\n\`\`\`\n</details>\n`;
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+            });
+
+            const botComment = comments.find(comment => comment.body.includes(marker));
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue_number,
+                body: body,
+              });
+            }

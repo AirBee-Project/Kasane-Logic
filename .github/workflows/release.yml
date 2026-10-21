@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: '更新する SemVer の桁'
+        required: true
+        type: choice
+        default: 'patch'
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  semver_check:
+    name: cargo semver-checks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-semver-checks
+        uses: taiki-e/install-action@cargo-semver-checks
+
+      - name: Check semver compliance
+        run: |
+          cargo semver-checks check-release --package kasane-logic --release-type ${{ inputs.bump }}
+
+  release:
+    name: Create Release
+    needs: semver_check
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Bump version
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        shell: bash
+        run: |
+          python3 - << 'EOF'
+          import os
+          import re
+
+          bump = os.environ["BUMP"]
+
+          with open("Cargo.toml", "r") as f:
+              content = f.read()
+
+          m = re.search(r'^version\s*=\s*"([0-9]+)\.([0-9]+)\.([0-9]+)"', content, re.MULTILINE)
+          if not m:
+              raise RuntimeError("Version not found in Cargo.toml")
+
+          major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
+          if bump == "major":
+              major, minor, patch = major + 1, 0, 0
+          elif bump == "minor":
+              minor, patch = minor + 1, 0
+          elif bump == "patch":
+              patch += 1
+          else:
+              raise ValueError(f"Unknown bump type: {bump}")
+
+          new_version = f"{major}.{minor}.{patch}"
+          print(f"Bumping version to {new_version}")
+
+          content = re.sub(
+              r'^version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"',
+              f'version = "{new_version}"',
+              content,
+              count=1,
+              flags=re.MULTILINE,
+          )
+          content = re.sub(
+              r'(kasane-logic-derive\s*=\s*\{\s*version\s*=\s*")[^"]+(")',
+              rf"\g<1>{new_version}\g<2>",
+              content,
+          )
+          with open("Cargo.toml", "w") as f:
+              f.write(content)
+
+          if os.path.exists("kasane-logic-derive/Cargo.toml"):
+              with open("kasane-logic-derive/Cargo.toml", "r") as f:
+                  derive_content = f.read()
+              derive_content = re.sub(
+                  r'^version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"',
+                  f'version = "{new_version}"',
+                  derive_content,
+                  count=1,
+                  flags=re.MULTILINE,
+              )
+              with open("kasane-logic-derive/Cargo.toml", "w") as f:
+                  f.write(derive_content)
+
+          github_output = os.environ.get("GITHUB_OUTPUT")
+          if github_output:
+              with open(github_output, "a") as f:
+                  f.write(f"new_version={new_version}\n")
+          EOF
+
+      - name: Update Cargo.lock
+        run: cargo check
+
+      - name: Commit and Tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock kasane-logic-derive/Cargo.toml
+          git commit -m "chore: リリース v${NEW_VERSION}"
+          git tag "v${NEW_VERSION}"
+          git push origin main
+          git push origin "v${NEW_VERSION}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          gh release create "v${NEW_VERSION}" \
+            --title "v${NEW_VERSION}" \
+            --generate-notes
