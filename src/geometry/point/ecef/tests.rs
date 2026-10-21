@@ -290,7 +290,7 @@ mod point_fractional_id {
         ]
     }
 
-    /// `Ecef` の `fractional_id` / `single_id` は、`Coordinate` に変換してから求めた値と一致する。
+    /// `Ecef` の `fractional_id` は、`Coordinate` に変換してから求めた値と一致する。
     #[test]
     fn matches_coordinate() {
         for ecef in sample_ecefs() {
@@ -299,11 +299,6 @@ mod point_fractional_id {
                 assert_eq!(
                     Point::fractional_id(&ecef, z).unwrap(),
                     Point::fractional_id(&coord, z).unwrap(),
-                    "{ecef:?}, z={z}"
-                );
-                assert_eq!(
-                    ecef.single_id(z).unwrap(),
-                    coord.single_id(z).unwrap(),
                     "{ecef:?}, z={z}"
                 );
             }

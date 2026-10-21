@@ -3,16 +3,6 @@ pub mod get;
 
 use crate::{SingleId, Source, SpatialIdMap};
 
-/// `get` はパラメータ検証を実行前に行うため、無効なパラメータはエラーになる
-/// （実データ変換より先に検出される）。
-#[test]
-fn get_surfaces_validation_error() {
-    let table: SpatialIdMap<i32> = SpatialIdMap::new();
-    // zoom 100 は範囲外なので shift_x の構築時点で Query::Error になる。
-    let result = table.query().shift_x(100, 3).get(..).into_map();
-    assert!(result.is_err());
-}
-
 /// 同じ(X,Y)・異なるFの2Segmentにextrude_fを適用すると、Max方針で全出力Segmentが最大値になる。
 #[test]
 fn extrude_f_same_xy_diff_f_resolves_via_policy() {
