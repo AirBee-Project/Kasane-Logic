@@ -51,7 +51,10 @@ impl SkipPath {
             .expect("Skip の行き先は祖先に含まれる");
         let deeper = Dimension::mask(|d| parts[d as usize].0 > 0);
         let split_dimensions = deeper | child_split;
-        if Dimension::ALL.iter().any(|&d| u32::from(parts[d as usize].0) > INDEX_BITS[d as usize]) {
+        if Dimension::ALL
+            .iter()
+            .any(|&d| u32::from(parts[d as usize].0) > INDEX_BITS[d as usize])
+        {
             let long = Box::new(Long {
                 // SAFETY: `relative_parts` の値なので、深さもインデックスも範囲内
                 path: unsafe { RelativeFlexId::from_parts_unchecked(parts) },
@@ -59,9 +62,8 @@ impl SkipPath {
             });
             return SkipPath(Box::into_raw(long) as usize as u64);
         }
-        let mut bits = INLINE
-            | u64::from(deeper) << DEEPER_SHIFT
-            | u64::from(split_dimensions) << SPLIT_SHIFT;
+        let mut bits =
+            INLINE | u64::from(deeper) << DEEPER_SHIFT | u64::from(split_dimensions) << SPLIT_SHIFT;
         for (d, (z, index)) in parts.into_iter().enumerate() {
             bits |= u64::from(z) << DEPTH_SHIFT[d] | index << INDEX_SHIFT[d];
         }
@@ -125,7 +127,8 @@ impl SkipPath {
             // SAFETY: タグが 0 なら `new` で Box から取り出したポインタで、&mut self なので他から参照されていない
             unsafe { (*(self.0 as usize as *mut Long)).split_dimensions = split_dimensions };
         } else {
-            self.0 = self.0 & !(MASK_BITS << SPLIT_SHIFT) | u64::from(split_dimensions) << SPLIT_SHIFT;
+            self.0 =
+                self.0 & !(MASK_BITS << SPLIT_SHIFT) | u64::from(split_dimensions) << SPLIT_SHIFT;
         }
     }
 
@@ -202,7 +205,10 @@ mod tests {
             let relative = id.relative_to(&root).unwrap();
             let mut path = SkipPath::new(&id, &root, Dimension::T.bit());
             assert_eq!(path.get(), relative);
-            assert_eq!(path.split_dimensions(), relative.deeper_dimensions() | Dimension::T.bit());
+            assert_eq!(
+                path.split_dimensions(),
+                relative.deeper_dimensions() | Dimension::T.bit()
+            );
             path.set_child_split(0);
             assert_eq!(path.split_dimensions(), relative.deeper_dimensions());
             assert_eq!(path.clone(), path);

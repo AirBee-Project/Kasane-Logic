@@ -102,11 +102,10 @@ impl RelativeFlexId {
                 return Err(SpatialIdError::ZOutOfRange { z: az + rz }.into());
             }
         }
-        let [(fz, f), (xz, x), (yz, y), (tz, t)] =
-            core::array::from_fn(|i| {
-                let ((az, ai), (rz, ri)) = (ancestor[i], parts[i]);
-                (az + rz, (ai << rz) + ri as i64)
-            });
+        let [(fz, f), (xz, x), (yz, y), (tz, t)] = core::array::from_fn(|i| {
+            let ((az, ai), (rz, ri)) = (ancestor[i], parts[i]);
+            (az + rz, (ai << rz) + ri as i64)
+        });
         // SAFETY: ズームは上限以下。インデックスは祖先の区間を `2^深さ` 等分したうちの1つなので、そのズームの範囲に収まる
         let absolute = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
             .with_time_segment(tz, t as u64);

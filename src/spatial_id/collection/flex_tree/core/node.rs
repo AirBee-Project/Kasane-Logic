@@ -1,10 +1,7 @@
 use super::path::SkipPath;
 use super::summary::{BitMask, Summary, ValueSet};
 use super::view::View;
-use crate::{
-    FlexId, Side,
-    spatial_id::dimension::Dimension,
-};
+use crate::{FlexId, Side, spatial_id::dimension::Dimension};
 use alloc::borrow::Cow;
 use core::{mem, ptr};
 use triomphe::Arc;
