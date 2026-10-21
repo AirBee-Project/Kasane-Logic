@@ -235,7 +235,7 @@ impl Ecef {
 
     /// 指定された軸インデックス (0=x, 1=y, 2=z) の成分を返す。
     /// 投影計算などで軸を動的に扱いたい場合に有用。
-    pub fn get_component(&self, index: usize) -> f64 {
+    pub(crate) fn get_component(&self, index: usize) -> f64 {
         match index {
             0 => self.x,
             1 => self.y,
@@ -244,7 +244,7 @@ impl Ecef {
     }
 
     /// 指定された2つの軸（u, v）に基づいて 2D 平面に投影した座標を返す。
-    pub fn project_2d(&self, u_axis: usize, v_axis: usize) -> (f64, f64) {
+    pub(crate) fn project_2d(&self, u_axis: usize, v_axis: usize) -> (f64, f64) {
         (self.get_component(u_axis), self.get_component(v_axis))
     }
 }
