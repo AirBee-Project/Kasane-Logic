@@ -1,4 +1,4 @@
-use crate::{FlexId, RangeId, Source, SpatialIdTable};
+use crate::{FlexId, RangeId, Source, SpatialIdMap};
 
 /// 再現可能な疑似乱数（xorshift64）。
 fn next(state: &mut u64) -> u64 {
@@ -9,7 +9,7 @@ fn next(state: &mut u64) -> u64 {
 }
 
 /// ズーム 3〜6 の混ざった表。粗い要素が細かい要素に合わせて木の中で割られる。
-fn random_table(state: &mut u64) -> SpatialIdTable<u32> {
+fn random_table(state: &mut u64) -> SpatialIdMap<u32> {
     (0..20)
         .map(|_| {
             let mut zoom = || 3 + (next(state) % 4) as u8;
@@ -77,7 +77,7 @@ fn shift_fxy_partial_get_matches_whole() {
                 continue;
             };
             let within = query.get(target.clone()).table().unwrap();
-            let clip = |t: &SpatialIdTable<u32>| -> SpatialIdTable<u32> {
+            let clip = |t: &SpatialIdMap<u32>| -> SpatialIdMap<u32> {
                 t.get(target.clone()).map(|(id, v)| (id, *v)).collect()
             };
             assert_eq!(clip(&within), clip(&expected), "({f}, {x}, {y})");

@@ -1,11 +1,11 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::spatial_id::collection::flex_tree::core::Summary;
-use crate::{AllowedIntervals, SpatialIdTable};
+use crate::{AllowedIntervals, SpatialIdMap};
 
 use super::super::json::{deserialize_with_values, serialize_with_values};
 
-impl<V, S> Serialize for SpatialIdTable<V, S>
+impl<V, S> Serialize for SpatialIdMap<V, S>
 where
     V: PartialEq + Clone + Serialize,
     S: Summary<V>,
@@ -18,7 +18,7 @@ where
     }
 }
 
-impl<'de, V, S> Deserialize<'de> for SpatialIdTable<V, S>
+impl<'de, V, S> Deserialize<'de> for SpatialIdMap<V, S>
 where
     V: PartialEq + Clone + Deserialize<'de>,
     S: Summary<V>,
@@ -34,12 +34,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{SingleId, SpatialIdTable};
+    use crate::{SingleId, SpatialIdMap};
     use alloc::string::{String, ToString};
 
     #[test]
     fn serialize_lists_unique_values_and_refs() {
-        let mut table = SpatialIdTable::<i32>::new();
+        let mut table = SpatialIdMap::<i32>::new();
         table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
         table.insert(SingleId::new(20, 1, 0, 0).unwrap(), 20);
         table.insert(SingleId::new(20, 2, 0, 0).unwrap(), 10); // 値 10 を再利用
@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn serialize_quotes_and_escapes_string_values() {
-        let mut table = SpatialIdTable::<String>::new();
+        let mut table = SpatialIdMap::<String>::new();
         table.insert(SingleId::new(20, 0, 0, 0).unwrap(), "a\"b".to_string());
 
         let json = serde_json::to_string(&table).unwrap();
@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn serialize_empty_table_has_empty_value_and_ids() {
-        let table = SpatialIdTable::<i32>::new();
+        let table = SpatialIdMap::<i32>::new();
         let json = serde_json::to_string(&table).unwrap();
         assert!(json.contains("\"value\":[]"));
         assert!(json.contains("\"ids\":[]"));
@@ -73,13 +73,13 @@ mod tests {
 
     #[test]
     fn deserialize_round_trips_values_and_ids() {
-        let mut table = SpatialIdTable::<i32>::new();
+        let mut table = SpatialIdMap::<i32>::new();
         table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 10);
         table.insert(SingleId::new(20, 1, 0, 0).unwrap(), 20);
         table.insert(SingleId::new(20, 2, 0, 0).unwrap(), 10);
 
         let json = serde_json::to_string(&table).unwrap();
-        let restored: SpatialIdTable<i32> = serde_json::from_str(&json).unwrap();
+        let restored: SpatialIdMap<i32> = serde_json::from_str(&json).unwrap();
 
         assert_eq!(restored.count(), table.count());
         for (flex_id, value) in table.iter() {
@@ -91,6 +91,6 @@ mod tests {
     #[test]
     fn deserialize_rejects_out_of_range_zoom_level() {
         let json = r#"{"$schema":"https://airbee-project.github.io/schemas/json/v1.0.json","meta":{"version":"v1.0","description":""},"option":{},"data":[{"name":"","value":[10],"ids":[{"z":68,"f":[0],"x":[0],"y":[0],"ref":0}]}]}"#;
-        assert!(serde_json::from_str::<SpatialIdTable<i32>>(json).is_err());
+        assert!(serde_json::from_str::<SpatialIdMap<i32>>(json).is_err());
     }
 }

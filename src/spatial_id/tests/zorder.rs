@@ -1,5 +1,5 @@
 use crate::spatial_id::helpers::Side;
-use crate::{Dimension, FlexId, SpatialIdTable};
+use crate::{Dimension, FlexId, SpatialIdMap};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 
@@ -31,7 +31,7 @@ fn random_id(state: &mut u64) -> FlexId {
 fn table_iterates_in_partial_order() {
     let mut state = 0x9E37_79B9_7F4A_7C15;
     for _ in 0..200 {
-        let table: SpatialIdTable<u64> = (0..40)
+        let table: SpatialIdMap<u64> = (0..40)
             .map(|_| (random_id(&mut state), next(&mut state) % 3))
             .collect();
         let ids: Vec<FlexId> = table.iter().map(|(id, _)| id).collect();
@@ -68,7 +68,7 @@ fn partial_order_is_antisymmetric_and_transitive() {
 fn table_yields_same_canonical_sequence_for_same_shape() {
     let mut state = 0xD1B5_4A32_D192_ED03;
     for _ in 0..50 {
-        let table: SpatialIdTable<u64> = (0..40)
+        let table: SpatialIdMap<u64> = (0..40)
             .map(|_| (random_id(&mut state), next(&mut state) % 3))
             .collect();
         let expected: Vec<(FlexId, u64)> = table.iter().map(|(id, v)| (id, *v)).collect();
@@ -86,7 +86,7 @@ fn table_yields_same_canonical_sequence_for_same_shape() {
             }
         }
         pieces.reverse();
-        let mut rebuilt = SpatialIdTable::new();
+        let mut rebuilt = SpatialIdMap::new();
         for (id, v) in pieces {
             rebuilt.insert(id, v);
         }

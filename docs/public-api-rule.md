@@ -36,7 +36,7 @@
 
 - ID 型（`SingleId`, `RangeId`, `FlexId`）と時間間隔（`Interval`）。
 - コレクション型（`FlexTree*`）。
-- トレイト（`SpatialId`, `Into*Ids`, `Iter*Ids`, `SpatialIdSet`, `SpatialIdTable`）。
+- トレイト（`SpatialId`, `Into*Ids`, `Iter*Ids`, `SpatialIdSet`, `SpatialIdMap`）。
 - 定数（`F_*`, `XY_MAX`, `MAX_ZOOM_LEVEL`）。
 
 ## 5. 追加・変更時のチェックリスト

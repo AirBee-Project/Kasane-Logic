@@ -1,11 +1,11 @@
 use crate::spatial_id::collection::query::merge_policy::{Average, Max};
-use crate::{SingleId, Source, SpatialIdTable, ZoomLevel};
+use crate::{SingleId, Source, SpatialIdMap, ZoomLevel};
 use alloc::vec;
 use alloc::vec::Vec;
 
 #[test]
 fn zoom_out_average_8_children() {
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
 
     // Z=20 の同じ親（Z=19）に属する8つのボクセルを配置
     // 親IDは (z: 19, f: 0, x: 0, y: 0) になるように、子IDの x, y は 0 または 1 にする
@@ -44,7 +44,7 @@ fn zoom_out_average_8_children() {
 
 #[test]
 fn zoom_out_max_partial_children() {
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
 
     // 親が同じ 3つのボクセルだけ配置
     let id_000 = SingleId::new(20, 0, 0, 0).unwrap();
@@ -70,7 +70,7 @@ fn zoom_out_multiple_parents_commutative_and_non_commutative() {
     use crate::FlexId;
     use crate::spatial_id::collection::query::merge_policy::Sum;
 
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
     // 親1: (z: 1, f: 0, x: 0, y: 0) に属する子
     table.insert(FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 10);
     table.insert(FlexId::new(2, 0, 2, 1, 2, 0).unwrap(), 20);
@@ -178,7 +178,7 @@ fn zoom_out_merges_same_parent_split_by_finer_t() {
         .unwrap()
         .with_time_segment(6, 0)
         .unwrap();
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
     table.insert(a, 1);
     table.insert(b, 10);
     table.insert(c, 100);
@@ -220,13 +220,13 @@ fn zoom_out_resolves_parents_overlapping_in_t() {
         .unwrap()
         .with_time_segment(8, 1)
         .unwrap();
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
     table.insert(a, 1);
     table.insert(b, 10);
 
     let out = table.query().zoom_out(5, Sum).get(..).table().unwrap();
     let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
-    let mut expected = SpatialIdTable::<i32>::new();
+    let mut expected = SpatialIdMap::<i32>::new();
     expected.insert(parent.with_time_segment(6, 0).unwrap(), 1);
     expected
         .inner
@@ -247,7 +247,7 @@ fn zoom_out_sum_matches_inserting_each_parent() {
         (seed >> 33) % n
     };
     for _ in 0..200 {
-        let mut table = SpatialIdTable::<i32>::new();
+        let mut table = SpatialIdMap::<i32>::new();
         for _ in 0..20 {
             let (fz, xz, yz) = (next(8) as u8, next(8) as u8, next(8) as u8);
             let tz = if cfg!(feature = "temporal_id") {
@@ -278,7 +278,7 @@ fn zoom_out_sum_matches_inserting_each_parent() {
             .table()
             .unwrap();
 
-        let mut expected = SpatialIdTable::<i32>::new();
+        let mut expected = SpatialIdMap::<i32>::new();
         for (id, &v) in table.iter() {
             let parent = id.parent_at_zoom(target_z).unwrap();
             expected.inner.insert_with([parent], v, |a, b| a + b);

@@ -4,7 +4,7 @@ pub mod query;
 #[cfg(test)]
 mod test;
 
-use crate::SpatialIdTable;
+use crate::SpatialIdMap;
 use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::ops::unary::sort_by_flex_id;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
@@ -106,7 +106,7 @@ where
         let z = self.target_z.get();
         // 射影が一致しなくても、粗い列と細かい列は引き延ばした先で重なるので、重なりも MergePolicy で合成する
         let resolve = |a: &V, b: &V| P::resolve(a.clone(), b.clone());
-        let mut table = SpatialIdTable::<V, NoSummary>::default();
+        let mut table = SpatialIdMap::<V, NoSummary>::default();
         for chunk in projected.chunk_by(|a, b| a.0 == b.0) {
             let id = chunk[0].0;
             if let Some(merged) = P::resolve_many(chunk.iter().map(|(_, v)| v.clone())) {

@@ -1,6 +1,6 @@
 #[cfg(all(test, feature = "rayon"))]
 mod par_build {
-    use crate::{FlexId, SingleId, SpatialIdTable};
+    use crate::{FlexId, SingleId, SpatialIdMap};
     use alloc::vec::Vec;
     use rayon::prelude::*;
 
@@ -16,7 +16,7 @@ mod par_build {
             .collect()
     }
 
-    fn sorted(table: &SpatialIdTable<i32>) -> Vec<(FlexId, i32)> {
+    fn sorted(table: &SpatialIdMap<i32>) -> Vec<(FlexId, i32)> {
         let mut v: Vec<_> = table.iter().map(|(f, val)| (f, *val)).collect();
         v.sort_by_key(|(id, _)| id.field_key());
         v
@@ -25,8 +25,8 @@ mod par_build {
     #[test]
     fn par_matches_sequential() {
         let its = items();
-        let seq: SpatialIdTable<i32> = its.iter().cloned().collect();
-        let par: SpatialIdTable<i32> = its.par_iter().cloned().collect();
+        let seq: SpatialIdMap<i32> = its.iter().cloned().collect();
+        let par: SpatialIdMap<i32> = its.par_iter().cloned().collect();
 
         assert_eq!(seq.count(), par.count());
         assert_eq!(sorted(&seq), sorted(&par));

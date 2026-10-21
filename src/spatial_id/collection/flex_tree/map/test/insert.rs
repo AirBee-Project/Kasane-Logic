@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
     use super::super::{TableEntry, build_table};
-    use crate::{RangeId, SingleId, SpatialIdTable};
+    use crate::{RangeId, SingleId, SpatialIdMap};
     use alloc::vec::Vec;
 
     /// 同じターゲットへ再挿入したときに、古い値が新しい値へ置き換わることを検証する。
     #[test]
     fn insert_same_target_replaces_previous_value() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
-        let mut table = SpatialIdTable::new();
+        let mut table = SpatialIdMap::new();
 
         table.insert(target.clone(), 10);
         table.insert(target.clone(), 20);

@@ -8,7 +8,7 @@ pub mod remove;
 pub mod upsert;
 
 #[cfg(test)]
-use crate::{RangeId, SingleId, SpatialIdTable};
+use crate::{RangeId, SingleId, SpatialIdMap};
 
 #[cfg(test)]
 #[derive(Clone, Debug)]
@@ -19,7 +19,7 @@ pub(crate) enum TableEntry {
 
 #[cfg(test)]
 impl TableEntry {
-    fn insert_into(&self, table: &mut SpatialIdTable<i32>) {
+    fn insert_into(&self, table: &mut SpatialIdMap<i32>) {
         match self {
             TableEntry::Single(single_id, value) => table.insert(single_id.clone(), *value),
             TableEntry::Range(range_id, value) => table.insert(range_id.clone(), *value),
@@ -28,8 +28,8 @@ impl TableEntry {
 }
 
 #[cfg(test)]
-pub(crate) fn build_table(entries: &[TableEntry]) -> SpatialIdTable<i32> {
-    let mut table = SpatialIdTable::new();
+pub(crate) fn build_table(entries: &[TableEntry]) -> SpatialIdMap<i32> {
+    let mut table = SpatialIdMap::new();
     for entry in entries {
         entry.insert_into(&mut table);
     }

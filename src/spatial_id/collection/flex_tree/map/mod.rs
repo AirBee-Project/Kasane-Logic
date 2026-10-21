@@ -18,21 +18,21 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 /// enum を種類で絞り込む [`filter_values`](Self::filter_values) を多用するなら [`ValueSet`] を指定する。
 ///
 /// ```
-/// use kasane_logic::{MinMax, SingleId, SpatialIdTable};
+/// use kasane_logic::{MinMax, SingleId, SpatialIdMap};
 ///
-/// let mut table = SpatialIdTable::new();
+/// let mut table = SpatialIdMap::new();
 /// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 3.5_f64);
 ///
-/// let mut indexed: SpatialIdTable<u32, MinMax<u32>> = SpatialIdTable::default();
+/// let mut indexed: SpatialIdMap<u32, MinMax<u32>> = SpatialIdMap::default();
 /// indexed.insert(SingleId::new(20, 0, 0, 0).unwrap(), 80);
 /// assert_eq!(indexed.filter_range(50..).count(), 1);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SpatialIdTable<V, S = NoSummary> {
+pub struct SpatialIdMap<V, S = NoSummary> {
     pub(crate) inner: FlexTreeCore<V, S>,
 }
 
-impl<V, S> Default for SpatialIdTable<V, S> {
+impl<V, S> Default for SpatialIdMap<V, S> {
     fn default() -> Self {
         Self {
             inner: FlexTreeCore::default(),
@@ -40,8 +40,8 @@ impl<V, S> Default for SpatialIdTable<V, S> {
     }
 }
 
-impl<V: PartialEq + Clone> SpatialIdTable<V> {
-    /// 空の[SpatialIdTable]を作成します。
+impl<V: PartialEq + Clone> SpatialIdMap<V> {
+    /// 空の[SpatialIdMap]を作成します。
     ///
     /// [Summary] を指定するときは [`Default::default`] か [`with_summary`](Self::with_summary) を使います。
     pub fn new() -> Self {
@@ -49,7 +49,7 @@ impl<V: PartialEq + Clone> SpatialIdTable<V> {
     }
 }
 
-impl<V, S> SpatialIdTable<V, S>
+impl<V, S> SpatialIdMap<V, S>
 where
     V: PartialEq + Clone,
     S: Summary<V>,
@@ -142,8 +142,8 @@ where
     }
 
     /// 中身はそのままに、[Summary] を `T` に付け替えたテーブルを作ります。
-    pub fn with_summary<T: Summary<V>>(&self) -> SpatialIdTable<V, T> {
-        SpatialIdTable {
+    pub fn with_summary<T: Summary<V>>(&self) -> SpatialIdMap<V, T> {
+        SpatialIdMap {
             inner: self.inner.with_summary(),
         }
     }
@@ -159,7 +159,7 @@ where
     }
 }
 
-impl<V, S> SpatialIdTable<V, S>
+impl<V, S> SpatialIdMap<V, S>
 where
     V: Ord + Clone,
     S: Summary<V>,
@@ -181,7 +181,7 @@ where
     }
 }
 
-impl<V, S> SpatialIdTable<V, S>
+impl<V, S> SpatialIdMap<V, S>
 where
     V: BitMask + PartialEq + Clone,
     S: Summary<V>,
@@ -203,7 +203,7 @@ where
     }
 }
 
-impl<V: Clone, S> IntoIterator for SpatialIdTable<V, S> {
+impl<V: Clone, S> IntoIterator for SpatialIdMap<V, S> {
     type Item = (FlexId, V);
     type IntoIter = IntoIter<V, S>;
 
@@ -212,7 +212,7 @@ impl<V: Clone, S> IntoIterator for SpatialIdTable<V, S> {
     }
 }
 
-impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for SpatialIdTable<V, S> {
+impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for SpatialIdMap<V, S> {
     fn from_iter<T: IntoIterator<Item = (FlexId, V)>>(iter: T) -> Self {
         Self {
             inner: iter.into_iter().collect(),
@@ -220,7 +220,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for SpatialI
     }
 }
 
-impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for SpatialIdTable<V, S> {
+impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for SpatialIdMap<V, S> {
     fn extend<T: IntoIterator<Item = (FlexId, V)>>(&mut self, iter: T) {
         self.inner.extend(iter);
     }

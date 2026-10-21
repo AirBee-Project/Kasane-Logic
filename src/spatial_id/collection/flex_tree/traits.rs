@@ -3,7 +3,7 @@ use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{query_iter::QueryIter, traits::Source};
-use crate::{Error, RangeId, SpatialIdSet, SpatialIdTable};
+use crate::{Error, RangeId, SpatialIdSet, SpatialIdMap};
 
 impl Source for SpatialIdSet {
     type Value = ();
@@ -21,7 +21,7 @@ impl Source for SpatialIdSet {
     }
 }
 
-impl<V, S> Source for SpatialIdTable<V, S>
+impl<V, S> Source for SpatialIdMap<V, S>
 where
     V: SafeValue + 'static,
     S: Summary<V> + MaybeSendSync + 'static,

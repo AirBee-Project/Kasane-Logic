@@ -43,7 +43,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// 戻り値の [`QueryOutput`] は `Result<(FlexId, V), Error>` を返すイテレーターで、
     /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。
-    /// まとめて [`SpatialIdTable`](crate::SpatialIdTable) で受け取るには [`QueryOutput::table`] を使う。
+    /// まとめて [`SpatialIdMap`](crate::SpatialIdMap) で受け取るには [`QueryOutput::table`] を使う。
     ///
     /// # 評価する範囲の指定
     ///
@@ -53,8 +53,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// 全体を評価するには `..` を渡す。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
@@ -66,8 +66,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// 1つの範囲は、[`SingleId`](crate::SingleId)・[`RangeId`]・[`FlexId`](crate::FlexId) のどれでも渡せる。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, SingleId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
@@ -77,8 +77,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, RangeId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, RangeId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
@@ -88,8 +88,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, FlexId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, FlexId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
@@ -101,8 +101,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// 複数の範囲も指定できる。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, SingleId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let a = SingleId::new(20, 0, 100, 0)?;
     /// let b = SingleId::new(20, 0, 101, 0)?;
     /// let result = table
@@ -114,8 +114,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, SingleId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// # let (a, b) = (SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?);
     /// let targets = vec![a, b];
     /// let result = table
@@ -127,8 +127,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, SingleId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// # let targets = vec![SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?];
     /// let result = table
     ///     .query()
@@ -144,11 +144,11 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// # 結果の受け取り方
     ///
-    /// [`SpatialIdTable`](crate::SpatialIdTable) で受け取る。
+    /// [`SpatialIdMap`](crate::SpatialIdMap) で受け取る。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
@@ -160,8 +160,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// イテレーターで受け取る。読んだ分だけ評価が進むので、途中で読むのをやめれば残りは評価しない。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// for item in table.query().filter_in(10..20).get(..) {
     ///     let (id, value) = item?;
     /// }
@@ -180,8 +180,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`QueryOutput`] を変数に取っておくときは、先に Query を変数に束縛する。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let query = table.query().filter_in(10..20);
     /// let output = query.get(..);
     /// # Ok::<(), kasane_logic::Error>(())
@@ -195,8 +195,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`get`](Self::get) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::{CancellationToken, Error, Source, SpatialIdTable};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{CancellationToken, Error, Source, SpatialIdMap};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let token = CancellationToken::new();
     /// token.cancel(); // 別のスレッドなどから呼ぶ
     ///
@@ -220,8 +220,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// `targets` と交差する要素をそのまま返すので、`targets` からはみ出した、より大きな [`FlexId`](crate::FlexId) が返ることがある。
     ///
     /// ```
-    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{Source, SpatialIdMap, SingleId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
@@ -236,8 +236,8 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`get_overlapping`](Self::get_overlapping) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::{CancellationToken, Source, SpatialIdTable, SingleId};
-    /// # let table = SpatialIdTable::<u32>::new();
+    /// # use kasane_logic::{CancellationToken, Source, SpatialIdMap, SingleId};
+    /// # let table = SpatialIdMap::<u32>::new();
     /// let token = CancellationToken::new();
     /// let result = table
     ///     .query()

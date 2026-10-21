@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::query::send_sync::{MaybeSend, MaybeSendSync, SafeValue};
-use crate::{Error, FlexId, SpatialIdTable};
+use crate::{Error, FlexId, SpatialIdMap};
 use alloc::boxed::Box;
 #[cfg(feature = "rayon")]
 use alloc::vec::Vec;
@@ -161,10 +161,10 @@ impl<V> Iterator for QueryIter<'_, V> {
     }
 }
 
-impl<'a, V: SafeValue + 'static, S: MaybeSendSync + 'static> From<SpatialIdTable<V, S>>
+impl<'a, V: SafeValue + 'static, S: MaybeSendSync + 'static> From<SpatialIdMap<V, S>>
     for QueryIter<'a, V>
 {
-    fn from(table: SpatialIdTable<V, S>) -> Self {
+    fn from(table: SpatialIdMap<V, S>) -> Self {
         Self::from_ordered(table.into_iter().map(Ok))
     }
 }

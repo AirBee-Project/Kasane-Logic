@@ -1,7 +1,7 @@
 #[cfg(test)]
 use alloc::vec::Vec;
 
-use crate::{FlexId, Source, SpatialIdTable};
+use crate::{FlexId, Source, SpatialIdMap};
 
 /// `shift_x` の逆算が、shift のズームより粗いズームへ周期境界（経度方向の折り返し）を
 /// 丸め込む際、以前は丸め込み後に隙間が消えているかどうかの判定を誤り、必要な入力領域を
@@ -9,11 +9,11 @@ use crate::{FlexId, Source, SpatialIdTable};
 /// 全体の評価と食い違う値を返していた。
 #[test]
 fn get_shift_x_wrapped_coarsen_matches_whole() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     // z=2 の x=3（東西の折り返し境界寄り）にデータを置く。
     table.insert(FlexId::new(2, 0, 2, 3, 2, 0).unwrap(), 7);
 
-    let expected: SpatialIdTable<u32> = table
+    let expected: SpatialIdMap<u32> = table
         .clone()
         .query()
         .shift_x(2, -1)
@@ -41,10 +41,10 @@ fn get_shift_x_wrapped_coarsen_matches_whole() {
 /// 部分評価の `get` が全体の評価と食い違う（データを取りこぼす）ことがあった。
 #[test]
 fn get_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     table.insert(FlexId::new(2, 0, 2, 2, 2, 0).unwrap(), 9);
 
-    let expected: SpatialIdTable<u32> = table
+    let expected: SpatialIdMap<u32> = table
         .clone()
         .query()
         .shift_x(2, -3)
@@ -70,12 +70,12 @@ fn get_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
 
 #[test]
 fn partial_get_matches_whole() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     let flex_id = FlexId::new(10, 10, 10, 10, 10, 10).unwrap();
     table.insert(flex_id, 42);
 
     // Normal run
-    let expected_result: SpatialIdTable<u32> = table
+    let expected_result: SpatialIdMap<u32> = table
         .clone()
         .query()
         .shift_x(10, 1)
@@ -99,7 +99,7 @@ fn partial_get_matches_whole() {
 
 #[test]
 fn get_returns_only_existing_values() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     // 1箇所だけ値を入れる
     let id1 = FlexId::new(10, 10, 10, 10, 10, 10).unwrap();
     table.insert(id1, 100);
@@ -122,7 +122,7 @@ fn get_returns_only_existing_values() {
 #[cfg(feature = "temporal_id")]
 #[test]
 fn get_filters_by_time() {
-    use crate::{Interval, SingleId, SpatialIdTable};
+    use crate::{Interval, SingleId, SpatialIdMap};
     use alloc::collections::BTreeSet;
 
     let time_segment = |t: u64| {
@@ -132,7 +132,7 @@ fn get_filters_by_time() {
             .unwrap()
     };
 
-    let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
+    let mut table: SpatialIdMap<i32> = SpatialIdMap::new();
     table.insert(time_segment(0), 1); // [0, 3600)
     table.insert(time_segment(10), 2); // [36000, 39600)
 
@@ -158,7 +158,7 @@ fn get_directional_falloff_matches_whole() {
     use crate::spatial_id::collection::query::merge_policy::Sum;
     use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     table.insert(FlexId::new(4, 2, 4, 2, 4, 2).unwrap(), 10);
 
     for side in [Some(Side::Upper), Some(Side::Lower), None] {
@@ -219,7 +219,7 @@ fn get_directional_falloff_matches_whole() {
 fn get_zoom_out_wrapped_target_matches_whole() {
     use crate::spatial_id::collection::query::merge_policy::Sum;
 
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     table.insert(FlexId::new(3, 0, 3, 0, 3, 0).unwrap(), 11);
     table.insert(FlexId::new(3, 0, 3, 7, 3, 0).unwrap(), 13);
 
@@ -282,7 +282,7 @@ fn get_yields_source_errors() {
 /// 複数の範囲を渡すと、どれかと交差する要素を1回ずつ返す。配列・Vec・スライスのどれで渡しても同じ。
 #[test]
 fn get_with_multiple_targets_returns_union() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     for x in 0..8 {
         table.insert(FlexId::new(3, 0, 3, x, 3, 0).unwrap(), x);
     }
@@ -291,7 +291,7 @@ fn get_with_multiple_targets_returns_union() {
     let b = crate::RangeId::new(3, [0, 0], [2, 4], [0, 0]).unwrap();
 
     let values =
-        |table: SpatialIdTable<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
+        |table: SpatialIdMap<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
     let from_array = values(query.get([a.clone(), b.clone()]).table().unwrap());
     assert_eq!(from_array, alloc::vec![1, 2, 3, 4]);
     assert_eq!(
@@ -309,7 +309,7 @@ fn get_with_multiple_targets_returns_union() {
 /// `..` は全体を評価し、範囲で絞り込まない。
 #[test]
 fn get_whole_returns_everything() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     table.insert(FlexId::new(3, -8, 3, 0, 3, 0).unwrap(), 1);
     table.insert(FlexId::new(3, 7, 3, 7, 3, 7).unwrap(), 2);
 
@@ -320,7 +320,7 @@ fn get_whole_returns_everything() {
 /// 検証に失敗すると、最初の要素として `Err` を返して終わる。
 #[test]
 fn get_yields_validation_error_first() {
-    let query = SpatialIdTable::<u32>::new().query().shift_x(100, 3);
+    let query = SpatialIdMap::<u32>::new().query().shift_x(100, 3);
     let items: Vec<_> = query.get(..).collect();
     assert!(matches!(items.as_slice(), [Err(_)]));
 }
@@ -328,7 +328,7 @@ fn get_yields_validation_error_first() {
 /// `get` は要素を範囲で切り取り、`get_overlapping` は交差する要素をそのまま返す。
 #[test]
 fn get_clips_and_get_overlapping_does_not() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     // z=18 の要素は z=20 の 4×4×4 を覆う
     let coarse = FlexId::new(18, 0, 18, 25, 18, 0).unwrap();
     table.insert(coarse, 7);
@@ -346,7 +346,7 @@ fn get_clips_and_get_overlapping_does_not() {
 /// 範囲が互いに重なっていても、切り取った断片は互いに素で、FlexId の Z-order 列に並ぶ。
 #[test]
 fn get_with_overlapping_targets_yields_each_place_once_in_order() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
     table.insert(FlexId::new(16, 0, 16, 6, 16, 0).unwrap(), 1);
     table.insert(FlexId::new(16, 0, 16, 7, 16, 0).unwrap(), 2);
     let query = table.query();
@@ -365,6 +365,6 @@ fn get_with_overlapping_targets_yields_each_place_once_in_order() {
             pair[1].0
         );
     }
-    let from_pieces: SpatialIdTable<u32> = pieces.into_iter().collect();
+    let from_pieces: SpatialIdMap<u32> = pieces.into_iter().collect();
     assert_eq!(from_pieces, query.get(big).table().unwrap());
 }

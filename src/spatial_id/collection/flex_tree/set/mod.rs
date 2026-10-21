@@ -16,7 +16,7 @@ pub mod tests;
 /// - 集合同士の演算や、集合に対する単項演算を提供する
 ///
 /// # 使い分け
-/// - 空間ごとに値を持たせたい場合は [`SpatialIdTable`](crate::SpatialIdTable) を使用する。
+/// - 空間ごとに値を持たせたい場合は [`SpatialIdMap`](crate::SpatialIdMap) を使用する。
 #[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct SpatialIdSet {
     pub(crate) inner: FlexTreeCore<(), NoSummary>,

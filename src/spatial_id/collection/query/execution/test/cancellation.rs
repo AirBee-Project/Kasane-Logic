@@ -2,11 +2,11 @@ use alloc::vec;
 
 use crate::spatial_id::collection::query::execution::run_unary_chain;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::{CancellationToken, Error, RangeId, SingleId, Source, SpatialIdTable};
+use crate::{CancellationToken, Error, RangeId, SingleId, Source, SpatialIdMap};
 
 #[test]
 fn get_cancellable_stops_immediately_when_already_cancelled() {
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
 
     let token = CancellationToken::new();
@@ -24,7 +24,7 @@ fn get_cancellable_stops_immediately_when_already_cancelled() {
 
 #[test]
 fn get_cancellable_completes_when_not_cancelled() {
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
 
     let token = CancellationToken::new();
@@ -42,9 +42,9 @@ fn get_cancellable_completes_when_not_cancelled() {
 
 #[test]
 fn cancelling_after_one_side_still_stops_the_query() {
-    let mut left = SpatialIdTable::<i32>::new();
+    let mut left = SpatialIdMap::<i32>::new();
     left.insert(SingleId::new(10, 0, 100, 100).unwrap(), 1);
-    let mut right = SpatialIdTable::<i32>::new();
+    let mut right = SpatialIdMap::<i32>::new();
     right.insert(SingleId::new(10, 0, 200, 200).unwrap(), 2);
 
     let token = CancellationToken::new();
@@ -68,7 +68,7 @@ fn cancelling_after_one_side_still_stops_the_query() {
 
 #[test]
 fn run_unary_chain_checks_cancellation_between_ops() {
-    let mut table = SpatialIdTable::<i32>::new();
+    let mut table = SpatialIdMap::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
     let bounds = [RangeId::new(10, 0, 100, 100).unwrap()];
     let stream = table

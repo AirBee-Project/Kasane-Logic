@@ -6,11 +6,11 @@
 //! serde_json = "1"
 //! ```
 
-use kasane_logic::{SingleId, SpatialIdTable};
+use kasane_logic::{SingleId, SpatialIdMap};
 
-/// [SpatialIdTable]をJsonに書き出したり、Jsonから読み出したりする例
+/// [SpatialIdMap]をJsonに書き出したり、Jsonから読み出したりする例
 fn main() {
-    let mut table = SpatialIdTable::<u32>::new();
+    let mut table = SpatialIdMap::<u32>::new();
 
     // 空間IDを作成
     let id1 = SingleId::new(20, 0, 10, 20).unwrap();
@@ -27,7 +27,7 @@ fn main() {
     println!("{}", json_string);
 
     // 3. JSON 文字列からの読み込み (Deserialize)
-    let restored_table: SpatialIdTable<u32> = serde_json::from_str(&json_string).unwrap();
+    let restored_table: SpatialIdMap<u32> = serde_json::from_str(&json_string).unwrap();
 
     println!("FlexIdの数: {}", restored_table.count());
 }

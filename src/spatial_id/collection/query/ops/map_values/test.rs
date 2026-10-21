@@ -1,13 +1,13 @@
 use alloc::string::{String, ToString};
 
-use crate::{SingleId, Source, SpatialIdTable};
+use crate::{SingleId, Source, SpatialIdMap};
 
 fn time_segment(x: u32) -> SingleId {
     SingleId::new(20, 0, x, 200).unwrap()
 }
 
-fn int_table() -> SpatialIdTable<i32> {
-    let mut t = SpatialIdTable::new();
+fn int_table() -> SpatialIdMap<i32> {
+    let mut t = SpatialIdMap::new();
     t.insert(time_segment(10), 1);
     t.insert(time_segment(11), 15);
     t
@@ -16,7 +16,7 @@ fn int_table() -> SpatialIdTable<i32> {
 /// 数値 → 真偽値のように、値の**型そのもの**を変えられる。
 #[test]
 fn map_values_changes_the_value_type() {
-    let out: SpatialIdTable<bool> = int_table()
+    let out: SpatialIdMap<bool> = int_table()
         .query()
         .map_values(|v: i32| v > 10)
         .get(..)
@@ -35,7 +35,7 @@ fn map_values_changes_the_value_type() {
 /// 数値 → 文字列。変換表のような任意の写像が使える。
 #[test]
 fn map_values_to_text() {
-    let out: SpatialIdTable<String> = int_table()
+    let out: SpatialIdMap<String> = int_table()
         .query()
         .map_values(|v: i32| if v > 10 { "high" } else { "low" }.to_string())
         .get(..)
@@ -60,7 +60,7 @@ fn map_values_to_text() {
 /// 変換の前後で他の演算子と組み合わせられる（変換前に絞り、変換後にも絞る）。
 #[test]
 fn map_values_composes_with_other_operators() {
-    let out: SpatialIdTable<bool> = int_table()
+    let out: SpatialIdMap<bool> = int_table()
         .query()
         .filter_in(10..) // 変換前: 10以上だけ残す
         .map_values(|v: i32| v > 10) // 型変換

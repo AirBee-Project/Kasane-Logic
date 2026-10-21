@@ -252,11 +252,11 @@ mod tests {
 /// 各コレクションから候補集合つきで読み出せることの疎通確認。
 ///
 /// 単位の選択ロジックそのものは上の `tests` が押さえているので、ここでは
-/// 「`SpatialIdSet` / `SpatialIdTable` から同じ形で使えること」と
+/// 「`SpatialIdSet` / `SpatialIdMap` から同じ形で使えること」と
 /// 「暦の正規化が既定（`gcd`）と実際に違う結果になること」を固定する。
 #[cfg(all(test, feature = "temporal_id"))]
 mod collection_api {
-    use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdSet, SpatialIdTable};
+    use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdSet, SpatialIdMap};
     use alloc::string::ToString;
     use alloc::vec::Vec;
 
@@ -350,7 +350,7 @@ mod collection_api {
 
     #[test]
     fn table_reads_back_with_calendar_units() {
-        let mut table: SpatialIdTable<u32> = SpatialIdTable::new();
+        let mut table: SpatialIdMap<u32> = SpatialIdMap::new();
         for id in two_hours() {
             table.insert(id, 7);
         }

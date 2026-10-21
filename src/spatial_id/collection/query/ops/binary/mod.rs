@@ -185,7 +185,7 @@ pub(crate) fn run_binary<'a, V: SafeValue + 'static>(
 mod test {
     use crate::spatial_id::collection::query::merge_policy::Sum;
     use crate::spatial_id::collection::query::query_iter::QueryIter;
-    use crate::{CancellationToken, Error, FlexId, RangeId, Source, SpatialIdTable};
+    use crate::{CancellationToken, Error, FlexId, RangeId, Source, SpatialIdMap};
 
     fn rng(mut seed: u64) -> impl FnMut(u64) -> u64 {
         move |n| {
@@ -220,8 +220,8 @@ mod test {
         let mut next = rng(0x5eed_cafe);
         for max_zoom in [4, 12] {
             for _ in 0..40 {
-                let mut a = SpatialIdTable::<i32>::new();
-                let mut b = SpatialIdTable::<i32>::new();
+                let mut a = SpatialIdMap::<i32>::new();
+                let mut b = SpatialIdMap::<i32>::new();
                 for _ in 0..25 {
                     a.insert(random_id(&mut next, max_zoom), next(10) as i32 + 1);
                     b.insert(random_id(&mut next, max_zoom), next(10) as i32 + 1);
@@ -265,7 +265,7 @@ mod test {
                     .get(..)
                     .table()
                     .unwrap();
-                let mut expected_with_default = SpatialIdTable::<i32>::new();
+                let mut expected_with_default = SpatialIdMap::<i32>::new();
                 for (id, &val) in a.iter() {
                     expected_with_default.insert(id, val + 10);
                 }
@@ -297,7 +297,7 @@ mod test {
 
     #[test]
     fn empty_lhs_short_circuits_rhs_in_intersection_and_difference() {
-        let empty = SpatialIdTable::<i32>::new();
+        let empty = SpatialIdMap::<i32>::new();
         let inter = empty
             .clone()
             .query()
