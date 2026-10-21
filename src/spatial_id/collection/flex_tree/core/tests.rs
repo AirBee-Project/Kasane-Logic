@@ -862,7 +862,7 @@ fn remove_overlapping_removes_whole_leaves() {
 
 /// `spatial_face_neighbors` は、面で接する領域だけを返し、自身や角で接する領域は返さない。
 #[test]
-fn neighbors_share_face_returns_face_neighbors_only() {
+fn spatial_face_neighbors_returns_face_neighbors_only() {
     let at = |f, x, y| SingleId::new(4, f, x, y).unwrap();
     let center = at(3, 5, 6);
 

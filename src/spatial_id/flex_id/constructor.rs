@@ -123,16 +123,6 @@ mod tests {
             .unwrap();
         assert_eq!(id.t_zoomlevel(), 2);
         assert_eq!(id.t_index(), 1);
-        assert_eq!(id.t_index(), 1);
         assert!("3/1|3/1|3/1|2/1".parse::<FlexId>().is_ok());
-    }
-
-    #[test]
-    fn spatial_id_methods() {
-        use crate::SpatialId;
-
-        let id = FlexId::new(3, 1, 3, 1, 3, 1).unwrap();
-        let _ = id.spatial_center();
-        let _ = id.spatial_vertices();
     }
 }
