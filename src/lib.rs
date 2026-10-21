@@ -1,13 +1,3 @@
-//! 解析解を用いて、図形を高精度に空間IDへ変換するライブラリ。
-//!
-//! | モジュール | 扱うもの |
-//! |---|---|
-//! | [`spatial_id`] | 空間ID（[`SingleId`]、[`RangeId`]、[`FlexId`]） |
-//! | [`geometry`] | 座標と図形、図形が覆う空間IDの計算 |
-//! | [`collection`] | 空間IDの集合とマップ（[`SpatialIdSet`]、[`SpatialIdMap`]） |
-//! | [`query`] | 集合やマップを組み合わせて変換するクエリ（[`Query`]） |
-//! | [`prelude`] | メソッドを呼ぶのに必要なTrait |
-
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(clippy::disallowed_methods)]
 #![deny(clippy::perf)]
