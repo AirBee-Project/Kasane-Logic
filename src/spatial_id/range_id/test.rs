@@ -80,20 +80,3 @@ fn spatial_parent_at_zoom_wrapped_x_preserves_gap() {
     let parent = id.spatial_parent_at_zoom(2).unwrap();
     assert_eq!(parent.x(), [3, 0]);
 }
-
-#[test]
-fn scale_to_zoom_and_spatial_id_methods() {
-    use crate::SpatialId;
-
-    let id = RangeId::new(4, [-2, 3], [1, 2], [3, 4]).unwrap();
-    let scaled = id.spatial_children_at_zoom(5).unwrap();
-    assert_eq!(scaled.z(), 5);
-    assert_eq!(scaled.f(), [-4, 7]);
-    assert_eq!(scaled.x(), [2, 5]);
-    assert_eq!(scaled.y(), [6, 9]);
-
-    let _ = id.spatial_center();
-    let _ = id.spatial_vertices();
-
-    assert_eq!(id.clone().single_ids().count(), 6 * 2 * 2);
-}

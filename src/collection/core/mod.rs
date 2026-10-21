@@ -143,15 +143,15 @@ impl<V, S> FlexTreeCore<V, S> {
         // 各方向に1つずらした領域が、面で接しうる候補
         let mut shifted: Vec<RangeId> = Vec::with_capacity(6);
         for delta in [-1, 1] {
-            let mut f = target.clone();
+            let mut f = target;
             if f.move_f(delta).is_ok() {
                 shifted.push(f.into());
             }
-            let mut y = target.clone();
+            let mut y = target;
             if y.move_y(delta).is_ok() {
                 shifted.push(y.into());
             }
-            let mut x = target.clone();
+            let mut x = target;
             x.move_x(delta);
             shifted.push(x.into());
         }

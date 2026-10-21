@@ -64,7 +64,7 @@ impl CoverSingleIds for Solid {
                 || id.y() == result.5;
 
             if is_boundary && !surface_set.contains(id) {
-                open_list.push_back(id.clone());
+                open_list.push_back(*id);
                 false
             } else {
                 true
@@ -80,7 +80,7 @@ impl CoverSingleIds for Solid {
         ];
         while let Some(current) = open_list.pop_front() {
             for (df, dx, dy) in directions {
-                let mut neighbor = current.clone();
+                let mut neighbor = current;
 
                 // 各方向に移動を試みる
                 // move_x は循環するため Ok 固定、move_f と move_y は範囲外ならエラーになる
@@ -185,7 +185,7 @@ impl CoverRangeIds for Solid {
         ];
         while let Some(current) = open_list.pop_front() {
             for (df, dx, dy) in directions {
-                let mut neighbor = current.clone();
+                let mut neighbor = current;
                 let move_ok = if df != 0 {
                     neighbor.move_f(df).is_ok()
                 } else if dx != 0 {

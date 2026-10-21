@@ -109,7 +109,7 @@ fn get_returns_only_existing_values() {
     // id1 と、隣接する別のID (値がない) を含む RangeId
     let target = crate::RangeId::new(10, [10, 10], [10, 11], [10, 10]).unwrap();
 
-    let results: Vec<_> = query.get(target.clone()).map(Result::unwrap).collect();
+    let results: Vec<_> = query.get(target).map(Result::unwrap).collect();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].1, 100);
 }
@@ -293,15 +293,10 @@ fn get_with_multiple_targets_returns_union() {
     let b = crate::RangeId::new(3, [0, 0], [2, 4], [0, 0]).unwrap();
 
     let values = |table: SpatialIdMap<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
-    let from_array = values(query.get([a.clone(), b.clone()]).into_map().unwrap());
+    let from_array = values(query.get([a, b]).into_map().unwrap());
     assert_eq!(from_array, alloc::vec![1, 2, 3, 4]);
     assert_eq!(
-        values(
-            query
-                .get(alloc::vec![a.clone(), b.clone()])
-                .into_map()
-                .unwrap()
-        ),
+        values(query.get(alloc::vec![a, b]).into_map().unwrap()),
         from_array
     );
     assert_eq!(
@@ -338,9 +333,9 @@ fn get_clips_and_get_overlapping_does_not() {
     table.insert(coarse, 7);
     let query = table.query();
     let target = crate::SingleId::new(20, 1, 101, 2).unwrap();
-    let target_id = target.clone().into_iter().next().unwrap();
+    let target_id = target.into_iter().next().unwrap();
 
-    let clipped: Vec<_> = query.get(target.clone()).map(Result::unwrap).collect();
+    let clipped: Vec<_> = query.get(target).map(Result::unwrap).collect();
     assert_eq!(clipped, alloc::vec![(target_id, 7)]);
 
     let overlapping: Vec<_> = query.get_overlapping(target).map(Result::unwrap).collect();
@@ -358,7 +353,7 @@ fn get_with_overlapping_targets_yields_each_place_once_in_order() {
     let inside = crate::SingleId::new(19, 1, 54, 2).unwrap();
 
     let pieces: Vec<(FlexId, u32)> = query
-        .get(alloc::vec![big.clone(), inside.into()])
+        .get(alloc::vec![big, inside.into()])
         .map(Result::unwrap)
         .collect();
     for pair in pieces.windows(2) {

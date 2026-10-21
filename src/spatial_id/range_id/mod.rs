@@ -29,7 +29,7 @@ use alloc::vec::Vec;
 ///     y: [u32; 2],
 /// }
 /// ```
-#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct RangeId {
     z: ZoomLevel,
     f: [i32; 2],
@@ -244,7 +244,7 @@ impl RangeId {
     /// # {
     /// # use kasane_logic::spatial_id::{Interval, RangeId};
     /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time(Interval::HOUR, [0, 1]).unwrap();
-    /// assert_eq!(id.clone().relabel_time(1800).unwrap().t(), [0, 3]);
+    /// assert_eq!(id.relabel_time(1800).unwrap().t(), [0, 3]);
     /// // 2時間ぶんは1日単位では表せない。
     /// assert!(id.relabel_time(Interval::DAY).is_err());
     /// # }
@@ -403,7 +403,7 @@ impl RangeId {
             b.x = [x_min, x_max];
             out.push(b);
         } else {
-            let mut r1 = b.clone();
+            let mut r1 = b;
             r1.x = [x_min, xy_max];
             out.push(r1);
 

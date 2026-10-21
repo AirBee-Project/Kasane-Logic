@@ -10,12 +10,12 @@ mod tests {
         let first = SingleId::new(4, 3, 2, 1).unwrap();
         let second = SingleId::new(4, 3, 2, 2).unwrap();
         let table = build_table(&[
-            TableEntry::Single(first.clone(), 10),
-            TableEntry::Single(second.clone(), 20),
+            TableEntry::Single(first, 10),
+            TableEntry::Single(second, 20),
         ]);
 
         let actual: Vec<_> = table
-            .get(first.clone())
+            .get(first)
             .map(|(flex_id, value)| (flex_id, *value))
             .collect();
         assert_eq!(actual.len(), 1);
@@ -47,8 +47,8 @@ mod tests {
         assert_eq!(wrapped.x(), [1, 0]);
 
         let full = RangeId::new(2, 0, [0, 3], 0).unwrap();
-        let via_wrapped_count = table.get_overlapping(wrapped.clone()).count();
-        let via_full_count = table.get_overlapping(full.clone()).count();
+        let via_wrapped_count = table.get_overlapping(wrapped).count();
+        let via_full_count = table.get_overlapping(full).count();
 
         assert_eq!(via_wrapped_count, 1, "折り返し範囲でも1件ヒットするはず");
         assert_eq!(via_wrapped_count, via_full_count);

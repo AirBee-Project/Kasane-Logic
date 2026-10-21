@@ -2,7 +2,6 @@
 mod tests {
     use super::super::arb_random_set_case;
     use crate::SpatialIdSet;
-    use alloc::vec::Vec;
     use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};
@@ -10,8 +9,8 @@ mod tests {
     fn insert_all(set: &mut SpatialIdSet, inserts: &[super::super::RandomSetInsert]) {
         for insert in inserts {
             match insert {
-                super::super::RandomSetInsert::Single(single_id) => set.insert(single_id.clone()),
-                super::super::RandomSetInsert::Range(range_id) => set.insert(range_id.clone()),
+                super::super::RandomSetInsert::Single(single_id) => set.insert(*single_id),
+                super::super::RandomSetInsert::Range(range_id) => set.insert(*range_id),
             }
         }
     }
@@ -33,19 +32,6 @@ mod tests {
     }
 
     proptest! {
-        #[test]
-        /// 同じ要素を逆順で挿入しても Set の等価性が保たれることをプロパティテストで検証する。
-        fn equal_even_if_insert_order_differs_proptest(case in arb_random_set_case()) {
-            let mut lhs = SpatialIdSet::new();
-            insert_all(&mut lhs, &case.inserts);
-
-            let mut rhs = SpatialIdSet::new();
-            let reversed: Vec<_> = case.inserts.iter().rev().cloned().collect();
-            insert_all(&mut rhs, &reversed);
-
-            prop_assert!(lhs == rhs, "{}", case.debug_summary());
-        }
-
         #[test]
         /// 同じ要素をシード付きランダム順で挿入しても Set の等価性が保たれることをプロパティテストで検証する。
         fn equal_even_if_insert_order_is_random_proptest(

@@ -142,7 +142,6 @@ fn finish<V>(
     let range = match allowed_intervals {
         None => range,
         Some(allowed_intervals) => range
-            .clone()
             .relabel_time(allowed_intervals.coarsest_dividing(start, end))
             .expect("AllowedIntervals が選んだ単位は必ずこの区間を割り切る"),
     };
@@ -184,7 +183,7 @@ mod tests {
             .with_time(1800, 809712)
             .unwrap();
 
-        let time_segments: Vec<_> = original.clone().into_iter().map(|id| (id, 1u8)).collect();
+        let time_segments: Vec<_> = original.into_iter().map(|id| (id, 1u8)).collect();
         assert!(
             time_segments.len() > 1,
             "1800秒は複数の2分岐Segmentへ分解されるはず"
@@ -199,7 +198,7 @@ mod tests {
     #[test]
     fn does_not_merge_across_different_values() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
-        let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
+        let a = base.with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
         let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
@@ -216,7 +215,7 @@ mod tests {
     #[test]
     fn merges_adjacent_segments_with_the_same_value() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
-        let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
+        let a = base.with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
         let mut time_segments: Vec<(FlexId, u8)> = Vec::new();
@@ -237,7 +236,7 @@ mod tests {
     #[test]
     fn candidate_set_picks_the_coarsest_unit() {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
-        let a = base.clone().with_time(Interval::HOUR, 0).unwrap();
+        let a = base.with_time(Interval::HOUR, 0).unwrap();
         let b = base.with_time(Interval::HOUR, 1).unwrap();
 
         let mut time_segments: Vec<(FlexId, u8)> = Vec::new();

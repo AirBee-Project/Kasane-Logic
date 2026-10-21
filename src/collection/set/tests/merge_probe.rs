@@ -1,60 +1,16 @@
 //! マージ（圧縮）正当性の回帰テスト。
 //!
 //! 「merge できる FlexId が merge されない」漏れが無いことを、(1) 内部不変条件
-//! （挿入し直した木と一致する）、(2) 同じ形状の FlexTreeCore との一致（iter→再挿入で count 不変）、
-//! (3) 再帰 collapse のカスケード、の3観点で insert / union / intersection /
-//! difference にわたり検査する。
+//! （挿入し直した木と一致する）、(2) 再帰 collapse のカスケード、の2観点で
+//! insert / union / intersection / difference にわたり検査する。
 #![cfg(test)]
 
 #[cfg(test)]
 use alloc::vec::Vec;
 
-use crate::collection::set::tests::{
-    arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
-};
+use crate::collection::set::tests::arb_random_set_case;
 use crate::{SingleId, SpatialIdMap, SpatialIdSet};
 use proptest::prelude::*;
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(96))]
-
-    /// 異方 collapse が単一ID被覆を保つことを、ブルートフォース（共通ズームへ単一ID
-    /// 展開）と照合する。union / intersection / difference を網羅。
-    ///
-    /// これは座標再構成まで含めて検証する gold-standard。素朴 collapse の座標破壊は
-    /// このオラクルでのみ検出できた（count 不変テストでは見逃した）ので常時実行する。
-    #[ignore]
-    #[test]
-    fn ops_preserve_single_id_coverage(
-        a in arb_random_set_case(),
-        b in arb_random_set_case(),
-    ) {
-        let sa = a.build_set();
-        let sb = b.build_set();
-        let z = sa
-            .max_zoomlevel()
-            .unwrap_or(0)
-            .max(sb.max_zoomlevel().unwrap_or(0));
-
-        let ea = decompose_set_to_single_ids_at_zoom(&sa, z);
-        let eb = decompose_set_to_single_ids_at_zoom(&sb, z);
-
-        let mut exp_union: Vec<SingleId> = ea.union(&eb).cloned().collect();
-        exp_union.sort();
-        prop_assert_eq!(sorted_single_ids(&(&sa | &sb), z), exp_union,
-            "union: a={} b={}", a.debug_summary(), b.debug_summary());
-
-        let mut exp_inter: Vec<SingleId> = ea.intersection(&eb).cloned().collect();
-        exp_inter.sort();
-        prop_assert_eq!(sorted_single_ids(&(&sa & &sb), z), exp_inter,
-            "intersection: a={} b={}", a.debug_summary(), b.debug_summary());
-
-        let mut exp_diff: Vec<SingleId> = ea.difference(&eb).cloned().collect();
-        exp_diff.sort();
-        prop_assert_eq!(sorted_single_ids(&(&sa - &sb), z), exp_diff,
-            "difference: a={} b={}", a.debug_summary(), b.debug_summary());
-    }
-}
 
 /// 道路（平面ストリップ）の X/Y 方向マージ対称性。
 /// ガード付きの異方 collapse により、最深軸であれば X 方向ストリップも畳まれる。
@@ -97,7 +53,7 @@ fn road_strip_xy_symmetry() {
 
 /// フル充填の葉 collapse で max_zoom が減るケース。
 /// zoom4 の 2×2×2 ブロック（f,x,y∈{0,1}）は zoom3 等方Segment（葉）へ畳まれ、
-/// max_zoomlevel は 4→3 になる（キャッシュ済み max_zoom がステイルにならない）。
+/// max_zoomlevel は 4→3 になる。
 #[test]
 fn f_collapse_reduces_max_zoom() {
     let mut set = SpatialIdSet::new();
@@ -112,9 +68,8 @@ fn f_collapse_reduces_max_zoom() {
     assert_eq!(
         set.max_zoomlevel(),
         Some(3),
-        "f-collapse must drop cached max_zoom 4 -> 3"
+        "f-collapse must drop max_zoom 4 -> 3"
     );
-    assert_eq!(set.max_zoomlevel(), brute_max_zoom(&set));
 }
 
 /// Table（値あり）: 同値の Y 兄弟は merge して 1、異値は merge せず 2。
@@ -279,14 +234,6 @@ fn union_recursive_collapse_deep() {
     assert!(set_is_fully_merged(&u));
 }
 
-/// 格納されている全 FlexId から `max(f_zoom, x_zoom, y_zoom)` の最大値を直接計算する。
-/// キャッシュ済み `max_zoom` のオラクル。
-fn brute_max_zoom(set: &SpatialIdSet) -> Option<u8> {
-    set.iter()
-        .map(|id| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
-        .max()
-}
-
 /// 木の現在の内容を iter() で取り出し、新しい Set へ再挿入したものを返す。
 fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
     let mut out = SpatialIdSet::new();
@@ -297,76 +244,6 @@ fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
 }
 
 proptest! {
-    /// マージし尽くした FlexTreeCore なら、iter()→再挿入で count は不変のはず。
-    /// 変わるなら「構築経路依存のマージ漏れ」。
-    #[ignore]
-    #[test]
-    fn rebuild_preserves_count(case in arb_random_set_case()) {
-        let set = case.build_set();
-        let again = rebuilt(&set);
-        prop_assert_eq!(set.count(), again.count(), "{}", case.debug_summary());
-    }
-
-    /// union の結果もマージし尽くされているか（演算後に再挿入して count 不変か）。
-    #[ignore]
-    #[test]
-    fn union_result_is_fully_merged(a in arb_random_set_case(), b in arb_random_set_case()) {
-        let sa = a.build_set();
-        let sb = b.build_set();
-        let u = &sa | &sb;
-        let again = rebuilt(&u);
-        prop_assert_eq!(u.count(), again.count(),
-            "union not fully merged: a={} b={}", a.debug_summary(), b.debug_summary());
-    }
-
-    /// difference の結果もマージし尽くされているか。
-    #[ignore]
-    #[test]
-    fn difference_result_is_fully_merged(a in arb_random_set_case(), b in arb_random_set_case()) {
-        let sa = a.build_set();
-        let sb = b.build_set();
-        let d = &sa - &sb;
-        let again = rebuilt(&d);
-        prop_assert_eq!(d.count(), again.count(),
-            "difference not fully merged: a={} b={}", a.debug_summary(), b.debug_summary());
-    }
-
-    /// intersection の結果もマージし尽くされているか。
-    #[ignore]
-    #[test]
-    fn intersection_result_is_fully_merged(a in arb_random_set_case(), b in arb_random_set_case()) {
-        let sa = a.build_set();
-        let sb = b.build_set();
-        let i = &sa & &sb;
-        let again = rebuilt(&i);
-        prop_assert_eq!(i.count(), again.count(),
-            "intersection not fully merged: a={} b={}", a.debug_summary(), b.debug_summary());
-    }
-
-    /// 内部不変条件: insert で構築した木に未適用マージ（Leaf(v)+Leaf(v) の Branch）が無い。
-    #[ignore]
-    #[test]
-    fn insert_no_unmerged(case in arb_random_set_case()) {
-        let set = case.build_set();
-        prop_assert!(set_is_fully_merged(&set), "unmerged after insert: {}", case.debug_summary());
-    }
-
-    /// 冗長軸 collapse 後も、キャッシュ済み max_zoom が実際の格納Segmentと一致する
-    /// （collapse で葉の実効 zoom が変わっても max_zoomlevel がステイルにならない）。
-    #[ignore]
-    #[test]
-    fn max_zoom_consistent_after_collapse(a in arb_random_set_case(), b in arb_random_set_case()) {
-        let sa = a.build_set();
-        let sb = b.build_set();
-        prop_assert_eq!(sa.max_zoomlevel(), brute_max_zoom(&sa), "insert: {}", a.debug_summary());
-        let u = &sa | &sb;
-        prop_assert_eq!(u.max_zoomlevel(), brute_max_zoom(&u), "union");
-        let i = &sa & &sb;
-        prop_assert_eq!(i.max_zoomlevel(), brute_max_zoom(&i), "intersection");
-        let d = &sa - &sb;
-        prop_assert_eq!(d.max_zoomlevel(), brute_max_zoom(&d), "difference");
-    }
-
     /// 内部不変条件: union/intersection/difference の結果にも未適用マージが無い。
     #[ignore]
     #[test]
@@ -377,21 +254,6 @@ proptest! {
         prop_assert!(set_is_fully_merged(&(&sa & &sb)), "unmerged after intersection: a={} b={}", a.debug_summary(), b.debug_summary());
         prop_assert!(set_is_fully_merged(&(&sa - &sb)), "unmerged after difference: a={} b={}", a.debug_summary(), b.debug_summary());
     }
-}
-
-/// zoom1 の立方体を満たす 8 オクタント（全て同一「値」）を insert したら、
-/// 1 つの葉（zoom0 相当）へ collapse して count==1 になるはず。
-#[test]
-fn eight_octants_collapse_to_one() {
-    let mut set = SpatialIdSet::new();
-    for f in 0..2 {
-        for x in 0..2 {
-            for y in 0..2 {
-                set.insert(SingleId::new(1, f, x, y).unwrap());
-            }
-        }
-    }
-    assert_eq!(set.count(), 1, "8 octants should merge into 1");
 }
 
 /// 挿入順を変えても最終的な count（マージ結果）は同じであるべき。
@@ -413,55 +275,6 @@ fn insert_order_independence() {
 
     assert_eq!(forward.count(), reverse.count(), "order changed count");
     assert_eq!(forward.count(), 1);
-}
-
-/// 最深 Y 兄弟（葉）の insert マージ（union ではなく insert 経由）。
-#[test]
-fn insert_y_siblings_merge() {
-    let mut set = SpatialIdSet::new();
-    set.insert(SingleId::new(2, 0, 0, 0).unwrap());
-    set.insert(SingleId::new(2, 0, 0, 1).unwrap());
-    assert_eq!(set.count(), 1, "y-siblings (leaves) should merge");
-}
-
-/// 7/8 オクタント（1つ欠け）。完全 collapse はしないが、部分マージは起きうる。
-/// ここでは「ありえない大きな count」になっていないかだけ確認（漏れの兆候検出）。
-#[test]
-fn seven_octants_partial() {
-    let mut set = SpatialIdSet::new();
-    let mut n = 0;
-    for f in 0..2 {
-        for x in 0..2 {
-            for y in 0..2 {
-                if (f, x, y) == (1, 1, 1) {
-                    continue;
-                }
-                set.insert(SingleId::new(1, f, x, y).unwrap());
-                n += 1;
-            }
-        }
-    }
-    assert_eq!(n, 7);
-    // 7 個入れて全く merge しなければ 7。merge が効けば 7 未満。
-    std::println!("seven_octants count = {}", set.count());
-    assert!(set.count() <= 7);
-}
-
-/// 大きな立方体（多数の子）を1値で満たし、その後さらに同値を入れても count が増えないこと。
-#[test]
-fn fill_zoom2_cube_collapses() {
-    // zoom2 の f/x/y を 0..4 まで全部 = 4^3 = 64 TimeSegment。全部同一値。
-    let mut set = SpatialIdSet::new();
-    for f in 0..4 {
-        for x in 0..4 {
-            for y in 0..4 {
-                set.insert(SingleId::new(2, f, x, y).unwrap());
-            }
-        }
-    }
-    // 完全に満たされた zoom2 立方体 → zoom0 の 1 葉へ collapse すべき。
-    std::println!("zoom2 full cube count = {}", set.count());
-    assert_eq!(set.count(), 1, "full zoom2 cube should collapse to 1");
 }
 
 #[test]

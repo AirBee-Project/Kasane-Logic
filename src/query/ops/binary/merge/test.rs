@@ -17,10 +17,10 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     let (_, bv2) = time_segment(101, 4);
     let (only_b, bv) = time_segment(102, 5); // Bのみ
 
-    a.insert(only_a.clone(), av);
-    a.insert(both.clone(), av2);
-    b.insert(both.clone(), bv2);
-    b.insert(only_b.clone(), bv);
+    a.insert(only_a, av);
+    a.insert(both, av2);
+    b.insert(both, bv2);
+    b.insert(only_b, bv);
 
     let out = a
         .query()
@@ -29,12 +29,12 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
         .into_map()
         .unwrap();
 
-    assert_eq!(out.get(only_a.clone()).next().unwrap().1, &7); // resolve(7, default=0)
-    assert_eq!(out.get(both.clone()).next().unwrap().1, &7); // resolve(3, 4)
-    assert_eq!(out.get(only_b.clone()).next().unwrap().1, &5); // resolve(default=0, 5)
+    assert_eq!(out.get(only_a).next().unwrap().1, &7); // resolve(7, default=0)
+    assert_eq!(out.get(both).next().unwrap().1, &7); // resolve(3, 4)
+    assert_eq!(out.get(only_b).next().unwrap().1, &5); // resolve(default=0, 5)
 
     let neither = time_segment(103, 0).0;
-    assert!(out.get(neither.clone()).next().is_none());
+    assert!(out.get(neither).next().is_none());
 }
 
 /// 両方空のテーブル同士をmergeしても何も起きない（noop）。

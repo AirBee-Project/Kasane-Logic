@@ -87,9 +87,9 @@ fn shift_fxy_partial_get_matches_whole() {
             else {
                 continue;
             };
-            let within = query.get(target.clone()).into_map().unwrap();
+            let within = query.get(target).into_map().unwrap();
             let clip = |t: &SpatialIdMap<u32>| -> SpatialIdMap<u32> {
-                t.get(target.clone()).map(|(id, v)| (id, *v)).collect()
+                t.get(target).map(|(id, v)| (id, *v)).collect()
             };
             assert_eq!(clip(&within), clip(&expected), "({f}, {x}, {y})");
             compared += usize::from(!clip(&expected).is_empty());

@@ -78,7 +78,7 @@ impl SingleId {
 
         // `other` の方が深い場合は、`other` と同じズームまで self を割り下げる。
         // 途中で生じた「`other` と重ならない兄弟」は、self の時間をそのまま持って確定する。
-        let mut current = self.clone();
+        let mut current = *self;
         while current.z() < other.z() {
             let next_z = current.z() + 1;
             let children: Vec<_> = current

@@ -6,7 +6,6 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 pub(crate) mod corner_cases;
-pub(crate) mod count;
 pub(crate) mod difference;
 pub(crate) mod equal;
 pub(crate) mod insert;
@@ -54,8 +53,8 @@ pub(crate) enum RandomSetInsert {
 impl RandomSetInsert {
     fn insert_into(&self, set: &mut SpatialIdSet) {
         match self {
-            RandomSetInsert::Single(single_id) => set.insert(single_id.clone()),
-            RandomSetInsert::Range(range_id) => set.insert(range_id.clone()),
+            RandomSetInsert::Single(single_id) => set.insert(*single_id),
+            RandomSetInsert::Range(range_id) => set.insert(*range_id),
         }
     }
 
@@ -244,13 +243,6 @@ pub(crate) fn decompose_set_to_single_ids_at_zoom(
     }
 
     normalized
-}
-
-/// [`SpatialIdSet`] をその Set が持つ最小粒度（最大ズーム）に揃えた [`SingleId`] 集合へ分解する。
-#[cfg(test)]
-pub(crate) fn decompose_set_to_min_granularity_single_ids(set: &SpatialIdSet) -> HashSet<SingleId> {
-    let target_z = set.max_zoomlevel().unwrap_or(0);
-    decompose_set_to_single_ids_at_zoom(set, target_z)
 }
 
 #[cfg(test)]

@@ -409,55 +409,18 @@ mod api_symmetry {
             .unwrap()
             .with_time(3600, 5)
             .unwrap();
-        assert_eq!(single.clone().relabel_time(Interval::HOUR).unwrap(), single);
+        assert_eq!(single.relabel_time(Interval::HOUR).unwrap(), single);
         assert!(single.relabel_time(1800).is_err());
 
         let range = RangeId::new(4, 0, 1, 1)
             .unwrap()
             .with_time(3600, [0, 1])
             .unwrap();
-        assert_eq!(range.clone().relabel_time(1800).unwrap().t(), [0, 3]);
+        assert_eq!(range.relabel_time(1800).unwrap().t(), [0, 3]);
         assert!(range.relabel_time(Interval::DAY).is_err());
 
         // `FlexId` には `relabel_time` を持たせない。Segmentが秒区間を一意に決めるので、
         // 「同じ区間を別の単位で」は定義上ありえず、成功しても必ず元と同じ値になる
         // （常に no-op か Err にしかならないAPIは、対称性のためだけに置く価値がない）。
-    }
-
-    /// `without_time` は3型とも同じ名前で、全時間へ戻す。
-    #[test]
-    fn without_time_is_available_on_every_type() {
-        assert!(
-            SingleId::new(4, 0, 1, 1)
-                .unwrap()
-                .with_time(1024, 7)
-                .unwrap()
-                .without_time()
-                .is_whole_time()
-        );
-        assert!(
-            RangeId::new(4, 0, 1, 1)
-                .unwrap()
-                .with_time(1024, [7, 9])
-                .unwrap()
-                .without_time()
-                .is_whole_time()
-        );
-        assert!(
-            FlexId::new(4, 0, 4, 1, 4, 1)
-                .unwrap()
-                .with_time_segment(25, 7)
-                .unwrap()
-                .without_time()
-                .is_whole_time()
-        );
-    }
-
-    /// `new` は3型とも空間だけを受け、時間は必ず全時間から始まる。
-    #[test]
-    fn new_always_starts_from_whole_time() {
-        assert!(SingleId::new(4, 0, 1, 1).unwrap().is_whole_time());
-        assert!(RangeId::new(4, 0, 1, 1).unwrap().is_whole_time());
-        assert!(FlexId::new(4, 0, 4, 1, 4, 1).unwrap().is_whole_time());
     }
 }

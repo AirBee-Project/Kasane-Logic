@@ -76,7 +76,7 @@ impl RangeId {
                 let y_range = y_range.clone();
                 y_range.flat_map(move |y: u32| {
                     let base = SingleId::new(z, f, x, y).unwrap();
-                    (t_min..=t_max).map(move |t| base.clone().with_time_unchecked(interval, t))
+                    (t_min..=t_max).map(move |t| base.with_time_unchecked(interval, t))
                 })
             })
         })
