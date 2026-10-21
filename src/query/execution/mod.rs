@@ -43,7 +43,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// 戻り値の [`QueryOutput`] は `Result<(FlexId, V), Error>` を返すイテレーターで、
     /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。
-    /// まとめて [`SpatialIdMap`](crate::SpatialIdMap) で受け取るには [`QueryOutput::into_map`] を使う。
+    /// まとめて [`SpatialIdMap`](crate::SpatialIdMap) で受け取るには [`QueryOutput::into_map`] を、[`SpatialIdSet`](crate::SpatialIdSet) で受け取るには [`QueryOutput::into_set`] を使う。
     ///
     /// # 評価する範囲の指定
     ///
@@ -171,6 +171,20 @@ impl<V: SafeValue + 'static> Query<V> {
     /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
+    /// [`SpatialIdSet`](crate::SpatialIdSet) で受け取る。
+    ///
+    /// ```
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # let table = SpatialIdMap::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(..)
+    ///     .into_set()?;
+    /// # Ok::<(), spatial_id::Error>(())
+    /// ```
+    ///
     /// イテレーターで受け取る。読んだ分だけ評価が進むので、途中で読むのをやめれば残りは評価しない。
     ///
     /// ```
@@ -187,7 +201,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// - 演算のパラメーターの検証に失敗すると、最初の要素として `Err` を返して終わる。
     /// - 入力源の読み出しや演算に失敗すると、その位置で `Err` を返す。
-    /// - [`QueryOutput::into_map`] は、最初に出た `Err` を返す。
+    /// - [`QueryOutput::into_map`] や [`QueryOutput::into_set`] は、最初に出た `Err` を返す。
     ///
     /// # 借用
     ///

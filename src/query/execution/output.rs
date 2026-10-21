@@ -3,7 +3,7 @@ use crate::query::Query;
 use crate::query::cancellation::CancellationToken;
 use crate::query::query_iter::QueryIter;
 use crate::query::send_sync::SafeValue;
-use crate::{Error, FlexId, RangeId, SpatialIdMap};
+use crate::{Error, FlexId, RangeId, SpatialIdMap, SpatialIdSet};
 use alloc::vec::Vec;
 
 /// [`Query::get`] などの結果を順に返すイテレーター。
@@ -53,6 +53,11 @@ impl<'a, V: SafeValue + 'static> QueryOutput<'a, V> {
     /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdMap::with_summary) で Summary を付ける。
     pub fn into_map(self) -> Result<SpatialIdMap<V>, Error> {
         self.collect()
+    }
+
+    /// 結果を [`SpatialIdSet`] にして返す。
+    pub fn into_set(self) -> Result<SpatialIdSet, Error> {
+        self.map(|res| res.map(|(id, _)| id)).collect()
     }
 
     fn start(&mut self) -> Result<QueryIter<'a, V>, Error> {
