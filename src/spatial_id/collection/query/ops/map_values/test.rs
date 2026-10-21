@@ -20,7 +20,7 @@ fn map_values_changes_the_value_type() {
         .query()
         .map_values(|v: i32| v > 10)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
 
     let mut rows: alloc::vec::Vec<(u32, bool)> = out
@@ -39,7 +39,7 @@ fn map_values_to_text() {
         .query()
         .map_values(|v: i32| if v > 10 { "high" } else { "low" }.to_string())
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
 
     let mut rows: alloc::vec::Vec<(u32, String)> = out
@@ -66,7 +66,7 @@ fn map_values_composes_with_other_operators() {
         .map_values(|v: i32| v > 10) // 型変換
         .filter_eq(true) // 変換後: true だけ残す
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
 
     let rows: alloc::vec::Vec<u32> = out

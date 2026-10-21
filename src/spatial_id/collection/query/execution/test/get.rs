@@ -18,7 +18,7 @@ fn get_shift_x_wrapped_coarsen_matches_whole() {
         .query()
         .shift_x(2, -1)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
@@ -50,7 +50,7 @@ fn get_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
         .shift_x(2, -3)
         .shift_x(2, -2)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
@@ -81,7 +81,7 @@ fn partial_get_matches_whole() {
         .shift_x(10, 1)
         .shift_y(10, 2)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
 
     let target = FlexId::new(10, 10, 10, 11, 10, 12).unwrap();
@@ -171,7 +171,7 @@ fn get_directional_falloff_matches_whole() {
             .query()
             .falloff_f(4, 2, side, FalloffPattern::Linear, Sum)
             .get(..)
-            .table()
+            .into_map()
             .unwrap();
         let target_f = FlexId::new(4, 3, 4, 2, 4, 2).unwrap();
         assert_eq!(
@@ -188,7 +188,7 @@ fn get_directional_falloff_matches_whole() {
             .query()
             .falloff_x(4, 2, side, FalloffPattern::Linear, Sum)
             .get(..)
-            .table()
+            .into_map()
             .unwrap();
         let target_x = FlexId::new(4, 2, 4, 3, 4, 2).unwrap();
         assert_eq!(
@@ -205,7 +205,7 @@ fn get_directional_falloff_matches_whole() {
             .query()
             .falloff_y(4, 2, side, FalloffPattern::Linear, Sum)
             .get(..)
-            .table()
+            .into_map()
             .unwrap();
         let target_y = FlexId::new(4, 2, 4, 2, 4, 1).unwrap();
         assert_eq!(
@@ -228,7 +228,7 @@ fn get_zoom_out_wrapped_target_matches_whole() {
         .query()
         .zoom_out(2, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let expected_vals: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
 
@@ -291,18 +291,21 @@ fn get_with_multiple_targets_returns_union() {
     let b = crate::RangeId::new(3, [0, 0], [2, 4], [0, 0]).unwrap();
 
     let values = |table: SpatialIdMap<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
-    let from_array = values(query.get([a.clone(), b.clone()]).table().unwrap());
+    let from_array = values(query.get([a.clone(), b.clone()]).into_map().unwrap());
     assert_eq!(from_array, alloc::vec![1, 2, 3, 4]);
     assert_eq!(
         values(
             query
                 .get(alloc::vec![a.clone(), b.clone()])
-                .table()
+                .into_map()
                 .unwrap()
         ),
         from_array
     );
-    assert_eq!(values(query.get(&[a, b][..]).table().unwrap()), from_array);
+    assert_eq!(
+        values(query.get(&[a, b][..]).into_map().unwrap()),
+        from_array
+    );
 }
 
 /// `..` は全体を評価し、範囲で絞り込まない。
@@ -312,7 +315,7 @@ fn get_whole_returns_everything() {
     table.insert(FlexId::new(3, -8, 3, 0, 3, 0).unwrap(), 1);
     table.insert(FlexId::new(3, 7, 3, 7, 3, 7).unwrap(), 2);
 
-    let got = table.clone().query().get(..).table().unwrap();
+    let got = table.clone().query().get(..).into_map().unwrap();
     assert_eq!(got, table);
 }
 
@@ -365,5 +368,5 @@ fn get_with_overlapping_targets_yields_each_place_once_in_order() {
         );
     }
     let from_pieces: SpatialIdMap<u32> = pieces.into_iter().collect();
-    assert_eq!(from_pieces, query.get(big).table().unwrap());
+    assert_eq!(from_pieces, query.get(big).into_map().unwrap());
 }

@@ -16,7 +16,7 @@ fn run_query(table: SpatialIdMap<u32>) -> SpatialIdMap<u32> {
         .falloff_x(25, 10, None, FalloffPattern::Linear, Max)
         .falloff_y(25, 10, None, FalloffPattern::Linear, Max)
         .get(..)
-        .table()
+        .into_map()
         .unwrap()
 }
 

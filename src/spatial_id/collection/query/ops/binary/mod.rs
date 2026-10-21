@@ -232,7 +232,7 @@ mod test {
                     .query()
                     .intersection(b.clone().query())
                     .get(..)
-                    .table()
+                    .into_map()
                     .unwrap();
                 assert_eq!(inter.inner, a.inner.intersection(&b.inner));
 
@@ -241,7 +241,7 @@ mod test {
                     .query()
                     .difference(b.clone().query())
                     .get(..)
-                    .table()
+                    .into_map()
                     .unwrap();
                 assert_eq!(diff.inner, a.inner.difference(&b.inner));
 
@@ -250,7 +250,7 @@ mod test {
                     .query()
                     .merge(b.clone().query(), 0, Sum)
                     .get(..)
-                    .table()
+                    .into_map()
                     .unwrap();
                 let mut expected_merge = a.clone();
                 for (id, &val) in b.iter() {
@@ -263,7 +263,7 @@ mod test {
                     .query()
                     .merge(b.clone().query(), 10, Sum)
                     .get(..)
-                    .table()
+                    .into_map()
                     .unwrap();
                 let mut expected_with_default = SpatialIdMap::<i32>::new();
                 for (id, &val) in a.iter() {
@@ -303,7 +303,7 @@ mod test {
             .query()
             .intersection(PanicSource.query())
             .get(..)
-            .table()
+            .into_map()
             .unwrap();
         assert!(inter.is_empty());
 
@@ -311,7 +311,7 @@ mod test {
             .query()
             .difference(PanicSource.query())
             .get(..)
-            .table()
+            .into_map()
             .unwrap();
         assert!(diff.is_empty());
     }

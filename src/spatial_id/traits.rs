@@ -39,7 +39,7 @@ pub trait SpatialId:
     /// 3 軸（F, X, Y）をまとめて移動する。
     ///
     /// 移動途中で失敗した場合は元の状態を保つ。
-    fn shift(&mut self, df: i32, dx: i32, dy: i32) -> Result<(), Error> {
+    fn spatial_shift(&mut self, df: i32, dx: i32, dy: i32) -> Result<(), Error> {
         let mut cloned = self.clone();
         cloned.move_f(df)?;
         cloned.move_x(dx);
@@ -110,7 +110,7 @@ pub trait SpatialId:
     }
 
     /// 指定したズームレベルでの空間的な親ID（包含する最小の空間ID）を返す。
-    fn parent_at_zoom(&self, target_z: u8) -> Result<Self, Error>;
+    fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<Self, Error>;
 
     /// この空間 ID を構成する [`SingleId`] のイテレータを返す。
     fn single_ids(self) -> impl Iterator<Item = SingleId>;

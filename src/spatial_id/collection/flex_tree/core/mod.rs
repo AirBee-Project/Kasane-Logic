@@ -204,7 +204,7 @@ impl<V, S> FlexTreeCore<V, S> {
     }
 
     /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
-    pub fn face_neighbors<'a, T: SpatialId>(
+    pub fn spatial_face_neighbors<'a, T: SpatialId>(
         &'a self,
         target: T,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
@@ -226,7 +226,8 @@ impl<V, S> FlexTreeCore<V, S> {
 
         let own: Vec<FlexId> = target.into_iter().collect();
         self.get_overlapping(shifted).filter(move |(leaf, _)| {
-            own.iter().all(|o| !leaf.intersects(o)) && own.iter().any(|o| o.is_face_neighbor(leaf))
+            own.iter().all(|o| !leaf.intersects(o))
+                && own.iter().any(|o| o.is_spatial_face_neighbor(leaf))
         })
     }
 
@@ -303,7 +304,7 @@ impl<V: PartialEq, S> FlexTreeCore<V, S> {
                     range
                 } else {
                     range
-                        .scale_to_zoom(max_z)
+                        .spatial_children_at_zoom(max_z)
                         .expect("全体の最大ズームレベルは各Segmentのズーム以上")
                 };
                 range.single_ids().map(move |id| (id, value))

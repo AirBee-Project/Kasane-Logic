@@ -234,7 +234,7 @@ pub(crate) fn decompose_set_to_single_ids_at_zoom(
             range
         } else {
             range
-                .scale_to_zoom(target_z)
+                .spatial_children_at_zoom(target_z)
                 .expect("target_z must be >= range.z")
         };
 

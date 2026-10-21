@@ -9,7 +9,7 @@ use crate::{SingleId, Source, SpatialIdMap};
 fn get_surfaces_validation_error() {
     let table: SpatialIdMap<i32> = SpatialIdMap::new();
     // zoom 100 は範囲外なので shift_x の構築時点で Query::Error になる。
-    let result = table.query().shift_x(100, 3).get(..).table();
+    let result = table.query().shift_x(100, 3).get(..).into_map();
     assert!(result.is_err());
 }
 
@@ -29,7 +29,7 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
             crate::spatial_id::collection::query::merge_policy::Max,
         )
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
 
     for (_, v) in out.flat_single_ids(None) {
@@ -61,7 +61,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
             .get(..)
-            .table()
+            .into_map()
             .unwrap()
     };
     let run_x = |t: SpatialIdMap<u32>| {
@@ -73,7 +73,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
             .get(..)
-            .table()
+            .into_map()
             .unwrap()
     };
     let run_y = |t: SpatialIdMap<u32>| {
@@ -85,7 +85,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
             .get(..)
-            .table()
+            .into_map()
             .unwrap()
     };
 

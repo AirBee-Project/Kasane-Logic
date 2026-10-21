@@ -81,7 +81,7 @@ impl SingleId {
         while current.z() < other.z() {
             let next_z = current.z() + 1;
             let children: Vec<_> = current
-                .children_at_zoom(next_z)
+                .spatial_children_at_zoom(next_z)
                 .expect("next_z は current.z() より1段深く、other.z() 以下なので常に有効")
                 .collect();
 

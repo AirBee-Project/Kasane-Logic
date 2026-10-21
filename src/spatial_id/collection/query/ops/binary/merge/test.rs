@@ -22,7 +22,12 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     b.insert(both.clone(), bv2);
     b.insert(only_b.clone(), bv);
 
-    let out = a.query().merge(b.query(), 0, Sum).get(..).table().unwrap();
+    let out = a
+        .query()
+        .merge(b.query(), 0, Sum)
+        .get(..)
+        .into_map()
+        .unwrap();
 
     assert_eq!(out.get(only_a.clone()).next().unwrap().1, &7); // resolve(7, default=0)
     assert_eq!(out.get(both.clone()).next().unwrap().1, &7); // resolve(3, 4)
@@ -38,7 +43,12 @@ fn merge_of_two_empty_tables_is_noop() {
     let a = SpatialIdMap::<i32>::new();
     let b = SpatialIdMap::<i32>::new();
 
-    let out = a.query().merge(b.query(), 0, Sum).get(..).table().unwrap();
+    let out = a
+        .query()
+        .merge(b.query(), 0, Sum)
+        .get(..)
+        .into_map()
+        .unwrap();
 
     assert_eq!(out.iter().count(), 0);
 }

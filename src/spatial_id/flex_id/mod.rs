@@ -342,7 +342,7 @@ impl FlexId {
 
     /// 指定したズームレベルでの空間的な親ID（包含する最小のFlexId）を返す。
     /// 指定されたズームが現在のズーム以上の場合は、各軸についてそのままのズームとインデックスを返す。
-    pub fn parent_at_zoom(&self, target_z: u8) -> Result<FlexId, Error> {
+    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<FlexId, Error> {
         let f_zoomlevel = self.f_zoomlevel().min(target_z);
         let x_zoomlevel = self.x_zoomlevel().min(target_z);
         let y_zoomlevel = self.y_zoomlevel().min(target_z);
@@ -859,11 +859,11 @@ impl FlexId {
     /// let a = FlexId::new(4, 5, 4, 5, 4, 5).unwrap();
     /// let east = FlexId::new(4, 5, 4, 6, 4, 5).unwrap(); // X+1（面で接する）
     /// let diag = FlexId::new(4, 5, 4, 6, 4, 6).unwrap(); // X+1,Y+1（辺で接する）
-    /// assert!(a.is_face_neighbor(&east));
-    /// assert!(!a.is_face_neighbor(&diag));
-    /// assert!(!a.is_face_neighbor(&a)); // 重なり（自身）は面共有ではない
+    /// assert!(a.is_spatial_face_neighbor(&east));
+    /// assert!(!a.is_spatial_face_neighbor(&diag));
+    /// assert!(!a.is_spatial_face_neighbor(&a)); // 重なり（自身）は面共有ではない
     /// ```
-    pub fn is_face_neighbor(&self, other: &FlexId) -> bool {
+    pub fn is_spatial_face_neighbor(&self, other: &FlexId) -> bool {
         #[derive(PartialEq)]
         enum Rel {
             Overlap,

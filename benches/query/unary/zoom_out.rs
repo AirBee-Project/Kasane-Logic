@@ -24,7 +24,7 @@ fn bench_zoom_out(c: &mut Criterion) {
                     t.query()
                         .zoom_out(target_level, Average)
                         .get(..)
-                        .table()
+                        .into_map()
                         .unwrap()
                 },
                 BatchSize::SmallInput,

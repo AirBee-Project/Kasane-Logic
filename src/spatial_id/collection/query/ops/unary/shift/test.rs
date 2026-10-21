@@ -45,7 +45,12 @@ fn shift_fxy_matches_chained_shifts() {
     for _ in 0..50 {
         let table = random_table(&mut state);
         for (f, x, y) in DELTAS {
-            let fused = table.clone().query().shift_fxy(6, f, x, y).get(..).table();
+            let fused = table
+                .clone()
+                .query()
+                .shift_fxy(6, f, x, y)
+                .get(..)
+                .into_map();
             let chained = table
                 .clone()
                 .query()
@@ -53,7 +58,7 @@ fn shift_fxy_matches_chained_shifts() {
                 .shift_x(6, x)
                 .shift_y(6, y)
                 .get(..)
-                .table();
+                .into_map();
             assert_eq!(fused.is_ok(), chained.is_ok(), "({f}, {x}, {y})");
             if let (Ok(fused), Ok(chained)) = (fused, chained) {
                 assert_eq!(fused, chained, "({f}, {x}, {y})");
@@ -73,10 +78,16 @@ fn shift_fxy_partial_get_matches_whole() {
         let table = random_table(&mut state);
         for (f, x, y) in DELTAS {
             let query = table.clone().query().shift_fxy(6, f, x, y);
-            let Ok(expected) = table.clone().query().shift_fxy(6, f, x, y).get(..).table() else {
+            let Ok(expected) = table
+                .clone()
+                .query()
+                .shift_fxy(6, f, x, y)
+                .get(..)
+                .into_map()
+            else {
                 continue;
             };
-            let within = query.get(target.clone()).table().unwrap();
+            let within = query.get(target.clone()).into_map().unwrap();
             let clip = |t: &SpatialIdMap<u32>| -> SpatialIdMap<u32> {
                 t.get(target.clone()).map(|(id, v)| (id, *v)).collect()
             };

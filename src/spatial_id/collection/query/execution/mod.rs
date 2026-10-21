@@ -43,7 +43,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// 戻り値の [`QueryOutput`] は `Result<(FlexId, V), Error>` を返すイテレーターで、
     /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。
-    /// まとめて [`SpatialIdMap`](crate::SpatialIdMap) で受け取るには [`QueryOutput::table`] を使う。
+    /// まとめて [`SpatialIdMap`](crate::SpatialIdMap) で受け取るには [`QueryOutput::into_map`] を使う。
     ///
     /// # 評価する範囲の指定
     ///
@@ -59,7 +59,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(..)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -72,7 +72,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(SingleId::new(20, 0, 100, 0)?)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -83,7 +83,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(RangeId::new(20, [0, 3], [100, 199], [0, 99])?)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -94,7 +94,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(FlexId::new(20, 0, 18, 25, 18, 0)?)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -109,7 +109,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get([a, b])
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -122,7 +122,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(targets)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -134,7 +134,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(&targets[..])
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -153,7 +153,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(..)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     ///
@@ -172,7 +172,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///
     /// - 演算のパラメーターの検証に失敗すると、最初の要素として `Err` を返して終わる。
     /// - 入力源の読み出しや演算に失敗すると、その位置で `Err` を返す。
-    /// - [`QueryOutput::table`] は、最初に出た `Err` を返す。
+    /// - [`QueryOutput::into_map`] は、最初に出た `Err` を返す。
     ///
     /// # 借用
     ///
@@ -204,7 +204,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get_cancellable(.., &token)
-    ///     .table();
+    ///     .into_map();
     /// assert_eq!(result, Err(Error::Cancelled));
     /// ```
     pub fn get_cancellable(
@@ -226,7 +226,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get_overlapping(SingleId::new(20, 0, 100, 0)?)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     pub fn get_overlapping(&self, targets: impl IntoTargets) -> QueryOutput<'_, V> {
@@ -243,7 +243,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get_overlapping_cancellable(SingleId::new(20, 0, 100, 0)?, &token)
-    ///     .table()?;
+    ///     .into_map()?;
     /// # Ok::<(), kasane_logic::Error>(())
     /// ```
     pub fn get_overlapping_cancellable(

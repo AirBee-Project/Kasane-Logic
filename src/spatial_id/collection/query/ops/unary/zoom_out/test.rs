@@ -32,7 +32,7 @@ fn zoom_out_average_8_children() {
         .query()
         .zoom_out(ZoomLevel::new(19).unwrap(), Average)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
@@ -56,7 +56,7 @@ fn zoom_out_max_partial_children() {
     table.insert(id_111, 5);
 
     // ZoomOut to Z=19 using Max policy
-    let out = table.query().zoom_out(19, Max).get(..).table().unwrap();
+    let out = table.query().zoom_out(19, Max).get(..).into_map().unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
     let result = out.get(parent.clone()).next().unwrap().1;
@@ -84,7 +84,7 @@ fn zoom_out_multiple_parents_commutative_and_non_commutative() {
         .query()
         .zoom_out(1, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap()
         .iter()
         .map(|(id, v)| (id, *v))
@@ -94,7 +94,7 @@ fn zoom_out_multiple_parents_commutative_and_non_commutative() {
         .query()
         .zoom_out(1, Average)
         .get(..)
-        .table()
+        .into_map()
         .unwrap()
         .iter()
         .map(|(id, v)| (id, *v))
@@ -194,7 +194,7 @@ fn zoom_out_merges_same_parent_split_by_finer_t() {
         assert_eq!(out[1].0, parent.with_time_segment(6, 1).unwrap());
         assert_eq!(out[1].1, 10);
     }
-    let sum = table.query().zoom_out(5, Sum).get(..).table().unwrap();
+    let sum = table.query().zoom_out(5, Sum).get(..).into_map().unwrap();
     let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
     assert_eq!(
         sum.get(parent.with_time_segment(6, 0).unwrap())
@@ -224,7 +224,7 @@ fn zoom_out_resolves_parents_overlapping_in_t() {
     table.insert(a, 1);
     table.insert(b, 10);
 
-    let out = table.query().zoom_out(5, Sum).get(..).table().unwrap();
+    let out = table.query().zoom_out(5, Sum).get(..).into_map().unwrap();
     let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
     let mut expected = SpatialIdMap::<i32>::new();
     expected.insert(parent.with_time_segment(6, 0).unwrap(), 1);
@@ -275,12 +275,12 @@ fn zoom_out_sum_matches_inserting_each_parent() {
             .query()
             .zoom_out(target_z, Sum)
             .get(..)
-            .table()
+            .into_map()
             .unwrap();
 
         let mut expected = SpatialIdMap::<i32>::new();
         for (id, &v) in table.iter() {
-            let parent = id.parent_at_zoom(target_z).unwrap();
+            let parent = id.spatial_parent_at_zoom(target_z).unwrap();
             expected.inner.insert_with([parent], v, |a, b| a + b);
         }
         assert_eq!(out.inner, expected.inner);

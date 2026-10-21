@@ -43,7 +43,7 @@ fn spatial_encode_prefix_max_is_not_smaller_than_encode() {
 #[test]
 fn spatial_encode_prefix_max_stops_before_next_sibling_subtree() {
     let parent = SingleId::new(2, 1, 1, 1).unwrap();
-    let children: Vec<_> = parent.children_at_zoom(3).unwrap().collect();
+    let children: Vec<_> = parent.spatial_children_at_zoom(3).unwrap().collect();
 
     let subtree_root = &children[0];
     let next_sibling_root = &children[1];

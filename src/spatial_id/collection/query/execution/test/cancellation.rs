@@ -17,7 +17,7 @@ fn get_cancellable_stops_immediately_when_already_cancelled() {
         .query()
         .shift_x(10, 1)
         .get_cancellable(bounds, &token)
-        .table();
+        .into_map();
 
     assert_eq!(result, Err(Error::Cancelled));
 }
@@ -33,7 +33,7 @@ fn get_cancellable_completes_when_not_cancelled() {
     let result = table
         .query()
         .get_cancellable(bounds, &token)
-        .table()
+        .into_map()
         .unwrap();
     let values: alloc::vec::Vec<i32> = result.into_iter().map(|(_, v)| v).collect();
 
@@ -61,7 +61,7 @@ fn cancelling_after_one_side_still_stops_the_query() {
     );
 
     assert_eq!(
-        query.get_cancellable(bounds, &token).table(),
+        query.get_cancellable(bounds, &token).into_map(),
         Err(Error::Cancelled)
     );
 }

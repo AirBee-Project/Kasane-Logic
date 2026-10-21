@@ -268,8 +268,8 @@ impl SpatialId for SingleId {
         self.with_time_span(start, end)
     }
 
-    fn parent_at_zoom(&self, target_z: u8) -> Result<Self, Error> {
-        self.parent_at_zoom(target_z)
+    fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<Self, Error> {
+        self.spatial_parent_at_zoom(target_z)
     }
 
     fn single_ids(self) -> impl Iterator<Item = SingleId> {

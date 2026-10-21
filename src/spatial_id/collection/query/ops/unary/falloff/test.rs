@@ -30,7 +30,7 @@ fn falloff_x_single_segment() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -53,7 +53,7 @@ fn falloff_x_overlap_sum() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -80,7 +80,7 @@ fn falloff_x_overlap_max() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Max)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -116,7 +116,7 @@ fn falloff_x_overlap_average() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Average)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -155,7 +155,7 @@ fn falloff_x_radius_zero_is_noop() {
         .query()
         .falloff_x(20, 0, None, FalloffPattern::Linear, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -174,7 +174,7 @@ fn falloff_x_large_value_does_not_overflow() {
         .query()
         .falloff_x(20, 200, None, FalloffPattern::QuadraticIn, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -256,7 +256,7 @@ fn falloff_matches_sequential_reference() {
 
     for axis in [FalloffAxis::F, FalloffAxis::X, FalloffAxis::Y] {
         let run = |op: &dyn Fn(crate::Query<i32>) -> crate::Query<i32>| {
-            op(table.clone().query()).get(..).table().unwrap()
+            op(table.clone().query()).get(..).into_map().unwrap()
         };
         let (max, avg, over) = match axis {
             FalloffAxis::F => (
