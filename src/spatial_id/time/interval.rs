@@ -408,14 +408,14 @@ mod api_symmetry {
             .unwrap()
             .with_time(3600, 5)
             .unwrap();
-        assert_eq!(single.clone().relabel_time(Interval::HOUR).unwrap(), single);
+        assert_eq!(single.relabel_time(Interval::HOUR).unwrap(), single);
         assert!(single.relabel_time(1800).is_err());
 
         let range = RangeId::new(4, 0, 1, 1)
             .unwrap()
             .with_time(3600, [0, 1])
             .unwrap();
-        assert_eq!(range.clone().relabel_time(1800).unwrap().t(), [0, 3]);
+        assert_eq!(range.relabel_time(1800).unwrap().t(), [0, 3]);
         assert!(range.relabel_time(Interval::DAY).is_err());
 
         // `FlexId` には `relabel_time` を持たせない。Segmentが秒区間を一意に決めるので、

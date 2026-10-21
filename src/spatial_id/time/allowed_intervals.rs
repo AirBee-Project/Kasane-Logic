@@ -264,7 +264,7 @@ mod collection_api {
     fn two_hours() -> [SingleId; 2] {
         let base = SingleId::new(12, 0, 3638, 1614).unwrap();
         [
-            base.clone().with_time(Interval::HOUR, 0).unwrap(),
+            base.with_time(Interval::HOUR, 0).unwrap(),
             base.with_time(Interval::HOUR, 1).unwrap(),
         ]
     }
@@ -410,7 +410,7 @@ mod collection_api {
             .with_time(1800, 809712)
             .unwrap();
         let mut set = SpatialIdSet::new();
-        set.insert(original.clone());
+        set.insert(original);
 
         assert_eq!(
             set.reconstructed_time_ranges(None)

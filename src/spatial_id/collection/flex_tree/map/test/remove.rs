@@ -10,11 +10,11 @@ mod tests {
         let first = SingleId::new(4, 3, 2, 1).unwrap();
         let second = SingleId::new(4, 3, 2, 2).unwrap();
         let mut table = build_table(&[
-            TableEntry::Single(first.clone(), 10),
-            TableEntry::Single(second.clone(), 20),
+            TableEntry::Single(first, 10),
+            TableEntry::Single(second, 20),
         ]);
 
-        let removed: Vec<_> = table.remove(first.clone()).collect();
+        let removed: Vec<_> = table.remove(first).collect();
         assert_eq!(removed.len(), 1);
         let (flex_id, value) = &removed[0];
         assert_eq!(*value, 10);
@@ -49,11 +49,11 @@ mod tests {
         let first = SingleId::new(4, 3, 2, 1).unwrap();
         let second = SingleId::new(4, 3, 2, 2).unwrap();
         let mut table = build_table(&[
-            TableEntry::Single(first.clone(), 10),
-            TableEntry::Single(second.clone(), 20),
+            TableEntry::Single(first, 10),
+            TableEntry::Single(second, 20),
         ]);
 
-        table.remove(first.clone());
+        table.remove(first);
         assert_eq!(table.iter().map(|(_, v)| *v).collect::<Vec<_>>(), vec![20]);
     }
 }

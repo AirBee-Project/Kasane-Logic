@@ -22,10 +22,10 @@ mod tests {
     fn remove_insert_pattern(set: &mut SpatialIdSet, insert: &RandomSetInsert) {
         match insert {
             RandomSetInsert::Single(single_id) => {
-                let _ = set.remove(single_id.clone());
+                let _ = set.remove(*single_id);
             }
             RandomSetInsert::Range(range_id) => {
-                let _ = set.remove(range_id.clone());
+                let _ = set.remove(*range_id);
             }
         }
     }

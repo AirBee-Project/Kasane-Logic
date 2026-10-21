@@ -21,6 +21,7 @@ pub trait SpatialId:
     + Debug
     + Display
     + Clone
+    + Copy
     + Eq
     + Hash
     + FromStr
@@ -40,11 +41,11 @@ pub trait SpatialId:
     ///
     /// 移動途中で失敗した場合は元の状態を保つ。
     fn spatial_shift(&mut self, df: i32, dx: i32, dy: i32) -> Result<(), Error> {
-        let mut cloned = self.clone();
-        cloned.move_f(df)?;
-        cloned.move_x(dx);
-        cloned.move_y(dy)?;
-        *self = cloned;
+        let mut moved = *self;
+        moved.move_f(df)?;
+        moved.move_x(dx);
+        moved.move_y(dy)?;
+        *self = moved;
         Ok(())
     }
 

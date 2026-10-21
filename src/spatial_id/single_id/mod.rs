@@ -36,7 +36,7 @@ use crate::{
 ///     t: u64,                // 仕様の {t}（単一）
 /// }
 /// ```
-#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 pub struct SingleId {
     z: ZoomLevel,
     f: i32,
@@ -255,7 +255,7 @@ impl SingleId {
     /// # use kasane_logic::{Interval, SingleId};
     /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(3600, 5).unwrap();
     /// // 1時間ぶんは 1800 秒単位では 2 Segmentになるので単一にできない。
-    /// assert!(id.clone().relabel_time(1800).is_err());
+    /// assert!(id.relabel_time(1800).is_err());
     /// assert_eq!(id.relabel_time(Interval::HOUR).unwrap().t(), 5);
     /// # }
     /// ```
@@ -759,7 +759,7 @@ impl SingleId {
         ];
 
         OFFSETS.into_iter().filter_map(move |(df, dx, dy)| {
-            let mut neighbor = self.clone();
+            let mut neighbor = *self;
 
             if df != 0 && neighbor.move_f(df).is_err() {
                 return None;
@@ -811,7 +811,7 @@ impl SingleId {
         ];
 
         OFFSETS.into_iter().filter_map(move |(df, dx, dy)| {
-            let mut neighbor = self.clone();
+            let mut neighbor = *self;
 
             if df != 0 && neighbor.move_f(df).is_err() {
                 return None;
@@ -856,7 +856,7 @@ impl SingleId {
         ];
 
         OFFSETS.into_iter().filter_map(move |(df, dx, dy)| {
-            let mut neighbor = self.clone();
+            let mut neighbor = *self;
 
             if neighbor.move_f(df).is_err() {
                 return None;
@@ -894,7 +894,7 @@ impl SingleId {
                         return None;
                     }
 
-                    let mut neighbor = self.clone();
+                    let mut neighbor = *self;
 
                     if df != 0 && neighbor.move_f(df).is_err() {
                         return None;
