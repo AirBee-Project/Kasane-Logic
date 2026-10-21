@@ -16,7 +16,6 @@ mod error;
 
 pub mod collection;
 pub mod geometry;
-pub mod prelude;
 pub mod query;
 pub mod spatial_id;
 
