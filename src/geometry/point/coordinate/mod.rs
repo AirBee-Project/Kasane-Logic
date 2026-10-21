@@ -276,7 +276,13 @@ impl Coordinate {
         }
 
         let n = count as f64;
-        // 重心は元の座標の凸包内に必ず収まるため、バリデーションをスキップ
-        Self::new(sum_lat / n, sum_lon / n, sum_alt / n).unwrap()
+
+        // 浮動小数点により緯度が範囲に収まる保証がないため、`clamp`する。
+        Self::new(
+            (sum_lat / n).clamp(-85.0511, 85.0511),
+            sum_lon / n,
+            sum_alt / n,
+        )
+        .unwrap()
     }
 }
