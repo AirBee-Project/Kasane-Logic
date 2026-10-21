@@ -200,12 +200,6 @@ path = "benches/query/workflow/risk_diffusion.rs"
 harness = false
 required-features = ["json", "rayon"]
 
-[[bench]]
-name = "spatial_id_table_memory_json"
-path = "benches/spatial_id_table/memory_json.rs"
-harness = false
-required-features = ["json"]
-
 [[example]]
 name = "table_json"
 required-features = ["json"]
