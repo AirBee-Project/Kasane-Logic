@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   fmt_and_doc:
@@ -169,6 +168,10 @@ jobs:
     if: github.event.pull_request.draft == true
     name: cargo semver-checks
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -178,6 +181,11 @@ jobs:
 
       - name: Install cargo-semver-checks
         uses: taiki-e/install-action@cargo-semver-checks
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "semver-ubuntu-24.04"
 
       - name: Check semver compliance
         id: semver
@@ -190,12 +198,15 @@ jobs:
           cat semver_output.txt
           if [ $EXIT_CODE -eq 0 ]; then
             echo "SEMVER_STATUS=success" >> "$GITHUB_ENV"
-          else
+          elif grep -q "semver requires new" semver_output.txt; then
             echo "SEMVER_STATUS=warning" >> "$GITHUB_ENV"
+          else
+            echo "SEMVER_STATUS=error" >> "$GITHUB_ENV"
           fi
 
+      # fork からの PR では GITHUB_TOKEN が読み取り専用になり、コメントを書けない
       - name: Post or update PR comment
-        if: always() && steps.semver.outcome != 'skipped'
+        if: always() && steps.semver.outcome != 'skipped' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
@@ -216,8 +227,10 @@ jobs:
             let body = `${marker}\n### Cargo SemVer Checks レポート\n\n`;
             if (status === 'success') {
               body += '✅ **SemVer チェック通過**: stable API において破壊的変更は検知されませんでした。\n';
+            } else if (status === 'warning') {
+              body += '⚠️ **SemVer 破壊的変更の検知（警告）**:\nstable API において互換性の変更が検知されました。メジャー更新（0.x の間はマイナー更新）を予定している場合は問題ありませんが、それ以外の場合はご確認ください。\n';
             } else {
-              body += '⚠️ **SemVer 破壊的変更の検知（警告）**:\nstable API において互換性の変更が検知されました。メジャーバージョン更新を予定している場合は問題ありませんが、マイナー／パッチ更新の場合はご確認ください。\n';
+              body += '❌ **SemVer チェックの実行失敗**: ビルドエラーなどにより、互換性を判定できませんでした。詳細ログを確認してください。\n';
             }
 
             if (log) {
@@ -226,7 +239,7 @@ jobs:
               body += `\n<details><summary>詳細ログ</summary>\n\n\`\`\`text\n${trimmedLog}\n\`\`\`\n</details>\n`;
             }
 
-            const { data: comments } = await github.rest.issues.listComments({
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue_number,
@@ -249,3 +262,7 @@ jobs:
                 body: body,
               });
             }
+
+      - name: Fail on check error
+        if: env.SEMVER_STATUS == 'error'
+        run: exit 1

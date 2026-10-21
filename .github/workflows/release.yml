@@ -20,7 +20,14 @@ jobs:
   semver_check:
     name: cargo semver-checks
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
+      - name: Ensure main branch
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::リリースは main ブランチから実行してください"
+          exit 1
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -29,6 +36,11 @@ jobs:
 
       - name: Install cargo-semver-checks
         uses: taiki-e/install-action@cargo-semver-checks
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "semver-ubuntu-24.04"
 
       - name: Check semver compliance
         run: |
@@ -115,7 +127,7 @@ jobs:
           EOF
 
       - name: Update Cargo.lock
-        run: cargo check
+        run: cargo update --workspace
 
       - name: Commit and Tag
         shell: bash
