@@ -11,9 +11,9 @@ use crate::{
     spatial_id::{
         dimension::Dimension,
         range_id::convert::{split_f, split_xy},
-        time::span,
         zoom_level::{TZoomLevel, ZoomLevel},
     },
+    time::span,
 };
 
 /// FlexId の PartialOrd（位置はルート、続いてズーム 1, 2, … の各深さで F→X→Y→T の順）における 2 つの [`FlexId`] の関係。
@@ -167,7 +167,7 @@ impl FlexId {
     /// ノードアドレスであり2分岐Segment1個しか持てないため、**ズーム**で受ける。
     ///
     /// ```text
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// single.with_time(1800, 809712)  // 1800 「秒」単位の 809712 番目
     /// flex  .with_time_segment(25, 7) // 「ズーム」25（=1024秒幅）の 7 番目
     /// ```
@@ -188,10 +188,10 @@ impl FlexId {
     /// - `temporal_id` feature 無効時は全時間以外を [`SpatialIdError::TIntervalError`] で拒否する。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{FlexId, TZoomLevel};
+    /// # use kasane_logic::{FlexId, time::TZoomLevel};
     /// // ズーム25のSegmentは 2^(35-25) = 1024 秒幅。
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_segment(25, 7).unwrap();
     /// assert_eq!((id.t_zoomlevel(), id.t_index()), (25, 7));
@@ -236,10 +236,10 @@ impl FlexId {
     /// 割り算はこちらで行うので、呼び出し側でインデックスを求める必要がない。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{FlexId, TZoomLevel};
+    /// # use kasane_logic::{FlexId, time::TZoomLevel};
     /// // 最深ズーム（35）は1秒幅。
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1)
     ///     .unwrap()
@@ -264,10 +264,10 @@ impl FlexId {
     /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::FlexId;
     /// // [1024, 2048) はズーム25のSegment1個ちょうど。
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap().with_time_span(1024, 2048).unwrap();
     /// assert_eq!((id.t_zoomlevel(), id.t_index()), (25, 1));
@@ -294,10 +294,10 @@ impl FlexId {
     /// 時間の指定を外し、全時間へ戻した自身を返す。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{FlexId, SpatialId, TZoomLevel};
+    /// # use kasane_logic::{FlexId, SpatialId, time::TZoomLevel};
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1)
     ///     .unwrap()
     ///     .with_time_segment(TZoomLevel::new(25).unwrap(), 7)
@@ -855,8 +855,8 @@ impl FlexId {
     /// この [`FlexId`] が `other` と **面を共有** しているかを判定します。X 軸は循環（対蹠経度で東西端が接続）を考慮します。辺・頂点だけで接する場合、領域が重なる場合、離れている場合はいずれも `false` を返します。判定は空間 3 軸（F / X / Y）のみで行い、時間 ID は考慮しません。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::FlexId;
     /// let a = FlexId::new(4, 5, 4, 5, 4, 5).unwrap();
     /// let east = FlexId::new(4, 5, 4, 6, 4, 5).unwrap(); // X+1（面で接する）
     /// let diag = FlexId::new(4, 5, 4, 6, 4, 6).unwrap(); // X+1,Y+1（辺で接する）

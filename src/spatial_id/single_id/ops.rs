@@ -1,7 +1,7 @@
 use crate::SpatialId;
 use alloc::vec::Vec;
 
-use crate::spatial_id::time::span::TimeSpan;
+use crate::time::span::TimeSpan;
 use crate::{RangeId, SingleId};
 
 impl SingleId {
@@ -52,7 +52,7 @@ impl SingleId {
     ///
     /// 重なりがない場合:
     /// ```
-    /// # use kasane_logic::spatial_id::{RangeId, SingleId};
+    /// # use kasane_logic::{RangeId, SingleId};
     /// let left = SingleId::new(2, 1, 1, 1).unwrap();
     /// let right = SingleId::new(2, 2, 1, 1).unwrap();
     /// let diff: Vec<_> = left.difference(&right).collect();
@@ -61,7 +61,7 @@ impl SingleId {
     ///
     /// 一方が他方を含む場合:
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let parent = SingleId::new(1, 0, 0, 0).unwrap();
     /// let child = SingleId::new(2, 0, 1, 1).unwrap();
     /// let diff: Vec<_> = parent.difference(&child).collect();
@@ -132,7 +132,7 @@ impl SingleId {
     ///
     /// 祖先と子孫の重なり:
     /// ```
-    /// # use kasane_logic::spatial_id::{RangeId, SingleId};
+    /// # use kasane_logic::{RangeId, SingleId};
     /// let ancestor = SingleId::new(2, 1, 1, 1).unwrap();
     /// let descendant = SingleId::new(3, 2, 2, 3).unwrap();
     /// assert_eq!(
@@ -143,7 +143,7 @@ impl SingleId {
     ///
     /// 重なりがない場合:
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let left = SingleId::new(3, 1, 1, 1).unwrap();
     /// let right = SingleId::new(3, 4, 1, 1).unwrap();
     /// assert!(left.intersection(&right).is_none());
@@ -162,7 +162,7 @@ impl SingleId {
     /// `self` が `other` を空間的・時間的に完全に包含するか判定します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let parent = SingleId::new(2, 0, 0, 0).unwrap();
     /// let child = SingleId::new(3, 0, 0, 0).unwrap();
     /// let other = SingleId::new(2, 1, 0, 0).unwrap();
@@ -190,7 +190,7 @@ impl SingleId {
     /// 2 つの [`SingleId`] が空間的・時間的に重なっているかを判定します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let parent = SingleId::new(2, 0, 0, 0).unwrap();
     /// let child = SingleId::new(3, 0, 0, 0).unwrap();
     /// let other = SingleId::new(2, 1, 0, 0).unwrap();

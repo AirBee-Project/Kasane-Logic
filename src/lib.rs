@@ -17,12 +17,16 @@ mod error;
 pub mod collection;
 pub mod geometry;
 pub mod query;
-pub mod spatial_id;
+mod spatial_id;
+pub mod time;
 
 pub use error::Error;
+pub use spatial_id::{
+    FlexId, IntoRange, RangeId, Side, SingleId, SpatialId, SpatialIdError, Zoom, ZoomLevel,
+};
 
 #[allow(unused_imports)]
-pub(crate) use error::{GeometryError, QueryError, SpatialIdError};
+pub(crate) use error::{GeometryError, QueryError};
 
 // クレート内部では、公開パスを書かずに短く参照する
 #[allow(unused_imports)]
@@ -46,3 +50,5 @@ pub(crate) use query::{
 pub(crate) use spatial_id::relative_flex_id::RelativeFlexId;
 #[allow(unused_imports)]
 pub(crate) use spatial_id::*;
+#[allow(unused_imports)]
+pub(crate) use time::{AllowedIntervals, Interval};

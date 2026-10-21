@@ -45,7 +45,7 @@ impl SpatialIdSet {
     ///
     /// ```
     /// use kasane_logic::collection::SpatialIdSet;
-    /// use kasane_logic::spatial_id::{FlexId, RangeId, SingleId};
+    /// use kasane_logic::{FlexId, RangeId, SingleId};
     ///
     /// let mut set = SpatialIdSet::new();
     ///
@@ -141,7 +141,7 @@ impl SpatialIdSet {
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// # use kasane_logic::collection::SpatialIdSet;
-    /// # use kasane_logic::spatial_id::{AllowedIntervals, Interval, SingleId};
+    /// # use kasane_logic::{SingleId, time::{AllowedIntervals, Interval}};
     /// let mut set = SpatialIdSet::new();
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 0).unwrap());
     /// set.insert(SingleId::new(12, 0, 3638, 1614).unwrap().with_time(Interval::HOUR, 1).unwrap());

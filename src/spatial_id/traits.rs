@@ -69,7 +69,7 @@ pub trait SpatialId:
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{Interval, SingleId, SpatialId};
+    /// # use kasane_logic::{SingleId, SpatialId, time::Interval};
     /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
     /// assert_eq!(id.time_interval().seconds(), 1800);
     ///
@@ -85,7 +85,7 @@ pub trait SpatialId:
     /// 時間を指定していない（全時間を覆う）かを判定する。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::{SingleId, SpatialId};
+    /// # use kasane_logic::{SingleId, SpatialId};
     /// assert!(SingleId::new(12, 0, 3638, 1614).unwrap().is_whole_time());
     /// ```
     fn is_whole_time(&self) -> bool {

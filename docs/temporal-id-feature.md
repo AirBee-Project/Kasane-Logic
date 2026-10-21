@@ -102,7 +102,7 @@ RangeId::new(4, 0, 0, 0)?.with_time(Interval::MINUTE, [0, 59])?  // [0, 3600)
 FlexTree は時間を「2の冪秒のSegment」として持つ。`{i}` の秒数は2の冪とは限らないので、
 挿入時には区間木的な分解によって複数のSegmentへ展開される（`1800` 秒なら5個）。
 
-読み出し時は次の2段で元の表記へ戻す（`spatial_id::time::time_segments`）。
+読み出し時は次の2段で元の表記へ戻す（`time::time_segments`）。
 
 1. **Segment単位の復元**（`FlexId::interval()` / `t()`）
    Segmentの秒幅は必ず `2^(35 - t_zoomlevel)`、開始秒はその倍数なので、`gcd(開始秒, 幅)` は恒等的に

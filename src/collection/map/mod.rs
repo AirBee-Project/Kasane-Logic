@@ -19,7 +19,7 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 /// ```
 /// use kasane_logic::collection::SpatialIdMap;
 /// use kasane_logic::collection::summary::MinMax;
-/// use kasane_logic::spatial_id::SingleId;
+/// use kasane_logic::SingleId;
 ///
 /// let mut table = SpatialIdMap::new();
 /// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 3.5_f64);
@@ -37,7 +37,7 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 /// ```
 /// use kasane_logic::collection::SpatialIdMap;
 /// use kasane_logic::collection::summary::{BitMask, ValueSet};
-/// use kasane_logic::spatial_id::SingleId;
+/// use kasane_logic::SingleId;
 ///
 /// #[derive(Debug, Clone, Copy, PartialEq, Eq, BitMask)]
 /// enum Land {
@@ -62,7 +62,7 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 /// ```
 /// use kasane_logic::collection::SpatialIdMap;
 /// use kasane_logic::collection::summary::{BitMask, MinMax, ValueSet};
-/// use kasane_logic::spatial_id::SingleId;
+/// use kasane_logic::SingleId;
 ///
 /// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, BitMask)]
 /// enum Risk {

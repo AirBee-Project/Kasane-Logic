@@ -40,14 +40,14 @@ Rustのコード内では `///` を用いて、ドキュメントを記述しま
 ///
 /// IDの作成:
 /// ```
-/// # use kasane_logic::spatial_id::SingleId;
+/// # use kasane_logic::SingleId;
 /// let id = SingleId::new(5, 3, 2, 10).unwrap();
 /// assert_eq!(id.to_string(), "5/3/2/10".to_string());
 /// ```
 ///
 /// 次元の範囲外の検知:
 /// ```
-/// # use kasane_logic::spatial_id::SingleId;
+/// # use kasane_logic::SingleId;
 /// # use kasane_logic::Error;
 /// let id = SingleId::new(3, 3, 2, 10);
 /// assert_eq!(id, Err(Error::YOutOfRange{z:3, y:10}));
@@ -55,7 +55,7 @@ Rustのコード内では `///` を用いて、ドキュメントを記述しま
 ///
 /// ズームレベルの範囲外の検知:
 /// ```
-/// # use kasane_logic::spatial_id::SingleId;
+/// # use kasane_logic::SingleId;
 /// # use kasane_logic::Error;
 /// let id = SingleId::new(68, 3, 2, 10);
 /// assert_eq!(id, Err(Error::ZOutOfRange { z:68 }));

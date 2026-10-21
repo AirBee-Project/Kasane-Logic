@@ -12,7 +12,7 @@ use crate::{
 /// F、X、Y インデックスを保持することで、グリッド内のより詳細な位置や端点などを表現できます。
 ///
 /// ```
-/// # use kasane_logic::spatial_id::ZoomLevel;
+/// # use kasane_logic::ZoomLevel;
 /// pub struct FractionalId {
 ///     z: ZoomLevel,
 ///     f: f64,
@@ -207,7 +207,7 @@ impl FractionalId {
     /// # Examples
     /// ```
     /// # use kasane_logic::geometry::FractionalId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// let sid = fid.round_to_single_id();

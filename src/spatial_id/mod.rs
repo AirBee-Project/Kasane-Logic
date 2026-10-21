@@ -1,8 +1,7 @@
-//! 空間IDと、ズームレベルや時間の区間を表現する。
+//! 空間IDとズームレベルを表現する。
 
 pub(crate) mod dimension;
 pub(crate) mod single_id;
-pub(crate) mod time;
 pub(crate) mod traits;
 pub(crate) mod zoom_level;
 
@@ -20,6 +19,5 @@ pub use flex_id::FlexId;
 pub use helpers::{IntoRange, Side};
 pub use range_id::RangeId;
 pub use single_id::SingleId;
-pub use time::{AllowedIntervals, Interval};
 pub use traits::SpatialId;
-pub use zoom_level::{TZoomLevel, Zoom, ZoomLevel};
+pub use zoom_level::{Zoom, ZoomLevel};

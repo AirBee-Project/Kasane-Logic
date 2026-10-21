@@ -10,7 +10,7 @@ pub trait Point: Into<Ecef> {
     /// # Examples
     /// ```
     /// # use kasane_logic::geometry::{Coordinate, Point};
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     ///
     /// assert_eq!(
@@ -32,7 +32,7 @@ pub trait Point: Into<Ecef> {
     /// # Examples
     /// ```
     /// # use kasane_logic::geometry::{Coordinate, Point};
-    /// # use kasane_logic::spatial_id::RangeId;
+    /// # use kasane_logic::RangeId;
     /// let coord = Coordinate::new(35.681382, 139.766084, 10.3).unwrap();
     ///
     /// assert_eq!(

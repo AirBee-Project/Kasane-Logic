@@ -61,7 +61,7 @@ impl Interval {
     /// - `temporal_id` feature 無効時は [`MAX_SECONDS`](Self::MAX_SECONDS) 以外を拒否する。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::Interval;
+    /// # use kasane_logic::time::Interval;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// assert_eq!(Interval::new(3600).unwrap(), Interval::HOUR);
@@ -129,7 +129,7 @@ impl Interval {
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)`。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::Interval;
+    /// # use kasane_logic::time::Interval;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// assert_eq!(Interval::HOUR.index_of(7_300), 2);

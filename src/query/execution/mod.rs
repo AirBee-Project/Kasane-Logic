@@ -69,7 +69,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
@@ -82,7 +82,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::RangeId;
+    /// # use kasane_logic::RangeId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
@@ -95,7 +95,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::FlexId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
@@ -110,7 +110,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let a = SingleId::new(20, 0, 100, 0)?;
     /// let b = SingleId::new(20, 0, 101, 0)?;
@@ -125,7 +125,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// # let (a, b) = (SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?);
     /// let targets = vec![a, b];
@@ -140,7 +140,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// # let targets = vec![SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?];
     /// let result = table
@@ -241,7 +241,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
@@ -259,7 +259,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::{CancellationToken, Source};
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let token = CancellationToken::new();
     /// let result = table

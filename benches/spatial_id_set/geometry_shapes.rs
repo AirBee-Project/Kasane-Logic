@@ -15,9 +15,9 @@
 //! 集合演算ベンチマークは境界領域が一部重なる形状ペアを使用する。
 
 use criterion::{Criterion, criterion_group, criterion_main};
+use kasane_logic::SingleId;
 use kasane_logic::collection::SpatialIdSet;
 use kasane_logic::geometry::{Coordinate, CoverSingleIds, Polygon, Solid, Sphere};
-use kasane_logic::spatial_id::SingleId;
 use std::hint::black_box;
 
 // ────────────────────────────────────────────────────────────────

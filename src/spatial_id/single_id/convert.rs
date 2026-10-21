@@ -1,4 +1,4 @@
-use crate::{FlexId, SingleId, spatial_id::time::span::TimeSegments};
+use crate::{FlexId, SingleId, time::span::TimeSegments};
 
 /// [`SingleId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開するイテレータ。
 ///

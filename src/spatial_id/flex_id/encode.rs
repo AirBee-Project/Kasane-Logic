@@ -30,7 +30,7 @@ impl FlexId {
     /// # 動作例
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::FlexId;
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap();
     /// let bytes = id.encode();
     /// assert_eq!(bytes.len(), FlexId::ENCODED_LEN);
@@ -81,7 +81,7 @@ impl FlexId {
     /// # 動作例
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::FlexId;
     /// let id = FlexId::new(5, 3, 2, 3, 10, 1).unwrap();
     /// let decoded = FlexId::decode(&id.encode()).unwrap();
     /// assert_eq!(decoded, id);

@@ -69,7 +69,7 @@ impl FlexId {
     /// [`intersection`](Self::intersection) と違い、重なっている領域の [`FlexId`] は作りません。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::FlexId;
     /// let parent = FlexId::new(2, 0, 2, 0, 2, 0).unwrap();
     /// let child = FlexId::new(3, 1, 3, 0, 3, 1).unwrap();
     /// let other = FlexId::new(2, 1, 2, 0, 2, 0).unwrap();
@@ -164,7 +164,7 @@ impl FlexId {
     /// `self` が `other` を完全に包含するか判定します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::FlexId;
+    /// # use kasane_logic::FlexId;
     /// let parent = FlexId::new(2, 0, 2, 0, 2, 0).unwrap();
     /// let child = FlexId::new(3, 0, 3, 0, 3, 0).unwrap();
     /// let other = FlexId::new(2, 1, 2, 0, 2, 0).unwrap();

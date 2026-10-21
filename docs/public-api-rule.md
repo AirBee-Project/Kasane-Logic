@@ -32,12 +32,16 @@
 - トレイト（`Point`, `Shape`, `Into*`, `To*`）。
 - 定数（`WGS84_*`）。
 
-3. spatial_id。
+3. spatial_id（モジュールは公開せず、項目を `lib.rs` 直下から公開する）。
 
-- ID 型（`SingleId`, `RangeId`, `FlexId`）と時間間隔（`Interval`）。
+- ID 型（`SingleId`, `RangeId`, `FlexId`）。
 - コレクション型（`FlexTree*`）。
 - トレイト（`SpatialId`, `Into*Ids`, `Iter*Ids`, `SpatialIdSet`, `SpatialIdMap`）。
 - 定数（`F_*`, `XY_MAX`, `MAX_ZOOM_LEVEL`）。
+
+4. time（`time` モジュールとして公開する）。
+
+- 時間間隔と時間のズームレベル（`Interval`, `AllowedIntervals`, `TZoomLevel`）。
 
 ## 5. 追加・変更時のチェックリスト
 
@@ -54,7 +58,7 @@
 pub use geometry::point::coordinate::Coordinate;
 
 #[doc(inline)]
-pub use spatial_id::single_id::SingleId;
+pub use spatial_id::SingleId;
 ```
 
 ## 7. 互換性ポリシー

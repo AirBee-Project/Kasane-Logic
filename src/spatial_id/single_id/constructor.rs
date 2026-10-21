@@ -22,23 +22,23 @@ impl SingleId {
     ///
     /// IDの作成:
     /// ```no_run
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.to_string(), "5/3/2/10".to_string());
     /// ```
     ///
     /// 次元の範囲外の検知:
     /// ```no_run
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialIdError;
     /// let id = SingleId::new(3, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::YOutOfRange{z:3,y:10}.into()));
     /// ```
     ///
     /// ズームレベルの範囲外の検知:
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialIdError;
     /// let id = SingleId::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```
@@ -47,7 +47,7 @@ impl SingleId {
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{Interval, SingleId};
+    /// # use kasane_logic::{SingleId, time::Interval};
     /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(Interval::MINUTE, 3).unwrap();
     /// assert_eq!(id.to_string(), "5/3/2/10_60/3".to_string());
     /// # }
@@ -83,7 +83,7 @@ impl SingleId {
     /// これらが保証されない場合、パニック・不正メモリアクセス・未定義動作を引き起こす可能性がある。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { SingleId::new_unchecked(5, 3, 2, 10) };
     ///

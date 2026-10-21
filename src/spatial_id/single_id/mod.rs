@@ -8,9 +8,8 @@ pub mod random;
 mod test;
 
 use crate::{
-    Interval, SpatialId, SpatialIdError,
-    error::Error,
-    spatial_id::{time::span, zoom_level::ZoomLevel},
+    Interval, SpatialId, SpatialIdError, error::Error, spatial_id::zoom_level::ZoomLevel,
+    time::span,
 };
 
 /// 標準的な時空間IDを表す型。
@@ -26,7 +25,7 @@ use crate::{
 /// この型は `PartialOrd` / `Ord` を実装しているが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
 ///
 /// ```text
-/// # use kasane_logic::spatial_id::SpatialId;
+/// # use kasane_logic::SpatialId;
 /// pub struct SingleId {
 ///     z: ZoomLevel,
 ///     f: i32,
@@ -52,10 +51,10 @@ impl SingleId {
     /// この `SingleId` が保持しているズームレベル `z` を返します。
     ///
     /// ```no_run
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.z(), 5u8);
     /// ```
@@ -66,8 +65,8 @@ impl SingleId {
     /// この `SingleId` が保持している F インデックス `f` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.f(), 3i32);
     /// ```
@@ -78,8 +77,8 @@ impl SingleId {
     /// この `SingleId` が保持している X インデックス `x` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.x(), 2u32);
     /// ```
@@ -90,8 +89,8 @@ impl SingleId {
     /// この `SingleId` が保持している Y インデックス `y` を返します。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.y(), 10u32);
     /// ```
@@ -142,10 +141,10 @@ impl SingleId {
     ///   [`SpatialIdError::TOutOfRange`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{Interval, SingleId};
+    /// # use kasane_logic::{SingleId, time::Interval};
     /// // 仕様書の例: 12/0/3638/1614_1800/809712（30分単位）
     /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time(1800, 809712).unwrap();
     /// assert_eq!(id.to_string(), "12/0/3638/1614_1800/809712");
@@ -181,10 +180,10 @@ impl SingleId {
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// // 1457482000 秒は 30 分単位で 809712 番目のSegmentに入る。
     /// let id = SingleId::new(12, 0, 3638, 1614).unwrap().with_time_at(1800, 1_457_482_000).unwrap();
     /// assert_eq!(id.to_string(), "12/0/3638/1614_1800/809712");
@@ -220,10 +219,10 @@ impl SingleId {
     /// - 区間が単一Segmentにならない場合は [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 0, 0, 0).unwrap()
     ///     .with_time_span(1_457_481_600, 1_457_483_400).unwrap();
     /// assert_eq!(id.time_interval().seconds(), 1800);
@@ -252,10 +251,10 @@ impl SingleId {
     /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{Interval, SingleId};
+    /// # use kasane_logic::{SingleId, time::Interval};
     /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(3600, 5).unwrap();
     /// // 1時間ぶんは 1800 秒単位では 2 Segmentになるので単一にできない。
     /// assert!(id.relabel_time(1800).is_err());
@@ -279,10 +278,10 @@ impl SingleId {
     /// 時間の指定を外し、全時間へ戻した自身を返す。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::spatial_id::{SingleId, SpatialId};
+    /// # use kasane_logic::{SingleId, SpatialId};
     /// let id = SingleId::new(5, 3, 2, 10).unwrap().with_time(3600, 5).unwrap();
     /// assert!(id.without_time().is_whole_time());
     /// # }
@@ -325,8 +324,8 @@ impl SingleId {
     ///
     /// 正常な更新:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(5, 3, 2, 10).unwrap();
     /// id.set_f(4).unwrap();
     /// assert_eq!(id.f(), 4);
@@ -334,10 +333,10 @@ impl SingleId {
     ///
     /// 範囲外の検知:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_f(999);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::FOutOfRange { z: 3, f: 999 }))));
@@ -361,8 +360,8 @@ impl SingleId {
     ///
     /// 正常な更新:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(5, 3, 2, 10).unwrap();
     /// id.set_x(4).unwrap();
     /// assert_eq!(id.x(), 4);
@@ -370,10 +369,10 @@ impl SingleId {
     ///
     /// 範囲外の検知
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_x(999);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::XOutOfRange { z: 3, x: 999 }))));
@@ -397,8 +396,8 @@ impl SingleId {
     ///
     /// 正常な更新
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(5, 3, 2, 10).unwrap();
     /// id.set_y(8).unwrap();
     /// assert_eq!(id.y(), 8);
@@ -406,10 +405,10 @@ impl SingleId {
     ///
     /// 範囲外の検知
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::SingleId;
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_y(999);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::YOutOfRange { z: 3, y: 999 }))));
@@ -431,8 +430,8 @@ impl SingleId {
     ///
     /// 1段深いズームへの細分化
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     ///
     /// // target_z = 4 のため F, X, Y はそれぞれ 2 分割される
@@ -450,10 +449,10 @@ impl SingleId {
     ///
     /// 現在より浅いズームを指定した場合
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.spatial_children_at_zoom(2);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 2 }))));
@@ -523,8 +522,8 @@ impl SingleId {
     ///
     /// 1段浅いズームへの縮約
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     ///
     /// let parent = id.spatial_parent_at_zoom(3).unwrap();
@@ -537,8 +536,8 @@ impl SingleId {
     ///
     /// Fが負の場合の挙動
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, -1, 8, 12).unwrap();
     ///
     /// let parent = id.spatial_parent_at_zoom(3).unwrap();
@@ -551,10 +550,10 @@ impl SingleId {
     ///
     /// 現在より深いズームを指定した場合:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::Error;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.spatial_parent_at_zoom(4);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 4 }))));
@@ -605,8 +604,8 @@ impl SingleId {
     ///
     /// 兄弟の列挙:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let siblings = id.spatial_siblings().unwrap();
     ///
@@ -617,8 +616,8 @@ impl SingleId {
     ///
     /// 最上位の ID の場合:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(0, 0, 0, 0).unwrap();
     /// assert!(id.spatial_siblings().is_none());
     /// ```
@@ -731,8 +730,8 @@ impl SingleId {
     ///
     /// 親の列挙:
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let parents: Vec<_> = id.spatial_parents().collect();
     ///
@@ -755,8 +754,8 @@ impl SingleId {
     /// そのため、境界上の [`SingleId`] では 6 個未満になることがあります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let neighbors: Vec<_> = id.spatial_face_neighbors().collect();
     /// assert_eq!(neighbors.len(), 6);
@@ -798,8 +797,8 @@ impl SingleId {
     /// そのため、境界上の [`SingleId`] では 12 個未満になることがあります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let neighbors: Vec<_> = id.spatial_edge_neighbors().collect();
     /// assert_eq!(neighbors.len(), 12);
@@ -850,8 +849,8 @@ impl SingleId {
     /// そのため、境界上の [`SingleId`] では 8 個未満になることがあります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let neighbors: Vec<_> = id.spatial_vertex_neighbors().collect();
     /// assert_eq!(neighbors.len(), 8);
@@ -893,8 +892,8 @@ impl SingleId {
     /// そのため、境界上の [`SingleId`] では 26 個未満になることがあります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let neighbors: Vec<_> = id.spatial_all_neighbors().collect();
     /// assert_eq!(neighbors.len(), 26);

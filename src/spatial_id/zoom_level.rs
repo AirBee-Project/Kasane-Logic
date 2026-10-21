@@ -8,8 +8,8 @@ pub struct Zoom<const LIMIT: u8>(u8);
 
 /// 空間のズームレベルを表す型。
 /// ```
-/// # use kasane_logic::spatial_id::SpatialIdError;
-/// # use kasane_logic::spatial_id::ZoomLevel;
+/// # use kasane_logic::SpatialIdError;
+/// # use kasane_logic::ZoomLevel;
 /// let z = ZoomLevel::new(5).unwrap();
 /// assert_eq!(z.get(), 5);
 /// assert_eq!(ZoomLevel::new(255), Err(SpatialIdError::ZOutOfRange { z: 255 }.into()));
@@ -18,7 +18,7 @@ pub type ZoomLevel = Zoom<30>;
 
 /// 時間軸のズームレベルを表す型。[`FlexId`](crate::FlexId) でのみ使う。
 /// ```
-/// # use kasane_logic::spatial_id::TZoomLevel;
+/// # use kasane_logic::time::TZoomLevel;
 /// let z = TZoomLevel::new(5).unwrap();
 /// assert_eq!(z.get(), 5);
 /// assert_eq!(TZoomLevel::MAX.segment_seconds(), 1);

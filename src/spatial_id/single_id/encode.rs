@@ -18,7 +18,7 @@ impl SingleId {
     ///
     /// エンコード結果の取得:
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let bytes = id.spatial_encode();
     /// assert_eq!(bytes.len(), 12);
@@ -65,7 +65,7 @@ impl SingleId {
     ///
     /// 範囲検索の終端キーの取得:
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let end = id.spatial_encode_prefix_max();
     /// assert_eq!(end.len(), 12);
@@ -116,7 +116,7 @@ impl SingleId {
     ///
     /// 往復変換:
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let decoded = SingleId::spatial_decode(&id.spatial_encode()).unwrap();
     /// assert_eq!(decoded, id);

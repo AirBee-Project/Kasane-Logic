@@ -1,5 +1,5 @@
-use crate::spatial_id::time::span::TimeSpan;
 use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::time::span::TimeSpan;
 
 /// 2の冪乗の長さを持ち、時間木の特定の境界にアライメントされた1ノード。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

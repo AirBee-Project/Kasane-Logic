@@ -10,7 +10,7 @@ impl fmt::Display for SingleId {
     /// 形式は `"{z}/{f}/{x}/{y}"`。
     ///
     /// ```no_run
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SingleId;
     /// # use core::fmt::Write;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
     /// let s = format!("{}", id);
@@ -37,8 +37,8 @@ impl SpatialId for SingleId {
     ///
     /// 移動
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.f(), 6);
     ///
@@ -48,9 +48,9 @@ impl SpatialId for SingleId {
     ///
     /// 範囲外の検知によるエラー
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatialIdError;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.f(), 6);
     /// assert_eq!(id.move_f(50), Err(SpatialIdError::FOutOfRange { z: 4, f: 56 }.into()));
@@ -77,8 +77,8 @@ impl SpatialId for SingleId {
     ///
     /// 移動
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.x(), 9);
     ///
@@ -88,8 +88,8 @@ impl SpatialId for SingleId {
     ///
     /// 循環による移動
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.x(), 9);
     ///
@@ -112,8 +112,8 @@ impl SpatialId for SingleId {
     ///
     /// 移動
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialId;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.y(), 10);
     ///
@@ -123,9 +123,9 @@ impl SpatialId for SingleId {
     ///
     /// 範囲外の検知によるエラー
     /// ```
-    /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SpatialIdError;
+    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SpatialIdError;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.y(), 10);
     /// assert_eq!(id.move_y(-20), Err(SpatialIdError::YOutOfRange { z: 4, y: 0 }.into()));
@@ -159,8 +159,8 @@ impl SpatialId for SingleId {
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// # use kasane_logic::geometry::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     /// let center: Coordinate = id.spatial_center();
@@ -180,8 +180,8 @@ impl SpatialId for SingleId {
     /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
     /// ```
-    /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::spatial_id::SingleId;
+    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::SingleId;
     /// # use kasane_logic::geometry::Coordinate;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     /// let vertices: [Coordinate; 8] = id.spatial_vertices();
@@ -283,7 +283,7 @@ impl SpatialId for SingleId {
 /// で、時間を持つ場合のみ末尾に `_{i}/{t}` を付ける（`{t}` は単数）。
 ///
 /// ```
-/// # use kasane_logic::spatial_id::SingleId;
+/// # use kasane_logic::SingleId;
 /// let id: SingleId = "5/3/2/10".parse().unwrap();
 /// assert_eq!(id.z(), 5);
 /// assert_eq!(id.f(), 3);

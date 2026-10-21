@@ -109,7 +109,7 @@ impl IntoIterator for RangeId {
         // **出力Segment1個につきヒープ確保が1回**走り、全時間の ID（`t_list.len() == 1`）でも
         // 必ず通るため、空間だけの利用者にも余計な固定費がのしかかる。
         // `Rc::clone` は参照カウントの加算だけで確保しない。
-        let t_list: Rc<[crate::spatial_id::time::segment::TimeSegment]> =
+        let t_list: Rc<[crate::time::segment::TimeSegment]> =
             self.time_segments().collect::<Vec<_>>().into();
 
         let iter = f_list.into_iter().flat_map(move |(f_z, f_i)| {
