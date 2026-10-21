@@ -18,7 +18,7 @@ mod par_build {
 
     fn sorted(table: &SpatialIdTable<i32>) -> Vec<(FlexId, i32)> {
         let mut v: Vec<_> = table.iter().map(|(f, val)| (f, *val)).collect();
-        v.sort();
+        v.sort_by_key(|(id, _)| id.field_key());
         v
     }
 
@@ -43,8 +43,8 @@ mod par_build {
                 .into_iter()
                 .map(|(id, _)| id)
                 .collect();
-            a.sort();
-            b.sort();
+            a.sort_by_key(FlexId::field_key);
+            b.sort_by_key(FlexId::field_key);
             assert_eq!(a, b, "value_get({v}) mismatch");
         }
     }

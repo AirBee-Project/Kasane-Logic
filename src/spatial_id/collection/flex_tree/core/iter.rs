@@ -155,7 +155,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> Extend<(FlexId, V)> for FlexTreeCore<V
     }
 }
 
-/// Z-ordered sequence（`prev.zorder_cmp(&next) == Some(Less)`）から、1つのルート配下の Node を下から O(n) で組む。
+/// FlexId の Z-order 列（`prev < next`）から、1つのルート配下の Node を下から O(n) で組む。
 struct OrderedRootBuilder<V, S> {
     root_id: FlexId,
     prev_id: FlexId,
@@ -228,7 +228,7 @@ fn finish_builders<V: PartialEq + Clone, S: Summary<V>>(
 }
 
 impl<V: PartialEq + Clone, S: Summary<V>> FromIterator<(FlexId, V)> for FlexTreeCore<V, S> {
-    /// Z-ordered sequence なら下から O(n) で組み立て、途中で順序が崩れていれば [`insert`](FlexTreeCore::insert) に切り替える。
+    /// FlexId の Z-order 列なら下から O(n) で組み立て、途中で順序が崩れていれば [`insert`](FlexTreeCore::insert) に切り替える。
     fn from_iter<I: IntoIterator<Item = (FlexId, V)>>(iter: I) -> Self {
         let mut iter = iter.into_iter();
         let mut upper: Option<OrderedRootBuilder<V, S>> = None;

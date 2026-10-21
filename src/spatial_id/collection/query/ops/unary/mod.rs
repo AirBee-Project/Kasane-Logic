@@ -12,8 +12,8 @@ pub(crate) fn sort_by_flex_id<T: MaybeSendSync>(items: &mut [(FlexId, T)]) {
     #[cfg(feature = "rayon")]
     {
         use rayon::prelude::*;
-        items.par_sort_by_key(|a| a.0);
+        items.par_sort_by_key(|a| a.0.field_key());
     }
     #[cfg(not(feature = "rayon"))]
-    items.sort_by_key(|a| a.0);
+    items.sort_by_key(|a| a.0.field_key());
 }

@@ -11,16 +11,7 @@ use crate::SingleId;
 
 /// [SingleId],[RangeId],[FlexId]が共通して持つTrait
 pub trait SpatialId:
-    IntoIterator<Item = FlexId>
-    + Into<RangeId>
-    + Debug
-    + Display
-    + Clone
-    + Eq
-    + Hash
-    + Ord
-    + PartialOrd
-    + FromStr
+    IntoIterator<Item = FlexId> + Into<RangeId> + Debug + Display + Clone + Eq + Hash + FromStr
 {
     /// F 方向に指定インデックスだけ移動する。
     fn move_f(&mut self, by: i32) -> Result<(), Error>;

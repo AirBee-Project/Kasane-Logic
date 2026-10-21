@@ -122,7 +122,7 @@ fn lazy_view_get_with_default() {
 
     // ソートして検証
     let mut results_with_default = results_with_default;
-    results_with_default.sort_unstable_by_key(|a| a.0);
+    results_with_default.sort_unstable_by_key(|a| a.0.field_key());
 
     // id1 の場所は元の値 100
     assert_eq!(results_with_default[0].0, id1);

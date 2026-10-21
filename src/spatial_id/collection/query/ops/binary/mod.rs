@@ -40,7 +40,7 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
         self.stack.pop().expect("peek 済みの要素が存在する")
     }
 
-    /// `enclosing` に含まれる先頭要素群を `dim` で 2 分割し、Z-ordered sequence を保って `stack` に戻す。
+    /// `enclosing` に含まれる先頭要素群を `dim` で 2 分割し、FlexId の Z-order 列を保って `stack` に戻す。
     ///
     /// 先頭要素が `enclosing` そのものであれば 1 要素を 2 分割するだけで済むが、`first_id != enclosing`
     /// （異方性により粗い `dim` を飛ばして後続の次元で先に割られている場合）は、`dim` の下側・上側の順に
@@ -58,7 +58,7 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
             return Ok(());
         }
 
-        // 先頭が dim を飛ばして flex Z-order の後続の位置で先に割られている場合、QueryIter の順序制約から
+        // 先頭が dim を飛ばして FlexId の PartialOrd の後続の位置で先に割られている場合、QueryIter の順序制約から
         // enclosing 内の後続要素もすべて dim では未分割であることが保証される。
         let mut items = alloc::vec![(first_id, first_val)];
         while let Some((id, _)) = self.peek()? {
@@ -80,7 +80,7 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
     }
 }
 
-/// 2 つの [`QueryIter`] を flex Z-order で突き合わせて二項演算を行う。
+/// 2 つの [`QueryIter`] を FlexId の PartialOrd で突き合わせて二項演算を行う。
 ///
 /// - `on_left`: 左辺のみに存在する領域の値を変換する関数。`None` なら出力せず、右辺枯渇時に即終了する。
 /// - `on_right`: 右辺のみに存在する領域の値を変換する関数。`None` なら出力せず、左辺枯渇時に右辺をポーリングせず即終了する。

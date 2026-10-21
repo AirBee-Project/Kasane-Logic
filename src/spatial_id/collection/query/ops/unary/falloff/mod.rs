@@ -254,7 +254,7 @@ where
             |value| vec![value],
             |a, b| [a.as_slice(), b].concat(),
         )?;
-        // 葉は flex Z-order で互いに素に並ぶので、collect は木を下から一括で組める
+        // FlexTreeCore から出てくる列はカノニカル列なので、collect は木を下から一括で組める
         let inner: FlexTreeCore<V, NoSummary> = gathered
             .iter()
             .filter_map(|(id, values)| Some((id, P::resolve_many(values.iter().cloned())?)))

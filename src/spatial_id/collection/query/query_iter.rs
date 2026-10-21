@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 #[cfg(feature = "rayon")]
 use alloc::vec::Vec;
 
-/// 演算子の間を流れる `(FlexId, V)` の列。Z-ordered sequence である。
+/// 演算子の間を流れる `(FlexId, V)` の列。FlexId の Z-order 列である。
 pub struct QueryIter<'a, V>(
     #[cfg(not(feature = "rayon"))] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + 'a>,
     #[cfg(feature = "rayon")] Box<dyn Iterator<Item = Result<(FlexId, V), Error>> + Send + 'a>,
@@ -22,9 +22,8 @@ impl<'a, V> QueryIter<'a, V> {
                 if let Ok((id, _)) = item
                     && let Some(prev) = prev.replace(*id)
                 {
-                    assert_eq!(
-                        prev.zorder_cmp(id),
-                        Some(core::cmp::Ordering::Less),
+                    assert!(
+                        prev < *id,
                         "QueryIter の制約違反: {prev:?} の次に {id:?} が来た"
                     );
                 }

@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-/// flex Z-order（位置はルート、続いてズーム 1, 2, … の各深さで F→X→Y→T の順）における 2 つの [`FlexId`] の関係。
+/// FlexId の PartialOrd（位置はルート、続いてズーム 1, 2, … の各深さで F→X→Y→T の順）における 2 つの [`FlexId`] の関係。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ZOrderRel {
     /// 最初に食い違う位置で両方が割られており、左辺が下側（手前）、右辺が上側（奥）にある。互いに重ならない。
@@ -25,7 +25,7 @@ pub(crate) enum ZOrderRel {
     Equal,
     /// 最初に食い違う位置で両方が割られており、左辺が上側（奥）、右辺が下側（手前）にある。互いに重ならない。
     Greater,
-    /// 最初に食い違う位置で片方だけが割られている（包含関係にあるか、異方性により flex Z-order で比較できない）。
+    /// 最初に食い違う位置で片方だけが割られている（包含関係にあるか、異方性により FlexId の PartialOrd で比較できない）。
     Overlap {
         /// 最初に食い違う位置の直前まで一致している共通の祖先領域。両方の [`FlexId`] を含む。
         enclosing: FlexId,
@@ -38,7 +38,7 @@ pub(crate) enum ZOrderRel {
 
 /// 拡張時空間IDを表現する型。
 /// 各次元がズームレベルとインデックス値を持つ。
-#[derive(Clone, Copy, PartialEq, Debug, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Debug, Eq, Hash)]
 pub struct FlexId {
     f_zoomlevel: ZoomLevel,
     f_index: i32,
@@ -110,6 +110,23 @@ impl FlexId {
             0
         }
     }
+
+    /// フィールドを宣言順に並べたキー。
+    ///
+    /// FlexId の PartialOrd は全順序ではないので、同じ FlexId を隣に集めるためだけに並べるときに使う。順序に空間的な意味はない。
+    pub(crate) fn field_key(&self) -> (u8, i32, u8, u32, u8, u32, u8, u64) {
+        (
+            self.f_zoomlevel(),
+            self.f_index(),
+            self.x_zoomlevel(),
+            self.x_index(),
+            self.y_zoomlevel(),
+            self.y_index(),
+            self.t_zoomlevel(),
+            self.t(),
+        )
+    }
+
     pub fn f_index(&self) -> i32 {
         self.f_index
     }
@@ -739,7 +756,7 @@ impl FlexId {
         Dimension::mask(|d| self.zoomlevel_on(d) > other.zoomlevel_on(d))
     }
 
-    /// flex Z-order の各位置について、自身がどちら側にあるかを、先に割る位置から順に返す。
+    /// FlexId の PartialOrd の各位置について、自身がどちら側にあるかを、先に割る位置から順に返す。
     ///
     /// 位置はルート（F の符号）、続いてズーム 1, 2, … の各ズームで F→X→Y→T の順。
     /// 自身がその位置で割られていなければ [`None`]、割られていれば上側なら `true`。
@@ -756,29 +773,17 @@ impl FlexId {
         core::iter::once(Some(self.root_index() == 1)).chain(levels)
     }
 
-    /// flex Z-order に並べ替えるためのキーを返す。
+    /// FlexId の PartialOrd に沿って並べ替えるためのキーを返す。
     ///
     /// 先に割る位置を上位ビットとし、各位置の側（上側なら 1、割られていなければ 0）を並べた値。
-    /// Z-ordered sequence（[`QueryIter`](crate::spatial_id::collection::query::query_iter::QueryIter) が満たす列）は、
+    /// FlexId の Z-order 列（[`QueryIter`](crate::spatial_id::collection::query::query_iter::QueryIter) が満たす列）は、
     /// このキーの狭義の昇順に並ぶ。
     pub fn zorder_key(&self) -> u128 {
         self.zorder_sides()
             .fold(0, |key, side| key << 1 | u128::from(side == Some(true)))
     }
 
-    /// flex Z-order で `self` と `other` を比べる。
-    ///
-    /// 最初に食い違う位置で両方が割られていれば、その位置の側で順序を返す。
-    /// 重なっている場合と、片方だけが割られた位置で先に食い違う場合は [`None`]。
-    pub fn zorder_cmp(&self, other: &FlexId) -> Option<core::cmp::Ordering> {
-        match self.zorder_rel(other) {
-            ZOrderRel::Less => Some(core::cmp::Ordering::Less),
-            ZOrderRel::Greater => Some(core::cmp::Ordering::Greater),
-            ZOrderRel::Equal | ZOrderRel::Overlap { .. } => None,
-        }
-    }
-
-    /// flex Z-order における `self` と `other` の関係を求める。
+    /// FlexId の PartialOrd における `self` と `other` の関係を求める。
     ///
     /// 両方が割られた位置で先に食い違えば [`ZOrderRel::Less`] または [`ZOrderRel::Greater`]、
     /// 完全一致なら [`ZOrderRel::Equal`]、片方だけが割られた位置で先に食い違えば
@@ -810,7 +815,7 @@ impl FlexId {
         }
     }
 
-    /// 同じルート内で `self` が flex Z-order で `other` より前にあるなら、
+    /// 同じルート内で `self` が FlexId の PartialOrd で `other` より前にあるなら、
     /// 分岐する共通の祖先領域・割る次元・その次元でのズーム深さを返す。
     pub(crate) fn zorder_fork(&self, other: &FlexId) -> Option<(FlexId, Dimension, u8)> {
         if self.root_index() != other.root_index() {
@@ -828,7 +833,7 @@ impl FlexId {
         ))
     }
 
-    /// 同じルート内で、flex Z-order において `self` と `other` が最初に食い違う `(一致ズーム深さ, 次元)` を返す。
+    /// 同じルート内で、FlexId の PartialOrd において `self` と `other` が最初に食い違う `(一致ズーム深さ, 次元)` を返す。
     /// `self == other` なら [`None`]。
     fn first_zorder_diff(&self, other: &FlexId) -> Option<(u8, Dimension)> {
         let mut best: Option<(u8, Dimension)> = None;
@@ -949,3 +954,16 @@ const _: () = assert!(
     core::mem::size_of::<FlexId>() == 24,
     "FlexId のサイズが変わった。木の走査スタックに直結するので意図した変更か確認すること"
 );
+
+/// FlexId の PartialOrd。最初に食い違う位置で両方が割られていれば、その位置の側で順序が決まる。
+/// 重なっている組と、片方だけが割られた位置で先に食い違う組は比較できない（[`None`]）。
+impl PartialOrd for FlexId {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        match self.zorder_rel(other) {
+            ZOrderRel::Less => Some(core::cmp::Ordering::Less),
+            ZOrderRel::Equal => Some(core::cmp::Ordering::Equal),
+            ZOrderRel::Greater => Some(core::cmp::Ordering::Greater),
+            ZOrderRel::Overlap { .. } => None,
+        }
+    }
+}

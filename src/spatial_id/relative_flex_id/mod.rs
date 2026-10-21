@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// ある祖先の [FlexId] を起点とした相対的な位置を表す[FlexId]。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RelativeFlexId(FlexId);
 
 impl FlexId {
