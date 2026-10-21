@@ -9,8 +9,8 @@ use crate::{Coordinate, Error, GeometryError};
 /// 3次元空間におけるパイプを表す型。
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tube {
-    pub points: Vec<Coordinate>,
-    pub radius_m: f64,
+    points: Vec<Coordinate>,
+    radius_m: f64,
 }
 
 impl Tube {
@@ -20,5 +20,15 @@ impl Tube {
         } else {
             Err(GeometryError::RadiusNegative { radius: radius_m }.into())
         }
+    }
+
+    /// 中心線を構成する点を返す。
+    pub fn points(&self) -> &[Coordinate] {
+        &self.points
+    }
+
+    /// 半径（メートル）を返す。
+    pub fn radius_m(&self) -> f64 {
+        self.radius_m
     }
 }
