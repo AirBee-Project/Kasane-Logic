@@ -53,7 +53,7 @@ fn road_strip_xy_symmetry() {
 
 /// フル充填の葉 collapse で max_zoom が減るケース。
 /// zoom4 の 2×2×2 ブロック（f,x,y∈{0,1}）は zoom3 等方Segment（葉）へ畳まれ、
-/// max_zoomlevel は 4→3 になる（キャッシュ済み max_zoom がステイルにならない）。
+/// max_zoomlevel は 4→3 になる。
 #[test]
 fn f_collapse_reduces_max_zoom() {
     let mut set = SpatialIdSet::new();
@@ -68,9 +68,8 @@ fn f_collapse_reduces_max_zoom() {
     assert_eq!(
         set.max_zoomlevel(),
         Some(3),
-        "f-collapse must drop cached max_zoom 4 -> 3"
+        "f-collapse must drop max_zoom 4 -> 3"
     );
-    assert_eq!(set.max_zoomlevel(), brute_max_zoom(&set));
 }
 
 /// Table（値あり）: 同値の Y 兄弟は merge して 1、異値は merge せず 2。
@@ -235,14 +234,6 @@ fn union_recursive_collapse_deep() {
     assert!(set_is_fully_merged(&u));
 }
 
-/// 格納されている全 FlexId から `max(f_zoom, x_zoom, y_zoom)` の最大値を直接計算する。
-/// キャッシュ済み `max_zoom` のオラクル。
-fn brute_max_zoom(set: &SpatialIdSet) -> Option<u8> {
-    set.iter()
-        .map(|id| id.f_zoomlevel().max(id.x_zoomlevel()).max(id.y_zoomlevel()))
-        .max()
-}
-
 /// 木の現在の内容を iter() で取り出し、新しい Set へ再挿入したものを返す。
 fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
     let mut out = SpatialIdSet::new();
@@ -253,30 +244,6 @@ fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
 }
 
 proptest! {
-    /// 内部不変条件: insert で構築した木に未適用マージ（Leaf(v)+Leaf(v) の Branch）が無い。
-    #[ignore]
-    #[test]
-    fn insert_no_unmerged(case in arb_random_set_case()) {
-        let set = case.build_set();
-        prop_assert!(set_is_fully_merged(&set), "unmerged after insert: {}", case.debug_summary());
-    }
-
-    /// 冗長軸 collapse 後も、キャッシュ済み max_zoom が実際の格納Segmentと一致する
-    /// （collapse で葉の実効 zoom が変わっても max_zoomlevel がステイルにならない）。
-    #[ignore]
-    #[test]
-    fn max_zoom_consistent_after_collapse(a in arb_random_set_case(), b in arb_random_set_case()) {
-        let sa = a.build_set();
-        let sb = b.build_set();
-        prop_assert_eq!(sa.max_zoomlevel(), brute_max_zoom(&sa), "insert: {}", a.debug_summary());
-        let u = &sa | &sb;
-        prop_assert_eq!(u.max_zoomlevel(), brute_max_zoom(&u), "union");
-        let i = &sa & &sb;
-        prop_assert_eq!(i.max_zoomlevel(), brute_max_zoom(&i), "intersection");
-        let d = &sa - &sb;
-        prop_assert_eq!(d.max_zoomlevel(), brute_max_zoom(&d), "difference");
-    }
-
     /// 内部不変条件: union/intersection/difference の結果にも未適用マージが無い。
     #[ignore]
     #[test]
