@@ -5,8 +5,8 @@ use crate::{
     spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
 };
 use alloc::borrow::Cow;
-use triomphe::Arc;
 use core::{mem, ptr};
+use triomphe::Arc;
 
 /// Node は自分の領域を持たず、親から渡される領域 `this`との相対的な位置で意味を持つ。辿る関数が`this`を持つことで様々な操作を行う。
 #[derive(Debug, Default, PartialEq, Eq)]

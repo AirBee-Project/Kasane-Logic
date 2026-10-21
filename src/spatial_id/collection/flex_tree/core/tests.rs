@@ -1,8 +1,8 @@
 use alloc::format;
 use alloc::string::String;
-use triomphe::Arc;
 use alloc::vec::Vec;
 use core::fmt::Debug;
+use triomphe::Arc;
 
 use super::node::{Branch, Node, Skip, common_descent};
 use super::{BitMask, FlexTreeCore, MinMax, NoSummary, Summary, ValueSet};
