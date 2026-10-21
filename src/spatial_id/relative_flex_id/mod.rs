@@ -14,19 +14,25 @@ impl FlexId {
     /// `ancestor` を原点とした[RelativeFlexId]を返す。
     /// `ancestor`が完全に自身を包含していなければ [`SpatialIdError::NotAncestor`] を返す。
     pub fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
+        let parts = self
+            .relative_parts(ancestor)
+            .ok_or(SpatialIdError::NotAncestor)?;
+        // SAFETY: 祖先に含まれるので、深さは自身のズーム以下、下位ビットは `0..2^深さ` に収まる
+        Ok(unsafe { RelativeFlexId::from_parts_unchecked(parts) })
+    }
+
+    /// `ancestor` を原点とした F / X / Y / T の `(深さ, インデックス)`。インデックスは `0..2^深さ` に収まる。
+    /// `ancestor`が完全に自身を包含していなければ [`None`]。
+    pub(crate) fn relative_parts(&self, ancestor: &FlexId) -> Option<[(u8, u64); 4]> {
         if !ancestor.contains(self) {
-            return Err(SpatialIdError::NotAncestor.into());
+            return None;
         }
         // 各次元で、祖先からの深さと、その深さぶんの下位ビットを求める
-        let [(fz, f), (xz, x), (yz, y), (tz, t)] =
-            zip_dimensions(self, ancestor, |(z, i), (az, ai)| {
-                let dz = z - az;
-                (dz, i - (ai << dz))
-            });
-        // SAFETY: 祖先に含まれるので、深さは自身のズーム以下、下位ビットは `0..2^深さ` に収まる
-        let relative = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
-            .with_time_segment(tz, t as u64);
-        Ok(RelativeFlexId(relative))
+        let parts = zip_dimensions(self, ancestor, |(z, i), (az, ai)| {
+            let dz = z - az;
+            (dz, i - (ai << dz))
+        });
+        Some(parts.map(|(z, i)| (z, i as u64)))
     }
 }
 
@@ -61,21 +67,45 @@ impl RelativeFlexId {
         Dimension::mask(|d| self.depth_on(d) > 0)
     }
 
+    /// F / X / Y / T の `(深さ, インデックス)`。インデックスは祖先を `2^深さ` 等分したうちの何番目か。
+    pub(crate) fn parts(self) -> [(u8, u64); 4] {
+        dimensions(&self.0).map(|(z, i)| (z, i as u64))
+    }
+
+    /// F / X / Y / T の `(深さ, インデックス)` から作る。
+    ///
+    /// # Safety
+    /// 各次元で、深さはその次元の最大ズーム以下、インデックスは `0..2^深さ` であること。
+    pub(crate) unsafe fn from_parts_unchecked(parts: [(u8, u64); 4]) -> Self {
+        let [(fz, f), (xz, x), (yz, y), (tz, t)] = parts;
+        // SAFETY: 呼び出し側が範囲を保証する
+        let relative = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
+            .with_time_segment(tz, t);
+        RelativeFlexId(relative)
+    }
+
     /// `ancestor` を原点として、[FlexId] を復元する。
     /// どれかの次元で最大ズームを超えるなら [`SpatialIdError::ZOutOfRange`] を返す。
     pub fn to_absolute(self, ancestor: &FlexId) -> Result<FlexId, Error> {
-        for (((az, _), (rz, _)), max) in dimensions(ancestor)
-            .into_iter()
-            .zip(dimensions(&self.0))
-            .zip(MAX_ZOOM)
-        {
+        Self::absolute_from_parts(ancestor, self.parts())
+    }
+
+    /// F / X / Y / T の `(深さ, インデックス)` で表した相対位置を、`ancestor` を原点として [FlexId] に復元する。
+    /// インデックスは `0..2^深さ` であること。
+    pub(crate) fn absolute_from_parts(
+        ancestor: &FlexId,
+        parts: [(u8, u64); 4],
+    ) -> Result<FlexId, Error> {
+        let ancestor = dimensions(ancestor);
+        for (((az, _), (rz, _)), max) in ancestor.into_iter().zip(parts).zip(MAX_ZOOM) {
             if az + rz > max {
                 return Err(SpatialIdError::ZOutOfRange { z: az + rz }.into());
             }
         }
         let [(fz, f), (xz, x), (yz, y), (tz, t)] =
-            zip_dimensions(ancestor, &self.0, |(az, ai), (rz, ri)| {
-                (az + rz, (ai << rz) + ri)
+            core::array::from_fn(|i| {
+                let ((az, ai), (rz, ri)) = (ancestor[i], parts[i]);
+                (az + rz, (ai << rz) + ri as i64)
             });
         // SAFETY: ズームは上限以下。インデックスは祖先の区間を `2^深さ` 等分したうちの1つなので、そのズームの範囲に収まる
         let absolute = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
