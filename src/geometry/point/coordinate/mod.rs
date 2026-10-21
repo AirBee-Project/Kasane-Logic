@@ -227,7 +227,7 @@ impl Coordinate {
     /// 2点間の直線距離が epsilon 以内にあるかを判定します
     pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
         let distance = self.distance(other);
-        distance < epsilon
+        distance <= epsilon
     }
 
     /// 与えられた座標群の重心を計算する。
