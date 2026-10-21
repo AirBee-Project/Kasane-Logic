@@ -17,7 +17,7 @@ impl FlexId {
     ///   [`SpatialIdError::FOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(f_zoomlevel, z)` のF範囲を超える場合は
     ///   [`SpatialIdError::FOutOfRange`] を返す。
-    pub fn shift_f<Z: Into<u8>>(
+    pub(crate) fn shift_f<Z: Into<u8>>(
         &self,
         z: Z,
         index: i32,
@@ -71,7 +71,7 @@ impl FlexId {
     ///
     /// # バリデーション
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
-    pub fn shift_x<Z: Into<u8>>(
+    pub(crate) fn shift_x<Z: Into<u8>>(
         &self,
         z: Z,
         index: i32,
@@ -134,7 +134,7 @@ impl FlexId {
     /// - `z` が [`ZoomLevel::MAX`] を超える場合は [`SpatialIdError::ZOutOfRange`] を返す。
     /// - 移動後の位置が、両者を合わせたズーム `max(y_zoomlevel, z)` のY範囲を超える場合は
     ///   [`SpatialIdError::YOutOfRange`] を返す。
-    pub fn shift_y<Z: Into<u8>>(
+    pub(crate) fn shift_y<Z: Into<u8>>(
         &self,
         z: Z,
         index: i32,

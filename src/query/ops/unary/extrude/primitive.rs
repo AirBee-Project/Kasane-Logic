@@ -6,7 +6,7 @@ use alloc::vec::Vec;
 
 impl FlexId {
     /// このFlexIdのF方向の占有を、ズーム `z` の絶対座標範囲 `[start_f, end_f]` に置き換える。
-    pub fn extrude_f(
+    pub(crate) fn extrude_f(
         &self,
         z: u8,
         start_f: i32,
@@ -39,7 +39,7 @@ impl FlexId {
     }
 
     /// このFlexIdのX方向の占有を、ズーム `z` の絶対座標範囲（`start_x` から東向きに `end_x` まで）へ置き換える。
-    pub fn extrude_x(
+    pub(crate) fn extrude_x(
         &self,
         z: u8,
         start_x: u32,
@@ -89,7 +89,7 @@ impl FlexId {
     }
 
     /// このFlexIdのY方向の占有を、ズーム `z` の絶対座標範囲 `[start_y, end_y]` に置き換える。
-    pub fn extrude_y(
+    pub(crate) fn extrude_y(
         &self,
         z: u8,
         start_y: u32,
