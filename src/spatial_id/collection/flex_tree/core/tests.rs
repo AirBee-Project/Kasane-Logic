@@ -18,8 +18,8 @@ fn node_count<V, S>(node: &Node<V, S>) -> usize {
     }
 }
 
-/// 領域 `this` の Node がカノニカル形の規則を守っているか検査する。
-fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
+/// 領域 `this` の Node が FlexTreeCore の規則を守っているか検査する。
+fn check_rules<V: PartialEq + Debug, S: Summary<V> + Debug>(
     node: &Node<V, S>,
     this: FlexId,
 ) -> Result<(), String> {
@@ -69,8 +69,8 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
                     "{this:?}: summary が不正: 実際 {summary:?}, 期待 {expected_summary:?}"
                 ));
             }
-            check_canonical(lower, this.split_on(*dimension, Side::Lower).unwrap())?;
-            check_canonical(upper, this.split_on(*dimension, Side::Upper).unwrap())
+            check_rules(lower, this.split_on(*dimension, Side::Lower).unwrap())?;
+            check_rules(upper, this.split_on(*dimension, Side::Upper).unwrap())
         }
         Node::Skip(skip) => {
             let Skip {
@@ -100,14 +100,14 @@ fn check_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(
                 }
                 at = at.split_toward(d, &region).unwrap();
             }
-            check_canonical(child, region)
+            check_rules(child, region)
         }
     }
 }
 
-fn assert_canonical<V: PartialEq + Debug, S: Summary<V> + Debug>(tree: &FlexTreeCore<V, S>) {
-    check_canonical(&tree.upper_root, FlexId::UPPER_MAX).unwrap();
-    check_canonical(&tree.lower_root, FlexId::LOWER_MAX).unwrap();
+fn assert_rules<V: PartialEq + Debug, S: Summary<V> + Debug>(tree: &FlexTreeCore<V, S>) {
+    check_rules(&tree.upper_root, FlexId::UPPER_MAX).unwrap();
+    check_rules(&tree.lower_root, FlexId::LOWER_MAX).unwrap();
 }
 
 /// FlexId と値の列から FlexTreeCore を組み立てる。
@@ -267,7 +267,7 @@ fn two_distant_points_share_one_fork() {
     // 分岐の Branch 1つと、各点の Leaf
     assert_eq!(node_count(&tree.upper_root), 3);
     assert_eq!(tree.iter().count(), 2);
-    assert_canonical(&tree);
+    assert_rules(&tree);
 }
 
 /// 挿入した点を消すと空の FlexTreeCore に戻る。
@@ -283,11 +283,11 @@ fn remove_restores_empty_tree() {
     assert_eq!(tree, FlexTreeCore::default());
 }
 
-/// 乱数で上書き挿入と削除を繰り返し、参照モデルと値が一致し、常にカノニカル形であることを確かめる。
+/// 乱数で上書き挿入と削除を繰り返し、参照モデルと値が一致し、常に FlexTreeCore の規則を守っていることを確かめる。
 /// さらに、別の分け方の FlexId（各 FlexId を半分に割ったもの・自分の FlexId を逆順）から組み直しても同じ形になることを確かめる。
 /// 粗い ID が重なり合う場合と、細かい ID が疎に散る場合（段飛ばしが多い）の両方を試す。
 #[test]
-fn random_updates_match_model_and_stay_canonical() {
+fn random_updates_match_model_and_keep_rules() {
     let mut next = rng(0x1234_5678_9abc_def0);
     for max_zoom in [5, 20] {
         for _ in 0..50 {
@@ -304,7 +304,7 @@ fn random_updates_match_model_and_stay_canonical() {
                     tree.insert(id, value);
                     writes.push((id, Some(value)));
                 }
-                assert_canonical(&tree);
+                assert_rules(&tree);
             }
 
             let ids: Vec<FlexId> = writes.iter().map(|(id, _)| *id).collect();
@@ -335,7 +335,7 @@ fn random_updates_match_model_and_stay_canonical() {
     }
 }
 
-/// 集合演算が参照モデルと一致し、結果もカノニカル形であることを確かめる。
+/// 集合演算が参照モデルと一致し、結果も FlexTreeCore の規則を守っていることを確かめる。
 #[test]
 fn set_operations_match_model() {
     let mut next = rng(7);
@@ -355,7 +355,7 @@ fn set_operations_match_model() {
             let (union, intersection, difference) =
                 (a.union(&b), a.intersection(&b), a.difference(&b));
             for tree in [&union, &intersection, &difference] {
-                assert_canonical(tree);
+                assert_rules(tree);
             }
 
             let all_ids: Vec<FlexId> = ids_a.iter().chain(&ids_b).copied().collect();
@@ -406,11 +406,11 @@ fn filter_range_prunes_and_matches_model() {
                 writes.push((id, Some(value)));
                 ids.push(id);
             }
-            assert_canonical(&tree);
+            assert_rules(&tree);
 
             let (min_bound, max_bound) = (30u64, 70u64);
             let filtered = tree.filter_range(min_bound..=max_bound);
-            assert_canonical(&filtered);
+            assert_rules(&filtered);
 
             for (_, val) in filtered.iter() {
                 assert!(*val >= min_bound && *val <= max_bound);
@@ -615,7 +615,7 @@ fn value_set_summary_matches_model() {
         for _ in 0..50 {
             let (tree, writes) =
                 random_tree::<Color, ValueSet<Color>>(&mut next, max_zoom, random_color);
-            assert_canonical(&tree);
+            assert_rules(&tree);
 
             let present: ValueSet<Color> = tree.iter().map(|(_, c)| *c).collect();
             assert_eq!(tree.value_set(), present);
@@ -628,7 +628,7 @@ fn value_set_summary_matches_model() {
                     .filter(|c| keep_bits & (1 << c.index()) != 0)
                     .collect();
                 let filtered = tree.filter_values(keep);
-                assert_canonical(&filtered);
+                assert_rules(&filtered);
                 assert!(filtered.value_set().is_subset(&keep));
                 for point in &points {
                     let expected = model_value_at(&writes, point).filter(|c| keep.contains(*c));
@@ -649,7 +649,7 @@ fn paired_summary_supports_both_filters() {
     tree.insert(FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), Color::Red);
     tree.insert(FlexId::new(2, 1, 2, 1, 2, 1).unwrap(), Color::Blue);
     tree.insert(FlexId::new(2, 2, 2, 2, 2, 2).unwrap(), Color::Yellow);
-    assert_canonical(&tree);
+    assert_rules(&tree);
 
     assert_eq!(tree.value_range(), Some((&Color::Red, &Color::Yellow)));
     assert_eq!(
@@ -714,7 +714,7 @@ fn insert_many_ids_matches_inserting_one_by_one() {
             for id in &targets {
                 one_by_one.insert(*id, 9);
             }
-            assert_canonical(&at_once);
+            assert_rules(&at_once);
             assert_eq!(at_once, one_by_one);
         }
     }
@@ -738,7 +738,7 @@ fn insert_with_matches_model() {
                     tree.insert_with(id, value, |old, new| old + new);
                     writes.push((id, Some(value)));
                 }
-                assert_canonical(&tree);
+                assert_rules(&tree);
             }
 
             let ids: Vec<FlexId> = writes.iter().map(|(id, _)| *id).collect();
@@ -826,8 +826,8 @@ fn remove_returns_removed_part() {
             let region = region_of(&targets);
 
             let removed = tree.remove(targets.iter().copied());
-            assert_canonical(&tree);
-            assert_canonical(&removed);
+            assert_rules(&tree);
+            assert_rules(&removed);
             assert_eq!(removed, before.intersection(&region));
             assert_eq!(tree, before.difference(&region));
         }
@@ -846,8 +846,8 @@ fn remove_overlapping_removes_whole_leaves() {
             let overlaps = |leaf: &FlexId| targets.iter().any(|t| leaf.intersection(t).is_some());
 
             let removed = tree.remove_overlapping(targets.iter().copied());
-            assert_canonical(&tree);
-            assert_canonical(&removed);
+            assert_rules(&tree);
+            assert_rules(&removed);
             assert_eq!(removed.union(&tree), before);
             assert!(removed.iter().all(|(leaf, _)| overlaps(&leaf)));
             assert!(tree.iter().all(|(leaf, _)| !overlaps(&leaf)));
@@ -981,7 +981,7 @@ fn writes_do_not_change_clones() {
                     }
                 }
             }
-            assert_canonical(&snapshot);
+            assert_rules(&snapshot);
             assert_eq!(
                 snapshot.iter().map(|(id, v)| (id, *v)).collect::<Vec<_>>(),
                 before
@@ -1107,7 +1107,7 @@ fn value_filters_agree_across_summaries() {
             let ranged: FlexTreeCore<u64, MinMax<u64>> = plain.with_summary();
             // 付け替えても、挿入して組んだ木と同じになる
             assert_eq!(ranged, plain.iter().map(|(id, v)| (id, *v)).collect());
-            assert_canonical(&ranged);
+            assert_rules(&ranged);
             assert_eq!(plain.value_range(), ranged.value_range());
             let low = next(10);
             let high = low + next(5);

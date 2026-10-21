@@ -8,7 +8,6 @@ pub struct Sum;
 
 impl<V: Add> MergePolicy<V> for Sum {
     const IS_COMMUTATIVE: bool = true;
-    const NAME: &'static str = "Sum";
 
     fn resolve(a: V, b: V) -> V {
         a.saturating_add(b)

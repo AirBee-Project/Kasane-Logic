@@ -4,12 +4,13 @@ mod test;
 use alloc::boxed::Box;
 
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::query_iter::QueryIter;
 use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::source::SourceIter;
-use crate::spatial_id::collection::query::{execution::Query, source::Source};
-use crate::{Error, FlexId, RangeId};
+use crate::spatial_id::collection::query::{Query, traits::Source};
+use crate::{Error, RangeId};
 
+/// `inner` の各値を `f` で変換する。`UnaryOperator<V>` は値の型を変えられないので、`Source` として実装する。
 pub struct MapValues<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
     f: F,
@@ -41,15 +42,13 @@ where
 
     fn read_flex_ids<'a>(
         &'a self,
-        bounds: &'a [FlexId],
+        targets: &[RangeId],
         token: &CancellationToken,
-    ) -> Result<SourceIter<'a, U>, Error> {
-        Ok(Box::new(
-            self.inner
-                .run_within(bounds.iter().map(RangeId::from).collect(), token)?
-                .into_iter()
-                .map(move |(id, value)| Ok((id, (self.f)(value)))),
-        ))
+    ) -> Result<QueryIter<'a, U>, Error> {
+        // `Query::validate` は入力源の中まで辿らないので、内側のクエリはここで検証する
+        self.inner.validate()?;
+        let inner = self.inner.stream_within(targets.to_vec(), token)?;
+        Ok(inner.filter_map_ordered(move |value| Some((self.f)(value))))
     }
 }
 

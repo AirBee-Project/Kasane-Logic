@@ -1,7 +1,7 @@
 //! マージ（圧縮）正当性の回帰テスト。
 //!
 //! 「merge できる FlexId が merge されない」漏れが無いことを、(1) 内部不変条件
-//! （挿入し直した木と一致する）、(2) 正規形（iter→再挿入で count 不変）、
+//! （挿入し直した木と一致する）、(2) 同じ形状の FlexTreeCore との一致（iter→再挿入で count 不変）、
 //! (3) 再帰 collapse のカスケード、の3観点で insert / union / intersection /
 //! difference にわたり検査する。
 #![cfg(test)]
@@ -153,7 +153,7 @@ fn table_full_cube_same_value_collapses() {
     assert!(t.count() > 1, "mixed values must not fully collapse");
 }
 
-/// 未適用のマージが残っていないこと。木は正規形で一意に定まるので、
+/// 未適用のマージが残っていないこと。FlexTreeCore は形状に対して一意に定まるので、
 /// 全Segmentを挿入し直した木と構造が一致するかで判定する。
 fn set_is_fully_merged(set: &SpatialIdSet) -> bool {
     rebuilt(set) == *set
@@ -297,7 +297,7 @@ fn rebuilt(set: &SpatialIdSet) -> SpatialIdSet {
 }
 
 proptest! {
-    /// マージが正規形（canonical）なら、iter()→再挿入で count は不変のはず。
+    /// マージし尽くした FlexTreeCore なら、iter()→再挿入で count は不変のはず。
     /// 変わるなら「構築経路依存のマージ漏れ」。
     #[ignore]
     #[test]
@@ -307,40 +307,40 @@ proptest! {
         prop_assert_eq!(set.count(), again.count(), "{}", case.debug_summary());
     }
 
-    /// union 結果も正規形か（演算後に再挿入して count 不変か）。
+    /// union の結果もマージし尽くされているか（演算後に再挿入して count 不変か）。
     #[ignore]
     #[test]
-    fn union_result_is_canonical(a in arb_random_set_case(), b in arb_random_set_case()) {
+    fn union_result_is_fully_merged(a in arb_random_set_case(), b in arb_random_set_case()) {
         let sa = a.build_set();
         let sb = b.build_set();
         let u = &sa | &sb;
         let again = rebuilt(&u);
         prop_assert_eq!(u.count(), again.count(),
-            "union not canonical: a={} b={}", a.debug_summary(), b.debug_summary());
+            "union not fully merged: a={} b={}", a.debug_summary(), b.debug_summary());
     }
 
-    /// difference 結果も正規形か。
+    /// difference の結果もマージし尽くされているか。
     #[ignore]
     #[test]
-    fn difference_result_is_canonical(a in arb_random_set_case(), b in arb_random_set_case()) {
+    fn difference_result_is_fully_merged(a in arb_random_set_case(), b in arb_random_set_case()) {
         let sa = a.build_set();
         let sb = b.build_set();
         let d = &sa - &sb;
         let again = rebuilt(&d);
         prop_assert_eq!(d.count(), again.count(),
-            "difference not canonical: a={} b={}", a.debug_summary(), b.debug_summary());
+            "difference not fully merged: a={} b={}", a.debug_summary(), b.debug_summary());
     }
 
-    /// intersection 結果も正規形か。
+    /// intersection の結果もマージし尽くされているか。
     #[ignore]
     #[test]
-    fn intersection_result_is_canonical(a in arb_random_set_case(), b in arb_random_set_case()) {
+    fn intersection_result_is_fully_merged(a in arb_random_set_case(), b in arb_random_set_case()) {
         let sa = a.build_set();
         let sb = b.build_set();
         let i = &sa & &sb;
         let again = rebuilt(&i);
         prop_assert_eq!(i.count(), again.count(),
-            "intersection not canonical: a={} b={}", a.debug_summary(), b.debug_summary());
+            "intersection not fully merged: a={} b={}", a.debug_summary(), b.debug_summary());
     }
 
     /// 内部不変条件: insert で構築した木に未適用マージ（Leaf(v)+Leaf(v) の Branch）が無い。

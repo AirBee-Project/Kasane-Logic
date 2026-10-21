@@ -197,10 +197,10 @@ impl<V, S> FlexTreeCore<V, S> {
     /// `target` と重なる領域と値を、切り取らずにそのまま返す。各領域は1回だけ返す。
     pub fn get_overlapping<'a>(
         &'a self,
-        target: impl IntoIterator<Item = FlexId>,
+        target: impl IntoIterator<Item = impl Into<RangeId>>,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
-        let targets: Vec<FlexId> = target.into_iter().collect();
-        self.overlapping(move |region| targets.iter().any(|t| region.intersects(t)))
+        let targets: Vec<RangeId> = target.into_iter().map(Into::into).collect();
+        self.overlapping(move |region| targets.iter().any(|t| region.intersects_range(t)))
     }
 
     /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
@@ -209,19 +209,19 @@ impl<V, S> FlexTreeCore<V, S> {
         target: T,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         // 各方向に1つずらした領域が、面で接しうる候補
-        let mut shifted: Vec<FlexId> = Vec::new();
+        let mut shifted: Vec<RangeId> = Vec::with_capacity(6);
         for delta in [-1, 1] {
             let mut f = target.clone();
             if f.move_f(delta).is_ok() {
-                shifted.extend(f);
+                shifted.push(f.into());
             }
             let mut y = target.clone();
             if y.move_y(delta).is_ok() {
-                shifted.extend(y);
+                shifted.push(y.into());
             }
             let mut x = target.clone();
             x.move_x(delta);
-            shifted.extend(x);
+            shifted.push(x.into());
         }
 
         let own: Vec<FlexId> = target.into_iter().collect();
@@ -332,7 +332,18 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
         value: V,
         resolve: impl Fn(&V, &V) -> V,
     ) {
-        self.insert_by_rule(target, value, &|this, existing, written| {
+        self.insert_by_rule(target, value, &Self::resolve_rule(resolve));
+    }
+
+    /// `other` を重ねる。両方に値がある場所は `resolve(self の値, other の値)` にする。
+    pub fn merge_with(&mut self, other: &Self, resolve: impl Fn(&V, &V) -> V) {
+        self.merge(other, &Self::resolve_rule(resolve));
+    }
+
+    fn resolve_rule(
+        resolve: impl Fn(&V, &V) -> V,
+    ) -> impl Fn(&FlexId, &mut Node<V, S>, View<'_, V, S>) -> bool {
+        move |this, existing, written| {
             match (&*existing, written.leaf()) {
                 _ if written.is_empty() => {}
                 (Node::Empty, _) => *existing = written.to_node(this),
@@ -340,7 +351,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
                 _ => return false,
             }
             true
-        });
+        }
     }
 
     /// `target` の領域を空にし、取り除いた部分を FlexTreeCore として返す。

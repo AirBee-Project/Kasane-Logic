@@ -5,7 +5,6 @@ pub struct KeepExisting;
 
 impl<V> MergePolicy<V> for KeepExisting {
     const IS_COMMUTATIVE: bool = false;
-    const NAME: &'static str = "KeepExisting";
 
     fn resolve(a: V, _b: V) -> V {
         a

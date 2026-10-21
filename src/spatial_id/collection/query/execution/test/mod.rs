@@ -1,60 +1,15 @@
-pub mod ast_optimization;
 pub mod cancellation;
-pub mod lazy_get;
-pub mod proptest_query;
+pub mod get;
 
-use crate::spatial_id::collection::query::merge_policy::Sum;
-use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 use crate::{SingleId, Source, SpatialIdTable};
 
-/// `run()`（最適化パイプライン込み）は `raw_run()`（無最適化）と同じ結果を返す。
-/// merge対象（ShiftX/ShiftY/ShiftF）とmerge対象外（FalloffLinear）を混在させ、
-/// 最適化の有無で挙動が変わらないことを確認する。
+/// `get` はパラメータ検証を実行前に行うため、無効なパラメータはエラーになる
+/// （実データ変換より先に検出される）。
 #[test]
-fn run_matches_raw_run() {
-    let mut optimized_table = SpatialIdTable::new();
-    optimized_table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
-    let optimized: SpatialIdTable<i32> = optimized_table
-        .query()
-        .shift_x(10, 3)
-        .shift_y(10, 4)
-        .shift_f(10, 1)
-        .falloff_x(10, 2, None, FalloffPattern::Linear, Sum)
-        .run()
-        .unwrap();
-
-    let mut raw_table = SpatialIdTable::new();
-    raw_table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
-    let raw: SpatialIdTable<i32> = raw_table
-        .query()
-        .shift_x(10, 3)
-        .shift_y(10, 4)
-        .shift_f(10, 1)
-        .falloff_x(
-            10,
-            2,
-            None,
-            FalloffPattern::Linear,
-            crate::spatial_id::collection::query::merge_policy::Sum,
-        )
-        .raw_run()
-        .unwrap();
-
-    assert_eq!(
-        optimized
-            .flat_single_ids(None)
-            .collect::<alloc::vec::Vec<_>>(),
-        raw.flat_single_ids(None).collect::<alloc::vec::Vec<_>>(),
-    );
-}
-
-/// `run()` はパラメータ検証を実行前に行うため、無効なパラメータはエラーになる
-/// （最適化や実データ変換より先に検出される）。
-#[test]
-fn run_surfaces_validation_error() {
+fn get_surfaces_validation_error() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
     // zoom 100 は範囲外なので shift_x の構築時点で Query::Error になる。
-    let result = table.query().shift_x(100, 3).run();
+    let result = table.query().shift_x(100, 3).get(..).table();
     assert!(result.is_err());
 }
 
@@ -73,7 +28,8 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
             1,
             crate::spatial_id::collection::query::merge_policy::Max,
         )
-        .raw_run()
+        .get(..)
+        .table()
         .unwrap();
 
     for (_, v) in out.flat_single_ids(None) {
@@ -104,7 +60,8 @@ fn extrude_result_is_deterministic_across_runs() {
                 3,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run()
+            .get(..)
+            .table()
             .unwrap()
     };
     let run_x = |t: SpatialIdTable<u32>| {
@@ -115,7 +72,8 @@ fn extrude_result_is_deterministic_across_runs() {
                 7450100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run()
+            .get(..)
+            .table()
             .unwrap()
     };
     let run_y = |t: SpatialIdTable<u32>| {
@@ -126,7 +84,8 @@ fn extrude_result_is_deterministic_across_runs() {
                 3301100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .raw_run()
+            .get(..)
+            .table()
             .unwrap()
     };
 

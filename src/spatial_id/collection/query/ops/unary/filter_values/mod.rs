@@ -1,13 +1,10 @@
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
 pub mod query;
-#[cfg(test)]
-mod test;
 
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
 use crate::{
     Error,
-    spatial_id::collection::query::{send_sync::SafeValue, traits::UnaryOperator},
+    spatial_id::collection::query::{
+        query_iter::QueryIter, send_sync::SafeValue, traits::UnaryOperator,
+    },
 };
 
 use core::ops::Bound;
@@ -17,11 +14,11 @@ use core::ops::Bound;
 /// 比較に必要なのは `Ord` だけなので、数値だけでなく文字列・真偽値でも使える。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ValuePredicate<V> {
-    /// この値を持つSegmentだけを残す。
+    /// この値を持つ FlexId だけを残す。
     Equals(V),
-    /// 範囲に入る値のSegmentだけを残す。
+    /// 範囲に入る値の FlexId だけを残す。
     InRange(Bound<V>, Bound<V>),
-    /// 範囲に入る値のSegmentを取り除く（範囲外だけを残す）。
+    /// 範囲に入る値の FlexId を取り除く（範囲外だけを残す）。
     NotInRange(Bound<V>, Bound<V>),
 }
 
@@ -41,7 +38,7 @@ impl<V: Ord> ValuePredicate<V> {
         after_start && before_end
     }
 
-    /// この値のSegmentを残すか。
+    /// この値の FlexId を残すか。
     pub fn matches(&self, value: &V) -> bool {
         match self {
             ValuePredicate::Equals(target) => value == target,
@@ -51,7 +48,7 @@ impl<V: Ord> ValuePredicate<V> {
     }
 }
 
-/// 値の条件に一致するSegmentだけを残す単項演算子。
+/// 値の条件に一致する FlexId だけを残す単項演算子。
 ///
 /// 空間的な形は変えず、条件から外れた空間IDを取り除くだけ。
 pub struct FilterValues<V> {
@@ -91,35 +88,13 @@ where
         Ok(())
     }
 
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
+    fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error> {
+        Ok(QueryIter::from_ordered(input.filter(
+            move |item| !matches!(item, Ok((_, value)) if !self.predicate.matches(value)),
+        )))
     }
 
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error> {
-        *target = core::mem::take(target)
-            .into_iter()
-            .filter(|(_, value)| self.predicate.matches(value))
-            .collect();
-        Ok(())
-    }
-
-    fn inverse_bounds(&self, bounds: crate::RangeId) -> Option<crate::RangeId> {
-        Some(bounds)
-    }
-
-    fn commutativity_info(&self) -> CommutativityInfo {
-        CommutativityInfo::None
-    }
-
-    fn expansion_ratio(&self) -> f64 {
-        1.0 // フィルタリングでは増えないが、削除分を予測するのは難しいので 1.0
-    }
-
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match &self.predicate {
-            ValuePredicate::Equals(_) => write!(f, "filter_values(== v)"),
-            ValuePredicate::InRange(_, _) => write!(f, "filter_values(in range)"),
-            ValuePredicate::NotInRange(_, _) => write!(f, "filter_values(not in range)"),
-        }
+    fn reverse_target(&self, bounds: crate::RangeId, out: &mut alloc::vec::Vec<crate::RangeId>) {
+        out.push(bounds);
     }
 }

@@ -1,13 +1,12 @@
-use super::{extrude_f::ExtrudeF, extrude_x::ExtrudeX, extrude_y::ExtrudeY};
+use super::{Extrude, ExtrudeAxis};
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::{
     ZoomLevel,
-    spatial_id::collection::query::{execution::Query, merge_policy::MergePolicy},
+    spatial_id::collection::query::{Query, merge_policy::MergePolicy},
 };
 
 impl<V: SafeValue + 'static> Query<V> {
-    /// X方向の Extrude (絶対座標による引き延ばし) 演算を適用する
-    pub fn extrude_x<T: Into<u8>, P>(self, z: T, start_x: u32, end_x: u32, _policy: P) -> Self
+    fn extrude<T: Into<u8>, P>(self, z: T, axis: ExtrudeAxis) -> Self
     where
         P: MergePolicy<V> + Send + Sync,
     {
@@ -15,9 +14,17 @@ impl<V: SafeValue + 'static> Query<V> {
             return self;
         }
         match ZoomLevel::new(z.into()) {
-            Ok(zl) => self.wrap_unary(ExtrudeX::<P>::new(zl, start_x, end_x)),
+            Ok(zl) => self.wrap_unary(Extrude::<P>::new(zl, axis)),
             Err(e) => Query::Error(e),
         }
+    }
+
+    /// X方向の Extrude (絶対座標による引き延ばし) 演算を適用する
+    pub fn extrude_x<T: Into<u8>, P>(self, z: T, start_x: u32, end_x: u32, _policy: P) -> Self
+    where
+        P: MergePolicy<V> + Send + Sync,
+    {
+        self.extrude::<T, P>(z, ExtrudeAxis::X(start_x, end_x))
     }
 
     /// Y方向の Extrude (絶対座標による引き延ばし) 演算を適用する
@@ -25,13 +32,7 @@ impl<V: SafeValue + 'static> Query<V> {
     where
         P: MergePolicy<V> + Send + Sync,
     {
-        if matches!(self, Query::Error(_)) {
-            return self;
-        }
-        match ZoomLevel::new(z.into()) {
-            Ok(zl) => self.wrap_unary(ExtrudeY::<P>::new(zl, start_y, end_y)),
-            Err(e) => Query::Error(e),
-        }
+        self.extrude::<T, P>(z, ExtrudeAxis::Y(start_y, end_y))
     }
 
     /// F方向の Extrude (絶対座標による引き延ばし) 演算を適用する
@@ -39,12 +40,6 @@ impl<V: SafeValue + 'static> Query<V> {
     where
         P: MergePolicy<V> + Send + Sync,
     {
-        if matches!(self, Query::Error(_)) {
-            return self;
-        }
-        match ZoomLevel::new(z.into()) {
-            Ok(zl) => self.wrap_unary(ExtrudeF::<P>::new(zl, start_f, end_f)),
-            Err(e) => Query::Error(e),
-        }
+        self.extrude::<T, P>(z, ExtrudeAxis::F(start_f, end_f))
     }
 }

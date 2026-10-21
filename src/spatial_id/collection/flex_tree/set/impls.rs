@@ -20,7 +20,7 @@ impl<S: SpatialId> Extend<S> for SpatialIdSet {
 ///
 /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) / [`FlexId`](crate::FlexId) のいずれの
 /// [`SpatialId`] 型でも受け取れる。集合なので結果は挿入順・チャンク境界に依らず
-/// 一意（正規形）に定まる。
+/// 一意に定まる。
 ///
 /// ```
 /// use kasane_logic::{SingleId, SpatialIdSet};

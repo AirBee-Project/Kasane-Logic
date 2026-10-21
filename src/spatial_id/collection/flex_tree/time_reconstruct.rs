@@ -98,14 +98,14 @@ where
 
 /// `rows` を時間方向に結合した [`RangeId`] として読み出す。
 ///
-/// 木の走査順では、同じ空間の時間Segmentが連続するとは限らない。時間で分割された
+/// FlexId の Z-order 列では、同じ空間の時間Segmentが連続するとは限らない。時間で分割された
 /// Segmentがあるときだけ `(空間, 開始秒)` 順に並べ直してから結合し、無ければ集めずに流す。
 pub(crate) fn reconstruct<'a, V: PartialEq + 'a>(
     rows: impl Iterator<Item = (FlexId, V)> + 'a,
     has_temporal_split: bool,
     allowed_intervals: Option<&'a AllowedIntervals>,
 ) -> impl Iterator<Item = (RangeId, V)> + 'a {
-    // WHY: 木の走査順では空間領域で先に分割された場合、時間Segmentの走査が交差して連続しない。
+    // WHY: FlexId の Z-order 列では空間領域で先に分割された場合、時間Segmentが交互に現れて連続しない。
     // 連続した時間ブロックへ結合するためには、(空間, 開始秒) の順にソートする必要がある。
     // そのため、時間方向の分割がある場合のみ O(N) のメモリを確保して全要素を Vec に集め、ソートしてから結合する。
     let (sorted, lazy) = if has_temporal_split {

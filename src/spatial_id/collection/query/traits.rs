@@ -1,57 +1,66 @@
-use super::execution::group_commutative::types::CommutativityInfo;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
-use crate::spatial_id::collection::query::send_sync::MaybeSendSync;
-use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::{Error, RangeId, SpatialIdTable};
+use crate::spatial_id::collection::query::Query;
+use crate::spatial_id::collection::query::cancellation::CancellationToken;
+use crate::spatial_id::collection::query::query_iter::QueryIter;
+use crate::spatial_id::collection::query::send_sync::{MaybeSendSync, SafeValue};
+use crate::{Error, RangeId};
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
+/// クエリのデータを提供するTrait。[`SpatialIdTable`](crate::SpatialIdTable) やリモートのデータベースなどに実装する。
+///
+/// # 実装の仕方
+///
+/// [`read_flex_ids`](Self::read_flex_ids) は [`QueryIter`] の制約を満たす列を返す。
+///
+/// - FlexId の Z-order 列で読み出せるなら、[`QueryIter::from_ordered`] で包んで逐次に流す。
+///   [`FlexId::zorder_key`](crate::FlexId::zorder_key) の昇順で保存したデータベースを、その順に一度だけ走査し、
+///   `targets` のどれかと [`intersects_range`](crate::FlexId::intersects_range) する要素を返す場合がこれにあたる。
+///   `targets` ごとに分けて読むと、複数の `targets` と重なる要素が重複し、順序も崩れうるので、
+///   全ての `targets` をまとめて一度に読む。
+pub trait Source: MaybeSendSync {
+    type Value: SafeValue;
+
+    /// `targets` のどれかと重なる要素を、それぞれ1回ずつ、[`QueryIter`] の制約を満たす列で返す。
+    ///
+    /// `targets` は互いに重なっていてもよく、順序も問わない。
+    /// 返す要素は `targets` の外にはみ出していてもよい。
+    fn read_flex_ids<'a>(
+        &'a self,
+        targets: &[RangeId],
+        token: &CancellationToken,
+    ) -> Result<QueryIter<'a, Self::Value>, Error>;
+
+    fn query(self) -> Query<Self::Value>
+    where
+        Self: Sized + 'static,
+    {
+        Query::Source(Box::new(self))
+    }
+}
 
 /// 二項演算子の定義。
-pub trait BinaryOperator<V: SafeValue>: MaybeSendSync {
+pub trait BinaryOperator<V: SafeValue + 'static>: MaybeSendSync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error> {
         Ok(())
     }
 
-    /// `target_a` を、`target_b` を右辺として二項演算した結果へ更新する。
-    fn run(
-        &self,
-        target_a: &mut SpatialIdTable<V, NoSummary>,
-        target_b: &SpatialIdTable<V, NoSummary>,
-    ) -> Result<(), Error>;
-
-    /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
-    fn inverse_bounds(&self, output_bounds: RangeId) -> (Option<RangeId>, Option<RangeId>);
-
-    /// `Display` 出力用の演算子表現
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "?")
-    }
+    /// [`QueryIter`] の制約を満たす `lhs` と `rhs` を受け取り、二項演算した結果を同じ制約を満たす列で返す。
+    fn run<'a>(
+        &'a self,
+        lhs: QueryIter<'a, V>,
+        rhs: QueryIter<'a, V>,
+    ) -> Result<QueryIter<'a, V>, Error>;
 }
 
 /// 単項演算子の定義。
-pub trait UnaryOperator<V: SafeValue>: MaybeSendSync + core::any::Any {
+pub trait UnaryOperator<V: SafeValue + 'static>: MaybeSendSync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error>;
 
-    /// 実行する
-    fn run(&self, target: &mut SpatialIdTable<V, NoSummary>) -> Result<(), Error>;
+    /// [`QueryIter`] の制約を満たす `input` を受け取り、単項演算した結果を同じ制約を満たす列で返す。
+    fn run<'a>(&'a self, input: QueryIter<'a, V>) -> Result<QueryIter<'a, V>, Error>;
 
-    /// この演算子の可換性情報
-    fn commutativity_info(&self) -> CommutativityInfo;
-
-    /// ダウンキャスト用
-    fn as_any(&self) -> &dyn core::any::Any;
-
-    /// 演算子を適用した際のデータサイズの推定拡大倍率
-    fn expansion_ratio(&self) -> f64 {
-        1.0
-    }
-
-    /// 与えられた出力領域を計算するために必要な入力領域を逆算する。
-    /// 遅延ビュー（Lazy View）が部分木を構築するために使用する。
-    fn inverse_bounds(&self, output_bounds: RangeId) -> Option<RangeId>;
-
-    /// `Display` 出力用の演算子表現
-    fn fmt_op(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "?")
-    }
+    /// 与えられた出力領域を計算するために必要な入力領域を `out` へ追加する。
+    fn reverse_target(&self, output_target: RangeId, out: &mut Vec<RangeId>);
 }

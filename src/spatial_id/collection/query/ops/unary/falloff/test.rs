@@ -1,7 +1,7 @@
 use alloc::collections::BTreeMap;
 
-use super::falloff_x::FalloffX;
-use crate::spatial_id::collection::query::merge_policy::{Max, Sum};
+use super::{Falloff, FalloffAxis};
+use crate::spatial_id::collection::query::merge_policy::{Average, Max, Sum};
 use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
 use crate::{SingleId, Source, SpatialIdTable};
@@ -10,6 +10,7 @@ use crate::{SingleId, Source, SpatialIdTable};
 fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
     table
         .flat_single_ids(None)
+        .filter(|(sid, _)| sid.f() == 0 && sid.y() == 0)
         .map(|(sid, v)| (sid.x(), *v))
         .collect()
 }
@@ -28,7 +29,8 @@ fn falloff_x_single_segment() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
-        .raw_run()
+        .get(..)
+        .table()
         .unwrap();
     let r = row(&out);
 
@@ -50,7 +52,8 @@ fn falloff_x_overlap_sum() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
-        .raw_run()
+        .get(..)
+        .table()
         .unwrap();
     let r = row(&out);
 
@@ -76,7 +79,8 @@ fn falloff_x_overlap_max() {
     let out = table
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Max)
-        .raw_run()
+        .get(..)
+        .table()
         .unwrap();
     let r = row(&out);
 
@@ -86,19 +90,59 @@ fn falloff_x_overlap_max() {
     assert_eq!(r.get(&102), Some(&4));
 }
 
-/// `falloff_x` の逆算が、falloff のズームより粗いズームへ周期境界（経度方向の折り返し）を
-/// 丸め込む際、以前は丸め込み後に隙間が消えているかどうかの判定を誤り、必要な入力領域の
-/// 半分しか要求しないことがあった。z=1 の x=0 の1コマだけをターゲットにすると、
-/// z=2 のfine x では{0,1}に相当し、falloff(半径1)で寄与しうる入力 s∈{3,0,1,2}（全域）が
-/// 必要になる。
 #[test]
-fn falloff_x_inverse_bounds_wrapped_coarsen_covers_needed_range() {
-    let op = FalloffX::<Sum>::new(2, 1, None, FalloffPattern::Linear).unwrap();
+fn falloff_x_reverse_target_wrapped_covers_needed_range() {
+    let op = Falloff::<Sum>::new(FalloffAxis::X, 2, 1, None, FalloffPattern::Linear).unwrap();
 
     let bounds = crate::RangeId::new(1, [-2, 1], 0, [0, 1]).unwrap();
-    let inv = <FalloffX<Sum> as UnaryOperator<u32>>::inverse_bounds(&op, bounds).unwrap();
+    let mut out = alloc::vec::Vec::new();
+    <Falloff<Sum> as UnaryOperator<u32>>::reverse_target(&op, bounds, &mut out);
 
-    assert_eq!(inv.x(), [0, 1]);
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].z(), 2);
+    assert_eq!(out[0].x(), [0, 3]);
+}
+
+/// 3件以上の重なりも Average で平均になる。ズームの違う寄与が重なる場合も含める。
+#[test]
+fn falloff_x_overlap_average() {
+    let mut table = SpatialIdTable::new();
+    table.insert(time_segment(100, 12).0, 12);
+    table.insert(time_segment(101, 0).0, 0);
+    // z=19 の x=51 は z=20 の x102..=103 を覆う
+    table.insert(SingleId::new(19, 0, 51, 0).unwrap(), 0);
+
+    let out = table
+        .query()
+        .falloff_x(20, 2, None, FalloffPattern::Linear, Average)
+        .get(..)
+        .table()
+        .unwrap();
+    let r = row(&out);
+
+    // x100 への寄与は 12（x100, d=0）、0（x101, d=1）、0（x102..=103, d=-2）。2件ずつ合成すると 3 になる
+    assert_eq!(r.get(&100), Some(&4));
+}
+
+#[test]
+fn falloff_validate_rejects_radius_out_of_range() {
+    let op = Falloff::<Sum>::new(FalloffAxis::F, 2, 4, None, FalloffPattern::Linear).unwrap();
+    assert!(<Falloff<Sum> as UnaryOperator<i32>>::validate(&op).is_err());
+
+    // 15^2 は u8 に収まるが、15^4 は収まらない
+    let op = Falloff::<Sum>::new(FalloffAxis::X, 20, 15, None, FalloffPattern::Linear).unwrap();
+    assert!(<Falloff<Sum> as UnaryOperator<u8>>::validate(&op).is_ok());
+    let op =
+        Falloff::<Sum>::new(FalloffAxis::X, 20, 15, None, FalloffPattern::QuadraticIn).unwrap();
+    assert!(<Falloff<Sum> as UnaryOperator<u8>>::validate(&op).is_err());
+
+    // 55108^4 は i64 に収まるが、55109^4 は収まらない
+    let op =
+        Falloff::<Sum>::new(FalloffAxis::X, 20, 55108, None, FalloffPattern::QuadraticIn).unwrap();
+    assert!(<Falloff<Sum> as UnaryOperator<i64>>::validate(&op).is_ok());
+    let op =
+        Falloff::<Sum>::new(FalloffAxis::X, 20, 55109, None, FalloffPattern::QuadraticIn).unwrap();
+    assert!(<Falloff<Sum> as UnaryOperator<i64>>::validate(&op).is_err());
 }
 
 /// 半径0の falloff は恒等（no-op）。
@@ -110,10 +154,138 @@ fn falloff_x_radius_zero_is_noop() {
     let out = table
         .query()
         .falloff_x(20, 0, None, FalloffPattern::Linear, Sum)
-        .raw_run()
+        .get(..)
+        .table()
         .unwrap();
     let r = row(&out);
 
     assert_eq!(r.len(), 1);
     assert_eq!(r.get(&100), Some(&7));
+}
+
+/// 途中の積が `V` を超える値でも、あふれずに正しく減衰する。
+#[test]
+fn falloff_x_large_value_does_not_overflow() {
+    let mut table = SpatialIdTable::new();
+    table.insert(time_segment(1000, 100_000).0, 100_000);
+
+    // 100_000 * 200^2 は i32 を超える
+    let out = table
+        .query()
+        .falloff_x(20, 200, None, FalloffPattern::QuadraticIn, Sum)
+        .get(..)
+        .table()
+        .unwrap();
+    let r = row(&out);
+
+    assert_eq!(r.get(&1000), Some(&100_000));
+    assert_eq!(r.get(&1100), Some(&75_000));
+}
+
+/// 分けた計算は、負の値でも `value * num / den` と一致する。
+#[test]
+fn attenuate_matches_direct_formula() {
+    use super::Attenuator;
+    for pattern in [
+        FalloffPattern::Linear,
+        FalloffPattern::QuadraticIn,
+        FalloffPattern::QuadraticOut,
+    ] {
+        for r in 1..=7i64 {
+            let attenuator = Attenuator::<i64>::new(r as u32, pattern).unwrap();
+            for d in 0..=r {
+                let (num, den) = match pattern {
+                    FalloffPattern::Linear => (r - d, r),
+                    FalloffPattern::QuadraticIn => (r * r - d * d, r * r),
+                    FalloffPattern::QuadraticOut => ((r - d) * (r - d), r * r),
+                };
+                for value in -60..=60i64 {
+                    assert_eq!(attenuator.attenuate(&value, d as u32), value * num / den);
+                }
+            }
+        }
+    }
+}
+
+/// 塊に分けて並列に合成しても、全寄与を入力の順に1つずつ合成した結果と一致する。ズームの違う要素も混ぜる。
+#[test]
+fn falloff_matches_sequential_reference() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, NoSummary};
+    use crate::spatial_id::collection::query::merge_policy::{MergePolicy, Overwrite};
+    use crate::spatial_id::helpers::Side;
+    use alloc::vec::Vec;
+
+    let mut table = SpatialIdTable::new();
+    let mut seed = 1u32;
+    for _ in 0..3000 {
+        seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        let z = 18 + (seed >> 8) % 5;
+        let span = 1u32 << (z - 15);
+        let (f, x, y) = ((seed >> 4) % span, (seed >> 12) % span, (seed >> 20) % span);
+        let id = SingleId::new(z as u8, f as i32, (1 << (z - 1)) + x, (1 << (z - 1)) + y).unwrap();
+        table.insert(id, (seed % 1000) as i32);
+    }
+    let input: Vec<(FlexId, i32)> = table.inner.iter().map(|(id, v)| (id, *v)).collect();
+
+    fn reference<P: MergePolicy<i32>>(
+        input: &[(FlexId, i32)],
+        axis: FalloffAxis,
+    ) -> SpatialIdTable<i32> {
+        let mut gathered = FlexTreeCore::<Vec<i32>, NoSummary>::default();
+        for (id, value) in input {
+            for (moved, v) in id
+                .falloff(
+                    axis,
+                    20u8,
+                    3,
+                    Some(Side::Upper),
+                    FalloffPattern::Linear,
+                    value,
+                )
+                .unwrap()
+            {
+                gathered.insert_with([moved], alloc::vec![v], |a, b| [a.as_slice(), b].concat());
+            }
+        }
+        gathered
+            .iter()
+            .filter_map(|(id, vs)| Some((id, P::resolve_many(vs.iter().copied())?)))
+            .collect()
+    }
+
+    for axis in [FalloffAxis::F, FalloffAxis::X, FalloffAxis::Y] {
+        let run = |op: &dyn Fn(crate::Query<i32>) -> crate::Query<i32>| {
+            op(table.clone().query()).get(..).table().unwrap()
+        };
+        let (max, avg, over) = match axis {
+            FalloffAxis::F => (
+                run(&|q| q.falloff_f(20, 3, Some(Side::Upper), FalloffPattern::Linear, Max)),
+                run(&|q| q.falloff_f(20, 3, Some(Side::Upper), FalloffPattern::Linear, Average)),
+                run(&|q| q.falloff_f(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
+            ),
+            FalloffAxis::X => (
+                run(&|q| q.falloff_x(20, 3, Some(Side::Upper), FalloffPattern::Linear, Max)),
+                run(&|q| q.falloff_x(20, 3, Some(Side::Upper), FalloffPattern::Linear, Average)),
+                run(&|q| q.falloff_x(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
+            ),
+            FalloffAxis::Y => (
+                run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Max)),
+                run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Average)),
+                run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
+            ),
+        };
+        let same = |a: &SpatialIdTable<i32>, b: &SpatialIdTable<i32>| {
+            a.iter().collect::<Vec<_>>() == b.iter().collect::<Vec<_>>()
+        };
+        assert!(same(&max, &reference::<Max>(&input, axis)), "{axis:?} Max");
+        assert!(
+            same(&avg, &reference::<Average>(&input, axis)),
+            "{axis:?} Average"
+        );
+        assert!(
+            same(&over, &reference::<Overwrite>(&input, axis)),
+            "{axis:?} Overwrite"
+        );
+    }
 }

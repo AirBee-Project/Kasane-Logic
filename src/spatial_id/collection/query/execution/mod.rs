@@ -1,72 +1,26 @@
-use super::traits::{BinaryOperator, UnaryOperator};
-use crate::Error;
-use crate::SpatialIdTable;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
+use super::Query;
+use super::query_iter::QueryIter;
+use super::traits::{Source, UnaryOperator};
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::spatial_id::collection::query::execution::group_commutative::runs::UnaryOperatorSliceExt;
-use crate::spatial_id::collection::query::execution::group_commutative::types::CommutativityInfo;
-
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-use crate::spatial_id::collection::query::source::Source;
-
-use alloc::boxed::Box;
-use alloc::vec;
+use crate::{Error, RangeId};
 use alloc::vec::Vec;
 
-pub mod group_commutative;
-
+mod output;
+mod targets;
 #[cfg(test)]
 mod test;
 
-/// Query全体を表現する型。
-pub enum Query<V: SafeValue + 'static> {
-    /// 演算の起点
-    Source(Box<dyn Source<Value = V>>),
+pub use output::QueryOutput;
+pub use targets::IntoTargets;
 
-    /// 連続した単項演算子
-    Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
-
-    /// 互いに可換な単項演算子のグループ
-    CommutativeGroup(
-        CommutativityInfo,
-        Vec<Box<dyn UnaryOperator<V>>>,
-        Box<Query<V>>,
-    ),
-
-    // 二項演算
-    Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
-
-    /// エラー状態を保持
-    Error(Error),
-}
-
-// Queryの構築
-impl<V: SafeValue + 'static> Query<V> {
-    /// `self` を単項演算子で包む。
-    pub(crate) fn wrap_unary<O>(self, op: O) -> Self
-    where
-        O: UnaryOperator<V> + 'static,
-    {
-        match self {
-            Query::Unary(mut ops, input) => {
-                ops.push(Box::new(op));
-                Query::Unary(ops, input)
-            }
-            other => Query::Unary(
-                vec![Box::new(op) as Box<dyn UnaryOperator<V>>],
-                Box::new(other),
-            ),
-        }
-    }
-}
-
-//Queryの検証と最適化
+// Queryの検証
 impl<V: SafeValue + 'static> Query<V> {
     /// 実行までに全てのQueryのパラメーターが正常値の範囲内か検証する。
     pub fn validate(&self) -> Result<(), Error> {
         match self {
             Query::Source(_) => Ok(()),
-            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
+            Query::Unary(ops, input) => {
                 input.validate()?;
                 for op in ops {
                     op.validate()?;
@@ -81,238 +35,317 @@ impl<V: SafeValue + 'static> Query<V> {
             Query::Error(e) => Err(e.clone()),
         }
     }
-
-    /// AST最適化を適用する（実行は行わない）。
-    pub fn optimize(self) -> Self {
-        self.group_commutative_ops().sort_commutative_ops()
-    }
-
-    /// 可換グループ内の演算子を拡大率が小さい順へ並び替える。
-    pub fn sort_commutative_ops(self) -> Self {
-        match self {
-            Query::CommutativeGroup(info, mut ops, input) => {
-                ops.sort_by(|a, b| {
-                    a.expansion_ratio()
-                        .partial_cmp(&b.expansion_ratio())
-                        .unwrap_or(core::cmp::Ordering::Equal)
-                });
-                Query::CommutativeGroup(info, ops, Box::new(input.sort_commutative_ops()))
-            }
-            Query::Unary(ops, input) => Query::Unary(ops, Box::new(input.sort_commutative_ops())),
-            Query::Binary(op, lhs, rhs) => Query::Binary(
-                op,
-                Box::new(lhs.sort_commutative_ops()),
-                Box::new(rhs.sort_commutative_ops()),
-            ),
-            other => other,
-        }
-    }
 }
 
-// Queryの全体実行
+// Queryの評価
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証・AST最適化を適用して実行し、[`SpatialIdTable`] として返す。
+    /// Query を評価し、`targets` の中にある部分を返す。
     ///
-    /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
-    pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
-        self.validate()?;
-        self.optimize().raw_run()
+    /// 戻り値の [`QueryOutput`] は `Result<(FlexId, V), Error>` を返すイテレーターで、
+    /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。
+    /// まとめて [`SpatialIdTable`](crate::SpatialIdTable) で受け取るには [`QueryOutput::table`] を使う。
+    ///
+    /// # 評価する範囲の指定
+    ///
+    /// `targets` には [`IntoTargets`] を実装した値を渡す。
+    /// 範囲を指定すると、その範囲の出力を得るのに必要な入力領域を各演算から逆算し、その部分だけを評価する。
+    ///
+    /// 全体を評価するには `..` を渡す。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(..)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 1つの範囲は、[`SingleId`](crate::SingleId)・[`RangeId`]・[`FlexId`](crate::FlexId) のどれでも渡せる。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(SingleId::new(20, 0, 100, 0)?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, RangeId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(RangeId::new(20, [0, 3], [100, 199], [0, 99])?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, FlexId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(FlexId::new(20, 0, 18, 25, 18, 0)?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 複数の範囲も指定できる。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let a = SingleId::new(20, 0, 100, 0)?;
+    /// let b = SingleId::new(20, 0, 101, 0)?;
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get([a, b])
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// # let (a, b) = (SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?);
+    /// let targets = vec![a, b];
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(targets)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// # let targets = vec![SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?];
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(&targets[..])
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 返す要素は `targets` で切り取る。`targets` が互いに重なっていても、同じ場所を2回返すことはない。
+    /// 切り取った要素は互いに素だが、FlexId の Z-order 列になるとは限らない。
+    /// 切り取らずに、`targets` と交差する要素をそのまま受け取るには [`get_overlapping`](Self::get_overlapping) を使う。
+    ///
+    /// # 結果の受け取り方
+    ///
+    /// [`SpatialIdTable`](crate::SpatialIdTable) で受け取る。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(..)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// イテレーターで受け取る。読んだ分だけ評価が進むので、途中で読むのをやめれば残りは評価しない。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// for item in table.query().filter_in(10..20).get(..) {
+    ///     let (id, value) = item?;
+    /// }
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// # エラー
+    ///
+    /// - 演算のパラメーターの検証に失敗すると、最初の要素として `Err` を返して終わる。
+    /// - 入力源の読み出しや演算に失敗すると、その位置で `Err` を返す。
+    /// - [`QueryOutput::table`] は、最初に出た `Err` を返す。
+    ///
+    /// # 借用
+    ///
+    /// [`QueryOutput`] は Query を借用する。1つの式や `for` 文の中で使うならそのまま書けるが、
+    /// [`QueryOutput`] を変数に取っておくときは、先に Query を変数に束縛する。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let query = table.query().filter_in(10..20);
+    /// let output = query.get(..);
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 評価を途中で打ち切りたいときは [`get_cancellable`](Self::get_cancellable) を使う。
+    pub fn get(&self, targets: impl IntoTargets) -> QueryOutput<'_, V> {
+        self.get_cancellable(targets, &CancellationToken::never())
     }
 
-    /// 検証も最適化もせず [`Query`] を実行し、[`SpatialIdTable`] として返す。
+    /// [`get`](Self::get) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
     ///
-    /// AST を組み替えず書かれた順序のまま実行する。最適化の有無を比べるための口で、通常は [`run`](Self::run) を使う。
-    pub fn raw_run(self) -> Result<SpatialIdTable<V>, Error> {
-        fn run_internal<V: SafeValue + 'static>(
-            query: Query<V>,
-            token: &CancellationToken,
-        ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
-            match query {
-                Query::Source(source) => read_source(
-                    &*source,
-                    &[crate::FlexId::LOWER_MAX, crate::FlexId::UPPER_MAX],
-                    token,
-                ),
-                Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
-                    let order: Vec<&dyn UnaryOperator<V>> = ops.iter().map(|op| &**op).collect();
-                    run_unary_chain(&order, run_internal(*input, token)?, token)
-                }
-                Query::Binary(op, lhs, rhs) => {
-                    #[cfg(feature = "rayon")]
-                    let (lhs_res, rhs_res) =
-                        rayon::join(|| run_internal(*lhs, token), || run_internal(*rhs, token));
+    /// ```
+    /// # use kasane_logic::{CancellationToken, Error, Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let token = CancellationToken::new();
+    /// token.cancel(); // 別のスレッドなどから呼ぶ
+    ///
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get_cancellable(.., &token)
+    ///     .table();
+    /// assert_eq!(result, Err(Error::Cancelled));
+    /// ```
+    pub fn get_cancellable(
+        &self,
+        targets: impl IntoTargets,
+        token: &CancellationToken,
+    ) -> QueryOutput<'_, V> {
+        self.evaluate(targets, token, true)
+    }
 
-                    #[cfg(not(feature = "rayon"))]
-                    let (lhs_res, rhs_res) = (run_internal(*lhs, token), run_internal(*rhs, token));
+    /// [`get`](Self::get) と同じく評価するが、返す要素を `targets` で切り取らない。
+    ///
+    /// `targets` と交差する要素をそのまま返すので、`targets` からはみ出した、より大きな [`FlexId`](crate::FlexId) が返ることがある。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get_overlapping(SingleId::new(20, 0, 100, 0)?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    pub fn get_overlapping(&self, targets: impl IntoTargets) -> QueryOutput<'_, V> {
+        self.evaluate(targets, &CancellationToken::never(), false)
+    }
 
-                    let mut lhs_res = lhs_res?;
-                    let rhs_res = rhs_res?;
-                    op.run(&mut lhs_res, &rhs_res)?;
-                    Ok(lhs_res)
-                }
-                Query::Error(e) => Err(e),
-            }
-        }
-        run_internal(self, &CancellationToken::never())
+    /// [`get_overlapping`](Self::get_overlapping) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
+    ///
+    /// ```
+    /// # use kasane_logic::{CancellationToken, Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let token = CancellationToken::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get_overlapping_cancellable(SingleId::new(20, 0, 100, 0)?, &token)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    pub fn get_overlapping_cancellable(
+        &self,
+        targets: impl IntoTargets,
+        token: &CancellationToken,
+    ) -> QueryOutput<'_, V> {
+        self.evaluate(targets, token, false)
+    }
+
+    fn evaluate(
+        &self,
+        targets: impl IntoTargets,
+        token: &CancellationToken,
+        clip: bool,
+    ) -> QueryOutput<'_, V> {
+        QueryOutput::new(self, targets.into_targets(), token, clip)
     }
 }
 
 /// 単項演算の並びを順に適用する。
-pub(crate) fn run_unary_chain<V: SafeValue + 'static>(
-    mut ops: &[&dyn UnaryOperator<V>],
-    mut working: SpatialIdTable<V, NoSummary>,
+pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
+    ops: &'a [impl core::borrow::Borrow<dyn UnaryOperator<V>>],
+    mut stream: QueryIter<'a, V>,
     token: &CancellationToken,
-) -> Result<SpatialIdTable<V, NoSummary>, Error> {
-    while let Some(head) = ops.first() {
+) -> Result<QueryIter<'a, V>, Error> {
+    for op in ops {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
         }
 
-        head.run(&mut working)?;
-        ops = &ops[1..];
+        stream = op.borrow().run(stream)?;
     }
-    Ok(working)
+    Ok(stream)
 }
 
-/// 入力源を読み出して木に組む。
-fn read_source<V: SafeValue + 'static>(
-    source: &dyn Source<Value = V>,
-    bounds: &[crate::FlexId],
+/// 入力源から `bounds` と重なる要素を読み出し、読みながら `token` のキャンセルを確かめる列を返す。
+fn read_source<'a, V: SafeValue + 'static>(
+    source: &'a dyn Source<Value = V>,
+    bounds: &[RangeId],
     token: &CancellationToken,
-) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+) -> Result<QueryIter<'a, V>, Error> {
+    let token = token.clone();
     let mut counter = 0u32;
-
-    source
-        .read_flex_ids(bounds, token)?
-        .map(|item| {
+    Ok(QueryIter::from_ordered(
+        source.read_flex_ids(bounds, &token)?.map(move |item| {
             token.check_amortized(&mut counter)?;
             item
-        })
-        .collect()
+        }),
+    ))
 }
 
-// Queryの遅延実行
 impl<V: SafeValue + 'static> Query<V> {
-    /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
+    /// 検証を行わずに、出力領域 `bounds` を得るのに必要な部分だけを評価した列を返す。
     ///
-    /// `token` がキャンセルされると、AST を辿る途中で気づき次第 [`Error::Cancelled`] を返す。
-    pub fn run_within(
-        &self,
-        bounds: Vec<crate::RangeId>,
+    /// `token` がキャンセルされると、AST を辿る途中か列を読む途中で [`Error::Cancelled`] を返す。
+    pub(crate) fn stream_within<'a>(
+        &'a self,
+        bounds: Vec<RangeId>,
         token: &CancellationToken,
-    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
-        self.validate()?;
-        self.run_within_unchecked(bounds, token)
-    }
-
-    /// [`run_within`](Self::run_within) の本体（再帰部分）。
-    fn run_within_unchecked(
-        &self,
-        bounds: Vec<crate::RangeId>,
-        token: &CancellationToken,
-    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
+    ) -> Result<QueryIter<'a, V>, Error> {
         if token.is_cancelled() {
             return Err(Error::Cancelled);
+        }
+        if bounds.is_empty() {
+            return Ok(QueryIter::from_ordered(core::iter::empty()));
         }
 
         match self {
-            Query::Source(s) => {
-                let mut bounds: Vec<crate::FlexId> = bounds.into_iter().flatten().collect();
-                bounds.sort_unstable();
-                bounds.dedup();
-
-                read_source(&**s, &bounds, token)
-            }
-            Query::Unary(ops, input) | Query::CommutativeGroup(_, ops, input) => {
-                // 逆算は AST に書かれた順（実行の逆順）で辿る。並べ替えは可換な区間の
-                // 中でしか起きず、可換な演算子同士は必要入力領域も入れ替わらない。
+            Query::Source(s) => read_source(&**s, &bounds, token),
+            Query::Unary(ops, input) => {
                 let mut req = bounds;
                 for op in ops.iter().rev() {
-                    let mut next = Vec::new();
+                    let mut next = Vec::with_capacity(req.len());
                     for r in req {
-                        if let Some(inv) = op.inverse_bounds(r) {
-                            next.push(inv);
-                        }
+                        op.reverse_target(r, &mut next);
                     }
                     next.sort_unstable();
                     next.dedup();
                     req = next;
+                    if req.is_empty() {
+                        return Ok(QueryIter::from_ordered(core::iter::empty()));
+                    }
                 }
-                let input_working = input.run_within_unchecked(req, token)?;
-                run_unary_chain(&ops.optimized_order(), input_working, token)
+                let input_stream = input.stream_within(req, token)?;
+                run_unary_chain(ops, input_stream, token)
             }
             Query::Binary(op, lhs, rhs) => {
-                let mut lhs_bounds = Vec::new();
-                let mut rhs_bounds = Vec::new();
-                for b in bounds {
-                    let (l, r) = op.inverse_bounds(b.clone());
-                    if let Some(lb) = l {
-                        lhs_bounds.push(lb);
-                    }
-                    if let Some(rb) = r {
-                        rhs_bounds.push(rb);
-                    }
-                }
-                lhs_bounds.sort_unstable();
-                lhs_bounds.dedup();
-                rhs_bounds.sort_unstable();
-                rhs_bounds.dedup();
-                let mut lhs_working = lhs.run_within_unchecked(lhs_bounds, token)?;
-                let rhs_working = rhs.run_within_unchecked(rhs_bounds, token)?;
-                {
-                    op.run(&mut lhs_working, &rhs_working)?;
-                }
-                Ok(lhs_working)
+                let lhs_bounds = bounds.clone();
+                #[cfg(feature = "rayon")]
+                let (l, r) = rayon::join(
+                    || lhs.stream_within(lhs_bounds, token),
+                    || rhs.stream_within(bounds, token),
+                );
+                #[cfg(not(feature = "rayon"))]
+                let (l, r) = (
+                    lhs.stream_within(lhs_bounds, token),
+                    rhs.stream_within(bounds, token),
+                );
+                op.run(l?, r?)
             }
             Query::Error(e) => Err(e.clone()),
         }
-    }
-
-    /// 対象領域(`target`)と交差する部分だけを評価して返す。
-    /// キャンセル不可。打ち切りたい場合は [`run_within`](Self::run_within) を使う。
-    pub fn lazy_get<T: crate::SpatialId>(
-        &self,
-        target: T,
-    ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_within(vec![target.clone().into()], &CancellationToken::never())?;
-        let target_range: crate::RangeId = target.into();
-
-        Ok(working
-            .into_iter()
-            .filter(move |(id, _)| id.intersects_range(&target_range)))
-    }
-
-    /// 対象領域(`target`)のうち、データが存在しない空間を `default_value` で埋めてから値を返す。
-    /// キャンセル不可。打ち切りたい場合は [`run_within`](Self::run_within) を使う。
-    pub fn lazy_get_with_default<T: crate::SpatialId>(
-        &self,
-        target: T,
-        default_value: V,
-    ) -> Result<impl Iterator<Item = (crate::FlexId, V)>, Error> {
-        let working = self.run_within(vec![target.clone().into()], &CancellationToken::never())?;
-        let target_range: crate::RangeId = target.clone().into();
-
-        let mut uncovered = crate::SpatialIdSet::new();
-        uncovered.insert(target.into());
-
-        let mut working_iter = working.into_iter();
-        let mut default_iter = None;
-
-        Ok(core::iter::from_fn(move || {
-            if default_iter.is_none() {
-                for (id, value) in working_iter.by_ref() {
-                    if id.intersects_range(&target_range) {
-                        let _ = uncovered.remove(id);
-                        return Some((id, value));
-                    }
-                }
-                default_iter = Some(core::mem::take(&mut uncovered).into_iter());
-            }
-
-            default_iter
-                .as_mut()?
-                .next()
-                .map(|id| (id, default_value.clone()))
-        }))
     }
 }
