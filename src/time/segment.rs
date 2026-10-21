@@ -1,4 +1,4 @@
-use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::id::zoom_level::TZoomLevel;
 use crate::time::span::TimeSpan;
 
 /// 2の冪乗の長さを持ち、時間木の特定の境界にアライメントされた1ノード。

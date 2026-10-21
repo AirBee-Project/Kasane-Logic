@@ -151,7 +151,7 @@ impl<'de> Deserialize<'de> for IdEntry {
 
                 let z = z.ok_or_else(|| de::Error::missing_field("z"))?;
                 let z_level =
-                    crate::spatial_id::zoom_level::ZoomLevel::new(z).map_err(de::Error::custom)?;
+                    crate::id::zoom_level::ZoomLevel::new(z).map_err(de::Error::custom)?;
                 let f = f.unwrap_or([z_level.f_min(), z_level.f_max()]);
                 let x = x.unwrap_or([0, z_level.xy_max()]);
                 let y = y.unwrap_or([0, z_level.xy_max()]);

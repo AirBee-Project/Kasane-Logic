@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::{FlexId, RangeId, SingleId, SpatialIdSet, spatial_id::zoom_level::ZoomLevel};
+    use crate::{FlexId, RangeId, SingleId, SpatialIdSet, id::zoom_level::ZoomLevel};
     use alloc::vec::Vec;
     ///単純なSingleIdを1つだけ挿入するケース
     #[test]

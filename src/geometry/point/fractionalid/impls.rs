@@ -1,8 +1,7 @@
 use core::fmt;
 
 use crate::{
-    Coordinate, Ecef, Error, FractionalId, Point, geometry::traits::CoverSingleIds,
-    spatial_id::helpers,
+    Coordinate, Ecef, Error, FractionalId, Point, geometry::traits::CoverSingleIds, id::helpers,
 };
 
 impl fmt::Debug for FractionalId {

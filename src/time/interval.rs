@@ -1,7 +1,7 @@
 //! 時間間隔 `{i}`を表す型に関する実装
 
 use super::{segment::TimeSegment, span::TimeSpan};
-use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::id::zoom_level::TZoomLevel;
 use crate::{SpatialIdError, error::Error};
 
 /// 時間 ID の時間間隔 `{i}`（秒数）を表現する型。
@@ -61,7 +61,7 @@ impl Interval {
     /// - `temporal_id` feature 無効時は [`MAX_SECONDS`](Self::MAX_SECONDS) 以外を拒否する。
     ///
     /// ```
-    /// # use kasane_logic::time::Interval;
+    /// # use spatial_id::time::Interval;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// assert_eq!(Interval::new(3600).unwrap(), Interval::HOUR);
@@ -129,7 +129,7 @@ impl Interval {
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)`。
     ///
     /// ```
-    /// # use kasane_logic::time::Interval;
+    /// # use spatial_id::time::Interval;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// assert_eq!(Interval::HOUR.index_of(7_300), 2);

@@ -83,9 +83,9 @@ impl RandomSetInsert {
 /// `RandomSetCase` を生成し、`build_set()` で `SpatialIdSet` を構築します。
 ///
 /// ```ignore
-/// # use kasane_logic::collection::SpatialIdSet;
+/// # use spatial_id::collection::SpatialIdSet;
 /// # use proptest::prelude::*;
-/// # use kasane_logic::collection::set::test::arb_random_set_case;
+/// # use spatial_id::collection::set::test::arb_random_set_case;
 /// proptest! {
 ///     #[test]
 ///     fn random_set_example(case in arb_random_set_case()) {
@@ -178,7 +178,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 ///
 /// # テストテンプレート
 /// ```
-/// # use kasane_logic::collection::set::test::arb_random_set_case;
+/// # use spatial_id::collection::set::test::arb_random_set_case;
 /// # use proptest::prelude::*;
 /// proptest! {
 ///     fn operator_test_template(case in arb_random_set_case()) {

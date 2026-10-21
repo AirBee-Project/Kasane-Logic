@@ -54,7 +54,7 @@ impl CoverSingleIds for Line {
 
 ///DDAを用いたLine関数
 fn line_dda(z: u8, a: Coordinate, b: Coordinate) -> Result<impl Iterator<Item = SingleId>, Error> {
-    let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z)?;
+    let zoom = crate::id::zoom_level::ZoomLevel::new(z)?;
     let z = zoom.get();
     let origin1 = coordinate_to_matrix(a, z);
     let origin2 = coordinate_to_matrix(b, z);

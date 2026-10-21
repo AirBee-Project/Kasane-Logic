@@ -2,7 +2,7 @@ use super::view::View;
 use crate::collection::summary::{BitMask, Summary, ValueSet};
 use crate::{
     FlexId, Side,
-    spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
+    id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
 };
 use alloc::borrow::Cow;
 use core::{mem, ptr};

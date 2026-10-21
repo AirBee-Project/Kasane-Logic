@@ -19,8 +19,8 @@ mod patterns;
 
 use patterns::{COUNTS, PATTERNS, Z};
 
-use kasane_logic::SingleId;
-use kasane_logic::collection::SpatialIdSet;
+use spatial_id::SingleId;
+use spatial_id::collection::SpatialIdSet;
 
 // ────────────────────────────────────────────────────────────────
 // カスタムアロケータ

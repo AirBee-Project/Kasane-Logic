@@ -1,8 +1,8 @@
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-use kasane_logic::Side::Upper;
-use kasane_logic::collection::SpatialIdMap;
-use kasane_logic::query::merge_policy::Max;
-use kasane_logic::query::{FalloffPattern, Source};
+use spatial_id::Side::Upper;
+use spatial_id::collection::SpatialIdMap;
+use spatial_id::query::merge_policy::Max;
+use spatial_id::query::{FalloffPattern, Source};
 
 #[path = "../utils.rs"]
 mod utils;

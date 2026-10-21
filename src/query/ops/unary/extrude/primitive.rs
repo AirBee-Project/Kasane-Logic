@@ -1,6 +1,6 @@
 use crate::{
     Error, FlexId, SpatialIdError, ZoomLevel,
-    spatial_id::range_id::convert::{split_f, split_xy},
+    id::range_id::convert::{split_f, split_xy},
 };
 use alloc::vec::Vec;
 

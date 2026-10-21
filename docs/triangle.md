@@ -70,8 +70,8 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Instant;
 
-use kasane_logic::geometry::{Coordinate, CoverSingleIds, Triangle};
-use kasane_logic::SingleId;
+use spatial_id::geometry::{Coordinate, CoverSingleIds, Triangle};
+use spatial_id::SingleId;
 use rand::RngExt;
 use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};
 
@@ -83,7 +83,7 @@ const MIN_ALT: f64 = 0.0;
 const MAX_ALT: f64 = 1000.0;
 
 /// 中心点の周囲 ±`spread_deg` 度の範囲に頂点を持つ三角形を生成する。
-fn random_triangle(rng: &mut ChaCha8Rng, spread_deg: f64) -> Result<Triangle, kasane_logic::Error> {
+fn random_triangle(rng: &mut ChaCha8Rng, spread_deg: f64) -> Result<Triangle, spatial_id::Error> {
     let lat0 = rng.random_range(MIN_LAT..MAX_LAT);
     let lon0 = rng.random_range(MIN_LON..MAX_LON);
     let mut vertex = || {

@@ -7,7 +7,7 @@ use triomphe::Arc;
 use super::node::{Branch, Node, Skip, common_descent};
 use super::{BitMask, FlexTreeCore, NoSummary, Summary, ValueSet};
 use crate::MinMax;
-use crate::{FlexId, RangeId, Side, SingleId, spatial_id::dimension::Dimension};
+use crate::{FlexId, RangeId, Side, SingleId, id::dimension::Dimension};
 
 /// Leaf と Branch の数。Skip は数えない。
 fn node_count<V, S>(node: &Node<V, S>) -> usize {

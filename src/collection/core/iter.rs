@@ -5,7 +5,7 @@ use triomphe::Arc;
 use super::FlexTreeCore;
 use super::node::Node;
 use crate::collection::summary::Summary;
-use crate::{FlexId, Side, spatial_id::dimension::Dimension};
+use crate::{FlexId, Side, id::dimension::Dimension};
 
 /// [FlexTreeCore]の値を持つ領域と値への参照を、Node を辿りながら1つずつ返すイテレーター。
 #[derive(Debug)]

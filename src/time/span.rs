@@ -1,5 +1,5 @@
 use super::segment::TimeSegment;
-use crate::spatial_id::zoom_level::TZoomLevel;
+use crate::id::zoom_level::TZoomLevel;
 use crate::{Interval, error::Error};
 
 /// 絶対秒区間 `[start, end)`
@@ -161,7 +161,7 @@ impl Iterator for TimeSegments {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::spatial_id::zoom_level::TZoomLevel;
+    use crate::id::zoom_level::TZoomLevel;
     use alloc::vec::Vec;
 
     #[test]

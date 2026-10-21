@@ -3,7 +3,7 @@
 use core::fmt;
 use core::marker::PhantomData;
 
-pub use kasane_logic_derive::BitMask;
+pub use spatial_id_derive::BitMask;
 
 /// `Branch` が子孫の値についてキャッシュする情報。
 ///
@@ -88,7 +88,7 @@ impl<V: Ord + Clone> Summary<V> for MinMax<V> {
 /// バリアントの番号は定義順に `0, 1, 2, …` となり、判別値（`A = 5`）には左右されない。
 ///
 /// ```
-/// use kasane_logic::collection::summary::BitMask;
+/// use spatial_id::collection::summary::BitMask;
 ///
 /// #[derive(Debug, Clone, Copy, PartialEq, Eq, BitMask)]
 /// enum Color {

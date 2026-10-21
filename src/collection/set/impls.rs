@@ -23,8 +23,8 @@ impl<S: SpatialId> Extend<S> for SpatialIdSet {
 /// 一意に定まる。
 ///
 /// ```
-/// use kasane_logic::collection::SpatialIdSet;
-/// use kasane_logic::SingleId;
+/// use spatial_id::collection::SpatialIdSet;
+/// use spatial_id::SingleId;
 /// use rayon::prelude::*;
 ///
 /// // 0..1024 は境界整列した連続 X 区間なので 1 異方Segment（x_zoom を 10 段浅く）へ畳まれる。

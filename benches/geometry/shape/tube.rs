@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::geometry::{Coordinate, CoverSingleIds, Tube};
+use spatial_id::geometry::{Coordinate, CoverSingleIds, Tube};
 use std::hint::black_box;
 
 fn bench_tube(c: &mut Criterion) {

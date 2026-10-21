@@ -53,64 +53,64 @@ impl<V: SafeValue + 'static> Query<V> {
     /// 全体を評価するには `..` を渡す。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(..)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// 1つの範囲は、[`SingleId`](crate::SingleId)・[`RangeId`]・[`FlexId`](crate::FlexId) のどれでも渡せる。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(SingleId::new(20, 0, 100, 0)?)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::RangeId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::RangeId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(RangeId::new(20, [0, 3], [100, 199], [0, 99])?)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::FlexId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::FlexId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(FlexId::new(20, 0, 18, 25, 18, 0)?)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// 複数の範囲も指定できる。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let a = SingleId::new(20, 0, 100, 0)?;
     /// let b = SingleId::new(20, 0, 101, 0)?;
@@ -119,13 +119,13 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .filter_in(10..20)
     ///     .get([a, b])
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// # let (a, b) = (SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?);
     /// let targets = vec![a, b];
@@ -134,13 +134,13 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .filter_in(10..20)
     ///     .get(targets)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// # let targets = vec![SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?];
     /// let result = table
@@ -148,7 +148,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .filter_in(10..20)
     ///     .get(&targets[..])
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// 返す要素は `targets` で切り取る。`targets` が互いに重なっていても、同じ場所を2回返すことはない。
@@ -160,27 +160,27 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`SpatialIdMap`](crate::SpatialIdMap) で受け取る。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get(..)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// イテレーターで受け取る。読んだ分だけ評価が進むので、途中で読むのをやめれば残りは評価しない。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
     /// # let table = SpatialIdMap::<u32>::new();
     /// for item in table.query().filter_in(10..20).get(..) {
     ///     let (id, value) = item?;
     /// }
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// # エラー
@@ -195,12 +195,12 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`QueryOutput`] を変数に取っておくときは、先に Query を変数に束縛する。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let query = table.query().filter_in(10..20);
     /// let output = query.get(..);
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     ///
     /// 評価を途中で打ち切りたいときは [`get_cancellable`](Self::get_cancellable) を使う。
@@ -211,10 +211,10 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`get`](Self::get) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`QueryError::Cancelled`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::Error;
-    /// # use kasane_logic::query::QueryError;
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::{CancellationToken, Source};
+    /// # use spatial_id::Error;
+    /// # use spatial_id::query::QueryError;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::{CancellationToken, Source};
     /// # let table = SpatialIdMap::<u32>::new();
     /// let token = CancellationToken::new();
     /// token.cancel(); // 別のスレッドなどから呼ぶ
@@ -239,16 +239,16 @@ impl<V: SafeValue + 'static> Query<V> {
     /// `targets` と交差する要素をそのまま返すので、`targets` からはみ出した、より大きな [`FlexId`](crate::FlexId) が返ることがある。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::Source;
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::Source;
+    /// # use spatial_id::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let result = table
     ///     .query()
     ///     .filter_in(10..20)
     ///     .get_overlapping(SingleId::new(20, 0, 100, 0)?)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     pub fn get_overlapping(&self, targets: impl IntoTargets) -> QueryOutput<'_, V> {
         self.evaluate(targets, &CancellationToken::never(), false)
@@ -257,9 +257,9 @@ impl<V: SafeValue + 'static> Query<V> {
     /// [`get_overlapping`](Self::get_overlapping) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`QueryError::Cancelled`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::collection::SpatialIdMap;
-    /// # use kasane_logic::query::{CancellationToken, Source};
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::collection::SpatialIdMap;
+    /// # use spatial_id::query::{CancellationToken, Source};
+    /// # use spatial_id::SingleId;
     /// # let table = SpatialIdMap::<u32>::new();
     /// let token = CancellationToken::new();
     /// let result = table
@@ -267,7 +267,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .filter_in(10..20)
     ///     .get_overlapping_cancellable(SingleId::new(20, 0, 100, 0)?, &token)
     ///     .into_map()?;
-    /// # Ok::<(), kasane_logic::Error>(())
+    /// # Ok::<(), spatial_id::Error>(())
     /// ```
     pub fn get_overlapping_cancellable(
         &self,

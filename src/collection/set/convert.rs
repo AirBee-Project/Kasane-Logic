@@ -23,8 +23,8 @@ where
     ///
     /// 値付きテーブルから集合へ:
     /// ```
-    /// use kasane_logic::collection::{SpatialIdMap, SpatialIdSet};
-    /// use kasane_logic::SingleId;
+    /// use spatial_id::collection::{SpatialIdMap, SpatialIdSet};
+    /// use spatial_id::SingleId;
     /// let mut table: SpatialIdMap<u8> = SpatialIdMap::new();
     /// table.insert(SingleId::new(20, 0, 0, 0).unwrap(), 7);
     /// table.insert(SingleId::new(20, 5, 0, 0).unwrap(), 9);

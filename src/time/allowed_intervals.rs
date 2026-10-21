@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 /// ```
 /// # #[cfg(feature = "temporal_id")]
 /// # {
-/// # use kasane_logic::time::{AllowedIntervals, Interval};
+/// # use spatial_id::time::{AllowedIntervals, Interval};
 /// // 明示していなくても WHOLE と SECOND は入っている。
 /// let intervals = AllowedIntervals::new([Interval::HOUR]);
 /// assert!(intervals.contains(Interval::WHOLE));
@@ -51,7 +51,7 @@ impl AllowedIntervals {
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::time::{AllowedIntervals, Interval};
+    /// # use spatial_id::time::{AllowedIntervals, Interval};
     /// // 30分・1時間で読みたい、という指定。
     /// let intervals = AllowedIntervals::new([Interval::new(1800).unwrap(), Interval::HOUR]);
     /// assert_eq!(intervals.coarsest_dividing(0, 7200), Interval::HOUR);
@@ -99,7 +99,7 @@ impl AllowedIntervals {
     /// ```
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::time::{AllowedIntervals, Interval};
+    /// # use spatial_id::time::{AllowedIntervals, Interval};
     /// let intervals = AllowedIntervals::calendar();
     /// // 2時間ぶんは「1時間 × 2Segment」として表される（`gcd` なら `7200秒 × 1Segment`）。
     /// assert_eq!(intervals.coarsest_dividing(0, 7200), Interval::HOUR);

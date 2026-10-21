@@ -1,7 +1,7 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::ZoomLevel;
-use kasane_logic::query::Source;
-use kasane_logic::query::merge_policy::Average;
+use spatial_id::ZoomLevel;
+use spatial_id::query::Source;
+use spatial_id::query::merge_policy::Average;
 
 #[path = "../utils.rs"]
 mod utils;

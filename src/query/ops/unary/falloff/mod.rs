@@ -5,13 +5,13 @@ pub(crate) mod query;
 mod test;
 
 use crate::collection::core::{FlexTreeCore, NoSummary};
+use crate::id::helpers::Side;
 use crate::query::{
     merge_policy::MergePolicy,
     query_iter::QueryIter,
     send_sync::{MaybeSendSync, SafeValue},
     traits::UnaryOperator,
 };
-use crate::spatial_id::helpers::Side;
 use crate::{Error, FlexId, QueryError, RangeId, SpatialIdMap, ZoomLevel};
 use alloc::vec;
 use alloc::vec::Vec;

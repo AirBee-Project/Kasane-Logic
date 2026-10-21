@@ -9,8 +9,8 @@ pub trait Point: Into<Ecef> {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::geometry::{Coordinate, Point};
-    /// # use kasane_logic::SingleId;
+    /// # use spatial_id::geometry::{Coordinate, Point};
+    /// # use spatial_id::SingleId;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     ///
     /// assert_eq!(
@@ -31,8 +31,8 @@ pub trait Point: Into<Ecef> {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::geometry::{Coordinate, Point};
-    /// # use kasane_logic::RangeId;
+    /// # use spatial_id::geometry::{Coordinate, Point};
+    /// # use spatial_id::RangeId;
     /// let coord = Coordinate::new(35.681382, 139.766084, 10.3).unwrap();
     ///
     /// assert_eq!(
@@ -52,7 +52,7 @@ pub trait Point: Into<Ecef> {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::geometry::{Coordinate, Point};
+    /// # use spatial_id::geometry::{Coordinate, Point};
     /// let coord = Coordinate::new(0.0, 90.0, 10.5).unwrap();
     ///
     /// // 小数部分はそのまま保持される

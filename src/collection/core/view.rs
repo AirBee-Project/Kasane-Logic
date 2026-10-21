@@ -1,6 +1,6 @@
 use super::node::Node;
 use crate::collection::summary::Summary;
-use crate::{FlexId, Side, spatial_id::dimension::Dimension};
+use crate::{FlexId, Side, id::dimension::Dimension};
 
 /// 領域 `this` の上の Node を借りて見たもの。
 pub(super) enum View<'a, V, S> {

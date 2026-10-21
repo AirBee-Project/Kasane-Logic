@@ -1,5 +1,5 @@
 use super::{Attenuator, FalloffAxis};
-use crate::spatial_id::helpers::Side;
+use crate::id::helpers::Side;
 use crate::{Error, FlexId, ZoomLevel};
 use alloc::vec::Vec;
 use core::convert::TryFrom;

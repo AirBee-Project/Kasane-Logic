@@ -20,7 +20,7 @@ impl CoverSingleIds for Sphere {
     where
         V: Clone + 'static,
     {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
+        let zoom = crate::id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let center = self.center;

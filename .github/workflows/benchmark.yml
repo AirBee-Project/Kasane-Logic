@@ -31,7 +31,7 @@ jobs:
       - name: Get benchmark list
         id: benches
         run: |
-          BENCH_LIST=$(cargo metadata --format-version 1 --no-deps | jq -c '[.packages[] | select(.name=="kasane-logic") | .targets[] | select(.kind[] == "bench") | .name | select(. != "spatial_id_set_memory")]')
+          BENCH_LIST=$(cargo metadata --format-version 1 --no-deps | jq -c '[.packages[] | select(.name=="spatial-id") | .targets[] | select(.kind[] == "bench") | .name | select(. != "spatial_id_set_memory")]')
           echo "benches=$BENCH_LIST" >> $GITHUB_OUTPUT
 
       - name: Build benchmarks

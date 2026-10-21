@@ -279,7 +279,7 @@ fn insert_order_independence() {
 
 #[test]
 fn verify_f_strip_coverage_preserved() {
-    use crate::spatial_id::zoom_level::ZoomLevel;
+    use crate::id::zoom_level::ZoomLevel;
     // corner_cases と同じ 10 個の F 隣接Segment（z=30, x=y=0）。
     let mut set = SpatialIdSet::new();
     let mut expected = std::collections::BTreeSet::new();

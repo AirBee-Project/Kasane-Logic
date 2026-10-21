@@ -451,33 +451,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kasane-logic"
-version = "0.1.4"
-dependencies = [
- "criterion",
- "hashbrown 0.17.1",
- "insta",
- "kasane-logic-derive",
- "libm",
- "proptest",
- "rand 0.10.2",
- "rand_chacha 0.10.0",
- "rayon",
- "serde",
- "serde_json",
- "triomphe",
-]
-
-[[package]]
-name = "kasane-logic-derive"
-version = "0.1.4"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "leb128fmt"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -872,6 +845,33 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+
+[[package]]
+name = "spatial-id"
+version = "0.1.4"
+dependencies = [
+ "criterion",
+ "hashbrown 0.17.1",
+ "insta",
+ "libm",
+ "proptest",
+ "rand 0.10.2",
+ "rand_chacha 0.10.0",
+ "rayon",
+ "serde",
+ "serde_json",
+ "spatial-id-derive",
+ "triomphe",
+]
+
+[[package]]
+name = "spatial-id-derive"
+version = "0.1.4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "syn"

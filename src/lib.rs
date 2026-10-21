@@ -8,20 +8,20 @@ extern crate alloc;
 #[cfg(test)]
 extern crate std;
 
-// derive マクロが生成する `::kasane_logic::…` を、このクレートの中でも解決できるようにする。
-extern crate self as kasane_logic;
+// derive マクロが生成する `::spatial_id::…` を、このクレートの中でも解決できるようにする。
+extern crate self as spatial_id;
 
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
 pub mod collection;
 pub mod geometry;
+mod id;
 pub mod query;
-mod spatial_id;
 pub mod time;
 
 pub use error::Error;
-pub use spatial_id::{
+pub use id::{
     FlexId, IntoRange, RangeId, Side, SingleId, SpatialId, SpatialIdError, Zoom, ZoomLevel,
 };
 
@@ -42,13 +42,13 @@ pub(crate) use geometry::vec3::{
 #[allow(unused_imports)]
 pub(crate) use geometry::*;
 #[allow(unused_imports)]
+pub(crate) use id::relative_flex_id::RelativeFlexId;
+#[allow(unused_imports)]
+pub(crate) use id::*;
+#[allow(unused_imports)]
 pub(crate) use query::{
     CancellationToken, IntoTargets, Query, QueryOutput, SafeValue, Source, merge_policy,
     merge_policy::MergePolicy,
 };
-#[allow(unused_imports)]
-pub(crate) use spatial_id::relative_flex_id::RelativeFlexId;
-#[allow(unused_imports)]
-pub(crate) use spatial_id::*;
 #[allow(unused_imports)]
 pub(crate) use time::{AllowedIntervals, Interval};

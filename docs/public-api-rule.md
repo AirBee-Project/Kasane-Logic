@@ -13,7 +13,7 @@
 - 公開モジュールは `pub mod` で宣言する。
 - 利用者に直接使ってほしい項目は `lib.rs` で `pub use` する。
 - 内部実装都合のモジュール（実装分割用の `constructor` / `impls` / `ops` など）は原則として `lib.rs` では再公開しない。
-- 中間 `mod.rs`（例: `spatial_id/mod.rs`, `geometry/mod.rs`）での再公開は最小限にする。
+- 中間 `mod.rs`（例: `id/mod.rs`, `geometry/mod.rs`）での再公開は最小限にする。
 
 ## 3. rustdoc 表示ルール
 
@@ -58,7 +58,7 @@
 pub use geometry::point::coordinate::Coordinate;
 
 #[doc(inline)]
-pub use spatial_id::SingleId;
+pub use id::SingleId;
 ```
 
 ## 7. 互換性ポリシー

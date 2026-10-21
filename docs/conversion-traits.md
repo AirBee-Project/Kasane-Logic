@@ -28,7 +28,7 @@
 
 ## 3. 列挙系 Trait
 
-`spatial_id::traits` に定義されている Trait である。
+`id::traits` に定義されている Trait である。
 
 - `IntoSingleIds`
   - `self` を消費して `SingleId` の列挙を返す。
@@ -51,9 +51,9 @@
 ## 5. 例
 
 ```rust
-use kasane_logic::IntoFlexIds;
-use kasane_logic::geometry::{Coordinate, CoverSingleIds};
-use kasane_logic::SingleId;
+use spatial_id::IntoFlexIds;
+use spatial_id::geometry::{Coordinate, CoverSingleIds};
+use spatial_id::SingleId;
 
 let coord = Coordinate::new(35.0, 139.0, 0.0).unwrap();
 let ids: Vec<SingleId> = coord.cover_single_ids(18).unwrap().collect();

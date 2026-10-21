@@ -1,7 +1,7 @@
+use crate::id::dimension::Dimension;
+use crate::id::flex_id::ZOrderRel;
 use crate::query::query_iter::QueryIter;
 use crate::query::send_sync::{MaybeSend, SafeValue};
-use crate::spatial_id::dimension::Dimension;
-use crate::spatial_id::flex_id::ZOrderRel;
 use crate::{Error, FlexId, Side};
 use alloc::vec::Vec;
 use core::iter::Fuse;

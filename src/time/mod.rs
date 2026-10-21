@@ -5,6 +5,6 @@ pub(crate) mod interval;
 pub(crate) mod segment;
 pub(crate) mod span;
 
-pub use crate::spatial_id::zoom_level::TZoomLevel;
+pub use crate::id::zoom_level::TZoomLevel;
 pub use allowed_intervals::AllowedIntervals;
 pub use interval::Interval;
