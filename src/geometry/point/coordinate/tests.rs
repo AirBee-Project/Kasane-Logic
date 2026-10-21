@@ -228,4 +228,12 @@ mod centroid {
             85.0511
         );
     }
+
+    #[test]
+    fn cetroid_crossing_antimeridian() {
+        let a = Coordinate::new(0.0, 179.999, 0.0).unwrap();
+        let b = Coordinate::new(0.0, -179.999, 0.0).unwrap();
+
+        assert!(libm::fabs(Coordinate::centroid([a, b].into_iter()).longitude) > 179.99);
+    }
 }
