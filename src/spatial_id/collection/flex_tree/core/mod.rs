@@ -116,7 +116,7 @@ impl<V, S> Default for FlexTreeCore<V, S> {
 impl<V, S> FlexTreeCore<V, S> {
     /// 値を持つ[FlexId]の数。
     pub fn count(&self) -> usize {
-        self.upper_root.count() + self.lower_root.count()
+        self.upper_root.count() as usize + self.lower_root.count() as usize
     }
 
     pub fn is_empty(&self) -> bool {
