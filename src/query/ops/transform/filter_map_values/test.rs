@@ -96,3 +96,46 @@ fn map_values_via_partial_get() {
         .collect();
     assert_eq!(got, alloc::vec![false]);
 }
+
+/// 値だけを条件にして絞り込める。
+#[test]
+fn filter_values_keeps_matching_values() {
+    let out: SpatialIdMap<i32> = int_table()
+        .query()
+        .filter_values(|v| v % 2 == 1)
+        .get(..)
+        .into_map()
+        .unwrap();
+
+    let mut rows: alloc::vec::Vec<(u32, i32)> = out
+        .iter()
+        .flat_map(|(id, v)| id.single_ids().map(move |s| (s.x(), *v)))
+        .collect();
+    rows.sort_by_key(|(x, _)| *x);
+
+    assert_eq!(rows, alloc::vec![(10, 1), (11, 15)]);
+
+    let query = int_table().query().filter_values(|v| *v > 100);
+    assert!(query.get(..).next().is_none());
+}
+
+/// 値だけを見て、`None` の要素を取り除きつつ別の型へ写せる。
+#[test]
+fn filter_map_values_drops_none_and_changes_the_type() {
+    let out: SpatialIdMap<String> = int_table()
+        .query()
+        .filter_map_values(|v: i32| (v > 10).then(|| v.to_string()))
+        .get(..)
+        .into_map()
+        .unwrap();
+
+    let rows: alloc::vec::Vec<(u32, String)> = out
+        .iter()
+        .flat_map(|(id, v)| {
+            let v = v.clone();
+            id.single_ids().map(move |s| (s.x(), v.clone()))
+        })
+        .collect();
+
+    assert_eq!(rows, alloc::vec![(11, "15".to_string())]);
+}

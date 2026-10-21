@@ -1,7 +1,5 @@
-use core::ops::Bound;
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
 use spatial_id::query::Source;
-use spatial_id::query::ValuePredicate;
 
 #[path = "../utils.rs"]
 mod utils;
@@ -22,15 +20,7 @@ fn bench_filter_values(c: &mut Criterion) {
             |b, &t_val| {
                 b.iter_batched(
                     || table.clone(),
-                    |t| {
-                        let predicate =
-                            ValuePredicate::InRange(Bound::Included(t_val), Bound::Unbounded);
-                        t.query()
-                            .filter_values(predicate)
-                            .get(..)
-                            .into_map()
-                            .unwrap()
-                    },
+                    |t| t.query().filter_in(t_val..).get(..).into_map().unwrap(),
                     BatchSize::SmallInput,
                 );
             },
