@@ -13,10 +13,9 @@ pub(crate) mod traits;
 
 pub(crate) mod vec3;
 
-pub(crate) mod geodata_formats;
+pub mod format;
 
 pub use crate::error::GeometryError;
-pub use geodata_formats::regionmesh::RegionMesh;
 pub use point::{coordinate::Coordinate, ecef::Ecef, fractionalid::FractionalId, traits::Point};
 pub use shape::traits::{ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape};
 pub use shape::{
