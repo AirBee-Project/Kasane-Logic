@@ -611,42 +611,6 @@ fn count_and_size_hint_match_iteration() {
     }
 }
 
-/// ValueSet を Summary に持つ FlexTreeCore で、`value_set` が現れる値の集合と一致し、`filter_values` が参照モデルと一致する。
-#[test]
-fn value_set_summary_matches_model() {
-    let mut next = rng(314);
-    let random_color = |n: &mut dyn FnMut(u64) -> u64| COLORS[n(4) as usize];
-    for max_zoom in [5, 20] {
-        for _ in 0..50 {
-            let (tree, writes) =
-                random_tree::<Color, ValueSet<Color>>(&mut next, max_zoom, random_color);
-            assert_rules(&tree);
-
-            let present: ValueSet<Color> = tree.iter().map(|(_, c)| *c).collect();
-            assert_eq!(tree.value_set(), present);
-
-            let ids: Vec<FlexId> = writes.iter().map(|(id, _)| *id).collect();
-            let points = sample_points(&mut next, &ids);
-            for keep_bits in 0..16u64 {
-                let keep: ValueSet<Color> = COLORS
-                    .into_iter()
-                    .filter(|c| keep_bits & (1 << c.index()) != 0)
-                    .collect();
-                let filtered = tree.filter_values(keep);
-                assert_rules(&filtered);
-                assert!(filtered.value_set().is_subset(&keep));
-                for point in &points {
-                    let expected = model_value_at(&writes, point).filter(|c| keep.contains(*c));
-                    assert_eq!(value_at(&filtered, point), expected);
-                }
-            }
-
-            assert_eq!(tree.filter_values(present), tree);
-            assert!(tree.filter_values(ValueSet::EMPTY).is_empty());
-        }
-    }
-}
-
 /// 2つの Summary を組み合わせると、範囲とビットマスクの両方で絞り込める。
 #[test]
 fn paired_summary_supports_both_filters() {

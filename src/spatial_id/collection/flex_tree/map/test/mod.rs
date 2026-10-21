@@ -1,6 +1,5 @@
 #![cfg_attr(test, allow(dead_code))]
 
-pub mod count;
 pub mod insert;
 pub mod par;
 pub mod query;

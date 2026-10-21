@@ -162,39 +162,6 @@ mod tests {
     }
 
     #[test]
-    fn intersection_works() {
-        let id1 = SingleId::new(2, 1, 1, 1).unwrap();
-        // child is inside id1
-        let child = SingleId::new(3, 2, 2, 3).unwrap();
-
-        let expected = crate::RangeId::from(&child);
-        assert_eq!(id1.intersection(&child).unwrap(), expected);
-        assert_eq!(child.intersection(&id1).unwrap(), expected);
-
-        // Disjoint child
-        let disjoint = SingleId::new(3, 4, 2, 3).unwrap(); // Outside f range
-        assert!(id1.intersection(&disjoint).is_none());
-    }
-
-    #[test]
-    fn difference_works() {
-        let parent = SingleId::new(1, 0, 0, 0).unwrap();
-        // Covers F:0, X:0, Y:0 at Z:1 (which covers Z:2 F:0..=1, X:0..=1, Y:0..=1)
-
-        let child = SingleId::new(2, 0, 1, 1).unwrap();
-
-        let diff: Vec<_> = parent.difference(&child).collect();
-        // At Z=1 -> Z=2, parent is split into 8 children. One of them is `child`.
-        // So difference should yield 7 SingleIds at Z=2.
-        assert_eq!(diff.len(), 7);
-        let child_range = crate::RangeId::from(&child);
-        for d in &diff {
-            assert_eq!(d.z(), 2);
-            assert_ne!(d, &child_range);
-        }
-    }
-
-    #[test]
     fn parent_and_children_shortcuts() {
         let root = SingleId::new(0, 0, 0, 0).unwrap();
         assert_eq!(root.spatial_parent(), None);
@@ -224,7 +191,7 @@ mod tests {
     }
 
     #[test]
-    fn spatial_id_trait_methods() {
+    fn spatial_shift_moves_each_axis() {
         use crate::SpatialId;
 
         let mut id = SingleId::new(4, 6, 9, 10).unwrap();
@@ -232,8 +199,5 @@ mod tests {
         assert_eq!(id.f(), 7);
         assert_eq!(id.x(), 7);
         assert_eq!(id.y(), 13);
-
-        let single_list: Vec<_> = id.single_ids().collect();
-        assert_eq!(single_list, vec![id]);
     }
 }

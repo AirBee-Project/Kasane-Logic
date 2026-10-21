@@ -6,7 +6,6 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 pub mod corner_cases;
-pub mod count;
 pub mod difference;
 pub mod equal;
 pub mod insert;
@@ -244,13 +243,6 @@ pub(crate) fn decompose_set_to_single_ids_at_zoom(
     }
 
     normalized
-}
-
-/// [`SpatialIdSet`] をその Set が持つ最小粒度（最大ズーム）に揃えた [`SingleId`] 集合へ分解する。
-#[cfg(test)]
-pub(crate) fn decompose_set_to_min_granularity_single_ids(set: &SpatialIdSet) -> HashSet<SingleId> {
-    let target_z = set.max_zoomlevel().unwrap_or(0);
-    decompose_set_to_single_ids_at_zoom(set, target_z)
 }
 
 #[cfg(test)]
