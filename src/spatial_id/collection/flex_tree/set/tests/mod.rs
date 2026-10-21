@@ -5,14 +5,14 @@ use alloc::string::String;
 #[cfg(test)]
 use alloc::vec::Vec;
 
-pub mod corner_cases;
-pub mod count;
-pub mod difference;
-pub mod equal;
-pub mod insert;
-pub mod intersection;
-pub mod merge_probe;
-pub mod union;
+pub(crate) mod corner_cases;
+pub(crate) mod count;
+pub(crate) mod difference;
+pub(crate) mod equal;
+pub(crate) mod insert;
+pub(crate) mod intersection;
+pub(crate) mod merge_probe;
+pub(crate) mod union;
 
 #[cfg(test)]
 use crate::ZoomLevel;

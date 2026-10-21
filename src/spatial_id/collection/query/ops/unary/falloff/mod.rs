@@ -1,5 +1,5 @@
-pub mod primitive;
-pub mod query;
+pub(crate) mod primitive;
+pub(crate) mod query;
 
 #[cfg(test)]
 mod test;

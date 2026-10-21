@@ -1,17 +1,18 @@
-pub mod average;
-pub mod keep_existing;
-pub mod max;
-pub mod min;
-pub mod overwrite;
-pub mod saturating_add;
-pub mod saturating_sub;
-pub mod sum;
+mod average;
+mod keep_existing;
+mod max;
+mod min;
+mod overwrite;
+mod saturating_add;
+mod saturating_sub;
+mod sum;
 
 pub use average::Average;
 pub use keep_existing::KeepExisting;
 pub use max::Max;
 pub use min::Min;
 pub use overwrite::Overwrite;
+pub use saturating_add::SaturatingAdd;
 pub use saturating_sub::SaturatingSub;
 pub use sum::Sum;
 

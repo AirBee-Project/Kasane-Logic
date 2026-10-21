@@ -6,9 +6,9 @@ use crate::{Error, FlexId, Side};
 use alloc::vec::Vec;
 use core::iter::Fuse;
 
-pub mod difference;
-pub mod intersection;
-pub mod merge;
+pub(crate) mod difference;
+pub(crate) mod intersection;
+pub(crate) mod merge;
 
 /// 二項演算で [`QueryIter`] の先頭要素の参照と、分割した断片の差し戻しを行うカーソル。
 struct StreamCursor<'a, V> {

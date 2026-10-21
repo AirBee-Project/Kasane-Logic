@@ -1,5 +1,5 @@
 use super::MergePolicy;
-use super::saturating_add::Add;
+use super::saturating_add::SaturatingAdd;
 use core::ops::Div;
 
 /// 大きな値を空間に残す[MergePolicy]。
@@ -7,7 +7,7 @@ pub struct Average;
 
 impl<V> MergePolicy<V> for Average
 where
-    V: Add + Div<V, Output = V> + From<u16>,
+    V: SaturatingAdd + Div<V, Output = V> + From<u16>,
 {
     const IS_COMMUTATIVE: bool = false;
 

@@ -1,4 +1,4 @@
-pub mod query;
+pub(crate) mod query;
 
 use crate::{
     Error,

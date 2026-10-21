@@ -9,7 +9,7 @@ use crate::{FlexId, Side, spatial_id::dimension::Dimension};
 
 /// [FlexTreeCore]の値を持つ領域と値への参照を、Node を辿りながら1つずつ返すイテレーター。
 #[derive(Debug)]
-pub struct Iter<'a, V, S> {
+pub(crate) struct Iter<'a, V, S> {
     stack: Vec<(&'a Node<V, S>, FlexId)>,
     /// まだ返していない要素の数。
     remaining: usize,
@@ -56,15 +56,17 @@ impl<V, S> ExactSizeIterator for Iter<'_, V, S> {}
 
 impl<V, S> FusedIterator for Iter<'_, V, S> {}
 
-/// [FlexTreeCore]を消費して、値を持つ領域と値を1つずつ返すイテレーター。
+/// 値を持つ領域と値の組 `(FlexId, V)` を、所有権ごと1つずつ返すイテレーター。
+///
+/// [`SpatialIdMap::remove`](crate::SpatialIdMap::remove) や、[`SpatialIdMap`](crate::SpatialIdMap) の `into_iter` が返す。
 #[derive(Debug)]
-pub struct IntoIter<V, S> {
+pub struct FlexIdIntoIter<V, S> {
     stack: Vec<(Node<V, S>, FlexId)>,
     /// まだ返していない要素の数。
     remaining: usize,
 }
 
-impl<V: Clone, S> Iterator for IntoIter<V, S> {
+impl<V: Clone, S> Iterator for FlexIdIntoIter<V, S> {
     type Item = (FlexId, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -102,7 +104,7 @@ impl<V: Clone, S> Iterator for IntoIter<V, S> {
     }
 }
 
-impl<V, S> IntoIter<V, S> {
+impl<V, S> FlexIdIntoIter<V, S> {
     /// 領域 `this` を `dimension` で割った子を、[Iter]と同じく下側から取り出されるように積む。
     fn push_branch(
         &mut self,
@@ -118,9 +120,9 @@ impl<V, S> IntoIter<V, S> {
     }
 }
 
-impl<V: Clone, S> ExactSizeIterator for IntoIter<V, S> {}
+impl<V: Clone, S> ExactSizeIterator for FlexIdIntoIter<V, S> {}
 
-impl<V: Clone, S> FusedIterator for IntoIter<V, S> {}
+impl<V: Clone, S> FusedIterator for FlexIdIntoIter<V, S> {}
 
 impl<'a, V, S> IntoIterator for &'a FlexTreeCore<V, S> {
     type Item = (FlexId, &'a V);
@@ -133,7 +135,7 @@ impl<'a, V, S> IntoIterator for &'a FlexTreeCore<V, S> {
 
 impl<V: Clone, S> IntoIterator for FlexTreeCore<V, S> {
     type Item = (FlexId, V);
-    type IntoIter = IntoIter<V, S>;
+    type IntoIter = FlexIdIntoIter<V, S>;
 
     fn into_iter(self) -> Self::IntoIter {
         let remaining = self.count();
@@ -142,7 +144,7 @@ impl<V: Clone, S> IntoIterator for FlexTreeCore<V, S> {
         // 後に積んだものから取り出すので、上側のルートを後に積む
         stack.push((self.lower_root, FlexId::LOWER_MAX));
         stack.push((self.upper_root, FlexId::UPPER_MAX));
-        IntoIter { stack, remaining }
+        FlexIdIntoIter { stack, remaining }
     }
 }
 

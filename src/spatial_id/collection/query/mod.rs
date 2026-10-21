@@ -1,25 +1,23 @@
 /// 値や演算子に課す `Send + Sync` の制約
-pub mod send_sync;
+pub(crate) mod send_sync;
 
 /// クエリ実行を途中で打ち切るための協調的キャンセル
-pub mod cancellation;
+pub(crate) mod cancellation;
 
 /// 演算子の種類
-pub mod ops;
+pub(crate) mod ops;
 
 /// 演算子の間を流れる列
-pub mod query_iter;
+pub(crate) mod query_iter;
 
 /// 演算子と入力源のTrait
-pub mod traits;
+pub(crate) mod traits;
 
 /// 式全体を評価・実行するためのモジュール
-pub mod execution;
+pub(crate) mod execution;
 
 /// 複数の値が同じ空間で衝突した際の解決ポリシー
 pub mod merge_policy;
-
-pub use merge_policy::MergePolicy;
 
 use crate::Error;
 use crate::spatial_id::collection::query::send_sync::SafeValue;

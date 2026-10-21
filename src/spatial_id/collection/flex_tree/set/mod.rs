@@ -1,12 +1,13 @@
-use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, IntoIter, NoSummary};
+use crate::spatial_id::collection::flex_tree::core::{FlexIdIntoIter, FlexTreeCore, NoSummary};
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use core::iter::Map;
-pub mod convert;
-pub mod impls;
+pub(crate) mod convert;
+pub(crate) mod impls;
 #[cfg(feature = "json")]
-pub mod json;
-pub mod ops;
-pub mod tests;
+pub(crate) mod json;
+pub(crate) mod ops;
+#[cfg(test)]
+mod tests;
 
 /// 空間IDの集合を表す型。
 ///
@@ -187,7 +188,7 @@ impl SpatialIdSet {
 
 impl IntoIterator for SpatialIdSet {
     type Item = FlexId;
-    type IntoIter = Map<IntoIter<(), NoSummary>, fn((FlexId, ())) -> FlexId>;
+    type IntoIter = Map<FlexIdIntoIter<(), NoSummary>, fn((FlexId, ())) -> FlexId>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.inner.into_iter().map(|(flex_id, ())| flex_id)

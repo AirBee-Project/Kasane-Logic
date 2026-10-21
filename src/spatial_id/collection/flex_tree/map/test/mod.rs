@@ -1,11 +1,11 @@
 #![cfg_attr(test, allow(dead_code))]
 
-pub mod count;
-pub mod insert;
-pub mod par;
-pub mod query;
-pub mod remove;
-pub mod upsert;
+pub(crate) mod count;
+pub(crate) mod insert;
+pub(crate) mod par;
+pub(crate) mod query;
+pub(crate) mod remove;
+pub(crate) mod upsert;
 
 #[cfg(test)]
 use crate::{RangeId, SingleId, SpatialIdMap};

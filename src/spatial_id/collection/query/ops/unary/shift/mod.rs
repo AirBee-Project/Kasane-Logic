@@ -3,10 +3,10 @@ use crate::spatial_id::collection::query::{query_iter::QueryIter, traits::UnaryO
 use crate::{Error, FlexId, RangeId, SpatialIdMap, ZoomLevel};
 
 /// FlexId単体に対する実装
-pub mod primitive;
+pub(crate) mod primitive;
 
 /// Query型への実装
-pub mod query;
+pub(crate) mod query;
 
 #[cfg(test)]
 mod test;

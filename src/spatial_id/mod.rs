@@ -1,4 +1,4 @@
-pub mod collection;
+pub(crate) mod collection;
 pub mod dimension;
 pub mod single_id;
 pub mod time;

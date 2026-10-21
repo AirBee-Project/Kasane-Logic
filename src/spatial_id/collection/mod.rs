@@ -1,2 +1,2 @@
-pub mod flex_tree;
-pub mod query;
+pub(crate) mod flex_tree;
+pub(crate) mod query;

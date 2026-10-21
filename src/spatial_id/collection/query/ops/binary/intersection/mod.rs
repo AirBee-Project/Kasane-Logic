@@ -1,4 +1,4 @@
-pub mod query;
+pub(crate) mod query;
 
 use crate::Error;
 use crate::spatial_id::collection::query::ops::binary::run_binary;

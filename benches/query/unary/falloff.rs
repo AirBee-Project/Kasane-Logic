@@ -1,7 +1,7 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
+use kasane_logic::FalloffPattern;
 use kasane_logic::Source;
 use kasane_logic::merge_policy::Max;
-use kasane_logic::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 
 #[path = "../utils.rs"]
 mod utils;

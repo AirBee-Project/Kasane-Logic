@@ -1,12 +1,13 @@
 use crate::spatial_id::collection::flex_tree::core::{
-    BitMask, FlexTreeCore, IntoIter, NoSummary, Summary, ValueSet,
+    BitMask, FlexIdIntoIter, FlexTreeCore, NoSummary, Summary, ValueSet,
 };
 use core::ops::RangeBounds;
 #[cfg(feature = "json")]
-pub mod json;
+pub(crate) mod json;
 #[cfg(feature = "rayon")]
-pub mod par;
-pub mod test;
+pub(crate) mod par;
+#[cfg(test)]
+mod test;
 
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 
@@ -26,6 +27,52 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 /// let mut indexed: SpatialIdMap<u32, MinMax<u32>> = SpatialIdMap::default();
 /// indexed.insert(SingleId::new(20, 0, 0, 0).unwrap(), 80);
 /// assert_eq!(indexed.filter_range(50..).count(), 1);
+/// ```
+///
+/// ## Enum
+///
+/// enum に `#[derive(BitMask)]` を付け、型パラメーターに [ValueSet] を指定する。
+/// これにより内部的にビットマスクが張られてフィルタリングが高速化する
+///
+/// ```
+/// use kasane_logic::{BitMask, SingleId, SpatialIdMap, ValueSet};
+///
+/// #[derive(Debug, Clone, Copy, PartialEq, Eq, BitMask)]
+/// enum Land {
+///     Road,
+///     Building,
+///     Water,
+/// }
+///
+/// let mut map: SpatialIdMap<Land, ValueSet<Land>> = SpatialIdMap::default();
+/// map.insert(SingleId::new(20, 5, 100, 200).unwrap(), Land::Road);
+/// map.insert(SingleId::new(20, 5, 101, 200).unwrap(), Land::Water);
+///
+/// assert!(map.value_set().contains(Land::Water));
+/// let obstacles = map.filter_values([Land::Building, Land::Water].into_iter().collect());
+/// assert_eq!(obstacles.count(), 1);
+/// ```
+///
+/// ## 範囲と種類の両方で絞る
+///
+/// 2つの Summary をタプルで組み合わせる。型が長くなるので型エイリアスを付けるとよい。
+///
+/// ```
+/// use kasane_logic::{BitMask, MinMax, SingleId, SpatialIdMap, ValueSet};
+///
+/// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, BitMask)]
+/// enum Risk {
+///     Low,
+///     Mid,
+///     High,
+/// }
+///
+/// let mut map = SpatialIdMap::<Risk, (MinMax<Risk>, ValueSet<Risk>)>::default();
+/// map.insert(SingleId::new(20, 5, 100, 200).unwrap(), Risk::Low);
+/// map.insert(SingleId::new(20, 5, 101, 200).unwrap(), Risk::High);
+///
+/// assert_eq!(map.filter_range(Risk::Mid..).count(), 1);
+/// assert_eq!(map.filter_values(ValueSet::single(Risk::Low)).count(), 1);
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SpatialIdMap<V, S = NoSummary> {
@@ -76,7 +123,7 @@ where
     /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
     ///
     /// 削除は呼び出した時点で済んでおり、返すイテレーターはテーブルを借用しない。
-    pub fn remove<T: SpatialId>(&mut self, target: T) -> IntoIter<V, S> {
+    pub fn remove<T: SpatialId>(&mut self, target: T) -> FlexIdIntoIter<V, S> {
         self.inner.remove(target).into_iter()
     }
 
@@ -93,7 +140,7 @@ where
     /// [`FlexId`]と値をそのまま取り除いて返します。
     ///
     /// 削除は呼び出した時点で済んでおり、返すイテレーターはテーブルを借用しない。
-    pub fn remove_overlapping<T: SpatialId>(&mut self, target: T) -> IntoIter<V, S> {
+    pub fn remove_overlapping<T: SpatialId>(&mut self, target: T) -> FlexIdIntoIter<V, S> {
         self.inner.remove_overlapping(target).into_iter()
     }
 
@@ -205,7 +252,7 @@ where
 
 impl<V: Clone, S> IntoIterator for SpatialIdMap<V, S> {
     type Item = (FlexId, V);
-    type IntoIter = IntoIter<V, S>;
+    type IntoIter = FlexIdIntoIter<V, S>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.inner.into_iter()

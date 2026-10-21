@@ -5,7 +5,8 @@ use core::cell::RefCell;
 use core::iter::from_fn;
 use core::mem;
 use core::ops::{Bound, RangeBounds};
-pub use iter::{IntoIter, Iter};
+pub use iter::FlexIdIntoIter;
+pub(crate) use iter::Iter;
 pub use kasane_logic_derive::BitMask;
 use node::{Decision, Node};
 pub use summary::{BitMask, MinMax, NoSummary, Summary, ValueSet};
@@ -22,75 +23,8 @@ mod view;
 ///
 /// `S` は Branch が子孫の値についてキャッシュする [Summary]。どの [Summary] でも全ての操作が使え、
 /// 値の範囲や種類で絞り込む操作だけが、その情報を持つ [Summary] で速くなる。
-///
-/// ## 数値
-///
-/// [MinMax] を指定すると、値の範囲での絞り込みが速くなる。
-///
-/// ```
-/// use kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore;
-/// use kasane_logic::{FlexId, MinMax};
-///
-/// let mut tree = FlexTreeCore::<u32, MinMax<u32>>::default();
-/// tree.insert(FlexId::new(20, 5, 20, 100, 20, 200).unwrap(), 35u32);
-/// tree.insert(FlexId::new(18, 1, 18, 26, 18, 50).unwrap(), 80u32);
-///
-/// assert_eq!(tree.value_range(), Some((&35, &80)));
-/// let hot = tree.filter_range(50..);
-/// assert_eq!(hot.count(), 1);
-/// ```
-///
-/// ## Enum
-///
-/// enum に `#[derive(BitMask)]` を付け、型パラメーターに [ValueSet] を指定する。
-/// これにより内部的にビットマスクが張られてフィルタリングが高速化する
-///
-/// ```
-/// use kasane_logic::FlexId;
-/// use kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore;
-/// use kasane_logic::{BitMask, ValueSet};
-///
-/// #[derive(Debug, Clone, Copy, PartialEq, Eq, BitMask)]
-/// enum Land {
-///     Road,
-///     Building,
-///     Water,
-/// }
-///
-/// let mut tree: FlexTreeCore<Land, ValueSet<Land>> = FlexTreeCore::default();
-/// tree.insert(FlexId::new(20, 5, 20, 100, 20, 200).unwrap(), Land::Road);
-/// tree.insert(FlexId::new(20, 5, 20, 101, 20, 200).unwrap(), Land::Water);
-///
-/// assert!(tree.value_set().contains(Land::Water));
-/// let obstacles = tree.filter_values([Land::Building, Land::Water].into_iter().collect());
-/// assert_eq!(obstacles.count(), 1);
-/// ```
-///
-/// ## 範囲と種類の両方で絞る
-///
-/// 2つの Summary をタプルで組み合わせる。型が長くなるので型エイリアスを付けるとよい。
-///
-/// ```
-/// use kasane_logic::FlexId;
-/// use kasane_logic::spatial_id::collection::flex_tree::core::FlexTreeCore;
-/// use kasane_logic::{BitMask, MinMax, ValueSet};
-///
-/// #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, BitMask)]
-/// enum Risk {
-///     Low,
-///     Mid,
-///     High,
-/// }
-///
-/// let mut tree = FlexTreeCore::<Risk, (MinMax<Risk>, ValueSet<Risk>)>::default();
-/// tree.insert(FlexId::new(20, 5, 20, 100, 20, 200).unwrap(), Risk::Low);
-/// tree.insert(FlexId::new(20, 5, 20, 101, 20, 200).unwrap(), Risk::High);
-///
-/// assert_eq!(tree.filter_range(Risk::Mid..).count(), 1);
-/// assert_eq!(tree.filter_values(ValueSet::single(Risk::Low)).count(), 1);
-/// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct FlexTreeCore<V, S = NoSummary> {
+pub(crate) struct FlexTreeCore<V, S = NoSummary> {
     upper_root: Node<V, S>,
     lower_root: Node<V, S>,
 }
@@ -337,6 +271,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     }
 
     /// `other` を重ねる。両方に値がある場所は `resolve(self の値, other の値)` にする。
+    #[cfg(feature = "rayon")]
     pub fn merge_with(&mut self, other: &Self, resolve: impl Fn(&V, &V) -> V) {
         self.merge(other, &Self::resolve_rule(resolve));
     }
@@ -436,6 +371,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
     }
 
     /// FlexTreeCore 全体の Summary。空なら [`None`]。
+    #[cfg(test)]
     pub fn summary(&self) -> Option<S> {
         match (self.upper_root.summary(), self.lower_root.summary()) {
             (Some(upper), Some(lower)) => Some(upper.merge(&lower)),

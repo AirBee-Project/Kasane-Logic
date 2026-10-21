@@ -86,6 +86,8 @@ pub use spatial_id::single_id::SingleId;
 pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
 
 #[doc(inline)]
+pub use spatial_id::collection::flex_tree::core::FlexIdIntoIter;
+#[doc(inline)]
 pub use spatial_id::collection::flex_tree::core::{BitMask, MinMax, NoSummary, Summary, ValueSet};
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
@@ -116,9 +118,19 @@ pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
+pub use spatial_id::collection::query::ops::unary::extrude::ExtrudeAxis;
+#[doc(inline)]
+pub use spatial_id::collection::query::ops::unary::falloff::{FalloffAxis, FalloffPattern};
+#[doc(inline)]
+pub use spatial_id::collection::query::ops::unary::filter_values::ValuePredicate;
+#[doc(inline)]
+pub use spatial_id::collection::query::query_iter::QueryIter;
+#[doc(inline)]
 pub use spatial_id::collection::query::send_sync::SafeValue;
 #[doc(inline)]
-pub use spatial_id::collection::query::traits::Source;
+pub use spatial_id::collection::query::send_sync::{MaybeSend, MaybeSendSync};
+#[doc(inline)]
+pub use spatial_id::collection::query::traits::{BinaryOperator, Source, UnaryOperator};
 
 #[doc(inline)]
 pub use spatial_id::time::AllowedIntervals;

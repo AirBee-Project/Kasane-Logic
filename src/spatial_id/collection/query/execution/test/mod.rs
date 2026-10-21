@@ -1,5 +1,5 @@
-pub mod cancellation;
-pub mod get;
+pub(crate) mod cancellation;
+pub(crate) mod get;
 
 use crate::{SingleId, Source, SpatialIdMap};
 
