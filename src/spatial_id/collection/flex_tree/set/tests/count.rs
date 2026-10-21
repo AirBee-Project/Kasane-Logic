@@ -37,10 +37,10 @@ mod tests {
     fn remove_insert_pattern(set: &mut SpatialIdSet, insert: &RandomSetInsert) {
         match insert {
             RandomSetInsert::Single(single_id) => {
-                let _ = set.remove(single_id.clone());
+                let _ = set.remove(*single_id);
             }
             RandomSetInsert::Range(range_id) => {
-                let _ = set.remove(range_id.clone());
+                let _ = set.remove(*range_id);
             }
         }
     }
@@ -63,11 +63,11 @@ mod tests {
         let remove_target = SingleId::new(4, 3, 2, 2).unwrap();
 
         set.insert(SingleId::new(4, 3, 2, 1).unwrap());
-        set.insert(remove_target.clone());
+        set.insert(remove_target);
         set.insert(RangeId::new(3, [0, 1], [1, 2], [3, 3]).unwrap());
         assert_count_consistent(&set);
 
-        let _ = set.remove(remove_target.clone());
+        let _ = set.remove(remove_target);
         assert_count_consistent(&set);
     }
 

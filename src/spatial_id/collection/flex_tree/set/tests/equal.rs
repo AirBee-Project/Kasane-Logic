@@ -10,8 +10,8 @@ mod tests {
     fn insert_all(set: &mut SpatialIdSet, inserts: &[super::super::RandomSetInsert]) {
         for insert in inserts {
             match insert {
-                super::super::RandomSetInsert::Single(single_id) => set.insert(single_id.clone()),
-                super::super::RandomSetInsert::Range(range_id) => set.insert(range_id.clone()),
+                super::super::RandomSetInsert::Single(single_id) => set.insert(*single_id),
+                super::super::RandomSetInsert::Range(range_id) => set.insert(*range_id),
             }
         }
     }

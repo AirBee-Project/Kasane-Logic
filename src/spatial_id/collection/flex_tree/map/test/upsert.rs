@@ -9,9 +9,9 @@ mod tests {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
         let mut table = SpatialIdMap::new();
 
-        table.upsert(target.clone(), 10);
+        table.upsert(target, 10);
 
-        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![10]);
     }
 
@@ -20,10 +20,10 @@ mod tests {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
         let mut table = SpatialIdMap::new();
 
-        table.insert(target.clone(), 10);
-        table.upsert(target.clone(), 20);
+        table.insert(target, 10);
+        table.upsert(target, 20);
 
-        let actual_values: Vec<_> = table.get(target.clone()).map(|(_, value)| *value).collect();
+        let actual_values: Vec<_> = table.get(target).map(|(_, value)| *value).collect();
         assert_eq!(actual_values, vec![10], "既存値が上書きされてはいけない");
         assert!(
             table
@@ -43,22 +43,16 @@ mod tests {
         let empty = SingleId::new(4, 3, 2, 2).unwrap();
         let both = RangeId::new(4, 3, 2, [1, 2]).unwrap();
 
-        let mut table = build_table(&[TableEntry::Single(occupied.clone(), 10)]);
+        let mut table = build_table(&[TableEntry::Single(occupied, 10)]);
         table.upsert(both, 20);
 
         assert_eq!(
-            table
-                .get(occupied.clone())
-                .map(|(_, v)| *v)
-                .collect::<Vec<_>>(),
+            table.get(occupied).map(|(_, v)| *v).collect::<Vec<_>>(),
             vec![10],
             "既存側は保たれる"
         );
         assert_eq!(
-            table
-                .get(empty.clone())
-                .map(|(_, v)| *v)
-                .collect::<Vec<_>>(),
+            table.get(empty).map(|(_, v)| *v).collect::<Vec<_>>(),
             vec![20],
             "空き側には新値が入る"
         );
@@ -70,10 +64,10 @@ mod tests {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
 
         let mut with_noop_upsert = SpatialIdMap::new();
-        with_noop_upsert.insert(target.clone(), 10);
-        with_noop_upsert.upsert(target.clone(), 20); // 既に埋まっているので何も書かないはず
+        with_noop_upsert.insert(target, 10);
+        with_noop_upsert.upsert(target, 20); // 既に埋まっているので何も書かないはず
 
-        let plain = build_table(&[TableEntry::Single(target.clone(), 10)]);
+        let plain = build_table(&[TableEntry::Single(target, 10)]);
 
         assert_eq!(
             with_noop_upsert, plain,

@@ -60,7 +60,7 @@ impl<'a, V: SafeValue + 'static> QueryOutput<'a, V> {
         if self.clip && !self.whole {
             let mut clipper = FlexTreeCore::default();
             for target in &self.targets {
-                clipper.insert(target.clone(), ());
+                clipper.insert(*target, ());
             }
             self.clipper = Some(clipper);
         }

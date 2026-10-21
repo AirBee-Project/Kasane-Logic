@@ -867,7 +867,7 @@ fn spatial_face_neighbors_returns_face_neighbors_only() {
     let center = at(3, 5, 6);
 
     let mut tree = FlexTreeCore::<u64>::default();
-    tree.insert(center.clone(), 0);
+    tree.insert(center, 0);
     for (value, cell) in [
         (1, at(2, 5, 6)),
         (2, at(4, 5, 6)),
@@ -881,7 +881,7 @@ fn spatial_face_neighbors_returns_face_neighbors_only() {
     }
 
     let mut values: Vec<u64> = tree
-        .spatial_face_neighbors(center.clone())
+        .spatial_face_neighbors(center)
         .map(|(_, v)| *v)
         .collect();
     values.sort();
