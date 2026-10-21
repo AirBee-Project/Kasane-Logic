@@ -214,3 +214,18 @@ mod point_fractional_id {
         }
     }
 }
+
+mod centroid {
+    use super::*;
+
+    #[test]
+    fn centroid_of_max_lat_coordinates() {
+        assert_eq!(
+            Coordinate::centroid(
+                (0..34).map(|i| Coordinate::new(85.0511, -170.0 + 10.0 * i as f64, 0.0).unwrap())
+            )
+            .latitude,
+            85.0511
+        );
+    }
+}
