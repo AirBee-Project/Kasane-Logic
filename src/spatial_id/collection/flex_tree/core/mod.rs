@@ -13,7 +13,6 @@ use view::View;
 
 mod iter;
 mod node;
-mod path;
 mod summary;
 #[cfg(test)]
 mod tests;
