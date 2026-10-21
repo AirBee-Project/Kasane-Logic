@@ -23,7 +23,7 @@ fn bench_falloff(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },
@@ -40,7 +40,7 @@ fn bench_falloff(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },
@@ -57,7 +57,7 @@ fn bench_falloff(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },
@@ -76,7 +76,7 @@ fn bench_falloff(c: &mut Criterion) {
                         .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
                         .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
                         .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },

@@ -1,16 +1,18 @@
 use super::Query;
 use super::query_iter::QueryIter;
-use super::traits::{IntoTargets, Source, UnaryOperator};
-use crate::Error;
+use super::traits::{Source, UnaryOperator};
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::{FlexId, RangeId, SpatialIdTable};
-
 use crate::spatial_id::collection::query::send_sync::SafeValue;
-
+use crate::{Error, RangeId};
 use alloc::vec::Vec;
 
+mod output;
+mod targets;
 #[cfg(test)]
 mod test;
+
+pub use output::QueryOutput;
+pub use targets::IntoTargets;
 
 // Queryの検証
 impl<V: SafeValue + 'static> Query<V> {
@@ -37,79 +39,227 @@ impl<V: SafeValue + 'static> Query<V> {
 
 // Queryの評価
 impl<V: SafeValue + 'static> Query<V> {
-    /// `targets` と交差する要素を評価して返す。`..` を渡すと全体を評価する。
+    /// Query を評価し、`targets` の中にある部分を返す。
     ///
-    /// 出力領域 `targets` を得るのに必要な入力領域を逆算し、その部分だけを評価する。
-    /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。表にするには [`Run::table`] を使う。
-    pub fn run(&self, targets: impl IntoTargets) -> Run<'_, V> {
-        let targets = targets.into_targets();
-        Run {
-            query: self,
-            whole: targets == [RangeId::WHOLE],
-            targets,
-            token: CancellationToken::never(),
-            stream: None,
-            finished: false,
-        }
-    }
-}
-
-/// [`Query::run`] の結果を順に返すイテレーター。
-///
-/// 検証や評価の開始に失敗すると、最初の要素として `Err` を返して終わる。
-/// 読み出しや演算に失敗すると、その位置で `Err` を返す。
-pub struct Run<'a, V: SafeValue + 'static> {
-    query: &'a Query<V>,
-    targets: Vec<RangeId>,
-    // 全体を評価するときは、範囲との交差を確かめずに済ませる
-    whole: bool,
-    token: CancellationToken,
-    stream: Option<QueryIter<'a, V>>,
-    finished: bool,
-}
-
-impl<'a, V: SafeValue + 'static> Run<'a, V> {
-    /// `token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。読み始める前に呼ぶ。
-    pub fn cancel_with(mut self, token: &CancellationToken) -> Self {
-        self.token = token.clone();
-        self
-    }
-
-    /// 結果を [`SpatialIdTable`] にして返す。
+    /// 戻り値の [`QueryOutput`] は `Result<(FlexId, V), Error>` を返すイテレーターで、
+    /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。
+    /// まとめて [`SpatialIdTable`](crate::SpatialIdTable) で受け取るには [`QueryOutput::table`] を使う。
     ///
-    /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
-    pub fn table(self) -> Result<SpatialIdTable<V>, Error> {
-        self.collect()
+    /// # 評価する範囲の指定
+    ///
+    /// `targets` には [`IntoTargets`] を実装した値を渡す。
+    /// 範囲を指定すると、その範囲の出力を得るのに必要な入力領域を各演算から逆算し、その部分だけを評価する。
+    ///
+    /// 全体を評価するには `..` を渡す。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(..)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 1つの範囲は、[`SingleId`](crate::SingleId)・[`RangeId`]・[`FlexId`](crate::FlexId) のどれでも渡せる。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(SingleId::new(20, 0, 100, 0)?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, RangeId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(RangeId::new(20, [0, 3], [100, 199], [0, 99])?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, FlexId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(FlexId::new(20, 0, 18, 25, 18, 0)?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 複数の範囲も指定できる。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let a = SingleId::new(20, 0, 100, 0)?;
+    /// let b = SingleId::new(20, 0, 101, 0)?;
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get([a, b])
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// # let (a, b) = (SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?);
+    /// let targets = vec![a, b];
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(targets)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// # let targets = vec![SingleId::new(20, 0, 100, 0)?, SingleId::new(20, 0, 101, 0)?];
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(&targets[..])
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 返す要素は `targets` で切り取る。`targets` が互いに重なっていても、同じ場所を2回返すことはない。
+    /// 切り取らずに、`targets` と交差する要素をそのまま受け取るには [`get_overlapping`](Self::get_overlapping) を使う。
+    ///
+    /// # 結果の受け取り方
+    ///
+    /// [`SpatialIdTable`](crate::SpatialIdTable) で受け取る。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get(..)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// イテレーターで受け取る。読んだ分だけ評価が進むので、途中で読むのをやめれば残りは評価しない。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// for item in table.query().filter_in(10..20).get(..) {
+    ///     let (id, value) = item?;
+    /// }
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// # エラー
+    ///
+    /// - 演算のパラメーターの検証に失敗すると、最初の要素として `Err` を返して終わる。
+    /// - 入力源の読み出しや演算に失敗すると、その位置で `Err` を返す。
+    /// - [`QueryOutput::table`] は、最初に出た `Err` を返す。
+    ///
+    /// # 借用
+    ///
+    /// [`QueryOutput`] は Query を借用する。1つの式や `for` 文の中で使うならそのまま書けるが、
+    /// [`QueryOutput`] を変数に取っておくときは、先に Query を変数に束縛する。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let query = table.query().filter_in(10..20);
+    /// let output = query.get(..);
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    ///
+    /// 評価を途中で打ち切りたいときは [`get_cancellable`](Self::get_cancellable) を使う。
+    pub fn get(&self, targets: impl IntoTargets) -> QueryOutput<'_, V> {
+        self.get_cancellable(targets, &CancellationToken::never())
     }
 
-    fn start(&self) -> Result<QueryIter<'a, V>, Error> {
-        self.query.validate()?;
-        self.query.stream_within(self.targets.clone(), &self.token)
+    /// [`get`](Self::get) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
+    ///
+    /// ```
+    /// # use kasane_logic::{CancellationToken, Error, Source, SpatialIdTable};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let token = CancellationToken::new();
+    /// token.cancel(); // 別のスレッドなどから呼ぶ
+    ///
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get_cancellable(.., &token)
+    ///     .table();
+    /// assert_eq!(result, Err(Error::Cancelled));
+    /// ```
+    pub fn get_cancellable(
+        &self,
+        targets: impl IntoTargets,
+        token: &CancellationToken,
+    ) -> QueryOutput<'_, V> {
+        self.evaluate(targets, token, true)
     }
-}
 
-impl<V: SafeValue + 'static> Iterator for Run<'_, V> {
-    type Item = Result<(FlexId, V), Error>;
+    /// [`get`](Self::get) と同じく評価するが、返す要素を `targets` で切り取らない。
+    ///
+    /// `targets` と交差する要素をそのまま返すので、`targets` からはみ出した、より大きな [`FlexId`](crate::FlexId) が返ることがある。
+    ///
+    /// ```
+    /// # use kasane_logic::{Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get_overlapping(SingleId::new(20, 0, 100, 0)?)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    pub fn get_overlapping(&self, targets: impl IntoTargets) -> QueryOutput<'_, V> {
+        self.evaluate(targets, &CancellationToken::never(), false)
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.stream.is_none() {
-            if self.finished {
-                return None;
-            }
-            match self.start() {
-                Ok(stream) => self.stream = Some(stream),
-                Err(e) => {
-                    self.finished = true;
-                    return Some(Err(e));
-                }
-            }
-        }
-        let (whole, targets) = (self.whole, &self.targets);
-        // 入力源や演算は範囲の外にはみ出した要素も返しうるので、交差するものだけを残す
-        self.stream.as_mut()?.find(|item| match item {
-            Ok((id, _)) => whole || targets.iter().any(|t| id.intersects_range(t)),
-            Err(_) => true,
-        })
+    /// [`get_overlapping`](Self::get_overlapping) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
+    ///
+    /// ```
+    /// # use kasane_logic::{CancellationToken, Source, SpatialIdTable, SingleId};
+    /// # let table = SpatialIdTable::<u32>::new();
+    /// let token = CancellationToken::new();
+    /// let result = table
+    ///     .query()
+    ///     .filter_in(10..20)
+    ///     .get_overlapping_cancellable(SingleId::new(20, 0, 100, 0)?, &token)
+    ///     .table()?;
+    /// # Ok::<(), kasane_logic::Error>(())
+    /// ```
+    pub fn get_overlapping_cancellable(
+        &self,
+        targets: impl IntoTargets,
+        token: &CancellationToken,
+    ) -> QueryOutput<'_, V> {
+        self.evaluate(targets, token, false)
+    }
+
+    fn evaluate(
+        &self,
+        targets: impl IntoTargets,
+        token: &CancellationToken,
+        clip: bool,
+    ) -> QueryOutput<'_, V> {
+        QueryOutput::new(self, targets.into_targets(), token, clip)
     }
 }
 

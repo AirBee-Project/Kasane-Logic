@@ -1,15 +1,15 @@
 pub mod cancellation;
-pub mod run;
+pub mod get;
 
 use crate::{SingleId, Source, SpatialIdTable};
 
-/// `run` はパラメータ検証を実行前に行うため、無効なパラメータはエラーになる
+/// `get` はパラメータ検証を実行前に行うため、無効なパラメータはエラーになる
 /// （実データ変換より先に検出される）。
 #[test]
-fn run_surfaces_validation_error() {
+fn get_surfaces_validation_error() {
     let table: SpatialIdTable<i32> = SpatialIdTable::new();
     // zoom 100 は範囲外なので shift_x の構築時点で Query::Error になる。
-    let result = table.query().shift_x(100, 3).run(..).table();
+    let result = table.query().shift_x(100, 3).get(..).table();
     assert!(result.is_err());
 }
 
@@ -28,7 +28,7 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
             1,
             crate::spatial_id::collection::query::merge_policy::Max,
         )
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
 
@@ -60,7 +60,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 3,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .run(..)
+            .get(..)
             .table()
             .unwrap()
     };
@@ -72,7 +72,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 7450100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .run(..)
+            .get(..)
             .table()
             .unwrap()
     };
@@ -84,7 +84,7 @@ fn extrude_result_is_deterministic_across_runs() {
                 3301100,
                 crate::spatial_id::collection::query::merge_policy::Max,
             )
-            .run(..)
+            .get(..)
             .table()
             .unwrap()
     };

@@ -5,7 +5,7 @@ use crate::spatial_id::collection::query::traits::UnaryOperator;
 use crate::{CancellationToken, Error, RangeId, SingleId, Source, SpatialIdTable};
 
 #[test]
-fn run_stops_immediately_when_already_cancelled() {
+fn get_cancellable_stops_immediately_when_already_cancelled() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
 
@@ -16,15 +16,14 @@ fn run_stops_immediately_when_already_cancelled() {
     let result = table
         .query()
         .shift_x(10, 1)
-        .run(bounds)
-        .cancel_with(&token)
+        .get_cancellable(bounds, &token)
         .table();
 
     assert_eq!(result, Err(Error::Cancelled));
 }
 
 #[test]
-fn run_completes_when_not_cancelled() {
+fn get_cancellable_completes_when_not_cancelled() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
 
@@ -33,8 +32,7 @@ fn run_completes_when_not_cancelled() {
 
     let result = table
         .query()
-        .run(bounds)
-        .cancel_with(&token)
+        .get_cancellable(bounds, &token)
         .table()
         .unwrap();
     let values: alloc::vec::Vec<i32> = result.into_iter().map(|(_, v)| v).collect();
@@ -63,7 +61,7 @@ fn cancelling_after_one_side_still_stops_the_query() {
     );
 
     assert_eq!(
-        query.run(bounds).cancel_with(&token).table(),
+        query.get_cancellable(bounds, &token).table(),
         Err(Error::Cancelled)
     );
 }

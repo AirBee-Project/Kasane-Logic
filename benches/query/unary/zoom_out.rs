@@ -23,7 +23,7 @@ fn bench_zoom_out(c: &mut Criterion) {
                     let target_level = ZoomLevel::new(lvl).unwrap();
                     t.query()
                         .zoom_out(target_level, Average)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },

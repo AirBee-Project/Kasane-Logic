@@ -5,10 +5,10 @@ use crate::{FlexId, Source, SpatialIdTable};
 
 /// `shift_x` の逆算が、shift のズームより粗いズームへ周期境界（経度方向の折り返し）を
 /// 丸め込む際、以前は丸め込み後に隙間が消えているかどうかの判定を誤り、必要な入力領域を
-/// 取りこぼすことがあった（x軸の半分しか入力として要求しない）。その結果、部分評価の `run` が
+/// 取りこぼすことがあった（x軸の半分しか入力として要求しない）。その結果、部分評価の `get` が
 /// 全体の評価と食い違う値を返していた。
 #[test]
-fn run_shift_x_wrapped_coarsen_matches_whole() {
+fn get_shift_x_wrapped_coarsen_matches_whole() {
     let mut table = SpatialIdTable::<u32>::new();
     // z=2 の x=3（東西の折り返し境界寄り）にデータを置く。
     table.insert(FlexId::new(2, 0, 2, 3, 2, 0).unwrap(), 7);
@@ -17,7 +17,7 @@ fn run_shift_x_wrapped_coarsen_matches_whole() {
         .clone()
         .query()
         .shift_x(2, -1)
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
@@ -27,7 +27,7 @@ fn run_shift_x_wrapped_coarsen_matches_whole() {
     let lazy_values: Vec<u32> = table
         .query()
         .shift_x(2, -1)
-        .run(target)
+        .get(target)
         .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
@@ -38,9 +38,9 @@ fn run_shift_x_wrapped_coarsen_matches_whole() {
 /// x系演算子を2つ連鎖すると、1つ目の演算子の`reverse_target`が返す中間`bounds`が
 /// 折り返し状態（`x[0] > x[1]`）になることがある。木の枝刈り
 /// （`Node::overlapping_children_range`）がこの規約を考慮していなかったため、
-/// 部分評価の `run` が全体の評価と食い違う（データを取りこぼす）ことがあった。
+/// 部分評価の `get` が全体の評価と食い違う（データを取りこぼす）ことがあった。
 #[test]
-fn run_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
+fn get_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
     let mut table = SpatialIdTable::<u32>::new();
     table.insert(FlexId::new(2, 0, 2, 2, 2, 0).unwrap(), 9);
 
@@ -49,7 +49,7 @@ fn run_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
         .query()
         .shift_x(2, -3)
         .shift_x(2, -2)
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
     let expected_values: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
@@ -60,7 +60,7 @@ fn run_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
         .query()
         .shift_x(2, -3)
         .shift_x(2, -2)
-        .run(target)
+        .get(target)
         .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
@@ -69,7 +69,7 @@ fn run_chained_shift_x_wrapped_intermediate_bounds_matches_whole() {
 }
 
 #[test]
-fn partial_run_matches_whole() {
+fn partial_get_matches_whole() {
     let mut table = SpatialIdTable::<u32>::new();
     let flex_id = FlexId::new(10, 10, 10, 10, 10, 10).unwrap();
     table.insert(flex_id, 42);
@@ -80,7 +80,7 @@ fn partial_run_matches_whole() {
         .query()
         .shift_x(10, 1)
         .shift_y(10, 2)
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
 
@@ -91,14 +91,14 @@ fn partial_run_matches_whole() {
     // LazyView get
     let query = table.query().shift_x(10, 1).shift_y(10, 2);
 
-    let mut lazy_iter = query.run(target).map(Result::unwrap);
+    let mut lazy_iter = query.get(target).map(Result::unwrap);
     let lazy_val = lazy_iter.next().map(|(_, v)| v);
     assert_eq!(lazy_iter.next(), None);
     assert_eq!(expected_val, lazy_val);
 }
 
 #[test]
-fn run_returns_only_existing_values() {
+fn get_returns_only_existing_values() {
     let mut table = SpatialIdTable::new();
     // 1箇所だけ値を入れる
     let id1 = FlexId::new(10, 10, 10, 10, 10, 10).unwrap();
@@ -109,19 +109,19 @@ fn run_returns_only_existing_values() {
     // id1 と、隣接する別のID (値がない) を含む RangeId
     let target = crate::RangeId::new(10, [10, 10], [10, 11], [10, 10]).unwrap();
 
-    let results: Vec<_> = query.run(target.clone()).map(Result::unwrap).collect();
+    let results: Vec<_> = query.get(target.clone()).map(Result::unwrap).collect();
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].1, 100);
 }
 
-/// `run` は時間軸でも絞り込む。
+/// `get` は時間軸でも絞り込む。
 ///
 /// 木の走査は時間Segmentの2分割境界で枝刈りするが、ターゲットの秒区間とSegment境界は一致するとは
 /// 限らないので、はみ出した葉が残りうる。最終フィルタ（[`FlexId::intersects_range`]）が
 /// 時間を見ていないと、同じFlexIdの**別時刻の値**がそのまま返ってしまう。
 #[cfg(feature = "temporal_id")]
 #[test]
-fn run_filters_by_time() {
+fn get_filters_by_time() {
     use crate::{Interval, SingleId, SpatialIdTable};
     use alloc::collections::BTreeSet;
 
@@ -140,7 +140,7 @@ fn run_filters_by_time() {
         let values: BTreeSet<i32> = table
             .clone()
             .query()
-            .run(target)
+            .get(target)
             .map(Result::unwrap)
             .map(|(_, v)| v)
             .collect();
@@ -153,7 +153,7 @@ fn run_filters_by_time() {
 }
 
 #[test]
-fn run_directional_falloff_matches_whole() {
+fn get_directional_falloff_matches_whole() {
     use crate::Side;
     use crate::spatial_id::collection::query::merge_policy::Sum;
     use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
@@ -170,12 +170,12 @@ fn run_directional_falloff_matches_whole() {
             .clone()
             .query()
             .falloff_f(4, 2, side, FalloffPattern::Linear, Sum)
-            .run(..)
+            .get(..)
             .table()
             .unwrap();
         let target_f = FlexId::new(4, 3, 4, 2, 4, 2).unwrap();
         assert_eq!(
-            q_f.run(target_f).map(Result::unwrap).next().map(|(_, v)| v),
+            q_f.get(target_f).map(Result::unwrap).next().map(|(_, v)| v),
             expected_f.get(target_f).next().map(|(_, v)| *v),
         );
 
@@ -187,12 +187,12 @@ fn run_directional_falloff_matches_whole() {
             .clone()
             .query()
             .falloff_x(4, 2, side, FalloffPattern::Linear, Sum)
-            .run(..)
+            .get(..)
             .table()
             .unwrap();
         let target_x = FlexId::new(4, 2, 4, 3, 4, 2).unwrap();
         assert_eq!(
-            q_x.run(target_x).map(Result::unwrap).next().map(|(_, v)| v),
+            q_x.get(target_x).map(Result::unwrap).next().map(|(_, v)| v),
             expected_x.get(target_x).next().map(|(_, v)| *v),
         );
 
@@ -204,19 +204,19 @@ fn run_directional_falloff_matches_whole() {
             .clone()
             .query()
             .falloff_y(4, 2, side, FalloffPattern::Linear, Sum)
-            .run(..)
+            .get(..)
             .table()
             .unwrap();
         let target_y = FlexId::new(4, 2, 4, 2, 4, 1).unwrap();
         assert_eq!(
-            q_y.run(target_y).map(Result::unwrap).next().map(|(_, v)| v),
+            q_y.get(target_y).map(Result::unwrap).next().map(|(_, v)| v),
             expected_y.get(target_y).next().map(|(_, v)| *v),
         );
     }
 }
 
 #[test]
-fn run_zoom_out_wrapped_target_matches_whole() {
+fn get_zoom_out_wrapped_target_matches_whole() {
     use crate::spatial_id::collection::query::merge_policy::Sum;
 
     let mut table = SpatialIdTable::<u32>::new();
@@ -227,7 +227,7 @@ fn run_zoom_out_wrapped_target_matches_whole() {
         .clone()
         .query()
         .zoom_out(2, Sum)
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
     let expected_vals: Vec<u32> = expected.flat_single_ids(None).map(|(_, v)| *v).collect();
@@ -238,7 +238,7 @@ fn run_zoom_out_wrapped_target_matches_whole() {
     let lazy_vals: Vec<u32> = table
         .query()
         .zoom_out(2, Sum)
-        .run(target)
+        .get(target)
         .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
@@ -270,9 +270,9 @@ impl crate::Source for FailingSource {
 }
 
 #[test]
-fn run_yields_source_errors() {
+fn get_yields_source_errors() {
     let target = crate::RangeId::new(1, [-2, 1], [0, 1], [0, 1]).unwrap();
-    let items: Vec<_> = FailingSource.query().run(target).collect();
+    let items: Vec<_> = FailingSource.query().get(target).collect();
     assert!(matches!(
         items.as_slice(),
         [Ok(_), Err(crate::Error::SourceRead(_))]
@@ -281,7 +281,7 @@ fn run_yields_source_errors() {
 
 /// 複数の範囲を渡すと、どれかと交差する要素を1回ずつ返す。配列・Vec・スライスのどれで渡しても同じ。
 #[test]
-fn run_with_multiple_targets_returns_union() {
+fn get_with_multiple_targets_returns_union() {
     let mut table = SpatialIdTable::<u32>::new();
     for x in 0..8 {
         table.insert(FlexId::new(3, 0, 3, x, 3, 0).unwrap(), x);
@@ -292,35 +292,79 @@ fn run_with_multiple_targets_returns_union() {
 
     let values =
         |table: SpatialIdTable<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
-    let from_array = values(query.run([a.clone(), b.clone()]).table().unwrap());
+    let from_array = values(query.get([a.clone(), b.clone()]).table().unwrap());
     assert_eq!(from_array, alloc::vec![1, 2, 3, 4]);
     assert_eq!(
         values(
             query
-                .run(alloc::vec![a.clone(), b.clone()])
+                .get(alloc::vec![a.clone(), b.clone()])
                 .table()
                 .unwrap()
         ),
         from_array
     );
-    assert_eq!(values(query.run(&[a, b][..]).table().unwrap()), from_array);
+    assert_eq!(values(query.get(&[a, b][..]).table().unwrap()), from_array);
 }
 
 /// `..` は全体を評価し、範囲で絞り込まない。
 #[test]
-fn run_whole_returns_everything() {
+fn get_whole_returns_everything() {
     let mut table = SpatialIdTable::<u32>::new();
     table.insert(FlexId::new(3, -8, 3, 0, 3, 0).unwrap(), 1);
     table.insert(FlexId::new(3, 7, 3, 7, 3, 7).unwrap(), 2);
 
-    let got = table.clone().query().run(..).table().unwrap();
+    let got = table.clone().query().get(..).table().unwrap();
     assert_eq!(got, table);
 }
 
 /// 検証に失敗すると、最初の要素として `Err` を返して終わる。
 #[test]
-fn run_yields_validation_error_first() {
+fn get_yields_validation_error_first() {
     let query = SpatialIdTable::<u32>::new().query().shift_x(100, 3);
-    let items: Vec<_> = query.run(..).collect();
+    let items: Vec<_> = query.get(..).collect();
     assert!(matches!(items.as_slice(), [Err(_)]));
+}
+
+/// `get` は要素を範囲で切り取り、`get_overlapping` は交差する要素をそのまま返す。
+#[test]
+fn get_clips_and_get_overlapping_does_not() {
+    let mut table = SpatialIdTable::<u32>::new();
+    // z=18 の要素は z=20 の 4×4×4 を覆う
+    let coarse = FlexId::new(18, 0, 18, 25, 18, 0).unwrap();
+    table.insert(coarse, 7);
+    let query = table.query();
+    let target = crate::SingleId::new(20, 1, 101, 2).unwrap();
+    let target_id = target.clone().into_iter().next().unwrap();
+
+    let clipped: Vec<_> = query.get(target.clone()).map(Result::unwrap).collect();
+    assert_eq!(clipped, alloc::vec![(target_id, 7)]);
+
+    let overlapping: Vec<_> = query.get_overlapping(target).map(Result::unwrap).collect();
+    assert_eq!(overlapping, alloc::vec![(coarse, 7)]);
+}
+
+/// 範囲が互いに重なっていても、切り取った断片は互いに素で、FlexId の Z-order 列に並ぶ。
+#[test]
+fn get_with_overlapping_targets_yields_each_place_once_in_order() {
+    let mut table = SpatialIdTable::<u32>::new();
+    table.insert(FlexId::new(16, 0, 16, 6, 16, 0).unwrap(), 1);
+    table.insert(FlexId::new(16, 0, 16, 7, 16, 0).unwrap(), 2);
+    let query = table.query();
+    let big = crate::RangeId::new(18, [0, 1], [26, 29], [0, 1]).unwrap();
+    let inside = crate::SingleId::new(19, 1, 54, 2).unwrap();
+
+    let pieces: Vec<(FlexId, u32)> = query
+        .get(alloc::vec![big.clone(), inside.into()])
+        .map(Result::unwrap)
+        .collect();
+    for pair in pieces.windows(2) {
+        assert!(
+            pair[0].0 < pair[1].0,
+            "{:?} の次に {:?}",
+            pair[0].0,
+            pair[1].0
+        );
+    }
+    let from_pieces: SpatialIdTable<u32> = pieces.into_iter().collect();
+    assert_eq!(from_pieces, query.get(big).table().unwrap());
 }

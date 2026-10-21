@@ -19,7 +19,7 @@ fn map_values_changes_the_value_type() {
     let out: SpatialIdTable<bool> = int_table()
         .query()
         .map_values(|v: i32| v > 10)
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
 
@@ -38,7 +38,7 @@ fn map_values_to_text() {
     let out: SpatialIdTable<String> = int_table()
         .query()
         .map_values(|v: i32| if v > 10 { "high" } else { "low" }.to_string())
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
 
@@ -65,7 +65,7 @@ fn map_values_composes_with_other_operators() {
         .filter_in(10..) // 変換前: 10以上だけ残す
         .map_values(|v: i32| v > 10) // 型変換
         .filter_eq(true) // 変換後: true だけ残す
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
 
@@ -79,18 +79,18 @@ fn map_values_composes_with_other_operators() {
 
 /// 部分評価でも型変換が効く（対象領域だけを読んで変換する）。
 #[test]
-fn map_values_via_partial_run() {
+fn map_values_via_partial_get() {
     let query = int_table().query().map_values(|v: i32| v > 10);
 
     let got: alloc::vec::Vec<bool> = query
-        .run(time_segment(11))
+        .get(time_segment(11))
         .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();
     assert_eq!(got, alloc::vec![true]);
 
     let got: alloc::vec::Vec<bool> = query
-        .run(time_segment(10))
+        .get(time_segment(10))
         .map(Result::unwrap)
         .map(|(_, v)| v)
         .collect();

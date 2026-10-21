@@ -31,7 +31,7 @@ fn zoom_out_average_8_children() {
     let out = table
         .query()
         .zoom_out(ZoomLevel::new(19).unwrap(), Average)
-        .run(..)
+        .get(..)
         .table()
         .unwrap();
 
@@ -56,7 +56,7 @@ fn zoom_out_max_partial_children() {
     table.insert(id_111, 5);
 
     // ZoomOut to Z=19 using Max policy
-    let out = table.query().zoom_out(19, Max).run(..).table().unwrap();
+    let out = table.query().zoom_out(19, Max).get(..).table().unwrap();
 
     let parent = SingleId::new(19, 0, 0, 0).unwrap();
     let result = out.get(parent.clone()).next().unwrap().1;
@@ -83,7 +83,7 @@ fn zoom_out_multiple_parents_commutative_and_non_commutative() {
         .clone()
         .query()
         .zoom_out(1, Sum)
-        .run(..)
+        .get(..)
         .table()
         .unwrap()
         .iter()
@@ -93,7 +93,7 @@ fn zoom_out_multiple_parents_commutative_and_non_commutative() {
     let avg_out: Vec<_> = table
         .query()
         .zoom_out(1, Average)
-        .run(..)
+        .get(..)
         .table()
         .unwrap()
         .iter()

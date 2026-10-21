@@ -22,7 +22,7 @@ fn bench_extrude(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .extrude_x(24, 0, d as u32, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },
@@ -39,7 +39,7 @@ fn bench_extrude(c: &mut Criterion) {
                 |t| {
                     t.query()
                         .extrude_y(24, 0, d as u32, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },
@@ -53,7 +53,7 @@ fn bench_extrude(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("extrude_f", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().extrude_f(24, 0, d, Max).run(..).table().unwrap(),
+                |t| t.query().extrude_f(24, 0, d, Max).get(..).table().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -69,7 +69,7 @@ fn bench_extrude(c: &mut Criterion) {
                         .extrude_x(24, 0, d as u32, Max)
                         .extrude_y(24, 0, d as u32, Max)
                         .extrude_f(24, 0, d, Max)
-                        .run(..)
+                        .get(..)
                         .table()
                         .unwrap()
                 },
