@@ -2,9 +2,47 @@ use crate::spatial_id::collection::query::Query;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
 use crate::spatial_id::collection::query::query_iter::QueryIter;
 use crate::spatial_id::collection::query::send_sync::{MaybeSendSync, SafeValue};
-use crate::{Error, RangeId};
+use crate::{Error, RangeId, SpatialId};
 use alloc::boxed::Box;
+use alloc::vec;
 use alloc::vec::Vec;
+
+/// [`Query::run`] に評価する範囲として渡せるもの。
+///
+/// `..` で全体、空間 ID 1つでその範囲、空間 ID の並び（配列・[`Vec`]・スライス）でそれらの和を表す。
+pub trait IntoTargets {
+    fn into_targets(self) -> Vec<RangeId>;
+}
+
+impl IntoTargets for core::ops::RangeFull {
+    fn into_targets(self) -> Vec<RangeId> {
+        vec![RangeId::WHOLE]
+    }
+}
+
+impl<T: SpatialId> IntoTargets for T {
+    fn into_targets(self) -> Vec<RangeId> {
+        vec![self.into()]
+    }
+}
+
+impl<T: SpatialId, const N: usize> IntoTargets for [T; N] {
+    fn into_targets(self) -> Vec<RangeId> {
+        self.into_iter().map(Into::into).collect()
+    }
+}
+
+impl<T: SpatialId> IntoTargets for Vec<T> {
+    fn into_targets(self) -> Vec<RangeId> {
+        self.into_iter().map(Into::into).collect()
+    }
+}
+
+impl<T: SpatialId> IntoTargets for &[T] {
+    fn into_targets(self) -> Vec<RangeId> {
+        self.iter().cloned().map(Into::into).collect()
+    }
+}
 
 /// クエリのデータを提供するTrait。[`SpatialIdTable`](crate::SpatialIdTable) やリモートのデータベースなどに実装する。
 ///

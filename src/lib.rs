@@ -110,13 +110,15 @@ pub use spatial_id::collection::query::Query;
 #[doc(inline)]
 pub use spatial_id::collection::query::cancellation::CancellationToken;
 #[doc(inline)]
+pub use spatial_id::collection::query::execution::Run;
+#[doc(inline)]
 pub use spatial_id::collection::query::merge_policy;
 #[doc(inline)]
 pub use spatial_id::collection::query::merge_policy::MergePolicy;
 #[doc(inline)]
 pub use spatial_id::collection::query::send_sync::SafeValue;
 #[doc(inline)]
-pub use spatial_id::collection::query::traits::Source;
+pub use spatial_id::collection::query::traits::{IntoTargets, Source};
 
 #[doc(inline)]
 pub use spatial_id::time::AllowedIntervals;

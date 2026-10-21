@@ -5,7 +5,7 @@ use crate::spatial_id::collection::query::traits::UnaryOperator;
 use crate::{CancellationToken, Error, RangeId, SingleId, Source, SpatialIdTable};
 
 #[test]
-fn run_within_stops_immediately_when_already_cancelled() {
+fn run_stops_immediately_when_already_cancelled() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
 
@@ -13,20 +13,30 @@ fn run_within_stops_immediately_when_already_cancelled() {
     token.cancel();
 
     let bounds = vec![RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())];
-    let result = table.query().shift_x(10, 1).run_within(bounds, &token);
+    let result = table
+        .query()
+        .shift_x(10, 1)
+        .run(bounds)
+        .cancel_with(&token)
+        .table();
 
     assert_eq!(result, Err(Error::Cancelled));
 }
 
 #[test]
-fn run_within_completes_when_not_cancelled() {
+fn run_completes_when_not_cancelled() {
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(SingleId::new(10, 0, 100, 100).unwrap(), 4);
 
     let token = CancellationToken::new();
     let bounds = vec![RangeId::from(&SingleId::new(10, 0, 100, 100).unwrap())];
 
-    let result = table.query().run_within(bounds, &token).unwrap();
+    let result = table
+        .query()
+        .run(bounds)
+        .cancel_with(&token)
+        .table()
+        .unwrap();
     let values: alloc::vec::Vec<i32> = result.into_iter().map(|(_, v)| v).collect();
 
     assert_eq!(values, alloc::vec![4]);
@@ -52,7 +62,10 @@ fn cancelling_after_one_side_still_stops_the_query() {
         crate::spatial_id::collection::query::merge_policy::Sum,
     );
 
-    assert_eq!(query.run_within(bounds, &token), Err(Error::Cancelled));
+    assert_eq!(
+        query.run(bounds).cancel_with(&token).table(),
+        Err(Error::Cancelled)
+    );
 }
 
 #[test]

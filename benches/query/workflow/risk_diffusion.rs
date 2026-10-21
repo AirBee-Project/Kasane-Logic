@@ -15,7 +15,8 @@ fn run_query(table: SpatialIdTable<u32>) -> SpatialIdTable<u32> {
         .falloff_f(25, 10, Some(Upper), FalloffPattern::Linear, Max)
         .falloff_x(25, 10, None, FalloffPattern::Linear, Max)
         .falloff_y(25, 10, None, FalloffPattern::Linear, Max)
-        .run()
+        .run(..)
+        .table()
         .unwrap()
 }
 

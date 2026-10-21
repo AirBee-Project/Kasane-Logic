@@ -1,5 +1,4 @@
 use crate::{FlexId, RangeId, Source, SpatialIdTable};
-use alloc::vec;
 
 /// 再現可能な疑似乱数（xorshift64）。
 fn next(state: &mut u64) -> u64 {
@@ -46,14 +45,15 @@ fn shift_fxy_matches_chained_shifts() {
     for _ in 0..50 {
         let table = random_table(&mut state);
         for (f, x, y) in DELTAS {
-            let fused = table.clone().query().shift_fxy(6, f, x, y).run();
+            let fused = table.clone().query().shift_fxy(6, f, x, y).run(..).table();
             let chained = table
                 .clone()
                 .query()
                 .shift_f(6, f)
                 .shift_x(6, x)
                 .shift_y(6, y)
-                .run();
+                .run(..)
+                .table();
             assert_eq!(fused.is_ok(), chained.is_ok(), "({f}, {x}, {y})");
             if let (Ok(fused), Ok(chained)) = (fused, chained) {
                 assert_eq!(fused, chained, "({f}, {x}, {y})");
@@ -65,7 +65,7 @@ fn shift_fxy_matches_chained_shifts() {
 }
 
 #[test]
-fn shift_fxy_run_within_matches_run() {
+fn shift_fxy_partial_run_matches_whole() {
     let mut state = 0x9E37_79B9_7F4A_7C15;
     let target = RangeId::new(4, [-3, 5], [2, 9], [4, 12]).unwrap();
     let mut compared = 0;
@@ -73,12 +73,10 @@ fn shift_fxy_run_within_matches_run() {
         let table = random_table(&mut state);
         for (f, x, y) in DELTAS {
             let query = table.clone().query().shift_fxy(6, f, x, y);
-            let Ok(expected) = table.clone().query().shift_fxy(6, f, x, y).run() else {
+            let Ok(expected) = table.clone().query().shift_fxy(6, f, x, y).run(..).table() else {
                 continue;
             };
-            let within = query
-                .run_within(vec![target.clone()], &Default::default())
-                .unwrap();
+            let within = query.run(target.clone()).table().unwrap();
             let clip = |t: &SpatialIdTable<u32>| -> SpatialIdTable<u32> {
                 t.get(target.clone()).map(|(id, v)| (id, *v)).collect()
             };

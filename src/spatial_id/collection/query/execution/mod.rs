@@ -1,14 +1,12 @@
 use super::Query;
 use super::query_iter::QueryIter;
-use super::traits::{Source, UnaryOperator};
+use super::traits::{IntoTargets, Source, UnaryOperator};
 use crate::Error;
-use crate::spatial_id::collection::flex_tree::core::NoSummary;
 use crate::spatial_id::collection::query::cancellation::CancellationToken;
-use crate::{RangeId, SpatialIdTable};
+use crate::{FlexId, RangeId, SpatialIdTable};
 
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 
-use alloc::vec;
 use alloc::vec::Vec;
 
 #[cfg(test)]
@@ -37,13 +35,81 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
-// Queryの全体実行
+// Queryの評価
 impl<V: SafeValue + 'static> Query<V> {
-    /// 検証を行って実行し、[`SpatialIdTable`] として返す。
+    /// `targets` と交差する要素を評価して返す。`..` を渡すと全体を評価する。
+    ///
+    /// 出力領域 `targets` を得るのに必要な入力領域を逆算し、その部分だけを評価する。
+    /// 評価は最初の要素を読むときに始まり、読んだ分だけ進む。表にするには [`Run::table`] を使う。
+    pub fn run(&self, targets: impl IntoTargets) -> Run<'_, V> {
+        let targets = targets.into_targets();
+        Run {
+            query: self,
+            whole: targets == [RangeId::WHOLE],
+            targets,
+            token: CancellationToken::never(),
+            stream: None,
+            finished: false,
+        }
+    }
+}
+
+/// [`Query::run`] の結果を順に返すイテレーター。
+///
+/// 検証や評価の開始に失敗すると、最初の要素として `Err` を返して終わる。
+/// 読み出しや演算に失敗すると、その位置で `Err` を返す。
+pub struct Run<'a, V: SafeValue + 'static> {
+    query: &'a Query<V>,
+    targets: Vec<RangeId>,
+    // 全体を評価するときは、範囲との交差を確かめずに済ませる
+    whole: bool,
+    token: CancellationToken,
+    stream: Option<QueryIter<'a, V>>,
+    finished: bool,
+}
+
+impl<'a, V: SafeValue + 'static> Run<'a, V> {
+    /// `token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。読み始める前に呼ぶ。
+    pub fn cancel_with(mut self, token: &CancellationToken) -> Self {
+        self.token = token.clone();
+        self
+    }
+
+    /// 結果を [`SpatialIdTable`] にして返す。
     ///
     /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdTable::with_summary) で Summary を付ける。
-    pub fn run(self) -> Result<SpatialIdTable<V>, Error> {
-        self.run_within(vec![RangeId::WHOLE], &CancellationToken::never())
+    pub fn table(self) -> Result<SpatialIdTable<V>, Error> {
+        self.collect()
+    }
+
+    fn start(&self) -> Result<QueryIter<'a, V>, Error> {
+        self.query.validate()?;
+        self.query.stream_within(self.targets.clone(), &self.token)
+    }
+}
+
+impl<V: SafeValue + 'static> Iterator for Run<'_, V> {
+    type Item = Result<(FlexId, V), Error>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.stream.is_none() {
+            if self.finished {
+                return None;
+            }
+            match self.start() {
+                Ok(stream) => self.stream = Some(stream),
+                Err(e) => {
+                    self.finished = true;
+                    return Some(Err(e));
+                }
+            }
+        }
+        let (whole, targets) = (self.whole, &self.targets);
+        // 入力源や演算は範囲の外にはみ出した要素も返しうるので、交差するものだけを残す
+        self.stream.as_mut()?.find(|item| match item {
+            Ok((id, _)) => whole || targets.iter().any(|t| id.intersects_range(t)),
+            Err(_) => true,
+        })
     }
 }
 
@@ -79,21 +145,7 @@ fn read_source<'a, V: SafeValue + 'static>(
     ))
 }
 
-// Queryの遅延実行
-
 impl<V: SafeValue + 'static> Query<V> {
-    /// 出力領域 `bounds` を得るのに必要な入力領域を逆算しながら、その部分だけを評価する。
-    ///
-    /// `token` がキャンセルされると、AST を辿る途中で気づき次第 [`Error::Cancelled`] を返す。
-    pub fn run_within(
-        &self,
-        bounds: Vec<RangeId>,
-        token: &CancellationToken,
-    ) -> Result<SpatialIdTable<V, NoSummary>, Error> {
-        self.validate()?;
-        self.stream_within(bounds, token)?.collect()
-    }
-
     /// 検証を行わずに、出力領域 `bounds` を得るのに必要な部分だけを評価した列を返す。
     ///
     /// `token` がキャンセルされると、AST を辿る途中か列を読む途中で [`Error::Cancelled`] を返す。
@@ -144,71 +196,5 @@ impl<V: SafeValue + 'static> Query<V> {
             }
             Query::Error(e) => Err(e.clone()),
         }
-    }
-
-    /// 対象領域(`target`)と交差する部分だけを評価して返す。
-    ///
-    /// 読み出しや演算に失敗すると、その位置で `Err` を返す。
-    /// キャンセル不可。打ち切りたい場合は [`run_within`](Self::run_within) を使う。
-    pub fn lazy_get<T: crate::SpatialId>(
-        &self,
-        target: T,
-    ) -> Result<impl Iterator<Item = Result<(crate::FlexId, V), Error>>, Error> {
-        self.validate()?;
-        let target_range: crate::RangeId = target.into();
-        let stream = self.stream_within(vec![target_range.clone()], &CancellationToken::never())?;
-
-        Ok(stream.filter(
-            move |item| !matches!(item, Ok((id, _)) if !id.intersects_range(&target_range)),
-        ))
-    }
-
-    /// 対象領域(`target`)のうち、データが存在しない空間を `default_value` で埋めてから値を返す。
-    ///
-    /// 読み出しや演算に失敗すると、その位置で `Err` を返し、それ以降は何も返さない。
-    /// キャンセル不可。打ち切りたい場合は [`run_within`](Self::run_within) を使う。
-    pub fn lazy_get_with_default<T: crate::SpatialId>(
-        &self,
-        target: T,
-        default_value: V,
-    ) -> Result<impl Iterator<Item = Result<(crate::FlexId, V), Error>>, Error> {
-        self.validate()?;
-        let target_range: crate::RangeId = target.clone().into();
-        let mut working_iter =
-            self.stream_within(vec![target_range.clone()], &CancellationToken::never())?;
-
-        let mut uncovered = crate::SpatialIdSet::new();
-        uncovered.insert(target.into());
-
-        let mut default_iter = None;
-        let mut failed = false;
-
-        Ok(core::iter::from_fn(move || {
-            if failed {
-                return None;
-            }
-            if default_iter.is_none() {
-                for item in working_iter.by_ref() {
-                    match item {
-                        Ok((id, value)) if id.intersects_range(&target_range) => {
-                            let _ = uncovered.remove(id);
-                            return Some(Ok((id, value)));
-                        }
-                        Ok(_) => {}
-                        // 失敗した場所を既定値で埋めないよう、ここで打ち切る
-                        Err(e) => {
-                            failed = true;
-                            return Some(Err(e));
-                        }
-                    }
-                }
-                default_iter = Some(core::mem::take(&mut uncovered).into_iter());
-            }
-
-            default_iter
-                .as_mut()?
-                .next()
-                .map(|id| Ok((id, default_value.clone())))
-        }))
     }
 }

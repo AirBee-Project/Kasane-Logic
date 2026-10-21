@@ -25,7 +25,7 @@ fn bench_filter_values(c: &mut Criterion) {
                     |t| {
                         let predicate =
                             ValuePredicate::InRange(Bound::Included(t_val), Bound::Unbounded);
-                        t.query().filter_values(predicate).run().unwrap()
+                        t.query().filter_values(predicate).run(..).table().unwrap()
                     },
                     BatchSize::SmallInput,
                 );
