@@ -1,6 +1,6 @@
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::iter::FusedIterator;
+use triomphe::Arc;
 
 use super::FlexTreeCore;
 use super::node::Node;

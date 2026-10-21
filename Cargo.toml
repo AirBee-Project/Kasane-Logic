@@ -18,6 +18,7 @@ members = [
 hashbrown = "0.17.1"
 kasane-logic-derive = { version = "0.1.4", path = "kasane-logic-derive" }
 libm = "0.2.16"
+triomphe = { version = "0.1.17", default-features = false }
 
 # featuresで切り替え可能なもの
 rand = { version = "0.10.2", optional = true }
