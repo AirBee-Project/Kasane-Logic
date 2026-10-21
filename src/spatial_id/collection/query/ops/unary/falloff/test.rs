@@ -200,3 +200,86 @@ fn attenuate_matches_direct_formula() {
         }
     }
 }
+
+/// 塊に分けて並列に合成しても、全寄与を入力の順に1つずつ合成した結果と一致する。ズームの違う要素も混ぜる。
+#[test]
+fn falloff_matches_sequential_reference() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, NoSummary};
+    use crate::spatial_id::collection::query::merge_policy::{MergePolicy, Overwrite};
+    use crate::spatial_id::helpers::Side;
+    use alloc::vec::Vec;
+
+    let mut table = SpatialIdTable::new();
+    let mut seed = 1u32;
+    for _ in 0..3000 {
+        seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        let z = 18 + (seed >> 8) % 5;
+        let span = 1u32 << (z - 15);
+        let (f, x, y) = ((seed >> 4) % span, (seed >> 12) % span, (seed >> 20) % span);
+        let id = SingleId::new(z as u8, f as i32, (1 << (z - 1)) + x, (1 << (z - 1)) + y).unwrap();
+        table.insert(id, (seed % 1000) as i32);
+    }
+    let input: Vec<(FlexId, i32)> = table.inner.iter().map(|(id, v)| (id, *v)).collect();
+
+    fn reference<P: MergePolicy<i32>>(
+        input: &[(FlexId, i32)],
+        axis: FalloffAxis,
+    ) -> SpatialIdTable<i32> {
+        let mut gathered = FlexTreeCore::<Vec<i32>, NoSummary>::default();
+        for (id, value) in input {
+            for (moved, v) in id
+                .falloff(
+                    axis,
+                    20u8,
+                    3,
+                    Some(Side::Upper),
+                    FalloffPattern::Linear,
+                    value,
+                )
+                .unwrap()
+            {
+                gathered.insert_with([moved], alloc::vec![v], |a, b| [a.as_slice(), b].concat());
+            }
+        }
+        gathered
+            .iter()
+            .filter_map(|(id, vs)| Some((id, P::resolve_many(vs.iter().copied())?)))
+            .collect()
+    }
+
+    for axis in [FalloffAxis::F, FalloffAxis::X, FalloffAxis::Y] {
+        let run = |op: &dyn Fn(crate::Query<i32>) -> crate::Query<i32>| {
+            op(table.clone().query()).run().unwrap()
+        };
+        let (max, avg, over) = match axis {
+            FalloffAxis::F => (
+                run(&|q| q.falloff_f(20, 3, Some(Side::Upper), FalloffPattern::Linear, Max)),
+                run(&|q| q.falloff_f(20, 3, Some(Side::Upper), FalloffPattern::Linear, Average)),
+                run(&|q| q.falloff_f(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
+            ),
+            FalloffAxis::X => (
+                run(&|q| q.falloff_x(20, 3, Some(Side::Upper), FalloffPattern::Linear, Max)),
+                run(&|q| q.falloff_x(20, 3, Some(Side::Upper), FalloffPattern::Linear, Average)),
+                run(&|q| q.falloff_x(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
+            ),
+            FalloffAxis::Y => (
+                run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Max)),
+                run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Average)),
+                run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
+            ),
+        };
+        let same = |a: &SpatialIdTable<i32>, b: &SpatialIdTable<i32>| {
+            a.iter().collect::<Vec<_>>() == b.iter().collect::<Vec<_>>()
+        };
+        assert!(same(&max, &reference::<Max>(&input, axis)), "{axis:?} Max");
+        assert!(
+            same(&avg, &reference::<Average>(&input, axis)),
+            "{axis:?} Average"
+        );
+        assert!(
+            same(&over, &reference::<Overwrite>(&input, axis)),
+            "{axis:?} Overwrite"
+        );
+    }
+}

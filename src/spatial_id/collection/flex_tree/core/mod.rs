@@ -332,7 +332,18 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
         value: V,
         resolve: impl Fn(&V, &V) -> V,
     ) {
-        self.insert_by_rule(target, value, &|this, existing, written| {
+        self.insert_by_rule(target, value, &Self::resolve_rule(resolve));
+    }
+
+    /// `other` を重ねる。両方に値がある場所は `resolve(self の値, other の値)` にする。
+    pub fn merge_with(&mut self, other: &Self, resolve: impl Fn(&V, &V) -> V) {
+        self.merge(other, &Self::resolve_rule(resolve));
+    }
+
+    fn resolve_rule(
+        resolve: impl Fn(&V, &V) -> V,
+    ) -> impl Fn(&FlexId, &mut Node<V, S>, View<'_, V, S>) -> bool {
+        move |this, existing, written| {
             match (&*existing, written.leaf()) {
                 _ if written.is_empty() => {}
                 (Node::Empty, _) => *existing = written.to_node(this),
@@ -340,7 +351,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
                 _ => return false,
             }
             true
-        });
+        }
     }
 
     /// `target` の領域を空にし、取り除いた部分を FlexTreeCore として返す。

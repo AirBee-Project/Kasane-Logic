@@ -6,11 +6,13 @@ mod test;
 
 use crate::spatial_id::collection::flex_tree::core::{FlexTreeCore, NoSummary};
 use crate::spatial_id::collection::query::{
-    merge_policy::MergePolicy, ops::unary::sort_by_flex_id, query_iter::QueryIter,
-    send_sync::SafeValue, traits::UnaryOperator,
+    merge_policy::MergePolicy,
+    query_iter::QueryIter,
+    send_sync::{MaybeSendSync, SafeValue},
+    traits::UnaryOperator,
 };
 use crate::spatial_id::helpers::Side;
-use crate::{Error, RangeId, SpatialIdTable, ZoomLevel};
+use crate::{Error, FlexId, RangeId, SpatialIdTable, ZoomLevel};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -144,6 +146,83 @@ impl<P> Falloff<P> {
     }
 }
 
+impl<P> Falloff<P> {
+    /// 入力の各要素を近傍へ広げ、`wrap` した値の重なりを `resolve` で合成した木を返す。
+    /// 塊ごとに作った木を入力の順に合成するので、`resolve` は結合的でなければならない。
+    fn spread<V, A>(
+        &self,
+        input: QueryIter<'_, V>,
+        attenuator: &Attenuator<V>,
+        wrap: impl Fn(V) -> A + MaybeSendSync,
+        resolve: impl Fn(&A, &A) -> A + MaybeSendSync,
+    ) -> Result<FlexTreeCore<A, NoSummary>, Error>
+    where
+        V: SafeValue
+            + Add<Output = V>
+            + Sub<Output = V>
+            + Mul<Output = V>
+            + Div<Output = V>
+            + Rem<Output = V>
+            + TryFrom<u64>,
+        A: SafeValue,
+    {
+        let spread_into = |mut tree: FlexTreeCore<A, NoSummary>,
+                           moved: &mut Vec<FlexId>,
+                           (id, value): &(FlexId, V)| {
+            id.falloff_each(
+                self.axis,
+                self.z,
+                self.radius,
+                self.direction,
+                attenuator,
+                value,
+                moved,
+                |ids, value| tree.insert_with(ids.iter().copied(), wrap(value), &resolve),
+            );
+            tree
+        };
+
+        #[cfg(not(feature = "rayon"))]
+        {
+            let mut tree = FlexTreeCore::default();
+            let mut moved = Vec::new();
+            for item in input {
+                tree = spread_into(tree, &mut moved, &item?);
+            }
+            Ok(tree)
+        }
+
+        #[cfg(feature = "rayon")]
+        {
+            use rayon::prelude::*;
+            // 入力を区切って読むので、一度に持つ入力はこの数までに収まる
+            const CHUNK: usize = 1 << 16;
+            let merge = |mut a: FlexTreeCore<A, NoSummary>, b: FlexTreeCore<A, NoSummary>| {
+                a.merge_with(&b, &resolve);
+                a
+            };
+            let mut input = input.peekable();
+            // 塊ごとに蓄積した木へ合成すると、木全体の複製が塊の数だけ走るので、最後に二分木状にまとめる
+            let mut parts = Vec::new();
+            while input.peek().is_some() {
+                let chunk: Vec<(FlexId, V)> =
+                    input.by_ref().take(CHUNK).collect::<Result<_, _>>()?;
+                parts.push(
+                    chunk
+                        .par_iter()
+                        .fold(
+                            || (FlexTreeCore::default(), Vec::new()),
+                            |(tree, mut moved), item| (spread_into(tree, &mut moved, item), moved),
+                        )
+                        .map(|(tree, _)| tree)
+                        .reduce(FlexTreeCore::default, merge),
+                );
+            }
+            Ok(parts.into_par_iter().reduce(FlexTreeCore::default, merge))
+        }
+    }
+}
+
 impl<V: SafeValue + 'static, P> UnaryOperator<V> for Falloff<P>
 where
     V: Add<Output = V>
@@ -159,42 +238,28 @@ where
         if self.radius == 0 {
             return Ok(input);
         }
-        let z = self.z.get();
+        let attenuator = Attenuator::new(self.radius, self.pattern)?;
 
-        let mut spread = Vec::new();
-        for item in input {
-            let (id, value) = item?;
-            spread.extend(id.falloff(
-                self.axis,
-                z,
-                self.radius,
-                self.direction,
-                self.pattern,
-                &value,
-            )?);
-        }
-        sort_by_flex_id(&mut spread);
-
-        // 近傍は互いに重なる。2件ずつ resolve すると Average のように resolve_many を持つ規則で値がずれるので、
-        // 重なった値をすべて集めてから resolve_many で1回だけ合成する
-        let mut gathered = FlexTreeCore::<Vec<V>, NoSummary>::default();
-        let mut spread = spread.into_iter().peekable();
-        while let Some((id, value)) = spread.next() {
-            let mut values = vec![value];
-            while let Some((_, value)) = spread.next_if(|(next, _)| *next == id) {
-                values.push(value);
-            }
-            // ズームの違う寄与は ID が一致しないまま重なるので、木の上で値の列をつなぐ
-            gathered.insert_with([id], values, |a, b| [a.as_slice(), b].concat());
+        if P::IS_COMMUTATIVE {
+            let resolve = |a: &V, b: &V| P::resolve(a.clone(), b.clone());
+            let inner = self.spread(input, &attenuator, |value| value, resolve)?;
+            return Ok(SpatialIdTable { inner }.into());
         }
 
-        let mut rebuilt = SpatialIdTable::<V, NoSummary>::default();
-        for (id, values) in gathered.iter() {
-            if let Some(value) = P::resolve_many(values.iter().cloned()) {
-                rebuilt.inner.insert([id], value);
-            }
-        }
-        Ok(rebuilt.into())
+        // 順序を問う規則や平均のように resolve_many を持つ規則は、2件ずつ畳み込むと値が変わるので、
+        // 重なった値を入力の順に集めてから resolve_many で1回だけ合成する
+        let gathered = self.spread(
+            input,
+            &attenuator,
+            |value| vec![value],
+            |a, b| [a.as_slice(), b].concat(),
+        )?;
+        // 葉は flex Z-order で互いに素に並ぶので、collect は木を下から一括で組める
+        let inner: FlexTreeCore<V, NoSummary> = gathered
+            .iter()
+            .filter_map(|(id, values)| Some((id, P::resolve_many(values.iter().cloned())?)))
+            .collect();
+        Ok(SpatialIdTable { inner }.into())
     }
 
     fn reverse_target(&self, bounds: RangeId, out: &mut Vec<RangeId>) {
