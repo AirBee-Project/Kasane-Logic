@@ -1,3 +1,4 @@
+use crate::query::Node;
 #[cfg(test)]
 mod test;
 
@@ -63,6 +64,6 @@ impl<V: SafeValue + 'static> Query<V> {
         U: SafeValue + 'static,
         F: Fn(V) -> U + Send + Sync + 'static,
     {
-        Query::Source(Box::new(MapValues::new(self, f)))
+        Query(Node::Source(Box::new(MapValues::new(self, f))))
     }
 }

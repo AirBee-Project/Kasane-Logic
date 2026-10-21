@@ -1,6 +1,6 @@
-use crate::query::Query;
 use crate::query::cancellation::CancellationToken;
 use crate::query::query_iter::QueryIter;
+use crate::query::{Node, Query};
 use crate::{Error, RangeId};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -38,12 +38,12 @@ pub trait Source: Send + Sync {
     where
         Self: Sized + 'static,
     {
-        Query::Source(Box::new(self))
+        Query(Node::Source(Box::new(self)))
     }
 }
 
 /// 二項演算子の定義。
-pub trait BinaryOperator<V: SafeValue + 'static>: Send + Sync {
+pub(crate) trait BinaryOperator<V: SafeValue + 'static>: Send + Sync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error> {
         Ok(())
@@ -58,7 +58,7 @@ pub trait BinaryOperator<V: SafeValue + 'static>: Send + Sync {
 }
 
 /// 単項演算子の定義。
-pub trait UnaryOperator<V: SafeValue + 'static>: Send + Sync {
+pub(crate) trait UnaryOperator<V: SafeValue + 'static>: Send + Sync {
     /// パラメーターの事前検証
     fn validate(&self) -> Result<(), Error>;
 

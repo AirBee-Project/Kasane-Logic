@@ -13,7 +13,8 @@ pub use execution::{IntoTargets, QueryOutput};
 pub use ops::unary::falloff::FalloffPattern;
 pub use ops::unary::filter_values::ValuePredicate;
 pub use query_iter::QueryIter;
-pub use traits::{BinaryOperator, SafeValue, Source, UnaryOperator};
+pub(crate) use traits::{BinaryOperator, UnaryOperator};
+pub use traits::{SafeValue, Source};
 
 use crate::Error;
 use alloc::boxed::Box;
@@ -21,14 +22,16 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 /// 空間IDのデータを組み合わせて変換するクエリ。
-pub enum Query<V: SafeValue + 'static> {
+pub struct Query<V: SafeValue + 'static>(Node<V>);
+
+enum Node<V: SafeValue + 'static> {
     /// 演算の起点
     Source(Box<dyn Source<Value = V>>),
 
     /// 連続した単項演算子
     Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
 
-    // 二項演算
+    /// 二項演算
     Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
 
     /// エラー状態を保持
@@ -43,14 +46,14 @@ impl<V: SafeValue + 'static> Query<V> {
         O: UnaryOperator<V> + 'static,
     {
         match self {
-            Query::Unary(mut ops, input) => {
+            Query(Node::Unary(mut ops, input)) => {
                 ops.push(Box::new(op));
-                Query::Unary(ops, input)
+                Query(Node::Unary(ops, input))
             }
-            other => Query::Unary(
+            other => Query(Node::Unary(
                 vec![Box::new(op) as Box<dyn UnaryOperator<V>>],
                 Box::new(other),
-            ),
+            )),
         }
     }
 }

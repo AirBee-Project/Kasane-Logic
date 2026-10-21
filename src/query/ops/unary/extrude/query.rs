@@ -1,4 +1,5 @@
 use super::{Extrude, ExtrudeAxis};
+use crate::query::Node;
 use crate::query::SafeValue;
 use crate::{
     ZoomLevel,
@@ -10,12 +11,12 @@ impl<V: SafeValue + 'static> Query<V> {
     where
         P: MergePolicy<V> + Send + Sync,
     {
-        if matches!(self, Query::Error(_)) {
+        if matches!(self.0, Node::Error(_)) {
             return self;
         }
         match ZoomLevel::new(z.into()) {
             Ok(zl) => self.wrap_unary(Extrude::<P>::new(zl, axis)),
-            Err(e) => Query::Error(e),
+            Err(e) => Query(Node::Error(e)),
         }
     }
 

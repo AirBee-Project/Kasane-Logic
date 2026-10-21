@@ -1,6 +1,6 @@
 use super::{FilterValues, ValuePredicate};
-use crate::query::Query;
 use crate::query::SafeValue;
+use crate::query::{Node, Query};
 
 impl<V: SafeValue + Ord + 'static> Query<V> {
     /// 指定した値を持つ空間IDだけを残す。
@@ -34,7 +34,7 @@ impl<V: SafeValue + Ord + 'static> Query<V> {
 
     /// 値の条件で空間IDを絞り込む。
     pub fn filter_values(self, predicate: ValuePredicate<V>) -> Self {
-        if matches!(self, Query::Error(_)) {
+        if matches!(self.0, Node::Error(_)) {
             return self;
         }
         self.wrap_unary(FilterValues::new(predicate))
