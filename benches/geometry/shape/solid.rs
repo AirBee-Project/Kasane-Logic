@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::{Coordinate, CoverSingleIds, Polygon, Solid};
+use kasane_logic::geometry::{Coordinate, CoverSingleIds, Polygon, Solid};
 use std::hint::black_box;
 
 fn bench_solid(c: &mut Criterion) {

@@ -1,0 +1,35 @@
+mod average;
+mod keep_existing;
+mod max;
+mod min;
+mod overwrite;
+mod saturating_add;
+mod saturating_sub;
+mod sum;
+
+pub use average::Average;
+pub use keep_existing::KeepExisting;
+pub use max::Max;
+pub use min::Min;
+pub use overwrite::Overwrite;
+pub use saturating_add::SaturatingAdd;
+pub use saturating_sub::SaturatingSub;
+pub use sum::Sum;
+
+use crate::query::send_sync::MaybeSendSync;
+
+/// 同一の空間に複数の値が集まったときに、それらを1つの値に集約する規則
+pub trait MergePolicy<V>: MaybeSendSync + 'static {
+    /// この集約規則が可換（`resolve(a, b) == resolve(b, a)`）であるかどうか
+    const IS_COMMUTATIVE: bool;
+
+    /// 衝突した2つの値を合成して返す
+    fn resolve(a: V, b: V) -> V;
+
+    /// 衝突した複数の値を一括で合成して返す
+    /// 必要であればオーバーロードして平均や最頻値などを実装できる
+    fn resolve_many(mut iter: impl Iterator<Item = V>) -> Option<V> {
+        let first = iter.next()?;
+        Some(iter.fold(first, Self::resolve))
+    }
+}

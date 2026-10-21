@@ -8,12 +8,12 @@ use crate::{
 
 /// ある祖先の [FlexId] を起点とした相対的な位置を表す[FlexId]。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct RelativeFlexId(FlexId);
+pub(crate) struct RelativeFlexId(FlexId);
 
 impl FlexId {
     /// `ancestor` を原点とした[RelativeFlexId]を返す。
     /// `ancestor`が完全に自身を包含していなければ [`SpatialIdError::NotAncestor`] を返す。
-    pub fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
+    pub(crate) fn relative_to(&self, ancestor: &FlexId) -> Result<RelativeFlexId, Error> {
         if !ancestor.contains(self) {
             return Err(SpatialIdError::NotAncestor.into());
         }
@@ -33,26 +33,6 @@ impl FlexId {
 }
 
 impl RelativeFlexId {
-    /// 祖先から F 次元において何段深いかを返す。
-    pub fn f_depth(&self) -> u8 {
-        self.0.f_zoomlevel()
-    }
-
-    /// 祖先から X 次元において何段深いかを返す。
-    pub fn x_depth(&self) -> u8 {
-        self.0.x_zoomlevel()
-    }
-
-    /// 祖先から Y 次元において何段深いかを返す。
-    pub fn y_depth(&self) -> u8 {
-        self.0.y_zoomlevel()
-    }
-
-    /// 祖先から T 次元において何段深いかを返す。
-    pub fn t_depth(&self) -> u8 {
-        self.0.t_zoomlevel()
-    }
-
     /// 祖先から `dimension`において何段深いかを返す。
     pub fn depth_on(self, dimension: Dimension) -> u8 {
         self.0.zoomlevel_on(dimension)
@@ -85,59 +65,6 @@ impl RelativeFlexId {
                 .with_time_segment_unchecked(tz, t as u64)
         };
         Ok(absolute)
-    }
-
-    /// [`encode`](Self::encode) / [`decode`](Self::decode) が扱う固定長バイト列の長さ。
-    pub const ENCODED_LEN: usize = 20;
-
-    /// 自身を固定長バイト列に変換する。
-    ///
-    /// # フォーマット
-    ///
-    /// ```text
-    /// byte 0..=3  : F / X / Y / T の深さ
-    /// byte 4..=19 : F / X / Y / T のインデックスを、各次元の最大ズームのビット幅ずつ
-    ///               下位から詰めた u128（little-endian）
-    /// ```
-    ///
-    /// インデックスは `0..2^深さ` なので、各次元の最大ズームのビット幅に収まる。
-    ///
-    /// # 動作例
-    ///
-    /// ```
-    /// # use kasane_logic::{FlexId, RelativeFlexId};
-    /// let ancestor = FlexId::new(2, 1, 1, 0, 3, 5).unwrap();
-    /// let relative = FlexId::new(5, 12, 4, 7, 3, 5).unwrap().relative_to(&ancestor).unwrap();
-    /// assert_eq!(RelativeFlexId::decode(&relative.encode()), Ok(relative));
-    /// ```
-    pub fn encode(&self) -> [u8; Self::ENCODED_LEN] {
-        let dimensions = dimensions(&self.0);
-        let index = dimensions
-            .iter()
-            .zip(MAX_ZOOM)
-            .rev()
-            .fold(0u128, |packed, (&(_, i), bits)| packed << bits | i as u128);
-        let mut out = [0; Self::ENCODED_LEN];
-        out[..4].copy_from_slice(&dimensions.map(|(z, _)| z));
-        out[4..].copy_from_slice(&index.to_le_bytes());
-        out
-    }
-
-    /// 固定長バイト列から [`RelativeFlexId`] を復元する（[`encode`](Self::encode) の逆変換）。
-    ///
-    /// 深さが各次元の最大ズームを超える、またはインデックスが `0..2^深さ` に収まらないならエラーを返す。
-    pub fn decode(bytes: &[u8; Self::ENCODED_LEN]) -> Result<Self, Error> {
-        let [fz, xz, yz, tz, ..] = *bytes;
-        let mut index = u128::from_le_bytes(bytes[4..].try_into().unwrap());
-        let [f, x, y, t] = MAX_ZOOM.map(|bits| {
-            let i = index & ((1 << bits) - 1);
-            index >>= bits;
-            i as u64
-        });
-        // ビット幅が最大ズーム以下なので、空間3軸のインデックスは i32 / u32 に収まる
-        let relative =
-            FlexId::new(fz, f as i32, xz, x as u32, yz, y as u32)?.with_time_segment(tz, t)?;
-        Ok(RelativeFlexId(relative))
     }
 }
 
@@ -207,56 +134,12 @@ mod tests {
         );
     }
 
-    /// 各次元で最も深く、インデックスが最大の相対 ID も符号化して戻せる。
-    #[cfg(feature = "temporal_id")]
+    /// 各次元の深さを取得できる。
     #[test]
-    fn encode_round_trips_deepest() {
-        let max = (1u32 << 30) - 1;
-        let deepest = FlexId::new(30, max as i32, 30, max, 30, max)
-            .unwrap()
-            .with_time_segment(TZoomLevel::MAX.get(), (1 << 35) - 1)
-            .unwrap();
-        let relative = deepest.relative_to(&FlexId::UPPER_MAX).unwrap();
-        assert_eq!(RelativeFlexId::decode(&relative.encode()), Ok(relative));
-    }
-
-    /// T の深さが最大ズームを超えるバイト列は復元できない。
-    #[test]
-    fn decode_rejects_t_zoom_beyond_max() {
-        let mut bytes = FlexId::new(0, 0, 0, 0, 0, 0)
-            .unwrap()
-            .relative_to(&FlexId::UPPER_MAX)
-            .unwrap()
-            .encode();
-        bytes[3] = TZoomLevel::MAX.get() + 1;
-        assert!(RelativeFlexId::decode(&bytes).is_err());
-    }
-
-    /// T のインデックスが `0..2^深さ` に収まらないバイト列は復元できない。
-    #[test]
-    fn decode_rejects_t_index_out_of_range() {
-        let mut bytes = FlexId::new(0, 0, 0, 0, 0, 0)
-            .unwrap()
-            .relative_to(&FlexId::UPPER_MAX)
-            .unwrap()
-            .encode();
-        bytes[3] = 1;
-        let t_shift: u32 = MAX_ZOOM[..3].iter().map(|&b| b as u32).sum();
-        let index = 2u128 << t_shift;
-        bytes[4..].copy_from_slice(&index.to_le_bytes());
-        assert!(RelativeFlexId::decode(&bytes).is_err());
-    }
-
-    /// クレートルートから RelativeFlexId および Dimension が利用でき、深さ取得が正しく動作することを検証。
-    #[test]
-    fn test_relative_flex_id_depths_and_root_export() {
-        use crate::{Dimension, RelativeFlexId};
+    fn depth_on_returns_depth_per_dimension() {
         let ancestor = FlexId::new(2, 1, 1, 0, 3, 5).unwrap();
         let descendant = FlexId::new(5, 12, 4, 7, 3, 5).unwrap();
-        let rel: RelativeFlexId = descendant.relative_to(&ancestor).unwrap();
-        assert_eq!(rel.f_depth(), 3);
-        assert_eq!(rel.x_depth(), 3);
-        assert_eq!(rel.y_depth(), 0);
+        let rel = descendant.relative_to(&ancestor).unwrap();
         assert_eq!(rel.depth_on(Dimension::F), 3);
         assert_eq!(rel.depth_on(Dimension::X), 3);
         assert_eq!(rel.depth_on(Dimension::Y), 0);

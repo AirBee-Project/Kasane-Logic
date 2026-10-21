@@ -6,7 +6,8 @@
 //! serde_json = "1"
 //! ```
 
-use kasane_logic::{SingleId, SpatialIdMap};
+use kasane_logic::collection::SpatialIdMap;
+use kasane_logic::spatial_id::SingleId;
 
 /// [SpatialIdMap]をJsonに書き出したり、Jsonから読み出したりする例
 fn main() {

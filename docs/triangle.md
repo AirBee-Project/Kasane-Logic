@@ -70,7 +70,8 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Instant;
 
-use kasane_logic::{Coordinate, CoverSingleIds, SingleId, Triangle};
+use kasane_logic::geometry::{Coordinate, CoverSingleIds, Triangle};
+use kasane_logic::spatial_id::SingleId;
 use rand::RngExt;
 use rand_chacha::{ChaCha8Rng, rand_core::SeedableRng};
 

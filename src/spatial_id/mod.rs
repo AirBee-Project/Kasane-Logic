@@ -1,15 +1,22 @@
-pub(crate) mod collection;
-pub mod dimension;
-pub mod single_id;
-pub mod time;
-pub mod traits;
-pub mod zoom_level;
+pub(crate) mod dimension;
+pub(crate) mod single_id;
+pub(crate) mod time;
+pub(crate) mod traits;
+pub(crate) mod zoom_level;
 
-//非公開のモジュール
-pub mod flex_id;
-pub mod helpers;
-pub mod range_id;
-pub mod relative_flex_id;
+pub(crate) mod flex_id;
+pub(crate) mod helpers;
+pub(crate) mod range_id;
+pub(crate) mod relative_flex_id;
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) use dimension::Dimension;
+pub use flex_id::FlexId;
+pub use helpers::{IntoRange, Side};
+pub use range_id::RangeId;
+pub use single_id::{SingleId, convert::SingleIdSegments};
+pub use time::{AllowedIntervals, Interval};
+pub use traits::SpatialId;
+pub use zoom_level::{TZoomLevel, Zoom, ZoomLevel};

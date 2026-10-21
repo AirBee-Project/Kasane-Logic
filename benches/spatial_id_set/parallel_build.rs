@@ -12,7 +12,7 @@
 mod patterns;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::SpatialIdSet;
+use kasane_logic::collection::SpatialIdSet;
 use patterns::{PATTERNS, Z, build_set};
 use rayon::prelude::*;
 use std::hint::black_box;

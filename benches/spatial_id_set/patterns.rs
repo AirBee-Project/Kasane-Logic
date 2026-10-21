@@ -3,7 +3,8 @@
 //! systematic_crud / systematic_setops / memory_usage から
 //! `#[path = "patterns.rs"] mod patterns;` で共有される。
 
-use kasane_logic::{SingleId, SpatialIdSet};
+use kasane_logic::collection::SpatialIdSet;
+use kasane_logic::spatial_id::SingleId;
 use rand::{RngExt, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 

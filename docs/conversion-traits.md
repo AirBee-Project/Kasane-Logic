@@ -51,7 +51,9 @@
 ## 5. 例
 
 ```rust
-use kasane_logic::{Coordinate, CoverSingleIds, SingleId, IntoFlexIds};
+use kasane_logic::IntoFlexIds;
+use kasane_logic::geometry::{Coordinate, CoverSingleIds};
+use kasane_logic::spatial_id::SingleId;
 
 let coord = Coordinate::new(35.0, 139.0, 0.0).unwrap();
 let ids: Vec<SingleId> = coord.cover_single_ids(18).unwrap().collect();

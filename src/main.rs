@@ -1,4 +1,5 @@
-use kasane_logic::{Source, SpatialIdMap};
+use kasane_logic::collection::SpatialIdMap;
+use kasane_logic::query::Source;
 use std::fs;
 
 fn main() {

@@ -129,8 +129,6 @@ fn upper_root_comes_first() {
 #[should_panic(expected = "QueryIter の制約違反")]
 fn from_ordered_panics_on_unordered_input() {
     let [upper, lower] = FlexId::ROOTS;
-    crate::spatial_id::collection::query::query_iter::QueryIter::from_ordered(
-        [Ok((lower, ())), Ok((upper, ()))].into_iter(),
-    )
-    .for_each(drop);
+    crate::query::QueryIter::from_ordered([Ok((lower, ())), Ok((upper, ()))].into_iter())
+        .for_each(drop);
 }

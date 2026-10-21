@@ -60,7 +60,7 @@ impl Interval {
     /// - `temporal_id` feature 無効時は [`MAX_SECONDS`](Self::MAX_SECONDS) 以外を拒否する。
     ///
     /// ```
-    /// # use kasane_logic::Interval;
+    /// # use kasane_logic::spatial_id::Interval;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// assert_eq!(Interval::new(3600).unwrap(), Interval::HOUR);
@@ -128,7 +128,7 @@ impl Interval {
     /// 仕様書 1.5.3 (3) の `t = floor(u / i)`。
     ///
     /// ```
-    /// # use kasane_logic::Interval;
+    /// # use kasane_logic::spatial_id::Interval;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
     /// assert_eq!(Interval::HOUR.index_of(7_300), 2);
@@ -144,7 +144,7 @@ impl Interval {
     /// 単一Segmentの型（[`SingleId`](crate::SingleId) / [`FlexId`](crate::FlexId)）は
     /// `t_min == t_max` で呼ぶ。仕様は `{i}` に任意の秒数を認めるが、区間の終端が
     /// [`Interval::MAX_SECONDS`] を超えてはならない。
-    pub fn validated_span(&self, t_min: u64, t_max: u64) -> Result<TimeSpan, Error> {
+    pub(crate) fn validated_span(&self, t_min: u64, t_max: u64) -> Result<TimeSpan, Error> {
         let unit = self.seconds();
         let end = t_max
             .checked_add(1)
@@ -166,7 +166,7 @@ impl Interval {
     /// [`SpatialIdError::TIntervalError`] を返す（複数Segmentへ分けたい場合は
     /// [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) に付けてから
     /// [`IntoIterator`] で展開する）。
-    pub fn as_segment(&self, t: u64) -> Result<TimeSegment, Error> {
+    pub(crate) fn as_segment(&self, t: u64) -> Result<TimeSegment, Error> {
         let seconds = self.seconds();
         if !seconds.is_power_of_two() {
             return Err(SpatialIdError::TIntervalError { i: seconds }.into());

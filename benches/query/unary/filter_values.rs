@@ -1,7 +1,7 @@
 use core::ops::Bound;
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
-use kasane_logic::ValuePredicate;
+use kasane_logic::query::Source;
+use kasane_logic::query::ValuePredicate;
 
 #[path = "../utils.rs"]
 mod utils;

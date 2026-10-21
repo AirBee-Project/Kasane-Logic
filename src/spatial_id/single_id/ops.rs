@@ -1,6 +1,7 @@
 use crate::SpatialId;
 use alloc::vec::Vec;
 
+use crate::spatial_id::time::span::TimeSpan;
 use crate::{RangeId, SingleId};
 
 impl SingleId {
@@ -51,7 +52,7 @@ impl SingleId {
     ///
     /// 重なりがない場合:
     /// ```
-    /// # use kasane_logic::{RangeId, SingleId};
+    /// # use kasane_logic::spatial_id::{RangeId, SingleId};
     /// let left = SingleId::new(2, 1, 1, 1).unwrap();
     /// let right = SingleId::new(2, 2, 1, 1).unwrap();
     /// let diff: Vec<_> = left.difference(&right).collect();
@@ -60,7 +61,7 @@ impl SingleId {
     ///
     /// 一方が他方を含む場合:
     /// ```
-    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::spatial_id::SingleId;
     /// let parent = SingleId::new(1, 0, 0, 0).unwrap();
     /// let child = SingleId::new(2, 0, 1, 1).unwrap();
     /// let diff: Vec<_> = parent.difference(&child).collect();
@@ -95,7 +96,7 @@ impl SingleId {
         }
 
         // 空間的に `other` と一致（または内包される）ところまで来たので、残るは時間の差分だけ。
-        for time_span in current.time_span().difference(&other.time_span()) {
+        for time_span in TimeSpan::of(&current).difference(&TimeSpan::of(other)) {
             results.push(
                 RangeId::from(&current)
                     .with_time_span(time_span.start(), time_span.end())
@@ -131,7 +132,7 @@ impl SingleId {
     ///
     /// 祖先と子孫の重なり:
     /// ```
-    /// # use kasane_logic::{RangeId, SingleId};
+    /// # use kasane_logic::spatial_id::{RangeId, SingleId};
     /// let ancestor = SingleId::new(2, 1, 1, 1).unwrap();
     /// let descendant = SingleId::new(3, 2, 2, 3).unwrap();
     /// assert_eq!(
@@ -142,14 +143,14 @@ impl SingleId {
     ///
     /// 重なりがない場合:
     /// ```
-    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::spatial_id::SingleId;
     /// let left = SingleId::new(3, 1, 1, 1).unwrap();
     /// let right = SingleId::new(3, 4, 1, 1).unwrap();
     /// assert!(left.intersection(&right).is_none());
     /// ```
     pub fn intersection(&self, other: &Self) -> Option<RangeId> {
         let deep = self.spatial_intersection(other)?;
-        let time_span = self.time_span().intersect(&other.time_span())?;
+        let time_span = TimeSpan::of(self).intersect(&TimeSpan::of(other))?;
 
         Some(
             RangeId::from(deep)
@@ -161,7 +162,7 @@ impl SingleId {
     /// `self` が `other` を空間的・時間的に完全に包含するか判定します。
     ///
     /// ```
-    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::spatial_id::SingleId;
     /// let parent = SingleId::new(2, 0, 0, 0).unwrap();
     /// let child = SingleId::new(3, 0, 0, 0).unwrap();
     /// let other = SingleId::new(2, 1, 0, 0).unwrap();
@@ -189,7 +190,7 @@ impl SingleId {
     /// 2 つの [`SingleId`] が空間的・時間的に重なっているかを判定します。
     ///
     /// ```
-    /// # use kasane_logic::SingleId;
+    /// # use kasane_logic::spatial_id::SingleId;
     /// let parent = SingleId::new(2, 0, 0, 0).unwrap();
     /// let child = SingleId::new(3, 0, 0, 0).unwrap();
     /// let other = SingleId::new(2, 1, 0, 0).unwrap();

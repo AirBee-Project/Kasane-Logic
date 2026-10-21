@@ -17,7 +17,7 @@ use core::str::FromStr;
 /// エラーにならず気付けない。軸ごとに `|` で並べる本来の形へ揃えることで取り違えを防ぐ。
 ///
 /// ```
-/// # use kasane_logic::FlexId;
+/// # use kasane_logic::spatial_id::FlexId;
 /// let id: FlexId = "5/3|2/3|10/1".parse().unwrap();
 /// assert_eq!(id.to_string(), "5/3|2/3|10/1");
 /// ```
@@ -191,7 +191,7 @@ impl SpatialId for FlexId {
 /// `"|{t_zoom}/{t}"` も受け付ける。
 ///
 /// ```
-/// # use kasane_logic::FlexId;
+/// # use kasane_logic::spatial_id::FlexId;
 /// let id: FlexId = "5/3|2/3|10/1".parse().unwrap();
 /// assert_eq!(id.f_zoomlevel(), 5);
 /// assert_eq!(id.f_index(), 3);

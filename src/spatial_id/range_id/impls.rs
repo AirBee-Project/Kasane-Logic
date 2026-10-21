@@ -16,7 +16,7 @@ impl fmt::Display for RangeId {
     ///
     /// 通常時の範囲表示
     /// ```no_run
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use core::fmt::Write;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
@@ -25,7 +25,7 @@ impl fmt::Display for RangeId {
     ///
     /// Single範囲に自動圧縮（`f1=f2`）
     /// ```
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use core::fmt::Write;
     /// let id = RangeId::new(4, [-3,-3], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
@@ -234,7 +234,7 @@ impl SpatialId for RangeId {
 /// 時間を持つ場合は末尾に `_{i}/{t}`（範囲なら `_{i}/{t_min}:{t_max}`）が付く。
 ///
 /// ```
-/// # use kasane_logic::RangeId;
+/// # use kasane_logic::spatial_id::RangeId;
 /// let id: RangeId = "4/-3:6/8:9/5:10".parse().unwrap();
 /// assert_eq!(id.z(), 4);
 /// assert_eq!(id.f(), [-3, 6]);

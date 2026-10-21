@@ -4,12 +4,18 @@ use crate::{Interval, error::Error};
 
 /// 絶対秒区間 `[start, end)`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TimeSpan {
+pub(crate) struct TimeSpan {
     start: u64,
     end: u64,
 }
 
 impl TimeSpan {
+    /// `id` が占有する絶対秒区間。
+    pub(crate) fn of(id: &impl crate::SpatialId) -> Self {
+        let (start, end) = id.seconds_range();
+        Self::new_unchecked(start, end)
+    }
+
     /// 新しい区間を生成する。start >= end や上限超過の場合は None を返す。
     pub const fn new(start: u64, end: u64) -> Option<Self> {
         if start >= end || end > Interval::MAX_SECONDS {
@@ -77,14 +83,14 @@ impl TimeSpan {
     }
 
     /// この区間を、それをちょうど表せる最も粗い単位と `{t}` の範囲へ直す。
-    pub fn to_interval_range(&self) -> Result<(Interval, u64, u64), Error> {
+    pub fn to_interval_range(self) -> Result<(Interval, u64, u64), Error> {
         let unit = self.coarsest_unit();
         let interval = Interval::new(unit)?;
         Ok((interval, self.start / unit, self.end / unit - 1))
     }
 
     /// 区間木的に高々 `O(log 幅)` 個の2分岐 TimeSegment へ分解する。
-    pub fn into_segments(&self) -> TimeSegments {
+    pub fn into_segments(self) -> TimeSegments {
         let l = self.start;
         let r = self.end - 1;
 
@@ -108,7 +114,7 @@ impl TimeSpan {
 }
 
 /// [`TimeSpan::into_segments`] が返す、`TimeSegment` の列。
-pub struct TimeSegments {
+pub(crate) struct TimeSegments {
     l: u64,
     r: u64,
     cur_z: i8,

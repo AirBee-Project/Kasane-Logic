@@ -28,7 +28,7 @@ impl RangeId {
     ///
     /// IDの作成:
     /// ```
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(4, [-3,6], [8,9], [5,10]).unwrap();
     /// let s = format!("{}", id);
     /// assert_eq!(s, "4/-3:6/8:9/5:10");
@@ -36,14 +36,14 @@ impl RangeId {
     ///
     /// 各次元は単一値でも指定できる（空間的に1点の`RangeId`を簡潔に作れる）:
     /// ```
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(4, -3, 8, 5).unwrap();
     /// assert_eq!(id, RangeId::new(4, [-3,-3], [8,8], [5,5]).unwrap());
     /// ```
     ///
     /// 次元の範囲外の検知:
     /// ```
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::SpatialIdError;
     /// let id = RangeId::new(4, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::FOutOfRange{z:4,f:29}.into()));
@@ -51,7 +51,7 @@ impl RangeId {
     ///
     /// ズームレベルの範囲外の検知:
     /// ```
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::SpatialIdError;
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
@@ -108,7 +108,7 @@ impl RangeId {
     /// パニック・不正メモリアクセス・未定義動作を引き起こす可能性があります。
     ///
     /// ```
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// // パラメータが妥当であることを呼び出し側が保証する必要がある
     /// let id = unsafe { RangeId::new_unchecked(5, [-10,-5], [8,9], [5,10]) };
     ///

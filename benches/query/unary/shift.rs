@@ -1,5 +1,5 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
+use kasane_logic::query::Source;
 
 #[path = "../utils.rs"]
 mod utils;

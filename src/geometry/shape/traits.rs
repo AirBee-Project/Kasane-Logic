@@ -13,7 +13,7 @@ pub trait Shape {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, ExpandCoordinates, Line};
+/// use kasane_logic::geometry::{Coordinate, ExpandCoordinates, Line};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0001, 139.0001, 11.0).unwrap();
@@ -32,7 +32,7 @@ pub trait ExpandCoordinates {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, ExpandLines, Line, Triangle};
+/// use kasane_logic::geometry::{Coordinate, ExpandLines, Line, Triangle};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0002, 139.0, 10.0).unwrap();
@@ -52,7 +52,7 @@ pub trait ExpandLines {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, ExpandTriangles, Polygon, Triangle};
+/// use kasane_logic::geometry::{Coordinate, ExpandTriangles, Polygon, Triangle};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();
@@ -73,7 +73,7 @@ pub trait ExpandTriangles {
 ///
 /// # Examples
 /// ```
-/// use kasane_logic::{Coordinate, ExpandPolygons, Polygon, Solid};
+/// use kasane_logic::geometry::{Coordinate, ExpandPolygons, Polygon, Solid};
 ///
 /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
 /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();

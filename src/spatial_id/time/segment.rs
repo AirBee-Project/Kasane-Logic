@@ -3,7 +3,7 @@ use crate::spatial_id::zoom_level::TZoomLevel;
 
 /// 2の冪乗の長さを持ち、時間木の特定の境界にアライメントされた1ノード。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TimeSegment {
+pub(crate) struct TimeSegment {
     zoom: TZoomLevel,
     index: u64,
 }

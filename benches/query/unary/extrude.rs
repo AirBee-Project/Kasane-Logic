@@ -1,6 +1,6 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
-use kasane_logic::merge_policy::Max;
+use kasane_logic::query::Source;
+use kasane_logic::query::merge_policy::Max;
 
 #[path = "../utils.rs"]
 mod utils;

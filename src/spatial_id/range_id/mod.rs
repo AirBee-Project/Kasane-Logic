@@ -20,8 +20,8 @@ use alloc::vec::Vec;
 /// この型は `PartialOrd` / `Ord` を実装しているが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用です。実際の空間的な「大小」を意味するものではありません。
 ///
 /// ```
-/// # use kasane_logic::SpatialId;
-/// # use kasane_logic::ZoomLevel;
+/// # use kasane_logic::spatial_id::SpatialId;
+/// # use kasane_logic::spatial_id::ZoomLevel;
 /// pub struct RangeId {
 ///     z: ZoomLevel,
 ///     f: [i32; 2],
@@ -55,8 +55,8 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `z` を返します。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.z(), 5u8);
@@ -68,8 +68,8 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `[f1,f2]` を返します。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.f(), [-3i32,29i32]);
@@ -81,8 +81,8 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `[x1,x2]` を返します。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.x(), [8u32,9u32]);
@@ -94,8 +94,8 @@ impl RangeId {
     /// この `RangeId` が保持しているズームレベル `[y1,y2]` を返します。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// assert_eq!(id.y(), [5u32,10u32]);
@@ -138,10 +138,10 @@ impl RangeId {
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::spatial_id::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{Interval, RangeId};
+    /// # use kasane_logic::spatial_id::{Interval, RangeId};
     /// let id = RangeId::new(4, [-3, 6], [8, 9], [5, 10]).unwrap()
     ///     .with_time(Interval::HOUR, [5, 8]).unwrap();
     /// assert_eq!(id.to_string(), "4/-3:6/8:9/5:10_3600/5:8");
@@ -182,10 +182,10 @@ impl RangeId {
     /// などの2の冪秒を利用することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::spatial_id::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time_at(1800, 1_457_482_000).unwrap();
     /// assert_eq!(id.t(), [809712, 809712]);
     /// # }
@@ -215,10 +215,10 @@ impl RangeId {
     /// などの2の冪秒になるように指定することを強く推奨します（挿入処理が約10倍高速化されます）。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::spatial_id::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// // [1457481600, 1457483400) はちょうど 1800 秒ぶん。
     /// let id = RangeId::new(4, 0, 0, 0).unwrap()
     ///     .with_time_span(1_457_481_600, 1_457_483_400).unwrap();
@@ -239,10 +239,10 @@ impl RangeId {
     /// [`SpatialIdError::TIntervalError`] を返す。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::spatial_id::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{Interval, RangeId};
+    /// # use kasane_logic::spatial_id::{Interval, RangeId};
     /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time(Interval::HOUR, [0, 1]).unwrap();
     /// assert_eq!(id.clone().relabel_time(1800).unwrap().t(), [0, 3]);
     /// // 2時間ぶんは1日単位では表せない。
@@ -266,10 +266,10 @@ impl RangeId {
     /// 時間の指定を外し、全時間へ戻した自身を返します。
     ///
     /// ```
-    /// # use kasane_logic::SpatialId;
+    /// # use kasane_logic::spatial_id::SpatialId;
     /// # #[cfg(feature = "temporal_id")]
     /// # {
-    /// # use kasane_logic::{Interval, RangeId, SpatialId};
+    /// # use kasane_logic::spatial_id::{Interval, RangeId, SpatialId};
     /// let id = RangeId::new(4, 0, 0, 0).unwrap().with_time(Interval::HOUR, [0, 1]).unwrap();
     /// assert!(id.without_time().is_whole_time());
     /// # }
@@ -298,7 +298,7 @@ impl RangeId {
 
     /// この `RangeId` の時間を、FlexTree が使う2分岐Segmentの列へ分解する。クレート内部専用。
     pub(crate) fn time_segments(&self) -> span::TimeSegments {
-        self.time_span().into_segments()
+        span::TimeSpan::of(self).into_segments()
     }
 
     pub fn set_f(&mut self, value: [i32; 2]) -> Result<(), Error> {
@@ -423,8 +423,8 @@ impl RangeId {
     ///
     /// 1段深いズームへのスケール変換
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_children_at_zoom(6).unwrap();
@@ -433,8 +433,9 @@ impl RangeId {
     ///
     /// 現在より浅いズームを指定した場合
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::{Error, RangeId, SpatialIdError};
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_children_at_zoom(4);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 4 }))));
@@ -484,8 +485,8 @@ impl RangeId {
     ///
     /// 1段浅いズームへの縮約
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
     /// let parent = id.spatial_parent_at_zoom(4).unwrap();
@@ -498,8 +499,8 @@ impl RangeId {
     ///
     /// Fが負の場合の挙動:
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::RangeId;
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::spatial_id::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     ///
@@ -513,8 +514,9 @@ impl RangeId {
     ///
     /// 現在より深いズームを指定した場合:
     /// ```
-    /// # use kasane_logic::SpatialId;
-    /// # use kasane_logic::{Error, RangeId, SpatialIdError};
+    /// # use kasane_logic::spatial_id::SpatialId;
+    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_parent_at_zoom(6);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 6 }))));

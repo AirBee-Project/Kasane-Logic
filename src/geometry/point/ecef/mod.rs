@@ -32,7 +32,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// // 赤道・本初子午線上の地表付近
     /// let ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
@@ -78,7 +78,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// assert_eq!(ecef.x(), 6_378_137.0);
@@ -91,7 +91,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let ecef = Ecef::new(0.0, 6_378_137.0, 0.0).unwrap();
     /// assert_eq!(ecef.y(), 6_378_137.0);
@@ -104,7 +104,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let ecef = Ecef::new(6_378_137.0, 0.0, 100_000.0).unwrap();
     /// assert_eq!(ecef.z(), 100_000.0);
@@ -117,7 +117,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let mut ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// ecef.set_x(6_400_000.0).unwrap();
@@ -147,7 +147,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let mut ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// ecef.set_y(100_000.0).unwrap();
@@ -177,7 +177,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let mut ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// ecef.set_z(100_000.0).unwrap();
@@ -207,7 +207,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use kasane_logic::geometry::Ecef;
     ///
     /// let a = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// let b = Ecef::new(6_378_140.0, 4.0, 0.0).unwrap();

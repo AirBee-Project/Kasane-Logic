@@ -1,0 +1,19 @@
+use super::Merge;
+use crate::query::Query;
+use crate::query::merge_policy::MergePolicy;
+use crate::query::send_sync::SafeValue;
+use alloc::boxed::Box;
+
+impl<V: SafeValue + 'static> Query<V> {
+    pub fn merge<P: MergePolicy<V>>(self, other: impl Into<Self>, default: V, _policy: P) -> Self {
+        if matches!(self, Query::Error(_)) {
+            return self;
+        }
+        let other = other.into();
+        if matches!(other, Query::Error(_)) {
+            return other;
+        }
+        let op = Merge::<V, P>::new(default);
+        Query::Binary(Box::new(op), Box::new(self), Box::new(other))
+    }
+}
