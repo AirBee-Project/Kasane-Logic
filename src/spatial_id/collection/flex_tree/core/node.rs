@@ -1,7 +1,9 @@
-use super::path::SkipPath;
 use super::summary::{BitMask, Summary, ValueSet};
 use super::view::View;
-use crate::{FlexId, Side, spatial_id::dimension::Dimension};
+use crate::{
+    FlexId, Side,
+    spatial_id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
+};
 use alloc::borrow::Cow;
 use core::{mem, ptr};
 use triomphe::Arc;
@@ -44,7 +46,9 @@ pub(crate) struct Branch<V, S> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Skip<V, S> {
-    pub(super) path: SkipPath,
+    pub(super) path: RelativeFlexId,
+    /// 自身と子孫が割っている次元のビットマスク。行き先が狭い次元（`path` の深くなっている次元）と `child` の集合を合わせたもの。
+    pub(super) split_dimensions: u8,
     pub(super) child: Node<V, S>,
 }
 
@@ -87,7 +91,7 @@ impl<V, S> Node<V, S> {
         match self {
             Node::Empty | Node::Leaf(_) => 0,
             Node::Branch(branch) => branch.split_dimensions,
-            Node::Skip(skip) => skip.split_dimensions(),
+            Node::Skip(skip) => skip.split_dimensions,
         }
     }
 
@@ -97,7 +101,7 @@ impl<V, S> Node<V, S> {
         match self {
             Node::Empty | Node::Leaf(_) => 0,
             Node::Branch(branch) => branch.dimension.bit(),
-            Node::Skip(skip) => skip.split_dimensions(),
+            Node::Skip(skip) => skip.split_dimensions,
         }
     }
 
@@ -179,11 +183,7 @@ impl<V: Clone, S> Node<V, S> {
                 branch.upper.with_summary(),
             ))),
             Node::Skip(skip) => {
-                // 形は変わらないので、行き先と割っている次元の集合はそのまま使える
-                Node::Skip(Arc::new(Skip {
-                    path: skip.path.clone(),
-                    child: skip.child.with_summary(),
-                }))
+                Node::Skip(Arc::new(Skip::new(skip.path, skip.child.with_summary())))
             }
         }
     }
@@ -218,17 +218,12 @@ impl<V, S: Summary<V>> Branch<V, S> {
 }
 
 impl<V, S> Skip<V, S> {
-    /// 領域 `ancestor` から、`region` だけに `child` がある Skip。
-    fn new(region: &FlexId, ancestor: &FlexId, child: Node<V, S>) -> Self {
+    fn new(path: RelativeFlexId, child: Node<V, S>) -> Self {
         Skip {
-            path: SkipPath::new(region, ancestor, child.split_dimensions()),
+            split_dimensions: path.deeper_dimensions() | child.split_dimensions(),
+            path,
             child,
         }
-    }
-
-    /// 自身と子孫が割っている次元のビットマスク。行き先が狭い次元（`path` の深くなっている次元）と `child` の集合を合わせたもの。
-    pub(super) fn split_dimensions(&self) -> u8 {
-        self.path.split_dimensions()
     }
 }
 
@@ -287,10 +282,10 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
                 }
                 let skip_mut = Arc::make_mut(&mut skip);
                 let child = mem::take(&mut skip_mut.child);
-                *skip_mut = Skip::new(&region, to, child);
+                *skip_mut = Skip::new(region.relative_to(to).unwrap(), child);
                 Node::Skip(skip)
             }
-            node => Node::Skip(Arc::new(Skip::new(from, to, node))),
+            node => Node::Skip(Arc::new(Skip::new(from.relative_to(to).unwrap(), node))),
         }
     }
 
@@ -341,8 +336,7 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
                 Node::merge(&at, &mut skip.child, b, rule);
                 match mem::take(&mut skip.child) {
                     child @ (Node::Leaf(_) | Node::Branch(_)) => {
-                        skip.path.set_child_split(child.split_dimensions());
-                        skip.child = child;
+                        *skip = Skip::new(skip.path, child)
                     }
                     child => *a = Node::rebase(child, &at, this),
                 }

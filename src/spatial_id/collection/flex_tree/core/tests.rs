@@ -73,11 +73,15 @@ fn check_rules<V: PartialEq + Debug, S: Summary<V> + Debug>(
             check_rules(upper, this.split_on(*dimension, Side::Upper).unwrap())
         }
         Node::Skip(skip) => {
-            let Skip { path, child } = &**skip;
+            let Skip {
+                path,
+                split_dimensions,
+                child,
+            } = &**skip;
             if matches!(child, Node::Empty | Node::Skip(_)) {
                 return Err(format!("{this:?}: Skip の先が空または Skip"));
             }
-            if path.split_dimensions() != (path.deeper_dimensions() | child.split_dimensions()) {
+            if *split_dimensions != (path.deeper_dimensions() | child.split_dimensions()) {
                 return Err(format!("{this:?}: Skip の split_dimensions が不正"));
             }
             let region = path.to_absolute(&this).unwrap();
