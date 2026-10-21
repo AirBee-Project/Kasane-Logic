@@ -38,7 +38,7 @@ pub(crate) struct Branch<V, S> {
     /// 自身と子孫で Branch が縦に何段続くかの最大。Node を辿るスタックの大きさに使う。
     pub(super) height: u8,
     /// 子孫に含まれる、値を持つ[FlexId]の数。
-    pub(super) count: usize,
+    pub(super) count: u32,
     pub(super) summary: S,
     pub(super) lower: Node<V, S>,
     pub(super) upper: Node<V, S>,
@@ -68,7 +68,7 @@ impl<V, S> Node<V, S> {
     }
 
     /// 子孫に含まれる、値を持つ[FlexId]の数。
-    pub(super) fn count(&self) -> usize {
+    pub(super) fn count(&self) -> u32 {
         match self {
             Node::Empty => 0,
             Node::Leaf(_) => 1,
