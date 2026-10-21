@@ -367,3 +367,21 @@ fn get_with_overlapping_targets_yields_each_place_once_in_order() {
     let from_pieces: SpatialIdMap<u32> = pieces.into_iter().collect();
     assert_eq!(from_pieces, query.get(big).into_map().unwrap());
 }
+
+#[test]
+fn into_set_returns_spatial_id_set() {
+    let mut table = SpatialIdMap::<u32>::new();
+    let id = FlexId::new(16, 0, 16, 6, 16, 0).unwrap();
+    table.insert(id, 42);
+
+    let set = table.query().get(..).into_set().unwrap();
+    let mut expected = crate::SpatialIdSet::new();
+    expected.insert(id);
+    assert_eq!(set, expected);
+}
+
+#[test]
+fn into_set_yields_validation_error() {
+    let query = SpatialIdMap::<u32>::new().query().shift_x(100, 3);
+    assert!(query.get(..).into_set().is_err());
+}
