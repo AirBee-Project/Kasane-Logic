@@ -1,5 +1,5 @@
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::{Coordinate, CoverSingleIds, Line};
+use spatial_id::geometry::{Coordinate, CoverSingleIds, Line};
 use std::hint::black_box;
 
 fn bench_line(c: &mut Criterion) {

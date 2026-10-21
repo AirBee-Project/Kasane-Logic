@@ -1,6 +1,6 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use kasane_logic::{Coordinate, Ecef, Point};
 use rand::RngExt;
+use spatial_id::geometry::{Coordinate, Ecef, Point};
 use std::hint::black_box;
 
 fn bench_point_conversions(c: &mut Criterion) {

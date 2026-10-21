@@ -1,4 +1,4 @@
-use kasane_logic::SpatialIdMap;
+use spatial_id::collection::SpatialIdMap;
 use std::fs;
 use std::sync::OnceLock;
 

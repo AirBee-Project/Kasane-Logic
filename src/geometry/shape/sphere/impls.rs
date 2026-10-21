@@ -20,7 +20,7 @@ impl CoverSingleIds for Sphere {
     where
         V: Clone + 'static,
     {
-        let zoom = crate::spatial_id::zoom_level::ZoomLevel::new(z.into())?;
+        let zoom = crate::id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
         let center = self.center;
@@ -72,9 +72,4 @@ impl CoverSingleIds for Sphere {
 pub fn voxel_length_xy(z: u8) -> f64 {
     let n = libm::pow(2_f64, (z as i32) as f64);
     2.0 * core::f64::consts::PI * WGS84_A / n
-}
-
-/// ズームレベル `z` における、F方向（高度）のボクセル1辺の長さ`[m]`。
-pub fn voxel_length_f(z: u8) -> f64 {
-    libm::pow(2_f64, (25 - z as i32) as f64)
 }

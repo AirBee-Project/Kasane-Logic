@@ -1,6 +1,6 @@
 use core::ops::{Add, Sub};
 
-use crate::{Error, FractionalId, Vec3};
+use crate::{FractionalId, Vec3};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 空間IDの少数表記(FractionalId)をベクトルとして扱ったもの。
@@ -10,13 +10,6 @@ pub struct Vec3FractionalId {
     pub a: f64,
     pub b: f64,
     pub c: f64,
-}
-
-impl Vec3FractionalId {
-    pub fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error> {
-        let id = FractionalId::new(z, self.a, self.b, self.c)?;
-        Ok(id)
-    }
 }
 
 impl Add for Vec3FractionalId {

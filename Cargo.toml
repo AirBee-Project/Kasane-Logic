@@ -1,22 +1,22 @@
 [package]
-name = "kasane-logic"
+name = "spatial-id"
 version = "0.1.4"
 edition = "2024"
 license = "MIT"
-description = "This is Kasane-logic"
+description = "Spatial ID (Ouranos 4D spatio-temporal ID) types, collections, geometry conversions, and queries"
 
 
 [workspace]
 members = [
     ".",
-    "kasane-logic-derive",
+    "spatial-id-derive",
     "xtask"
 ]
 
 [dependencies]
 # デフォルトで必要なもの
 hashbrown = "0.17.1"
-kasane-logic-derive = { version = "0.1.4", path = "kasane-logic-derive" }
+spatial-id-derive = { version = "0.1.4", path = "spatial-id-derive" }
 libm = "0.2.16"
 triomphe = { version = "0.1.17", default-features = false }
 
@@ -68,7 +68,7 @@ bench = false
 
 # デモ用バイナリ。JSON 読み書きとファイル I/O を使うため std と json が要る。
 [[bin]]
-name = "kasane-logic"
+name = "spatial-id"
 path = "src/main.rs"
 required-features = ["std", "json"]
 

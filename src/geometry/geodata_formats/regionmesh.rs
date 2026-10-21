@@ -2,7 +2,7 @@ use crate::{
     Coordinate, CoverRangeIds, CoverSingleIds, Error, GeometryError, Point, RangeId, SingleId,
 };
 
-///地域メッシュを表す型
+/// 地域メッシュを表す型。
 //より詳細なメッシュが必要になったらu32ではなくu64でもいいと思う
 pub struct RegionMesh(MeshType);
 
@@ -29,11 +29,6 @@ impl RegionMesh {
         } else {
             Err(GeometryError::RegionmeshNotExist { index: code }.into())
         }
-    }
-    /// # Safety
-    /// この操作はunsafeである。地域メッシュの規格に適合するかどうかに関わらず、RegionMesh型に包む。
-    pub unsafe fn new_unchecked(mesh: MeshType) -> Self {
-        Self(mesh)
     }
     /// 範囲メッシュのコードを返す
     pub fn code(&self) -> u32 {
@@ -71,7 +66,7 @@ impl RegionMesh {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
 ///メッシュの種類による分岐を表す列挙型
-pub enum MeshType {
+pub(crate) enum MeshType {
     ///1次メッシュを表す
     First(u32),
     ///2次メッシュを表す

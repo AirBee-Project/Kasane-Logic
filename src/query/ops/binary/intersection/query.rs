@@ -1,0 +1,18 @@
+use super::Intersection;
+use crate::query::Query;
+use crate::query::send_sync::SafeValue;
+use alloc::boxed::Box;
+
+impl<V: SafeValue + 'static> Query<V> {
+    pub fn intersection(self, other: impl Into<Self>) -> Self {
+        if matches!(self, Query::Error(_)) {
+            return self;
+        }
+        let other = other.into();
+        if matches!(other, Query::Error(_)) {
+            return other;
+        }
+        let op = Intersection::<V>::new();
+        Query::Binary(Box::new(op), Box::new(self), Box::new(other))
+    }
+}

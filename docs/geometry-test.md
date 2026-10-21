@@ -124,7 +124,7 @@ cargo insta review
 
 ```
 src/geometry/shape/line/snapshots/
-  kasane_logic__geometry__shape__line__tests__cover_single_ids__flat_segment_at_z20.snap
+  spatial_id__geometry__shape__line__tests__cover_single_ids__flat_segment_at_z20.snap
 ```
 
 ## スナップショット更新のワークフロー

@@ -4,7 +4,7 @@ pub mod impls;
 #[cfg(test)]
 mod tests;
 
-///直線を表す型
+/// 直線を表す型。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Line {
     pub points: [Coordinate; 2],

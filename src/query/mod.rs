@@ -1,0 +1,65 @@
+//! [`SpatialIdSet`](crate::collection::SpatialIdSet) や [`SpatialIdMap`](crate::collection::SpatialIdMap) などのデータを組み合わせて変換する [`Query`]。
+
+mod cancellation;
+mod execution;
+pub mod merge_policy;
+pub(crate) mod ops;
+mod query_iter;
+pub(crate) mod send_sync;
+mod traits;
+
+pub use crate::error::QueryError;
+pub use cancellation::CancellationToken;
+pub use execution::{IntoTargets, QueryOutput};
+pub use ops::unary::falloff::FalloffPattern;
+pub use ops::unary::filter_values::ValuePredicate;
+pub use query_iter::QueryIter;
+pub use send_sync::{MaybeSend, MaybeSendSync, SafeValue};
+pub use traits::{BinaryOperator, Source, UnaryOperator};
+
+use crate::Error;
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+
+/// 空間IDのデータを組み合わせて変換するクエリ。
+pub enum Query<V: SafeValue + 'static> {
+    /// 演算の起点
+    Source(Box<dyn Source<Value = V>>),
+
+    /// 連続した単項演算子
+    Unary(Vec<Box<dyn UnaryOperator<V>>>, Box<Query<V>>),
+
+    // 二項演算
+    Binary(Box<dyn BinaryOperator<V>>, Box<Query<V>>, Box<Query<V>>),
+
+    /// エラー状態を保持
+    Error(Error),
+}
+
+// Queryの構築
+impl<V: SafeValue + 'static> Query<V> {
+    /// `self` を単項演算子で包む。
+    pub(crate) fn wrap_unary<O>(self, op: O) -> Self
+    where
+        O: UnaryOperator<V> + 'static,
+    {
+        match self {
+            Query::Unary(mut ops, input) => {
+                ops.push(Box::new(op));
+                Query::Unary(ops, input)
+            }
+            other => Query::Unary(
+                vec![Box::new(op) as Box<dyn UnaryOperator<V>>],
+                Box::new(other),
+            ),
+        }
+    }
+}
+
+/// `Source` を実装する型を、二項演算子の引数などで直接 [`Query`] として渡せるようにする。
+impl<V: SafeValue + 'static, S: Source<Value = V> + 'static> From<S> for Query<V> {
+    fn from(source: S) -> Self {
+        source.query()
+    }
+}

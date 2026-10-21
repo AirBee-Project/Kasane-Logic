@@ -1,6 +1,6 @@
 use crate::{Ecef, Error, FractionalId, RangeId, SingleId};
 
-///現実空間の点に対して共通で定義することができる性質
+/// 現実空間の点に共通する性質。
 pub trait Point: Into<Ecef> {
     /// この点を、指定されたズームレベルの [`SingleId`] に変換する。
     ///
@@ -9,7 +9,8 @@ pub trait Point: Into<Ecef> {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::{Coordinate, Point, SingleId};
+    /// # use spatial_id::geometry::{Coordinate, Point};
+    /// # use spatial_id::SingleId;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     ///
     /// assert_eq!(
@@ -30,7 +31,8 @@ pub trait Point: Into<Ecef> {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::{Coordinate, Point, RangeId};
+    /// # use spatial_id::geometry::{Coordinate, Point};
+    /// # use spatial_id::RangeId;
     /// let coord = Coordinate::new(35.681382, 139.766084, 10.3).unwrap();
     ///
     /// assert_eq!(
@@ -50,7 +52,7 @@ pub trait Point: Into<Ecef> {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::{Coordinate, Point};
+    /// # use spatial_id::geometry::{Coordinate, Point};
     /// let coord = Coordinate::new(0.0, 90.0, 10.5).unwrap();
     ///
     /// // 小数部分はそのまま保持される

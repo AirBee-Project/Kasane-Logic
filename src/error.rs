@@ -11,14 +11,15 @@ pub enum Error {
     /// Geometry まわりのエラー。
     Geometry(GeometryError),
 
-    /// その入力源・実装が対応していない操作。
-    ///
-    /// 例: 全走査が現実的でないディスク上の入力源に対する
-    /// [`Source::read_flex_ids`](crate::Source::read_flex_ids)。
-    Unsupported(&'static str),
+    /// クエリまわりのエラー。
+    Query(QueryError),
+}
 
+/// クエリ関連で発生するエラー。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QueryError {
     /// クエリ演算子のパラメータが不正であることを示す。
-    InvalidQueryParameter(&'static str),
+    InvalidParameter(&'static str),
 
     /// [`Source`](crate::Source) 実装側で発生した読み取りエラー。
     SourceRead(String),
@@ -106,6 +107,12 @@ impl From<SpatialIdError> for Error {
     }
 }
 
+impl From<QueryError> for Error {
+    fn from(value: QueryError) -> Self {
+        Self::Query(value)
+    }
+}
+
 /// 時間 API は `interval` を `impl TryInto<Interval>` で受けるため、`Error: From<変換エラー>`
 /// を要求する。[`Interval`](crate::Interval) をそのまま渡した場合の変換は恒等（失敗しない）で
 /// エラー型が [`Infallible`](core::convert::Infallible) になるので、その分の橋渡しを用意する。
@@ -121,10 +128,17 @@ impl fmt::Display for Error {
         match self {
             Error::SpatialId(inner) => inner.fmt(f),
             Error::Geometry(inner) => inner.fmt(f),
-            Error::Unsupported(what) => write!(f, "unsupported operation: {what}"),
-            Error::InvalidQueryParameter(what) => write!(f, "invalid query parameter: {what}"),
-            Error::SourceRead(msg) => write!(f, "source read failed: {msg}"),
-            Error::Cancelled => write!(f, "query execution was cancelled"),
+            Error::Query(inner) => inner.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for QueryError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            QueryError::InvalidParameter(what) => write!(f, "invalid query parameter: {what}"),
+            QueryError::SourceRead(msg) => write!(f, "source read failed: {msg}"),
+            QueryError::Cancelled => write!(f, "query execution was cancelled"),
         }
     }
 }
@@ -253,3 +267,5 @@ impl error::Error for Error {}
 impl error::Error for GeometryError {}
 
 impl error::Error for SpatialIdError {}
+
+impl error::Error for QueryError {}

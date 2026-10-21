@@ -13,7 +13,7 @@ impl Shape for Polygon {
     ///
     /// タイトル: ポリゴンの重心を計算
     /// ```
-    /// # use kasane_logic::{Coordinate, Polygon, Shape};
+    /// # use spatial_id::geometry::{Coordinate, Polygon, Shape};
     /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
     /// let p1 = Coordinate::new(35.0, 139.001, 10.0).unwrap();
     /// let p2 = Coordinate::new(35.001, 139.0, 10.0).unwrap();
@@ -48,8 +48,8 @@ impl CoverSingleIds for Polygon {
     ///
     /// タイトル: ポリゴンから空間IDを取得
     /// ```
-    /// # use kasane_logic::{Coordinate, Polygon};
-    /// # use kasane_logic::geometry::traits::CoverSingleIds;
+    /// # use spatial_id::geometry::{Coordinate, Polygon};
+    /// # use spatial_id::geometry::CoverSingleIds;
     /// let p0 = Coordinate::new(35.0, 139.0, 10.0).unwrap();
     /// let p1 = Coordinate::new(35.0003, 139.0, 10.0).unwrap();
     /// let p2 = Coordinate::new(35.0, 139.0003, 10.0).unwrap();

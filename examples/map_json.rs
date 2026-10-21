@@ -2,11 +2,12 @@
 //!
 //! ```toml
 //! [dependencies]
-//! kasane-logic = { version = "*" }
+//! spatial-id = { version = "*" }
 //! serde_json = "1"
 //! ```
 
-use kasane_logic::{SingleId, SpatialIdMap};
+use spatial_id::SingleId;
+use spatial_id::collection::SpatialIdMap;
 
 /// [SpatialIdMap]をJsonに書き出したり、Jsonから読み出したりする例
 fn main() {
