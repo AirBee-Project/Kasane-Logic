@@ -2,7 +2,7 @@ use crate::{
     Coordinate, CoverRangeIds, CoverSingleIds, Error, GeometryError, Point, RangeId, SingleId,
 };
 
-///地域メッシュを表す型
+/// 地域メッシュを表す型。
 //より詳細なメッシュが必要になったらu32ではなくu64でもいいと思う
 pub struct RegionMesh(MeshType);
 

@@ -44,7 +44,7 @@ impl RangeId {
     /// 次元の範囲外の検知:
     /// ```
     /// # use kasane_logic::spatial_id::RangeId;
-    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// let id = RangeId::new(4, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::FOutOfRange{z:4,f:29}.into()));
     /// ```
@@ -52,7 +52,7 @@ impl RangeId {
     /// ズームレベルの範囲外の検知:
     /// ```
     /// # use kasane_logic::spatial_id::RangeId;
-    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// let id = RangeId::new(68, [-3,29], [8,9], [5,10]);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```

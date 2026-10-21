@@ -1,7 +1,7 @@
 pub(crate) mod query;
 
 use crate::{
-    Error,
+    Error, QueryError,
     query::{query_iter::QueryIter, send_sync::SafeValue, traits::UnaryOperator},
 };
 
@@ -79,9 +79,10 @@ where
         if let (Some(s), Some(e)) = (s_val, e_val)
             && s > e
         {
-            return Err(Error::InvalidQueryParameter(
+            return Err(QueryError::InvalidParameter(
                 "value range lower bound is greater than upper bound",
-            ));
+            )
+            .into());
         }
         Ok(())
     }

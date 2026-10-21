@@ -2,7 +2,7 @@ use super::MergePolicy;
 use super::saturating_add::SaturatingAdd;
 use core::ops::Div;
 
-/// 大きな値を空間に残す[MergePolicy]。
+/// 値の平均を空間に残す[MergePolicy]。
 pub struct Average;
 
 impl<V> MergePolicy<V> for Average

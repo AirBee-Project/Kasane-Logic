@@ -1,6 +1,6 @@
 use crate::{Coordinate, Line, Polygon, Triangle};
 
-/// 現実空間の図形に対して共通で定義することができる性質
+/// 現実空間の図形に共通する性質。
 ///
 /// <https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md>
 pub trait Shape {

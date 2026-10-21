@@ -13,7 +13,7 @@ mod private {
     impl Sealed for crate::FlexId {}
 }
 
-/// [SingleId],[RangeId],[FlexId]が共通して持つTrait
+/// [SingleId]、[RangeId]、[FlexId] に共通するTrait。
 pub trait SpatialId:
     private::Sealed
     + IntoIterator<Item = FlexId>

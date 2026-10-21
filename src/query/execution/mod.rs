@@ -3,7 +3,7 @@ use super::query_iter::QueryIter;
 use super::traits::{Source, UnaryOperator};
 use crate::query::cancellation::CancellationToken;
 use crate::query::send_sync::SafeValue;
-use crate::{Error, RangeId};
+use crate::{Error, QueryError, RangeId};
 use alloc::vec::Vec;
 
 mod output;
@@ -208,10 +208,11 @@ impl<V: SafeValue + 'static> Query<V> {
         self.get_cancellable(targets, &CancellationToken::never())
     }
 
-    /// [`get`](Self::get) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
+    /// [`get`](Self::get) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`QueryError::Cancelled`] を返す。
     ///
     /// ```
     /// # use kasane_logic::Error;
+    /// # use kasane_logic::query::QueryError;
     /// # use kasane_logic::collection::SpatialIdMap;
     /// # use kasane_logic::query::{CancellationToken, Source};
     /// # let table = SpatialIdMap::<u32>::new();
@@ -223,7 +224,7 @@ impl<V: SafeValue + 'static> Query<V> {
     ///     .filter_in(10..20)
     ///     .get_cancellable(.., &token)
     ///     .into_map();
-    /// assert_eq!(result, Err(Error::Cancelled));
+    /// assert_eq!(result, Err(Error::Query(QueryError::Cancelled)));
     /// ```
     pub fn get_cancellable(
         &self,
@@ -253,7 +254,7 @@ impl<V: SafeValue + 'static> Query<V> {
         self.evaluate(targets, &CancellationToken::never(), false)
     }
 
-    /// [`get_overlapping`](Self::get_overlapping) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`Error::Cancelled`] を返す。
+    /// [`get_overlapping`](Self::get_overlapping) と同じく評価する。`token` がキャンセルされると、評価の途中で気づき次第 [`QueryError::Cancelled`] を返す。
     ///
     /// ```
     /// # use kasane_logic::collection::SpatialIdMap;
@@ -294,7 +295,7 @@ pub(crate) fn run_unary_chain<'a, V: SafeValue + 'static>(
 ) -> Result<QueryIter<'a, V>, Error> {
     for op in ops {
         if token.is_cancelled() {
-            return Err(Error::Cancelled);
+            return Err(Error::Query(QueryError::Cancelled));
         }
 
         stream = op.borrow().run(stream)?;
@@ -321,14 +322,14 @@ fn read_source<'a, V: SafeValue + 'static>(
 impl<V: SafeValue + 'static> Query<V> {
     /// 検証を行わずに、出力領域 `bounds` を得るのに必要な部分だけを評価した列を返す。
     ///
-    /// `token` がキャンセルされると、AST を辿る途中か列を読む途中で [`Error::Cancelled`] を返す。
+    /// `token` がキャンセルされると、AST を辿る途中か列を読む途中で [`QueryError::Cancelled`] を返す。
     pub(crate) fn stream_within<'a>(
         &'a self,
         bounds: Vec<RangeId>,
         token: &CancellationToken,
     ) -> Result<QueryIter<'a, V>, Error> {
         if token.is_cancelled() {
-            return Err(Error::Cancelled);
+            return Err(Error::Query(QueryError::Cancelled));
         }
         if bounds.is_empty() {
             return Ok(QueryIter::from_ordered(core::iter::empty()));

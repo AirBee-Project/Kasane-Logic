@@ -37,6 +37,7 @@ pub(crate) enum ZOrderRel {
 }
 
 /// 拡張時空間IDを表現する型。
+///
 /// 各次元がズームレベルとインデックス値を持つ。
 #[derive(Clone, Copy, PartialEq, Debug, Eq, Hash)]
 pub struct FlexId {

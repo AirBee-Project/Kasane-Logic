@@ -1,3 +1,4 @@
+/// 図形が覆う [`SingleId`](crate::SingleId) を求めるTrait。
 pub trait CoverSingleIds {
     /// 対象の図形が覆う `SingleId` の集合を返す。
     fn cover_single_ids_with<V>(
@@ -16,6 +17,7 @@ pub trait CoverSingleIds {
     }
 }
 
+/// 図形が覆う [`RangeId`](crate::RangeId) を求めるTrait。
 pub trait CoverRangeIds {
     /// 指定されたズームレベルの[crate::RangeId]を出力する。
     ///

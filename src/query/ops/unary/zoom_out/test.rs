@@ -148,7 +148,9 @@ fn zoom_out_propagates_stream_error() {
 
     let items = [
         Ok((FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 1)),
-        Err(crate::Error::SourceRead("stream error".into())),
+        Err(crate::Error::Query(crate::QueryError::SourceRead(
+            "stream error".into(),
+        ))),
     ];
     let iter = QueryIter::from_ordered(items.into_iter());
     let op = ZoomOut::<i32, Max>::new(ZoomLevel::new(1).unwrap());

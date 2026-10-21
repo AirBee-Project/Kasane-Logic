@@ -1,6 +1,6 @@
 use crate::{Ecef, Error, FractionalId, RangeId, SingleId};
 
-///現実空間の点に対して共通で定義することができる性質
+/// 現実空間の点に共通する性質。
 pub trait Point: Into<Ecef> {
     /// この点を、指定されたズームレベルの [`SingleId`] に変換する。
     ///

@@ -1,4 +1,4 @@
-//! 空間IDのデータを組み合わせて変換するクエリ。
+//! [`SpatialIdSet`](crate::collection::SpatialIdSet) や [`SpatialIdMap`](crate::collection::SpatialIdMap) などのデータを組み合わせて変換する [`Query`]。
 
 mod cancellation;
 mod execution;
@@ -8,10 +8,10 @@ mod query_iter;
 pub(crate) mod send_sync;
 mod traits;
 
+pub use crate::error::QueryError;
 pub use cancellation::CancellationToken;
 pub use execution::{IntoTargets, QueryOutput};
-pub use ops::unary::extrude::ExtrudeAxis;
-pub use ops::unary::falloff::{FalloffAxis, FalloffPattern};
+pub use ops::unary::falloff::FalloffPattern;
 pub use ops::unary::filter_values::ValuePredicate;
 pub use query_iter::QueryIter;
 pub use send_sync::{MaybeSend, MaybeSendSync, SafeValue};
@@ -22,7 +22,7 @@ use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 
-/// Query全体を表現する型。
+/// 空間IDのデータを組み合わせて変換するクエリ。
 pub enum Query<V: SafeValue + 'static> {
     /// 演算の起点
     Source(Box<dyn Source<Value = V>>),

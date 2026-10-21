@@ -1,4 +1,4 @@
-//! [`SpatialIdMap`](super::SpatialIdMap) の第2型引数に指定し、値での絞り込みを速くする [Summary] とその実装。
+//! [`SpatialIdMap`](super::SpatialIdMap) の値での絞り込みを速くする [`Summary`]。
 
 use core::fmt;
 use core::marker::PhantomData;

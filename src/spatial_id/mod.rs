@@ -1,3 +1,5 @@
+//! 空間ID（[`SingleId`]、[`RangeId`]、[`FlexId`]）と、ズームレベルや時間の区間。
+
 pub(crate) mod dimension;
 pub(crate) mod single_id;
 pub(crate) mod time;
@@ -12,6 +14,7 @@ pub(crate) mod relative_flex_id;
 #[cfg(test)]
 mod tests;
 
+pub use crate::error::SpatialIdError;
 pub(crate) use dimension::Dimension;
 pub use flex_id::FlexId;
 pub use helpers::{IntoRange, Side};

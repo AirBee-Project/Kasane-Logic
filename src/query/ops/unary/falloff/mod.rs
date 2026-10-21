@@ -12,7 +12,7 @@ use crate::query::{
     traits::UnaryOperator,
 };
 use crate::spatial_id::helpers::Side;
-use crate::{Error, FlexId, RangeId, SpatialIdMap, ZoomLevel};
+use crate::{Error, FlexId, QueryError, RangeId, SpatialIdMap, ZoomLevel};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -34,18 +34,22 @@ impl FalloffAxis {
             Self::X | Self::Y => z.xy_max(),
         };
         if radius > max {
-            return Err(Error::InvalidQueryParameter(
-                "falloff の半径が軸の範囲を超えている",
-            ));
+            return Err(
+                QueryError::InvalidParameter("falloff の半径が軸の範囲を超えている").into(),
+            );
         }
         Ok(())
     }
 }
 
+/// [`Query::falloff_f`](crate::query::Query::falloff_f) などで、距離 `d` に応じて値を減らす割合。半径を `r` とする。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FalloffPattern {
+    /// `(r - d) / r`。距離に比例して減る。
     Linear,
+    /// `1 - (d / r)²`。近くではゆっくり、遠くで急に減る。
     QuadraticIn,
+    /// `((r - d) / r)²`。近くで急に、遠くではゆっくり減る。
     QuadraticOut,
 }
 
@@ -66,7 +70,11 @@ where
         + Clone,
 {
     pub fn new(radius: u32, pattern: FalloffPattern) -> Result<Self, Error> {
-        let too_large = || Error::InvalidQueryParameter("falloff の半径が値の型に収まらない");
+        let too_large = || {
+            Error::from(QueryError::InvalidParameter(
+                "falloff の半径が値の型に収まらない",
+            ))
+        };
         let to_v = |n: u64| V::try_from(n).map_err(|_| too_large());
         // `V` の乗算で確かめるとあふれたときに panic するので、u64 で2乗してから変換して確かめる
         let sq = |n: u64| n.checked_mul(n).ok_or_else(too_large);

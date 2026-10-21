@@ -1,7 +1,6 @@
-//! 幾何学図形および地理空間座標を扱うための型やロジック。
+//! 座標と図形。図形が覆う空間IDを求める。
 //!
-//! 本モジュールでは、距離、半径、高さなどの長さに関する値を、
-//! 特に明記しない限りメートル（m）単位で扱います。
+//! 距離、半径、高さなどの長さは、特に明記しない限りメートル（m）単位で扱う。
 
 /// 地理空間座標の計算で使用される各種の代表的な定数。
 pub(crate) mod constants;
@@ -16,6 +15,7 @@ pub(crate) mod vec3;
 
 pub(crate) mod geodata_formats;
 
+pub use crate::error::GeometryError;
 pub use geodata_formats::regionmesh::RegionMesh;
 pub use point::{coordinate::Coordinate, ecef::Ecef, fractionalid::FractionalId, traits::Point};
 pub use shape::traits::{ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape};

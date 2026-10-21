@@ -5,6 +5,7 @@ use crate::spatial_id::zoom_level::TZoomLevel;
 use crate::{SpatialIdError, error::Error};
 
 /// 時間 ID の時間間隔 `{i}`（秒数）を表現する型。
+///
 /// よく使う値は関連定数として用意している。
 ///
 /// | 定数 | 秒数 |

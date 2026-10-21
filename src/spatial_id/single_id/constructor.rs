@@ -30,7 +30,7 @@ impl SingleId {
     /// 次元の範囲外の検知:
     /// ```no_run
     /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// let id = SingleId::new(3, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::YOutOfRange{z:3,y:10}.into()));
     /// ```
@@ -38,7 +38,7 @@ impl SingleId {
     /// ズームレベルの範囲外の検知:
     /// ```
     /// # use kasane_logic::spatial_id::SingleId;
-    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// let id = SingleId::new(68, 3, 2, 10);
     /// assert_eq!(id, Err(SpatialIdError::ZOutOfRange { z:68 }.into()));
     /// ```

@@ -1,3 +1,5 @@
+//! 同じ空間に複数の値が重なったときに、1つにまとめる規則 [`MergePolicy`]。
+
 mod average;
 mod keep_existing;
 mod max;
@@ -18,7 +20,7 @@ pub use sum::Sum;
 
 use crate::query::send_sync::MaybeSendSync;
 
-/// 同一の空間に複数の値が集まったときに、それらを1つの値に集約する規則
+/// 同一の空間に複数の値が集まったときに、それらを1つの値に集約する規則。
 pub trait MergePolicy<V>: MaybeSendSync + 'static {
     /// この集約規則が可換（`resolve(a, b) == resolve(b, a)`）であるかどうか
     const IS_COMMUTATIVE: bool;

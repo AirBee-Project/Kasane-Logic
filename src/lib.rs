@@ -1,3 +1,13 @@
+//! 解析解を用いて、図形を高精度に空間IDへ変換するライブラリ。
+//!
+//! | モジュール | 扱うもの |
+//! |---|---|
+//! | [`spatial_id`] | 空間ID（[`SingleId`]、[`RangeId`]、[`FlexId`]） |
+//! | [`geometry`] | 座標と図形、図形が覆う空間IDの計算 |
+//! | [`collection`] | 空間IDの集合とマップ（[`SpatialIdSet`]、[`SpatialIdMap`]） |
+//! | [`query`] | 集合やマップを組み合わせて変換するクエリ（[`Query`]） |
+//! | [`prelude`] | メソッドを呼ぶのに必要なTrait |
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![deny(clippy::disallowed_methods)]
 #![deny(clippy::perf)]
@@ -14,17 +24,16 @@ extern crate self as kasane_logic;
 /// 発生し得るすべてのエラーを`enum` 型として定義・集約。
 mod error;
 
-/// 空間IDの集合と、空間IDごとに値を持つマップ。
 pub mod collection;
-/// 空間ID以外の地理空間情報。
 pub mod geometry;
 pub mod prelude;
-/// 空間IDのデータを組み合わせて変換するクエリ。
 pub mod query;
-/// 空間IDに関する型を定義。
 pub mod spatial_id;
 
-pub use error::{Error, GeometryError, SpatialIdError};
+pub use error::Error;
+
+#[allow(unused_imports)]
+pub(crate) use error::{GeometryError, QueryError, SpatialIdError};
 
 // クレート内部では、公開パスを書かずに短く参照する
 #[allow(unused_imports)]

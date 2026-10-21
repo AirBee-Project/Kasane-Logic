@@ -1,4 +1,4 @@
-//! メソッドを呼ぶために import が必要なTraitをまとめたモジュール。
+//! メソッドを呼ぶのに必要なTraitをまとめて import する。
 //!
 //! ```
 //! use kasane_logic::prelude::*;

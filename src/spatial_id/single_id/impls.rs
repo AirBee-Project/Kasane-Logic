@@ -50,7 +50,7 @@ impl SpatialId for SingleId {
     /// ```
     /// # use kasane_logic::spatial_id::SingleId;
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.f(), 6);
     /// assert_eq!(id.move_f(50), Err(SpatialIdError::FOutOfRange { z: 4, f: 56 }.into()));
@@ -125,7 +125,7 @@ impl SpatialId for SingleId {
     /// ```
     /// # use kasane_logic::spatial_id::SingleId;
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::SpatialIdError;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// let mut id = SingleId::new(4, 6, 9, 10).unwrap();
     /// assert_eq!(id.y(), 10);
     /// assert_eq!(id.move_y(-20), Err(SpatialIdError::YOutOfRange { z: 4, y: 0 }.into()));

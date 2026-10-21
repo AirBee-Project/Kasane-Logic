@@ -8,7 +8,7 @@ pub mod impls;
 #[cfg(test)]
 mod tests;
 
-///三角形を表す型
+/// 三角形を表す型。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle {
     pub points: [Coordinate; 3],

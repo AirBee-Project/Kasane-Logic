@@ -258,7 +258,9 @@ impl crate::Source for FailingSource {
     ) -> Result<crate::query::query_iter::QueryIter<'a, u32>, crate::Error> {
         let items = [
             Ok((FlexId::new(2, 0, 2, 0, 2, 0).unwrap(), 1)),
-            Err(crate::Error::SourceRead("broken".into())),
+            Err(crate::Error::Query(crate::QueryError::SourceRead(
+                "broken".into(),
+            ))),
         ];
         Ok(crate::query::query_iter::QueryIter::from_ordered(
             items.into_iter(),
@@ -272,7 +274,10 @@ fn get_yields_source_errors() {
     let items: Vec<_> = FailingSource.query().get(target).collect();
     assert!(matches!(
         items.as_slice(),
-        [Ok(_), Err(crate::Error::SourceRead(_))]
+        [
+            Ok(_),
+            Err(crate::Error::Query(crate::QueryError::SourceRead(_)))
+        ]
     ));
 }
 

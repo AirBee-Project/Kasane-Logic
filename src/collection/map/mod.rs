@@ -9,7 +9,7 @@ mod test;
 
 use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 
-/// 空間(FlexId)ごとに値(V)を持たせるためのテーブル構造。
+/// 空間IDごとに値を持つマップ。
 ///
 /// 全ての操作は `S` を指定せずに使える。`S` は木の Branch が子孫の値についてキャッシュする
 /// [Summary] で、値で絞り込む操作だけを速くする。値の範囲で絞り込む

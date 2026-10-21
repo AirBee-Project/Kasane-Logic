@@ -13,7 +13,7 @@ use crate::{
 };
 use alloc::vec::Vec;
 
-/// RangeIdは空間IDの範囲表現を表す型です。
+/// 空間IDの範囲を表す型。
 ///
 /// 各インデックスを範囲で指定することができます。各次元の範囲を表す配列の順序には意味を持ちません。内部的には下記のような構造体で構成されており、各フィールドをプライベートにすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用することができます。
 ///
@@ -434,7 +434,8 @@ impl RangeId {
     /// 現在より浅いズームを指定した場合
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_children_at_zoom(4);
@@ -515,7 +516,8 @@ impl RangeId {
     /// 現在より深いズームを指定した場合:
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::RangeId;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_parent_at_zoom(6);

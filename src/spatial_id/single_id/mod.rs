@@ -13,7 +13,7 @@ use crate::{
     spatial_id::{time::span, zoom_level::ZoomLevel},
 };
 
-/// SingleIdは標準的な時空間 ID を表す型。
+/// 標準的な時空間IDを表す型。
 ///
 /// [Ouranos 4D 時空間ID仕様](https://www.ipa.go.jp/)の Spatio-temporal ID
 /// `{z}/{f}/{x}/{y}_{i}/{t}` に一対一で対応する。空間部分が[`ZoomLevel`]でのf/x/y、
@@ -53,7 +53,8 @@ impl SingleId {
     ///
     /// ```no_run
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::SingleId;
     /// let id = SingleId::new(5, 3, 2, 10).unwrap();
     /// assert_eq!(id.z(), 5u8);
@@ -334,7 +335,8 @@ impl SingleId {
     /// 範囲外の検知:
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::SingleId;
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_f(999);
@@ -369,7 +371,8 @@ impl SingleId {
     /// 範囲外の検知
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::SingleId;
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_x(999);
@@ -404,7 +407,8 @@ impl SingleId {
     /// 範囲外の検知
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::SingleId;
     /// let mut id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.set_y(999);
@@ -447,7 +451,8 @@ impl SingleId {
     /// 現在より浅いズームを指定した場合
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.spatial_children_at_zoom(2);
@@ -547,7 +552,8 @@ impl SingleId {
     /// 現在より深いズームを指定した場合:
     /// ```
     /// # use kasane_logic::spatial_id::SpatialId;
-    /// # use kasane_logic::{Error, SpatialIdError};
+    /// # use kasane_logic::Error;
+    /// # use kasane_logic::spatial_id::SpatialIdError;
     /// # use kasane_logic::spatial_id::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     /// let result = id.spatial_parent_at_zoom(4);

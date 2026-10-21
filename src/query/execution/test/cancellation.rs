@@ -2,7 +2,7 @@ use alloc::vec;
 
 use crate::query::execution::run_unary_chain;
 use crate::query::traits::UnaryOperator;
-use crate::{CancellationToken, Error, RangeId, SingleId, Source, SpatialIdMap};
+use crate::{CancellationToken, Error, QueryError, RangeId, SingleId, Source, SpatialIdMap};
 
 #[test]
 fn get_cancellable_stops_immediately_when_already_cancelled() {
@@ -19,7 +19,7 @@ fn get_cancellable_stops_immediately_when_already_cancelled() {
         .get_cancellable(bounds, &token)
         .into_map();
 
-    assert_eq!(result, Err(Error::Cancelled));
+    assert_eq!(result, Err(Error::Query(QueryError::Cancelled)));
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn cancelling_after_one_side_still_stops_the_query() {
 
     assert_eq!(
         query.get_cancellable(bounds, &token).into_map(),
-        Err(Error::Cancelled)
+        Err(Error::Query(QueryError::Cancelled))
     );
 }
 
@@ -81,7 +81,7 @@ fn run_unary_chain_checks_cancellation_between_ops() {
     token.cancel();
 
     let res = run_unary_chain(&ops, stream, &token);
-    assert_eq!(res.err(), Some(Error::Cancelled));
+    assert_eq!(res.err(), Some(Error::Query(QueryError::Cancelled)));
 }
 
 #[test]
@@ -100,5 +100,8 @@ fn check_amortized_only_checks_periodically() {
     for _ in 0..4095 {
         assert!(token.check_amortized(&mut ctr).is_ok());
     }
-    assert_eq!(token.check_amortized(&mut ctr), Err(Error::Cancelled));
+    assert_eq!(
+        token.check_amortized(&mut ctr),
+        Err(Error::Query(QueryError::Cancelled))
+    );
 }

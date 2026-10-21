@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::Error;
+use crate::{Error, QueryError};
 
 /// [`CancellationToken::check_amortized`] が実際に確認する間隔（呼び出し回数）。
 const AMORTIZED_CHECK_INTERVAL: u32 = 0xFFF;
@@ -54,7 +54,7 @@ impl CancellationToken {
             return Ok(());
         }
         if self.is_cancelled() {
-            Err(Error::Cancelled)
+            Err(Error::Query(QueryError::Cancelled))
         } else {
             Ok(())
         }

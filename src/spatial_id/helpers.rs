@@ -49,8 +49,7 @@ pub fn altitude(f: f64, z: u8) -> f64 {
     33_554_432.0 * (f / n)
 }
 
-/// 座標軸で小さい側:[Side::Lower]
-/// 座標軸で大きい側:[Side::Upper]
+/// 座標軸のどちら側かを表す。
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum Side {
