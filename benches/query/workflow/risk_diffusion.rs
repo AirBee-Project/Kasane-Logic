@@ -1,6 +1,6 @@
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use kasane_logic::{
-    Side::Upper, Source, SpatialIdTable, merge_policy::Max,
+    Side::Upper, Source, SpatialIdMap, merge_policy::Max,
     spatial_id::collection::query::ops::unary::falloff::FalloffPattern,
 };
 
@@ -8,7 +8,7 @@ use kasane_logic::{
 mod utils;
 
 /// ユーザー定義のクエリ。ここにベンチマークしたいクエリを一度だけ記述してください。
-fn run_query(table: SpatialIdTable<u32>) -> SpatialIdTable<u32> {
+fn run_query(table: SpatialIdMap<u32>) -> SpatialIdMap<u32> {
     table
         .query()
         .zoom_out(22, Max)
@@ -16,7 +16,7 @@ fn run_query(table: SpatialIdTable<u32>) -> SpatialIdTable<u32> {
         .falloff_x(25, 10, None, FalloffPattern::Linear, Max)
         .falloff_y(25, 10, None, FalloffPattern::Linear, Max)
         .get(..)
-        .table()
+        .into_map()
         .unwrap()
 }
 

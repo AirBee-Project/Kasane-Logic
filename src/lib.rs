@@ -88,7 +88,7 @@ pub use spatial_id::collection::flex_tree::set::SpatialIdSet;
 #[doc(inline)]
 pub use spatial_id::collection::flex_tree::core::{BitMask, MinMax, NoSummary, Summary, ValueSet};
 #[doc(inline)]
-pub use spatial_id::collection::flex_tree::table::SpatialIdTable;
+pub use spatial_id::collection::flex_tree::map::SpatialIdMap;
 
 // spatial_id: traits
 #[doc(inline)]

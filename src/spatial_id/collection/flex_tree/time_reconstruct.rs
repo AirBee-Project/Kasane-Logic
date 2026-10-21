@@ -173,7 +173,7 @@ mod tests {
     /// 時間成分を全時間へ落とした [`FlexId`]。元のテストの `sorted_reference` 用。
     #[allow(dead_code)]
     pub(crate) fn spatial_key(flex_id: &FlexId) -> FlexId {
-        flex_id.with_time_segment(0, 0)
+        (*flex_id).without_time()
     }
 
     /// 仕様書 1.5.3 の例（`1800/809712`）が、分解 → 結合を経て元の表記へ戻る。

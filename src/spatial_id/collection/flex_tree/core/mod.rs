@@ -204,7 +204,7 @@ impl<V, S> FlexTreeCore<V, S> {
     }
 
     /// `target` と面で接している領域と値を返す。`target` 自身と重なる領域は除く。
-    pub fn neighbors_share_face<'a, T: SpatialId>(
+    pub fn spatial_face_neighbors<'a, T: SpatialId>(
         &'a self,
         target: T,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
@@ -226,7 +226,8 @@ impl<V, S> FlexTreeCore<V, S> {
 
         let own: Vec<FlexId> = target.into_iter().collect();
         self.get_overlapping(shifted).filter(move |(leaf, _)| {
-            own.iter().all(|o| !leaf.intersects(o)) && own.iter().any(|o| o.shares_face(leaf))
+            own.iter().all(|o| !leaf.intersects(o))
+                && own.iter().any(|o| o.is_spatial_face_neighbor(leaf))
         })
     }
 

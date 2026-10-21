@@ -412,24 +412,23 @@ impl RangeId {
         }
     }
 
-    /// 指定したズームレベル `target_z` に細分化した、この `RangeId` を含むすべての子 `RangeId` を生成します。
+    /// 指定したより深いズームレベル `target_z` にスケール変換した、この `RangeId` を生成します。
     ///
     /// # パラメータ
-    /// * `target_z` — 生成したい子 `RangeId` のズームレベル
+    /// * `target_z` — 変換先のズームレベル
     ///
     /// # バリデーション
     /// - `target_z` が現在のズームレベルより浅い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返します。
     /// - `target_z` が本クレートで扱える最大ズームレベルを超える場合は、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
-    /// 1段深いズームへの細分化
+    /// 1段深いズームへのスケール変換
     /// ```
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
     /// let result = id.spatial_children_at_zoom(6).unwrap();
-    /// assert_eq!(result,  RangeId::new(6, [-6, 59], [16, 19], [10, 21] ).unwrap());
-    ///
+    /// assert_eq!(result, RangeId::new(6, [-6, 59], [16, 19], [10, 21]).unwrap());
     /// ```
     ///
     /// 現在より浅いズームを指定した場合

@@ -1,4 +1,4 @@
-use crate::{FlexId, RangeId, Source, SpatialIdTable};
+use crate::{FlexId, RangeId, Source, SpatialIdMap};
 
 /// 再現可能な疑似乱数（xorshift64）。
 fn next(state: &mut u64) -> u64 {
@@ -9,7 +9,7 @@ fn next(state: &mut u64) -> u64 {
 }
 
 /// ズーム 3〜6 の混ざった表。粗い要素が細かい要素に合わせて木の中で割られる。
-fn random_table(state: &mut u64) -> SpatialIdTable<u32> {
+fn random_table(state: &mut u64) -> SpatialIdMap<u32> {
     (0..20)
         .map(|_| {
             let mut zoom = || 3 + (next(state) % 4) as u8;
@@ -45,7 +45,12 @@ fn shift_fxy_matches_chained_shifts() {
     for _ in 0..50 {
         let table = random_table(&mut state);
         for (f, x, y) in DELTAS {
-            let fused = table.clone().query().shift_fxy(6, f, x, y).get(..).table();
+            let fused = table
+                .clone()
+                .query()
+                .shift_fxy(6, f, x, y)
+                .get(..)
+                .into_map();
             let chained = table
                 .clone()
                 .query()
@@ -53,7 +58,7 @@ fn shift_fxy_matches_chained_shifts() {
                 .shift_x(6, x)
                 .shift_y(6, y)
                 .get(..)
-                .table();
+                .into_map();
             assert_eq!(fused.is_ok(), chained.is_ok(), "({f}, {x}, {y})");
             if let (Ok(fused), Ok(chained)) = (fused, chained) {
                 assert_eq!(fused, chained, "({f}, {x}, {y})");
@@ -73,11 +78,17 @@ fn shift_fxy_partial_get_matches_whole() {
         let table = random_table(&mut state);
         for (f, x, y) in DELTAS {
             let query = table.clone().query().shift_fxy(6, f, x, y);
-            let Ok(expected) = table.clone().query().shift_fxy(6, f, x, y).get(..).table() else {
+            let Ok(expected) = table
+                .clone()
+                .query()
+                .shift_fxy(6, f, x, y)
+                .get(..)
+                .into_map()
+            else {
                 continue;
             };
-            let within = query.get(target.clone()).table().unwrap();
-            let clip = |t: &SpatialIdTable<u32>| -> SpatialIdTable<u32> {
+            let within = query.get(target.clone()).into_map().unwrap();
+            let clip = |t: &SpatialIdMap<u32>| -> SpatialIdMap<u32> {
                 t.get(target.clone()).map(|(id, v)| (id, *v)).collect()
             };
             assert_eq!(clip(&within), clip(&expected), "({f}, {x}, {y})");

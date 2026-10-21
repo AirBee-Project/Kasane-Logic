@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::query::merge_policy::Sum;
-use crate::{SingleId, Source, SpatialIdTable};
+use crate::{SingleId, Source, SpatialIdMap};
 
 fn time_segment(x: u32, v: i32) -> (SingleId, i32) {
     (SingleId::new(20, 0, x, 0).unwrap(), v)
@@ -9,8 +9,8 @@ fn time_segment(x: u32, v: i32) -> (SingleId, i32) {
 /// どちらにも無いSegmentは空のまま。
 #[test]
 fn merge_resolves_overlap_and_fills_missing_side_with_default() {
-    let mut a = SpatialIdTable::new();
-    let mut b = SpatialIdTable::new();
+    let mut a = SpatialIdMap::new();
+    let mut b = SpatialIdMap::new();
 
     let (only_a, av) = time_segment(100, 7); // Aのみ
     let (both, av2) = time_segment(101, 3); // 両方
@@ -22,7 +22,12 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
     b.insert(both.clone(), bv2);
     b.insert(only_b.clone(), bv);
 
-    let out = a.query().merge(b.query(), 0, Sum).get(..).table().unwrap();
+    let out = a
+        .query()
+        .merge(b.query(), 0, Sum)
+        .get(..)
+        .into_map()
+        .unwrap();
 
     assert_eq!(out.get(only_a.clone()).next().unwrap().1, &7); // resolve(7, default=0)
     assert_eq!(out.get(both.clone()).next().unwrap().1, &7); // resolve(3, 4)
@@ -35,10 +40,15 @@ fn merge_resolves_overlap_and_fills_missing_side_with_default() {
 /// 両方空のテーブル同士をmergeしても何も起きない（noop）。
 #[test]
 fn merge_of_two_empty_tables_is_noop() {
-    let a = SpatialIdTable::<i32>::new();
-    let b = SpatialIdTable::<i32>::new();
+    let a = SpatialIdMap::<i32>::new();
+    let b = SpatialIdMap::<i32>::new();
 
-    let out = a.query().merge(b.query(), 0, Sum).get(..).table().unwrap();
+    let out = a
+        .query()
+        .merge(b.query(), 0, Sum)
+        .get(..)
+        .into_map()
+        .unwrap();
 
     assert_eq!(out.iter().count(), 0);
 }

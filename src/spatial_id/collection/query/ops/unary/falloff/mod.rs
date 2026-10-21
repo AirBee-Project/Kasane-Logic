@@ -12,7 +12,7 @@ use crate::spatial_id::collection::query::{
     traits::UnaryOperator,
 };
 use crate::spatial_id::helpers::Side;
-use crate::{Error, FlexId, RangeId, SpatialIdTable, ZoomLevel};
+use crate::{Error, FlexId, RangeId, SpatialIdMap, ZoomLevel};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -243,7 +243,7 @@ where
         if P::IS_COMMUTATIVE {
             let resolve = |a: &V, b: &V| P::resolve(a.clone(), b.clone());
             let inner = self.spread(input, &attenuator, |value| value, resolve)?;
-            return Ok(SpatialIdTable { inner }.into());
+            return Ok(SpatialIdMap { inner }.into());
         }
 
         // 順序を問う規則や平均のように resolve_many を持つ規則は、2件ずつ畳み込むと値が変わるので、
@@ -259,7 +259,7 @@ where
             .iter()
             .filter_map(|(id, values)| Some((id, P::resolve_many(values.iter().cloned())?)))
             .collect();
-        Ok(SpatialIdTable { inner }.into())
+        Ok(SpatialIdMap { inner }.into())
     }
 
     fn reverse_target(&self, bounds: RangeId, out: &mut Vec<RangeId>) {

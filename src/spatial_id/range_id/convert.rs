@@ -123,7 +123,12 @@ impl IntoIterator for RangeId {
                     let spatial = unsafe { FlexId::new_unchecked(f_z, f_i, x_z, x_i, y_z, y_i) };
                     (0..t_list_inner.len()).map(move |k| {
                         let time_segment = t_list_inner[k];
-                        spatial.with_time_segment(time_segment.zoom().get(), time_segment.index())
+                        unsafe {
+                            spatial.with_time_segment_unchecked(
+                                time_segment.zoom().get(),
+                                time_segment.index(),
+                            )
+                        }
                     })
                 })
             })

@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 use crate::spatial_id::collection::flex_tree::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
-use crate::{SingleId, SpatialIdSet, SpatialIdTable};
+use crate::{SingleId, SpatialIdMap, SpatialIdSet};
 use proptest::prelude::*;
 
 proptest! {
@@ -120,12 +120,12 @@ fn f_collapse_reduces_max_zoom() {
 /// Table（値あり）: 同値の Y 兄弟は merge して 1、異値は merge せず 2。
 #[test]
 fn table_merges_same_value_only() {
-    let mut same = SpatialIdTable::<i32>::new();
+    let mut same = SpatialIdMap::<i32>::new();
     same.insert(SingleId::new(2, 0, 0, 0).unwrap(), 7);
     same.insert(SingleId::new(2, 0, 0, 1).unwrap(), 7);
     assert_eq!(same.count(), 1, "same-value y-siblings must merge");
 
-    let mut diff = SpatialIdTable::<i32>::new();
+    let mut diff = SpatialIdMap::<i32>::new();
     diff.insert(SingleId::new(2, 0, 0, 0).unwrap(), 7);
     diff.insert(SingleId::new(2, 0, 0, 1).unwrap(), 8);
     assert_eq!(
@@ -138,7 +138,7 @@ fn table_merges_same_value_only() {
 /// Table: 8 オクタントを同値で満たすと 1 葉へ collapse。異値が混じると collapse しない。
 #[test]
 fn table_full_cube_same_value_collapses() {
-    let mut t = SpatialIdTable::<i32>::new();
+    let mut t = SpatialIdMap::<i32>::new();
     for f in 0..2 {
         for x in 0..2 {
             for y in 0..2 {

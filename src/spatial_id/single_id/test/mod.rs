@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn spatial_parents_are_returned_from_nearest_to_root() {
+    fn parents_are_returned_from_nearest_to_root() {
         let id = SingleId::new(3, 3, 2, 7).unwrap();
 
         let parents: Vec<_> = id.spatial_parents().collect();
@@ -70,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    fn spatial_parents_is_empty_at_root() {
+    fn parents_is_empty_at_root() {
         let id = SingleId::new(0, 0, 0, 0).unwrap();
 
         #[allow(clippy::needless_collect)]
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn six_neighbors_are_generated() {
         let id = SingleId::new(4, 6, 9, 10).unwrap();
-        let neighbors: Vec<_> = id.neighbors_share_face().collect();
+        let neighbors: Vec<_> = id.spatial_face_neighbors().collect();
 
         assert_eq!(neighbors.len(), 6);
         assert!(neighbors.contains(&SingleId::new(4, 7, 9, 10).unwrap()));
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn twelve_edge_neighbors_are_generated() {
         let id = SingleId::new(4, 6, 9, 10).unwrap();
-        let neighbors: Vec<_> = id.neighbors_share_edge().collect();
+        let neighbors: Vec<_> = id.spatial_edge_neighbors().collect();
 
         assert_eq!(neighbors.len(), 12);
         // f-x 平面
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn eight_vertex_neighbors_are_generated() {
         let id = SingleId::new(4, 6, 9, 10).unwrap();
-        let neighbors: Vec<_> = id.neighbors_share_vertex().collect();
+        let neighbors: Vec<_> = id.spatial_vertex_neighbors().collect();
 
         assert_eq!(neighbors.len(), 8);
         assert!(neighbors.contains(&SingleId::new(4, 7, 10, 11).unwrap()));
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn twenty_six_neighbors_are_generated() {
         let id = SingleId::new(4, 6, 9, 10).unwrap();
-        let neighbors: Vec<_> = id.neighbors_all().collect();
+        let neighbors: Vec<_> = id.spatial_all_neighbors().collect();
 
         assert_eq!(neighbors.len(), 26);
         assert!(neighbors.contains(&SingleId::new(4, 7, 10, 11).unwrap()));
@@ -192,5 +192,48 @@ mod tests {
             assert_eq!(d.z(), 2);
             assert_ne!(d, &child_range);
         }
+    }
+
+    #[test]
+    fn parent_and_children_shortcuts() {
+        let root = SingleId::new(0, 0, 0, 0).unwrap();
+        assert_eq!(root.spatial_parent(), None);
+
+        let child = SingleId::new(1, 0, 0, 0).unwrap();
+        assert_eq!(child.spatial_parent(), Some(root.clone()));
+
+        let children: Vec<_> = root.spatial_children().unwrap().collect();
+        assert_eq!(children.len(), 8);
+        assert!(children.contains(&child));
+    }
+
+    #[test]
+    fn contains_and_intersects_work() {
+        let parent = SingleId::new(2, 0, 0, 0).unwrap();
+        let child = SingleId::new(3, 0, 0, 0).unwrap();
+        let sibling = SingleId::new(2, 1, 0, 0).unwrap();
+
+        assert!(parent.contains(&child));
+        assert!(!child.contains(&parent));
+        assert!(parent.contains(&parent));
+        assert!(!parent.contains(&sibling));
+
+        assert!(parent.intersects(&child));
+        assert!(child.intersects(&parent));
+        assert!(!parent.intersects(&sibling));
+    }
+
+    #[test]
+    fn spatial_id_trait_methods() {
+        use crate::SpatialId;
+
+        let mut id = SingleId::new(4, 6, 9, 10).unwrap();
+        id.spatial_shift(1, -2, 3).unwrap();
+        assert_eq!(id.f(), 7);
+        assert_eq!(id.x(), 7);
+        assert_eq!(id.y(), 13);
+
+        let single_list: Vec<_> = id.clone().single_ids().collect();
+        assert_eq!(single_list, vec![id.clone()]);
     }
 }

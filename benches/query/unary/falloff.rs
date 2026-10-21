@@ -24,7 +24,7 @@ fn bench_falloff(c: &mut Criterion) {
                     t.query()
                         .falloff_x(24, d as u32, None, FalloffPattern::Linear, Max)
                         .get(..)
-                        .table()
+                        .into_map()
                         .unwrap()
                 },
                 BatchSize::SmallInput,
@@ -41,7 +41,7 @@ fn bench_falloff(c: &mut Criterion) {
                     t.query()
                         .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
                         .get(..)
-                        .table()
+                        .into_map()
                         .unwrap()
                 },
                 BatchSize::SmallInput,
@@ -58,7 +58,7 @@ fn bench_falloff(c: &mut Criterion) {
                     t.query()
                         .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
                         .get(..)
-                        .table()
+                        .into_map()
                         .unwrap()
                 },
                 BatchSize::SmallInput,
@@ -77,7 +77,7 @@ fn bench_falloff(c: &mut Criterion) {
                         .falloff_y(24, d as u32, None, FalloffPattern::Linear, Max)
                         .falloff_f(24, d as u32, None, FalloffPattern::Linear, Max)
                         .get(..)
-                        .table()
+                        .into_map()
                         .unwrap()
                 },
                 BatchSize::SmallInput,

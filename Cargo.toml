@@ -201,5 +201,5 @@ harness = false
 required-features = ["json", "rayon"]
 
 [[example]]
-name = "table_json"
+name = "map_json"
 required-features = ["json"]

@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
     use super::super::{TableEntry, build_table};
-    use crate::{RangeId, SingleId, SpatialIdTable};
+    use crate::{RangeId, SingleId, SpatialIdMap};
     use alloc::vec::Vec;
 
     #[test]
     fn upsert_writes_into_empty_table() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
-        let mut table = SpatialIdTable::new();
+        let mut table = SpatialIdMap::new();
 
         table.upsert(target.clone(), 10);
 
@@ -18,7 +18,7 @@ mod tests {
     #[test]
     fn upsert_keeps_the_existing_value() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
-        let mut table = SpatialIdTable::new();
+        let mut table = SpatialIdMap::new();
 
         table.insert(target.clone(), 10);
         table.upsert(target.clone(), 20);
@@ -69,7 +69,7 @@ mod tests {
     fn upsert_on_a_fully_occupied_target_changes_nothing() {
         let target = SingleId::new(4, 3, 2, 1).unwrap();
 
-        let mut with_noop_upsert = SpatialIdTable::new();
+        let mut with_noop_upsert = SpatialIdMap::new();
         with_noop_upsert.insert(target.clone(), 10);
         with_noop_upsert.upsert(target.clone(), 20); // 既に埋まっているので何も書かないはず
 

@@ -4,10 +4,10 @@ use super::{Falloff, FalloffAxis};
 use crate::spatial_id::collection::query::merge_policy::{Average, Max, Sum};
 use crate::spatial_id::collection::query::ops::unary::falloff::FalloffPattern;
 use crate::spatial_id::collection::query::traits::UnaryOperator;
-use crate::{SingleId, Source, SpatialIdTable};
+use crate::{SingleId, Source, SpatialIdMap};
 
 /// z=20, f=0, y=0 に固定した行から `x -> value` の対応を取り出す。
-fn row(table: &SpatialIdTable<i32>) -> BTreeMap<u32, i32> {
+fn row(table: &SpatialIdMap<i32>) -> BTreeMap<u32, i32> {
     table
         .flat_single_ids(None)
         .filter(|(sid, _)| sid.f() == 0 && sid.y() == 0)
@@ -22,7 +22,7 @@ fn time_segment(x: u32, v: i32) -> (SingleId, i32) {
 /// 単一Segmentの X falloff（半径2）。減衰は value*(r-|d|)/r。重なりが無いので Sum/Max は同値。
 #[test]
 fn falloff_x_single_segment() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     let (id, v) = time_segment(100, 4);
     table.insert(id, v);
 
@@ -30,7 +30,7 @@ fn falloff_x_single_segment() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -45,7 +45,7 @@ fn falloff_x_single_segment() {
 /// 重なる2Segmentの X falloff を Sum で合成。重なったSegmentは両寄与の和になる。
 #[test]
 fn falloff_x_overlap_sum() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     table.insert(time_segment(100, 4).0, 4);
     table.insert(time_segment(102, 4).0, 4);
 
@@ -53,7 +53,7 @@ fn falloff_x_overlap_sum() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -72,7 +72,7 @@ fn falloff_x_overlap_sum() {
 /// 同じ入力を Max で合成。重なりは最大値を取るため x101 が Sum と食い違う。
 #[test]
 fn falloff_x_overlap_max() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     table.insert(time_segment(100, 4).0, 4);
     table.insert(time_segment(102, 4).0, 4);
 
@@ -80,7 +80,7 @@ fn falloff_x_overlap_max() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Max)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -106,7 +106,7 @@ fn falloff_x_reverse_target_wrapped_covers_needed_range() {
 /// 3件以上の重なりも Average で平均になる。ズームの違う寄与が重なる場合も含める。
 #[test]
 fn falloff_x_overlap_average() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     table.insert(time_segment(100, 12).0, 12);
     table.insert(time_segment(101, 0).0, 0);
     // z=19 の x=51 は z=20 の x102..=103 を覆う
@@ -116,7 +116,7 @@ fn falloff_x_overlap_average() {
         .query()
         .falloff_x(20, 2, None, FalloffPattern::Linear, Average)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -148,14 +148,14 @@ fn falloff_validate_rejects_radius_out_of_range() {
 /// 半径0の falloff は恒等（no-op）。
 #[test]
 fn falloff_x_radius_zero_is_noop() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     table.insert(time_segment(100, 7).0, 7);
 
     let out = table
         .query()
         .falloff_x(20, 0, None, FalloffPattern::Linear, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -166,7 +166,7 @@ fn falloff_x_radius_zero_is_noop() {
 /// 途中の積が `V` を超える値でも、あふれずに正しく減衰する。
 #[test]
 fn falloff_x_large_value_does_not_overflow() {
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     table.insert(time_segment(1000, 100_000).0, 100_000);
 
     // 100_000 * 200^2 は i32 を超える
@@ -174,7 +174,7 @@ fn falloff_x_large_value_does_not_overflow() {
         .query()
         .falloff_x(20, 200, None, FalloffPattern::QuadraticIn, Sum)
         .get(..)
-        .table()
+        .into_map()
         .unwrap();
     let r = row(&out);
 
@@ -216,7 +216,7 @@ fn falloff_matches_sequential_reference() {
     use crate::spatial_id::helpers::Side;
     use alloc::vec::Vec;
 
-    let mut table = SpatialIdTable::new();
+    let mut table = SpatialIdMap::new();
     let mut seed = 1u32;
     for _ in 0..3000 {
         seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
@@ -231,7 +231,7 @@ fn falloff_matches_sequential_reference() {
     fn reference<P: MergePolicy<i32>>(
         input: &[(FlexId, i32)],
         axis: FalloffAxis,
-    ) -> SpatialIdTable<i32> {
+    ) -> SpatialIdMap<i32> {
         let mut gathered = FlexTreeCore::<Vec<i32>, NoSummary>::default();
         for (id, value) in input {
             for (moved, v) in id
@@ -256,7 +256,7 @@ fn falloff_matches_sequential_reference() {
 
     for axis in [FalloffAxis::F, FalloffAxis::X, FalloffAxis::Y] {
         let run = |op: &dyn Fn(crate::Query<i32>) -> crate::Query<i32>| {
-            op(table.clone().query()).get(..).table().unwrap()
+            op(table.clone().query()).get(..).into_map().unwrap()
         };
         let (max, avg, over) = match axis {
             FalloffAxis::F => (
@@ -275,7 +275,7 @@ fn falloff_matches_sequential_reference() {
                 run(&|q| q.falloff_y(20, 3, Some(Side::Upper), FalloffPattern::Linear, Overwrite)),
             ),
         };
-        let same = |a: &SpatialIdTable<i32>, b: &SpatialIdTable<i32>| {
+        let same = |a: &SpatialIdMap<i32>, b: &SpatialIdMap<i32>| {
             a.iter().collect::<Vec<_>>() == b.iter().collect::<Vec<_>>()
         };
         assert!(same(&max, &reference::<Max>(&input, axis)), "{axis:?} Max");

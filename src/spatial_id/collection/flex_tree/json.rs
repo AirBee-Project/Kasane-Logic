@@ -398,7 +398,7 @@ mod tests {
     #[cfg(feature = "temporal_id")]
     #[test]
     fn round_trips_temporal_through_a_collection() {
-        use crate::{SingleId, SpatialIdTable};
+        use crate::{SingleId, SpatialIdMap};
         use alloc::vec::Vec;
 
         let original = SingleId::new(12, 0, 3638, 1614)
@@ -406,7 +406,7 @@ mod tests {
             .with_time(1800, 809712)
             .unwrap();
 
-        let mut table: SpatialIdTable<i32> = SpatialIdTable::new();
+        let mut table: SpatialIdMap<i32> = SpatialIdMap::new();
         table.insert(original.clone(), 7);
         assert!(table.count() > 1, "1800秒は複数Segmentへ分解されるはず");
 
@@ -419,7 +419,7 @@ mod tests {
         );
 
         // 内容は完全に往復する（`{i}` のラベルが変わっても秒区間は同じ）。
-        let restored: SpatialIdTable<i32> = serde_json::from_str(&json).unwrap();
+        let restored: SpatialIdMap<i32> = serde_json::from_str(&json).unwrap();
         let ids: Vec<_> = restored.flat_single_ids(None).collect();
         assert_eq!(ids.len(), 1);
         assert_eq!(ids[0].0, original);

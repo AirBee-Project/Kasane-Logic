@@ -6,7 +6,7 @@ use crate::{Error, RangeId};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-/// クエリのデータを提供するTrait。[`SpatialIdTable`](crate::SpatialIdTable) やリモートのデータベースなどに実装する。
+/// クエリのデータを提供するTrait。[`SpatialIdMap`](crate::SpatialIdMap) やリモートのデータベースなどに実装する。
 ///
 /// # 実装の仕方
 ///

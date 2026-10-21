@@ -1,6 +1,6 @@
 use crate::spatial_id::collection::query::send_sync::SafeValue;
 use crate::spatial_id::collection::query::{query_iter::QueryIter, traits::UnaryOperator};
-use crate::{Error, FlexId, RangeId, SpatialIdTable, ZoomLevel};
+use crate::{Error, FlexId, RangeId, SpatialIdMap, ZoomLevel};
 
 /// FlexId単体に対する実装
 pub mod primitive;
@@ -53,7 +53,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for Shift {
         }
 
         // 移動の桁上がりで上位のビットが変わった要素は FlexId の PartialOrd で遠くへ跳ぶので、木に集めて並べ直す
-        let move_into = |mut table: SpatialIdTable<V>, (id, value): &(FlexId, V)| {
+        let move_into = |mut table: SpatialIdMap<V>, (id, value): &(FlexId, V)| {
             table.extend(self.shift(id)?.map(|moved| (moved, value.clone())));
             Ok::<_, Error>(table)
         };
@@ -61,9 +61,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for Shift {
         #[cfg(not(feature = "rayon"))]
         let moved = {
             let mut input = input;
-            input.try_fold(SpatialIdTable::new(), |table, item| {
-                move_into(table, &item?)
-            })?
+            input.try_fold(SpatialIdMap::new(), |table, item| move_into(table, &item?))?
         };
 
         #[cfg(feature = "rayon")]
@@ -71,7 +69,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for Shift {
             use rayon::prelude::*;
             // 入力を区切って読むので、一度に持つ入力はこの数までに収まる
             const CHUNK: usize = 1 << 16;
-            let union = |a: SpatialIdTable<V>, b: SpatialIdTable<V>| SpatialIdTable {
+            let union = |a: SpatialIdMap<V>, b: SpatialIdMap<V>| SpatialIdMap {
                 inner: a.inner.union(&b.inner),
             };
             let mut input = input.peekable();
@@ -83,11 +81,11 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for Shift {
                 parts.push(
                     chunk
                         .par_iter()
-                        .try_fold(SpatialIdTable::new, move_into)
-                        .try_reduce(SpatialIdTable::new, |a, b| Ok(union(a, b)))?,
+                        .try_fold(SpatialIdMap::new, move_into)
+                        .try_reduce(SpatialIdMap::new, |a, b| Ok(union(a, b)))?,
                 );
             }
-            parts.into_par_iter().reduce(SpatialIdTable::new, union)
+            parts.into_par_iter().reduce(SpatialIdMap::new, union)
         };
 
         Ok(moved.into())
