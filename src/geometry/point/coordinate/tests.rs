@@ -237,3 +237,13 @@ mod centroid {
         assert!(libm::fabs(Coordinate::centroid([a, b].into_iter()).longitude) > 179.99);
     }
 }
+
+mod coordinate_raw {
+    use super::*;
+
+    #[test]
+    fn coordinate_eq_with_self() {
+        let a = Coordinate::new(35.0, 139.0, 10.0).unwrap();
+        assert!(a.eq_epsilon(&a, 0.0));
+    }
+}
