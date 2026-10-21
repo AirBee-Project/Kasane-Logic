@@ -11,7 +11,7 @@ mod tests;
 /// 三角形を表す型。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle {
-    pub points: [Coordinate; 3],
+    points: [Coordinate; 3],
 }
 
 impl Triangle {
@@ -20,6 +20,11 @@ impl Triangle {
     /// 3つの点が一直線上にある場合や同一の座標の場合も問題なく作成される。
     pub fn new(points: [Coordinate; 3]) -> Self {
         Self { points }
+    }
+
+    /// [Triangle]の3頂点を返す。
+    pub fn points(&self) -> &[Coordinate; 3] {
+        &self.points
     }
 
     ///三角形の面積を返す
