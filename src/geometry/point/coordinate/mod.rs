@@ -258,16 +258,32 @@ impl Coordinate {
         I: IntoIterator,
         I::Item: Borrow<Coordinate>,
     {
-        let mut sum_lat = 0.0;
-        let mut sum_lon = 0.0;
-        let mut sum_alt = 0.0;
+        let (mut sum_lat, mut sum_lon, mut sum_alt) = (0.0, 0.0, 0.0);
+
+        let mut sum_lon_360 = 0.0;
+        let (mut min_lon, mut max_lon) = (f64::INFINITY, f64::NEG_INFINITY);
+        let (mut min_lon_360, mut max_lon_360) = (f64::INFINITY, f64::NEG_INFINITY);
+
         let mut count = 0usize;
 
         for coord in coordinates {
             let c = coord.borrow();
+            let lon_360 = if c.longitude < 0.0 {
+                c.longitude + 360.0
+            } else {
+                c.longitude
+            };
+
             sum_lat += c.latitude;
             sum_lon += c.longitude;
             sum_alt += c.altitude;
+
+            sum_lon_360 += lon_360;
+            min_lon = min_lon.min(c.longitude);
+            max_lon = max_lon.max(c.longitude);
+            min_lon_360 = min_lon_360.min(lon_360);
+            max_lon_360 = max_lon_360.max(lon_360);
+
             count += 1;
         }
 
@@ -277,12 +293,15 @@ impl Coordinate {
 
         let n = count as f64;
 
+        let spread = max_lon - min_lon;
+        let lon = if spread > 180.0 && max_lon_360 - min_lon_360 < spread {
+            let mean = sum_lon_360 / n;
+            if mean > 180.0 { mean - 360.0 } else { mean }
+        } else {
+            sum_lon / n
+        };
+
         // 浮動小数点により緯度が範囲に収まる保証がないため、`clamp`する。
-        Self::new(
-            (sum_lat / n).clamp(-85.0511, 85.0511),
-            sum_lon / n,
-            sum_alt / n,
-        )
-        .unwrap()
+        Self::new((sum_lat / n).clamp(-85.0511, 85.0511), lon, sum_alt / n).unwrap()
     }
 }
