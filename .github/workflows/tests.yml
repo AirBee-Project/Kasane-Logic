@@ -1,14 +1,16 @@
-name: draft tests
+name: tests
 
 on:
   pull_request:
     branches:
       - main
-    types: [opened, synchronize, reopened, converted_to_draft]
+  # PR から復元できるキャッシュは自 PR と main で保存したものだけなので、main でも実行して保存しておく
+  push:
+    branches:
+      - main
 
 jobs:
   fmt_and_doc:
-    if: github.event.pull_request.draft == true
     name: cargo fmt & doc
     runs-on: ubuntu-24.04
     timeout-minutes: 3
@@ -55,7 +57,6 @@ jobs:
           done
 
   test:
-    if: github.event.pull_request.draft == true
     name: cargo test
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -118,7 +119,6 @@ jobs:
           done
 
   clippy:
-    if: github.event.pull_request.draft == true
     name: cargo clippy
     runs-on: ubuntu-24.04
     timeout-minutes: 15
