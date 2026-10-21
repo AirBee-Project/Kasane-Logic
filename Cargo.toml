@@ -37,6 +37,10 @@ rand = ["dep:rand"]
 json = ["dep:serde", "dep:serde_json"]
 unstable = []
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 
 
 [dev-dependencies]
