@@ -158,3 +158,122 @@ fn zoom_out_propagates_stream_error() {
     // 最初の親の完了前にエラーが来た場合はエラーが直ちに返る
     assert!(first.is_err());
 }
+
+#[cfg(feature = "temporal_id")]
+#[test]
+fn zoom_out_merges_same_parent_split_by_finer_t() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::query::merge_policy::Sum;
+
+    // 入力の列は a, b, c の順で、親が同じ a と c の間に、親が違う b が挟まる
+    let a = FlexId::new(6, 0, 5, 0, 5, 0)
+        .unwrap()
+        .with_time_segment(6, 0);
+    let b = FlexId::new(6, 0, 5, 0, 5, 0)
+        .unwrap()
+        .with_time_segment(6, 1);
+    let c = FlexId::new(6, 1, 5, 0, 5, 0)
+        .unwrap()
+        .with_time_segment(6, 0);
+    let mut table = SpatialIdTable::<i32>::new();
+    table.insert(a, 1);
+    table.insert(b, 10);
+    table.insert(c, 100);
+
+    for out in [
+        table.clone().query().zoom_out(5, Sum).get(..),
+        table.clone().query().zoom_out(5, Average).get(..),
+    ] {
+        let out: Vec<_> = out.collect::<Result<_, _>>().unwrap();
+        let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].0, parent.with_time_segment(6, 0));
+        assert_eq!(out[1].0, parent.with_time_segment(6, 1));
+        assert_eq!(out[1].1, 10);
+    }
+    let sum = table.query().zoom_out(5, Sum).get(..).table().unwrap();
+    let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
+    assert_eq!(
+        sum.get(parent.with_time_segment(6, 0)).next().unwrap().1,
+        &101
+    );
+}
+
+#[cfg(feature = "temporal_id")]
+#[test]
+fn zoom_out_resolves_parents_overlapping_in_t() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::query::merge_policy::Sum;
+
+    // 親の T が T6 idx0 と、それに含まれる T8 idx1 になり、親どうしが重なる
+    let a = FlexId::new(6, 0, 5, 0, 5, 0)
+        .unwrap()
+        .with_time_segment(6, 0);
+    let b = FlexId::new(6, 1, 5, 0, 5, 0)
+        .unwrap()
+        .with_time_segment(8, 1);
+    let mut table = SpatialIdTable::<i32>::new();
+    table.insert(a, 1);
+    table.insert(b, 10);
+
+    let out = table.query().zoom_out(5, Sum).get(..).table().unwrap();
+    let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
+    let mut expected = SpatialIdTable::<i32>::new();
+    expected.insert(parent.with_time_segment(6, 0), 1);
+    expected
+        .inner
+        .insert_with([parent.with_time_segment(8, 1)], 10, |x, y| x + y);
+    assert_eq!(out.inner, expected.inner);
+}
+
+#[test]
+fn zoom_out_sum_matches_inserting_each_parent() {
+    use crate::FlexId;
+    use crate::spatial_id::collection::query::merge_policy::Sum;
+
+    let mut seed = 0x2001_u64;
+    let mut next = move |n: u64| {
+        seed = seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        (seed >> 33) % n
+    };
+    for _ in 0..200 {
+        let mut table = SpatialIdTable::<i32>::new();
+        for _ in 0..20 {
+            let (fz, xz, yz) = (next(8) as u8, next(8) as u8, next(8) as u8);
+            let tz = if cfg!(feature = "temporal_id") {
+                next(8) as u8
+            } else {
+                0
+            };
+            let id = FlexId::new(
+                fz,
+                next(2 << fz) as i32 - (1 << fz),
+                xz,
+                next(1 << xz) as u32,
+                yz,
+                next(1 << yz) as u32,
+            )
+            .unwrap()
+            .with_time_segment(tz, next(1 << tz));
+            table.insert(id, next(10) as i32 + 1);
+        }
+        let target_z = next(6) as u8;
+
+        let out = table
+            .clone()
+            .query()
+            .zoom_out(target_z, Sum)
+            .get(..)
+            .table()
+            .unwrap();
+
+        let mut expected = SpatialIdTable::<i32>::new();
+        for (id, &v) in table.iter() {
+            let parent = id.spatial_parent_at_zoom(target_z).unwrap();
+            expected.inner.insert_with([parent], v, |a, b| a + b);
+        }
+        assert_eq!(out.inner, expected.inner);
+    }
+}

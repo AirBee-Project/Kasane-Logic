@@ -139,6 +139,7 @@ impl<V: SafeValue + 'static> Query<V> {
     /// ```
     ///
     /// 返す要素は `targets` で切り取る。`targets` が互いに重なっていても、同じ場所を2回返すことはない。
+    /// 切り取った要素は互いに素だが、FlexId の Z-order 列になるとは限らない。
     /// 切り取らずに、`targets` と交差する要素をそのまま受け取るには [`get_overlapping`](Self::get_overlapping) を使う。
     ///
     /// # 結果の受け取り方

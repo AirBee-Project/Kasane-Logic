@@ -10,6 +10,9 @@ use alloc::vec::Vec;
 ///
 /// 検証や評価の開始に失敗すると、最初の要素として `Err` を返して終わる。
 /// 読み出しや演算に失敗すると、その位置で `Err` を返す。
+///
+/// 返す要素は互いに素である。全体を評価したときと [`Query::get_overlapping`] の結果は FlexId の Z-order 列になるが、
+/// [`Query::get`] で `targets` に切り取った結果は、`targets` の形によって順序が前後することがある。
 pub struct QueryOutput<'a, V: SafeValue + 'static> {
     query: &'a Query<V>,
     targets: Vec<RangeId>,
