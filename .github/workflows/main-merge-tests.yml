@@ -143,6 +143,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -158,9 +160,11 @@ jobs:
       - name: Check semver compliance
         id: semver
         shell: bash
+        env:
+          CARGO_TERM_COLOR: never
         run: |
           set +e
-          cargo semver-checks check-release --package kasane-logic > semver_output.txt 2>&1
+          cargo semver-checks check-release --package kasane-logic --baseline-rev "origin/${{ github.base_ref }}" > semver_output.txt 2>&1
           EXIT_CODE=$?
           set -e
           cat semver_output.txt

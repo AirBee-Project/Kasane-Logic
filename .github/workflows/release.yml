@@ -30,6 +30,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -43,8 +45,14 @@ jobs:
           shared-key: "semver-ubuntu-24.04"
 
       - name: Check semver compliance
+        shell: bash
         run: |
-          cargo semver-checks check-release --package kasane-logic --release-type ${{ inputs.bump }}
+          set -euo pipefail
+          if ! LATEST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null); then
+            echo "::notice::比較対象の v* タグがないため、SemVer チェックを省きます"
+            exit 0
+          fi
+          cargo semver-checks check-release --package kasane-logic --baseline-rev "$LATEST_TAG" --release-type ${{ inputs.bump }}
 
   release:
     name: Create Release
