@@ -61,9 +61,7 @@ impl<V: SafeValue + 'static> UnaryOperator<V> for Shift {
         #[cfg(not(feature = "rayon"))]
         let moved = {
             let mut input = input;
-            input.try_fold(SpatialIdMap::new(), |table, item| {
-                move_into(table, &item?)
-            })?
+            input.try_fold(SpatialIdMap::new(), |table, item| move_into(table, &item?))?
         };
 
         #[cfg(feature = "rayon")]

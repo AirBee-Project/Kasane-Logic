@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 use crate::spatial_id::collection::flex_tree::set::tests::{
     arb_random_set_case, decompose_set_to_single_ids_at_zoom, sorted_single_ids,
 };
-use crate::{SingleId, SpatialIdSet, SpatialIdMap};
+use crate::{SingleId, SpatialIdMap, SpatialIdSet};
 use proptest::prelude::*;
 
 proptest! {

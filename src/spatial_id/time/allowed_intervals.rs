@@ -256,7 +256,7 @@ mod tests {
 /// 「暦の正規化が既定（`gcd`）と実際に違う結果になること」を固定する。
 #[cfg(all(test, feature = "temporal_id"))]
 mod collection_api {
-    use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdSet, SpatialIdMap};
+    use crate::{AllowedIntervals, Interval, SingleId, SpatialId, SpatialIdMap, SpatialIdSet};
     use alloc::string::ToString;
     use alloc::vec::Vec;
 

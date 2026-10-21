@@ -290,8 +290,7 @@ fn get_with_multiple_targets_returns_union() {
     let a = crate::RangeId::new(3, [0, 0], [1, 2], [0, 0]).unwrap();
     let b = crate::RangeId::new(3, [0, 0], [2, 4], [0, 0]).unwrap();
 
-    let values =
-        |table: SpatialIdMap<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
+    let values = |table: SpatialIdMap<u32>| -> Vec<u32> { table.iter().map(|(_, v)| *v).collect() };
     let from_array = values(query.get([a.clone(), b.clone()]).table().unwrap());
     assert_eq!(from_array, alloc::vec![1, 2, 3, 4]);
     assert_eq!(

@@ -76,7 +76,7 @@ impl FlexId {
     /// - 復元した `f_index` / `x_index` / `y_index` が各ズームレベルの範囲外の場合は
     ///   各種範囲外エラーを返す。
     /// - `temporal_id` feature 有効時は、`t_zoomlevel` / `t_index` も
-    ///   [`with_time`](Self::with_time) と同じ検証を通す。
+    ///   [`with_time_segment`](Self::with_time_segment) と同じ検証を通す。
     ///
     /// # 動作例
     ///

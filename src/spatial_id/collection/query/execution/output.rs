@@ -51,7 +51,12 @@ impl<'a, V: SafeValue + 'static> QueryOutput<'a, V> {
     /// 結果を [`SpatialIdMap`] にして返す。
     ///
     /// 値で速く絞り込みたいときは、結果に [`with_summary`](SpatialIdMap::with_summary) で Summary を付ける。
-    pub fn map(self) -> Result<SpatialIdMap<V>, Error> {
+    pub fn table(self) -> Result<SpatialIdMap<V>, Error> {
+        self.collect()
+    }
+
+    /// 結果を [`SpatialIdMap`] にして返す。[`table`](Self::table) と同じ。
+    pub fn into_map(self) -> Result<SpatialIdMap<V>, Error> {
         self.collect()
     }
 

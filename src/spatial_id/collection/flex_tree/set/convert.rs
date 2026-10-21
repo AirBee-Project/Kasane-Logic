@@ -1,5 +1,5 @@
 use crate::spatial_id::collection::flex_tree::core::Summary;
-use crate::{SpatialIdSet, SpatialIdMap};
+use crate::{SpatialIdMap, SpatialIdSet};
 
 impl<V, S> From<&SpatialIdMap<V, S>> for SpatialIdSet
 where
