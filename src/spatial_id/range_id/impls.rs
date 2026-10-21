@@ -112,7 +112,7 @@ impl SpatialId for RangeId {
         }
     }
 
-    /// [`RangeId`] の中心座標を[`Coordinate`]型で返します。
+    /// [`RangeId`] の空間中心座標を[`Coordinate`]型で返します。
     ///
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     fn spatial_center(&self) -> Coordinate {
@@ -207,6 +207,22 @@ impl SpatialId for RangeId {
         let unit = self.i.seconds();
         let t = self.t();
         (t[0] * unit, (t[1] + 1) * unit)
+    }
+
+    fn without_time(self) -> Self {
+        self.without_time()
+    }
+
+    fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
+        self.with_time_span(start, end)
+    }
+
+    fn parent_at_zoom(&self, target_z: u8) -> Result<Self, Error> {
+        self.parent_at_zoom(target_z)
+    }
+
+    fn single_ids(self) -> impl Iterator<Item = crate::SingleId> {
+        self.single_ids()
     }
 }
 

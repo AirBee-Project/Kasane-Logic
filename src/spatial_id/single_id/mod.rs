@@ -427,7 +427,7 @@ impl SingleId {
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
     ///
     /// // target_z = 4 のため F, X, Y はそれぞれ 2 分割される
-    /// let children: Vec<_> = id.spatial_children_at_zoom(4).unwrap().collect();
+    /// let children: Vec<_> = id.children_at_zoom(4).unwrap().collect();
     ///
     /// assert_eq!(children.len(), 8); // 2 × 2 × 2
     ///
@@ -444,13 +444,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    /// let result = id.spatial_children_at_zoom(2);
+    /// let result = id.children_at_zoom(2);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 2 }))));
     /// ```
-    pub fn spatial_children_at_zoom(
-        &self,
-        target_z: u8,
-    ) -> Result<impl Iterator<Item = SingleId>, Error> {
+    pub fn children_at_zoom(&self, target_z: u8) -> Result<impl Iterator<Item = SingleId>, Error> {
         let target_zoom = ZoomLevel::new(target_z)?;
 
         if target_z < self.z() {
@@ -493,6 +490,14 @@ impl SingleId {
         }))
     }
 
+    /// 1 段深いズームレベル（`z + 1`）に細分化した、この [`SingleId`] を含む 8 個の子 [`SingleId`] を生成します。
+    ///
+    /// # バリデーション
+    /// - 現在のズームレベルが最大ズームレベル [`ZoomLevel::MAX`] の場合は、[`SpatialIdError::ZOutOfRange`] を返します。
+    pub fn children(&self) -> Result<impl Iterator<Item = SingleId>, Error> {
+        self.children_at_zoom(self.z() + 1)
+    }
+
     /// 指定したズームレベル `target_z` に縮約した、この `SingleId` の親 `SingleId` を返します。
     ///
     /// # パラメータ
@@ -508,7 +513,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     ///
-    /// let parent = id.spatial_parent_at_zoom(3).unwrap();
+    /// let parent = id.parent_at_zoom(3).unwrap();
     ///
     /// assert_eq!(parent.z(), 3u8);
     /// assert_eq!(parent.f(), 3i32);
@@ -522,7 +527,7 @@ impl SingleId {
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, -1, 8, 12).unwrap();
     ///
-    /// let parent = id.spatial_parent_at_zoom(3).unwrap();
+    /// let parent = id.parent_at_zoom(3).unwrap();
     ///
     /// assert_eq!(parent.z(), 3u8);
     /// assert_eq!(parent.f(), -1i32);
@@ -535,10 +540,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::{Error, SingleId, SpatialIdError};
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    /// let result = id.spatial_parent_at_zoom(4);
+    /// let result = id.parent_at_zoom(4);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 3, target_z: 4 }))));
     /// ```
-    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<SingleId, Error> {
+    pub fn parent_at_zoom(&self, target_z: u8) -> Result<SingleId, Error> {
         let target_zoom = ZoomLevel::new(target_z)?;
 
         if target_z > self.z() {
@@ -566,6 +571,15 @@ impl SingleId {
         })
     }
 
+    /// 1 段浅いズームレベル（`z - 1`）にある親 [`SingleId`] を返します。`z = 0` の場合は `None` を返します。
+    pub fn parent(&self) -> Option<SingleId> {
+        if self.z() == 0 {
+            None
+        } else {
+            self.parent_at_zoom(self.z() - 1).ok()
+        }
+    }
+
     /// この [`SingleId`] と同じ親を共有する兄弟 [`SingleId`] を 7 個返す。
     ///
     /// 返される 7 個と自分自身を合わせると、1つ上のズームレベルにある親 [`SingleId`] を構成する。
@@ -578,10 +592,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    /// let siblings = id.spatial_siblings().unwrap();
+    /// let siblings = id.siblings().unwrap();
     ///
     /// assert_eq!(siblings.len(), 7);
-    /// assert!(siblings.iter().all(|s| s.spatial_parent_at_zoom(2).unwrap() == id.spatial_parent_at_zoom(2).unwrap()));
+    /// assert!(siblings.iter().all(|s| s.parent_at_zoom(2).unwrap() == id.parent_at_zoom(2).unwrap()));
     /// assert!(!siblings.contains(&id));
     /// ```
     ///
@@ -590,15 +604,15 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(0, 0, 0, 0).unwrap();
-    /// assert!(id.spatial_siblings().is_none());
+    /// assert!(id.siblings().is_none());
     /// ```
-    pub fn spatial_siblings(&self) -> Option<[SingleId; 7]> {
+    pub fn siblings(&self) -> Option<[SingleId; 7]> {
         if self.z() == 0 {
             return None;
         }
 
         let parent_z = self.z() - 1;
-        let parent = self.spatial_parent_at_zoom(parent_z).ok()?;
+        let parent = self.parent_at_zoom(parent_z).ok()?;
         let next_zoom = self.z;
         let f_start = parent.f() * 2;
         let x_start = parent.x() * 2;
@@ -704,21 +718,21 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(3, 3, 2, 7).unwrap();
-    /// let parents: Vec<_> = id.spatial_parents().collect();
+    /// let parents: Vec<_> = id.parents().collect();
     ///
     /// assert_eq!(parents.len(), 3);
     /// assert_eq!(parents[0], SingleId::new(2, 1, 1, 3).unwrap());
     /// assert_eq!(parents[1], SingleId::new(1, 0, 0, 1).unwrap());
     /// assert_eq!(parents[2], SingleId::new(0, 0, 0, 0).unwrap());
     /// ```
-    pub fn spatial_parents(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn parents(&self) -> impl Iterator<Item = SingleId> + '_ {
         (0..self.z()).rev().map(move |target_z| {
-            self.spatial_parent_at_zoom(target_z)
+            self.parent_at_zoom(target_z)
                 .expect("target_z must be valid")
         })
     }
 
-    /// この [`SingleId`] の 面を共有する 6 近傍を列挙します。
+    /// この [`SingleId`] の面を共有する 6 近傍を列挙します。
     ///
     /// 近傍は `f` / `x` / `y` の各軸について `±1` だけ動かした 6 個です。
     /// `x` は循環するため常に有効ですが、`f` と `y` が範囲外になる方向は除外されます。
@@ -728,10 +742,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// let neighbors: Vec<_> = id.neighbors_share_face().collect();
+    /// let neighbors: Vec<_> = id.face_neighbors().collect();
     /// assert_eq!(neighbors.len(), 6);
     /// ```
-    pub fn neighbors_share_face(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn face_neighbors(&self) -> impl Iterator<Item = SingleId> + '_ {
         const OFFSETS: [(i32, i32, i32); 6] = [
             (1, 0, 0),
             (-1, 0, 0),
@@ -760,7 +774,7 @@ impl SingleId {
         })
     }
 
-    /// この [`SingleId`] の 辺を共有する 12 近傍を列挙します。
+    /// この [`SingleId`] の辺を共有する 12 近傍を列挙します。
     ///
     /// 近傍は `f` / `x` / `y` のうちちょうど 2 軸について `±1` だけ動かした 12 個です。
     /// `x` は循環するため常に有効ですが、`f` と `y` が
@@ -771,10 +785,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// let neighbors: Vec<_> = id.neighbors_share_edge().collect();
+    /// let neighbors: Vec<_> = id.edge_neighbors().collect();
     /// assert_eq!(neighbors.len(), 12);
     /// ```
-    pub fn neighbors_share_edge(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn edge_neighbors(&self) -> impl Iterator<Item = SingleId> + '_ {
         const OFFSETS: [(i32, i32, i32); 12] = [
             // f-x 平面 (dy=0)
             (1, 1, 0),
@@ -812,7 +826,7 @@ impl SingleId {
         })
     }
 
-    /// この [`SingleId`] の 頂点を共有する 8 近傍を列挙します。
+    /// この [`SingleId`] の頂点を共有する 8 近傍を列挙します。
     ///
     /// 近傍は `f` / `x` / `y` の全 3 軸について `±1` だけ動かした 8 個です。
     /// `x` は循環するため常に有効ですが、`f` と `y` が
@@ -823,10 +837,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// let neighbors: Vec<_> = id.neighbors_share_vertex().collect();
+    /// let neighbors: Vec<_> = id.vertex_neighbors().collect();
     /// assert_eq!(neighbors.len(), 8);
     /// ```
-    pub fn neighbors_share_vertex(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn vertex_neighbors(&self) -> impl Iterator<Item = SingleId> + '_ {
         const OFFSETS: [(i32, i32, i32); 8] = [
             (1, 1, 1),
             (1, 1, -1),
@@ -866,10 +880,10 @@ impl SingleId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::SingleId;
     /// let id = SingleId::new(4, 6, 9, 10).unwrap();
-    /// let neighbors: Vec<_> = id.neighbors_all().collect();
+    /// let neighbors: Vec<_> = id.all_neighbors().collect();
     /// assert_eq!(neighbors.len(), 26);
     /// ```
-    pub fn neighbors_all(&self) -> impl Iterator<Item = SingleId> + '_ {
+    pub fn all_neighbors(&self) -> impl Iterator<Item = SingleId> + '_ {
         (-1..=1).flat_map(move |df| {
             (-1..=1).flat_map(move |dy| {
                 (-1..=1).filter_map(move |dx| {

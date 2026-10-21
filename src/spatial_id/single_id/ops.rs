@@ -81,7 +81,7 @@ impl SingleId {
         while current.z() < other.z() {
             let next_z = current.z() + 1;
             let children: Vec<_> = current
-                .spatial_children_at_zoom(next_z)
+                .children_at_zoom(next_z)
                 .expect("next_z は current.z() より1段深く、other.z() 以下なので常に有効")
                 .collect();
 
@@ -156,5 +156,61 @@ impl SingleId {
                 .with_time_span(time_span.start(), time_span.end())
                 .expect("交差は両者の部分なので常に有効"),
         )
+    }
+
+    /// `self` が `other` を空間的・時間的に完全に包含するか判定します。
+    ///
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let parent = SingleId::new(2, 0, 0, 0).unwrap();
+    /// let child = SingleId::new(3, 0, 0, 0).unwrap();
+    /// let other = SingleId::new(2, 1, 0, 0).unwrap();
+    /// assert!(parent.contains(&child));
+    /// assert!(!parent.contains(&other));
+    /// assert!(!child.contains(&parent));
+    /// assert!(parent.contains(&parent));
+    /// ```
+    pub fn contains(&self, other: &Self) -> bool {
+        if self.z() > other.z() {
+            return false;
+        }
+        let shift = other.z() - self.z();
+        if (other.f() >> shift) != self.f()
+            || (other.x() >> shift) != self.x()
+            || (other.y() >> shift) != self.y()
+        {
+            return false;
+        }
+        let (s1, e1) = self.seconds_range();
+        let (s2, e2) = other.seconds_range();
+        s1 <= s2 && e2 <= e1
+    }
+
+    /// 2 つの [`SingleId`] が空間的・時間的に重なっているかを判定します。
+    ///
+    /// ```
+    /// # use kasane_logic::SingleId;
+    /// let parent = SingleId::new(2, 0, 0, 0).unwrap();
+    /// let child = SingleId::new(3, 0, 0, 0).unwrap();
+    /// let other = SingleId::new(2, 1, 0, 0).unwrap();
+    /// assert!(parent.intersects(&child));
+    /// assert!(!parent.intersects(&other));
+    /// ```
+    pub fn intersects(&self, other: &Self) -> bool {
+        let (shallow, deep) = if self.z() <= other.z() {
+            (self, other)
+        } else {
+            (other, self)
+        };
+        let shift = deep.z() - shallow.z();
+        if (deep.f() >> shift) != shallow.f()
+            || (deep.x() >> shift) != shallow.x()
+            || (deep.y() >> shift) != shallow.y()
+        {
+            return false;
+        }
+        let (s1, e1) = self.seconds_range();
+        let (s2, e2) = other.seconds_range();
+        s1 < e2 && s2 < e1
     }
 }

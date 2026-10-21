@@ -4,23 +4,49 @@ use core::{
     str::FromStr,
 };
 
-use crate::{Coordinate, FlexId, Interval, RangeId, error::Error};
+use crate::{Coordinate, FlexId, Interval, RangeId, SingleId, error::Error};
 
-#[cfg(doc)]
-use crate::SingleId;
+mod private {
+    pub trait Sealed {}
+    impl Sealed for crate::SingleId {}
+    impl Sealed for crate::RangeId {}
+    impl Sealed for crate::FlexId {}
+}
 
 /// [SingleId],[RangeId],[FlexId]が共通して持つTrait
 pub trait SpatialId:
-    IntoIterator<Item = FlexId> + Into<RangeId> + Debug + Display + Clone + Eq + Hash + FromStr
+    private::Sealed
+    + IntoIterator<Item = FlexId>
+    + Into<RangeId>
+    + Debug
+    + Display
+    + Clone
+    + Eq
+    + Hash
+    + FromStr
 {
     /// F 方向に指定インデックスだけ移動する。
     fn move_f(&mut self, by: i32) -> Result<(), Error>;
 
     /// X 方向に指定インデックスだけ移動する。
+    ///
+    /// 経度（X）は地球を東西に循環するため、移動量は常に有効であり失敗しない。
     fn move_x(&mut self, by: i32);
 
     /// Y 方向に指定インデックスだけ移動する。
     fn move_y(&mut self, by: i32) -> Result<(), Error>;
+
+    /// 3 軸（F, X, Y）をまとめて移動する。
+    ///
+    /// 移動途中で失敗した場合は元の状態を保つ。
+    fn shift(&mut self, df: i32, dx: i32, dy: i32) -> Result<(), Error> {
+        let mut cloned = self.clone();
+        cloned.move_f(df)?;
+        cloned.move_x(dx);
+        cloned.move_y(dy)?;
+        *self = cloned;
+        Ok(())
+    }
 
     /// F 方向の長さをメートル単位で返す。
     fn length_f_meters(&self) -> f64;
@@ -31,10 +57,10 @@ pub trait SpatialId:
     /// Y 方向の長さをメートル単位で返す。
     fn length_y_meters(&self) -> f64;
 
-    /// 空間 ID の中心座標を返す。
+    /// 時間情報を含まない、空間3次元（F/X/Y）の中心座標を返す。
     fn spatial_center(&self) -> Coordinate;
 
-    /// 空間 ID の8頂点を返す。
+    /// 時間情報を含まない、空間3次元（F/X/Y）の直方体を構成する8頂点の座標を返す。
     fn spatial_vertices(&self) -> [Coordinate; 8];
 
     /// 時間間隔 `{i}`を返す。
@@ -70,4 +96,22 @@ pub trait SpatialId:
     fn is_whole_time(&self) -> bool {
         self.seconds_range() == (0, Interval::MAX_SECONDS)
     }
+
+    /// 時間の指定を外し、全時間へ戻した自身を返す。
+    fn without_time(self) -> Self;
+
+    /// 絶対秒区間 `[start, end)` を設定した自身を返す。
+    fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error>;
+
+    /// 指定された Unix 時刻（秒）を時間区間に含むかを判定する。
+    fn contains_time(&self, unix_seconds: u64) -> bool {
+        let (start, end) = self.seconds_range();
+        (start..end).contains(&unix_seconds)
+    }
+
+    /// 指定したズームレベルでの空間的な親ID（包含する最小の空間ID）を返す。
+    fn parent_at_zoom(&self, target_z: u8) -> Result<Self, Error>;
+
+    /// この空間 ID を構成する [`SingleId`] のイテレータを返す。
+    fn single_ids(self) -> impl Iterator<Item = SingleId>;
 }

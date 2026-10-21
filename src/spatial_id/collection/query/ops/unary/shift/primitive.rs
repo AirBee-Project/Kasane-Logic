@@ -49,14 +49,15 @@ impl FlexId {
         let x_index = self.x_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
 
         // 占有区間を整列したインデックス値群へ分解し、F以外の成分を保ったままFlexIdを構築する。
         Ok(
             split_f(max_z, [left, right]).map(move |(seg_z, seg_index)| {
-                FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
-                    .unwrap()
-                    .with_time_segment(t_zoomlevel, t_index)
+                let id = FlexId::new(seg_z, seg_index, x_zoomlevel, x_index, y_zoomlevel, y_index)
+                    .unwrap();
+                // SAFETY: t_zoomlevel と t_index は元の有効な FlexId から取得した値
+                unsafe { id.with_time_segment_unchecked(t_zoomlevel, t_index) }
             }),
         )
     }
@@ -104,12 +105,13 @@ impl FlexId {
         let f_index = self.f_index();
         let y_zoomlevel = self.y_zoomlevel();
         let y_index = self.y_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
 
         Ok(ranges
             .into_iter()
             .flat_map(move |range| split_xy(max_z, range))
             .map(move |(seg_z, seg_index)| {
+                // SAFETY: 空間成分は範囲内検証済み、時間成分は元の有効な FlexId を継承
                 unsafe {
                     FlexId::new_unchecked(
                         f_zoomlevel,
@@ -119,8 +121,8 @@ impl FlexId {
                         y_zoomlevel,
                         y_index,
                     )
+                    .with_time_segment_unchecked(t_zoomlevel, t_index)
                 }
-                .with_time_segment(t_zoomlevel, t_index)
             }))
     }
 
@@ -165,10 +167,11 @@ impl FlexId {
         let f_index = self.f_index();
         let x_zoomlevel = self.x_zoomlevel();
         let x_index = self.x_index();
-        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t());
+        let (t_zoomlevel, t_index) = (self.t_zoomlevel(), self.t_index());
 
         Ok(
             split_xy(max_z, [left as u32, right as u32]).map(move |(seg_z, seg_index)| {
+                // SAFETY: 空間成分は範囲内検証済み、時間成分は元の有効な FlexId を継承
                 unsafe {
                     FlexId::new_unchecked(
                         f_zoomlevel,
@@ -178,8 +181,8 @@ impl FlexId {
                         seg_z,
                         seg_index,
                     )
+                    .with_time_segment_unchecked(t_zoomlevel, t_index)
                 }
-                .with_time_segment(t_zoomlevel, t_index)
             }),
         )
     }

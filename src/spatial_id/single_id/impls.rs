@@ -154,7 +154,7 @@ impl SpatialId for SingleId {
         Ok(())
     }
 
-    /// `SingleId` の中心座標を[`Coordinate`]型で返します。
+    /// `SingleId` の空間中心座標を[`Coordinate`]型で返します。
     ///
     /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
     ///
@@ -165,7 +165,6 @@ impl SpatialId for SingleId {
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     /// let center: Coordinate = id.spatial_center();
     /// println!("{:?}", center);
-    /// // Coordinate { latitude: -81.09321385260839, longitude: 33.75, altitude: 13631488.0 }
     /// ```
     fn spatial_center(&self) -> Coordinate {
         Coordinate::new(
@@ -187,8 +186,6 @@ impl SpatialId for SingleId {
     /// let id = SingleId::new(4, 6, 9, 14).unwrap();
     /// let vertices: [Coordinate; 8] = id.spatial_vertices();
     /// println!("{:?}", vertices);
-    ///
-    ///  //[Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 12582912.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 12582912.0 }, Coordinate { latitude: -79.17133464081945, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -79.17133464081945, longitude: 45.0, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 22.5, altitude: 14680064.0 }, Coordinate { latitude: -82.67628497834903, longitude: 45.0, altitude: 14680064.0 }]
     /// ```
     fn spatial_vertices(&self) -> [Coordinate; 8] {
         let xs = [self.x as f64, self.x as f64 + 1.0];
@@ -261,6 +258,22 @@ impl SpatialId for SingleId {
         let unit = self.i.seconds();
         let t = self.t();
         (t * unit, (t + 1) * unit)
+    }
+
+    fn without_time(self) -> Self {
+        self.without_time()
+    }
+
+    fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
+        self.with_time_span(start, end)
+    }
+
+    fn parent_at_zoom(&self, target_z: u8) -> Result<Self, Error> {
+        self.parent_at_zoom(target_z)
+    }
+
+    fn single_ids(self) -> impl Iterator<Item = SingleId> {
+        self.single_ids()
     }
 }
 

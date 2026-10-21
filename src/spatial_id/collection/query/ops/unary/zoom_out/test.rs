@@ -168,13 +168,16 @@ fn zoom_out_merges_same_parent_split_by_finer_t() {
     // 入力の列は a, b, c の順で、親が同じ a と c の間に、親が違う b が挟まる
     let a = FlexId::new(6, 0, 5, 0, 5, 0)
         .unwrap()
-        .with_time_segment(6, 0);
+        .with_time_segment(6, 0)
+        .unwrap();
     let b = FlexId::new(6, 0, 5, 0, 5, 0)
         .unwrap()
-        .with_time_segment(6, 1);
+        .with_time_segment(6, 1)
+        .unwrap();
     let c = FlexId::new(6, 1, 5, 0, 5, 0)
         .unwrap()
-        .with_time_segment(6, 0);
+        .with_time_segment(6, 0)
+        .unwrap();
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(a, 1);
     table.insert(b, 10);
@@ -187,14 +190,17 @@ fn zoom_out_merges_same_parent_split_by_finer_t() {
         let out: Vec<_> = out.collect::<Result<_, _>>().unwrap();
         let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
         assert_eq!(out.len(), 2);
-        assert_eq!(out[0].0, parent.with_time_segment(6, 0));
-        assert_eq!(out[1].0, parent.with_time_segment(6, 1));
+        assert_eq!(out[0].0, parent.with_time_segment(6, 0).unwrap());
+        assert_eq!(out[1].0, parent.with_time_segment(6, 1).unwrap());
         assert_eq!(out[1].1, 10);
     }
     let sum = table.query().zoom_out(5, Sum).get(..).table().unwrap();
     let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
     assert_eq!(
-        sum.get(parent.with_time_segment(6, 0)).next().unwrap().1,
+        sum.get(parent.with_time_segment(6, 0).unwrap())
+            .next()
+            .unwrap()
+            .1,
         &101
     );
 }
@@ -208,10 +214,12 @@ fn zoom_out_resolves_parents_overlapping_in_t() {
     // 親の T が T6 idx0 と、それに含まれる T8 idx1 になり、親どうしが重なる
     let a = FlexId::new(6, 0, 5, 0, 5, 0)
         .unwrap()
-        .with_time_segment(6, 0);
+        .with_time_segment(6, 0)
+        .unwrap();
     let b = FlexId::new(6, 1, 5, 0, 5, 0)
         .unwrap()
-        .with_time_segment(8, 1);
+        .with_time_segment(8, 1)
+        .unwrap();
     let mut table = SpatialIdTable::<i32>::new();
     table.insert(a, 1);
     table.insert(b, 10);
@@ -219,10 +227,10 @@ fn zoom_out_resolves_parents_overlapping_in_t() {
     let out = table.query().zoom_out(5, Sum).get(..).table().unwrap();
     let parent = FlexId::new(5, 0, 5, 0, 5, 0).unwrap();
     let mut expected = SpatialIdTable::<i32>::new();
-    expected.insert(parent.with_time_segment(6, 0), 1);
+    expected.insert(parent.with_time_segment(6, 0).unwrap(), 1);
     expected
         .inner
-        .insert_with([parent.with_time_segment(8, 1)], 10, |x, y| x + y);
+        .insert_with([parent.with_time_segment(8, 1).unwrap()], 10, |x, y| x + y);
     assert_eq!(out.inner, expected.inner);
 }
 
@@ -256,7 +264,8 @@ fn zoom_out_sum_matches_inserting_each_parent() {
                 next(1 << yz) as u32,
             )
             .unwrap()
-            .with_time_segment(tz, next(1 << tz));
+            .with_time_segment(tz, next(1 << tz))
+            .unwrap();
             table.insert(id, next(10) as i32 + 1);
         }
         let target_z = next(6) as u8;
@@ -271,7 +280,7 @@ fn zoom_out_sum_matches_inserting_each_parent() {
 
         let mut expected = SpatialIdTable::<i32>::new();
         for (id, &v) in table.iter() {
-            let parent = id.spatial_parent_at_zoom(target_z).unwrap();
+            let parent = id.parent_at_zoom(target_z).unwrap();
             expected.inner.insert_with([parent], v, |a, b| a + b);
         }
         assert_eq!(out.inner, expected.inner);

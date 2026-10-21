@@ -19,10 +19,10 @@ impl Iterator for SingleIdSegments {
 
     fn next(&mut self) -> Option<FlexId> {
         let time_segment = self.time_segments.next()?;
-        Some(
+        Some(unsafe {
             self.base
-                .with_time_segment(time_segment.zoom().get(), time_segment.index()),
-        )
+                .with_time_segment_unchecked(time_segment.zoom().get(), time_segment.index())
+        })
     }
 }
 

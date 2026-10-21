@@ -63,7 +63,7 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         {
             out[14] = self.t_zoomlevel();
-            out[15..23].copy_from_slice(&self.t().to_be_bytes());
+            out[15..23].copy_from_slice(&self.t_index().to_be_bytes());
         }
 
         out
@@ -118,7 +118,7 @@ impl FlexId {
         {
             let t_zoomlevel = bytes[14];
             let t_index = u64::from_be_bytes(bytes[15..23].try_into().unwrap());
-            id.with_time(t_zoomlevel, t_index)
+            id.with_time_segment(t_zoomlevel, t_index)
         }
 
         #[cfg(not(feature = "temporal_id"))]
@@ -144,8 +144,8 @@ mod tests {
     #[test]
     fn distinguishes_same_space_different_time() {
         let base = FlexId::new(10, 3, 12, 909, 12, 403).unwrap();
-        let a = base.with_time(20u8, 5).unwrap();
-        let b = base.with_time(20u8, 6).unwrap();
+        let a = base.with_time_segment(20u8, 5).unwrap();
+        let b = base.with_time_segment(20u8, 6).unwrap();
 
         assert_ne!(a.encode(), b.encode());
     }
@@ -159,14 +159,14 @@ mod tests {
         for (t_zoomlevel, t_index) in cases {
             let id = FlexId::new(18, -5, 18, 232848, 18, 103242)
                 .unwrap()
-                .with_time(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
                 .unwrap();
             let bytes = id.encode();
             assert_eq!(bytes.len(), FlexId::ENCODED_LEN);
             let decoded = FlexId::decode(&bytes).unwrap();
             assert_eq!(decoded, id);
             assert_eq!(decoded.t_zoomlevel(), t_zoomlevel);
-            assert_eq!(decoded.t(), t_index);
+            assert_eq!(decoded.t_index(), t_index);
         }
     }
 }

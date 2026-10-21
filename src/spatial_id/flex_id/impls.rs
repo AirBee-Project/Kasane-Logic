@@ -36,7 +36,7 @@ impl fmt::Display for FlexId {
 
         // 時間軸も他の軸と同じ「ズーム/インデックス」の形で、同じ区切りで続ける。
         if !self.is_whole_time() {
-            write!(f, "|{}/{}", self.t_zoomlevel(), self.t())?;
+            write!(f, "|{}/{}", self.t_zoomlevel(), self.t_index())?;
         }
         Ok(())
     }
@@ -163,8 +163,24 @@ impl SpatialId for FlexId {
     fn seconds_range(&self) -> (u64, u64) {
         let zoom = crate::spatial_id::zoom_level::TZoomLevel::new(self.t_zoomlevel()).unwrap();
         let time_span =
-            crate::spatial_id::time::segment::TimeSegment::new(zoom, self.t()).time_span();
+            crate::spatial_id::time::segment::TimeSegment::new(zoom, self.t_index()).time_span();
         (time_span.start(), time_span.end())
+    }
+
+    fn without_time(self) -> Self {
+        self.without_time()
+    }
+
+    fn with_time_span(self, start: u64, end: u64) -> Result<Self, Error> {
+        self.with_time_span(start, end)
+    }
+
+    fn parent_at_zoom(&self, target_z: u8) -> Result<Self, Error> {
+        self.parent_at_zoom(target_z)
+    }
+
+    fn single_ids(self) -> impl Iterator<Item = crate::SingleId> {
+        self.single_ids()
     }
 }
 
@@ -231,7 +247,7 @@ impl FromStr for FlexId {
                     y_zoomlevel,
                     y_index,
                 )?
-                .with_time(t_zoomlevel, t_index)
+                .with_time_segment(t_zoomlevel, t_index)
             }
         }
     }

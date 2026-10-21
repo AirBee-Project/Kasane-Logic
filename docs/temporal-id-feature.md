@@ -37,8 +37,8 @@ assert_eq!(id.seconds_range(), (1_457_481_600, 1_457_483_400));
 | 方法 | 用途 |
 | :--- | :--- |
 | `SingleId::new(z, f, x, y)` | 時間を指定しない（全時間） |
-| `id.with_time(i, t)` | 既存の ID に時間を付ける（ビルダー） |
-| `id.with_time_at(i, unix秒)` | 仕様 1.5.3 (3) の `t = floor(u / i)` を内部で計算 |
+| `id.with_time(i, t)` | 既存の ID に時間を付ける（ビルダー。`FlexId` は `with_time_segment(tz, t)`） |
+| `id.with_time_at(i, unix秒)` | 仕様 1.5.3 (3) の `t = floor(u / i)` を内部で計算（`FlexId` は `with_time_segment_at(tz, unix秒)`） |
 | `range.with_time_seconds(start, end)` | 秒区間から。単位は自動で最も粗いものが選ばれる |
 | `id.relabel_time(i)` | 秒区間は変えずに単位だけ変える |
 

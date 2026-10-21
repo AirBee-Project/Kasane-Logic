@@ -83,9 +83,9 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         let time = nested(
             self.t_zoomlevel(),
-            self.t() as i64,
+            self.t_index() as i64,
             other.t_zoomlevel(),
-            other.t() as i64,
+            other.t_index() as i64,
         );
         #[cfg(not(feature = "temporal_id"))]
         let time = true;
@@ -139,9 +139,9 @@ impl FlexId {
         #[cfg(feature = "temporal_id")]
         let (t_z, t_i) = nested_dimension(
             self.t_zoomlevel(),
-            self.t() as i64,
+            self.t_index() as i64,
             other.t_zoomlevel(),
-            other.t() as i64,
+            other.t_index() as i64,
         )?;
 
         // SAFETY: 各次元のズームとインデックスは、どちらかの入力のものをそのまま使っている
@@ -205,9 +205,9 @@ impl FlexId {
         {
             if !contains_dimension(
                 self.t_zoomlevel(),
-                self.t() as i64,
+                self.t_index() as i64,
                 other.t_zoomlevel(),
-                other.t() as i64,
+                other.t_index() as i64,
             ) {
                 return false;
             }

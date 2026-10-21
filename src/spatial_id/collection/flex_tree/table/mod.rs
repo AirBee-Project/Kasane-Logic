@@ -98,11 +98,11 @@ where
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
-    pub fn neighbors_share_face<T: SpatialId>(
+    pub fn face_neighbors<T: SpatialId>(
         &self,
         target: T,
     ) -> impl Iterator<Item = (FlexId, &V)> + '_ {
-        self.inner.neighbors_share_face(target)
+        self.inner.face_neighbors(target)
     }
 
     /// 保持している[FlexId]の総数を返します。

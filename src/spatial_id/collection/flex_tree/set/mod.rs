@@ -104,12 +104,9 @@ impl SpatialIdSet {
     }
 
     /// 指定した単体の空間 IDと面で接している[`FlexId`] を重複なく返す。入力された空間ID自身と重なる空間IDは除外する。
-    pub fn neighbors_share_face<S: SpatialId>(
-        &self,
-        target: S,
-    ) -> impl Iterator<Item = FlexId> + '_ {
+    pub fn face_neighbors<S: SpatialId>(&self, target: S) -> impl Iterator<Item = FlexId> + '_ {
         self.inner
-            .neighbors_share_face(target)
+            .face_neighbors(target)
             .map(|(flex_id, _)| flex_id)
     }
 

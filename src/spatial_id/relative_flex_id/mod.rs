@@ -24,8 +24,10 @@ impl FlexId {
                 (dz, i - (ai << dz))
             });
         // SAFETY: 祖先に含まれるので、深さは自身のズーム以下、下位ビットは `0..2^深さ` に収まる
-        let relative = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
-            .with_time_segment(tz, t as u64);
+        let relative = unsafe {
+            FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32)
+                .with_time_segment_unchecked(tz, t as u64)
+        };
         Ok(RelativeFlexId(relative))
     }
 }
@@ -78,8 +80,10 @@ impl RelativeFlexId {
                 (az + rz, (ai << rz) + ri)
             });
         // SAFETY: ズームは上限以下。インデックスは祖先の区間を `2^深さ` 等分したうちの1つなので、そのズームの範囲に収まる
-        let absolute = unsafe { FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32) }
-            .with_time_segment(tz, t as u64);
+        let absolute = unsafe {
+            FlexId::new_unchecked(fz, f as i32, xz, x as u32, yz, y as u32)
+                .with_time_segment_unchecked(tz, t as u64)
+        };
         Ok(absolute)
     }
 
@@ -131,7 +135,8 @@ impl RelativeFlexId {
             i as u64
         });
         // ビット幅が最大ズーム以下なので、空間3軸のインデックスは i32 / u32 に収まる
-        let relative = FlexId::new(fz, f as i32, xz, x as u32, yz, y as u32)?.with_time(tz, t)?;
+        let relative =
+            FlexId::new(fz, f as i32, xz, x as u32, yz, y as u32)?.with_time_segment(tz, t)?;
         Ok(RelativeFlexId(relative))
     }
 }
@@ -152,7 +157,7 @@ fn dimensions(id: &FlexId) -> Dimensions {
         (id.f_zoomlevel(), id.f_index() as i64),
         (id.x_zoomlevel(), id.x_index() as i64),
         (id.y_zoomlevel(), id.y_index() as i64),
-        (id.t_zoomlevel(), id.t() as i64),
+        (id.t_zoomlevel(), id.t_index() as i64),
     ]
 }
 
@@ -209,10 +214,37 @@ mod tests {
         let max = (1u32 << 30) - 1;
         let deepest = FlexId::new(30, max as i32, 30, max, 30, max)
             .unwrap()
-            .with_time(TZoomLevel::MAX.get(), (1 << 35) - 1)
+            .with_time_segment(TZoomLevel::MAX.get(), (1 << 35) - 1)
             .unwrap();
         let relative = deepest.relative_to(&FlexId::UPPER_MAX).unwrap();
         assert_eq!(RelativeFlexId::decode(&relative.encode()), Ok(relative));
+    }
+
+    /// T の深さが最大ズームを超えるバイト列は復元できない。
+    #[test]
+    fn decode_rejects_t_zoom_beyond_max() {
+        let mut bytes = FlexId::new(0, 0, 0, 0, 0, 0)
+            .unwrap()
+            .relative_to(&FlexId::UPPER_MAX)
+            .unwrap()
+            .encode();
+        bytes[3] = TZoomLevel::MAX.get() + 1;
+        assert!(RelativeFlexId::decode(&bytes).is_err());
+    }
+
+    /// T のインデックスが `0..2^深さ` に収まらないバイト列は復元できない。
+    #[test]
+    fn decode_rejects_t_index_out_of_range() {
+        let mut bytes = FlexId::new(0, 0, 0, 0, 0, 0)
+            .unwrap()
+            .relative_to(&FlexId::UPPER_MAX)
+            .unwrap()
+            .encode();
+        bytes[3] = 1;
+        let t_shift: u32 = MAX_ZOOM[..3].iter().map(|&b| b as u32).sum();
+        let index = 2u128 << t_shift;
+        bytes[4..].copy_from_slice(&index.to_le_bytes());
+        assert!(RelativeFlexId::decode(&bytes).is_err());
     }
 
     /// クレートルートから RelativeFlexId および Dimension が利用でき、深さ取得が正しく動作することを検証。

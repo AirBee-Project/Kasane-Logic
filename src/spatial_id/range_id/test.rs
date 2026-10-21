@@ -69,7 +69,7 @@ fn shift_range_completely_out_of_bounds_is_empty() {
 fn spatial_parent_at_zoom_wrapped_x_collapses_to_full_domain() {
     let mut id = RangeId::new(3, 0, 0, 0).unwrap();
     id.set_x([3, 2]).unwrap();
-    let parent = id.spatial_parent_at_zoom(2).unwrap();
+    let parent = id.parent_at_zoom(2).unwrap();
     assert_eq!(parent.x(), [0, 3]);
 }
 
@@ -77,6 +77,23 @@ fn spatial_parent_at_zoom_wrapped_x_collapses_to_full_domain() {
 fn spatial_parent_at_zoom_wrapped_x_preserves_gap() {
     let mut id = RangeId::new(3, 0, 0, 0).unwrap();
     id.set_x([6, 1]).unwrap();
-    let parent = id.spatial_parent_at_zoom(2).unwrap();
+    let parent = id.parent_at_zoom(2).unwrap();
     assert_eq!(parent.x(), [3, 0]);
+}
+
+#[test]
+fn scale_to_zoom_and_spatial_id_methods() {
+    use crate::SpatialId;
+
+    let id = RangeId::new(4, [-2, 3], [1, 2], [3, 4]).unwrap();
+    let scaled = id.scale_to_zoom(5).unwrap();
+    assert_eq!(scaled.z(), 5);
+    assert_eq!(scaled.f(), [-4, 7]);
+    assert_eq!(scaled.x(), [2, 5]);
+    assert_eq!(scaled.y(), [6, 9]);
+
+    let _ = id.spatial_center();
+    let _ = id.spatial_vertices();
+
+    assert_eq!(id.clone().single_ids().count(), 6 * 2 * 2);
 }

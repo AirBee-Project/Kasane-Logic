@@ -306,7 +306,7 @@ mod api_symmetry {
         // FlexId だけは母語（ズーム）で指定する。ズーム25 = 2^(35-25) = 1024 秒幅。
         let flex = FlexId::new(4, 0, 4, 1, 4, 1)
             .unwrap()
-            .with_time(25, 7)
+            .with_time_segment(25, 7)
             .unwrap();
 
         // 同じ `{i}/{t}` を指定したので、占める秒区間も一致する。
@@ -336,7 +336,8 @@ mod api_symmetry {
         assert_eq!(by_const, by_u64);
     }
 
-    /// `with_time_at` は3型とも同じ名前で、Unix 時刻からSegmentを決める。
+    /// Unix 時刻から時間を決める入口は3型ともある。`FlexId` だけはズームで粒度を指定するので
+    /// `with_time_segment_at` という別名になっている。
     #[test]
     fn with_time_at_is_available_on_every_type() {
         const UNIX: u64 = 1_770_000_000;
@@ -350,7 +351,7 @@ mod api_symmetry {
             .unwrap();
         let flex = FlexId::new(4, 0, 4, 1, 4, 1)
             .unwrap()
-            .with_time_at(25, UNIX)
+            .with_time_segment_at(25, UNIX)
             .unwrap();
 
         assert_eq!(single.seconds_range(), range.seconds_range());
@@ -444,7 +445,7 @@ mod api_symmetry {
         assert!(
             FlexId::new(4, 0, 4, 1, 4, 1)
                 .unwrap()
-                .with_time(25, 7)
+                .with_time_segment(25, 7)
                 .unwrap()
                 .without_time()
                 .is_whole_time()

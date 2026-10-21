@@ -364,7 +364,7 @@ impl RangeId {
         out: &mut Vec<RangeId>,
     ) {
         let target_z = z.max(self.z.get());
-        let Ok(mut b) = self.spatial_children_at_zoom(target_z) else {
+        let Ok(mut b) = self.scale_to_zoom(target_z) else {
             return;
         };
         let scale = 1i64 << (target_z - z);
@@ -412,24 +412,23 @@ impl RangeId {
         }
     }
 
-    /// 指定したズームレベル `target_z` に細分化した、この `RangeId` を含むすべての子 `RangeId` を生成します。
+    /// 指定したより深いズームレベル `target_z` にスケール変換した、この `RangeId` を生成します。
     ///
     /// # パラメータ
-    /// * `target_z` — 生成したい子 `RangeId` のズームレベル
+    /// * `target_z` — 変換先のズームレベル
     ///
     /// # バリデーション
     /// - `target_z` が現在のズームレベルより浅い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返します。
     /// - `target_z` が本クレートで扱える最大ズームレベルを超える場合は、[`SpatialIdError::ZOutOfRange`] を返します。
     ///
-    /// 1段深いズームへの細分化
+    /// 1段深いズームへのスケール変換
     /// ```
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.spatial_children_at_zoom(6).unwrap();
-    /// assert_eq!(result,  RangeId::new(6, [-6, 59], [16, 19], [10, 21] ).unwrap());
-    ///
+    /// let result = id.scale_to_zoom(6).unwrap();
+    /// assert_eq!(result, RangeId::new(6, [-6, 59], [16, 19], [10, 21]).unwrap());
     /// ```
     ///
     /// 現在より浅いズームを指定した場合
@@ -437,10 +436,10 @@ impl RangeId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::{Error, RangeId, SpatialIdError};
     /// let id = RangeId::new(5, [-3,29], [8,9], [5,10]).unwrap();
-    /// let result = id.spatial_children_at_zoom(4);
+    /// let result = id.scale_to_zoom(4);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 4 }))));
     /// ```
-    pub fn spatial_children_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
+    pub fn scale_to_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
         let z = self.z.get();
         if target_z < z {
             return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {
@@ -489,7 +488,7 @@ impl RangeId {
     /// # use kasane_logic::RangeId;
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [1,29], [8,9], [5,10]).unwrap();
-    /// let parent = id.spatial_parent_at_zoom(4).unwrap();
+    /// let parent = id.parent_at_zoom(4).unwrap();
     ///
     /// assert_eq!(parent.z(), 4);
     /// assert_eq!(parent.f(), [0,14]);
@@ -504,7 +503,7 @@ impl RangeId {
     /// # use kasane_logic::Error;
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
     ///
-    /// let parent = id.spatial_parent_at_zoom(4).unwrap();
+    /// let parent = id.parent_at_zoom(4).unwrap();
     ///
     /// assert_eq!(parent.z(), 4);
     /// assert_eq!(parent.f(), [-5,-3]);
@@ -517,10 +516,10 @@ impl RangeId {
     /// # use kasane_logic::SpatialId;
     /// # use kasane_logic::{Error, RangeId, SpatialIdError};
     /// let id = RangeId::new(5, [-10,-5], [8,9], [5,10]).unwrap();
-    /// let result = id.spatial_parent_at_zoom(6);
+    /// let result = id.parent_at_zoom(6);
     /// assert!(matches!(result, Err(Error::SpatialId(SpatialIdError::ZoomLevelTransitionOutOfRange { current_z: 5, target_z: 6 }))));
     /// ```
-    pub fn spatial_parent_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
+    pub fn parent_at_zoom(&self, target_z: u8) -> Result<RangeId, Error> {
         let z = self.z.get();
         if target_z > z {
             return Err(SpatialIdError::ZoomLevelTransitionOutOfRange {

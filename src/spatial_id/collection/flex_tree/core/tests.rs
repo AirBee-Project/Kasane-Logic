@@ -165,6 +165,7 @@ fn random_id(next: &mut impl FnMut(u64) -> u64, max_zoom: u64) -> FlexId {
     FlexId::new(fz, f, xz, x, yz, y)
         .unwrap()
         .with_time_segment(tz, t)
+        .unwrap()
 }
 
 /// 標本点のズーム。[`random_id`] の `max_zoom` 以下の ID より必ず細かい。
@@ -177,7 +178,10 @@ fn random_point_in(next: &mut impl FnMut(u64) -> u64, region: &FlexId) -> FlexId
     let x = deeper(region.x_zoomlevel(), region.x_index() as i64);
     let y = deeper(region.y_zoomlevel(), region.y_index() as i64);
     let (tz, t) = if cfg!(feature = "temporal_id") {
-        (POINT_ZOOM, deeper(region.t_zoomlevel(), region.t() as i64))
+        (
+            POINT_ZOOM,
+            deeper(region.t_zoomlevel(), region.t_index() as i64),
+        )
     } else {
         (0, 0)
     };
@@ -186,6 +190,7 @@ fn random_point_in(next: &mut impl FnMut(u64) -> u64, region: &FlexId) -> FlexId
     )
     .unwrap()
     .with_time_segment(tz, t as u64)
+    .unwrap()
 }
 
 /// 書き込んだ各 ID の内側と、全体からランダムに選んだ標本点。
@@ -855,7 +860,7 @@ fn remove_overlapping_removes_whole_leaves() {
     }
 }
 
-/// `neighbors_share_face` は、面で接する領域だけを返し、自身や角で接する領域は返さない。
+/// `face_neighbors` は、面で接する領域だけを返し、自身や角で接する領域は返さない。
 #[test]
 fn neighbors_share_face_returns_face_neighbors_only() {
     let at = |f, x, y| SingleId::new(4, f, x, y).unwrap();
@@ -876,7 +881,7 @@ fn neighbors_share_face_returns_face_neighbors_only() {
     }
 
     let mut values: Vec<u64> = tree
-        .neighbors_share_face(center.clone())
+        .face_neighbors(center.clone())
         .map(|(_, v)| *v)
         .collect();
     values.sort();

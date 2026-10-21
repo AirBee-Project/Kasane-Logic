@@ -212,6 +212,7 @@ mod test {
         FlexId::new(fz, f, xz, x, yz, y)
             .unwrap()
             .with_time_segment(tz, t)
+            .unwrap()
     }
 
     #[test]

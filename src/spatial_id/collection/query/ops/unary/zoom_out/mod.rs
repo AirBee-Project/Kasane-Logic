@@ -71,7 +71,7 @@ where
                     Ok(item) => item,
                     Err(e) => return Some(Err(e)),
                 };
-                let parent = match id.spatial_parent_at_zoom(target_z) {
+                let parent = match id.parent_at_zoom(target_z) {
                     Ok(p) => p,
                     Err(e) => return Some(Err(e)),
                 };
@@ -128,7 +128,7 @@ where
 
     fn reverse_target(&self, bounds: crate::RangeId, out: &mut Vec<crate::RangeId>) {
         if bounds.z() > self.target_z.get() {
-            out.push(bounds.spatial_parent_at_zoom(self.target_z.get()).unwrap());
+            out.push(bounds.parent_at_zoom(self.target_z.get()).unwrap());
         } else {
             out.push(bounds);
         }
