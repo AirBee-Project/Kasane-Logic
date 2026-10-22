@@ -185,9 +185,9 @@ impl<V, S> Eq for CompactNode<V, S> {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::mem::size_of;
     use crate::id::dimension::Dimension;
     use crate::id::relative_flex_id::RelativeFlexId;
+    use core::mem::size_of;
 
     struct CompactBranch<V, S> {
         _dimension: Dimension,
@@ -211,7 +211,16 @@ mod tests {
         assert_eq!(size_of::<CompactNode<(), ()>>(), 8);
         assert_eq!(size_of::<CompactBranch<u32, ()>>(), 24);
         assert_eq!(size_of::<CompactBranch<(), ()>>(), 24);
-        assert_eq!(size_of::<CompactSkip<u32, ()>>(), 40);
-        assert_eq!(size_of::<CompactSkip<(), ()>>(), 40);
+
+        #[cfg(feature = "temporal_id")]
+        {
+            assert_eq!(size_of::<CompactSkip<u32, ()>>(), 40);
+            assert_eq!(size_of::<CompactSkip<(), ()>>(), 40);
+        }
+        #[cfg(not(feature = "temporal_id"))]
+        {
+            assert_eq!(size_of::<CompactSkip<u32, ()>>(), 32);
+            assert_eq!(size_of::<CompactSkip<(), ()>>(), 32);
+        }
     }
 }
