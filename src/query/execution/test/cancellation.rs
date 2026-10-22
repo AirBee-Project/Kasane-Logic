@@ -56,7 +56,7 @@ fn cancelling_after_one_side_still_stops_the_query() {
     ];
     let query = left
         .query()
-        .merge(right.query(), 0, crate::query::merge_policy::Sum);
+        .merge(right.query(), crate::query::merge_policy::Sum);
 
     assert_eq!(
         query.get_cancellable(bounds, &token).into_map(),
