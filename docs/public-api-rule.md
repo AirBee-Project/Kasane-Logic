@@ -13,7 +13,7 @@
 - 公開モジュールは `pub mod` で宣言する。
 - 利用者に直接使ってほしい項目は `lib.rs` で `pub use` する。
 - 内部実装都合のモジュール（実装分割用の `constructor` / `impls` / `ops` など）は原則として `lib.rs` では再公開しない。
-- 中間 `mod.rs`（例: `spatial_id/mod.rs`, `geometry/mod.rs`）での再公開は最小限にする。
+- 中間 `mod.rs`（例: `id/mod.rs`, `geometry/mod.rs`）での再公開は最小限にする。
 
 ## 3. rustdoc 表示ルール
 
@@ -32,12 +32,16 @@
 - トレイト（`Point`, `Shape`, `Into*`, `To*`）。
 - 定数（`WGS84_*`）。
 
-3. spatial_id。
+3. spatial_id（モジュールは公開せず、項目を `lib.rs` 直下から公開する）。
 
-- ID 型（`SingleId`, `RangeId`, `FlexId`）と時間間隔（`Interval`）。
+- ID 型（`SingleId`, `RangeId`, `FlexId`）。
 - コレクション型（`FlexTree*`）。
-- トレイト（`SpatialId`, `Into*Ids`, `Iter*Ids`, `SpatialIdSet`, `SpatialIdTable`）。
+- トレイト（`SpatialId`, `Into*Ids`, `Iter*Ids`, `SpatialIdSet`, `SpatialIdMap`）。
 - 定数（`F_*`, `XY_MAX`, `MAX_ZOOM_LEVEL`）。
+
+4. time（`time` モジュールとして公開する）。
+
+- 時間間隔と時間のズームレベル（`Interval`, `AllowedIntervals`, `TZoomLevel`）。
 
 ## 5. 追加・変更時のチェックリスト
 
@@ -54,7 +58,7 @@
 pub use geometry::point::coordinate::Coordinate;
 
 #[doc(inline)]
-pub use spatial_id::single_id::SingleId;
+pub use id::SingleId;
 ```
 
 ## 7. 互換性ポリシー

@@ -9,7 +9,7 @@ use crate::{
 /// 地心直交座標(Ecef)をベクトルとして扱ったもの。
 /// a は X成分、b は Y成分、c は Z成分を表す。
 /// 座標系を混同しないため、Vec3FractionalId とは区別する。
-pub struct Vec3Ecef {
+pub(crate) struct Vec3Ecef {
     pub a: f64,
     pub b: f64,
     pub c: f64,

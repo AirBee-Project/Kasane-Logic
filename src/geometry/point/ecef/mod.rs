@@ -32,7 +32,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// // 赤道・本初子午線上の地表付近
     /// let ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
@@ -78,7 +78,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// assert_eq!(ecef.x(), 6_378_137.0);
@@ -91,7 +91,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let ecef = Ecef::new(0.0, 6_378_137.0, 0.0).unwrap();
     /// assert_eq!(ecef.y(), 6_378_137.0);
@@ -104,7 +104,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let ecef = Ecef::new(6_378_137.0, 0.0, 100_000.0).unwrap();
     /// assert_eq!(ecef.z(), 100_000.0);
@@ -117,7 +117,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let mut ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// ecef.set_x(6_400_000.0).unwrap();
@@ -147,7 +147,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let mut ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// ecef.set_y(100_000.0).unwrap();
@@ -177,7 +177,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let mut ecef = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// ecef.set_z(100_000.0).unwrap();
@@ -207,7 +207,7 @@ impl Ecef {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::Ecef;
+    /// # use spatial_id::geometry::Ecef;
     ///
     /// let a = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
     /// let b = Ecef::new(6_378_140.0, 4.0, 0.0).unwrap();
@@ -235,7 +235,7 @@ impl Ecef {
 
     /// 指定された軸インデックス (0=x, 1=y, 2=z) の成分を返す。
     /// 投影計算などで軸を動的に扱いたい場合に有用。
-    pub fn get_component(&self, index: usize) -> f64 {
+    pub(crate) fn get_component(&self, index: usize) -> f64 {
         match index {
             0 => self.x,
             1 => self.y,
@@ -244,7 +244,7 @@ impl Ecef {
     }
 
     /// 指定された2つの軸（u, v）に基づいて 2D 平面に投影した座標を返す。
-    pub fn project_2d(&self, u_axis: usize, v_axis: usize) -> (f64, f64) {
+    pub(crate) fn project_2d(&self, u_axis: usize, v_axis: usize) -> (f64, f64) {
         (self.get_component(u_axis), self.get_component(v_axis))
     }
 }

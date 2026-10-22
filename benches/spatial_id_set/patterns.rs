@@ -3,9 +3,10 @@
 //! systematic_crud / systematic_setops / memory_usage から
 //! `#[path = "patterns.rs"] mod patterns;` で共有される。
 
-use kasane_logic::{SingleId, SpatialIdSet};
 use rand::{RngExt, SeedableRng};
 use rand_chacha::ChaCha8Rng;
+use spatial_id::SingleId;
+use spatial_id::collection::SpatialIdSet;
 
 pub const Z: u8 = 20;
 pub const COUNTS: &[usize] = &[500, 2_000, 8_000];
@@ -134,7 +135,7 @@ pub fn checkerboard(z: u8, count: usize) -> Vec<SingleId> {
 pub fn build_set(ids: &[SingleId]) -> SpatialIdSet {
     let mut set = SpatialIdSet::new();
     for id in ids {
-        set.insert(id.clone());
+        set.insert(*id);
     }
     set
 }

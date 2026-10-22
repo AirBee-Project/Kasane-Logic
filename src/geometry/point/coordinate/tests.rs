@@ -214,3 +214,36 @@ mod point_fractional_id {
         }
     }
 }
+
+mod centroid {
+    use super::*;
+
+    #[test]
+    fn centroid_of_max_lat_coordinates() {
+        assert_eq!(
+            Coordinate::centroid(
+                (0..34).map(|i| Coordinate::new(85.0511, -170.0 + 10.0 * i as f64, 0.0).unwrap())
+            )
+            .latitude,
+            85.0511
+        );
+    }
+
+    #[test]
+    fn cetroid_crossing_antimeridian() {
+        let a = Coordinate::new(0.0, 179.999, 0.0).unwrap();
+        let b = Coordinate::new(0.0, -179.999, 0.0).unwrap();
+
+        assert!(libm::fabs(Coordinate::centroid([a, b].into_iter()).longitude) > 179.99);
+    }
+}
+
+mod coordinate_raw {
+    use super::*;
+
+    #[test]
+    fn coordinate_eq_with_self() {
+        let a = Coordinate::new(35.0, 139.0, 10.0).unwrap();
+        assert!(a.eq_epsilon(&a, 0.0));
+    }
+}

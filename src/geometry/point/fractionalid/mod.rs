@@ -1,4 +1,4 @@
-use crate::spatial_id::zoom_level::ZoomLevel;
+use crate::id::zoom_level::ZoomLevel;
 pub mod impls;
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 /// F、X、Y インデックスを保持することで、グリッド内のより詳細な位置や端点などを表現できます。
 ///
 /// ```
-/// # use kasane_logic::ZoomLevel;
+/// # use spatial_id::ZoomLevel;
 /// pub struct FractionalId {
 ///     z: ZoomLevel,
 ///     f: f64,
@@ -46,7 +46,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// assert_eq!(fid.z(), 4);
@@ -80,7 +80,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// assert_eq!(fid.z(), 4);
@@ -93,7 +93,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// assert_eq!(fid.f(), 5.5);
@@ -106,7 +106,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// assert_eq!(fid.x(), 6.2);
@@ -119,7 +119,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// assert_eq!(fid.y(), 7.8);
@@ -135,7 +135,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let mut fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// fid.set_f(6.0).unwrap();
@@ -159,7 +159,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let mut fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// fid.set_x(8.0).unwrap();
@@ -182,7 +182,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let mut fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// fid.set_y(2.0).unwrap();
@@ -206,7 +206,8 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::{FractionalId, SingleId};
+    /// # use spatial_id::geometry::FractionalId;
+    /// # use spatial_id::SingleId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.2, 7.8).unwrap();
     /// let sid = fid.round_to_single_id();
@@ -240,7 +241,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let mut fid = FractionalId::new(4, 5.5, 6.25, 7.75).unwrap();
     /// fid.change_zoomlevel(6).unwrap();
@@ -272,7 +273,7 @@ impl FractionalId {
     ///
     /// # Examples
     /// ```
-    /// # use kasane_logic::FractionalId;
+    /// # use spatial_id::geometry::FractionalId;
     ///
     /// let fid = FractionalId::new(4, 5.5, 6.25, 7.75).unwrap();
     ///

@@ -1,5 +1,5 @@
 use criterion::{BatchSize, BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::Source;
+use spatial_id::query::Source;
 
 #[path = "../utils.rs"]
 mod utils;
@@ -18,7 +18,7 @@ fn bench_shift(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("shift_x", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().shift_x(24, d).get(..).table().unwrap(),
+                |t| t.query().shift_x(24, d).get(..).into_map().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -29,7 +29,7 @@ fn bench_shift(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("shift_y", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().shift_y(24, d).get(..).table().unwrap(),
+                |t| t.query().shift_y(24, d).get(..).into_map().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -40,7 +40,7 @@ fn bench_shift(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("shift_f", dist), &dist, |b, &d| {
             b.iter_batched(
                 || table.clone(),
-                |t| t.query().shift_f(24, d).get(..).table().unwrap(),
+                |t| t.query().shift_f(24, d).get(..).into_map().unwrap(),
                 BatchSize::SmallInput,
             );
         });
@@ -57,7 +57,7 @@ fn bench_shift(c: &mut Criterion) {
                         .shift_y(24, -d)
                         .shift_f(24, d)
                         .get(..)
-                        .table()
+                        .into_map()
                         .unwrap()
                 },
                 BatchSize::SmallInput,

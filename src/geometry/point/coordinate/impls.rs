@@ -17,7 +17,7 @@ impl fmt::Debug for Coordinate {
 impl From<Coordinate> for Ecef {
     /// [`Coordinate`]を[`Ecef`]への変換。
     /// ```
-    /// # use kasane_logic::{Coordinate,Ecef};
+    /// # use spatial_id::geometry::{Coordinate, Ecef};
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
     /// let ecef: Ecef = coord.into();
     /// print!("{},{},{}", ecef.x(), ecef.y(), ecef.z());
@@ -71,7 +71,7 @@ impl Point for Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::{Coordinate, FractionalId, Point};
+    /// # use spatial_id::geometry::{Coordinate, FractionalId, Point};
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     /// assert_eq!(
     ///     coord.fractional_id(24).unwrap(),

@@ -37,7 +37,7 @@
 
 ## 6. FlexTreeCore
 
-- **定義**: `FlexId` と値 `V` を対応付けて保持する木構造の型。`SpatialIdSet`・`SpatialIdTable` の中身です。
+- **定義**: `FlexId` と値 `V` を対応付けて保持する木構造の型。`SpatialIdSet`・`SpatialIdMap` の中身です。
 - **命名規則**: 「木」「ツリー」と訳さず、**`FlexTreeCore`** と書きます。
 - **コード例**: `FlexTreeCore<V, S>`
 
@@ -58,7 +58,7 @@
 
 ## 9. Summary
 
-- **定義**: `Branch` が子孫の値についてキャッシュする情報。`FlexTreeCore` と `SpatialIdTable` の型パラメーター `S` で選びます。
+- **定義**: `Branch` が子孫の値についてキャッシュする情報。`FlexTreeCore` と `SpatialIdMap` の型パラメーター `S` で選びます。
 - **命名規則**: 「集計」と訳さず、**`Summary`** と書きます。
 - **コード例**: `Summary` トレイト、`MinMax`、`ValueSet`、`NoSummary`
 

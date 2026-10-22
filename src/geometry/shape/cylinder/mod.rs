@@ -11,9 +11,9 @@ use crate::{Coordinate, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef, Zo
 ///
 /// 中心線及び半径によって定義される立体的な領域を表現する。
 pub struct Cylinder {
-    pub start: Coordinate,
-    pub end: Coordinate,
-    pub radius_m: f64,
+    start: Coordinate,
+    end: Coordinate,
+    radius_m: f64,
 }
 
 impl Cylinder {
@@ -27,6 +27,21 @@ impl Cylinder {
         } else {
             Err(GeometryError::RadiusNegative { radius: radius_m }.into())
         }
+    }
+
+    /// 中心線の始点を返す。
+    pub fn start(&self) -> Coordinate {
+        self.start
+    }
+
+    /// 中心線の終点を返す。
+    pub fn end(&self) -> Coordinate {
+        self.end
+    }
+
+    /// 半径（メートル）を返す。
+    pub fn radius_m(&self) -> f64 {
+        self.radius_m
     }
 
     /// [Cylinder]を近似した[Solid]を作成する関数

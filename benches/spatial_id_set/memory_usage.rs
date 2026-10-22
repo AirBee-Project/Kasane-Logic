@@ -19,7 +19,8 @@ mod patterns;
 
 use patterns::{COUNTS, PATTERNS, Z};
 
-use kasane_logic::{SingleId, SpatialIdSet};
+use spatial_id::SingleId;
+use spatial_id::collection::SpatialIdSet;
 
 // ────────────────────────────────────────────────────────────────
 // カスタムアロケータ
@@ -99,7 +100,7 @@ fn measure_insert(ids: &[SingleId]) -> MemResult {
     start_tracking();
     let mut set = SpatialIdSet::new();
     for id in ids {
-        set.insert(id.clone());
+        set.insert(*id);
     }
     let (final_bytes, peak_bytes) = stop_tracking();
     drop(set); // 追跡停止後のため計測に影響しない

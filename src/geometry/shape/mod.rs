@@ -9,11 +9,11 @@
 //! 詳細な図と説明は次のドキュメントを参照:
 //! [docs/geometry-relation.md](https://github.com/AirBee-Project/Kasane-Logic/blob/main/docs/geometry-relation.md)
 
-pub mod cylinder;
-pub mod line;
-pub mod polygon;
-pub mod solid;
-pub mod sphere;
-pub mod traits;
-pub mod triangle;
-pub mod tube;
+pub(crate) mod cylinder;
+pub(crate) mod line;
+pub(crate) mod polygon;
+pub(crate) mod solid;
+pub(crate) mod sphere;
+pub(crate) mod traits;
+pub(crate) mod triangle;
+pub(crate) mod tube;

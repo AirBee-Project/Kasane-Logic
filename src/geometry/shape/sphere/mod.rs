@@ -3,7 +3,7 @@ pub mod impls;
 #[cfg(test)]
 mod tests;
 
-///球体を表す型
+/// 球体を表す型。
 pub struct Sphere {
     center: Coordinate,
     radius_m: f64,

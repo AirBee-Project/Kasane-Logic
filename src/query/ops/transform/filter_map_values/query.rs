@@ -1,0 +1,52 @@
+use super::FilterMapValues;
+use crate::query::SafeValue;
+use crate::query::{Node, Query};
+use alloc::boxed::Box;
+
+impl<V: SafeValue + 'static> Query<V> {
+    /// 各値を `f` に渡し、`Some` なら値を写し、`None` なら取り除く。値は別の型へ写せる。
+    ///
+    /// 動作例:
+    /// ```
+    /// # use spatial_id::{SingleId, collection::SpatialIdMap, query::Source};
+    /// let mut map = SpatialIdMap::new();
+    /// map.insert(SingleId::new(20, 0, 10, 200).unwrap(), 1);
+    /// map.insert(SingleId::new(20, 0, 11, 200).unwrap(), 15);
+    ///
+    /// let out = map
+    ///     .query()
+    ///     .filter_map_values(|v: i32| (v > 10).then(|| v.to_string()))
+    ///     .get(..)
+    ///     .into_map()
+    ///     .unwrap();
+    /// assert_eq!(out.iter().map(|(_, v)| v.as_str()).collect::<Vec<_>>(), ["15"]);
+    /// ```
+    pub fn filter_map_values<U, F>(self, f: F) -> Query<U>
+    where
+        U: SafeValue + 'static,
+        F: Fn(V) -> Option<U> + Send + Sync + 'static,
+    {
+        Query(Node::Source(Box::new(FilterMapValues {
+            inner: self,
+            f,
+            _marker: core::marker::PhantomData,
+        })))
+    }
+
+    /// 各値を `f` で写す。値は別の型へ写せる。
+    pub fn map_values<U, F>(self, f: F) -> Query<U>
+    where
+        U: SafeValue + 'static,
+        F: Fn(V) -> U + Send + Sync + 'static,
+    {
+        self.filter_map_values(move |value| Some(f(value)))
+    }
+
+    /// 各値を `f` に渡し、`true` を返した要素だけを残す。
+    pub fn filter_values<F>(self, f: F) -> Self
+    where
+        F: Fn(&V) -> bool + Send + Sync + 'static,
+    {
+        self.filter_map_values(move |value| f(&value).then_some(value))
+    }
+}

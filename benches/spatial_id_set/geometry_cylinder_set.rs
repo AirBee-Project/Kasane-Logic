@@ -4,7 +4,9 @@
 //! 呼ぶため他の形状より反復あたりのコストが高く、単独ジョブに分離している。
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use kasane_logic::{Coordinate, CoverSingleIds, Cylinder, SingleId, SpatialIdSet};
+use spatial_id::SingleId;
+use spatial_id::collection::SpatialIdSet;
+use spatial_id::geometry::{Coordinate, CoverSingleIds, Cylinder};
 use std::hint::black_box;
 
 const BASE_LAT: f64 = 35.681_382;

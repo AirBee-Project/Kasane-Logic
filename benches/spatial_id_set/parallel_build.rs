@@ -12,9 +12,9 @@
 mod patterns;
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-use kasane_logic::SpatialIdSet;
 use patterns::{PATTERNS, Z, build_set};
 use rayon::prelude::*;
+use spatial_id::collection::SpatialIdSet;
 use std::hint::black_box;
 
 const COUNTS: &[usize] = &[10_000, 100_000, 500_000];

@@ -47,7 +47,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```no_run
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let coord = Coordinate::new(35.0, 139.0, 10.0).unwrap();
     ///
     /// assert_eq!(coord.latitude(), 35.0);
@@ -99,7 +99,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let coord = Coordinate::new(43.068564, 41.3507138, 30.0).unwrap();
     /// assert_eq!(coord.latitude(), 43.068564);
     /// ```
@@ -114,7 +114,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let coord = Coordinate::new(35.4095198,136.7566027, 0.0).unwrap();
     /// assert_eq!(coord.longitude(), 136.7566027);
     /// ```
@@ -129,7 +129,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let coord = Coordinate::new(34.9851603, 135.7584294, 20.0).unwrap();
     /// assert_eq!(coord.altitude(), 20.0);
     /// ```
@@ -144,7 +144,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let mut coord = Coordinate::new(35.0, 41.3507138, 30.0).unwrap();
     /// coord.set_latitude(43.068564);
     /// assert_eq!(coord.latitude(), 43.068564);
@@ -164,7 +164,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let mut coord = Coordinate::new(35.4095198,130.0, 0.0).unwrap();
     /// coord.set_longitude(136.7566027);
     /// assert_eq!(coord.longitude(), 136.7566027);
@@ -185,7 +185,7 @@ impl Coordinate {
     ///
     /// # Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let mut coord = Coordinate::new(34.9851603, 135.7584294, -10.0).unwrap();
     /// coord.set_altitude(20.0);
     /// assert_eq!(coord.altitude(), 20.0);
@@ -211,7 +211,7 @@ impl Coordinate {
     ///
     ///# Example
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let coord_tokyo = Coordinate::new(35.681382, 139.76608399999998, 0.0).unwrap();
     /// let coord_sinagawa = Coordinate::new(35.630152, 139.74044000000004, 10.0).unwrap();
     /// let d = coord_tokyo.distance(&coord_sinagawa);
@@ -227,7 +227,7 @@ impl Coordinate {
     /// 2点間の直線距離が epsilon 以内にあるかを判定します
     pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
         let distance = self.distance(other);
-        distance < epsilon
+        distance <= epsilon
     }
 
     /// 与えられた座標群の重心を計算する。
@@ -245,7 +245,7 @@ impl Coordinate {
     ///
     /// スライスからの計算:
     /// ```
-    /// # use kasane_logic::Coordinate;
+    /// # use spatial_id::geometry::Coordinate;
     /// let points = [
     ///     Coordinate::new(0.0, 0.0, 10.0).unwrap(),
     ///     Coordinate::new(10.0, 10.0, 20.0).unwrap(),
@@ -258,16 +258,32 @@ impl Coordinate {
         I: IntoIterator,
         I::Item: Borrow<Coordinate>,
     {
-        let mut sum_lat = 0.0;
-        let mut sum_lon = 0.0;
-        let mut sum_alt = 0.0;
+        let (mut sum_lat, mut sum_lon, mut sum_alt) = (0.0, 0.0, 0.0);
+
+        let mut sum_lon_360 = 0.0;
+        let (mut min_lon, mut max_lon) = (f64::INFINITY, f64::NEG_INFINITY);
+        let (mut min_lon_360, mut max_lon_360) = (f64::INFINITY, f64::NEG_INFINITY);
+
         let mut count = 0usize;
 
         for coord in coordinates {
             let c = coord.borrow();
+            let lon_360 = if c.longitude < 0.0 {
+                c.longitude + 360.0
+            } else {
+                c.longitude
+            };
+
             sum_lat += c.latitude;
             sum_lon += c.longitude;
             sum_alt += c.altitude;
+
+            sum_lon_360 += lon_360;
+            min_lon = min_lon.min(c.longitude);
+            max_lon = max_lon.max(c.longitude);
+            min_lon_360 = min_lon_360.min(lon_360);
+            max_lon_360 = max_lon_360.max(lon_360);
+
             count += 1;
         }
 
@@ -276,7 +292,16 @@ impl Coordinate {
         }
 
         let n = count as f64;
-        // 重心は元の座標の凸包内に必ず収まるため、バリデーションをスキップ
-        Self::new(sum_lat / n, sum_lon / n, sum_alt / n).unwrap()
+
+        let spread = max_lon - min_lon;
+        let lon = if spread > 180.0 && max_lon_360 - min_lon_360 < spread {
+            let mean = sum_lon_360 / n;
+            if mean > 180.0 { mean - 360.0 } else { mean }
+        } else {
+            sum_lon / n
+        };
+
+        // 浮動小数点により緯度が範囲に収まる保証がないため、`clamp`する。
+        Self::new((sum_lat / n).clamp(-85.0511, 85.0511), lon, sum_alt / n).unwrap()
     }
 }
