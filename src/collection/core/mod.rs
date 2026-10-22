@@ -11,6 +11,7 @@ pub(crate) use iter::Iter;
 use node::{Decision, Node};
 use view::View;
 
+pub(crate) mod compact_node;
 mod iter;
 mod node;
 #[cfg(test)]
