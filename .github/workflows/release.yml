@@ -1,114 +1,63 @@
 name: release
 
-# pull_request_target は base リポジトリの権限で動くため、fork からの PR のマージでも書き込める。
-# PR の head はチェックアウトしないので、PR のコードは実行されない。
 on:
-  pull_request_target:
+  push:
     branches:
       - main
-    types: [closed]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  # concurrency で待機中の実行を取り消すとリリースが飛ばされるため、release には付けない
   release:
-    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'release:none')
     name: Release
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
-      - name: Resolve release type
-        env:
-          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-        run: |
-          RELEASE_TYPE=$(jq -r '[.[] | select(test("^release:(patch|minor|major)$"))] | if length == 1 then .[0] | ltrimstr("release:") else empty end' <<< "$LABELS")
-          if [ -z "$RELEASE_TYPE" ]; then
-            echo "::error::release:patch / release:minor / release:major のいずれか 1 つをラベルに付けてください"
-            exit 1
-          fi
-          echo "RELEASE_TYPE=$RELEASE_TYPE" >> "$GITHUB_ENV"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Bump version, commit and tag
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # 連続してマージされると push が競合するため、最新の main に積み直して再試行する
-          for attempt in 1 2 3 4 5; do
-            git fetch origin main
-            git reset --hard origin/main
-
-            NEW_VERSION=$(python3 - "$RELEASE_TYPE" << 'EOF'
-          import re
-          import sys
-
-          release_type = sys.argv[1]
-
-          with open("Cargo.toml") as f:
-              content = f.read()
-
-          m = re.search(r'^version\s*=\s*"([0-9]+)\.([0-9]+)\.([0-9]+)"', content, re.MULTILINE)
-          if not m:
-              raise RuntimeError("Version not found in Cargo.toml")
-
-          major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
-          if release_type == "major":
-              major, minor, patch = major + 1, 0, 0
-          elif release_type == "minor":
-              minor, patch = minor + 1, 0
-          else:
-              patch += 1
-          new_version = f"{major}.{minor}.{patch}"
-
-          version_line = re.compile(r'^version\s*=\s*"[0-9]+\.[0-9]+\.[0-9]+"', re.MULTILINE)
-          content = version_line.sub(f'version = "{new_version}"', content, count=1)
-          content = re.sub(
-              r'(spatial-id-derive\s*=\s*\{\s*version\s*=\s*")[^"]+(")',
-              rf"\g<1>{new_version}\g<2>",
-              content,
-          )
-          with open("Cargo.toml", "w") as f:
-              f.write(content)
-
-          with open("spatial-id-derive/Cargo.toml") as f:
-              derive_content = f.read()
-          derive_content = version_line.sub(f'version = "{new_version}"', derive_content, count=1)
-          with open("spatial-id-derive/Cargo.toml", "w") as f:
-              f.write(derive_content)
-
-          print(new_version)
-          EOF
-            )
-
-            cargo update --workspace
-            git add Cargo.toml Cargo.lock spatial-id-derive/Cargo.toml
-            git commit -m "chore: リリース v${NEW_VERSION}"
-            git tag "v${NEW_VERSION}"
-
-            if git push --atomic origin main "v${NEW_VERSION}"; then
-              echo "NEW_VERSION=$NEW_VERSION" >> "$GITHUB_ENV"
-              exit 0
-            fi
-
-            git tag -d "v${NEW_VERSION}"
-            sleep $((attempt * 5))
-          done
-
-          echo "::error::main への push に失敗しました"
-          exit 1
-
-      - name: Create GitHub Release
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "v${NEW_VERSION}" --title "v${NEW_VERSION}" --generate-notes
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release_pr:
+    name: Release PR
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # GITHUB_TOKEN で作った PR では他のワークフローが起動しないため、リリース PR で CI を動かすには PAT を RELEASE_PLZ_TOKEN に登録する
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN || secrets.GITHUB_TOKEN }}

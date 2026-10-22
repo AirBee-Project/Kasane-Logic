@@ -1,0 +1,18 @@
+[workspace]
+# crates.io には公開せず、直前のバージョンは git のタグから読む
+git_only = true
+
+[[package]]
+name = "spatial-id"
+version_group = "spatial-id"
+git_tag_name = "v{{ version }}"
+
+[[package]]
+name = "spatial-id-derive"
+version_group = "spatial-id"
+changelog_update = false
+git_release_enable = false
+
+[[package]]
+name = "xtask"
+release = false
