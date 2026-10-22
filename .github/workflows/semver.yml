@@ -1,0 +1,64 @@
+name: semver check
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  semver_check:
+    name: cargo semver-checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # release-plz は `!` か BREAKING CHANGE フッターのあるコミットを破壊的変更として扱うため、同じ基準で判定する
+      - name: Detect breaking change commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if git log --format=%s "$BASE_SHA..$HEAD_SHA" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!: ' \
+            || git log --format=%B "$BASE_SHA..$HEAD_SHA" | grep -qE '^BREAKING[ -]CHANGE: '; then
+            echo "::notice::破壊的変更を示すコミットがあるため、SemVer の検証をスキップします"
+            echo "BREAKING=true" >> "$GITHUB_ENV"
+          else
+            echo "BREAKING=false" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install Rust
+        if: env.BREAKING == 'false'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-semver-checks
+        if: env.BREAKING == 'false'
+        uses: taiki-e/install-action@cargo-semver-checks
+
+      - name: Cache Rust
+        if: env.BREAKING == 'false'
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "semver-ubuntu-24.04"
+
+      # 0.x では Cargo SemVer の互換な変更がパッチに当たるため、許す上げ幅をバージョンで切り替える
+      # feature を指定しないと、cargo-semver-checks は unstable などの名前の feature を除外して検証する
+      - name: Check semver compliance
+        if: env.BREAKING == 'false'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          MAJOR=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "spatial-id") | .version | split(".")[0]')
+          if [ "$MAJOR" = "0" ]; then RELEASE_TYPE=patch; else RELEASE_TYPE=minor; fi
+          if ! cargo semver-checks check-release --package spatial-id --baseline-rev "$BASE_SHA" --release-type "$RELEASE_TYPE"; then
+            echo "::error::破壊的変更が見つかりました。意図した変更なら、コミットの type に ! を付けるか、BREAKING CHANGE: フッターを書いてください"
+            exit 1
+          fi
