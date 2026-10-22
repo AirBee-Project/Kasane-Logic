@@ -80,7 +80,7 @@ impl RandomSetInsert {
 ///
 /// # 使い方
 /// ランダムな [`SpatialIdSet`] が必要なときは、まず [`arb_random_set_case`] で
-/// `RandomSetCase` を生成し、`build_set()` で `SpatialIdSet` を構築します。
+/// `RandomSetCase` を生成し、`build_set()` で `SpatialIdSet` を構築する。
 ///
 /// ```ignore
 /// # use spatial_id::collection::SpatialIdSet;
@@ -105,7 +105,7 @@ pub(crate) struct RandomSetCase {
 
 #[cfg(test)]
 impl RandomSetCase {
-    /// ケースから [`SpatialIdSet`] を構築します。
+    /// ケースから [`SpatialIdSet`] を構築する。
     pub fn build_set(&self) -> SpatialIdSet {
         let mut set = SpatialIdSet::new();
         for insert in &self.inserts {
@@ -165,7 +165,7 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
     })
 }
 
-/// 演算子テスト向けに、処理可能なサイズに抑えたランダム Set ケースを生成する戦略です。
+/// 演算子テスト向けに、処理可能なサイズに抑えたランダム Set ケースを生成する戦略である。
 ///
 /// - ズームレベルは `RANDOM_SET_MIN_ZOOM..=RANDOM_SET_MAX_ZOOM` でランダム
 /// - 挿入回数は `RANDOM_SET_MIN_INSERTS..=RANDOM_SET_MAX_INSERTS` でランダム
@@ -173,8 +173,8 @@ fn arb_compact_range_id(max_zoom: u8) -> impl Strategy<Value = RangeId> {
 /// - 失敗時は [`RandomSetCase`] の `Debug` 出力で再現しやすい
 ///
 /// # どれを使えばよいか
-/// ランダムな Set を作る入口は、この [`arb_random_set_case`] を使ってください。
-/// `RandomSetInsert` や `insert_into` は内部部品で、通常は直接使う必要はありません。
+/// ランダムな Set を作る入口には、この [`arb_random_set_case`] を使う。
+/// `RandomSetInsert` や `insert_into` は内部部品であり、通常は直接使う必要はない。
 ///
 /// # テストテンプレート
 /// ```

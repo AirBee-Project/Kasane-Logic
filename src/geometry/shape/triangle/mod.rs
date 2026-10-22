@@ -114,7 +114,7 @@ impl Triangle {
         Ok(iter)
     }
 
-    ///[SingleId]の集合へ変換を行います。
+    /// [`SingleId`] の集合へ変換を行う。
     pub(crate) fn single_ids_limited(
         self,
         z: impl Into<u8>,

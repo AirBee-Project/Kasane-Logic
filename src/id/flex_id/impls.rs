@@ -252,7 +252,7 @@ impl FromStr for FlexId {
     }
 }
 
-/// [`FlexId`] の文字列表現として解釈できない入力を表すエラーを生成します。
+/// [`FlexId`] の文字列表現として解釈できない入力を表すエラーを生成する。
 fn parse_error(input: &str) -> Error {
     SpatialIdError::ParseSpatialIdFormat {
         kind: "FlexId",

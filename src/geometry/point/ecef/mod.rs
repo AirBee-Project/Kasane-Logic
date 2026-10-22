@@ -226,8 +226,8 @@ impl Ecef {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
-    /// Ecefが同じ位置にあるかを判定します
-    /// 2点間の直線距離が epsilon 以内にあるかを判定します
+    /// [`Ecef`] が同じ位置にあるかを判定する。
+    /// 2点間の直線距離が epsilon 以内にあるかを判定する。
     pub fn eq_epsilon(&self, other: &Ecef, epsilon: f64) -> bool {
         let distance = self.distance(other);
         distance < epsilon

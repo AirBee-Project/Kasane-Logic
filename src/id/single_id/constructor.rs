@@ -94,7 +94,7 @@ impl SingleId {
     /// ```
     ///
     /// # Safety
-    /// 呼び出し側は、`z` / `f` / `x` / `y` が各ズームレベルの有効範囲内であることを保証しなければなりません。
+    /// 呼び出し側は、`z` / `f` / `x` / `y` が各ズームレベルの有効範囲内であることを保証しなければならない。
     pub unsafe fn new_unchecked(z: u8, f: i32, x: u32, y: u32) -> SingleId {
         SingleId {
             z: unsafe { ZoomLevel::new_unchecked(z) },

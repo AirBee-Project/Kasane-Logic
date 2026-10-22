@@ -101,7 +101,7 @@ Cylinder ==>|"N角形として近似"| Solid
 
 ## Type `Coordinate`
 
-空間IDが定義される範囲内の「緯度/経度/高度」を表す。`Ecef` へは必ず変換できる。本ライブラリの性質上、大体の Geometry は `Coordinate` の集合で表現される。
+空間IDが定義される範囲内の「緯度/経度/高度」を表す。`Ecef` へは必ず変換できる。本ライブラリの性質上、大半の図形は `Coordinate` の集合で表現される。
 
 ## Type `Ecef`
 

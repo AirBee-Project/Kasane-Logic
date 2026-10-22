@@ -11,8 +11,8 @@ mod tests;
 
 /// 立体を表す型。
 ///
-/// 複数の [Polygon] によって構成される閉じた領域を表現します。
-/// この型は、作成時に必ず閉合性が検証されるため、作成できている場合は「閉じている」ことが保証されます。
+/// 複数の [Polygon] によって構成される閉じた領域を表現する。
+/// この型は、作成時に必ず閉合性が検証されるため、作成できている場合は「閉じている」ことが保証される。
 #[derive(Debug, Clone)]
 pub struct Solid {
     /// 立体を構成する面のリスト
@@ -25,7 +25,7 @@ impl Solid {
     /// # 処理内容
     /// - 各面を[Polygon] に変換。
     /// - 閉合性の検証。
-    /// - 穴がある場合は [GeometryError::SolidNotWatertight] を返します。
+    /// - 穴がある場合は [GeometryError::SolidNotWatertight] を返す。
     ///
     /// # 引数
     /// -  `polygons` - 立体を構成する面のリスト。
@@ -54,7 +54,7 @@ impl Solid {
         })
     }
 
-    /// [Solid] 全体を三角形分割し、構成する [Triangle] のリストを返します。
+    /// [Solid] 全体を三角形分割し、構成する [Triangle] のリストを返す。
     pub fn triangles(&self) -> Vec<Triangle> {
         self.expand_triangles().collect()
     }

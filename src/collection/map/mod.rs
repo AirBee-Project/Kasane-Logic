@@ -92,9 +92,9 @@ impl<V, S> Default for SpatialIdMap<V, S> {
 }
 
 impl<V: PartialEq + Clone> SpatialIdMap<V> {
-    /// 空の[SpatialIdMap]を作成します。
+    /// 空の [SpatialIdMap] を作成する。
     ///
-    /// [Summary] を指定するときは [`Default::default`] か [`with_summary`](Self::with_summary) を使います。
+    /// [Summary] を指定するときは [`Default::default`] または [`with_summary`](Self::with_summary) を使う。
     pub fn new() -> Self {
         Self::default()
     }
@@ -105,18 +105,18 @@ where
     V: PartialEq + Clone,
     S: Summary<V>,
 {
-    /// 空間に値を挿入します。既に値がある場所は上書きされます。
+    /// 空間に値を挿入する。既に値がある場所は上書きされる。
     pub fn insert<T: SpatialId>(&mut self, target: T, value: V) {
         self.inner.insert(target, value);
     }
 
-    /// まだ値の無い場所にだけ挿入します（Upsert）。既に値がある場所はそのまま保ちます。
+    /// まだ値のない場所にだけ挿入する（Upsert）。既に値がある場所はそのまま保つ。
     pub fn upsert<T: SpatialId>(&mut self, target: T, value: V) {
         self.inner
             .insert_with(target, value, |existing, _| existing.clone());
     }
 
-    /// 指定した空間と重なる領域を、指定した空間との共通部分に切り取って値への参照と返します。
+    /// 指定した空間と重なる領域を、指定した空間との共通部分に切り取って値への参照とともに返す。
     pub fn get<'a, T: SpatialId<IntoIter: 'a>>(
         &'a self,
         target: T,
@@ -124,7 +124,7 @@ where
         self.inner.get(target)
     }
 
-    /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返します。
+    /// 指定した空間（target）をツリーからくり抜き、削除された領域とその値を返す。
     ///
     /// 削除は呼び出した時点で済んでおり、返すイテレーターはテーブルを借用しない。
     pub fn remove<T: SpatialId>(&mut self, target: T) -> IntoIter<V, S> {
@@ -132,7 +132,7 @@ where
     }
 
     /// [`get`](Self::get) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`]と値をそのままの返します。
+    /// [`FlexId`] と値をそのまま返す。
     pub fn get_overlapping<T: SpatialId>(
         &self,
         target: T,
@@ -141,14 +141,14 @@ where
     }
 
     /// [`remove`](Self::remove) と異なり切り取りを行わず、target と重なった
-    /// [`FlexId`]と値をそのまま取り除いて返します。
+    /// [`FlexId`] と値をそのまま取り除いて返す。
     ///
     /// 削除は呼び出した時点で済んでおり、返すイテレーターはテーブルを借用しない。
     pub fn remove_overlapping<T: SpatialId>(&mut self, target: T) -> IntoIter<V, S> {
         self.inner.remove_overlapping(target).into_iter()
     }
 
-    /// 指定した単体の空間 IDと面で接している[`FlexId`] と値への参照を重複なく返します。入力された空間ID自身と重なる要素は除外します。
+    /// 指定した単体の空間 ID と面で接している [`FlexId`] と値への参照を重複なく返す。入力された空間 ID 自身と重なる要素は除外する。
     pub fn spatial_face_neighbors<T: SpatialId>(
         &self,
         target: T,
@@ -156,14 +156,14 @@ where
         self.inner.spatial_face_neighbors(target)
     }
 
-    /// 保持している[FlexId]の総数を返します。
+    /// 保持している [FlexId] の総数を返す。
     pub fn count(&self) -> usize {
         self.inner.count()
     }
 
-    /// 保持している全ての[FlexId]のうち、最大のズームレベル値を返します。空なら [None]。
+    /// 保持しているすべての [FlexId] のうち、最大のズームレベル値を返す。空なら [`None`]。
     ///
-    /// キャッシュを持たず、全ての[FlexId]を走査する（O(n)）。
+    /// キャッシュを持たず、すべての [FlexId] を走査する（O(n)）。
     pub fn max_zoomlevel(&self) -> Option<u8> {
         self.inner.max_zoomlevel()
     }
@@ -187,24 +187,24 @@ where
         self.inner.flat_single_ids(allowed_intervals)
     }
 
-    /// テーブルが空かどうかを返します
+    /// テーブルが空かどうかを判定する。
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    /// 中身はそのままに、[Summary] を `T` に付け替えたテーブルを作ります。
+    /// 中身はそのままに、[Summary] を `T` に付け替えたテーブルを作成する。
     pub fn with_summary<T: Summary<V>>(&self) -> SpatialIdMap<V, T> {
         SpatialIdMap {
             inner: self.inner.with_summary(),
         }
     }
 
-    /// テーブルの全ての値を削除します。
+    /// テーブルのすべての値を削除する。
     pub fn clear(&mut self) {
         self.inner.clear();
     }
 
-    /// テーブルに保持されている全ての空間と値への参照のペアを返します。
+    /// テーブルに保持されているすべての空間と値への参照のペアを返す。
     pub fn iter(&self) -> impl Iterator<Item = (FlexId, &V)> + Clone + '_ {
         self.inner.iter()
     }

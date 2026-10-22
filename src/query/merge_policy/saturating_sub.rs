@@ -3,7 +3,7 @@ use core::ops::Sub;
 
 /// 引き算を行う[MergePolicy]。
 ///
-/// `b` が `a` より大きく結果を表現できない場合は、`V::default()`（数値型では通常 0）となります。
+/// `b` が `a` より大きく結果を表現できない場合は、`V::default()`（数値型では通常 0）となる。
 pub struct SaturatingSub;
 
 impl<V: Sub<Output = V> + PartialOrd + Default> MergePolicy<V> for SaturatingSub {

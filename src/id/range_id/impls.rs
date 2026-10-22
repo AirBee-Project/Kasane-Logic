@@ -9,10 +9,10 @@ use crate::{
 use core::str::FromStr;
 
 impl fmt::Display for RangeId {
-    /// `RangeId` を文字列形式で表示します。
+    /// `RangeId` を文字列形式で表示する。
     ///
-    /// 形式は `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
-    /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になります。
+    /// 形式は `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` である。
+    /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になる。
     ///
     /// 通常時の範囲表示
     /// ```no_run
@@ -112,9 +112,9 @@ impl SpatialId for RangeId {
         }
     }
 
-    /// [`RangeId`] の空間中心座標を[`Coordinate`]型で返します。
+    /// [`RangeId`] の空間中心座標を [`Coordinate`] 型で返す。
     ///
-    /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    /// 中心座標は空間 ID の最も外側の頂点の8点の平均座標である。現実空間における空間 ID は完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要がある。
     fn spatial_center(&self) -> Coordinate {
         let z = self.z.get();
 
@@ -130,9 +130,9 @@ impl SpatialId for RangeId {
         .unwrap()
     }
 
-    /// [`RangeId`] の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
+    /// [`RangeId`] の最も外側の頂点の8点の座標を [`Coordinate`] 型の配列として返す。
     ///
-    /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    /// 現実空間における空間 ID は完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要がある。
     fn spatial_vertices(&self) -> [Coordinate; 8] {
         let z = self.z.get();
 
@@ -226,10 +226,10 @@ impl SpatialId for RangeId {
     }
 }
 
-/// 文字列表現から [`RangeId`] を復元します。
+/// 文字列表現から [`RangeId`] を復元する。
 ///
 /// 形式は [`Display`](core::fmt::Display) が出力する
-/// `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` です。
+/// `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` である。
 /// 単体範囲は `:` を省略した `"{z}/{f}/{x}/{y}"` 形式でもパース可能。
 /// 時間を持つ場合は末尾に `_{i}/{t}`（範囲なら `_{i}/{t_min}:{t_max}`）が付く。
 ///
@@ -285,7 +285,7 @@ impl FromStr for RangeId {
     }
 }
 
-/// `"start:end"` または単体値の文字列を [`i32`] の範囲へ変換します。
+/// `"start:end"` または単体値の文字列を [`i32`] の範囲へ変換する。
 fn parse_i32_dimension(text: &str, input: &str) -> Result<[i32; 2], Error> {
     match text.split_once(':') {
         Some((start, end)) => Ok([
@@ -296,7 +296,7 @@ fn parse_i32_dimension(text: &str, input: &str) -> Result<[i32; 2], Error> {
     }
 }
 
-/// `"start:end"` または単体値の文字列を [`u32`] の範囲へ変換します。
+/// `"start:end"` または単体値の文字列を [`u32`] の範囲へ変換する。
 fn parse_u32_dimension(text: &str, input: &str) -> Result<[u32; 2], Error> {
     match text.split_once(':') {
         Some((start, end)) => Ok([
@@ -307,7 +307,7 @@ fn parse_u32_dimension(text: &str, input: &str) -> Result<[u32; 2], Error> {
     }
 }
 
-/// [`RangeId`] の文字列として解釈できない入力を表すエラーを生成します。
+/// [`RangeId`] の文字列として解釈できない入力を表すエラーを生成する。
 fn parse_error(input: &str) -> Error {
     SpatialIdError::ParseSpatialIdFormat {
         kind: "RangeId",
