@@ -1,6 +1,6 @@
-# Kasane-Logic
+# spatial-id-rs
 
-Kasane-Logic は、解析解を用いた図形から空間IDへの高精度な変換アルゴリズムを Rust で実装したコアライブラリです。
+spatial-id-rs は時空間IDをRustで扱うためのライブラリです。
 
 ## Features
 

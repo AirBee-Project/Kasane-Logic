@@ -7,7 +7,7 @@
 
 ## Git
 - コミットメッセージは [Conventional Commits](https://www.conventionalcommits.org/ja/v1.0.0/) に従います。`<type>` と `<optional scope>` 以外は、日本語で記述してください。
-- ブランチ名は Conventional Branch の仕様に従います。ただし、`main`、`master`、`develop` 等のブランチは対象外です。
+- ブランチ名は [Conventional Branch](https://conventionalbranch.org/ja/) の仕様に従います。ただし、`main`、`master`、`develop` 等のブランチは対象外です。
 
 ## 分類ラベル
 
@@ -45,18 +45,6 @@ PRはマージコミットで取り込むため、PR内の各コミットのメ�
 2. リリースPRをマージすると、タグ `vX.Y.Z` と GitHub Release が作られます。
 
 バージョンは手動で変更しないでください。release-plz が、前回のリリースからのコミットの type と `cargo semver-checks` の結果をもとに、[Cargo SemVer](https://doc.rust-lang.org/cargo/reference/semver.html) に従って上げます。
-
-| 変更 | 0.x の間 | 1.0 以降 |
-|---|---|---|
-| 後方互換のない変更（`feat!:` や `BREAKING CHANGE:`、または `cargo semver-checks` が検出したもの） | マイナー | メジャー |
-| `feat` | パッチ | マイナー |
-| その他 | パッチ | パッチ |
-
-`spatial-id` と `spatial-id-derive` は同じバージョングループにしているので、両方に変更があったときは同じバージョンにそろいます。
-
-## Rustの仕様とバージョンアップ
-- バージョンアップは、必ず [Cargo SemVer](https://doc.rust-lang.org/cargo/reference/semver.html) に従ってください。
-- 実験的な機能を追加する場合は、`unstable`にしてください。
 
 ### unstable な API の書き方
 
