@@ -27,10 +27,22 @@ jobs:
           echo "RELEASE_TYPE=$RELEASE_TYPE" >> "$GITHUB_ENV"
 
       - name: Checkout
-        if: env.RELEASE_TYPE != 'none'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Verify release:none eligibility
+        if: env.RELEASE_TYPE == 'none'
+        run: |
+          set -euo pipefail
+          CHANGED_CRATE_FILES=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- src/ spatial-id-derive/ Cargo.toml)
+          if [ -n "$CHANGED_CRATE_FILES" ]; then
+            echo "::error::ライブラリのコードに変更が含まれているため、release:none は指定できません。"
+            echo "::error::変更されたファイル:"
+            echo "$CHANGED_CRATE_FILES"
+            echo "::error::release:patch / release:minor / release:major のいずれかを指定してください。"
+            exit 1
+          fi
 
       - name: Install Rust
         if: env.RELEASE_TYPE != 'none'
@@ -49,4 +61,4 @@ jobs:
       # feature を指定しないと、cargo-semver-checks は unstable などの名前の feature を除外して検証する
       - name: Check semver compliance
         if: env.RELEASE_TYPE != 'none'
-        run: cargo semver-checks check-release --package kasane-logic --baseline-rev "origin/${{ github.base_ref }}" --release-type "$RELEASE_TYPE"
+        run: cargo semver-checks check-release --package spatial-id --baseline-rev "origin/${{ github.base_ref }}" --release-type "$RELEASE_TYPE"
