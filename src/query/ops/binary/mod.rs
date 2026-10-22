@@ -248,7 +248,7 @@ mod test {
                 let merged = a
                     .clone()
                     .query()
-                    .merge(b.clone().query(), 0, Sum)
+                    .merge(b.clone().query(), Sum)
                     .get(..)
                     .into_map()
                     .unwrap();
@@ -257,24 +257,6 @@ mod test {
                     expected_merge.inner.insert_with(id, val, |x, y| x + y);
                 }
                 assert_eq!(merged.inner, expected_merge.inner);
-
-                let merged_with_default = a
-                    .clone()
-                    .query()
-                    .merge(b.clone().query(), 10, Sum)
-                    .get(..)
-                    .into_map()
-                    .unwrap();
-                let mut expected_with_default = SpatialIdMap::<i32>::new();
-                for (id, &val) in a.iter() {
-                    expected_with_default.insert(id, val + 10);
-                }
-                for (id, &val) in b.iter() {
-                    expected_with_default
-                        .inner
-                        .insert_with(id, 10 + val, |av_plus_10, _| (av_plus_10 - 10) + val);
-                }
-                assert_eq!(merged_with_default.inner, expected_with_default.inner);
             }
         }
     }
