@@ -6,10 +6,10 @@ use crate::{FlexId, Side, id::zoom_level::ZoomLevel};
 use alloc::vec::Vec;
 
 impl FlexId {
-    /// 相手の [`FlexId`] との差集合（`self - other`）を計算し、イテレータとして返します。
+    /// 相手の [`FlexId`] との差集合（`self - other`）を計算し、イテレーターとして返す。
     ///
     /// 4軸（F / X / Y / T）とも同じ手順で、「交差と同じ深さになるまで2分し、交差しない側を
-    /// 結果へ確定させる」ことを繰り返します。
+    /// 結果へ確定させる」ことを繰り返す。
     pub fn difference(&self, other: &FlexId) -> impl Iterator<Item = FlexId> + use<> {
         let mut results = Vec::new();
 
@@ -64,9 +64,9 @@ impl FlexId {
         results.into_iter()
     }
 
-    /// 2つの [`FlexId`] が重なっているかを判定します。
+    /// 2つの [`FlexId`] が重なっているかを判定する。
     ///
-    /// [`intersection`](Self::intersection) と違い、重なっている領域の [`FlexId`] は作りません。
+    /// [`intersection`](Self::intersection) と違い、重なっている領域の [`FlexId`] は作成しない。
     ///
     /// ```
     /// # use spatial_id::FlexId;
@@ -108,8 +108,8 @@ impl FlexId {
         ) && time
     }
 
-    /// 2つの [`FlexId`] の重なっている領域（Intersection）を計算して返します。
-    /// 重なりがない場合は [`None`] を返します。
+    /// 2つの [`FlexId`] の重なっている領域（Intersection）を計算して返す。
+    /// 重なりがない場合は [`None`] を返す。
     ///
     /// どの軸も「浅い側のSegmentが深い側を含むか」で判定する。四分木（八分木）／2進トライでは
     /// 異なるズームのSegmentは入れ子か素のどちらかしかないので、重なる場合の交差は必ず
@@ -161,7 +161,7 @@ impl FlexId {
         })
     }
 
-    /// `self` が `other` を完全に包含するか判定します。
+    /// `self` が `other` を完全に包含するか判定する。
     ///
     /// ```
     /// # use spatial_id::FlexId;

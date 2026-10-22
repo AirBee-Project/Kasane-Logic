@@ -37,13 +37,13 @@ FlexId((FlexId))-->|F×X×Y|SingleId((SingleId))
 1:多の変換を行う。下記の変換を実装している。
 
 - `impl IntoSingleIds / IterSingleIds for RangeId`
-  - 共通ズームレベルで`F×X×Y`の全展開を行う
+  - 共通ズームレベルで `F×X×Y` の全展開を行う。
 - `impl IntoSingleIds / IterSingleIds for FlexId`
-  - 各軸の最大ズームに合わせて`F×X×Y`の全展開を行う
+  - 各軸の最大ズームに合わせて `F×X×Y` の全展開を行う。
 - `impl IntoFlexIds / IterFlexIds for RangeId`
-  - `2log F×2log X×2log Y`になるように変換
+  - `2log F×2log X×2log Y` になるように変換する。
 
-単一の要素を返すもの(出力は1つ)
+単一の要素を返すもの（出力は1つ）:
 
 - `impl IntoSingleIds / IterSingleIds for SingleId`
 - `impl IntoFlexIds / IterFlexIds for SingleId`

@@ -27,13 +27,13 @@ impl fmt::Display for SingleId {
 }
 
 impl SpatialId for SingleId {
-    /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かします。
+    /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かす。
     ///
     /// # パラメータ
     /// * `by` — インデックス差
     ///
     /// # バリデーション
-    /// - Fインデックスが範囲外になる場合は[`SpatialIdError::FOutOfRange`]を返します
+    /// - Fインデックスが範囲外になる場合は[`SpatialIdError::FOutOfRange`]を返す。
     ///
     /// 移動
     /// ```
@@ -70,7 +70,7 @@ impl SpatialId for SingleId {
         Ok(())
     }
 
-    /// 指定したインデックス差 `by` に基づき、この `SingleId` を東西方向に動かします。WEBメルカトル図法において、東西方向は循環しているためどのような値を指定してもエラーは発生しません。
+    /// 指定したインデックス差 `by` に基づき、この `SingleId` を東西方向に動かす。Webメルカトル図法において、東西方向は循環しているためどのような値を指定してもエラーは発生しない。
     ///
     /// # パラメータ
     /// * `by` — インデックス差
@@ -102,13 +102,13 @@ impl SpatialId for SingleId {
         self.x = new as u32;
     }
 
-    /// 指定したインデックス差 `by` に基づき、この `SingleId` を南北方向に動かします。
+    /// 指定したインデックス差 `by` に基づき、この `SingleId` を南北方向に動かす。
     ///
     /// # パラメータ
     /// * `by` — インデックス差
     ///
     /// # バリデーション
-    /// - Yインデックスが範囲外になる場合は[`SpatialIdError::YOutOfRange`]を返します
+    /// - Yインデックスが範囲外になる場合は[`SpatialIdError::YOutOfRange`]を返す。
     ///
     /// 移動
     /// ```
@@ -154,9 +154,9 @@ impl SpatialId for SingleId {
         Ok(())
     }
 
-    /// `SingleId` の空間中心座標を[`Coordinate`]型で返します。
+    /// `SingleId` の空間中心座標を [`Coordinate`] 型で返す。
     ///
-    /// 中心座標は空間IDの最も外側の頂点の8点の平均座標です。現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    /// 中心座標は空間 ID の最も外側の頂点の8点の平均座標である。現実空間における空間 ID は完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要がある。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -175,9 +175,9 @@ impl SpatialId for SingleId {
         .unwrap()
     }
 
-    /// `SingleId` の最も外側の頂点の8点の座標を[`Coordinate`]型の配列として返します。
+    /// `SingleId` の最も外側の頂点の8点の座標を [`Coordinate`] 型の配列として返す。
     ///
-    /// 現実空間における空間IDは完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要があります。
+    /// 現実空間における空間 ID は完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要がある。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -331,7 +331,7 @@ impl FromStr for SingleId {
     }
 }
 
-/// [`SingleId`] の文字列表現として解釈できないことを表すエラーを生成します。
+/// [`SingleId`] の文字列表現として解釈できないことを表すエラーを生成する。
 fn parse_error(input: &str) -> Error {
     SpatialIdError::ParseSpatialIdFormat {
         kind: "SingleId",

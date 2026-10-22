@@ -14,8 +14,8 @@ use crate::{
 ///
 /// 内部的には下記のような構造体として定義されており、空間 ID 上で扱える座標に対する制約が常に満たされる。
 ///
-/// この型は `PartialOrd` を実装していますが、これは主に `BTreeSet` や `BTreeMap`
-/// といった順序付きコレクションにおける格納および探索を目的としたものであり、。空間的な位置関係における「大小」を意味するものではない。
+/// この型は `PartialOrd` を実装しているが、これは主に `BTreeSet` や `BTreeMap`
+/// といった順序付きコレクションにおける格納および探索を目的としたものであり、空間的な位置関係における「大小」を意味するものではない。
 /// ```
 /// pub struct Coordinate {
 ///     latitude: f64,
@@ -200,7 +200,7 @@ impl Coordinate {
 
     /// 他の [`Coordinate`] との距離をメートル単位で返す。
     ///
-    /// * 単位はメートル（m）です
+    /// * 単位はメートル（m）である。
     /// * WGS84 楕円体を前提とした近似距離。
     ///
     /// # 引数
@@ -223,8 +223,8 @@ impl Coordinate {
         e1.distance(&e2)
     }
 
-    /// [Coordinate]が同じ位置にあるかを判定します
-    /// 2点間の直線距離が epsilon 以内にあるかを判定します
+    /// [`Coordinate`] が同じ位置にあるかを判定する。
+    /// 2点間の直線距離が epsilon 以内にあるかを判定する。
     pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
         let distance = self.distance(other);
         distance <= epsilon

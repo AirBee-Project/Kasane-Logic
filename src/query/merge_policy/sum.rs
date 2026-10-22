@@ -3,7 +3,7 @@ use super::saturating_add::SaturatingAdd;
 
 /// 足し算を行う[MergePolicy]。
 ///
-/// オーバーフロー時はパニック/ラップアラウンドせず、型が表現できる最大値となります。
+/// オーバーフロー時はパニック/ラップアラウンドせず、型が表現できる最大値となる。
 pub struct Sum;
 
 impl<V: SaturatingAdd> MergePolicy<V> for Sum {

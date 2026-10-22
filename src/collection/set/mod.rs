@@ -121,7 +121,7 @@ impl SpatialIdSet {
     }
 
     /// 集合の内部にある全ての[FlexId]のうち、最大のズームレベル値を返す。
-    /// 内部に空間IDが存在しない場合は[None]を返します。
+    /// 内部に空間 ID が存在しない場合は [`None`] を返す。
     ///
     /// キャッシュを持たず、全ての[FlexId]を走査する（O(n)）。
     pub fn max_zoomlevel(&self) -> Option<u8> {
@@ -173,12 +173,12 @@ impl SpatialIdSet {
             .map(|(single_id, _)| single_id)
     }
 
-    /// [SpatialIdSet]の内部の空間IDを全て削除します。
+    /// [SpatialIdSet] 内部の空間 ID をすべて削除する。
     pub fn clear(&mut self) {
         self.inner.clear();
     }
 
-    /// [SpatialIdSet]の内部が空かどうかを判定します。
+    /// [SpatialIdSet] 内部が空かどうかを判定する。
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }

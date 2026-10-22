@@ -22,19 +22,19 @@ impl RangeId {
         }
     }
 
-    /// 外部から渡された乱数生成器を使って、全ズーム範囲からランダムな [`RangeId`] を生成します。
+    /// 外部から渡された乱数生成器を使って、全ズーム範囲からランダムな [`RangeId`] を生成する。
     #[cfg(any(test, feature = "random"))]
     pub fn random_using<R: Rng>(rng: &mut R) -> Self {
         Self::random_within_using(rng, 0..=ZoomLevel::MAX.get())
     }
 
-    /// 外部から渡された乱数生成器を使用して、指定したズームレベルでランダムにRangeIdを生成
+    /// 外部から渡された乱数生成器を使用して、指定したズームレベルでランダムに [`RangeId`] を生成する。
     #[cfg(any(test, feature = "random"))]
     pub fn random_at_using<R: Rng>(rng: &mut R, z: u8) -> Self {
         Self::random_within_using(rng, z..=z)
     }
 
-    /// 外部から渡された乱数生成器を使用して、指定したズームレベル範囲内でランダムにRangeIdを生成
+    /// 外部から渡された乱数生成器を使用して、指定したズームレベル範囲内でランダムに [`RangeId`] を生成する。
     #[cfg(any(test, feature = "random"))]
     pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
         let z = Self::pick_zoom_using(rng, z_range);
@@ -59,44 +59,44 @@ impl RangeId {
             .expect("Generated parameters should be always valid")
     }
 
-    /// 全空間（Z=0〜MAX）からランダムにRangeIdを生成
+    /// 全空間（Z=0〜MAX）からランダムに [`RangeId`] を生成する。
     #[cfg(any(test, feature = "random"))]
     pub fn random() -> Self {
         let mut rng = rand::rng();
         Self::random_using(&mut rng)
     }
 
-    /// 指定したズームレベルでランダムにRangeIdを生成
+    /// 指定したズームレベルでランダムに [`RangeId`] を生成する。
     #[cfg(any(test, feature = "random"))]
     pub fn random_at(z: u8) -> Self {
         let mut rng = rand::rng();
         Self::random_at_using(&mut rng, z)
     }
 
-    /// 指定ズーム範囲からランダムな [`RangeId`] を生成します。
+    /// 指定ズーム範囲からランダムな [`RangeId`] を生成する。
     ///
-    /// 内部で `rand::rng()` を作って [`random_within_using`](Self::random_within_using) に委譲します。
+    /// 内部で `rand::rng()` を作成して [`random_within_using`](Self::random_within_using) に委譲する。
     #[cfg(any(test, feature = "random"))]
     pub fn random_within(z_range: RangeInclusive<u8>) -> Self {
         let mut rng = rand::rng();
         Self::random_within_using(&mut rng, z_range)
     }
 
-    /// `proptest` 用に、全ズーム範囲から [`RangeId`] を生成する戦略を返します。
+    /// `proptest` 用に、全ズーム範囲から [`RangeId`] を生成する戦略を返す。
     #[cfg(test)]
     pub fn arb() -> impl Strategy<Value = Self> {
         Self::arb_within(0..=ZoomLevel::MAX.get())
     }
 
-    /// `proptest` 用に、指定ズームの [`RangeId`] を生成する戦略を返します。
+    /// `proptest` 用に、指定ズームの [`RangeId`] を生成する戦略を返す。
     #[cfg(test)]
     pub fn arb_at(z: u8) -> impl Strategy<Value = Self> {
         Self::arb_within(z..=z)
     }
 
-    /// `proptest` 用に、指定ズーム範囲の [`RangeId`] を生成する戦略を返します。
+    /// `proptest` 用に、指定ズーム範囲の [`RangeId`] を生成する戦略を返す。
     ///
-    /// `z_range` の終端は `ZoomLevel::MAX` でクリップされ、`start > end` の場合は `end` のみを使います。
+    /// `z_range` の終端は `ZoomLevel::MAX` でクリップされ、`start > end` の場合は `end` のみを使う。
     #[cfg(test)]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
         let start = *z_range.start();
