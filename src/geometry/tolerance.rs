@@ -13,6 +13,15 @@ impl Tolerance {
     /// デフォルトの許容誤差（0.1 mm = 1e-4 m）。
     pub const DEFAULT: Self = Self(1e-4);
 
+    /// 厳密な判定用の極小許容誤差（0.1 nm = 1e-10 m）。
+    ///
+    /// 微小スケールの幾何形状や近似多角形の閉包性検証など、
+    /// 丸め誤差による頂点縮退を防ぐ厳密な幾何処理に用いる。
+    pub const STRICT: Self = Self(1e-10);
+
+    /// 許容誤差ゼロ（0.0 m）。
+    pub const ZERO: Self = Self(0.0);
+
     /// メートル単位の数値から許容誤差を生成する。
     ///
     /// 負数、NaN、無限大が指定された場合はエラーを返す。
@@ -29,14 +38,6 @@ impl Tolerance {
         } else {
             Ok(Self(meters))
         }
-    }
-
-    /// バリデーションを行わずに許容誤差を生成する。
-    ///
-    /// # Safety
-    /// `meters` は 0 以上の有限数である必要がある。
-    pub const unsafe fn from_meters_unchecked(meters: f64) -> Self {
-        Self(meters)
     }
 
     /// メートル単位の許容誤差の数値を返す。

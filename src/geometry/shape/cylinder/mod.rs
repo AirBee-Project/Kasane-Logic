@@ -8,9 +8,6 @@ use core::f64::consts::PI;
 use crate::{
     Coordinate, Error, GeometryError, Polygon, Solid, Tolerance, Vec3, Vec3Ecef, ZoomLevel,
 };
-
-// 微小半径の円柱でもポリゴン頂点が縮退しないよう、近似計算用の微小許容誤差を用いる
-const APPROX_TOLERANCE: Tolerance = unsafe { Tolerance::from_meters_unchecked(1e-10) };
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -52,7 +49,7 @@ impl Cylinder {
     /// [Cylinder]を近似した[Solid]を作成する関数
     pub fn rough_solid(&self) -> Solid {
         let polygons = self.rough_surfaces_without_z().collect();
-        Solid::with_tolerance(polygons, APPROX_TOLERANCE).unwrap()
+        Solid::with_tolerance(polygons, Tolerance::STRICT).unwrap()
     }
 
     /// [Cylinder]を近似した立体の表面を、ズームレベルを指定せずに[Polygon]として返す関数
@@ -86,7 +83,7 @@ impl Cylinder {
                     to_coord(v_next[1]),
                     to_coord(v_curr[1]),
                 ],
-                APPROX_TOLERANCE,
+                Tolerance::STRICT,
             )
         });
 
@@ -97,12 +94,12 @@ impl Cylinder {
         // 底面
         raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            APPROX_TOLERANCE,
+            Tolerance::STRICT,
         ));
         // 上面
         raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
-            APPROX_TOLERANCE,
+            Tolerance::STRICT,
         ));
 
         raw_surfaces.into_iter()
@@ -140,7 +137,7 @@ impl Cylinder {
                     to_coord(v_next[1]),
                     to_coord(v_curr[1]),
                 ],
-                APPROX_TOLERANCE,
+                Tolerance::STRICT,
             )
         });
 
@@ -151,12 +148,12 @@ impl Cylinder {
         // 底面
         raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            APPROX_TOLERANCE,
+            Tolerance::STRICT,
         ));
         // 上面
         raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
-            APPROX_TOLERANCE,
+            Tolerance::STRICT,
         ));
 
         raw_surfaces.into_iter()
