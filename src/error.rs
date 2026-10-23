@@ -66,6 +66,9 @@ pub enum GeometryError {
 
     /// GeoJSON の Position の要素数が足りないことを示す。経度と緯度の 2 要素が必要。
     PositionTooShort { len: usize },
+
+    /// GeoJSON の Polygon の穴が外周の内側に収まっていないことを示す。`index` は内周リングの位置（0 始まり）。
+    HoleOutsideExterior { index: usize },
 }
 
 /// SpatialId 関連で発生するエラー。
@@ -220,6 +223,9 @@ impl fmt::Display for GeometryError {
                     "Position has {} elements, but at least 2 (longitude, latitude) are required",
                     len
                 )
+            }
+            GeometryError::HoleOutsideExterior { index } => {
+                write!(f, "Polygon hole {} is not inside the exterior ring", index)
             }
         }
     }

@@ -1,8 +1,7 @@
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, Epsilon, ExpandTriangles, Line, Polygon, Shape, SingleId,
-    geometry::traits::CoverSingleIds,
+    Coordinate, Error, ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Polygon {
@@ -31,25 +30,21 @@ impl Shape for Polygon {
 impl CoverSingleIds for Polygon {
     type Value = ();
 
-    /// ポリゴン領域を覆う全ての [`SingleId`] を取得する。
+    /// ポリゴンが覆う空間IDを取得する。
     ///
-    /// ポリゴンを内部で複数の三角形に分割し、それぞれの三角形が覆う空間IDの和集合を計算して返す。
-    /// 境界上の空間IDは重複しないように排除される。
+    /// 指定されたズームレベルにおける、ポリゴンが覆うすべての空間IDを計算する。
     ///
-    /// # パラメーター
-    /// * `z` — 取得する空間IDのズームレベル（0 以上 `ZoomLevel::MAX` 以下）
+    /// # 引数
     ///
-    /// # バリデーション
-    /// - `z` が `ZoomLevel::MAX` を超える場合、`crate::Error`（例: `Error::SpatialId(SpatialIdError::ZOutOfRange { .. })`）を返す。
-    /// - 内部の三角形分割や各三角形の空間ID計算で不正な座標が現れた場合などは、対応する `crate::Error` を返す。
+    /// * `z` - ズームレベル
     ///
-    /// # 動作コスト
-    /// ポリゴンの頂点数による三角形分割の計算量、および分割された三角形の面積（取得する空間IDの密度）に比例して計算コストが増加する。
-    /// 巨大なポリゴンや高いズームレベルを指定した場合は、イテレータの評価に極めて高いコストがかかる。
+    /// # 戻り値
+    ///
+    /// 空間IDのイテレータ
     ///
     /// # 動作例
     ///
-    /// タイトル: ポリゴンから空間IDを取得
+    /// タイトル: ポリゴンが覆う空間IDを取得
     /// ```
     /// # use spatial_id::geometry::{Coordinate, Polygon};
     /// # use spatial_id::geometry::CoverSingleIds;
@@ -66,7 +61,7 @@ impl CoverSingleIds for Polygon {
         &'a self,
         z: impl Into<u8>,
         mut f: F,
-    ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, crate::Error>
+    ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
         F: FnMut(&'a Self::Value) -> V + 'a,
@@ -78,23 +73,6 @@ impl CoverSingleIds for Polygon {
             let ids_iter = triangle.cover_single_ids(z)?;
             for id in ids_iter {
                 unique_ids.insert(id);
-            }
-        }
-
-        for hole_coords in &self.holes {
-            let hole_poly = Polygon::with_epsilon(hole_coords.clone(), Epsilon::ZERO);
-            let hole_inside: HashSet<SingleId> = hole_poly.cover_single_ids(z)?.collect();
-            let mut hole_boundary = HashSet::new();
-            for pair in hole_coords.windows(2) {
-                hole_boundary.extend(Line::new([pair[0], pair[1]]).cover_single_ids(z)?);
-            }
-            if let (Some(first), Some(last)) = (hole_coords.first(), hole_coords.last()) {
-                hole_boundary.extend(Line::new([*last, *first]).cover_single_ids(z)?);
-            }
-            for id in hole_inside {
-                if !hole_boundary.contains(&id) {
-                    unique_ids.remove(&id);
-                }
             }
         }
 
