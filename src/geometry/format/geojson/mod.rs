@@ -120,8 +120,8 @@ where
             }
         }
         GeoJson::Feature(feature) => {
-            let value = f(feature);
             if let Some(geometry) = &feature.geometry {
+                let value = f(feature);
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
@@ -129,11 +129,11 @@ where
         }
         GeoJson::FeatureCollection(collection) => {
             for feature in &collection.features {
-                let value = f(feature);
                 let geometry = match &feature.geometry {
                     Some(g) => g,
                     None => continue,
                 };
+                let value = f(feature);
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
@@ -169,8 +169,8 @@ where
         }
         GeoJson::Feature(feature) => {
             let mut map = SpatialIdMap::new();
-            let value = f(feature);
             if let Some(geometry) = &feature.geometry {
+                let value = f(feature);
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
@@ -182,9 +182,8 @@ where
                 .features
                 .iter()
                 .filter_map(|feature| {
-                    let value = f(feature);
                     let geometry = feature.geometry.as_ref()?;
-                    Some((geometry, value))
+                    Some((geometry, f(feature)))
                 })
                 .collect();
 

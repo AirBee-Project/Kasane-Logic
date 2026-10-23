@@ -5,6 +5,8 @@ pub trait CoverSingleIds {
     /// ID と組にする値の元となる型。値を持たない図形では `()`。
     type Value;
 
+    // 実装では `f` を図形（GeoJSON なら Feature）ごとに 1 回だけ評価し、得た値を各 ID に clone して付ける。
+    // 空間IDに展開した後で ID ごとに評価すると、ID の数だけ `f` が走って重くなる。
     /// 図形が覆う [`SingleId`] を、`f` で変換した値と組にしてイテレータとして返す。
     /// 空間IDより前の時点で `f` を評価し、値を紐づける。
     fn cover_single_ids_with<'a, V, F>(
@@ -68,6 +70,8 @@ pub trait CoverRangeIds {
     /// ID と組にする値の元となる型。値を持たない図形では `()`。
     type Value;
 
+    // 実装では `f` を図形（GeoJSON なら Feature）ごとに 1 回だけ評価し、得た値を各 ID に clone して付ける。
+    // 空間IDに展開した後で ID ごとに評価すると、ID の数だけ `f` が走って重くなる。
     /// 図形が覆う [`RangeId`] を、`f` で変換した値と組にしてイテレータとして返す。
     /// 空間IDより前の時点で `f` を評価し、値を紐づける。
     fn cover_range_ids_with<'a, V, F>(
