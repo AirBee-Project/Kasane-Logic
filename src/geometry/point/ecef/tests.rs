@@ -313,7 +313,7 @@ mod point_fractional_id {
 
     #[test]
     fn eq_epsilon() {
-        use crate::Epsilon;
+        use crate::{Epsilon, Point};
         let e1 = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
         let e2 = Ecef::new(6_378_137.0, 1e-11, 0.0).unwrap();
         assert!(e1.eq_epsilon(&e2, Epsilon::DEFAULT));

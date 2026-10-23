@@ -10,11 +10,11 @@ use crate::{Error, GeometryError};
 pub struct Epsilon(f64);
 
 impl Epsilon {
-    /// デフォルトの許容誤差（0.1 nm = 1e-10 m）。
+    /// デフォルトの許容誤差（1 µm = 1e-6 m）。
     ///
-    /// 浮動小数点数演算の丸め誤差を吸収しつつ、微小スケールの幾何形状でも
-    /// 頂点縮退を起こさない基準値。
-    pub const DEFAULT: Self = Self(1e-10);
+    /// 地球規模の ECEF 座標（約 6.4e6 m）では f64 の分解能が約 1e-9 m のため、
+    /// それより十分大きく、かつ空間ID の最大ズームレベルの大きさより十分小さい値にしている。
+    pub const DEFAULT: Self = Self(1e-6);
 
     /// 許容誤差ゼロ（0.0 m）。
     pub const ZERO: Self = Self(0.0);
@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn default_epsilon() {
         assert_eq!(Epsilon::default(), Epsilon::DEFAULT);
-        assert_eq!(Epsilon::DEFAULT.as_meters(), 1e-10);
+        assert_eq!(Epsilon::DEFAULT.as_meters(), 1e-6);
     }
 
     #[test]

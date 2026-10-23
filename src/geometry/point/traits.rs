@@ -1,7 +1,7 @@
 use crate::{Ecef, Error, FractionalId, RangeId, SingleId, geometry::Epsilon};
 
 /// 現実空間の点に共通する性質。
-pub trait Point: Into<Ecef> + Clone {
+pub trait Point: Into<Ecef> + Copy {
     /// この点を、指定されたズームレベルの [`SingleId`] に変換する。
     ///
     /// 高度・経度・緯度が空間 ID の範囲の上端ちょうどにある点は、最後のインデックス値に丸められる。
@@ -78,9 +78,8 @@ pub trait Point: Into<Ecef> + Clone {
     /// assert!(p1.eq_epsilon(&p2, Epsilon::from_meters(0.001).unwrap()));
     /// assert!(!p1.eq_epsilon(&p2, Epsilon::from_meters(0.00001).unwrap()));
     /// ```
-    fn eq_epsilon<P: Point + Clone>(&self, other: &P, epsilon: Epsilon) -> bool {
-        let e1: Ecef = self.clone().into();
-        let e2: Ecef = other.clone().into();
-        e1.eq_epsilon(&e2, epsilon)
+    fn eq_epsilon(&self, other: &impl Point, epsilon: Epsilon) -> bool {
+        let e1: Ecef = (*self).into();
+        e1.distance(&(*other).into()) <= epsilon.as_meters()
     }
 }

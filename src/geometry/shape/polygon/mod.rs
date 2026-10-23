@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
-use crate::Coordinate;
 use crate::geometry::Epsilon;
+use crate::{Coordinate, Point};
 
 pub mod geometry_relation;
 pub mod impls;

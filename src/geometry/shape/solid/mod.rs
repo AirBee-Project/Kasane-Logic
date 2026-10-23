@@ -145,10 +145,11 @@ struct QuantizedCoord {
 impl QuantizedCoord {
     fn new(e: &Ecef, precision: f64) -> Self {
         if precision == 0.0 {
+            // -0.0 と 0.0 を同じビット列にそろえる
             Self {
-                x: e.x().to_bits() as i64,
-                y: e.y().to_bits() as i64,
-                z: e.z().to_bits() as i64,
+                x: (e.x() + 0.0).to_bits() as i64,
+                y: (e.y() + 0.0).to_bits() as i64,
+                z: (e.z() + 0.0).to_bits() as i64,
             }
         } else {
             Self {

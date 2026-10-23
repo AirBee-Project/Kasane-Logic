@@ -240,7 +240,7 @@ mod centroid {
 
 mod coordinate_raw {
     use super::*;
-    use crate::Epsilon;
+    use crate::{Epsilon, Point};
 
     #[test]
     fn coordinate_eq_with_self() {

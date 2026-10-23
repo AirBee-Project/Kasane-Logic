@@ -3,7 +3,7 @@ pub mod impls;
 use crate::{
     Vec3, Vec3Ecef,
     error::Error,
-    geometry::{Epsilon, constants::WGS84_B, point::coordinate::Coordinate},
+    geometry::{constants::WGS84_B, point::coordinate::Coordinate},
 };
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
@@ -224,14 +224,6 @@ impl Ecef {
     /// 原点からの距離の2乗を取得する。
     pub fn norm_squared(&self) -> f64 {
         self.x * self.x + self.y * self.y + self.z * self.z
-    }
-
-    /// [`Ecef`] が指定した許容誤差の範囲内にあるかを判定する。
-    ///
-    /// 2点間の直線距離が `epsilon` 以内にあるかを判定する。
-    pub fn eq_epsilon(&self, other: &Ecef, epsilon: Epsilon) -> bool {
-        let distance = self.distance(other);
-        distance <= epsilon.as_meters()
     }
 
     /// 指定された軸インデックス (0=x, 1=y, 2=z) の成分を返す。
