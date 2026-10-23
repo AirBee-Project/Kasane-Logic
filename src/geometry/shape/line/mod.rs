@@ -24,7 +24,7 @@ impl Line {
     /// 連続する頂点列（折れ線）が覆う [`SingleId`] のイテレータを返す。
     ///
     /// 頂点が1点のみの場合はその点の空間ID、2点以上の場合は隣り合う各線分が覆う空間IDを返す。
-    pub(crate) fn cover_polyline<'a>(
+    pub fn cover_polyline<'a>(
         coordinates: &'a [Coordinate],
         z: impl Into<u8>,
     ) -> Result<impl Iterator<Item = SingleId> + 'a, Error> {

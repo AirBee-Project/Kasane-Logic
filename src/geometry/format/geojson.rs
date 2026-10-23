@@ -2,7 +2,9 @@ use ::geojson::{Feature, GeoJson, Geometry, GeometryValue, Position};
 use alloc::vec::Vec;
 use hashbrown::HashSet;
 
-use crate::{Coordinate, CoverSingleIds, Error, GeometryError, Line, Point, Polygon, SingleId, SpatialIdMap};
+use crate::{
+    Coordinate, CoverSingleIds, Error, GeometryError, Line, Point, Polygon, SingleId, SpatialIdMap,
+};
 
 const EPSILON: f64 = 1e-10;
 
@@ -287,7 +289,10 @@ impl TryFrom<&Position> for Coordinate {
 
     fn try_from(position: &Position) -> Result<Self, Self::Error> {
         if position.len() < 2 {
-            return Err(GeometryError::PositionTooShort { len: position.len() }.into());
+            return Err(GeometryError::PositionTooShort {
+                len: position.len(),
+            }
+            .into());
         }
         let lon = position[0];
         let lat = position[1];
