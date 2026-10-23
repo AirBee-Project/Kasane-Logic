@@ -12,7 +12,7 @@ impl Shape for Sphere {
 }
 
 impl CoverSingleIds for Sphere {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -21,9 +21,9 @@ impl CoverSingleIds for Sphere {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, crate::Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let zoom = crate::id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 

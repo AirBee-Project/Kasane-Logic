@@ -28,7 +28,7 @@ impl Shape for Polygon {
 }
 
 impl CoverSingleIds for Polygon {
-    type Value = ();
+    type Value<'a> = ();
 
     /// ポリゴンが覆う空間IDを取得する。
     ///
@@ -64,9 +64,9 @@ impl CoverSingleIds for Polygon {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let mut unique_ids = HashSet::new();
         let z: u8 = z.into();
         for triangle in self.expand_triangles() {

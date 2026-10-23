@@ -104,7 +104,7 @@ impl Point for Coordinate {
 }
 
 impl CoverSingleIds for Coordinate {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -113,9 +113,9 @@ impl CoverSingleIds for Coordinate {
     ) -> Result<impl Iterator<Item = (crate::SingleId, V)> + 'a, crate::Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         Ok(core::iter::once((self.single_id(z)?, value)))
     }
 }

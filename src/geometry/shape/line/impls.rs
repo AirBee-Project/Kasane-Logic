@@ -12,7 +12,7 @@ impl Shape for Line {
 }
 
 impl CoverSingleIds for Line {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -21,9 +21,9 @@ impl CoverSingleIds for Line {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let z = z.into();
         let a = self.points[0];
         let b = self.points[1];

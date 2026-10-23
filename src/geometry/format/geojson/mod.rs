@@ -8,25 +8,19 @@ use crate::{
 };
 
 mod projected_ring;
+#[cfg(test)]
+mod test;
 
 use projected_ring::ProjectedRing;
-
-/// Geometry だけの GeoJSON で、ID と組にする Feature。
-static EMPTY_FEATURE: Feature = Feature {
-    bbox: None,
-    geometry: None,
-    id: None,
-    properties: None,
-    foreign_members: None,
-};
 
 /// GeoJSON の全ジオメトリが覆う空間IDを求める。
 ///
 /// - Position は `[経度, 緯度, 高度]` として読み、高度が省略された場合は 0 m とする。
 /// - Polygon の穴は、穴の内部を除き、穴の境界線は含める。
 /// - `geometry` が `null` の Feature は無視する。
+/// - 値の元は Feature で、Geometry だけの GeoJSON では Feature がないので `None` になる。
 /// - [`CoverSingleIds::cover_single_ids_with`] では空間IDへの展開前に Feature 単位で値を評価する。
-/// - [`CoverSingleIds::into_map`] では直接 [`SpatialIdMap`] を構築する。
+/// - [`CoverSingleIds::cover_map_with`] では直接 [`SpatialIdMap`] を構築する。
 ///   複数の Feature が同じ ID を覆う場合は、後の Feature の値が残る。
 ///
 /// # 動作例
@@ -41,13 +35,13 @@ static EMPTY_FEATURE: Feature = Feature {
 ///     }]
 /// }"#.parse().unwrap();
 ///
-/// let map = geojson.into_map(20, |feature| {
-///     feature.property("name").unwrap().as_str().unwrap().to_owned()
+/// let map = geojson.cover_map_with(20, |feature| {
+///     feature.unwrap().property("name").unwrap().as_str().unwrap().to_owned()
 /// }).unwrap();
 /// assert!(map.iter().all(|(_, v)| v == "A"));
 /// ```
 impl CoverSingleIds for GeoJson {
-    type Value = Feature;
+    type Value<'a> = Option<&'a Feature>;
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -56,20 +50,20 @@ impl CoverSingleIds for GeoJson {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
         let z = z.into();
         let mut pairs = Vec::new();
         match self {
             GeoJson::Geometry(geometry) => {
-                let value = f(&EMPTY_FEATURE);
+                let value = f(None);
                 for id in geometry.cover_single_ids(z)? {
                     pairs.push((id, value.clone()));
                 }
             }
             GeoJson::Feature(feature) => {
                 if let Some(geometry) = &feature.geometry {
-                    let value = f(feature);
+                    let value = f(Some(feature));
                     for id in geometry.cover_single_ids(z)? {
                         pairs.push((id, value.clone()));
                     }
@@ -78,7 +72,7 @@ impl CoverSingleIds for GeoJson {
             GeoJson::FeatureCollection(collection) => {
                 for feature in &collection.features {
                     if let Some(geometry) = &feature.geometry {
-                        let value = f(feature);
+                        let value = f(Some(feature));
                         for id in geometry.cover_single_ids(z)? {
                             pairs.push((id, value.clone()));
                         }
@@ -89,48 +83,48 @@ impl CoverSingleIds for GeoJson {
         Ok(pairs.into_iter())
     }
 
-    fn into_map<V, F>(self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map_with<'a, V, F>(&'a self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
-        V: PartialEq + Clone + Send + Sync,
-        F: FnMut(&Self::Value) -> V,
+        V: PartialEq + Clone + Send + Sync + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
         to_feature_collection_map(self, z.into(), f)
     }
 }
 
 #[cfg(not(feature = "rayon"))]
-fn to_feature_collection_map<V, F>(
-    geojson: GeoJson,
+fn to_feature_collection_map<'a, V, F>(
+    geojson: &'a GeoJson,
     z: u8,
     mut f: F,
 ) -> Result<SpatialIdMap<V>, Error>
 where
     V: PartialEq + Clone,
-    F: FnMut(&Feature) -> V,
+    F: FnMut(Option<&'a Feature>) -> V,
 {
     let mut map = SpatialIdMap::new();
     match geojson {
         GeoJson::Geometry(geometry) => {
-            let value = f(&EMPTY_FEATURE);
+            let value = f(None);
             for id in geometry.cover_single_ids(z)? {
                 map.insert(id, value.clone());
             }
         }
         GeoJson::Feature(feature) => {
-            let value = f(&feature);
-            if let Some(geometry) = feature.geometry {
+            if let Some(geometry) = &feature.geometry {
+                let value = f(Some(feature));
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
             }
         }
         GeoJson::FeatureCollection(collection) => {
-            for feature in collection.features {
-                let value = f(&feature);
-                let geometry = match feature.geometry {
+            for feature in &collection.features {
+                let geometry = match &feature.geometry {
                     Some(g) => g,
                     None => continue,
                 };
+                let value = f(Some(feature));
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
@@ -141,14 +135,14 @@ where
 }
 
 #[cfg(feature = "rayon")]
-fn to_feature_collection_map<V, F>(
-    geojson: GeoJson,
+fn to_feature_collection_map<'a, V, F>(
+    geojson: &'a GeoJson,
     z: u8,
     mut f: F,
 ) -> Result<SpatialIdMap<V>, Error>
 where
     V: PartialEq + Clone + Send + Sync,
-    F: FnMut(&Feature) -> V,
+    F: FnMut(Option<&'a Feature>) -> V,
 {
     use rayon::prelude::*;
     let later_wins = |a: SpatialIdMap<V>, b: SpatialIdMap<V>| SpatialIdMap {
@@ -157,7 +151,7 @@ where
 
     match geojson {
         GeoJson::Geometry(geometry) => {
-            let value = f(&EMPTY_FEATURE);
+            let value = f(None);
             let mut map = SpatialIdMap::new();
             for id in geometry.cover_single_ids(z)? {
                 map.insert(id, value.clone());
@@ -166,8 +160,8 @@ where
         }
         GeoJson::Feature(feature) => {
             let mut map = SpatialIdMap::new();
-            let value = f(&feature);
-            if let Some(geometry) = feature.geometry {
+            if let Some(geometry) = &feature.geometry {
+                let value = f(Some(feature));
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
@@ -175,36 +169,31 @@ where
             Ok(map)
         }
         GeoJson::FeatureCollection(collection) => {
-            let pairs: Vec<(Geometry, V)> = collection
+            let pairs: Vec<(&Geometry, V)> = collection
                 .features
-                .into_iter()
+                .iter()
                 .filter_map(|feature| {
-                    let value = f(&feature);
-                    let geometry = feature.geometry?;
-                    Some((geometry, value))
+                    let geometry = feature.geometry.as_ref()?;
+                    Some((geometry, f(Some(feature))))
                 })
                 .collect();
 
-            let map = pairs
+            pairs
                 .into_par_iter()
                 .map(|(geometry, value)| {
                     let mut map = SpatialIdMap::new();
-                    if let Ok(ids) = geometry.cover_single_ids(z) {
-                        for id in ids {
-                            map.insert(id, value.clone());
-                        }
+                    for id in geometry.cover_single_ids(z)? {
+                        map.insert(id, value.clone());
                     }
-                    map
+                    Ok(map)
                 })
-                .reduce(SpatialIdMap::new, later_wins);
-
-            Ok(map)
+                .try_reduce(SpatialIdMap::new, |a, b| Ok(later_wins(a, b)))
         }
     }
 }
 
 impl CoverSingleIds for Geometry {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -213,9 +202,9 @@ impl CoverSingleIds for Geometry {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let z = z.into();
         let mut ids = HashSet::new();
         match &self.value {
