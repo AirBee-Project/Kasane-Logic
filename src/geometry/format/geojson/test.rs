@@ -3,7 +3,7 @@ use ::geojson::GeoJson;
 use crate::CoverSingleIds;
 
 #[test]
-fn cover_map_returns_error_of_invalid_feature() {
+fn cover_map_with_returns_error_of_invalid_feature() {
     let geojson: GeoJson = r#"{
         "type": "FeatureCollection",
         "features": [
@@ -22,5 +22,5 @@ fn cover_map_returns_error_of_invalid_feature() {
     .parse()
     .unwrap();
 
-    assert!(geojson.cover_map(20, |_| ()).is_err());
+    assert!(geojson.cover_map_with(20, |_| ()).is_err());
 }

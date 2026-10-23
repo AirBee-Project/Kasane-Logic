@@ -44,7 +44,7 @@ static EMPTY_FEATURE: Feature = Feature {
 ///     }]
 /// }"#.parse().unwrap();
 ///
-/// let map = geojson.cover_map(20, |feature| {
+/// let map = geojson.cover_map_with(20, |feature| {
 ///     feature.property("name").unwrap().as_str().unwrap().to_owned()
 /// }).unwrap();
 /// assert!(map.iter().all(|(_, v)| v == "A"));
@@ -92,7 +92,7 @@ impl CoverSingleIds for GeoJson {
         Ok(pairs.into_iter())
     }
 
-    fn cover_map<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map_with<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
         V: PartialEq + Clone + Send + Sync,
         F: FnMut(&Self::Value) -> V,

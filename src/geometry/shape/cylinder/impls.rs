@@ -30,7 +30,7 @@ impl CoverSingleIds for Cylinder {
         Ok(ids.into_iter().map(move |id| (id, value.clone())))
     }
 
-    fn cover_map<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map_with<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
         V: PartialEq + Clone + Send + Sync,
         F: FnMut(&Self::Value) -> V,

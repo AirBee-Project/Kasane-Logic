@@ -29,8 +29,8 @@ pub trait CoverSingleIds {
         Ok(self.cover_single_ids_with(z, |_| ())?.map(|(id, _)| id))
     }
 
-    /// 図形が覆う空間IDと値から [`SpatialIdMap`] を構築するダイレクト変換経路。
-    fn cover_map<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    /// 図形が覆う空間IDを、`f` で変換した値と組にして [`SpatialIdMap`] にまとめる。
+    fn cover_map_with<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
         V: PartialEq + Clone + Send + Sync,
         F: FnMut(&Self::Value) -> V,
@@ -44,10 +44,18 @@ pub trait CoverSingleIds {
         Ok(map)
     }
 
+    /// 図形が覆う空間IDを、その ID に対応する値と組にして [`SpatialIdMap`] にまとめる。
+    fn cover_map(&self, z: impl Into<u8>) -> Result<SpatialIdMap<Self::Value>, Error>
+    where
+        Self::Value: PartialEq + Clone + Send + Sync,
+    {
+        self.cover_map_with(z, Self::Value::clone)
+    }
+
     /// 対象の図形が覆う [`SingleId`] を [`SpatialIdSet`] にまとめる。
     fn cover_set(&self, z: impl Into<u8>) -> Result<SpatialIdSet, Error> {
         Ok(SpatialIdSet {
-            inner: self.cover_map(z, |_| ())?.inner,
+            inner: self.cover_map_with(z, |_| ())?.inner,
         })
     }
 }
