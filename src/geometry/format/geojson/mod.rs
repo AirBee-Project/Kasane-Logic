@@ -7,6 +7,8 @@ use crate::{
 };
 
 mod projected_ring;
+#[cfg(test)]
+mod test;
 
 use projected_ring::ProjectedRing;
 
@@ -27,7 +29,7 @@ static EMPTY_FEATURE: Feature = Feature {
 /// - Polygon の穴は、穴の内部を除き、穴の境界線は含める。
 /// - `geometry` が `null` の Feature は無視する。
 /// - [`CoverSingleIds::cover_single_ids_with`] では空間IDへの展開前に Feature 単位で値を評価する。
-/// - [`CoverSingleIds::into_map`] では直接 [`SpatialIdMap`] を構築する。
+/// - [`CoverSingleIds::cover_map`] では直接 [`SpatialIdMap`] を構築する。
 ///   複数の Feature が同じ ID を覆う場合は、後の Feature の値が残る。
 ///
 /// # 動作例
@@ -42,7 +44,7 @@ static EMPTY_FEATURE: Feature = Feature {
 ///     }]
 /// }"#.parse().unwrap();
 ///
-/// let map = geojson.into_map(20, |feature| {
+/// let map = geojson.cover_map(20, |feature| {
 ///     feature.property("name").unwrap().as_str().unwrap().to_owned()
 /// }).unwrap();
 /// assert!(map.iter().all(|(_, v)| v == "A"));
@@ -90,7 +92,7 @@ impl CoverSingleIds for GeoJson {
         Ok(pairs.into_iter())
     }
 
-    fn into_map<V, F>(self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
         V: PartialEq + Clone + Send + Sync,
         F: FnMut(&Self::Value) -> V,
@@ -101,7 +103,7 @@ impl CoverSingleIds for GeoJson {
 
 #[cfg(not(feature = "rayon"))]
 fn to_feature_collection_map<V, F>(
-    geojson: GeoJson,
+    geojson: &GeoJson,
     z: u8,
     mut f: F,
 ) -> Result<SpatialIdMap<V>, Error>
@@ -118,17 +120,17 @@ where
             }
         }
         GeoJson::Feature(feature) => {
-            let value = f(&feature);
-            if let Some(geometry) = feature.geometry {
+            let value = f(feature);
+            if let Some(geometry) = &feature.geometry {
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
             }
         }
         GeoJson::FeatureCollection(collection) => {
-            for feature in collection.features {
-                let value = f(&feature);
-                let geometry = match feature.geometry {
+            for feature in &collection.features {
+                let value = f(feature);
+                let geometry = match &feature.geometry {
                     Some(g) => g,
                     None => continue,
                 };
@@ -143,7 +145,7 @@ where
 
 #[cfg(feature = "rayon")]
 fn to_feature_collection_map<V, F>(
-    geojson: GeoJson,
+    geojson: &GeoJson,
     z: u8,
     mut f: F,
 ) -> Result<SpatialIdMap<V>, Error>
@@ -167,8 +169,8 @@ where
         }
         GeoJson::Feature(feature) => {
             let mut map = SpatialIdMap::new();
-            let value = f(&feature);
-            if let Some(geometry) = feature.geometry {
+            let value = f(feature);
+            if let Some(geometry) = &feature.geometry {
                 for id in geometry.cover_single_ids(z)? {
                     map.insert(id, value.clone());
                 }
@@ -176,30 +178,26 @@ where
             Ok(map)
         }
         GeoJson::FeatureCollection(collection) => {
-            let pairs: Vec<(Geometry, V)> = collection
+            let pairs: Vec<(&Geometry, V)> = collection
                 .features
-                .into_iter()
+                .iter()
                 .filter_map(|feature| {
-                    let value = f(&feature);
-                    let geometry = feature.geometry?;
+                    let value = f(feature);
+                    let geometry = feature.geometry.as_ref()?;
                     Some((geometry, value))
                 })
                 .collect();
 
-            let map = pairs
+            pairs
                 .into_par_iter()
                 .map(|(geometry, value)| {
                     let mut map = SpatialIdMap::new();
-                    if let Ok(ids) = geometry.cover_single_ids(z) {
-                        for id in ids {
-                            map.insert(id, value.clone());
-                        }
+                    for id in geometry.cover_single_ids(z)? {
+                        map.insert(id, value.clone());
                     }
-                    map
+                    Ok(map)
                 })
-                .reduce(SpatialIdMap::new, later_wins);
-
-            Ok(map)
+                .try_reduce(SpatialIdMap::new, |a, b| Ok(later_wins(a, b)))
         }
     }
 }
