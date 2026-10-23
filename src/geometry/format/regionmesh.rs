@@ -120,8 +120,6 @@ impl CoverSingleIds for RegionMesh {
 
 ///標準地域メッシュを覆うようにRangeIdを生成する。Fにはデフォルトで0が割り当てられている。
 impl CoverRangeIds for RegionMesh {
-    type Value<'a> = ();
-
     fn cover_range_ids_with<'a, V, F>(
         &'a self,
         z: impl Into<u8>,

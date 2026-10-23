@@ -45,8 +45,6 @@ impl CoverSingleIds for Cylinder {
 }
 
 impl CoverRangeIds for Cylinder {
-    type Value<'a> = ();
-
     fn cover_range_ids_with<'a, V, F>(
         &'a self,
         z: impl Into<u8>,

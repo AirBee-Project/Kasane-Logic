@@ -71,12 +71,7 @@ pub trait CoverSingleIds {
 ///
 /// [`CoverSingleIds`] の結果を単純に [`RangeId`] へ変換するラッパーではなく、
 /// 実装内部で [`RangeId`] の出力を活かす処理を持つこと。
-pub trait CoverRangeIds {
-    /// ID と組にする値の元となる型。値を持たない図形では `()`。
-    type Value<'a>
-    where
-        Self: 'a;
-
+pub trait CoverRangeIds: CoverSingleIds {
     // 実装では `f` を図形（GeoJSON なら Feature）ごとに 1 回だけ評価し、得た値を各 ID に clone して付ける。
     // 空間IDに展開した後で ID ごとに評価すると、ID の数だけ `f` が走って重くなる。
     /// 図形が覆う [`RangeId`] を、`f` で変換した値と組にしてイテレータとして返す。

@@ -125,8 +125,6 @@ impl CoverSingleIds for Solid {
 }
 
 impl CoverRangeIds for Solid {
-    type Value<'a> = ();
-
     fn cover_range_ids_with<'a, V, F>(
         &'a self,
         z: impl Into<u8>,
