@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
-use crate::geometry::shape::polygon::Polygon;
 use crate::geometry::Tolerance;
+use crate::geometry::shape::polygon::Polygon;
 use crate::{CoverSingleIds as _, Ecef, Error, ExpandTriangles, GeometryError, SingleId, Triangle};
 use hashbrown::{HashMap, HashSet};
 

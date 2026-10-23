@@ -5,7 +5,12 @@ pub mod impls;
 mod tests;
 use core::f64::consts::PI;
 
-use crate::{Coordinate, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef, ZoomLevel};
+use crate::{
+    Coordinate, Error, GeometryError, Polygon, Solid, Tolerance, Vec3, Vec3Ecef, ZoomLevel,
+};
+
+// 微小半径の円柱でもポリゴン頂点が縮退しないよう、近似計算用の微小許容誤差を用いる
+const APPROX_TOLERANCE: Tolerance = unsafe { Tolerance::from_meters_unchecked(1e-10) };
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -47,7 +52,7 @@ impl Cylinder {
     /// [Cylinder]を近似した[Solid]を作成する関数
     pub fn rough_solid(&self) -> Solid {
         let polygons = self.rough_surfaces_without_z().collect();
-        Solid::new(polygons).unwrap()
+        Solid::with_tolerance(polygons, APPROX_TOLERANCE).unwrap()
     }
 
     /// [Cylinder]を近似した立体の表面を、ズームレベルを指定せずに[Polygon]として返す関数
@@ -74,13 +79,14 @@ impl Cylinder {
             let v_curr = vertices[i as usize];
             let v_next = vertices[next_i as usize];
 
-            Polygon::new(
+            Polygon::with_tolerance(
                 vec![
                     to_coord(v_curr[0]),
                     to_coord(v_next[0]),
                     to_coord(v_next[1]),
                     to_coord(v_curr[1]),
                 ],
+                APPROX_TOLERANCE,
             )
         });
 
@@ -89,12 +95,14 @@ impl Cylinder {
         let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
-        raw_surfaces.push(Polygon::new(
+        raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
+            APPROX_TOLERANCE,
         ));
         // 上面
-        raw_surfaces.push(Polygon::new(
+        raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
+            APPROX_TOLERANCE,
         ));
 
         raw_surfaces.into_iter()
@@ -125,13 +133,14 @@ impl Cylinder {
             let v_curr = vertices[i as usize];
             let v_next = vertices[next_i as usize];
 
-            Polygon::new(
+            Polygon::with_tolerance(
                 vec![
                     to_coord(v_curr[0]),
                     to_coord(v_next[0]),
                     to_coord(v_next[1]),
                     to_coord(v_curr[1]),
                 ],
+                APPROX_TOLERANCE,
             )
         });
 
@@ -140,12 +149,14 @@ impl Cylinder {
         let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
-        raw_surfaces.push(Polygon::new(
+        raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
+            APPROX_TOLERANCE,
         ));
         // 上面
-        raw_surfaces.push(Polygon::new(
+        raw_surfaces.push(Polygon::with_tolerance(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
+            APPROX_TOLERANCE,
         ));
 
         raw_surfaces.into_iter()
