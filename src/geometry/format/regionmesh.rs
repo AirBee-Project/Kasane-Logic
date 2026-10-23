@@ -104,7 +104,7 @@ impl CoverSingleIds for RegionMesh {
             .map(move |id| (id, value.clone())))
     }
 
-    fn into_map<V, F>(self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
         V: PartialEq + Clone + Send + Sync,
         F: FnMut(&Self::Value) -> V,
