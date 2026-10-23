@@ -1,7 +1,7 @@
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, ExpandTriangles, Line, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
+    Coordinate, ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Polygon {
@@ -77,23 +77,6 @@ impl CoverSingleIds for Polygon {
             let ids_iter = triangle.cover_single_ids(z)?;
             for id in ids_iter {
                 unique_ids.insert(id);
-            }
-        }
-
-        for hole_coords in &self.holes {
-            let hole_poly = Polygon::new(hole_coords.clone(), 0.0);
-            let hole_inside: HashSet<SingleId> = hole_poly.cover_single_ids(z)?.collect();
-            let mut hole_boundary = HashSet::new();
-            for pair in hole_coords.windows(2) {
-                hole_boundary.extend(Line::new([pair[0], pair[1]]).cover_single_ids(z)?);
-            }
-            if let (Some(first), Some(last)) = (hole_coords.first(), hole_coords.last()) {
-                hole_boundary.extend(Line::new([*last, *first]).cover_single_ids(z)?);
-            }
-            for id in hole_inside {
-                if !hole_boundary.contains(&id) {
-                    unique_ids.remove(&id);
-                }
             }
         }
 

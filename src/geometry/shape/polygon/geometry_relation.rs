@@ -96,7 +96,7 @@ impl ExpandTriangles for Polygon {
 }
 
 /// Newell's Method による法線概算と投影軸の選択
-fn get_projection_axes(pts: &[Ecef]) -> (usize, usize) {
+pub(crate) fn get_projection_axes(pts: &[Ecef]) -> (usize, usize) {
     let mut nx = 0.0;
     let mut ny = 0.0;
     let mut nz = 0.0;
