@@ -19,7 +19,7 @@ const EPSILON: f64 = 1e-10;
 /// - Position は `[経度, 緯度, 高度]` として読み、高度が省略された場合は 0 m とする。
 /// - Polygon の穴は、穴の内部を除き、穴の境界線は含める。
 /// - `geometry` が `null` の Feature は無視する。
-/// - 値の元は Feature で、Geometry だけの GeoJSON では Feature がないので `None` になる。
+/// - 値の元は Feature で、Geometry だけの GeoJSON では Feature がないので [`None`] になる。
 /// - [`CoverSingleIds::cover_single_ids_with`] では空間IDへの展開前に Feature 単位で値を評価する。
 /// - [`CoverSingleIds::cover_map_with`] では直接 [`SpatialIdMap`] を構築する。
 ///   複数の Feature が同じ ID を覆う場合は、後の Feature の値が残る。

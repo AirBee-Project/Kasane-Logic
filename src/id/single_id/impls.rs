@@ -5,7 +5,7 @@ use core::fmt;
 use core::str::FromStr;
 
 impl fmt::Display for SingleId {
-    /// `SingleId` を文字列形式で表示する。
+    /// [`SingleId`] を文字列形式で表示する。
     ///
     /// 形式は `"{z}/{f}/{x}/{y}"`。
     ///
@@ -27,7 +27,7 @@ impl fmt::Display for SingleId {
 }
 
 impl SpatialId for SingleId {
-    /// 指定したインデックス差 `by` に基づき、この `SingleId` を垂直上下方向に動かす。
+    /// 指定したインデックス差 `by` に基づき、この [`SingleId`] を垂直上下方向に動かす。
     ///
     /// # パラメータ
     /// * `by` — インデックス差
@@ -70,7 +70,7 @@ impl SpatialId for SingleId {
         Ok(())
     }
 
-    /// 指定したインデックス差 `by` に基づき、この `SingleId` を東西方向に動かす。Webメルカトル図法において、東西方向は循環しているためどのような値を指定してもエラーは発生しない。
+    /// 指定したインデックス差 `by` に基づき、この [`SingleId`] を東西方向に動かす。Webメルカトル図法において、東西方向は循環しているためどのような値を指定してもエラーは発生しない。
     ///
     /// # パラメータ
     /// * `by` — インデックス差
@@ -102,7 +102,7 @@ impl SpatialId for SingleId {
         self.x = new as u32;
     }
 
-    /// 指定したインデックス差 `by` に基づき、この `SingleId` を南北方向に動かす。
+    /// 指定したインデックス差 `by` に基づき、この [`SingleId`] を南北方向に動かす。
     ///
     /// # パラメータ
     /// * `by` — インデックス差
@@ -154,7 +154,7 @@ impl SpatialId for SingleId {
         Ok(())
     }
 
-    /// `SingleId` の空間中心座標を [`Coordinate`] 型で返す。
+    /// [`SingleId`] の空間中心座標を [`Coordinate`] 型で返す。
     ///
     /// 中心座標は空間 ID の最も外側の頂点の8点の平均座標である。現実空間における空間 ID は完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要がある。
     ///
@@ -175,7 +175,7 @@ impl SpatialId for SingleId {
         .unwrap()
     }
 
-    /// `SingleId` の最も外側の頂点の8点の座標を [`Coordinate`] 型の配列として返す。
+    /// [`SingleId`] の最も外側の頂点の8点の座標を [`Coordinate`] 型の配列として返す。
     ///
     /// 現実空間における空間 ID は完全な直方体ではなく、緯度や高度によって歪みが発生していることに注意する必要がある。
     ///

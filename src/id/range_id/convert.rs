@@ -140,7 +140,7 @@ impl IntoIterator for RangeId {
 /// 区間木的にセグメントを最適配置するイテレータ。
 ///
 /// `l`/`r`は`i32`ではなく`i64`で保持する。[`split_f`]がFのインデックスへ`2^z`のオフセットを
-/// 加えるため、`z = ZoomLevel::MAX`（30）かつFが最大値のときに`2^31 - 1`（`i32::MAX`）へ達し、
+/// 加えるため、`z = [`ZoomLevel::MAX`](crate::ZoomLevel::MAX)`（30）かつFが最大値のときに`2^31 - 1`（[`i32::MAX`]）へ達し、
 /// 最後の要素を返した直後の`l += 1`が`i32`ではオーバーフローするからである。
 struct SegmentIter {
     l: i64,
@@ -193,7 +193,7 @@ mod tests {
     use alloc::vec::Vec;
 
     /// `split_f`はFのインデックスへ`2^z`を足すため、最深ズームかつF最大値では
-    /// `i32::MAX`ちょうどに達する。内部を`i64`で保持していないと、最後の要素を返した直後の
+    /// [`i32::MAX`]ちょうどに達する。内部を`i64`で保持していないと、最後の要素を返した直後の
     /// `l += 1`がオーバーフローしてパニックする。
     #[test]
     fn split_f_does_not_overflow_at_deepest_zoom_upper_bound() {

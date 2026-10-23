@@ -16,7 +16,7 @@ impl fmt::Debug for FractionalId {
 }
 
 impl From<FractionalId> for Coordinate {
-    /// `FractionalId` から地理座標（`Coordinate`）への変換。
+    /// [`FractionalId`] から地理座標（[`Coordinate`]）への変換。
     fn from(value: FractionalId) -> Self {
         let z = value.z.get();
         let alt = helpers::altitude(value.f, z);
@@ -27,7 +27,7 @@ impl From<FractionalId> for Coordinate {
 }
 
 impl From<FractionalId> for Ecef {
-    /// `FractionalId` から地心直交座標系（`Ecef`）への変換。
+    /// [`FractionalId`] から地心直交座標系（[`Ecef`]）への変換。
     fn from(value: FractionalId) -> Self {
         let coord: Coordinate = value.into();
         coord.into()

@@ -251,7 +251,7 @@ mod tests {
         assert!(Interval::new(Interval::MAX_SECONDS).is_ok());
     }
 
-    /// `as u64` による丸めを許すと、範囲外の値が別の有効な `Interval` に化けてしまう。
+    /// `as u64` による丸めを許すと、範囲外の値が別の有効な [`Interval`] に化けてしまう。
     #[test]
     fn try_from_wide_integers_never_truncates() {
         // 2^64 + 3600。`as u64` だと 3600（＝1時間）になっていた。
@@ -287,13 +287,13 @@ mod tests {
 /// で、時間 API の名前・引数・戻り値の形が揃っていることを固定する。
 ///
 /// 型ごとに「表せる時間の形」は違う（1Segment / 範囲 / 2分岐Segment1個）が、**入口の名前と失敗の
-/// 仕方は同じ**であるべき。片方だけに生えた補助コンストラクタや、`Option` と `Result` の
+/// 仕方は同じ**であるべき。片方だけに生えた補助コンストラクタや、[`Option`] と [`Result`] の
 /// 混在を防ぐための回帰テストである。
 #[cfg(all(test, feature = "temporal_id"))]
 mod api_symmetry {
     use crate::{FlexId, Interval, RangeId, SingleId, SpatialId};
 
-    /// `with_time` は3型とも同じ名前・同じ `Result` で、`{i}/{t}` を受ける。
+    /// `with_time` は3型とも同じ名前・同じ [`Result`] で、`{i}/{t}` を受ける。
     #[test]
     fn with_time_is_available_on_every_type() {
         let single = SingleId::new(4, 0, 1, 1)
@@ -317,7 +317,7 @@ mod api_symmetry {
         assert_eq!(flex.seconds_range(), expected);
     }
 
-    /// `interval` 引数は `Interval` でも整数リテラルでも `u64` でも通る。
+    /// `interval` 引数は [`Interval`] でも整数リテラルでも `u64` でも通る。
     #[test]
     fn interval_argument_accepts_every_spelling() {
         let by_const = SingleId::new(4, 0, 1, 1)
@@ -337,7 +337,7 @@ mod api_symmetry {
         assert_eq!(by_const, by_u64);
     }
 
-    /// Unix 時刻から時間を決める入口は3型ともある。`FlexId` だけはズームで粒度を指定するので
+    /// Unix 時刻から時間を決める入口は3型ともある。[`FlexId`] だけはズームで粒度を指定するので
     /// `with_time_segment_at` という別名になっている。
     #[test]
     fn with_time_at_is_available_on_every_type() {
@@ -360,7 +360,7 @@ mod api_symmetry {
         assert!(single.seconds_range().0 <= UNIX && UNIX < single.seconds_range().1);
     }
 
-    /// `with_time_span` は3型とも同じ名前で、表せない区間は `Err`。
+    /// `with_time_span` は3型とも同じ名前で、表せない区間は [`Err`]。
     #[test]
     fn with_time_span_is_available_on_every_type() {
         // [1024, 2048) は3型とも表せる（2の冪・整列）。
@@ -402,7 +402,7 @@ mod api_symmetry {
         assert_eq!((range.time_interval().seconds(), range.t()), (1800, [1, 3]));
     }
 
-    /// `relabel_time` は3型とも `Result`（`Option` との混在を許さない）。
+    /// `relabel_time` は3型とも [`Result`]（[`Option`] との混在を許さない）。
     #[test]
     fn relabel_time_returns_result_on_every_type() {
         let single = SingleId::new(4, 0, 1, 1)

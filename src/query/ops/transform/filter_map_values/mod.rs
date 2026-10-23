@@ -9,7 +9,7 @@ use crate::query::query_iter::QueryIter;
 use crate::query::{Query, traits::Source};
 use crate::{Error, RangeId};
 
-/// `inner` の各値を `f` で写し、`None` を返した要素を取り除く。
+/// `inner` の各値を `f` で写し、[`None`] を返した要素を取り除く。
 ///
 /// 値だけを見るので、結果は [`FlexId`](crate::FlexId) の切れ方に左右されない。
 pub struct FilterMapValues<V: SafeValue + 'static, U, F> {

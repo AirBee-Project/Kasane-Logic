@@ -3,13 +3,13 @@ use crate::{FlexId, SingleId, time::span::TimeSegments};
 /// [`SingleId`] を FlexTree のノードアドレス（[`FlexId`]）へ展開するイテレータ。
 ///
 /// 空間部分は常にちょうど1Segmentなので、時間Segmentごとに「同じFlexId＋その時間Segment」を
-/// 返すだけで済む。**ヒープ確保をしない**（`Box<dyn Iterator>` も中間 `Vec` も使わない）
+/// 返すだけで済む。**ヒープ確保をしない**（`Box<dyn Iterator>` も中間 [`Vec`](alloc::vec::Vec) も使わない）
 /// のが要点で、挿入はこの経路を1件につき1回通るため固定費がそのまま効く。
 ///
 /// 時間を使わない場合（および時間がちょうど1つの2分岐Segmentに収まる場合）は要素が1つだけになり、
-/// 時間軸の無かった頃の `core::iter::once` と同じコストになる。
+/// 時間軸の無かった頃の [`core::iter::once`] と同じコストになる。
 pub struct SingleIdSegments {
-    /// 空間部分（3軸とも `SingleId` のズーム）。時間だけを差し替えて使い回す。
+    /// 空間部分（3軸とも [`SingleId`] のズーム）。時間だけを差し替えて使い回す。
     base: FlexId,
     time_segments: TimeSegments,
 }

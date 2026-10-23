@@ -4,7 +4,7 @@ use crate::query::{Node, Query};
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
-    /// 各値を `f` に渡し、`Some` なら値を写し、`None` なら取り除く。値は別の型へ写せる。
+    /// 各値を `f` に渡し、[`Some`] なら値を写し、[`None`] なら取り除く。値は別の型へ写せる。
     ///
     /// 動作例:
     /// ```

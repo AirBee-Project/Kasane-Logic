@@ -4,7 +4,7 @@ use core::ops::{Add, Sub};
 ///
 /// A, B, C の各成分によって定義される。
 pub trait Vec3: Sized + Add<Output = Self> + Sub<Output = Self> {
-    /// 新しい `Vec3` を生成する。
+    /// 新しい [`Vec3`] を生成する。
     fn new(a: f64, b: f64, c: f64) -> Self;
 
     /// A成分（XまたはF成分）を返す。
@@ -41,7 +41,7 @@ pub trait Vec3: Sized + Add<Output = Self> + Sub<Output = Self> {
     }
 
     /// 同じ向きの単位ベクトル（ノルムが1のベクトル）を計算して返す。
-    /// ゼロベクトルの場合は計算できないため `None` を返す。
+    /// ゼロベクトルの場合は計算できないため [`None`] を返す。
     fn normalize(&self) -> Option<Self> {
         let n = self.norm();
         if n == 0.0 {

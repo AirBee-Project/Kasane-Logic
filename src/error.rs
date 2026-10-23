@@ -68,7 +68,7 @@ pub enum GeometryError {
     HoleOutsideExterior { index: usize },
 }
 
-/// SpatialId 関連で発生するエラー。
+/// [`SpatialId`](crate::SpatialId) 関連で発生するエラー。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpatialIdError {
     /// ズームレベルが有効範囲（0..=30）外であることを示す。

@@ -5,7 +5,7 @@ use crate::query::{Node, Query};
 use alloc::boxed::Box;
 
 impl<V: SafeValue + 'static> Query<V> {
-    /// 各要素の [`FlexId`] と値を `f` に渡し、`Some` なら値を写し、`None` なら取り除く。
+    /// 各要素の [`FlexId`] と値を `f` に渡し、[`Some`] なら値を写し、[`None`] なら取り除く。
     /// [`FlexId`] は変えられない。値は別の型へ写せる。
     ///
     /// `f` に渡る [`FlexId`] は、同じ値を持つ領域の断片である。切れ方は木の状態や

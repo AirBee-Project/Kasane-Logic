@@ -28,7 +28,7 @@ impl CancellationToken {
         Self(Inner::Shared(Arc::new(AtomicBool::new(false))))
     }
 
-    /// 決してキャンセルされないトークン。`cancel()` は無視される。
+    /// 決してキャンセルされないトークン。[`cancel()`](Self::cancel) は無視される。
     pub fn never() -> Self {
         Self(Inner::Never)
     }

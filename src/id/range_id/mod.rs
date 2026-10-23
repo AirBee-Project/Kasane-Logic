@@ -18,7 +18,7 @@ use alloc::vec::Vec;
 ///
 /// 各インデックスを範囲で指定できる。各次元の範囲を表す配列の順序には意味を持たない。内部的には下記のような構造体で構成されており、各フィールドを非公開にすることで、ズームレベルに依存するインデックス範囲やその他のバリデーションを適切に適用できる。
 ///
-/// この型は `PartialOrd` / `Ord` を実装しているが、これは主に `BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用である。実際の空間的な「大小」を意味するものではない。
+/// この型は [`PartialOrd`] / [`Ord`] を実装しているが、これは主に [`BTreeSet`](alloc::collections::BTreeSet) や [`BTreeMap`](alloc::collections::BTreeMap) などの順序付きコレクションでの格納・探索用である。実際の空間的な「大小」を意味するものではない。
 ///
 /// ```
 /// # use spatial_id::SpatialId;
@@ -53,7 +53,7 @@ impl RangeId {
         t: [0, 0],
     };
 
-    /// この `RangeId` が保持しているズームレベル `z` を返す。
+    /// この [`RangeId`] が保持しているズームレベル `z` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -66,7 +66,7 @@ impl RangeId {
         self.z.get()
     }
 
-    /// この `RangeId` が保持している F 範囲 `[f1,f2]` を返す。
+    /// この [`RangeId`] が保持している F 範囲 `[f1,f2]` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -79,7 +79,7 @@ impl RangeId {
         self.f
     }
 
-    /// この `RangeId` が保持している X 範囲 `[x1,x2]` を返す。
+    /// この [`RangeId`] が保持している X 範囲 `[x1,x2]` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -92,7 +92,7 @@ impl RangeId {
         self.x
     }
 
-    /// この `RangeId` が保持している Y 範囲 `[y1,y2]` を返す。
+    /// この [`RangeId`] が保持している Y 範囲 `[y1,y2]` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -105,7 +105,7 @@ impl RangeId {
         self.y
     }
 
-    /// この `RangeId` の時間インデックス範囲 `[min, max]`（両端含む）を返す。
+    /// この [`RangeId`] の時間インデックス範囲 `[min, max]`（両端含む）を返す。
     ///
     /// `temporal_id` feature 無効時は常に `[0, 0]`（全時間の唯一のSegment）。
     pub fn t(&self) -> [u64; 2] {
@@ -132,7 +132,7 @@ impl RangeId {
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
+    /// 木構造（[`SpatialIdSet`](crate::collection::SpatialIdSet) など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まる。しかし非2冪の秒数（例: 1800秒）を指定した場合、
     /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**する。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
@@ -176,7 +176,7 @@ impl RangeId {
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
+    /// 木構造（[`SpatialIdSet`](crate::collection::SpatialIdSet) など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まる。しかし非2冪の秒数（例: 1800秒）を指定した場合、
     /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**する。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
@@ -204,12 +204,12 @@ impl RangeId {
     ///
     /// 単位は「その区間をちょうど表せる最も粗い秒数」が自動で選ばれる
     /// （`start` と区間幅の最大公約数）。仕様が認める任意秒数の単位もそのまま出てくる。
-    /// `RangeId` は時間も範囲で持てるので、**任意の区間を受け付ける**
+    /// [`RangeId`] は時間も範囲で持てるので、**任意の区間を受け付ける**
     /// （単一Segmentに限る [`SingleId::with_time_span`](crate::SingleId::with_time_span) との違い）。
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間Segment
+    /// 木構造（[`SpatialIdSet`](crate::collection::SpatialIdSet) など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まる。しかし非2冪の幅（例: 1800秒）が選ばれた場合、
     /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**する。
     /// パフォーマンスが重視される用途では、区間幅が1800秒や3600秒になる代わりに、**1024秒**や**4096秒**
@@ -297,7 +297,7 @@ impl RangeId {
         self
     }
 
-    /// この `RangeId` の時間を、FlexTree が使う2分岐Segmentの列へ分解する。クレート内部専用。
+    /// この [`RangeId`] の時間を、FlexTree が使う2分岐Segmentの列へ分解する。クレート内部専用。
     pub(crate) fn time_segments(&self) -> span::TimeSegments {
         span::TimeSpan::of(self).into_segments()
     }
@@ -413,7 +413,7 @@ impl RangeId {
         }
     }
 
-    /// 指定したより深いズームレベル `target_z` にスケール変換した、この `RangeId` を生成する。
+    /// 指定したより深いズームレベル `target_z` にスケール変換した、この [`RangeId`] を生成する。
     ///
     /// # パラメータ
     /// * `target_z` — 変換先のズームレベル
@@ -476,10 +476,10 @@ impl RangeId {
         })
     }
 
-    /// 指定したズームレベル `target_z` に縮約した、この `RangeId` の親 `RangeId` を返す。
+    /// 指定したズームレベル `target_z` に縮約した、この [`RangeId`] の親 [`RangeId`] を返す。
     ///
     /// # パラメータ
-    /// * `target_z` — 取得したい親 `RangeId` のズームレベル
+    /// * `target_z` — 取得したい親 [`RangeId`] のズームレベル
     ///
     /// # バリデーション
     /// - `target_z` が現在のズームレベルより深い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返す。

@@ -34,7 +34,7 @@ impl RangeId {
     /// assert_eq!(s, "4/-3:6/8:9/5:10");
     /// ```
     ///
-    /// 各次元は単一値でも指定できる（空間的に1点の`RangeId`を簡潔に作れる）:
+    /// 各次元は単一値でも指定できる（空間的に1点の[`RangeId`]を簡潔に作れる）:
     /// ```
     /// # use spatial_id::RangeId;
     /// let id = RangeId::new(4, -3, 8, 5).unwrap();

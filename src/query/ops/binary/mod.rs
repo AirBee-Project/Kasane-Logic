@@ -82,9 +82,9 @@ impl<'a, V: Clone> StreamCursor<'a, V> {
 
 /// 2 つの [`QueryIter`] を FlexId の PartialOrd で突き合わせて二項演算を行う。
 ///
-/// - `on_left`: 左辺のみに存在する領域の値を変換する関数。`None` なら出力せず、右辺枯渇時に即終了する。
-/// - `on_right`: 右辺のみに存在する領域の値を変換する関数。`None` なら出力せず、左辺枯渇時に右辺をポーリングせず即終了する。
-/// - `on_both`: 両辺で一致した領域の値を合成する関数。`None` なら出力しない。
+/// - `on_left`: 左辺のみに存在する領域の値を変換する関数。[`None`] なら出力せず、右辺枯渇時に即終了する。
+/// - `on_right`: 右辺のみに存在する領域の値を変換する関数。[`None`] なら出力せず、左辺枯渇時に右辺をポーリングせず即終了する。
+/// - `on_both`: 両辺で一致した領域の値を合成する関数。[`None`] なら出力しない。
 pub(crate) fn run_binary<'a, V: SafeValue + 'static>(
     lhs: QueryIter<'a, V>,
     rhs: QueryIter<'a, V>,

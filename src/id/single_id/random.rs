@@ -57,7 +57,7 @@ impl SingleId {
 
     /// `proptest` 用に、指定ズーム範囲の [`SingleId`] を生成する戦略を返す。
     ///
-    /// `z_range` の終端は `ZoomLevel::MAX` でクリップされ、`start > end` の場合は `end` のみを使う。
+    /// `z_range` の終端は [`ZoomLevel::MAX`] でクリップされ、`start > end` の場合は `end` のみを使う。
     #[cfg(test)]
     pub fn arb_within(z_range: RangeInclusive<u8>) -> impl Strategy<Value = Self> {
         let start = *z_range.start();
@@ -96,7 +96,7 @@ impl SingleId {
 
     /// 外部から渡された乱数生成器を使って、指定ズーム範囲のランダムな [`SingleId`] を生成する。
     ///
-    /// `z_range` の終端は `ZoomLevel::MAX` でクリップされ、`start > end` の場合は `end` を採用する。
+    /// `z_range` の終端は [`ZoomLevel::MAX`] でクリップされ、`start > end` の場合は `end` を採用する。
     #[cfg(any(test, feature = "random"))]
     pub fn random_within_using<R: Rng>(rng: &mut R, z_range: RangeInclusive<u8>) -> Self {
         let z = Self::pick_zoom_using(rng, z_range);

@@ -57,7 +57,7 @@ impl<V: SafeValue + 'static> Query<V> {
     }
 }
 
-/// `Source` を実装する型を、二項演算子の引数などで直接 [`Query`] として渡せるようにする。
+/// [`Source`] を実装する型を、二項演算子の引数などで直接 [`Query`] として渡せるようにする。
 impl<V: SafeValue + 'static, S: Source<Value = V> + 'static> From<S> for Query<V> {
     fn from(source: S) -> Self {
         source.query()
