@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use crate::Coordinate;
 use crate::geometry::Epsilon;
 
@@ -47,20 +49,17 @@ impl Polygon {
 
         let mut vertices: Vec<Coordinate> = Vec::new();
         for point in raw_points {
-            if let Some(last) = vertices.last() {
-                if last.eq_epsilon(&point, epsilon) {
-                    continue;
-                }
+            if vertices
+                .last()
+                .is_some_and(|last| last.eq_epsilon(&point, epsilon))
+            {
+                continue;
             }
             vertices.push(point);
         }
 
-        if vertices.len() > 1 {
-            if let (Some(first), Some(last)) = (vertices.first(), vertices.last()) {
-                if first.eq_epsilon(last, epsilon) {
-                    vertices.pop();
-                }
-            }
+        if vertices.len() > 1 && vertices[0].eq_epsilon(vertices.last().unwrap(), epsilon) {
+            vertices.pop();
         }
 
         if vertices.len() < 3 {
