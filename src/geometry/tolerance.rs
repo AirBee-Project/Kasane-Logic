@@ -10,14 +10,11 @@ use crate::{Error, GeometryError};
 pub struct Tolerance(f64);
 
 impl Tolerance {
-    /// デフォルトの許容誤差（0.1 mm = 1e-4 m）。
-    pub const DEFAULT: Self = Self(1e-4);
-
-    /// 厳密な判定用の極小許容誤差（0.1 nm = 1e-10 m）。
+    /// デフォルトの許容誤差（0.1 nm = 1e-10 m）。
     ///
-    /// 微小スケールの幾何形状や近似多角形の閉包性検証など、
-    /// 丸め誤差による頂点縮退を防ぐ厳密な幾何処理に用いる。
-    pub const STRICT: Self = Self(1e-10);
+    /// 浮動小数点数演算の丸め誤差を吸収しつつ、微小スケールの幾何形状でも
+    /// 頂点縮退を起こさない基準値。
+    pub const DEFAULT: Self = Self(1e-10);
 
     /// 許容誤差ゼロ（0.0 m）。
     pub const ZERO: Self = Self(0.0);
@@ -76,7 +73,7 @@ mod tests {
     #[test]
     fn default_tolerance() {
         assert_eq!(Tolerance::default(), Tolerance::DEFAULT);
-        assert_eq!(Tolerance::DEFAULT.as_meters(), 1e-4);
+        assert_eq!(Tolerance::DEFAULT.as_meters(), 1e-10);
     }
 
     #[test]

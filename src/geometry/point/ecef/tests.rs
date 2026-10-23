@@ -315,8 +315,8 @@ mod point_fractional_id {
     fn eq_tolerance() {
         use crate::Tolerance;
         let e1 = Ecef::new(6_378_137.0, 0.0, 0.0).unwrap();
-        let e2 = Ecef::new(6_378_137.0, 0.00005, 0.0).unwrap();
+        let e2 = Ecef::new(6_378_137.0, 1e-11, 0.0).unwrap();
         assert!(e1.eq_tolerance(&e2, Tolerance::DEFAULT));
-        assert!(!e1.eq_tolerance(&e2, Tolerance::from_meters(1e-5).unwrap()));
+        assert!(!e1.eq_tolerance(&e2, Tolerance::from_meters(1e-12).unwrap()));
     }
 }

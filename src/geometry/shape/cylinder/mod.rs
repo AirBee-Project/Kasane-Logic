@@ -5,9 +5,7 @@ pub mod impls;
 mod tests;
 use core::f64::consts::PI;
 
-use crate::{
-    Coordinate, Error, GeometryError, Polygon, Solid, Tolerance, Vec3, Vec3Ecef, ZoomLevel,
-};
+use crate::{Coordinate, Error, GeometryError, Polygon, Solid, Vec3, Vec3Ecef, ZoomLevel};
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// 3次元空間における円柱を表す型。
 ///
@@ -49,7 +47,7 @@ impl Cylinder {
     /// [Cylinder]を近似した[Solid]を作成する関数
     pub fn rough_solid(&self) -> Solid {
         let polygons = self.rough_surfaces_without_z().collect();
-        Solid::with_tolerance(polygons, Tolerance::STRICT).unwrap()
+        Solid::new(polygons).unwrap()
     }
 
     /// [Cylinder]を近似した立体の表面を、ズームレベルを指定せずに[Polygon]として返す関数
@@ -76,15 +74,12 @@ impl Cylinder {
             let v_curr = vertices[i as usize];
             let v_next = vertices[next_i as usize];
 
-            Polygon::with_tolerance(
-                vec![
-                    to_coord(v_curr[0]),
-                    to_coord(v_next[0]),
-                    to_coord(v_next[1]),
-                    to_coord(v_curr[1]),
-                ],
-                Tolerance::STRICT,
-            )
+            Polygon::new(vec![
+                to_coord(v_curr[0]),
+                to_coord(v_next[0]),
+                to_coord(v_next[1]),
+                to_coord(v_curr[1]),
+            ])
         });
 
         // 側面を全て集める
@@ -92,14 +87,12 @@ impl Cylinder {
         let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
-        raw_surfaces.push(Polygon::with_tolerance(
+        raw_surfaces.push(Polygon::new(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            Tolerance::STRICT,
         ));
         // 上面
-        raw_surfaces.push(Polygon::with_tolerance(
+        raw_surfaces.push(Polygon::new(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
-            Tolerance::STRICT,
         ));
 
         raw_surfaces.into_iter()
@@ -130,15 +123,12 @@ impl Cylinder {
             let v_curr = vertices[i as usize];
             let v_next = vertices[next_i as usize];
 
-            Polygon::with_tolerance(
-                vec![
-                    to_coord(v_curr[0]),
-                    to_coord(v_next[0]),
-                    to_coord(v_next[1]),
-                    to_coord(v_curr[1]),
-                ],
-                Tolerance::STRICT,
-            )
+            Polygon::new(vec![
+                to_coord(v_curr[0]),
+                to_coord(v_next[0]),
+                to_coord(v_next[1]),
+                to_coord(v_curr[1]),
+            ])
         });
 
         // 側面を全て集める
@@ -146,14 +136,12 @@ impl Cylinder {
         let mut raw_surfaces: Vec<Polygon> = side_surfaces.collect();
 
         // 底面
-        raw_surfaces.push(Polygon::with_tolerance(
+        raw_surfaces.push(Polygon::new(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            Tolerance::STRICT,
         ));
         // 上面
-        raw_surfaces.push(Polygon::with_tolerance(
+        raw_surfaces.push(Polygon::new(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
-            Tolerance::STRICT,
         ));
 
         raw_surfaces.into_iter()
