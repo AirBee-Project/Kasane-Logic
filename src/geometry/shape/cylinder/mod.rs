@@ -47,7 +47,7 @@ impl Cylinder {
     /// [Cylinder]を近似した[Solid]を作成する関数
     pub fn rough_solid(&self) -> Solid {
         let polygons = self.rough_surfaces_without_z().collect();
-        Solid::new(polygons, 1e-10).unwrap()
+        Solid::new(polygons).unwrap()
     }
 
     /// [Cylinder]を近似した立体の表面を、ズームレベルを指定せずに[Polygon]として返す関数
@@ -81,7 +81,6 @@ impl Cylinder {
                     to_coord(v_next[1]),
                     to_coord(v_curr[1]),
                 ],
-                1e-10,
             )
         });
 
@@ -92,12 +91,10 @@ impl Cylinder {
         // 底面
         raw_surfaces.push(Polygon::new(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            1e-10,
         ));
         // 上面
         raw_surfaces.push(Polygon::new(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
-            1e-10,
         ));
 
         raw_surfaces.into_iter()
@@ -135,7 +132,6 @@ impl Cylinder {
                     to_coord(v_next[1]),
                     to_coord(v_curr[1]),
                 ],
-                1e-10,
             )
         });
 
@@ -146,12 +142,10 @@ impl Cylinder {
         // 底面
         raw_surfaces.push(Polygon::new(
             vertices.iter().rev().map(|v| to_coord(v[0])).collect(),
-            1e-10,
         ));
         // 上面
         raw_surfaces.push(Polygon::new(
             vertices.iter().map(|v| to_coord(v[1])).collect(),
-            1e-10,
         ));
 
         raw_surfaces.into_iter()

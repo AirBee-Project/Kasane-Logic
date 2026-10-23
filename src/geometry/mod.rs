@@ -14,6 +14,7 @@ pub(crate) mod traits;
 pub(crate) mod vec3;
 
 pub mod format;
+pub mod tolerance;
 
 pub use crate::error::GeometryError;
 pub use point::{coordinate::Coordinate, ecef::Ecef, fractionalid::FractionalId, traits::Point};
@@ -22,4 +23,5 @@ pub use shape::{
     cylinder::Cylinder, line::Line, polygon::Polygon, solid::Solid, sphere::Sphere,
     triangle::Triangle, tube::Tube,
 };
+pub use tolerance::Tolerance;
 pub use traits::{CoverRangeIds, CoverSingleIds};
