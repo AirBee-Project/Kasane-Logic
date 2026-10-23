@@ -43,6 +43,21 @@ mod cover_single_ids {
         insta::assert_debug_snapshot!(sorted_ids(&line, 25));
     }
 
+    #[test]
+    fn cover_polyline_matches_individual_lines() {
+        let p0 = Coordinate::new(35.680, 139.765, 0.0).unwrap();
+        let p1 = Coordinate::new(35.682, 139.766, 0.0).unwrap();
+        let p2 = Coordinate::new(35.683, 139.768, 0.0).unwrap();
+        let polyline_ids: hashbrown::HashSet<_> =
+            Line::cover_polyline(&[p0, p1, p2], 20u8).unwrap().collect();
+
+        let mut expected = hashbrown::HashSet::new();
+        expected.extend(Line::new([p0, p1]).cover_single_ids(20u8).unwrap());
+        expected.extend(Line::new([p1, p2]).cover_single_ids(20u8).unwrap());
+
+        assert_eq!(polyline_ids, expected);
+    }
+
     /// DDAアルゴリズム内部の sqrt() や複数の floor() を経由するため、浮動小数点誤差によって引かれる軌跡ブロック（空間ID群）が変わる可能性が高いケース。
     #[ignore]
     #[test]

@@ -51,7 +51,7 @@ impl Cylinder {
     }
 
     /// [Cylinder]を近似した立体の表面を、ズームレベルを指定せずに[Polygon]として返す関数
-    pub fn rough_surfaces_without_z(&self) -> impl Iterator<Item = Polygon> {
+    pub(crate) fn rough_surfaces_without_z(&self) -> impl Iterator<Item = Polygon> {
         let vecs: [Vec3Ecef; 2] = [self.start.into(), self.end.into()];
         let vec_n = vecs[1] - vecs[0];
         let basis = vec_n

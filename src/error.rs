@@ -60,6 +60,9 @@ pub enum GeometryError {
 
     ///存在しない標準地域メッシュが挿入されたことを示す
     RegionmeshNotExist { index: u32 },
+
+    /// GeoJSON の Position の要素数が足りないことを示す。経度と緯度の 2 要素が必要。
+    PositionTooShort { len: usize },
 }
 
 /// SpatialId 関連で発生するエラー。
@@ -200,6 +203,13 @@ impl fmt::Display for GeometryError {
             }
             GeometryError::RegionmeshNotExist { index } => {
                 write!(f, "Regiomesh '{}' does not exist", index)
+            }
+            GeometryError::PositionTooShort { len } => {
+                write!(
+                    f,
+                    "Position has {} elements, but at least 2 (longitude, latitude) are required",
+                    len
+                )
             }
         }
     }

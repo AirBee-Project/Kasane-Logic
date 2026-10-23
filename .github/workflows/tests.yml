@@ -38,7 +38,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,json" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,json")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
           done
@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "temporal_id" "json" "temporal_id,json")
+          features=("" "temporal_id")
           for feature in "${features[@]}"; do
             if [ -n "$feature" ]; then
               RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --no-default-features --features "$feature"
@@ -82,7 +82,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,json" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,json")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo nextest run --locked --no-default-features --features "$feature"
           done
@@ -91,7 +91,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,json" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,json")
+          features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo nextest run --locked --no-default-features --features "$feature" --run-ignored ignored-only
           done
@@ -100,7 +100,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,json" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,json")
+          features=("std" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo test --locked --doc --no-default-features --features "$feature"
           done
@@ -109,7 +109,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "temporal_id" "json" "temporal_id,json")
+          features=("" "temporal_id")
           for feature in "${features[@]}"; do
             if [ -n "$feature" ]; then
               cargo build --locked --lib --no-default-features --features "$feature"
@@ -143,7 +143,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("std" "std,json" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id" "std,rayon,random,temporal_id,json")
+          features=("std" "std,rayon" "std,random,temporal_id" "std,rayon,random,temporal_id")
           for feature in "${features[@]}"; do
             cargo clippy --locked --lib --bins --tests --no-default-features --features "$feature" -- -D warnings
           done
@@ -152,7 +152,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          features=("" "temporal_id" "json" "temporal_id,json")
+          features=("" "temporal_id")
           for feature in "${features[@]}"; do
             if [ -n "$feature" ]; then
               cargo clippy --locked --lib --no-default-features --features "$feature" -- -D warnings

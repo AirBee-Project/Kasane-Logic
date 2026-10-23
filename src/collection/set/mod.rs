@@ -3,7 +3,6 @@ use crate::{AllowedIntervals, FlexId, RangeId, SingleId, SpatialId};
 use core::iter::Map;
 pub(crate) mod convert;
 pub(crate) mod impls;
-#[cfg(feature = "json")]
 pub(crate) mod json;
 pub(crate) mod ops;
 #[cfg(test)]
