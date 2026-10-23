@@ -94,8 +94,7 @@ impl<V, S> FlexTreeCore<V, S> {
         target: impl IntoIterator<Item = FlexId, IntoIter: 'a>,
     ) -> impl Iterator<Item = (FlexId, &'a V)> + 'a {
         target.into_iter().flat_map(move |t| {
-            // 積むのは `t` と重なる Node だけ。Branch では `t` がどちらの半分にあるかが割った次元だけで決まるので、
-            // 両方の子の領域を作って確かめずに済む
+            // 積むのは `t` と重なる Node だけ
             let mut stack = self.new_stack();
             stack.retain(|(_, root)| root.intersects(&t));
             from_fn(move || {
@@ -103,16 +102,18 @@ impl<V, S> FlexTreeCore<V, S> {
                     match node {
                         Node::Empty => {}
                         Node::Leaf(value) => return Some((this.intersection(&t)?, value)),
-                        Node::Branch(branch)
-                            if t.zoomlevel_on(branch.dimension)
-                                > this.zoomlevel_on(branch.dimension) =>
-                        {
-                            let side = this.side_toward(branch.dimension, &t);
-                            let child = match side {
-                                Side::Lower => &branch.lower,
-                                Side::Upper => &branch.upper,
-                            };
-                            stack.push((child, this.split_on(branch.dimension, side).unwrap()));
+                        // 積んだ領域が `t` と重なっていても、埋め込んだ行き先は重ならないことがある
+                        Node::LeafAt(path, value) => {
+                            if let Some(region) = path.to_absolute(&this).intersection(&t) {
+                                return Some((region, value));
+                            }
+                        }
+                        Node::Branch(branch) => push_overlapping(&mut stack, branch, this, &t),
+                        Node::BranchAt(path, branch) => {
+                            let region = path.to_absolute(&this);
+                            if region.intersects(&t) {
+                                push_overlapping(&mut stack, branch, region, &t);
+                            }
                         }
                         node => stack.extend(
                             node.children(this)
@@ -174,10 +175,16 @@ impl<V, S> FlexTreeCore<V, S> {
                 if !overlaps(&this) {
                     continue;
                 }
-                if let Node::Leaf(value) = node {
-                    return Some((this, value));
+                match node {
+                    Node::Leaf(value) => return Some((this, value)),
+                    Node::LeafAt(path, value) => {
+                        let region = path.to_absolute(&this);
+                        if overlaps(&region) {
+                            return Some((region, value));
+                        }
+                    }
+                    node => stack.extend(node.children(this).rev()),
                 }
-                stack.extend(node.children(this).rev());
             }
             None
         })
@@ -398,8 +405,8 @@ impl<V: PartialEq + Clone, S: Summary<V>> FlexTreeCore<V, S> {
         other: &FlexTreeCore<W, T>,
         rule: &impl Fn(&FlexId, &mut Node<V, S>, View<'_, W, T>) -> bool,
     ) {
-        let upper = View::from(&other.upper_root);
-        let lower = View::from(&other.lower_root);
+        let upper = View::of(&other.upper_root, &FlexId::UPPER_MAX);
+        let lower = View::of(&other.lower_root, &FlexId::LOWER_MAX);
         Node::merge(&FlexId::UPPER_MAX, &mut self.upper_root, upper, rule);
         Node::merge(&FlexId::LOWER_MAX, &mut self.lower_root, lower, rule);
     }
@@ -480,4 +487,34 @@ fn is_disjoint<V: Ord>(min: &V, max: &V, start: Bound<&V>, end: Bound<&V>) -> bo
         Bound::Unbounded => false,
     };
     before_start || after_end
+}
+
+/// 領域 `this` の `branch` の子のうち `t` と重なるものを、下側から取り出されるように積む。
+///
+/// `t` が割った次元で `this` より細かければ、`t` がどちらの半分にあるかが割った次元だけで決まるので、
+/// 両方の子の領域を作って確かめずに済む。
+// 展開されないと、`get` の1段ごとに呼び出しが挟まり、`get` が4割ほど遅くなる
+#[inline(always)]
+fn push_overlapping<'a, V, S>(
+    stack: &mut Vec<(&'a Node<V, S>, FlexId)>,
+    branch: &'a node::Branch<V, S>,
+    this: FlexId,
+    t: &FlexId,
+) {
+    let dimension = branch.dimension;
+    if t.zoomlevel_on(dimension) > this.zoomlevel_on(dimension) {
+        let side = this.side_toward(dimension, t);
+        let child = match side {
+            Side::Lower => &branch.lower,
+            Side::Upper => &branch.upper,
+        };
+        stack.push((child, this.split_on(dimension, side).unwrap()));
+        return;
+    }
+    for (child, side) in [(&branch.upper, Side::Upper), (&branch.lower, Side::Lower)] {
+        let region = this.split_on(dimension, side).unwrap();
+        if region.intersects(t) {
+            stack.push((child, region));
+        }
+    }
 }

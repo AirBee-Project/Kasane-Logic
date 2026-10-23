@@ -1,8 +1,11 @@
-use super::view::View;
+use super::view::{Target, View};
 use crate::collection::summary::{BitMask, Summary, ValueSet};
 use crate::{
     FlexId, Side,
-    id::{dimension::Dimension, relative_flex_id::RelativeFlexId},
+    id::{
+        dimension::Dimension,
+        relative_flex_id::{RelativeFlexId, ShortPath},
+    },
 };
 use alloc::borrow::Cow;
 use core::{mem, ptr};
@@ -15,7 +18,12 @@ pub(crate) enum Node<V, S> {
     Empty,
     Leaf(V),
     Branch(Arc<Branch<V, S>>),
+    /// 行き先を [ShortPath] で表せない Skip。
     Skip(Arc<Skip<V, S>>),
+    /// 行き先を [ShortPath] で表せて、先が Leaf の Skip。確保せずに Node に埋め込む。
+    LeafAt(ShortPath, V),
+    /// 行き先を [ShortPath] で表せて、先が Branch の Skip。
+    BranchAt(ShortPath, Arc<Branch<V, S>>),
 }
 
 // derive では `S: Clone` まで要求されるが、Arc の複製に `S` の複製は要らない
@@ -26,6 +34,8 @@ impl<V: Clone, S> Clone for Node<V, S> {
             Node::Leaf(value) => Node::Leaf(value.clone()),
             Node::Branch(branch) => Node::Branch(branch.clone()),
             Node::Skip(skip) => Node::Skip(skip.clone()),
+            Node::LeafAt(path, value) => Node::LeafAt(*path, value.clone()),
+            Node::BranchAt(path, branch) => Node::BranchAt(*path, branch.clone()),
         }
     }
 }
@@ -71,8 +81,8 @@ impl<V, S> Node<V, S> {
     pub(super) fn count(&self) -> u32 {
         match self {
             Node::Empty => 0,
-            Node::Leaf(_) => 1,
-            Node::Branch(branch) => branch.count,
+            Node::Leaf(_) | Node::LeafAt(..) => 1,
+            Node::Branch(branch) | Node::BranchAt(_, branch) => branch.count,
             Node::Skip(skip) => skip.child.count(),
         }
     }
@@ -80,8 +90,8 @@ impl<V, S> Node<V, S> {
     /// 自身と子孫で Branch が縦に何段続くかの最大。Leaf なら 0。
     pub(super) fn height(&self) -> u8 {
         match self {
-            Node::Empty | Node::Leaf(_) => 0,
-            Node::Branch(branch) => branch.height,
+            Node::Empty | Node::Leaf(_) | Node::LeafAt(..) => 0,
+            Node::Branch(branch) | Node::BranchAt(_, branch) => branch.height,
             Node::Skip(skip) => skip.child.height(),
         }
     }
@@ -92,6 +102,32 @@ impl<V, S> Node<V, S> {
             Node::Empty | Node::Leaf(_) => 0,
             Node::Branch(branch) => branch.split_dimensions,
             Node::Skip(skip) => skip.split_dimensions,
+            Node::LeafAt(path, _) => path.deeper_dimensions(),
+            Node::BranchAt(path, branch) => path.deeper_dimensions() | branch.split_dimensions,
+        }
+    }
+
+    /// Skip なら、行き先が狭い次元の集合（[`Dimension::bit`] の OR）。Skip でなければ 0。
+    fn path_dimensions(&self) -> u8 {
+        match self {
+            Node::Skip(skip) => skip.path.deeper_dimensions(),
+            Node::LeafAt(path, _) | Node::BranchAt(path, _) => path.deeper_dimensions(),
+            _ => 0,
+        }
+    }
+
+    /// 領域 `this` のこの Node が Skip なら、行き先の領域とその先。
+    // `merge` の各段で呼ぶので展開させる
+    #[inline(always)]
+    pub(super) fn skip_target(&self, this: &FlexId) -> Option<(FlexId, Target<'_, V, S>)> {
+        match self {
+            Node::Skip(skip) => Some((
+                skip.path.to_absolute(this).unwrap(),
+                Target::of(&skip.child),
+            )),
+            Node::LeafAt(path, value) => Some((path.to_absolute(this), Target::Leaf(value))),
+            Node::BranchAt(path, branch) => Some((path.to_absolute(this), Target::Branch(branch))),
+            _ => None,
         }
     }
 
@@ -101,24 +137,30 @@ impl<V, S> Node<V, S> {
         match self {
             Node::Empty | Node::Leaf(_) => 0,
             Node::Branch(branch) => branch.dimension.bit(),
-            Node::Skip(skip) => skip.split_dimensions,
+            node => node.split_dimensions(),
         }
     }
 
-    /// 領域 `this` のこの Node の子とその領域を、下側から順に返す。Leaf や空なら何も返さない。
+    /// 領域 `this` のこの Node の子とその領域を、下側から順に返す。Leaf・LeafAt や空なら何も返さない。
+    ///
+    /// BranchAt は、行き先の Branch の子を返す。
+    // 展開されないと、`get` の1段ごとに呼び出しが挟まり、`get` が4割ほど遅くなる
+    #[inline(always)]
     pub(super) fn children(
         &self,
         this: FlexId,
     ) -> impl DoubleEndedIterator<Item = (&Self, FlexId)> {
+        fn halves<V, S>(branch: &Branch<V, S>, this: FlexId) -> [Option<(&Node<V, S>, FlexId)>; 2] {
+            let half = |side| this.split_on(branch.dimension, side).unwrap();
+            [
+                Some((&branch.lower, half(Side::Lower))),
+                Some((&branch.upper, half(Side::Upper))),
+            ]
+        }
         let children = match self {
-            Node::Empty | Node::Leaf(_) => [None, None],
-            Node::Branch(branch) => {
-                let half = |side| this.split_on(branch.dimension, side).unwrap();
-                [
-                    Some((&branch.lower, half(Side::Lower))),
-                    Some((&branch.upper, half(Side::Upper))),
-                ]
-            }
+            Node::Empty | Node::Leaf(_) | Node::LeafAt(..) => [None, None],
+            Node::Branch(branch) => halves(branch, this),
+            Node::BranchAt(path, branch) => halves(branch, path.to_absolute(&this)),
             Node::Skip(skip) => [
                 Some((&skip.child, skip.path.to_absolute(&this).unwrap())),
                 None,
@@ -132,6 +174,9 @@ impl<V, S> Node<V, S> {
         match (self, other) {
             (Node::Branch(a), Node::Branch(b)) => ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b)),
             (Node::Skip(a), Node::Skip(b)) => ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b)),
+            (Node::BranchAt(p, a), Node::BranchAt(q, b)) => {
+                p == q && ptr::addr_eq(Arc::as_ptr(a), Arc::as_ptr(b))
+            }
             _ => false,
         }
     }
@@ -144,8 +189,8 @@ impl<V: Ord, S: Summary<V>> Node<V, S> {
     pub(super) fn value_range(&self) -> Option<(&V, &V)> {
         match self {
             Node::Empty => None,
-            Node::Leaf(value) => Some((value, value)),
-            Node::Branch(branch) => branch
+            Node::Leaf(value) | Node::LeafAt(_, value) => Some((value, value)),
+            Node::Branch(branch) | Node::BranchAt(_, branch) => branch
                 .summary
                 .value_range()
                 .or_else(|| wider_range(branch.lower.value_range(), branch.upper.value_range())),
@@ -161,8 +206,8 @@ impl<V: BitMask, S: Summary<V>> Node<V, S> {
     pub(super) fn value_set(&self) -> ValueSet<V> {
         match self {
             Node::Empty => ValueSet::EMPTY,
-            Node::Leaf(value) => ValueSet::single(*value),
-            Node::Branch(branch) => branch
+            Node::Leaf(value) | Node::LeafAt(_, value) => ValueSet::single(*value),
+            Node::Branch(branch) | Node::BranchAt(_, branch) => branch
                 .summary
                 .value_set()
                 .unwrap_or_else(|| branch.lower.value_set().union(&branch.upper.value_set())),
@@ -177,15 +222,23 @@ impl<V: Clone, S> Node<V, S> {
         match self {
             Node::Empty => Node::Empty,
             Node::Leaf(value) => Node::Leaf(value.clone()),
-            Node::Branch(branch) => Node::Branch(Arc::new(Branch::new(
-                branch.dimension,
-                branch.lower.with_summary(),
-                branch.upper.with_summary(),
-            ))),
+            Node::Branch(branch) => Node::Branch(branch.with_summary()),
             Node::Skip(skip) => {
                 Node::Skip(Arc::new(Skip::new(skip.path, skip.child.with_summary())))
             }
+            Node::LeafAt(path, value) => Node::LeafAt(*path, value.clone()),
+            Node::BranchAt(path, branch) => Node::BranchAt(*path, branch.with_summary()),
         }
+    }
+}
+
+impl<V: Clone, S> Branch<V, S> {
+    fn with_summary<T: Summary<V>>(&self) -> Arc<Branch<V, T>> {
+        Arc::new(Branch::new(
+            self.dimension,
+            self.lower.with_summary(),
+            self.upper.with_summary(),
+        ))
     }
 }
 
@@ -232,8 +285,10 @@ impl<V, S: Summary<V>> Node<V, S> {
     pub(super) fn summary(&self) -> Option<Cow<'_, S>> {
         match self {
             Node::Empty => None,
-            Node::Leaf(value) => Some(Cow::Owned(S::new(value))),
-            Node::Branch(branch) => Some(Cow::Borrowed(&branch.summary)),
+            Node::Leaf(value) | Node::LeafAt(_, value) => Some(Cow::Owned(S::new(value))),
+            Node::Branch(branch) | Node::BranchAt(_, branch) => {
+                Some(Cow::Borrowed(&branch.summary))
+            }
             Node::Skip(skip) => skip.child.summary(),
         }
     }
@@ -280,12 +335,31 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
                 if region == *to {
                     return Arc::unwrap_or_clone(skip).child;
                 }
+                let path = region.relative_to(to).unwrap();
+                if ShortPath::new(path).is_some() {
+                    return Node::skip(path, Arc::unwrap_or_clone(skip).child);
+                }
                 let skip_mut = Arc::make_mut(&mut skip);
                 let child = mem::take(&mut skip_mut.child);
-                *skip_mut = Skip::new(region.relative_to(to).unwrap(), child);
+                *skip_mut = Skip::new(path, child);
                 Node::Skip(skip)
             }
-            node => Node::Skip(Arc::new(Skip::new(from.relative_to(to).unwrap(), node))),
+            Node::LeafAt(path, value) => {
+                Node::rebase(Node::Leaf(value), &path.to_absolute(from), to)
+            }
+            Node::BranchAt(path, branch) => {
+                Node::rebase(Node::Branch(branch), &path.to_absolute(from), to)
+            }
+            node => Node::skip(from.relative_to(to).unwrap(), node),
+        }
+    }
+
+    /// `path` の先だけに Leaf か Branch の `child` がある Skip。`path` が短ければ確保せずに埋め込む。
+    fn skip(path: RelativeFlexId, child: Self) -> Self {
+        match (ShortPath::new(path), child) {
+            (Some(short), Node::Leaf(value)) => Node::LeafAt(short, value),
+            (Some(short), Node::Branch(branch)) => Node::BranchAt(short, branch),
+            (_, child) => Node::Skip(Arc::new(Skip::new(path, child))),
         }
     }
 
@@ -295,10 +369,8 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
     ///
     /// `halves` は `this` を `dimension` で割った `[下, 上]` の領域。
     fn split(self, this: &FlexId, dimension: Dimension, halves: &[FlexId; 2]) -> [Self; 2] {
-        if let Node::Skip(skip) = &self
-            && skip.path.depth_on(dimension) > 0
-        {
-            let region = skip.path.to_absolute(this).unwrap();
+        if self.path_dimensions() & dimension.bit() != 0 {
+            let (region, _) = self.skip_target(this).unwrap();
             let side = this.side_toward(dimension, &region);
             let rest = Node::rebase(self, this, &halves[side as usize]);
             return match side {
@@ -324,21 +396,45 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
             return;
         }
         // Skip どうしは、行き先が分かれるところまで1段ずつ割らずに一気に降りる
-        if let Node::Skip(skip) = a
-            && let Some((region_b, child_b)) = b.as_skip(this)
+        if let Some((region_a, split_a)) = a
+            .skip_target(this)
+            .map(|(region, child)| (region, child.split_dimensions()))
+            && let Some((region_b, child_b)) = b.as_skip()
         {
-            let region_a = skip.path.to_absolute(this).unwrap();
-            let at = common_descent(this, (&region_a, &skip.child), (&region_b, child_b));
-            let b = View::skip(&at, region_b, child_b);
+            let at = common_descent(
+                this,
+                (&region_a, split_a),
+                (&region_b, child_b.split_dimensions()),
+            );
+            let b = View::at(&at, region_b, child_b);
+            // 変わるのは行き先の中だけなので、先が Leaf か Branch のままなら行き先を求め直さない
             if at == region_a {
-                // 変わるのは行き先の中だけなので、Skip を作り直さずに先の Node を書き換える
-                let skip = Arc::make_mut(skip);
-                Node::merge(&at, &mut skip.child, b, rule);
-                match mem::take(&mut skip.child) {
-                    child @ (Node::Leaf(_) | Node::Branch(_)) => {
-                        *skip = Skip::new(skip.path, child)
+                match a {
+                    Node::Skip(skip) => {
+                        let skip = Arc::make_mut(skip);
+                        Node::merge(&at, &mut skip.child, b, rule);
+                        match mem::take(&mut skip.child) {
+                            child @ (Node::Leaf(_) | Node::Branch(_)) => {
+                                *skip = Skip::new(skip.path, child)
+                            }
+                            child => *a = Node::rebase(child, &at, this),
+                        }
                     }
-                    child => *a = Node::rebase(child, &at, this),
+                    Node::LeafAt(path, _) | Node::BranchAt(path, _) => {
+                        let path = *path;
+                        let mut inner = match mem::take(a) {
+                            Node::LeafAt(_, value) => Node::Leaf(value),
+                            Node::BranchAt(_, branch) => Node::Branch(branch),
+                            _ => unreachable!(),
+                        };
+                        Node::merge(&at, &mut inner, b, rule);
+                        *a = match inner {
+                            Node::Leaf(value) => Node::LeafAt(path, value),
+                            Node::Branch(branch) => Node::BranchAt(path, branch),
+                            inner => Node::rebase(inner, &at, this),
+                        };
+                    }
+                    _ => unreachable!("行き先があるのは Skip だけ"),
                 }
                 return;
             }
@@ -385,21 +481,21 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
             *a = b.to_node(this);
             return true;
         }
-        matches!(a, Node::Leaf(_)) || b.is_empty() || b.ptr_eq(a)
+        matches!(a, Node::Leaf(_)) || b.is_empty() || b.ptr_eq(this, a)
     }
 
     /// 積。`b` に値がある場所だけ `a` を残す。
-    pub(super) fn intersection_rule<W, T>(_: &FlexId, a: &mut Self, b: View<'_, W, T>) -> bool {
+    pub(super) fn intersection_rule<W, T>(this: &FlexId, a: &mut Self, b: View<'_, W, T>) -> bool {
         if b.is_empty() {
             *a = Node::Empty;
             return true;
         }
-        a.is_empty() || b.leaf().is_some() || b.ptr_eq(a)
+        a.is_empty() || b.leaf().is_some() || b.ptr_eq(this, a)
     }
 
     /// 差。`b` に値がある場所の `a` を消す。
-    pub(super) fn difference_rule<W, T>(_: &FlexId, a: &mut Self, b: View<'_, W, T>) -> bool {
-        if b.leaf().is_some() || b.ptr_eq(a) {
+    pub(super) fn difference_rule<W, T>(this: &FlexId, a: &mut Self, b: View<'_, W, T>) -> bool {
+        if b.leaf().is_some() || b.ptr_eq(this, a) {
             *a = Node::Empty;
             return true;
         }
@@ -419,27 +515,45 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
         match self {
             Node::Empty => None,
             Node::Leaf(value) => (!keep(this, value)).then_some(Node::Empty),
-            Node::Branch(branch) => match classify(this, &branch.summary) {
-                Decision::KeepAll => None,
-                Decision::DropAll => Some(Node::Empty),
-                Decision::Descend => {
-                    let dimension = branch.dimension;
-                    let lower_id = this.split_on(dimension, Side::Lower).unwrap();
-                    let upper_id = this.split_on(dimension, Side::Upper).unwrap();
-                    let lower = branch.lower.filter(&lower_id, classify, keep);
-                    let upper = branch.upper.filter(&upper_id, classify, keep);
-                    if lower.is_none() && upper.is_none() {
-                        return None;
-                    }
-                    let lower = lower.unwrap_or_else(|| branch.lower.clone());
-                    let upper = upper.unwrap_or_else(|| branch.upper.clone());
-                    Some(Node::join(this, dimension, lower, upper))
-                }
-            },
+            Node::LeafAt(path, value) => {
+                (!keep(&path.to_absolute(this), value)).then_some(Node::Empty)
+            }
+            Node::Branch(branch) => Node::filter_branch(branch, this, classify, keep),
+            Node::BranchAt(path, branch) => {
+                let region = path.to_absolute(this);
+                let child = Node::filter_branch(branch, &region, classify, keep)?;
+                Some(Node::rebase(child, &region, this))
+            }
             Node::Skip(skip) => {
                 let region = skip.path.to_absolute(this).unwrap();
                 let child = skip.child.filter(&region, classify, keep)?;
                 Some(Node::rebase(child, &region, this))
+            }
+        }
+    }
+
+    /// 領域 `this` の `branch` に [`filter`](Self::filter) をかける。
+    fn filter_branch(
+        branch: &Arc<Branch<V, S>>,
+        this: &FlexId,
+        classify: &impl Fn(&FlexId, &S) -> Decision,
+        keep: &impl Fn(&FlexId, &V) -> bool,
+    ) -> Option<Self> {
+        match classify(this, &branch.summary) {
+            Decision::KeepAll => None,
+            Decision::DropAll => Some(Node::Empty),
+            Decision::Descend => {
+                let dimension = branch.dimension;
+                let lower_id = this.split_on(dimension, Side::Lower).unwrap();
+                let upper_id = this.split_on(dimension, Side::Upper).unwrap();
+                let lower = branch.lower.filter(&lower_id, classify, keep);
+                let upper = branch.upper.filter(&upper_id, classify, keep);
+                if lower.is_none() && upper.is_none() {
+                    return None;
+                }
+                let lower = lower.unwrap_or_else(|| branch.lower.clone());
+                let upper = upper.unwrap_or_else(|| branch.upper.clone());
+                Some(Node::join(this, dimension, lower, upper))
             }
         }
     }
@@ -452,12 +566,14 @@ impl<V: PartialEq + Clone, S: Summary<V>> Node<V, S> {
 /// 次元ごとに「両方の行き先が同じ側にいられる一番深いズーム」で止まり、そこで降りられなくなる
 /// 次元のうち一番先に順番が来るもので全体が止まる。止まる位置は次元ごとに直接求まるので、
 /// Skip の長さぶん1段ずつ辿らない。
-pub(super) fn common_descent<V, S, W, T>(
+///
+/// `split_a`・`split_b` はそれぞれの先の Node が割っている次元の集合。
+pub(super) fn common_descent(
     this: &FlexId,
-    (region_a, child_a): (&FlexId, &Node<V, S>),
-    (region_b, child_b): (&FlexId, &Node<W, T>),
+    (region_a, split_a): (&FlexId, u8),
+    (region_b, split_b): (&FlexId, u8),
 ) -> FlexId {
-    let splits = child_a.split_dimensions() | child_b.split_dimensions();
+    let splits = split_a | split_b;
     let mut bound = [0u8; 4];
     let mut blocks = [false; 4];
     for d in Dimension::ALL {
