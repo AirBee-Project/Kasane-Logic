@@ -4,7 +4,7 @@ use alloc::collections::VecDeque;
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, Error, ExpandCoordinates, RangeId, Shape, SingleId, Solid, SpatialId,
+    Coordinate, Error, ExpandCoordinates, RangeId, Shape, SingleId, Solid, SpatialId, SpatialIdMap,
     geometry::traits::{CoverRangeIds, CoverSingleIds},
 };
 
@@ -15,16 +15,20 @@ impl Shape for Solid {
 }
 
 impl CoverSingleIds for Solid {
-    fn cover_single_ids_with<V>(
-        &self,
+    type Value = ();
+
+    fn cover_single_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
-        V: Clone + 'static,
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
     {
-        let z: u8 = z.into();
+        let value = f(&());
         let attach = move |id| (id, value.clone());
+        let z: u8 = z.into();
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
 
         if surface_set.is_empty() {
@@ -105,19 +109,36 @@ impl CoverSingleIds for Solid {
         }
         Ok(cuboid_set.into_iter().map(attach))
     }
+
+    fn into_map<V, F>(self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    where
+        V: PartialEq + Clone + Send + Sync,
+        F: FnMut(&Self::Value) -> V,
+    {
+        // SingleId へ展開せず RangeId のままツリーを構築して負荷を抑える。
+        let mut map = SpatialIdMap::new();
+        for (id, value) in self.cover_range_ids_with(z, f)? {
+            map.insert(id, value);
+        }
+        Ok(map)
+    }
 }
 
 impl CoverRangeIds for Solid {
-    fn cover_range_ids_with<V>(
-        &self,
+    type Value = ();
+
+    fn cover_range_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error>
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (RangeId, V)> + 'a, Error>
     where
-        V: Clone + 'static,
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
     {
-        let z: u8 = z.into();
+        let value = f(&());
         let attach = move |id| (id, value.clone());
+        let z: u8 = z.into();
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
         if surface_set.is_empty() {
             return Ok(Vec::new().into_iter().map(attach));

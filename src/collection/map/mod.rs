@@ -1,6 +1,5 @@
 use crate::collection::core::{BitMask, FlexTreeCore, IntoIter, NoSummary, Summary, ValueSet};
 use core::ops::RangeBounds;
-#[cfg(feature = "json")]
 pub(crate) mod json;
 #[cfg(feature = "rayon")]
 pub(crate) mod par;

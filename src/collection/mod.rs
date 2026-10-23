@@ -1,7 +1,6 @@
 //! 空間IDの集合 [`SpatialIdSet`] と、空間IDごとに値を持つマップ [`SpatialIdMap`]。
 
 pub(crate) mod core;
-#[cfg(feature = "json")]
 mod json;
 mod map;
 mod set;

@@ -12,14 +12,18 @@ impl Shape for Sphere {
 }
 
 impl CoverSingleIds for Sphere {
-    fn cover_single_ids_with<V>(
-        &self,
+    type Value = ();
+
+    fn cover_single_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (SingleId, V)>, crate::Error>
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, crate::Error>
     where
-        V: Clone + 'static,
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
     {
+        let value = f(&());
         let zoom = crate::id::zoom_level::ZoomLevel::new(z.into())?;
         let z = zoom.get();
 
@@ -69,7 +73,7 @@ impl CoverSingleIds for Sphere {
 /// ズームレベル `z` における、水平方向（X/Y、値は同じ）のボクセル1辺の長さ`[m]`。
 ///
 /// 赤道周長 `2πa` をズームレベルで等分した値。
-pub fn voxel_length_xy(z: u8) -> f64 {
+fn voxel_length_xy(z: u8) -> f64 {
     let n = libm::pow(2_f64, (z as i32) as f64);
     2.0 * core::f64::consts::PI * WGS84_A / n
 }

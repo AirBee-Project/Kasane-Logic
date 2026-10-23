@@ -42,11 +42,18 @@ impl Point for FractionalId {
 }
 
 impl CoverSingleIds for FractionalId {
-    fn cover_single_ids_with<V>(
-        &self,
+    type Value = ();
+
+    fn cover_single_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (crate::SingleId, V)>, crate::Error> {
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (crate::SingleId, V)> + 'a, crate::Error>
+    where
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
+    {
+        let value = f(&());
         Ok(core::iter::once((self.single_id(z)?, value)))
     }
 }
