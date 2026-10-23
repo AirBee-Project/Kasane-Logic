@@ -68,6 +68,65 @@ impl RelativeFlexId {
     }
 }
 
+/// T 方向に深くならず、F / X / Y の深さの合計が [`ShortPath::MAX_STEPS`] 段以内の [RelativeFlexId] を u16 に詰めたもの。
+///
+/// 下位9ビットに F / X / Y の深さを3ビットずつ、残りの7ビットに F / X / Y の順で各次元の下位ビットを並べる。
+/// 段の数や次元によらず同じ手順で復元できるので、分岐せずに行き先を求められる。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct ShortPath(u16);
+
+impl ShortPath {
+    pub const MAX_STEPS: u8 = 7;
+
+    /// `relative` が T 方向に深いか、深さの合計が [`Self::MAX_STEPS`] 段を超えるなら [`None`]。
+    pub fn new(relative: RelativeFlexId) -> Option<ShortPath> {
+        let id = relative.0;
+        let (zf, zx, zy) = (id.f_zoomlevel(), id.x_zoomlevel(), id.y_zoomlevel());
+        if id.t_zoomlevel() != 0 || zf + zx + zy > Self::MAX_STEPS {
+            return None;
+        }
+        let bits =
+            id.f_index() as u16 | (id.x_index() as u16) << zf | (id.y_index() as u16) << (zf + zx);
+        Some(ShortPath(
+            u16::from(zf) | u16::from(zx) << 3 | u16::from(zy) << 6 | bits << 9,
+        ))
+    }
+
+    fn zooms(self) -> [u8; 3] {
+        [0, 3, 6].map(|shift| (self.0 >> shift) as u8 & 0b111)
+    }
+
+    /// 祖先より深くなっている次元の集合（[`Dimension::bit`] の OR）。
+    pub fn deeper_dimensions(self) -> u8 {
+        let [zf, zx, zy] = self.zooms();
+        u8::from(zf != 0) | u8::from(zx != 0) << 1 | u8::from(zy != 0) << 2
+    }
+
+    /// `ancestor` を原点として、[FlexId] を復元する。
+    ///
+    /// `ancestor` から数段深いだけなので、最大ズームを超えないことは呼び出し側（FlexTreeCore の Node）が保証する。
+    pub fn to_absolute(self, ancestor: &FlexId) -> FlexId {
+        let [zf, zx, zy] = self.zooms();
+        let bits = u32::from(self.0 >> 9);
+        let low = |shift: u8, zoom: u8| (bits >> shift) & ((1 << zoom) - 1);
+        let f = (ancestor.f_index() << zf) + low(0, zf) as i32;
+        let x = (ancestor.x_index() << zx) + low(zf, zx);
+        let y = (ancestor.y_index() << zy) + low(zf + zx, zy);
+        // SAFETY: Node の行き先は最大ズーム以下。インデックスは祖先の区間を `2^深さ` 等分したうちの1つなので、そのズームの範囲に収まる
+        unsafe {
+            FlexId::new_unchecked(
+                ancestor.f_zoomlevel() + zf,
+                f,
+                ancestor.x_zoomlevel() + zx,
+                x,
+                ancestor.y_zoomlevel() + zy,
+                y,
+            )
+            .with_time_segment_unchecked(ancestor.t_zoomlevel(), ancestor.t_index())
+        }
+    }
+}
+
 /// F / X / Y / T の各次元の最大ズーム。
 const MAX_ZOOM: [u8; 4] = [
     ZoomLevel::MAX.get(),

@@ -7,13 +7,16 @@ use triomphe::Arc;
 use super::node::{Branch, Node, Skip, common_descent};
 use super::{BitMask, FlexTreeCore, NoSummary, Summary, ValueSet};
 use crate::MinMax;
+use crate::id::relative_flex_id::ShortPath;
 use crate::{FlexId, RangeId, Side, SingleId, id::dimension::Dimension};
 
 /// Leaf と Branch の数。Skip は数えない。
 fn node_count<V, S>(node: &Node<V, S>) -> usize {
     match node {
-        Node::Empty | Node::Leaf(_) => 1,
-        Node::Branch(branch) => 1 + node_count(&branch.lower) + node_count(&branch.upper),
+        Node::Empty | Node::Leaf(_) | Node::LeafAt(..) => 1,
+        Node::Branch(branch) | Node::BranchAt(_, branch) => {
+            1 + node_count(&branch.lower) + node_count(&branch.upper)
+        }
         // Skip は位置を移すだけで、値も分岐も持たない
         Node::Skip(skip) => node_count(&skip.child),
     }
@@ -26,52 +29,12 @@ fn check_rules<V: PartialEq + Debug, S: Summary<V> + Debug>(
 ) -> Result<(), String> {
     match node {
         Node::Empty | Node::Leaf(_) => Ok(()),
-        Node::Branch(branch) => {
-            let Branch {
-                dimension,
-                split_dimensions,
-                height,
-                count,
-                summary,
-                lower,
-                upper,
-            } = &**branch;
-            let expected = dimension.bit() | lower.split_dimensions() | upper.split_dimensions();
-            if *split_dimensions != expected {
-                return Err(format!("{this:?}: split_dimensions のキャッシュが古い"));
-            }
-            if lower.is_empty() || upper.is_empty() {
-                return Err(format!("{this:?}: 片側が空の Branch（Skip にすべき）"));
-            }
-            if lower.split_dimensions() & dimension.bit() == 0 && lower == upper {
-                return Err(format!("{this:?}: 割る必要のない Branch"));
-            }
-            if this.coarsest_dimension_in(*split_dimensions) != Some(*dimension) {
-                return Err(format!("{this:?}: 一番粗い次元で割っていない"));
-            }
-            let expected_height = 1 + lower.height().max(upper.height());
-            if *height != expected_height {
-                return Err(format!(
-                    "{this:?}: height が不正: 実際 {height}, 期待 {expected_height}"
-                ));
-            }
-            let expected_count = lower.count() + upper.count();
-            if *count != expected_count {
-                return Err(format!(
-                    "{this:?}: count が不正: 実際 {count}, 期待 {expected_count}"
-                ));
-            }
-            let (Some(l), Some(u)) = (lower.summary(), upper.summary()) else {
-                return Err(format!("{this:?}: 空の子を持つ Branch"));
-            };
-            let expected_summary = l.merge(&u);
-            if *summary != expected_summary {
-                return Err(format!(
-                    "{this:?}: summary が不正: 実際 {summary:?}, 期待 {expected_summary:?}"
-                ));
-            }
-            check_rules(lower, this.split_on(*dimension, Side::Lower).unwrap())?;
-            check_rules(upper, this.split_on(*dimension, Side::Upper).unwrap())
+        Node::Branch(branch) => check_branch(branch, this),
+        Node::LeafAt(path, _) => check_path(this, path.to_absolute(&this), 0),
+        Node::BranchAt(path, branch) => {
+            let region = path.to_absolute(&this);
+            check_path(this, region, branch.split_dimensions)?;
+            check_branch(branch, region)
         }
         Node::Skip(skip) => {
             let Skip {
@@ -79,31 +42,90 @@ fn check_rules<V: PartialEq + Debug, S: Summary<V> + Debug>(
                 split_dimensions,
                 child,
             } = &**skip;
-            if matches!(child, Node::Empty | Node::Skip(_)) {
-                return Err(format!("{this:?}: Skip の先が空または Skip"));
+            if !matches!(child, Node::Leaf(_) | Node::Branch(_)) {
+                return Err(format!("{this:?}: Skip の先が Leaf でも Branch でもない"));
+            }
+            if ShortPath::new(*path).is_some() {
+                return Err(format!("{this:?}: 埋め込める Skip を確保している"));
             }
             if *split_dimensions != (path.deeper_dimensions() | child.split_dimensions()) {
                 return Err(format!("{this:?}: Skip の split_dimensions が不正"));
             }
             let region = path.to_absolute(&this).unwrap();
-            if region == this {
-                return Err(format!("{this:?}: 移動しない Skip"));
-            }
-            // 一本道の各段で、行き先が狭い次元から割っていること
-            let mut at = this;
-            while at != region {
-                let finer = region.finer_dimensions_than(&at);
-                let d = at
-                    .coarsest_dimension_in(finer | child.split_dimensions())
-                    .unwrap();
-                if finer & d.bit() == 0 {
-                    return Err(format!("{at:?}: Skip の途中で中身の次元を先に割るべき"));
-                }
-                at = at.split_toward(d, &region).unwrap();
-            }
+            check_path(this, region, child.split_dimensions())?;
             check_rules(child, region)
         }
     }
+}
+
+/// 領域 `this` の Branch が規則を守っているか検査する。
+fn check_branch<V: PartialEq + Debug, S: Summary<V> + Debug>(
+    branch: &Branch<V, S>,
+    this: FlexId,
+) -> Result<(), String> {
+    let Branch {
+        dimension,
+        split_dimensions,
+        height,
+        count,
+        summary,
+        lower,
+        upper,
+    } = branch;
+    let expected = dimension.bit() | lower.split_dimensions() | upper.split_dimensions();
+    if *split_dimensions != expected {
+        return Err(format!("{this:?}: split_dimensions のキャッシュが古い"));
+    }
+    if lower.is_empty() || upper.is_empty() {
+        return Err(format!("{this:?}: 片側が空の Branch（Skip にすべき）"));
+    }
+    if lower.split_dimensions() & dimension.bit() == 0 && lower == upper {
+        return Err(format!("{this:?}: 割る必要のない Branch"));
+    }
+    if this.coarsest_dimension_in(*split_dimensions) != Some(*dimension) {
+        return Err(format!("{this:?}: 一番粗い次元で割っていない"));
+    }
+    let expected_height = 1 + lower.height().max(upper.height());
+    if *height != expected_height {
+        return Err(format!(
+            "{this:?}: height が不正: 実際 {height}, 期待 {expected_height}"
+        ));
+    }
+    let expected_count = lower.count() + upper.count();
+    if *count != expected_count {
+        return Err(format!(
+            "{this:?}: count が不正: 実際 {count}, 期待 {expected_count}"
+        ));
+    }
+    let (Some(l), Some(u)) = (lower.summary(), upper.summary()) else {
+        return Err(format!("{this:?}: 空の子を持つ Branch"));
+    };
+    let expected_summary = l.merge(&u);
+    if *summary != expected_summary {
+        return Err(format!(
+            "{this:?}: summary が不正: 実際 {summary:?}, 期待 {expected_summary:?}"
+        ));
+    }
+    check_rules(lower, this.split_on(*dimension, Side::Lower).unwrap())?;
+    check_rules(upper, this.split_on(*dimension, Side::Upper).unwrap())
+}
+
+/// 領域 `this` から `region` への Skip が規則を守っているか検査する。`split` は先の Node が割っている次元。
+fn check_path(this: FlexId, region: FlexId, split: u8) -> Result<(), String> {
+    if region == this {
+        return Err(format!("{this:?}: 移動しない Skip"));
+    }
+    // 一本道の各段で、行き先が狭い次元から割っていること
+    let mut at = this;
+    while at != region {
+        let finer = region.finer_dimensions_than(&at);
+        let d = at.coarsest_dimension_in(finer | split).unwrap();
+        if finer & d.bit() == 0 {
+            return Err(format!("{at:?}: Skip の途中で中身の次元を先に割るべき"));
+        }
+        at = at.split_toward(d, &region).unwrap();
+    }
+    Ok(())
 }
 
 fn assert_rules<V: PartialEq + Debug, S: Summary<V> + Debug>(tree: &FlexTreeCore<V, S>) {
@@ -446,6 +468,21 @@ fn collect_recursive<'a, V, S>(node: &'a Node<V, S>, this: FlexId, out: &mut Vec
     match node {
         Node::Empty => {}
         Node::Leaf(value) => out.push((this, value)),
+        Node::LeafAt(path, value) => out.push((path.to_absolute(&this), value)),
+        Node::BranchAt(path, branch) => {
+            let this = path.to_absolute(&this);
+            let dimension = branch.dimension;
+            collect_recursive(
+                &branch.lower,
+                this.split_on(dimension, Side::Lower).unwrap(),
+                out,
+            );
+            collect_recursive(
+                &branch.upper,
+                this.split_on(dimension, Side::Upper).unwrap(),
+                out,
+            );
+        }
         Node::Branch(branch) => {
             let dimension = branch.dimension;
             collect_recursive(
@@ -987,22 +1024,6 @@ fn common_descent_stepwise(this: &FlexId, a: (&FlexId, u8), b: (&FlexId, u8)) ->
     a.0.ancestor_at(zoom)
 }
 
-/// 子孫が `split` の次元で割っているだけの Node（`common_descent` は割っている次元しか見ない）。
-fn node_splitting(split: u8) -> Node<(), NoSummary> {
-    if split == 0 {
-        return Node::Leaf(());
-    }
-    Node::Branch(Arc::new(Branch {
-        dimension: Dimension::F,
-        split_dimensions: split,
-        height: 1,
-        count: 2,
-        summary: NoSummary,
-        lower: Node::Leaf(()),
-        upper: Node::Leaf(()),
-    }))
-}
-
 /// `common_descent` は、1段ずつ降りた場合と同じ領域で止まる。
 #[test]
 fn common_descent_matches_stepwise_descent() {
@@ -1035,11 +1056,7 @@ fn common_descent_matches_stepwise_descent() {
             let (split_a, split_b) = (next(16) as u8, next(16) as u8);
             let expected =
                 common_descent_stepwise(&this, (&region_a, split_a), (&region_b, split_b));
-            let got = common_descent(
-                &this,
-                (&region_a, &node_splitting(split_a)),
-                (&region_b, &node_splitting(split_b)),
-            );
+            let got = common_descent(&this, (&region_a, split_a), (&region_b, split_b));
             assert_eq!(
                 got, expected,
                 "this={this} a={region_a}/{split_a:04b} b={region_b}/{split_b:04b}"

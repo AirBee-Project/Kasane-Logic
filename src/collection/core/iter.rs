@@ -3,7 +3,7 @@ use core::iter::FusedIterator;
 use triomphe::Arc;
 
 use super::FlexTreeCore;
-use super::node::Node;
+use super::node::{Branch, Node};
 use crate::collection::summary::Summary;
 use crate::{FlexId, Side, id::dimension::Dimension};
 
@@ -38,17 +38,43 @@ impl<'a, V, S> Iterator for Iter<'a, V, S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some((node, this)) = self.stack.pop() {
-            if let Node::Leaf(value) = node {
-                self.remaining -= 1;
-                return Some((this, value));
+            match node {
+                Node::Leaf(value) => {
+                    self.remaining -= 1;
+                    return Some((this, value));
+                }
+                Node::LeafAt(path, value) => {
+                    self.remaining -= 1;
+                    return Some((path.to_absolute(&this), value));
+                }
+                Node::Branch(branch) => self.push_branch(this, branch),
+                Node::BranchAt(path, branch) => self.push_branch(path.to_absolute(&this), branch),
+                Node::Skip(skip) => self
+                    .stack
+                    .push((&skip.child, skip.path.to_absolute(&this).unwrap())),
+                Node::Empty => {}
             }
-            self.stack.extend(node.children(this).rev());
         }
         None
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a, V, S> Iter<'a, V, S> {
+    /// 領域 `this` の `branch` の子を、下側から取り出されるように積む。
+    fn push_branch(&mut self, this: FlexId, branch: &'a Branch<V, S>) {
+        let dimension = branch.dimension;
+        self.stack.push((
+            &branch.upper,
+            this.split_on(dimension, Side::Upper).unwrap(),
+        ));
+        self.stack.push((
+            &branch.lower,
+            this.split_on(dimension, Side::Lower).unwrap(),
+        ));
     }
 }
 
@@ -77,17 +103,12 @@ impl<V: Clone, S> Iterator for IntoIter<V, S> {
                     self.remaining -= 1;
                     return Some((this, value));
                 }
-                Node::Branch(branch) => match Arc::try_unwrap(branch) {
-                    Ok(branch) => {
-                        self.push_branch(this, branch.dimension, branch.lower, branch.upper)
-                    }
-                    Err(branch) => self.push_branch(
-                        this,
-                        branch.dimension,
-                        branch.lower.clone(),
-                        branch.upper.clone(),
-                    ),
-                },
+                Node::LeafAt(path, value) => {
+                    self.remaining -= 1;
+                    return Some((path.to_absolute(&this), value));
+                }
+                Node::Branch(branch) => self.push_branch(this, branch),
+                Node::BranchAt(path, branch) => self.push_branch(path.to_absolute(&this), branch),
                 Node::Skip(skip) => {
                     let region = skip.path.to_absolute(&this).unwrap();
                     let child = Arc::try_unwrap(skip)
@@ -105,14 +126,15 @@ impl<V: Clone, S> Iterator for IntoIter<V, S> {
 }
 
 impl<V, S> IntoIter<V, S> {
-    /// 領域 `this` を `dimension` で割った子を、[Iter]と同じく下側から取り出されるように積む。
-    fn push_branch(
-        &mut self,
-        this: FlexId,
-        dimension: Dimension,
-        lower: Node<V, S>,
-        upper: Node<V, S>,
-    ) {
+    /// 領域 `this` の `branch` の子を、[Iter]と同じく下側から取り出されるように積む。
+    fn push_branch(&mut self, this: FlexId, branch: Arc<Branch<V, S>>)
+    where
+        V: Clone,
+    {
+        let (dimension, lower, upper) = match Arc::try_unwrap(branch) {
+            Ok(branch) => (branch.dimension, branch.lower, branch.upper),
+            Err(branch) => (branch.dimension, branch.lower.clone(), branch.upper.clone()),
+        };
         self.stack
             .push((upper, this.split_on(dimension, Side::Upper).unwrap()));
         self.stack
