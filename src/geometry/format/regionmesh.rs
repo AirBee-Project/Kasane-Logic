@@ -86,7 +86,7 @@ impl MeshType {
 }
 
 impl CoverSingleIds for RegionMesh {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -95,19 +95,19 @@ impl CoverSingleIds for RegionMesh {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         Ok(self
             .cover_range_ids(z.into())?
             .flat_map(|r| r.single_ids())
             .map(move |id| (id, value.clone())))
     }
 
-    fn cover_map_with<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map_with<'a, V, F>(&'a self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
-        V: PartialEq + Clone + Send + Sync,
-        F: FnMut(&Self::Value) -> V,
+        V: PartialEq + Clone + Send + Sync + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
         // SingleId へ展開せず RangeId のままツリーを構築して負荷を抑える。
         let mut map = SpatialIdMap::new();
@@ -120,7 +120,7 @@ impl CoverSingleIds for RegionMesh {
 
 ///標準地域メッシュを覆うようにRangeIdを生成する。Fにはデフォルトで0が割り当てられている。
 impl CoverRangeIds for RegionMesh {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_range_ids_with<'a, V, F>(
         &'a self,
@@ -129,9 +129,9 @@ impl CoverRangeIds for RegionMesh {
     ) -> Result<impl Iterator<Item = (RangeId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let z = z.into();
         let (id1, id2) = match self.0 {
             MeshType::First(code) => {

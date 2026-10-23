@@ -2,7 +2,7 @@ use crate::{CoverSingleIds, Cylinder, Error, SingleId, Sphere, Tube};
 use hashbrown::HashSet;
 
 impl CoverSingleIds for Tube {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -11,9 +11,9 @@ impl CoverSingleIds for Tube {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let z: u8 = z.into();
         let mut ids: HashSet<_> = Sphere::new(self.points[0], self.radius_m)?
             .cover_single_ids(z)?

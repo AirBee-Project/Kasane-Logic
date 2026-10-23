@@ -15,7 +15,7 @@ impl Shape for Solid {
 }
 
 impl CoverSingleIds for Solid {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -24,9 +24,9 @@ impl CoverSingleIds for Solid {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let attach = move |id| (id, value.clone());
         let z: u8 = z.into();
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
@@ -110,10 +110,10 @@ impl CoverSingleIds for Solid {
         Ok(cuboid_set.into_iter().map(attach))
     }
 
-    fn cover_map_with<V, F>(&self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    fn cover_map_with<'a, V, F>(&'a self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
     where
-        V: PartialEq + Clone + Send + Sync,
-        F: FnMut(&Self::Value) -> V,
+        V: PartialEq + Clone + Send + Sync + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
         // SingleId へ展開せず RangeId のままツリーを構築して負荷を抑える。
         let mut map = SpatialIdMap::new();
@@ -125,7 +125,7 @@ impl CoverSingleIds for Solid {
 }
 
 impl CoverRangeIds for Solid {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_range_ids_with<'a, V, F>(
         &'a self,
@@ -134,9 +134,9 @@ impl CoverRangeIds for Solid {
     ) -> Result<impl Iterator<Item = (RangeId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let attach = move |id| (id, value.clone());
         let z: u8 = z.into();
         let surface_set: HashSet<SingleId> = self.surface_single_ids(z)?.collect();
