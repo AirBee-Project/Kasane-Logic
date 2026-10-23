@@ -12,7 +12,7 @@ impl Shape for Triangle {
 }
 
 impl CoverSingleIds for Triangle {
-    type Value = ();
+    type Value<'a> = ();
 
     fn cover_single_ids_with<'a, V, F>(
         &'a self,
@@ -21,9 +21,9 @@ impl CoverSingleIds for Triangle {
     ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
         V: Clone + 'a,
-        F: FnMut(&'a Self::Value) -> V + 'a,
+        F: FnMut(Self::Value<'a>) -> V + 'a,
     {
-        let value = f(&());
+        let value = f(());
         let z = z.into();
         let points: [Vec3FractionalId; 3] = [
             Vec3FractionalId::from(self.points[0].fractional_id(z)?),
