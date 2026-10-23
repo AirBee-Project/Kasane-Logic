@@ -9,8 +9,7 @@ description = "Spatial ID (Ouranos 4D spatio-temporal ID) types, collections, ge
 [workspace]
 members = [
     ".",
-    "spatial-id-derive",
-    "xtask"
+    "spatial-id-derive"
 ]
 
 [dependencies]
