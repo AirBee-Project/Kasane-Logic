@@ -6,6 +6,10 @@ use crate::{
     Coordinate, CoverSingleIds, Error, GeometryError, Line, Point, Polygon, SingleId, SpatialIdMap,
 };
 
+mod projected_ring;
+
+use projected_ring::ProjectedRing;
+
 const EPSILON: f64 = 1e-10;
 
 /// Geometry だけの GeoJSON で、ID と組にする Feature。
@@ -241,13 +245,11 @@ impl CoverSingleIds for Geometry {
                 }
             }
             GeometryValue::Polygon { coordinates } => {
-                let polygon = Polygon::try_from(coordinates.as_slice())?;
-                ids.extend(polygon.cover_single_ids(z)?);
+                ids.extend(cover_polygon(coordinates, z)?);
             }
             GeometryValue::MultiPolygon { coordinates } => {
                 for rings in coordinates {
-                    let polygon = Polygon::try_from(rings.as_slice())?;
-                    ids.extend(polygon.cover_single_ids(z)?);
+                    ids.extend(cover_polygon(rings, z)?);
                 }
             }
             GeometryValue::GeometryCollection { geometries } => {
@@ -260,28 +262,51 @@ impl CoverSingleIds for Geometry {
     }
 }
 
-impl TryFrom<&[Vec<Position>]> for Polygon {
-    type Error = Error;
-
-    fn try_from(rings: &[Vec<Position>]) -> Result<Self, Self::Error> {
-        let exterior = match rings.first() {
-            Some(ring) => ring
+/// 外周リングと穴（内周リング）からなる Polygon が覆う空間IDを求める。
+///
+/// 穴が外周の内側に収まっていない場合は [`GeometryError::HoleOutsideExterior`] を返す。
+fn cover_polygon(rings: &[Vec<Position>], z: u8) -> Result<HashSet<SingleId>, Error> {
+    let mut polygons = rings
+        .iter()
+        .map(|ring| {
+            let coords = ring
                 .iter()
                 .map(Coordinate::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-            None => return Ok(Polygon::new(Vec::new(), EPSILON)),
-        };
-        let holes = rings
-            .iter()
-            .skip(1)
-            .map(|ring| {
-                ring.iter()
-                    .map(Coordinate::try_from)
-                    .collect::<Result<Vec<_>, _>>()
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Polygon::with_holes(exterior, holes, EPSILON))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Polygon::new(coords, EPSILON))
+        })
+        .collect::<Result<Vec<_>, Error>>()?
+        .into_iter();
+
+    let Some(exterior) = polygons.next() else {
+        return Ok(HashSet::new());
+    };
+    if exterior.vertices().is_empty() {
+        return Ok(HashSet::new());
     }
+
+    let mut ids: HashSet<SingleId> = exterior.cover_single_ids(z)?.collect();
+    let mut projected = None;
+    for (index, hole) in polygons.enumerate() {
+        let vertices = hole.vertices();
+        let Some(&first) = vertices.first() else {
+            continue;
+        };
+        let projected = projected.get_or_insert_with(|| ProjectedRing::new(exterior.vertices()));
+        if !projected.contains_ring(vertices, EPSILON) {
+            return Err(GeometryError::HoleOutsideExterior { index }.into());
+        }
+
+        let mut closed = vertices.clone();
+        closed.push(first);
+        let boundary: HashSet<SingleId> = Line::cover_polyline(&closed, z)?.collect();
+        for id in hole.cover_single_ids(z)? {
+            if !boundary.contains(&id) {
+                ids.remove(&id);
+            }
+        }
+    }
+    Ok(ids)
 }
 
 impl TryFrom<&Position> for Coordinate {
