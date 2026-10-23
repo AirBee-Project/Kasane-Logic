@@ -1,7 +1,7 @@
-use crate::{Ecef, Error, FractionalId, RangeId, SingleId};
+use crate::{Ecef, Error, FractionalId, RangeId, SingleId, Tolerance};
 
 /// 現実空間の点に共通する性質。
-pub trait Point: Into<Ecef> {
+pub trait Point: Into<Ecef> + Clone {
     /// この点を、指定されたズームレベルの [`SingleId`] に変換する。
     ///
     /// 高度・経度・緯度が空間 ID の範囲の上端ちょうどにある点は、最後のインデックス値に丸められる。
@@ -66,4 +66,21 @@ pub trait Point: Into<Ecef> {
     /// assert!(coord.fractional_id(31).is_err());
     /// ```
     fn fractional_id(&self, z: impl Into<u8>) -> Result<FractionalId, Error>;
+
+    /// 2点間のユークリッド距離（メートル単位）が指定した許容誤差以内にあるかを判定する。
+    ///
+    /// # Examples
+    /// ```
+    /// # use spatial_id::geometry::{Coordinate, Point, Tolerance};
+    /// let p1 = Coordinate::new(35.0, 139.0, 0.0).unwrap();
+    /// let p2 = Coordinate::new(35.0, 139.0, 0.0001).unwrap();
+    ///
+    /// assert!(p1.eq_tolerance(&p2, Tolerance::from_meters(0.001).unwrap()));
+    /// assert!(!p1.eq_tolerance(&p2, Tolerance::from_meters(0.00001).unwrap()));
+    /// ```
+    fn eq_tolerance<P: Point + Clone>(&self, other: &P, tolerance: Tolerance) -> bool {
+        let e1: Ecef = self.clone().into();
+        let e2: Ecef = other.clone().into();
+        e1.eq_tolerance(&e2, tolerance)
+    }
 }
