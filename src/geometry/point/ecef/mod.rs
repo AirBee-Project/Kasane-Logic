@@ -3,7 +3,7 @@ pub mod impls;
 use crate::{
     Vec3, Vec3Ecef,
     error::Error,
-    geometry::{Tolerance, constants::WGS84_B, point::coordinate::Coordinate},
+    geometry::{Epsilon, constants::WGS84_B, point::coordinate::Coordinate},
 };
 
 /// 地心直交座標系（ECEF: Earth-Centered, Earth-Fixed）における座標を表す。
@@ -226,19 +226,12 @@ impl Ecef {
         self.x * self.x + self.y * self.y + self.z * self.z
     }
 
-    /// [`Ecef`] が同じ位置にあるかを判定する。
-    /// 2点間の直線距離が epsilon 以内にあるかを判定する。
-    pub fn eq_epsilon(&self, other: &Ecef, epsilon: f64) -> bool {
-        let distance = self.distance(other);
-        distance < epsilon
-    }
-
     /// [`Ecef`] が指定した許容誤差の範囲内にあるかを判定する。
     ///
-    /// 2点間の直線距離が `tolerance` 以内にあるかを判定する。
-    pub fn eq_tolerance(&self, other: &Ecef, tolerance: Tolerance) -> bool {
+    /// 2点間の直線距離が `epsilon` 以内にあるかを判定する。
+    pub fn eq_epsilon(&self, other: &Ecef, epsilon: Epsilon) -> bool {
         let distance = self.distance(other);
-        distance <= tolerance.as_meters()
+        distance <= epsilon.as_meters()
     }
 
     /// 指定された軸インデックス (0=x, 1=y, 2=z) の成分を返す。

@@ -8,7 +8,7 @@ use core::borrow::Borrow;
 use crate::{
     Ecef,
     error::{Error, GeometryError},
-    geometry::Tolerance,
+    geometry::Epsilon,
 };
 
 /// 緯度・経度・高度を表す型。
@@ -224,18 +224,12 @@ impl Coordinate {
         e1.distance(&e2)
     }
 
-    /// [`Coordinate`] が同じ位置にあるかを判定する。
-    /// 2点間の直線距離が epsilon 以内にあるかを判定する。
-    pub fn eq_epsilon(&self, other: &Coordinate, epsilon: f64) -> bool {
-        let distance = self.distance(other);
-        distance <= epsilon
-    }
-
     /// [`Coordinate`] が指定した許容誤差の範囲内にあるかを判定する。
     ///
-    /// 2点間の直線距離が `tolerance` 以内にあるかを判定する。
-    pub fn eq_tolerance(&self, other: &Coordinate, tolerance: Tolerance) -> bool {
-        self.eq_epsilon(other, tolerance.as_meters())
+    /// 2点間の直線距離が `epsilon` 以内にあるかを判定する。
+    pub fn eq_epsilon(&self, other: &Coordinate, epsilon: Epsilon) -> bool {
+        let distance = self.distance(other);
+        distance <= epsilon.as_meters()
     }
 
     /// 与えられた座標群の重心を計算する。

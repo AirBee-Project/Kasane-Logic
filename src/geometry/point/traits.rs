@@ -1,4 +1,4 @@
-use crate::{Ecef, Error, FractionalId, RangeId, SingleId, Tolerance};
+use crate::{Ecef, Error, FractionalId, RangeId, SingleId, geometry::Epsilon};
 
 /// 現実空間の点に共通する性質。
 pub trait Point: Into<Ecef> + Clone {
@@ -71,16 +71,16 @@ pub trait Point: Into<Ecef> + Clone {
     ///
     /// # Examples
     /// ```
-    /// # use spatial_id::geometry::{Coordinate, Point, Tolerance};
+    /// # use spatial_id::geometry::{Coordinate, Epsilon, Point};
     /// let p1 = Coordinate::new(35.0, 139.0, 0.0).unwrap();
     /// let p2 = Coordinate::new(35.0, 139.0, 0.0001).unwrap();
     ///
-    /// assert!(p1.eq_tolerance(&p2, Tolerance::from_meters(0.001).unwrap()));
-    /// assert!(!p1.eq_tolerance(&p2, Tolerance::from_meters(0.00001).unwrap()));
+    /// assert!(p1.eq_epsilon(&p2, Epsilon::from_meters(0.001).unwrap()));
+    /// assert!(!p1.eq_epsilon(&p2, Epsilon::from_meters(0.00001).unwrap()));
     /// ```
-    fn eq_tolerance<P: Point + Clone>(&self, other: &P, tolerance: Tolerance) -> bool {
+    fn eq_epsilon<P: Point + Clone>(&self, other: &P, epsilon: Epsilon) -> bool {
         let e1: Ecef = self.clone().into();
         let e2: Ecef = other.clone().into();
-        e1.eq_tolerance(&e2, tolerance)
+        e1.eq_epsilon(&e2, epsilon)
     }
 }

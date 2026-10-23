@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::geometry::Tolerance;
+use crate::geometry::Epsilon;
 use crate::geometry::shape::polygon::Polygon;
 use crate::{CoverSingleIds as _, Ecef, Error, ExpandTriangles, GeometryError, SingleId, Triangle};
 use hashbrown::{HashMap, HashSet};
@@ -21,7 +21,7 @@ pub struct Solid {
 }
 
 impl Solid {
-    /// 構成する面のリストからデフォルト許容誤差（[Tolerance::DEFAULT]）を使用して [Solid] を作成。
+    /// 構成する面のリストからデフォルト許容誤差（[Epsilon::DEFAULT]）を使用して [Solid] を作成。
     ///
     /// # 処理内容
     /// - 各面を[Polygon] に変換。
@@ -31,7 +31,7 @@ impl Solid {
     /// # 引数
     /// - `polygons` - 立体を構成する面のリスト。
     pub fn new(polygons: Vec<Polygon>) -> Result<Self, Error> {
-        Self::with_tolerance(polygons, Tolerance::DEFAULT)
+        Self::with_epsilon(polygons, Epsilon::DEFAULT)
     }
 
     /// 構成する面のリストと指定された許容誤差から [Solid] を作成。
@@ -43,8 +43,8 @@ impl Solid {
     ///
     /// # 引数
     /// - `polygons` - 立体を構成する面のリスト。
-    /// - `tolerance` - 同一点とみなす許容誤差。
-    pub fn with_tolerance(polygons: Vec<Polygon>, tolerance: Tolerance) -> Result<Self, Error> {
+    /// - `epsilon` - 同一点とみなす許容誤差。
+    pub fn with_epsilon(polygons: Vec<Polygon>, epsilon: Epsilon) -> Result<Self, Error> {
         let filtered_polygons: Vec<Polygon> = polygons
             .into_iter()
             .filter(|p| !p.vertices().is_empty()) // 無効な面は除外
@@ -55,7 +55,7 @@ impl Solid {
         }
 
         // 閉合性チェック
-        let open_edges = Self::count_open_edges(&filtered_polygons, tolerance);
+        let open_edges = Self::count_open_edges(&filtered_polygons, epsilon);
         if open_edges > 0 {
             return Err(GeometryError::SolidNotWatertight {
                 open_edge_count: open_edges,
@@ -74,10 +74,10 @@ impl Solid {
     }
 
     /// 閉じていないエッジの数を数える内部ヘルパー関数
-    fn count_open_edges(polygons: &[Polygon], tolerance: Tolerance) -> usize {
+    fn count_open_edges(polygons: &[Polygon], epsilon: Epsilon) -> usize {
         // エッジの出現回数を記録するマップ
         let mut edge_counts: HashMap<(QuantizedCoord, QuantizedCoord), usize> = HashMap::new();
-        let precision = tolerance.as_meters();
+        let precision = epsilon.as_meters();
 
         for polygon in polygons {
             let vertices = &polygon.vertices();

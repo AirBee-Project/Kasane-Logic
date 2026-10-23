@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use crate::{Coordinate, geometry::Tolerance};
+use crate::{Coordinate, geometry::Epsilon};
 
 pub mod geometry_relation;
 pub mod impls;
@@ -17,7 +17,7 @@ pub struct Polygon {
 }
 
 impl Polygon {
-    /// 頂点座標のリストからデフォルト許容誤差（[Tolerance::DEFAULT]）を使用して新しい [Polygon] を作成。
+    /// 頂点座標のリストからデフォルト許容誤差（[Epsilon::DEFAULT]）を使用して新しい [Polygon] を作成。
     ///
     /// # 処理内容
     /// - 連続して重複している頂点（デフォルト許容誤差以内の距離）を1つに統合。
@@ -27,20 +27,20 @@ impl Polygon {
     /// # 引数
     /// - `raw_points` - ポリゴンを構成する頂点のリスト。
     pub fn new(raw_points: Vec<Coordinate>) -> Self {
-        Self::with_tolerance(raw_points, Tolerance::DEFAULT)
+        Self::with_epsilon(raw_points, Epsilon::DEFAULT)
     }
 
     /// 頂点座標のリストと指定された許容誤差から新しい [Polygon] を作成。
     ///
     /// # 処理内容
-    /// - 連続して重複している頂点（`tolerance` 以内の距離）を1つに統合。
+    /// - 連続して重複している頂点（`epsilon` 以内の距離）を1つに統合。
     /// - 始点と終点が重複している場合（閉じたリング）、終点を削除して開いた頂点リストに正規化。
     /// - 処理によって点の数が3未満だった場合は`Vec<Coordinate>`を空にする。
     ///
     /// # 引数
     /// - `raw_points` - ポリゴンを構成する頂点のリスト。
-    /// - `tolerance` - 同一点とみなす許容誤差。
-    pub fn with_tolerance(raw_points: Vec<Coordinate>, tolerance: Tolerance) -> Self {
+    /// - `epsilon` - 同一点とみなす許容誤差。
+    pub fn with_epsilon(raw_points: Vec<Coordinate>, epsilon: Epsilon) -> Self {
         if raw_points.is_empty() {
             return Self { vertices: vec![] };
         }
@@ -49,7 +49,7 @@ impl Polygon {
 
         for p in raw_points {
             if let Some(last) = vertices.last() {
-                if !last.eq_tolerance(&p, tolerance) {
+                if !last.eq_epsilon(&p, epsilon) {
                     vertices.push(p);
                 }
             } else {
@@ -57,7 +57,7 @@ impl Polygon {
             }
         }
 
-        if vertices.len() > 2 && vertices[0].eq_tolerance(vertices.last().unwrap(), tolerance) {
+        if vertices.len() > 2 && vertices[0].eq_epsilon(vertices.last().unwrap(), epsilon) {
             vertices.pop();
         }
 

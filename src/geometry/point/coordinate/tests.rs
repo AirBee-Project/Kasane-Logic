@@ -240,12 +240,12 @@ mod centroid {
 
 mod coordinate_raw {
     use super::*;
-    use crate::Tolerance;
+    use crate::Epsilon;
 
     #[test]
     fn coordinate_eq_with_self() {
         let a = Coordinate::new(35.0, 139.0, 10.0).unwrap();
-        assert!(a.eq_epsilon(&a, 0.0));
-        assert!(a.eq_tolerance(&a, Tolerance::DEFAULT));
+        assert!(a.eq_epsilon(&a, Epsilon::ZERO));
+        assert!(a.eq_epsilon(&a, Epsilon::DEFAULT));
     }
 }

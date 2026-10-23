@@ -50,24 +50,24 @@ mod cover_single_ids {
     }
 
     #[test]
-    fn polygon_with_tolerance() {
-        use crate::Tolerance;
+    fn polygon_with_epsilon() {
+        use crate::Epsilon;
         let p0 = Coordinate::new(35.0, 139.0, 0.0).unwrap();
         let p1 = Coordinate::new(35.0, 139.001, 0.0).unwrap();
         let p2 = Coordinate::new(35.001, 139.0, 0.0).unwrap();
         let p_close = Coordinate::new(35.001000001, 139.0, 0.0).unwrap();
 
         // 許容誤差大: p_close は p2 と同一視されて縮退
-        let poly = Polygon::with_tolerance(
+        let poly = Polygon::with_epsilon(
             vec![p0, p1, p2, p_close],
-            Tolerance::from_meters(1.0).unwrap(),
+            Epsilon::from_meters(1.0).unwrap(),
         );
         assert_eq!(poly.vertices().len(), 3);
 
         // 許容誤差極小: p_close は独立した頂点
-        let poly_strict = Polygon::with_tolerance(
+        let poly_strict = Polygon::with_epsilon(
             vec![p0, p1, p2, p_close],
-            Tolerance::from_meters(1e-6).unwrap(),
+            Epsilon::from_meters(1e-6).unwrap(),
         );
         assert_eq!(poly_strict.vertices().len(), 4);
     }

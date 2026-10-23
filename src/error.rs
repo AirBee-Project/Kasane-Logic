@@ -50,7 +50,7 @@ pub enum GeometryError {
     RadiusNegative { radius: f64 },
 
     /// 許容誤差が負または非有限数であることを表す。
-    ToleranceOutOfRange { tolerance: f64 },
+    EpsilonOutOfRange { epsilon: f64 },
 
     /// 高度方向インデックス `f` が、指定されたズームレベルに対して有効範囲外であることを示す。
     FractionalFOutOfRange { z: u8, f: f64 },
@@ -180,11 +180,11 @@ impl fmt::Display for GeometryError {
             GeometryError::RadiusNegative { radius } => {
                 write!(f, "Radius need to be positive (radius = {}).", radius)
             }
-            GeometryError::ToleranceOutOfRange { tolerance } => {
+            GeometryError::EpsilonOutOfRange { epsilon } => {
                 write!(
                     f,
-                    "Tolerance must be a non-negative finite number (tolerance = {})",
-                    tolerance
+                    "Epsilon must be a non-negative finite number (epsilon = {})",
+                    epsilon
                 )
             }
             GeometryError::FractionalFOutOfRange { z, f: fv } => {

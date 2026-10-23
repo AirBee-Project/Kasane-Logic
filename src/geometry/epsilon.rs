@@ -7,9 +7,9 @@ use crate::{Error, GeometryError};
 /// 浮動小数点数演算における誤差を吸収し、近接した頂点の同一判定や
 /// 閉合性検証に用いる。
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct Tolerance(f64);
+pub struct Epsilon(f64);
 
-impl Tolerance {
+impl Epsilon {
     /// デフォルトの許容誤差（0.1 nm = 1e-10 m）。
     ///
     /// 浮動小数点数演算の丸め誤差を吸収しつつ、微小スケールの幾何形状でも
@@ -28,10 +28,10 @@ impl Tolerance {
     /// * `meters` - 許容誤差（メートル単位、0以上かつ有限数）
     ///
     /// # エラー
-    /// `meters` が負数、NaN、または無限大の場合、[`GeometryError::ToleranceOutOfRange`] を返す。
+    /// `meters` が負数、NaN、または無限大の場合、[`GeometryError::EpsilonOutOfRange`] を返す。
     pub fn from_meters(meters: f64) -> Result<Self, Error> {
         if meters < 0.0 || !meters.is_finite() {
-            Err(GeometryError::ToleranceOutOfRange { tolerance: meters }.into())
+            Err(GeometryError::EpsilonOutOfRange { epsilon: meters }.into())
         } else {
             Ok(Self(meters))
         }
@@ -44,14 +44,14 @@ impl Tolerance {
     }
 }
 
-impl Default for Tolerance {
+impl Default for Epsilon {
     #[inline]
     fn default() -> Self {
         Self::DEFAULT
     }
 }
 
-impl fmt::Display for Tolerance {
+impl fmt::Display for Epsilon {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} m", self.0)
     }
@@ -62,25 +62,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn valid_tolerance() {
-        let t = Tolerance::from_meters(0.01).unwrap();
+    fn valid_epsilon() {
+        let t = Epsilon::from_meters(0.01).unwrap();
         assert_eq!(t.as_meters(), 0.01);
 
-        let t_zero = Tolerance::from_meters(0.0).unwrap();
+        let t_zero = Epsilon::from_meters(0.0).unwrap();
         assert_eq!(t_zero.as_meters(), 0.0);
     }
 
     #[test]
-    fn default_tolerance() {
-        assert_eq!(Tolerance::default(), Tolerance::DEFAULT);
-        assert_eq!(Tolerance::DEFAULT.as_meters(), 1e-10);
+    fn default_epsilon() {
+        assert_eq!(Epsilon::default(), Epsilon::DEFAULT);
+        assert_eq!(Epsilon::DEFAULT.as_meters(), 1e-10);
     }
 
     #[test]
-    fn invalid_tolerance() {
-        assert!(Tolerance::from_meters(-0.001).is_err());
-        assert!(Tolerance::from_meters(f64::NAN).is_err());
-        assert!(Tolerance::from_meters(f64::INFINITY).is_err());
-        assert!(Tolerance::from_meters(f64::NEG_INFINITY).is_err());
+    fn invalid_epsilon() {
+        assert!(Epsilon::from_meters(-0.001).is_err());
+        assert!(Epsilon::from_meters(f64::NAN).is_err());
+        assert!(Epsilon::from_meters(f64::INFINITY).is_err());
+        assert!(Epsilon::from_meters(f64::NEG_INFINITY).is_err());
     }
 }
