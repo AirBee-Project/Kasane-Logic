@@ -27,7 +27,6 @@ fn extrude_f_same_xy_diff_f_resolves_via_policy() {
 /// 互いに素とは限らないため、`from_flexids` へ渡す前の順序を決定的にしておかないと、
 /// 同一入力でも実行のたびに結果が変わりうる（実データで実際に再現したバグ）。
 #[test]
-#[cfg(feature = "json")]
 fn extrude_result_is_deterministic_across_runs() {
     let bldg_risk: SpatialIdMap<u32> =
         serde_json::from_str(&std::fs::read_to_string("sample/bldg_risk.json").unwrap()).unwrap();

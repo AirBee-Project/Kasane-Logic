@@ -1,7 +1,8 @@
 use hashbrown::HashSet;
 
 use crate::{
-    Coordinate, ExpandTriangles, Polygon, Shape, SingleId, geometry::traits::CoverSingleIds,
+    Coordinate, Epsilon, ExpandTriangles, Line, Polygon, Shape, SingleId,
+    geometry::traits::CoverSingleIds,
 };
 
 impl Shape for Polygon {
@@ -28,6 +29,8 @@ impl Shape for Polygon {
 }
 
 impl CoverSingleIds for Polygon {
+    type Value = ();
+
     /// ポリゴン領域を覆う全ての [`SingleId`] を取得する。
     ///
     /// ポリゴンを内部で複数の三角形に分割し、それぞれの三角形が覆う空間IDの和集合を計算して返す。
@@ -59,20 +62,39 @@ impl CoverSingleIds for Polygon {
     /// let ids: Vec<_> = polygon.cover_single_ids(20).unwrap().collect();
     /// assert!(ids.len() > 0);
     /// ```
-    fn cover_single_ids_with<V>(
-        &self,
+    fn cover_single_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (SingleId, V)>, crate::Error>
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, crate::Error>
     where
-        V: Clone + 'static,
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
     {
+        let value = f(&());
         let mut unique_ids = HashSet::new();
         let z: u8 = z.into();
         for triangle in self.expand_triangles() {
             let ids_iter = triangle.cover_single_ids(z)?;
             for id in ids_iter {
                 unique_ids.insert(id);
+            }
+        }
+
+        for hole_coords in &self.holes {
+            let hole_poly = Polygon::with_epsilon(hole_coords.clone(), Epsilon::ZERO);
+            let hole_inside: HashSet<SingleId> = hole_poly.cover_single_ids(z)?.collect();
+            let mut hole_boundary = HashSet::new();
+            for pair in hole_coords.windows(2) {
+                hole_boundary.extend(Line::new([pair[0], pair[1]]).cover_single_ids(z)?);
+            }
+            if let (Some(first), Some(last)) = (hole_coords.first(), hole_coords.last()) {
+                hole_boundary.extend(Line::new([*last, *first]).cover_single_ids(z)?);
+            }
+            for id in hole_inside {
+                if !hole_boundary.contains(&id) {
+                    unique_ids.remove(&id);
+                }
             }
         }
 

@@ -1,9 +1,11 @@
 use crate::{
     Coordinate, CoverRangeIds, CoverSingleIds, Error, GeometryError, Point, RangeId, SingleId,
+    SpatialIdMap,
 };
 
 /// 地域メッシュを表す型。
 //より詳細なメッシュが必要になったらu32ではなくu64でもいいと思う
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RegionMesh(MeshType);
 
 impl RegionMesh {
@@ -64,7 +66,7 @@ impl RegionMesh {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, PartialOrd, Ord)]
 ///メッシュの種類による分岐を表す列挙型
 pub(crate) enum MeshType {
     ///1次メッシュを表す
@@ -84,31 +86,52 @@ impl MeshType {
 }
 
 impl CoverSingleIds for RegionMesh {
-    fn cover_single_ids(&self, z: impl Into<u8>) -> Result<impl Iterator<Item = SingleId>, Error> {
-        Ok(self.cover_range_ids(z.into())?.flat_map(|r| r.single_ids()))
-    }
-    fn cover_single_ids_with<V>(
-        &self,
+    type Value = ();
+
+    fn cover_single_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (SingleId, V)>, Error>
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (SingleId, V)> + 'a, Error>
     where
-        V: Clone + 'static,
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
     {
+        let value = f(&());
         Ok(self
             .cover_range_ids(z.into())?
             .flat_map(|r| r.single_ids())
             .map(move |id| (id, value.clone())))
     }
+
+    fn into_map<V, F>(self, z: impl Into<u8>, f: F) -> Result<SpatialIdMap<V>, Error>
+    where
+        V: PartialEq + Clone + Send + Sync,
+        F: FnMut(&Self::Value) -> V,
+    {
+        // SingleId へ展開せず RangeId のままツリーを構築して負荷を抑える。
+        let mut map = SpatialIdMap::new();
+        for (id, value) in self.cover_range_ids_with(z, f)? {
+            map.insert(id, value);
+        }
+        Ok(map)
+    }
 }
 
 ///標準地域メッシュを覆うようにRangeIdを生成する。Fにはデフォルトで0が割り当てられている。
 impl CoverRangeIds for RegionMesh {
-    fn cover_range_ids_with<V>(
-        &self,
+    type Value = ();
+
+    fn cover_range_ids_with<'a, V, F>(
+        &'a self,
         z: impl Into<u8>,
-        value: V,
-    ) -> Result<impl Iterator<Item = (RangeId, V)>, Error> {
+        mut f: F,
+    ) -> Result<impl Iterator<Item = (RangeId, V)> + 'a, Error>
+    where
+        V: Clone + 'a,
+        F: FnMut(&'a Self::Value) -> V + 'a,
+    {
+        let value = f(&());
         let z = z.into();
         let (id1, id2) = match self.0 {
             MeshType::First(code) => {

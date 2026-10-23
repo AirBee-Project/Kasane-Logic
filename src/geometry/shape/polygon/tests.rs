@@ -49,6 +49,28 @@ mod cover_single_ids {
         insta::assert_debug_snapshot!(sorted_ids(&polygon, 18));
     }
 
+    /// 穴あきポリゴンの変換で内部がくり抜かれる
+    #[test]
+    fn polygon_with_hole() {
+        let p0 = Coordinate::new(35.680, 139.760, 10.0).unwrap();
+        let p1 = Coordinate::new(35.690, 139.760, 10.0).unwrap();
+        let p2 = Coordinate::new(35.690, 139.770, 10.0).unwrap();
+        let p3 = Coordinate::new(35.680, 139.770, 10.0).unwrap();
+        let solid_poly = Polygon::new(vec![p0, p1, p2, p3]);
+
+        let h0 = Coordinate::new(35.683, 139.763, 10.0).unwrap();
+        let h1 = Coordinate::new(35.687, 139.763, 10.0).unwrap();
+        let h2 = Coordinate::new(35.687, 139.767, 10.0).unwrap();
+        let h3 = Coordinate::new(35.683, 139.767, 10.0).unwrap();
+        let holed_poly = Polygon::with_holes(vec![p0, p1, p2, p3], vec![vec![h0, h1, h2, h3]]);
+
+        let solid_ids: hashbrown::HashSet<_> = solid_poly.cover_single_ids(18u8).unwrap().collect();
+        let holed_ids: hashbrown::HashSet<_> = holed_poly.cover_single_ids(18u8).unwrap().collect();
+
+        assert!(holed_ids.len() < solid_ids.len());
+        assert!(holed_ids.is_subset(&solid_ids));
+    }
+
     #[test]
     fn polygon_with_epsilon() {
         use crate::Epsilon;
