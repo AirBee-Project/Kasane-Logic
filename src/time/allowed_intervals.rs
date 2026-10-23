@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 /// # 必ず含まれる2つの候補
 ///
 /// どう構築しても [`Interval::WHOLE`] と（`temporal_id` feature 有効時は）
-/// [`Interval::SECOND`] が自動的に加わる。この2つが無いと表現できない区間が生じるためである。
+/// `Interval::SECOND` が自動的に加わる。この2つが無いと表現できない区間が生じるためである。
 ///
 /// ```
 /// # #[cfg(feature = "temporal_id")]
@@ -46,7 +46,7 @@ static CALENDAR: AllowedIntervals = AllowedIntervals {
 };
 
 impl AllowedIntervals {
-    /// 候補から作る。[`Interval::WHOLE`] と [`Interval::SECOND`] は自動的に加わる。
+    /// 候補から作る。[`Interval::WHOLE`] と `Interval::SECOND` は自動的に加わる。
     ///
     /// ```
     /// # #[cfg(feature = "temporal_id")]
@@ -128,7 +128,7 @@ impl AllowedIntervals {
     /// （`t = [start/u, end/u - 1]` になる）。粗いほどSegment数
     /// （`t_max - t_min + 1`）が少なくなるので、これが候補の中でのSegment数最小を与える。
     ///
-    /// [`Interval::SECOND`] が必ず候補にあるため、**この関数は必ず値を返す**
+    /// `Interval::SECOND` が必ず候補にあるため、**この関数は必ず値を返す**
     /// （`temporal_id` feature 無効時は全時間しか存在せず、[`WHOLE`](Interval::WHOLE) が返る）。
     pub fn coarsest_dividing(&self, start: u64, end: u64) -> Interval {
         for unit in self.intervals.iter().copied() {
@@ -144,10 +144,10 @@ impl AllowedIntervals {
 }
 
 impl Default for AllowedIntervals {
-    /// `temporal_id` feature 有効時は [`calendar()`](Self::calendar) と同じ。
+    /// `temporal_id` feature 有効時は `calendar()` と同じ。
     ///
-    /// 無効時は `{`[`WHOLE`](Interval::WHOLE)`}` のみの集合を返す。[`calendar()`](Self::calendar) と違い
-    /// これは縮退ではない：無効時は他に表現しうる候補（[`DAY`](Interval::DAY) 等）が定義上存在しないため、
+    /// 無効時は `{`[`WHOLE`](Interval::WHOLE)`}` のみの集合を返す。`calendar()` と違い
+    /// これは縮退ではない：無効時は他に表現しうる候補（`DAY` 等）が定義上存在しないため、
     /// `{WHOLE}` が取りうる唯一かつ正しい値である。
     fn default() -> Self {
         #[cfg(feature = "temporal_id")]
