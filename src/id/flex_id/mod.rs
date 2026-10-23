@@ -158,7 +158,7 @@ impl FlexId {
     /// （[`TZoomLevel`] をそのまま渡すこともできる）。1Segmentは `2^(35 - t_zoomlevel)` 秒で、
     /// [`t_zoomlevel`](Self::t_zoomlevel) / [`t_index`](Self::t_index) で読むのと同じ形である。
     ///
-    /// # `SingleId` / `RangeId` の `with_time` との違い
+    /// # [`SingleId`](crate::SingleId) / [`RangeId`](crate::RangeId) の [`with_time`](crate::SingleId::with_time) との違い
     ///
     /// あちらは仕様の `{i}/{t}`、つまり**秒数**＋インデックスを取る。[`FlexId`] は木の
     /// ノードアドレスであり2分岐Segment1個しか持てないため、**ズーム**で受ける。

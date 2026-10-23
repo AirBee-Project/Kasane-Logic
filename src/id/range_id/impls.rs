@@ -9,7 +9,7 @@ use crate::{
 use core::str::FromStr;
 
 impl fmt::Display for RangeId {
-    /// `RangeId` を文字列形式で表示する。
+    /// [`RangeId`] を文字列形式で表示する。
     ///
     /// 形式は `"{z}/{f1}:{f2}/{x1}:{x2}/{y1}:{y2}"` である。
     /// また、次元の範囲が単体の場合は自動的にその次元がSingle表示になる。

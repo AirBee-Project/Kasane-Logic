@@ -14,7 +14,7 @@ use crate::{
 ///
 /// 内部的には下記のような構造体として定義されており、空間 ID 上で扱える座標に対する制約が常に満たされる。
 ///
-/// この型は `PartialOrd` を実装しているが、これは主に `BTreeSet` や `BTreeMap`
+/// この型は [`PartialOrd`] を実装しているが、これは主に [`BTreeSet`](alloc::collections::BTreeSet) や [`BTreeMap`](alloc::collections::BTreeMap)
 /// といった順序付きコレクションにおける格納および探索を目的としたものであり、空間的な位置関係における「大小」を意味するものではない。
 /// ```
 /// pub struct Coordinate {
@@ -43,7 +43,7 @@ impl Coordinate {
     ///
     /// # 戻り値
     /// * 有効な値が指定された場合は `Ok(Coordinate)` を返す。
-    /// * いずれかの値が範囲外の場合は、対応する `Error` を返す。
+    /// * いずれかの値が範囲外の場合は、対応する [`Error`] を返す。
     ///
     /// # Example
     /// ```no_run
@@ -74,7 +74,7 @@ impl Coordinate {
         })
     }
 
-    /// 値の妥当性検証を行わずに `Coordinate` を生成する。
+    /// 値の妥当性検証を行わずに [`Coordinate`] を生成する。
     ///
     /// この関数は緯度・経度・高度に対する範囲チェックを一切行わない。
     /// 呼び出し側は、渡す値が空間 ID 上で扱える有効な範囲に収まっていることを
@@ -82,7 +82,7 @@ impl Coordinate {
     ///
     /// # Safety
     /// この関数は `unsafe` である。
-    /// 不正な値を指定した場合、`Coordinate` が前提としている不変条件が破られ、
+    /// 不正な値を指定した場合、[`Coordinate`] が前提としている不変条件が破られ、
     /// 以降の処理で未定義な振る舞いまたは論理的な不整合を引き起こす可能性があるため、入力値の正当性が外部で十分に検証されている場合にのみ使用せよ。
     pub unsafe fn new_unchecked(latitude: f64, longitude: f64, altitude: f64) -> Coordinate {
         Coordinate {
@@ -232,11 +232,11 @@ impl Coordinate {
 
     /// 与えられた座標群の重心を計算する。
     ///
-    /// この関数は `IntoIterator` を受け入れるため、スライス `&[Coordinate]`、
+    /// この関数は [`IntoIterator`] を受け入れるため、スライス `&[Coordinate]`、
     /// `Vec<Coordinate>`、または `iter_coords()` などのイテレータを直接渡すことができる。
-    /// 内部で `Borrow` トレイトを利用しているため、要素が実体か参照かを問わず動作する。
+    /// 内部で [`Borrow`](core::borrow::Borrow) トレイトを利用しているため、要素が実体か参照かを問わず動作する。
     ///
-    /// 座標群が空の場合は、`Coordinate::default()` を返す。
+    /// 座標群が空の場合は、[`Coordinate::default()`] を返す。
     ///
     /// # パラメーター
     /// * `coordinates` — 重心を計算する対象となる座標の集合（イテレータ、スライス、Vecなど）

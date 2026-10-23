@@ -52,7 +52,7 @@ fn deserialize_pair<T: Copy>(values: Vec<T>) -> Result<[T; 2], &'static str> {
 ///
 /// `i` は時間単位の秒数（[`Interval`](crate::Interval)）、`t` はその単位でのインデックス範囲
 /// （`RangeId.f/x/y`と同じ「単位＋範囲」の形）。`temporal_id` feature が無効なときは常に
-/// 全時間（`WHOLE`）として扱う。
+/// 全時間（[`WHOLE`](crate::time::Interval::WHOLE)）として扱う。
 fn build_range_id(
     z: u8,
     f: [i32; 2],
@@ -392,7 +392,7 @@ mod tests {
     /// 木は時間を2の冪秒のSegmentで持つため、`1800` 秒のような単位は挿入時に複数Segmentへ分解される
     /// （この例では5個）。書き出し側で時間方向の結合を通すことで1件へ戻る。
     ///
-    /// ただし `{i}` は暦の単位（`AllowedIntervals::calendar`）へ正規化されるので、
+    /// ただし `{i}` は暦の単位（[`AllowedIntervals::calendar`](crate::time::AllowedIntervals::calendar)）へ正規化されるので、
     /// `1800` は JSON 上では `60`（分）× 30 Segmentになる。**ラベルは変わるが秒区間は同じ**で、
     /// 読み込んだ木の内容は元と一致する。
     #[cfg(feature = "temporal_id")]

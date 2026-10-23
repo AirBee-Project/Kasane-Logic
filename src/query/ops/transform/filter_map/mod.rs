@@ -9,7 +9,7 @@ use crate::query::query_iter::QueryIter;
 use crate::query::{Query, traits::Source};
 use crate::{Error, FlexId, RangeId};
 
-/// `inner` の各 `(FlexId, V)` を `f` で写し、`None` を返した要素を取り除く。
+/// `inner` の各 `(FlexId, V)` を `f` で写し、[`None`] を返した要素を取り除く。
 pub struct FilterMap<V: SafeValue + 'static, U, F> {
     inner: Query<V>,
     f: F,

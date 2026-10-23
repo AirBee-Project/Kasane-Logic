@@ -5,7 +5,7 @@ use core::fmt;
 use crate::{Coordinate, Ecef, Error, FlexId, SpatialId, SpatialIdError, id::helpers};
 use core::str::FromStr;
 
-/// `FlexId` を文字列形式で表示する。
+/// [`FlexId`] を文字列形式で表示する。
 ///
 /// 形式は `"{fz}/{fi}|{xz}/{xi}|{yz}/{yi}"`。時間を持つ場合は同じ `|` 区切りで
 /// 4軸目 `"|{tz}/{ti}"` が続く。
@@ -13,7 +13,7 @@ use core::str::FromStr;
 /// **`_` は使わない。** [`SingleId`](crate::SingleId)/[`RangeId`](crate::RangeId)の
 /// `_` は仕様の `{z}/{f}/{x}/{y}_{i}/{t}` の区切りで、右側は「秒数/インデックス」だが、
 /// [`FlexId`]の時間は「ズーム/インデックス」であり意味が違う。同じ記号を使うと、
-/// `FlexId` の時間部分を `{i}/{t}` として読み違えても（`Interval` は任意秒数を許すため）
+/// [`FlexId`] の時間部分を `{i}/{t}` として読み違えても（[`Interval`](crate::Interval) は任意秒数を許すため）
 /// エラーにならず気付けない。軸ごとに `|` で並べる本来の形へ揃えることで取り違えを防ぐ。
 ///
 /// ```

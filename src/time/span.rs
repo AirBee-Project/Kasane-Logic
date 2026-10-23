@@ -45,7 +45,7 @@ impl TimeSpan {
         self.end - self.start
     }
 
-    /// 2つの絶対秒区間の交差（積集合）。重なりが無ければ `None`。
+    /// 2つの絶対秒区間の交差（積集合）。重なりが無ければ [`None`]。
     pub fn intersect(&self, other: &Self) -> Option<Self> {
         let start = self.start.max(other.start);
         let end = self.end.min(other.end);
@@ -113,7 +113,7 @@ impl TimeSpan {
     }
 }
 
-/// [`TimeSpan::into_segments`] が返す、`TimeSegment` の列。
+/// [`TimeSpan::into_segments`] が返す、[`TimeSegment`](crate::time::segment::TimeSegment) の列。
 pub(crate) struct TimeSegments {
     l: u64,
     r: u64,

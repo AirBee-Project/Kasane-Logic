@@ -36,11 +36,11 @@ impl CoverSingleIds for Polygon {
     /// 境界上の空間IDは重複しないように排除される。
     ///
     /// # パラメーター
-    /// * `z` — 取得する空間IDのズームレベル（0 以上 `ZoomLevel::MAX` 以下）
+    /// * `z` — 取得する空間IDのズームレベル（0 以上 [`ZoomLevel::MAX`](crate::ZoomLevel::MAX) 以下）
     ///
     /// # バリデーション
-    /// - `z` が `ZoomLevel::MAX` を超える場合、`crate::Error`（例: `Error::SpatialId(SpatialIdError::ZOutOfRange { .. })`）を返す。
-    /// - 内部の三角形分割や各三角形の空間ID計算で不正な座標が現れた場合などは、対応する `crate::Error` を返す。
+    /// - `z` が [`ZoomLevel::MAX`](crate::ZoomLevel::MAX) を超える場合、[`crate::Error`]（例: `Error::SpatialId(SpatialIdError::ZOutOfRange { .. })`）を返す。
+    /// - 内部の三角形分割や各三角形の空間ID計算で不正な座標が現れた場合などは、対応する [`crate::Error`] を返す。
     ///
     /// # 動作コスト
     /// ポリゴンの頂点数による三角形分割の計算量、および分割された三角形の面積（取得する空間IDの密度）に比例して計算コストが増加する。

@@ -76,8 +76,8 @@ impl AllowedIntervals {
 
     /// 暦の単位だけに正規化する候補集合。
     ///
-    /// `{`[`WHOLE`](Interval::WHOLE)`,` `DAY`,` `HOUR`,`
-    /// `MINUTE`,` `SECOND`}`。
+    /// `{`[`WHOLE`](Interval::WHOLE)`,` [`DAY`](Interval::DAY)`,` [`HOUR`](Interval::HOUR)`,`
+    /// [`MINUTE`](Interval::MINUTE)`,` [`SECOND`](Interval::SECOND)`}`。
     ///
     /// `temporal_id` feature が無効なビルドでは、暦の定数（[`Interval::DAY`] など）
     /// 自体が存在しないため、この関数も**存在しない**（[`Interval::HOUR`] などと同じ扱い）。
@@ -129,7 +129,7 @@ impl AllowedIntervals {
     /// （`t_max - t_min + 1`）が少なくなるので、これが候補の中でのSegment数最小を与える。
     ///
     /// `Interval::SECOND` が必ず候補にあるため、**この関数は必ず値を返す**
-    /// （`temporal_id` feature 無効時は全時間しか存在せず、`WHOLE` が返る）。
+    /// （`temporal_id` feature 無効時は全時間しか存在せず、[`WHOLE`](Interval::WHOLE) が返る）。
     pub fn coarsest_dividing(&self, start: u64, end: u64) -> Interval {
         for unit in self.intervals.iter().copied() {
             let seconds = unit.seconds();

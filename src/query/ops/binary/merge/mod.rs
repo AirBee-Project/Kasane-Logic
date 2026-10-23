@@ -8,7 +8,7 @@ use crate::query::SafeValue;
 use crate::query::ops::binary::run_binary;
 use crate::query::{merge_policy::MergePolicy, query_iter::QueryIter, traits::BinaryOperator};
 
-/// `MergePolicy` で重ね合わせる二項演算子。
+/// [`MergePolicy`] で重ね合わせる二項演算子。
 pub struct Merge<V, P> {
     _marker: core::marker::PhantomData<fn() -> (V, P)>,
 }

@@ -21,7 +21,7 @@ use crate::{
 ///
 /// 内部的には下記のような構造体で構成されている。
 ///
-/// この型は `PartialOrd` / `Ord` を実装しているが、これは主に`BTreeSet` や `BTreeMap` などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
+/// この型は [`PartialOrd`] / [`Ord`] を実装しているが、これは主に[`BTreeSet`](alloc::collections::BTreeSet) や [`BTreeMap`](alloc::collections::BTreeMap) などの順序付きコレクションでの格納・探索用であり、実際の空間的な「大小」を意味するものではない。
 ///
 /// ```text
 /// # use spatial_id::SpatialId;
@@ -47,7 +47,7 @@ pub struct SingleId {
 }
 
 impl SingleId {
-    /// この `SingleId` が保持しているズームレベル `z` を返す。
+    /// この [`SingleId`] が保持しているズームレベル `z` を返す。
     ///
     /// ```no_run
     /// # use spatial_id::SpatialId;
@@ -61,7 +61,7 @@ impl SingleId {
         self.z.get()
     }
 
-    /// この `SingleId` が保持している F インデックス `f` を返す。
+    /// この [`SingleId`] が保持している F インデックス `f` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -73,7 +73,7 @@ impl SingleId {
         self.f
     }
 
-    /// この `SingleId` が保持している X インデックス `x` を返す。
+    /// この [`SingleId`] が保持している X インデックス `x` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -85,7 +85,7 @@ impl SingleId {
         self.x
     }
 
-    /// この `SingleId` が保持している Y インデックス `y` を返す。
+    /// この [`SingleId`] が保持している Y インデックス `y` を返す。
     ///
     /// ```
     /// # use spatial_id::SpatialId;
@@ -97,7 +97,7 @@ impl SingleId {
         self.y
     }
 
-    /// この `SingleId` の時間インデックス `{t}` を返す。
+    /// この [`SingleId`] の時間インデックス `{t}` を返す。
     ///
     /// `temporal_id` feature 無効時は常に `0`（全時間の唯一のSegment）。
     pub fn t(&self) -> u64 {
@@ -119,7 +119,7 @@ impl SingleId {
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
+    /// 木構造（[`SpatialIdSet`](crate::collection::SpatialIdSet) など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まる。しかし非2冪の秒数（例: 1800秒）を指定した場合、
     /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**する。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
@@ -127,7 +127,7 @@ impl SingleId {
     ///
     /// 仕様どおり任意の秒数を単位にできる。
     ///
-    /// `SingleId` は空間が1Segmentなのと揃えて**時間も1Segment**しか持たない。時間の範囲を扱いたい
+    /// [`SingleId`] は空間が1Segmentなのと揃えて**時間も1Segment**しか持たない。時間の範囲を扱いたい
     /// 場合は [`RangeId::with_time`](crate::RangeId::with_time) を使う。
     ///
     /// FlexTreeが内部で必要とする2の冪秒のSegmentへの分解は、木へ挿入する段階
@@ -172,7 +172,7 @@ impl SingleId {
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
+    /// 木構造（[`SpatialIdSet`](crate::collection::SpatialIdSet) など）へ挿入する際、時間間隔が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まる。しかし非2冪の秒数（例: 1800秒）を指定した場合、
     /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**する。
     /// パフォーマンスが重視される用途では、1800秒や3600秒の代わりに、**1024秒**や**4096秒**
@@ -200,13 +200,13 @@ impl SingleId {
     /// 絶対秒区間 `[start, end)` を設定した自身を返す（1970-01-01 00:00 UTC 起点）。
     ///
     /// 単位は「その区間をちょうど表せる最も粗い秒数」が自動で選ばれる
-    /// （`start` と区間幅の最大公約数）。`SingleId` は時間も1Segmentなので、
+    /// （`start` と区間幅の最大公約数）。[`SingleId`] は時間も1Segmentなので、
     /// **その単位でちょうど1Segmentにならない区間は受け付けない**。
     /// 複数Segmentにまたがる区間は [`RangeId::with_time_span`](crate::RangeId::with_time_span) を使う。
     ///
     /// ## 動作コスト
     ///
-    /// 木構造（`SpatialIdSet` など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間Segment
+    /// 木構造（[`SpatialIdSet`](crate::collection::SpatialIdSet) など）へ挿入する際、区間幅が2の冪秒であれば必ず1つの時間Segment
     /// （[`FlexId`](crate::FlexId)）に収まる。しかし非2冪の幅（例: 1800秒）が選ばれた場合、
     /// 内部で最大十数個のSegmentに分解されるため、**挿入コストと木の葉の数が比例して増大**する。
     /// パフォーマンスが重視される用途では、区間幅が1800秒や3600秒になる代わりに、**1024秒**や**4096秒**
@@ -418,10 +418,10 @@ impl SingleId {
         Ok(())
     }
 
-    /// 指定したズームレベル `target_z` に細分化した、この `SingleId` を含むすべての子 `SingleId` を生成する。
+    /// 指定したズームレベル `target_z` に細分化した、この [`SingleId`] を含むすべての子 [`SingleId`] を生成する。
     ///
     /// # パラメータ
-    /// * `target_z` — 生成したい子 `SingleId` のズームレベル
+    /// * `target_z` — 生成したい子 [`SingleId`] のズームレベル
     ///
     /// # バリデーション
     /// - `target_z` が現在のズームレベルより浅い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返す。
@@ -510,10 +510,10 @@ impl SingleId {
         self.spatial_children_at_zoom(self.z() + 1)
     }
 
-    /// 指定したズームレベル `target_z` に縮約した、この `SingleId` の親 `SingleId` を返す。
+    /// 指定したズームレベル `target_z` に縮約した、この [`SingleId`] の親 [`SingleId`] を返す。
     ///
     /// # パラメータ
-    /// * `target_z` — 取得したい親 `SingleId` のズームレベル
+    /// * `target_z` — 取得したい親 [`SingleId`] のズームレベル
     ///
     /// # バリデーション
     /// - `target_z` が現在のズームレベルより深い場合は、[`SpatialIdError::ZoomLevelTransitionOutOfRange`] を返す。
@@ -585,7 +585,7 @@ impl SingleId {
         })
     }
 
-    /// 1 段浅いズームレベル（`z - 1`）にある親 [`SingleId`] を返す。`z = 0` の場合は `None` を返す。
+    /// 1 段浅いズームレベル（`z - 1`）にある親 [`SingleId`] を返す。`z = 0` の場合は [`None`] を返す。
     pub fn spatial_parent(&self) -> Option<SingleId> {
         if self.z() == 0 {
             None
@@ -597,7 +597,7 @@ impl SingleId {
     /// この [`SingleId`] と同じ親を共有する兄弟 [`SingleId`] を 7 個返す。
     ///
     /// 返される 7 個と自分自身を合わせると、1つ上のズームレベルにある親 [`SingleId`] を構成する。
-    /// `z = 0` の場合は親を持たないため `None` を返す。
+    /// `z = 0` の場合は親を持たないため [`None`] を返す。
     ///
     /// # 動作例
     ///
