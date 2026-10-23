@@ -114,6 +114,7 @@ impl TimeSpan {
 }
 
 /// [`TimeSpan::into_segments`] が返す、[`TimeSegment`](crate::time::segment::TimeSegment) の列。
+#[derive(Clone)]
 pub(crate) struct TimeSegments {
     l: u64,
     r: u64,

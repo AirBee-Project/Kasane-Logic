@@ -8,13 +8,13 @@ use crate::{FlexId, SingleId, time::span::TimeSegments};
 ///
 /// 時間を使わない場合（および時間がちょうど1つの2分岐Segmentに収まる場合）は要素が1つだけになり、
 /// 時間軸の無かった頃の [`core::iter::once`] と同じコストになる。
-pub struct SingleIdSegments {
+pub struct SingleIdFlexIds {
     /// 空間部分（3軸とも [`SingleId`] のズーム）。時間だけを差し替えて使い回す。
     base: FlexId,
     time_segments: TimeSegments,
 }
 
-impl Iterator for SingleIdSegments {
+impl Iterator for SingleIdFlexIds {
     type Item = FlexId;
 
     fn next(&mut self) -> Option<FlexId> {
@@ -33,10 +33,10 @@ impl Iterator for SingleIdSegments {
 /// 全要素を合わせて元の [`SingleId`] の時空間領域をちょうど覆う。
 impl IntoIterator for SingleId {
     type Item = FlexId;
-    type IntoIter = SingleIdSegments;
+    type IntoIter = SingleIdFlexIds;
 
     fn into_iter(self) -> Self::IntoIter {
-        SingleIdSegments {
+        SingleIdFlexIds {
             // `SingleId` は3軸とも同じズームで、各インデックスは構築時に検証済み。
             base: unsafe {
                 FlexId::new_unchecked(self.z(), self.f(), self.z(), self.x(), self.z(), self.y())
