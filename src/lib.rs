@@ -22,6 +22,8 @@ pub mod time;
 
 pub use error::Error;
 pub use geometry::Epsilon;
+#[cfg(feature = "std")]
+pub use geometry::GeoJsonCover;
 pub use id::{
     FlexId, IntoRange, RangeId, Side, SingleId, SpatialId, SpatialIdError, Zoom, ZoomLevel,
 };

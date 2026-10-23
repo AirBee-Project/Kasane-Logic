@@ -18,6 +18,8 @@ pub mod format;
 
 pub use crate::error::GeometryError;
 pub use epsilon::Epsilon;
+#[cfg(feature = "std")]
+pub use format::GeoJsonCover;
 pub use point::{coordinate::Coordinate, ecef::Ecef, fractionalid::FractionalId, traits::Point};
 pub use shape::traits::{ExpandCoordinates, ExpandLines, ExpandPolygons, ExpandTriangles, Shape};
 pub use shape::{
